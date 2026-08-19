@@ -1,0 +1,25 @@
+{
+  "name": "academy-note",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "학원 관리노트 - 전 계열 학원/공부방용 PWA (Lite: IndexedDB / Pro: Supabase)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "perf": "node scripts/perf.mjs"
+  },
+  "dependencies": {
+    "dexie": "^4.0.10",
+    "@supabase/supabase-js": "^2.47.10"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8",
+    "fake-indexeddb": "^6.0.0",
+    "playwright": "^1.49.1"
+  }
+}
