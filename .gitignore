@@ -7,3 +7,4 @@ dist
 !.env.example
 coverage
 perf-report.json
+.perf-profile

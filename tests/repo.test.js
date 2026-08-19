@@ -103,3 +103,26 @@ describe('검색', () => {
     expect(repo.searchStudents('', { classId: 'c2' }).map((s) => s.id)).toEqual(['s1'])
   })
 })
+
+describe('집계 캐시 무효화', () => {
+  it('출결을 쓰면 그 달 캐시가 지워진다 (오래된 통계가 남지 않도록)', async () => {
+    await repo.recomputeMonth(month)
+    expect(await db.monthlyStats.get(month)).toBeTruthy()
+    await repo.markAttendance({ classId: 'c1', date: today, studentId: 's2', status: ATT.PRESENT })
+    expect(await db.monthlyStats.get(month)).toBeUndefined()
+  })
+
+  it('cachedStats 는 캐시에 없는 달을 계산하지 않고 null 로 돌려준다', async () => {
+    await repo.recomputeMonth(month)
+    const rows = await repo.cachedStats(['1999-01', month])
+    expect(rows[0]).toBe(null)
+    expect(rows[1].month).toBe(month)
+  })
+
+  it('수납을 지우면 그 달 캐시도 지워진다', async () => {
+    const pay = (await repo.paymentsOfMonth(month))[0]
+    await repo.recomputeMonth(month)
+    await repo.remove('payments', pay.id)
+    expect(await db.monthlyStats.get(month)).toBeUndefined()
+  })
+})

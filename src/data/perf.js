@@ -37,8 +37,17 @@ export async function measure() {
     await repo.paymentsOfMonth(month)
   })
 
+  const months6 = Array.from({ length: 6 }, (_, i) => addMonths(month, -i))
+
+  // 배치 작업: 6개월치를 처음부터 계산 (화면 렌더가 아니라 마감·집계 새로고침 경로)
+  await db.monthlyStats.clear()
+  await time(results, '배치: 6개월 집계 전체 재계산', async () => {
+    for (const m of months6) await repo.recomputeMonth(m)
+  })
+
+  // 화면이 실제로 쓰는 경로: 캐시된 6개월 읽기
   await time(results, '현황 통계 6개월(집계 캐시)', async () => {
-    await repo.statsRange(Array.from({ length: 6 }, (_, i) => addMonths(month, -i)))
+    await repo.statsRange(months6)
   })
 
   await time(results, '월 집계 재계산 1회', async () => {

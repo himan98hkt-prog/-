@@ -6,7 +6,6 @@ import { uid } from '../core/id.js'
 import { monthRange, toYmd, toMonth } from '../core/date.js'
 import { decorate, statusOf, PAY_STATUS } from '../core/fees.js'
 import { assignSiblingGroups } from '../core/siblings.js'
-import { summarize } from '../core/attendance.js'
 
 const SYNCED_TABLES = new Set([
   'users', 'subjects', 'classes', 'students', 'enrollments',
@@ -105,8 +104,28 @@ export async function put(table, row, opts = {}) {
   await db[table].put(rec)
   if (!opts.fromSync) await queue(table, 'put', rec)
   refreshCacheAfterWrite(table, rec)
+  await invalidateStats(table, [rec])
   emit(table, { op: 'put', row: rec })
   return rec
+}
+
+// 출결·수납·지출이 바뀌면 그 달의 집계 캐시는 더 이상 사실이 아니다 → 지운다.
+// (다시 계산하는 시점은 현황 화면을 열거나 월말 마감을 누를 때)
+const STATS_MONTH_OF = {
+  attendance: (r) => String(r.date || '').slice(0, 7),
+  payments: (r) => r.month,
+  expenses: (r) => String(r.date || '').slice(0, 7)
+}
+
+async function invalidateStats(table, rows) {
+  const pick = STATS_MONTH_OF[table]
+  if (!pick) return
+  const months = new Set()
+  for (const r of rows) {
+    const m = pick(r)
+    if (m) months.add(m)
+  }
+  if (months.size) await db.monthlyStats.bulkDelete([...months])
 }
 
 export async function putMany(table, rows, opts = {}) {
@@ -117,12 +136,15 @@ export async function putMany(table, rows, opts = {}) {
     emit('outbox')
   }
   for (const r of recs) refreshCacheAfterWrite(table, r)
+  await invalidateStats(table, recs)
   emit(table, { op: 'putMany', rows: recs })
   return recs
 }
 
 export async function remove(table, id, opts = {}) {
+  const doomed = STATS_MONTH_OF[table] ? await db[table].get(id) : null
   await db[table].delete(id)
+  if (doomed) await invalidateStats(table, [doomed])
   if (!opts.fromSync) await queue(table, 'del', { id })
   removeFromCache(table, id)
   emit(table, { op: 'del', id })
@@ -391,12 +413,21 @@ export async function monthlyStats(month, { refresh = false } = {}) {
 
 export async function recomputeMonth(month) {
   const { from, to } = monthRange(month)
-  const [att, pays, exps] = await Promise.all([
-    db.attendance.where('date').between(from, to, true, true).toArray(),
+  // 출결은 20만 건 규모라 배열로 만들지 않고 인덱스 커서로 흘려보내며 센다
+  const attCounts = { 출석: 0, 지각: 0, 결석: 0, 보강: 0, 조퇴: 0 }
+  const attStream = db.attendance.where('date').between(from, to, true, true)
+    .each((r) => { if (attCounts[r.status] !== undefined) attCounts[r.status]++ })
+  const [, pays, exps] = await Promise.all([
+    attStream,
     db.payments.where('month').equals(month).toArray(),
     db.expenses.where('date').between(from, to, true, true).toArray()
   ])
-  const attSum = summarize(att)
+  const attTotal = Object.values(attCounts).reduce((a, b) => a + b, 0)
+  const attSum = {
+    total: attTotal,
+    absent: attCounts['결석'],
+    rate: attTotal ? Math.round(((attTotal - attCounts['결석']) / attTotal) * 1000) / 10 : 0
+  }
   let billed = 0
   let collected = 0
   let unpaid = 0
@@ -434,6 +465,12 @@ export async function recomputeMonth(month) {
 
 export async function statsRange(months) {
   return Promise.all(months.map((m) => monthlyStats(m)))
+}
+
+/** 캐시에 있는 달만 즉시 반환하고, 없는 달은 null. 현황 화면 첫 페인트에 쓴다. */
+export async function cachedStats(months) {
+  const rows = await db.monthlyStats.bulkGet(months)
+  return months.map((m, i) => rows[i] || null)
 }
 
 export { db }

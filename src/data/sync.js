@@ -30,6 +30,13 @@ export function status() {
   return { ...state }
 }
 
+// 테스트용 주입구 — 실제 Supabase 없이 push/pull/충돌 규칙을 검증한다
+export function __setTestHarness({ client: c, academyId: a }) {
+  client = c
+  academyId = a
+}
+export { applyRemote as __applyRemote, toPg as __toPg, fromPg as __fromPg }
+
 export function config() {
   const s = repo.getSetting('supabase') || {}
   return {
@@ -148,7 +155,7 @@ export async function syncNow() {
   report()
 }
 
-async function push() {
+export async function push() {
   if (pushing) return
   pushing = true
   try {
@@ -184,7 +191,7 @@ async function push() {
   }
 }
 
-async function pull() {
+export async function pull() {
   const sb = getClient()
   const since = repo.getSetting('syncCursor') || '1970-01-01T00:00:00.000Z'
   let newest = since

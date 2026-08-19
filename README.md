@@ -18,6 +18,7 @@ npm run dev       # http://localhost:5173/lite.html (Lite) · /index.html (Pro)
 npm test          # 단위·통합 테스트
 npm run build     # dist/ 정적 산출물 — 웹호스팅에 그대로 업로드
 npm run perf      # 원생 1,000명·출결 20만 건 실제 브라우저 성능 측정
+npm run smoke     # 완료 기준(계열 전환·브랜딩·백업·라이선스) 브라우저 시나리오 검증
 ```
 
 빌드 산출물은 `dist/index.html`(Pro), `dist/lite.html`(Lite), `dist/tools/keygen.html`(판매자용 키 발급기)입니다.
@@ -79,6 +80,10 @@ docs/                아키텍처 · 사용설명서 목차 · 배포 안내
 - `npm run perf` 가 실제 Chromium + 실제 IndexedDB 로 더미를 만들고 화면별 렌더 시간을 측정해
   `perf-report.json` 을 남깁니다 (하나라도 기준 초과 시 종료 코드 1)
 
+측정 결과(원생 1,000 · 반 80 · 출결 20만): 출결 32ms · 원생 30ms · 수납 267ms · 시간표 51ms ·
+현황 31ms(집계 캐시가 전혀 없는 최악 상태에서도 28ms) · 앱 콜드 스타트 281ms — **전 항목 1초 이내**.
+자세한 표는 [docs/PERF.md](docs/PERF.md) 참고.
+
 ## 라이선스 키
 
 12자리 `[플랜 1자][랜덤 7자][체크섬 4자]`, 표기는 `PXXX-XXXX-XXXX`.
@@ -102,4 +107,5 @@ RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 데이터 모델, 동기화·충돌 정책, 성능 설계
 - [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 목차
+- [docs/PERF.md](docs/PERF.md) — 성능 측정 결과와 재현 방법
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 빌드·배포·판매 운영 절차
