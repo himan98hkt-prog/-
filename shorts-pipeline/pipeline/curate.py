@@ -218,10 +218,12 @@ def _score(s: Shot) -> None:
 
     # 해상도
     res_fit = min(s.megapixels / 2.0, 1.0)
+    # 미드저니 9:16 기본 출력이 816x1456 이다. 900px 을 기준으로 잡으면
+    # 정상 출력물 전부에 경고가 붙어 쓸모가 없다.
     if s.width < 720:
         s.disqualified = True
         s.reasons.append(f"해상도 부족 ({s.width}px) — 720px 이상 필요")
-    elif s.width < 900:
+    elif s.width < 800:
         s.reasons.append(f"해상도 낮음 ({s.width}px)")
 
     # 어둡고 채도 높게 — 레퍼런스 계정들의 공통점

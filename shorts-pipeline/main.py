@@ -614,15 +614,29 @@ def curate_cmd(
     if not picked:
         _die(f"점수 {min_score} 이상인 이미지가 없습니다. --min-score 를 낮춰보세요.")
 
-    # 자주 걸린 탈락 사유
-    reasons: dict[str, int] = {}
-    for s in rejected + (disqualified if not allow_crop else []):
+    # 왜 안 골랐는지 — 규격 미달과 '순위 밖'을 섞으면 오해를 부른다
+    hard: dict[str, int] = {}
+    for s in (disqualified if not allow_crop else []):
         for r in s.reasons:
-            reasons[r] = reasons.get(r, 0) + 1
-    if reasons:
-        typer.echo("\n제외된 이유:")
-        for r, n in sorted(reasons.items(), key=lambda kv: -kv[1])[:6]:
-            typer.echo(f"  {n:>4}장  {r}")
+            hard[r] = hard.get(r, 0) + 1
+    if hard:
+        typer.echo("\n규격 미달로 뺀 것:")
+        for r, n in sorted(hard.items(), key=lambda kv: -kv[1])[:6]:
+            typer.secho(f"  {n:>4}장  {r}", fg=typer.colors.RED)
+
+    if rejected:
+        typer.echo(f"\n{len(rejected)}장은 테마당 {per_theme}장 제한에 걸려 대기 중입니다."
+                   " (문제가 있는 게 아닙니다)")
+        typer.echo(f"  더 쓰려면: --per-theme {per_theme + 2}")
+        soft: dict[str, int] = {}
+        for s in rejected:
+            for r in s.reasons:
+                soft[r] = soft.get(r, 0) + 1
+        low = {r: n for r, n in soft.items() if "밝음" in r or "밋밋" in r or "채도" in r}
+        if low:
+            typer.echo("  그중 품질이 아쉬운 것:")
+            for r, n in sorted(low.items(), key=lambda kv: -kv[1])[:4]:
+                typer.secho(f"    {n:>4}장  {r}", fg=typer.colors.YELLOW)
 
     if dry_run:
         typer.secho("\n[dry-run] 복사하지 않았습니다.", fg=typer.colors.YELLOW)
