@@ -1,0 +1,14 @@
+.env
+secrets/
+
+# 실행 산출물과 시드는 추적하지 않되 폴더는 남긴다
+runs/*
+!runs/.gitkeep
+seeds/*
+!seeds/.gitkeep
+
+tests/_tmp/
+__pycache__/
+*.pyc
+.venv/
+venv/

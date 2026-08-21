@@ -1,0 +1,171 @@
+# ══════════════════════════════════════════════════════════════════════
+#  연속 영상 자동 생성 · 업로드 파이프라인 설정
+#  분석 근거는 docs/REFERENCE_ANALYSIS.md 참고
+# ══════════════════════════════════════════════════════════════════════
+
+# ── 합성 모드 ─────────────────────────────────────────────────────────
+#  chain   : 라스트 프레임 체이닝. 끊김 없는 1개의 전진 샷.
+#            (@odysseyml, @hellopersonality 스타일)
+#  montage : 독립 장면 N개를 컷으로 이어붙이고 첫 장면으로 회귀.
+#            (@cyborg.digitalart "Infinite peace part N" 스타일)
+mode: chain
+
+# ── provider ─────────────────────────────────────────────────────────
+provider: fal              # fal | higgsfield
+model: kling_25_turbo_pro  # providers 섹션의 키
+
+# ── 클립 파라미터 ─────────────────────────────────────────────────────
+clip_duration: 5           # 초. 레퍼런스 실측값이 5초였다.
+num_clips: 6               # 6 x 5초 = 30초 (크로스페이드 감안 시 ~28.5초)
+
+# ── 프롬프트 ─────────────────────────────────────────────────────────
+#  [중요] chain 모드에서는 모든 클립에 동일한 프롬프트를 쓴다.
+#         카메라 속도·방향 일관성의 핵심이므로 회차 정보를 넣지 말 것.
+motion_prompt: >-
+  smooth drone camera following subject from behind, constant forward motion,
+  steady speed, no camera shake, no scene cut, cinematic, consistent lighting
+negative_prompt: >-
+  scene change, camera cut, zoom out, reverse motion, blur, text, watermark,
+  distorted geometry, morphing architecture
+
+# montage 모드에서만 사용. 장면별 프롬프트 목록.
+# 비워두면 motion_prompt 를 모든 장면에 재사용한다.
+scene_prompts: []
+
+# ── 열화 방지 ────────────────────────────────────────────────────────
+upscale_between_clips: true
+upscaler: esrgan           # providers.<provider>.upscalers 의 키
+
+# ── 합성 ─────────────────────────────────────────────────────────────
+crossfade_seconds: 0.3     # chain 모드 클립 경계
+montage_transition: cut    # montage 모드: cut | fade | fadeblack
+montage_transition_seconds: 0.25
+
+# 마지막 클립을 첫 프레임으로 되돌려 무한 루프를 만든다.
+# end_image 를 지원하는 모델에서만 동작 (supports_end_image: true).
+loop_back: false
+
+output:
+  width: 1080
+  height: 1920
+  fps: 30
+  crf: 18
+  audio: silent            # silent | file
+  audio_file: ""           # audio: file 일 때 사용할 음원 경로
+
+# ── 비용 가드레일 ────────────────────────────────────────────────────
+cost:
+  # 실패·품질 리젝으로 실제 호출은 계획보다 늘어난다. 레퍼런스 수준
+  # 결과물을 뽑으려면 1.6~2.2배가 현실적이다. 견적에 이 배수를 곱한다.
+  retry_multiplier: 1.8
+  # 이 금액을 넘기면 --yes 가 있어도 실행을 막는다. (USD)
+  hard_cap_usd: 25.0
+
+# ══════════════════════════════════════════════════════════════════════
+#  단가표 — 2026-08 기준. 공급사 가격은 자주 바뀌므로 주기적으로 갱신할 것.
+#  price_per_second 가 있으면 초당 과금, price_per_clip 이 있으면 건당 과금.
+# ══════════════════════════════════════════════════════════════════════
+providers:
+  fal:
+    endpoint_base: https://queue.fal.run
+    models:
+      wan_25_480p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.05
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      wan_25_720p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.10
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_25_turbo_pro:
+        endpoint: fal-ai/kling-video/v2.5-turbo/pro/image-to-video
+        price_per_second: 0.07
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_30_pro:
+        endpoint: fal-ai/kling-video/v3/pro/image-to-video
+        price_per_second: 0.112
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: true
+      hailuo_23_pro:
+        endpoint: fal-ai/minimax/hailuo-02/pro/image-to-video
+        price_per_clip: 0.49
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: false
+      veo_31_fast:
+        endpoint: fal-ai/veo3.1/fast/image-to-video
+        price_per_second: 0.10
+        max_duration: 8
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      esrgan:
+        endpoint: fal-ai/esrgan
+        price_per_image: 0.01
+      topaz:
+        endpoint: fal-ai/topaz/upscale/image
+        price_per_image: 0.10
+
+  higgsfield:
+    # 구독 크레딧 기반. 1 크레딧당 실효 단가를 plan 에서 가져온다.
+    endpoint_base: https://platform.higgsfield.ai/v1
+    plan: ultra_annual
+    plans:
+      plus_monthly:  { usd_per_month: 49,  credits_per_month: 1000 }
+      plus_annual:   { usd_per_month: 39,  credits_per_month: 1000 }
+      ultra_monthly: { usd_per_month: 129, credits_per_month: 3000 }
+      ultra_annual:  { usd_per_month: 99,  credits_per_month: 3000 }
+    models:
+      kling3_0_turbo:
+        endpoint: kling3_0_turbo
+        credits_per_clip: 6
+        max_duration: 15
+        supports_end_image: false
+        supports_negative: true
+      minimax_h3:
+        endpoint: minimax_h3
+        credits_per_clip: 12
+        max_duration: 15
+        supports_end_image: true
+        supports_negative: true
+      flux_3_video:
+        endpoint: flux_3_video
+        credits_per_clip: 15
+        max_duration: 20
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      topaz:
+        endpoint: upscale_image
+        credits_per_image: 2
+
+# ══════════════════════════════════════════════════════════════════════
+#  업로드
+# ══════════════════════════════════════════════════════════════════════
+publish:
+  youtube:
+    enabled: false
+    privacy: private          # private | unlisted | public
+    category_id: "24"         # 24 = Entertainment
+    title_template: "{title} #Shorts"
+    description_template: |
+      {description}
+
+      #Shorts #AIart #AIanimation #cinematic
+    tags: [shorts, ai art, ai animation, cinematic, loop]
+    # videos.insert 는 2026-06-01 부터 전용 버킷(일 ~100회)을 쓴다.
+    daily_upload_cap: 90
+
+  instagram:
+    enabled: false
+    caption_template: "{description}\n\n#reels #aiart #aianimation #cinematic"
+    share_to_feed: true
+    # /{ig-user-id}/content_publishing_limit 로 실사용량을 조회한다.
+    daily_upload_cap: 45
