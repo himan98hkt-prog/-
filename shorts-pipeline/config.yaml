@@ -163,6 +163,22 @@ publish:
     # videos.insert 는 2026-06-01 부터 전용 버킷(일 ~100회)을 쓴다.
     daily_upload_cap: 90
 
+  # 인스타그램은 로컬 파일을 못 받으므로 최종 mp4 를 S3 호환 스토리지에 올려
+  # 공개 URL 을 만든다. AWS S3 / Cloudflare R2 / Backblaze B2 / MinIO 공용.
+  storage:
+    enabled: true
+    bucket: ""                 # 비우면 .env 의 S3_BUCKET 을 쓴다
+    region: ""                 # 비우면 S3_REGION. R2 는 auto
+    endpoint_url: ""           # R2/B2/MinIO 사용 시. 비우면 AWS S3
+    prefix: reels
+    # presigned : 서명된 만료 URL. 버킷을 공개로 열 필요가 없다 (권장)
+    # public    : 영구 공개 URL. public_base_url 또는 public-read 버킷 필요
+    url_strategy: presigned
+    public_base_url: ""        # CloudFront / R2 커스텀 도메인
+    expiry_seconds: 3600       # presigned 만료. 최소 60, 최대 604800(7일)
+    acl: ""                    # public 전략에서 필요하면 public-read
+    delete_after_publish: false
+
   instagram:
     enabled: false
     caption_template: "{description}\n\n#reels #aiart #aianimation #cinematic"

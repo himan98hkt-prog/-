@@ -66,7 +66,8 @@ python main.py generate --image seed.png --mode montage --clips 5
 | `resume --run ID` | 중단된 실행을 이어서 완료 |
 | `stitch --run ID` | 이미 만든 클립으로 합성만 다시 |
 | `estimate [--compare]` | API 호출 없이 비용만 계산 |
-| `publish --run ID` | YouTube / Instagram 업로드 |
+| `publish --run ID` | YouTube / Instagram 업로드 (필요 시 S3 자동 업로드) |
+| `upload --run ID` | S3 에만 올려 공개 URL 생성 (자격증명 점검용) |
 
 주요 옵션:
 
@@ -149,10 +150,50 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 3. 장기 액세스 토큰을 `.env` 에 기록
 
 **인스타그램은 로컬 파일을 못 받는다.** 최종 mp4 가 공개 URL 로 접근
-가능해야 하므로 S3/R2 등이 필요하다 (`PUBLIC_MEDIA_BASE_URL`).
+가능해야 하므로 S3 업로드가 `publish --instagram` 에 내장돼 있다 (아래 참고).
 
 발행 한도는 24시간 롤링 50~100건. `GET /{ig-user-id}/content_publishing_limit`
 로 실사용량을 조회할 수 있다.
+
+### S3 (또는 R2 / B2 / MinIO)
+
+`.env` 에 버킷과 키만 넣으면 `publish --instagram` 이 알아서 올리고 URL 을 만든다.
+
+```bash
+S3_BUCKET=my-reels
+S3_REGION=ap-northeast-2
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+기본 전략은 **presigned URL** 이다. 서명된 만료 URL 이라 **버킷을 공개로 열
+필요가 없다** — 인스타그램은 컨테이너 생성 시 한 번만 받아가므로 충분하다.
+
+AWS 가 아니면 엔드포인트만 바꾸면 된다:
+
+```bash
+# Cloudflare R2
+S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
+S3_REGION=auto
+```
+
+자격증명이 맞는지는 영상 생성에 돈을 쓰기 전에 확인할 수 있다:
+
+```bash
+python main.py upload --file ./anything.mp4
+```
+
+`config.yaml` 의 `publish.storage` 에서 조정한다:
+
+| 키 | 기본값 | 설명 |
+|---|---|---|
+| `url_strategy` | `presigned` | `public` 으로 두면 영구 URL (공개 버킷/CDN 필요) |
+| `expiry_seconds` | `3600` | presigned 만료. 60 ~ 604800 |
+| `public_base_url` | — | CloudFront / R2 커스텀 도메인 |
+| `prefix` | `reels` | 키 앞부분. `reels/{run_id}/final.mp4` |
+| `delete_after_publish` | `false` | 발행 후 객체를 지워 보관 비용을 아낀다 |
+
+`--video-url` 로 직접 URL 을 주면 S3 단계를 건너뛴다.
 
 ---
 
@@ -162,9 +203,12 @@ API 를 한 번도 부르지 않고(비용 $0) 파이프라인 전 구간을 검
 가짜 provider 가 ffmpeg 로 합성 클립을 만들어 체이닝·추출·합성·resume 을 돌린다.
 
 ```bash
-python tests/test_pipeline.py
-# 통과 35 / 실패 0
+python tests/test_pipeline.py    # 통과 35 / 실패 0
+python tests/test_storage.py     # 통과 26 / 실패 0  (moto 필요)
 ```
+
+S3 쪽은 `moto` 로 실제 S3 프로토콜을 흉내내 검사한다 — presigned 서명,
+Content-Type, 삭제까지 실제로 확인한다. `pip install "moto[s3]"`.
 
 ---
 
@@ -187,6 +231,7 @@ shorts-pipeline/
 ├── publish/
 │   ├── youtube.py           Data API v3
 │   ├── instagram.py         Graph API (컨테이너 → 폴링 → 발행)
+│   ├── storage.py           S3 / R2 / B2 / MinIO 업로드, presigned URL
 │   └── scheduler.py         cron 용 배치
 ├── docs/
 │   ├── REFERENCE_ANALYSIS.md   레퍼런스 실측 분석

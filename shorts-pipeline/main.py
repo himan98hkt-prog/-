@@ -309,11 +309,7 @@ def publish_cmd(
     if instagram:
         from publish import instagram as ig
         ic = cfg.publish_cfg.get("instagram", {})
-        import os
-        url = video_url or (
-            f"{os.getenv('PUBLIC_MEDIA_BASE_URL', '').rstrip('/')}/{run.run_id}/final.mp4"
-            if os.getenv("PUBLIC_MEDIA_BASE_URL") else ""
-        )
+        url, uploaded = _resolve_media_url(cfg, run, video_url, dry_run)
         try:
             res = ig.upload(
                 url,
@@ -326,6 +322,101 @@ def publish_cmd(
             _die(str(exc))
         typer.secho(f"✓ Instagram: {res.permalink or res.media_id}", fg=typer.colors.GREEN)
         run.log("publish.instagram", media_id=res.media_id, permalink=res.permalink)
+
+        # 발행이 끝났으면 스토리지를 비워 비용을 아낀다.
+        sc = cfg.publish_cfg.get("storage", {})
+        if uploaded and sc.get("delete_after_publish") and not dry_run:
+            from publish.storage import S3Storage
+            S3Storage.from_env(sc).delete(uploaded.key)
+            typer.echo(f"  S3 객체 삭제: {uploaded.key}")
+
+
+def _resolve_media_url(cfg: Config, run: Run, video_url: str, dry_run: bool):
+    """인스타그램에 넘길 공개 URL 을 확보한다.
+
+    --video-url 이 있으면 그대로 쓰고, 없으면 S3 에 올려서 만든다.
+    반환값의 두 번째 요소는 업로드한 객체(정리용) 또는 None.
+    """
+    import os
+
+    if video_url:
+        return video_url, None
+
+    sc = cfg.publish_cfg.get("storage", {})
+    if sc.get("enabled", False):
+        from publish.storage import S3Storage, StorageError
+        try:
+            storage = S3Storage.from_env(sc)
+        except StorageError as exc:
+            _die(str(exc))
+        if dry_run:
+            key = storage.key_for(run.final, run.run_id)
+            typer.echo(f"  [dry-run] S3 업로드 생략: s3://{storage.bucket}/{key}")
+            return f"https://example.invalid/{key}", None
+        typer.echo(f"  S3 업로드 중… ({run.final.stat().st_size / 1048576:.1f} MB)")
+        try:
+            obj = storage.upload(run.final, run_id=run.run_id)
+        except StorageError as exc:
+            _die(str(exc))
+        note = (
+            f", {obj.expires_at:%H:%M UTC} 만료" if obj.is_temporary else ", 영구 공개"
+        )
+        typer.echo(f"  ✓ s3://{obj.bucket}/{obj.key} ({obj.size_mb:.1f} MB{note})")
+        run.log("publish.storage", bucket=obj.bucket, key=obj.key,
+                expires_at=obj.expires_at)
+        return obj.url, obj
+
+    # 스토리지가 꺼져 있으면 예전 방식대로 base URL 조합을 시도한다.
+    base = os.getenv("PUBLIC_MEDIA_BASE_URL", "").rstrip("/")
+    if base:
+        return f"{base}/{run.run_id}/final.mp4", None
+
+    _die(
+        "인스타그램에 넘길 공개 URL 이 없습니다. 셋 중 하나를 하세요.\n"
+        "  1) config.yaml 의 publish.storage.enabled 를 true 로 두고 S3_BUCKET 설정\n"
+        "  2) --video-url 로 직접 URL 지정\n"
+        "  3) .env 의 PUBLIC_MEDIA_BASE_URL 설정"
+    )
+
+
+@app.command("upload")
+def upload_cmd(
+    run_id: str = typer.Option("", "--run", help="업로드할 run ID"),
+    file: str = typer.Option("", "--file", help="임의 파일 경로 (--run 대신)"),
+    config: str = typer.Option("config.yaml", "--config", "-c"),
+):
+    """S3 에 올려 공개 URL 만 만든다. 자격증명 점검용으로도 쓴다."""
+    cfg = _load(config)
+    from publish.storage import S3Storage, StorageError
+
+    if file:
+        target, rid = Path(file), None
+    elif run_id:
+        try:
+            run = Run.load(RUNS_DIR, run_id)
+        except FileNotFoundError as exc:
+            _die(str(exc))
+        target, rid = run.final, run.run_id
+    else:
+        _die("--run 또는 --file 중 하나를 지정하세요.")
+
+    if not target.exists():
+        _die(f"파일이 없습니다: {target}")
+
+    try:
+        storage = S3Storage.from_env(cfg.publish_cfg.get("storage", {}))
+        typer.echo(
+            f"  대상 : s3://{storage.bucket}/{storage.key_for(target, rid)}"
+            f"  ({storage.url_strategy})"
+        )
+        obj = storage.upload(target, run_id=rid)
+    except StorageError as exc:
+        _die(str(exc))
+
+    typer.secho(f"\n✓ 업로드 완료 ({obj.size_mb:.1f} MB)", fg=typer.colors.GREEN, bold=True)
+    if obj.is_temporary:
+        typer.echo(f"  만료 : {obj.expires_at:%Y-%m-%d %H:%M UTC}")
+    typer.echo(f"  URL  : {obj.url}")
 
 
 if __name__ == "__main__":
