@@ -168,6 +168,17 @@ def run_montage(
         print(f"  이어하기: 장면 {len(done)}개를 재사용합니다 ({done}).")
 
     total = cfg.num_clips
+
+    # 장면별 시드가 하나도 없으면 모든 클립이 같은 그림에서 출발한다.
+    # 그러면 5초마다 처음 위치로 되돌아가는 영상이 나온다 — 원하는 결과가 아니다.
+    if not any(run.seed(i).exists() for i in range(1, total + 1)):
+        print(
+            "\n  ⚠ 장면별 시드가 없어 모든 클립이 같은 이미지에서 시작합니다.\n"
+            "     클립마다 처음 위치로 되돌아가는 영상이 나옵니다.\n"
+            "     끊김 없이 이어지길 원하시면 --mode chain 을 쓰세요.\n"
+            "     montage 를 쓰려면 --scenes 로 장면 이미지를 여러 장 지정하세요.\n"
+        )
+
     for index in range(len(done) + 1, total + 1):
         seed = run.seed(index)
         if not seed.exists():

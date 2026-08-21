@@ -7,6 +7,10 @@
 
 ---
 
+> **터미널이 불편하시면** → `python main.py ui`
+> 브라우저 작업실이 열립니다. 이미지를 클릭해 고르고, 버튼으로 영상을 만들고 업로드합니다.
+> `SHORTS_MOCK=1` 을 앞에 붙이면 비용 없이 둘러볼 수 있습니다.
+>
 > **매일 자동 업로드까지 세팅** → **[SETUP.md](SETUP.md)**
 > 직접 발급해야 하는 키와 계정 설정을 순서대로 정리했습니다.
 >
@@ -74,6 +78,7 @@ python main.py generate --image seed.png --mode montage --clips 5
 | `generate` | 이미지 1장에서 영상 생성 |
 | `resume --run ID` | 중단된 실행을 이어서 완료 |
 | `stitch --run ID` | 이미 만든 클립으로 합성만 다시 |
+| `ui` | **브라우저 작업실** — 클릭으로 제작·업로드 |
 | `estimate [--compare]` | API 호출 없이 비용만 계산 |
 | `publish --run ID` | YouTube / Instagram 업로드 (필요 시 S3 자동 업로드) |
 | `upload --run ID` | S3 에만 올려 공개 URL 생성 (자격증명 점검용) |

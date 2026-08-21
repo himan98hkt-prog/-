@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI DEOKHU 작업실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root{
+    --bg:#070B1A; --panel:#111A33; --panel2:#16203D; --line:#25325A;
+    --ink:#E6EAF7; --ink2:#B4BDD8; --mute:#8791B0;
+    --cyan:#22D3EE; --cyanInk:#8DEBFA; --cyanDim:#0C2E3A;
+    --hot:#E879F9; --warn:#FBBF24; --bad:#FB7185; --good:#34D399;
+    --sans:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+    --disp:"Chakra Petch",var(--sans);
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6}
+  button{font-family:inherit}
+
+  header{
+    position:sticky;top:0;z-index:20;background:rgba(7,11,26,.92);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+    padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
+  .brand{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.01em}
+  .brand span{color:var(--cyan)}
+  .status{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chip{
+    font-size:12.5px;padding:4px 11px;border-radius:99px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink2);
+  }
+  .chip.ok{border-color:var(--good);color:var(--good)}
+  .chip.bad{border-color:var(--bad);color:var(--bad)}
+
+  main{max-width:1240px;margin:0 auto;padding:22px 22px 80px;
+       display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start}
+  @media(max-width:1000px){main{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  h2{font-family:var(--disp);font-size:16px;font-weight:700;margin:0 0 4px;
+     letter-spacing:.02em;text-transform:uppercase;color:var(--cyan)}
+  .sub{font-size:13px;color:var(--mute);margin:0 0 14px}
+
+  /* 탭 */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--ink2);
+       padding:7px 15px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600}
+  .tab[aria-selected=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
+
+  /* 시드 격자 */
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .f{background:transparent;border:1px solid var(--line);color:var(--mute);
+     padding:4px 11px;border-radius:99px;cursor:pointer;font-size:12.5px}
+  .f[aria-pressed=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+  .seed{position:relative;border:2px solid transparent;border-radius:11px;overflow:hidden;
+        cursor:pointer;background:var(--panel2);padding:0;display:block;text-align:left}
+  .seed img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block}
+  .seed .cap{padding:7px 8px;font-size:11.5px;color:var(--ink2);
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seed[aria-pressed=true]{border-color:var(--cyan)}
+  .seed[aria-pressed=true]::after{
+    content:"✓";position:absolute;top:7px;right:7px;width:24px;height:24px;
+    background:var(--cyan);color:#04121A;border-radius:50%;
+    display:grid;place-items:center;font-weight:700;font-size:14px}
+  .seed .warn{position:absolute;top:7px;left:7px;background:var(--warn);color:#231803;
+              font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
+  .empty{color:var(--mute);font-size:14px;padding:26px 0;text-align:center}
+
+  /* 폼 */
+  label.fld{display:block;margin-bottom:12px}
+  label.fld span{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
+  input[type=text],textarea,select{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:9px 11px;font-family:inherit;font-size:14px}
+  textarea{resize:vertical;min-height:62px;font-size:13px}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--cyan);outline-offset:-1px}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+  .mode{background:var(--panel2);border:1px solid var(--line);border-radius:11px;
+        padding:11px;cursor:pointer;text-align:left}
+  .mode b{display:block;font-size:14px;margin-bottom:3px}
+  .mode small{color:var(--mute);font-size:11.5px;line-height:1.45;display:block}
+  .mode[aria-pressed=true]{background:var(--cyanDim);border-color:var(--cyan)}
+  .mode[aria-pressed=true] b{color:var(--cyanInk)}
+
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+
+  .cost{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+        padding:11px 13px;font-size:13.5px;margin:12px 0;display:flex;
+        justify-content:space-between;align-items:center}
+  .cost b{font-family:var(--disp);font-size:19px;color:var(--warn)}
+
+  .go{width:100%;background:var(--cyan);color:#04121A;border:0;border-radius:11px;
+      padding:14px;font-size:15.5px;font-weight:700;cursor:pointer;font-family:var(--disp);
+      letter-spacing:.02em}
+  .go:hover:not(:disabled){filter:brightness(1.08)}
+  .go:disabled{opacity:.4;cursor:not-allowed}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--ink2);
+         border-radius:9px;padding:9px 14px;cursor:pointer;font-size:13.5px}
+  .ghost:hover{border-color:var(--cyan);color:var(--cyanInk)}
+  .ghost.danger:hover{border-color:var(--bad);color:var(--bad)}
+
+  /* 진행 */
+  .prog{margin-top:14px}
+  .bar{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--hot));
+         transition:width .4s ease}
+  .plabel{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mute);margin-top:7px}
+  .log{margin-top:10px;background:#050912;border:1px solid var(--line);border-radius:9px;
+       padding:10px 12px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+       max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+
+  /* 결과 */
+  .runs{display:flex;flex-direction:column;gap:11px}
+  .run{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px;
+       display:flex;gap:12px;align-items:flex-start}
+  .run video{width:104px;border-radius:8px;background:#000;flex:none}
+  .run .meta{flex:1;min-width:0}
+  .run .t{font-weight:600;font-size:14px;margin-bottom:2px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .run .d{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+  .run .acts{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .run .acts button{font-size:12px;padding:5px 10px}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+         background:var(--panel);border:1px solid var(--cyan);color:var(--ink);
+         padding:11px 20px;border-radius:11px;font-size:14px;z-index:50;
+         box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:90vw}
+  .toast.bad{border-color:var(--bad)}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">AI <span>DEOKHU</span> 작업실</div>
+  <div class="status" id="status"></div>
+</header>
+
+<main>
+  <!-- 왼쪽 -->
+  <section>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-make" aria-selected="true">1 · 이미지 고르기</button>
+      <button class="tab" role="tab" id="t-runs" aria-selected="false">2 · 완성된 영상</button>
+    </div>
+
+    <div class="card" id="p-make">
+      <h2>시드 이미지</h2>
+      <p class="sub" id="seedCount">불러오는 중…</p>
+      <div class="filters" id="filters"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="card" id="p-runs" hidden>
+      <h2>완성된 영상</h2>
+      <p class="sub">클릭해 재생하고, 마음에 들면 업로드하세요.</p>
+      <div class="runs" id="runs"></div>
+    </div>
+  </section>
+
+  <!-- 오른쪽 -->
+  <aside>
+    <div class="card">
+      <h2>영상 만들기</h2>
+      <p class="sub" id="picked">왼쪽에서 이미지를 고르세요.</p>
+
+      <div class="modes">
+        <button class="mode" id="m-chain" aria-pressed="true">
+          <b>이어지는 영상</b>
+          <small>끊김 없이 계속 전진합니다. 첨부하신 레퍼런스 방식.</small>
+        </button>
+        <button class="mode" id="m-montage" aria-pressed="false">
+          <b>장면 전환</b>
+          <small>여러 장면을 컷으로 잇습니다. 이미지를 여러 장 고르세요.</small>
+        </button>
+      </div>
+
+      <div class="row">
+        <label class="fld"><span>클립 수</span>
+          <select id="clips">
+            <option value="4">4개 (20초)</option>
+            <option value="6" selected>6개 (30초)</option>
+            <option value="8">8개 (40초)</option>
+            <option value="10">10개 (50초)</option>
+          </select>
+        </label>
+        <label class="fld"><span>클립 길이</span>
+          <select id="duration">
+            <option value="5" selected>5초</option>
+            <option value="10">10초</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="fld"><span>제목</span><input type="text" id="title" placeholder="예: 골목을 지나"></label>
+      <label class="fld"><span>훅 — 인스타 첫 줄에 그대로 나갑니다</span>
+        <input type="text" id="hook" placeholder="예: 이 길 끝에 뭐가 있을까"></label>
+      <label class="fld"><span>움직임 프롬프트 (비우면 기본값)</span>
+        <textarea id="prompt" placeholder="forward motion through ..."></textarea></label>
+
+      <div class="cost"><span id="costLabel">예상 비용</span><b id="cost">—</b></div>
+      <button class="go" id="go" disabled>영상 만들기</button>
+
+      <div class="prog" id="prog" hidden>
+        <div class="bar"><i id="fill"></i></div>
+        <div class="plabel"><span id="pstep">준비 중…</span><span id="ptime">0초</span></div>
+        <div class="log" id="log"></div>
+        <button class="ghost danger" id="cancel" style="margin-top:10px;width:100%">중단</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let STATE = { seeds: [], runs: [] };
+let picked = [];            // 고른 이미지 이름들
+let mode = "chain";
+let activeJob = null;
+let filter = "";
+
+const toast = (msg, bad = false) => {
+  const t = $("toast");
+  t.textContent = msg; t.className = "toast" + (bad ? " bad" : ""); t.hidden = false;
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 4200);
+};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `요청 실패 (${r.status})`);
+  return data;
+}
+
+// ── 상태 ────────────────────────────────────────────────────────────
+async function refresh() {
+  try {
+    const s = await api("/api/state");
+    STATE = s;
+    renderSeeds(); renderRuns();
+    if (s.active) { activeJob = s.active.id; renderJob(s.active); }
+    else if (activeJob) { activeJob = null; $("prog").hidden = true; }
+  } catch (e) { /* 서버가 잠깐 멈춘 것뿐일 수 있다 */ }
+}
+
+async function loadDoctor() {
+  try {
+    const d = await api("/api/doctor");
+    const el = $("status");
+    if (!d.ok) { el.innerHTML = `<span class="chip bad">설정 오류</span>`; return; }
+    const find = (t) => d.sections.find((s) => s.title.includes(t));
+    const chips = [];
+    chips.push(d.can_generate
+      ? `<span class="chip ok">제작 준비 완료</span>`
+      : `<span class="chip bad">설정 미완료</span>`);
+    const yt = find("유튜브"), ig = find("인스타");
+    if (yt) chips.push(`<span class="chip ${yt.ready ? "ok" : ""}">유튜브 ${yt.ready ? "연결됨" : "미설정"}</span>`);
+    if (ig) chips.push(`<span class="chip ${ig.ready ? "ok" : ""}">인스타 ${ig.ready ? "연결됨" : "미설정"}</span>`);
+    el.innerHTML = chips.join("");
+  } catch (e) { /* 무시 */ }
+}
+
+// ── 시드 ────────────────────────────────────────────────────────────
+function renderSeeds() {
+  const themes = [...new Set(STATE.seeds.map((s) => s.theme))].sort();
+  $("filters").innerHTML =
+    [`<button class="f" data-t="" aria-pressed="${filter === ""}">전체 ${STATE.seeds.length}</button>`]
+      .concat(themes.map((t) => {
+        const n = STATE.seeds.filter((s) => s.theme === t).length;
+        return `<button class="f" data-t="${t}" aria-pressed="${filter === t}">${t} ${n}</button>`;
+      })).join("");
+  $("filters").querySelectorAll(".f").forEach((b) =>
+    b.onclick = () => { filter = b.dataset.t; renderSeeds(); });
+
+  const list = filter ? STATE.seeds.filter((s) => s.theme === filter) : STATE.seeds;
+  $("seedCount").textContent =
+    STATE.seeds.length ? `${list.length}장 표시 중 · 클릭해서 고르세요`
+                       : "seeds 폴더가 비어 있습니다.";
+  $("grid").innerHTML = list.length ? list.map((s) => `
+    <button class="seed" data-n="${s.name}" aria-pressed="${picked.includes(s.name)}">
+      <img src="/api/thumb?name=${encodeURIComponent(s.name)}" alt="${s.title}" loading="lazy">
+      ${s.has_meta ? "" : '<span class="warn">제목없음</span>'}
+      <span class="cap">${s.title || s.name}</span>
+    </button>`).join("")
+    : `<div class="empty">이미지가 없습니다.<br>seeds 폴더에 9:16 세로 이미지를 넣으세요.</div>`;
+
+  $("grid").querySelectorAll(".seed").forEach((b) => b.onclick = () => choose(b.dataset.n));
+}
+
+function choose(name) {
+  if (mode === "chain") {
+    picked = picked[0] === name ? [] : [name];
+  } else {
+    const i = picked.indexOf(name);
+    if (i >= 0) picked.splice(i, 1); else picked.push(name);
+  }
+  const first = STATE.seeds.find((s) => s.name === picked[0]);
+  if (first) {
+    $("title").value = first.title || "";
+    $("hook").value = first.hook || "";
+    $("prompt").value = first.prompt || "";
+  }
+  syncForm(); renderSeeds();
+}
+
+function syncForm() {
+  const n = picked.length;
+  $("picked").textContent = n === 0
+    ? (mode === "chain" ? "왼쪽에서 이미지 1장을 고르세요."
+                        : "왼쪽에서 장면 이미지를 2장 이상 고르세요.")
+    : (mode === "chain" ? `선택: ${picked[0]}` : `장면 ${n}장 선택됨`);
+  $("go").disabled = n === 0 || activeJob !== null;
+  if (mode === "montage" && n >= 2) $("clips").value = String(Math.min(n, 10));
+  updateCost();
+}
+
+// ── 비용 ────────────────────────────────────────────────────────────
+let costTimer;
+function updateCost() {
+  clearTimeout(costTimer);
+  costTimer = setTimeout(async () => {
+    try {
+      const d = await api(`/api/estimate?mode=${mode}&clips=${$("clips").value}&duration=${$("duration").value}`);
+      if (d.ok) {
+        $("cost").textContent = `$${d.expected.toFixed(2)}`;
+        $("costLabel").textContent = `예상 비용 · 약 ${d.seconds}초 영상`;
+      } else { $("cost").textContent = "—"; }
+    } catch (e) { $("cost").textContent = "—"; }
+  }, 180);
+}
+
+// ── 실행 ────────────────────────────────────────────────────────────
+$("go").onclick = async () => {
+  if (!picked.length) return;
+  const clips = Number($("clips").value);
+  const cost = $("cost").textContent;
+  if (!confirm(`영상을 만듭니다.\n\n예상 비용 ${cost}\n5~10분 걸립니다.\n\n진행할까요?`)) return;
+
+  try {
+    await api("/api/save-meta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value,
+                             hook: $("hook").value, prompt: $("prompt").value }),
+    });
+    const d = await api("/api/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        seed: picked[0], mode, clips, duration: Number($("duration").value),
+        scenes: mode === "montage" ? picked.slice(1) : [],
+        title: $("title").value,
+      }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("go").disabled = true;
+    $("log").textContent = ""; toast("생성을 시작했습니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
+
+$("cancel").onclick = async () => {
+  if (!activeJob || !confirm("정말 중단할까요? 이미 만든 클립 비용은 돌아오지 않습니다.")) return;
+  await api("/api/cancel", { method: "POST", headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify({ id: activeJob }) });
+  toast("중단했습니다.");
+};
+
+function renderJob(j) {
+  $("prog").hidden = false;
+  const pct = j.total ? (j.step / j.total) * 100 : (j.status === "done" ? 100 : 6);
+  $("fill").style.width = pct + "%";
+  $("pstep").textContent = j.status === "running"
+    ? (j.total ? `클립 ${j.step} / ${j.total}` : "준비 중…")
+    : ({ done: "완료", failed: "실패", cancelled: "중단됨" }[j.status] || j.status);
+  const m = Math.floor(j.elapsed / 60), s = j.elapsed % 60;
+  $("ptime").textContent = m ? `${m}분 ${s}초` : `${s}초`;
+  const log = $("log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 24;
+  log.textContent = (j.lines || []).join("\n");
+  if (atBottom) log.scrollTop = log.scrollHeight;
+  $("cancel").hidden = j.status !== "running";
+}
+
+async function poll() {
+  if (!activeJob) return;
+  try {
+    const j = await api(`/api/job?id=${activeJob}`);
+    renderJob(j);
+    if (j.status === "running") { setTimeout(poll, 1500); return; }
+    activeJob = null; $("go").disabled = picked.length === 0;
+    if (j.status === "done") {
+      toast(j.kind === "publish" ? "업로드가 끝났습니다." : "영상이 완성됐습니다.");
+      switchTab("runs");
+    } else if (j.status === "failed") {
+      toast("실패했습니다. 아래 기록을 확인하세요.", true);
+    }
+    refresh();
+  } catch (e) { activeJob = null; $("go").disabled = false; }
+}
+
+// ── 결과 ────────────────────────────────────────────────────────────
+function renderRuns() {
+  const ready = STATE.runs.filter((r) => r.ready);
+  $("runs").innerHTML = ready.length ? ready.map((r) => `
+    <div class="run">
+      <video src="/api/video?run=${r.id}" controls preload="metadata" playsinline></video>
+      <div class="meta">
+        <div class="t">${r.title || r.id}</div>
+        <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
+        <div class="acts">
+          <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
+          <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
+          <button class="ghost" data-up="${r.id}" data-tg="both">둘 다</button>
+        </div>
+      </div>
+    </div>`).join("")
+    : `<div class="empty">아직 완성된 영상이 없습니다.</div>`;
+
+  $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
+}
+
+async function publish(runId, tg) {
+  const targets = tg === "both" ? ["youtube", "instagram"] : [tg];
+  const names = { youtube: "유튜브", instagram: "인스타그램" };
+  if (!confirm(`${targets.map((t) => names[t]).join(" + ")} 에 올립니다.\n\n진행할까요?`)) return;
+  try {
+    const d = await api("/api/publish", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: runId, targets }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
+    toast("업로드를 시작했습니다."); poll();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── 탭 · 모드 ───────────────────────────────────────────────────────
+function switchTab(which) {
+  const make = which === "make";
+  $("t-make").setAttribute("aria-selected", make);
+  $("t-runs").setAttribute("aria-selected", !make);
+  $("p-make").hidden = !make; $("p-runs").hidden = make;
+}
+$("t-make").onclick = () => switchTab("make");
+$("t-runs").onclick = () => switchTab("runs");
+
+function setMode(m) {
+  mode = m;
+  $("m-chain").setAttribute("aria-pressed", m === "chain");
+  $("m-montage").setAttribute("aria-pressed", m === "montage");
+  if (m === "chain" && picked.length > 1) picked = picked.slice(0, 1);
+  syncForm(); renderSeeds();
+}
+$("m-chain").onclick = () => setMode("chain");
+$("m-montage").onclick = () => setMode("montage");
+$("clips").onchange = updateCost;
+$("duration").onchange = updateCost;
+
+// ── 시작 ────────────────────────────────────────────────────────────
+refresh(); loadDoctor(); updateCost();
+setInterval(() => { if (!activeJob) refresh(); }, 6000);
+setInterval(loadDoctor, 30000);
+</script>
+</body>
+</html>

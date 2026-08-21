@@ -11,11 +11,16 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
+
+# SHORTS_MOCK=1 로 실행하면 가짜 provider 를 붙여 API 비용 없이 화면을 둘러볼 수 있다.
+if os.getenv("SHORTS_MOCK"):
+    import tests.mock_provider  # noqa: F401
 
 from pipeline.config import Config, ConfigError, load_config
 from pipeline.content import Content, load_content
@@ -106,6 +111,8 @@ def generate(
         None, "--upscale/--no-upscale", help="클립 사이 프레임 업스케일"
     ),
     pad: bool = typer.Option(False, "--pad", help="9:16 변환 시 크롭 대신 블러 패딩"),
+    scenes: Optional[list[str]] = typer.Option(
+        None, "--scenes", help="montage 모드에서 장면마다 쓸 이미지 (여러 번 지정)"),
     interactive: bool = typer.Option(False, "--interactive", help="회차마다 품질 확인"),
     assume_yes: bool = typer.Option(False, "--yes", "-y", help="비용 확인 생략"),
 ):
@@ -134,6 +141,24 @@ def generate(
         _die(str(exc))
     for w in warnings:
         typer.secho(f"  {w}", fg=typer.colors.YELLOW)
+
+    # montage 에서 장면별 이미지를 받았으면 frames/seed_NN.png 로 깔아둔다
+    if scenes:
+        for i, scene in enumerate(scenes, start=1):
+            src = Path(scene)
+            if not src.exists():
+                _die(f"장면 이미지가 없습니다: {src}")
+            try:
+                prepare_input(src, run.seed(i), pad=pad,
+                              width=cfg.output["width"], height=cfg.output["height"])
+            except ValidationError as exc:
+                _die(str(exc))
+        typer.echo(f"  장면 이미지 {len(scenes)}장을 준비했습니다.")
+        if cfg.mode == "montage" and len(scenes) < cfg.num_clips:
+            typer.secho(
+                f"  ⓘ 장면 {len(scenes)}장 < 클립 {cfg.num_clips}개 — "
+                f"모자란 만큼은 입력 이미지를 씁니다. --clips {len(scenes)} 를 권합니다.",
+                fg=typer.colors.YELLOW)
 
     # 시드 옆의 사이드카(.yaml/.txt)에서 이 영상의 제목·훅·프롬프트를 읽는다.
     content = load_content(Path(image))
@@ -676,6 +701,17 @@ def curate_cmd(
     typer.echo("  _all.jpg 를 먼저 열어보세요. 마음에 안 드는 것은")
     typer.echo("  seeds/ 에서 이미지와 .yaml 을 함께 지우면 됩니다.")
     typer.echo("\n다음: python main.py doctor")
+
+
+@app.command("ui")
+def ui_cmd(
+    port: int = typer.Option(8765, "--port"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="브라우저를 자동으로 열지 않는다"),
+):
+    """브라우저 작업실을 연다. 클릭으로 영상을 만들고 올릴 수 있다."""
+    from ui.server import serve
+
+    serve(port=port, open_browser=not no_browser)
 
 
 if __name__ == "__main__":
