@@ -150,16 +150,24 @@ providers:
 #  업로드
 # ══════════════════════════════════════════════════════════════════════
 publish:
+  # 문구 원본은 brand/BRAND.md 에 있다. 채널 소개·해시태그를 바꿀 때 함께 볼 것.
   youtube:
     enabled: false
     privacy: private          # private | unlisted | public
     category_id: "24"         # 24 = Entertainment
-    title_template: "{title} #Shorts"
+    title_template: "{title} | AI DEOKHU #Shorts"
     description_template: |
       {description}
 
-      #Shorts #AIart #AIanimation #cinematic
-    tags: [shorts, ai art, ai animation, cinematic, loop]
+      AI로 만든 시네마틱 루프입니다.
+      끊기지 않고 계속 앞으로 나아가는 30초.
+
+      ▶ 매일 오전 9시 · 오후 9시 업로드
+      ▶ 인스타그램 @ai.deokhu
+
+      #Shorts #AIart #AIanimation #cinematic #shortsfeed
+    tags: [shorts, ai art, ai animation, cinematic, loop,
+           AI 영상, AI 애니메이션, 시네마틱, 힐링 영상]
     # videos.insert 는 2026-06-01 부터 전용 버킷(일 ~100회)을 쓴다.
     daily_upload_cap: 90
 
@@ -205,7 +213,15 @@ publish:
 
   instagram:
     enabled: false
-    caption_template: "{description}\n\n#reels #aiart #aianimation #cinematic"
+    # 첫 줄만 피드에서 안 잘린다. {description} 에 훅 한 줄을 넣을 것.
+    caption_template: |
+      {description}
+
+      끝나지 않는 여행 🌌
+      AI로 만든 시네마틱 루프
+
+      #릴스 #AI영상 #AI아트 #시네마틱 #힐링영상
+      #reels #aiart #aianimation #cinematic #loop
     share_to_feed: true
     # /{ig-user-id}/content_publishing_limit 로 실사용량을 조회한다.
     daily_upload_cap: 45
