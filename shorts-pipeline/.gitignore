@@ -6,6 +6,7 @@ runs/*
 !runs/.gitkeep
 seeds/*
 !seeds/.gitkeep
+!seeds/PROMPTS.md
 
 tests/_tmp/
 __pycache__/

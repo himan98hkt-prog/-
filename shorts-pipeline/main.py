@@ -18,6 +18,7 @@ from typing import Optional
 import typer
 
 from pipeline.config import Config, ConfigError, load_config
+from pipeline.content import Content, load_content
 from pipeline.costs import actual_cost, estimate
 from pipeline.ffmpeg_util import FFmpegError, ensure_ffmpeg
 from pipeline.generator import GenerationStats
@@ -134,7 +135,40 @@ def generate(
     for w in warnings:
         typer.secho(f"  {w}", fg=typer.colors.YELLOW)
 
+    # 시드 옆의 사이드카(.yaml/.txt)에서 이 영상의 제목·훅·프롬프트를 읽는다.
+    content = load_content(Path(image))
+    _apply_content(cfg, run, content)
+
     _execute(cfg, run, interactive=interactive, resume=False)
+
+
+def _apply_content(cfg: Config, run: Run, content: Content) -> None:
+    """사이드카 내용을 config 에 얹고 run 상태에 남긴다.
+
+    여기서 저장해 둔 값을 publish 가 그대로 쓴다. 그래서 생성과 업로드를
+    따로 실행해도 제목·설명이 이어진다.
+    """
+    if content.prompt:
+        cfg.motion_prompt = content.prompt
+    if content.scene_prompts:
+        cfg.scene_prompts = content.scene_prompts
+
+    run.save_state(content={
+        "title": content.title,
+        "hook": content.hook,
+        "prompt": content.prompt,
+        "scene_prompts": content.scene_prompts,
+        "tags": content.tags,
+    })
+    where = content.source.name if content.source else "파일명"
+    typer.echo(f"  제목: {content.title}  ({where})")
+    if content.hook:
+        typer.echo(f"  훅  : {content.hook}")
+    if not content.source:
+        typer.secho(
+            "  ⓘ 사이드카가 없어 파일명을 제목으로 씁니다. "
+            "seeds/{이름}.yaml 을 만들면 제목·설명을 지정할 수 있습니다.",
+            fg=typer.colors.YELLOW)
 
 
 @app.command()
@@ -279,8 +313,10 @@ def publish_cmd(
     if not run.final.exists():
         _die(f"최종 영상이 없습니다: {run.final}\n  먼저 stitch 를 실행하세요.")
 
-    title = title or f"AI Animation {run.run_id}"
-    description = description or title
+    # --title 이 없으면 generate 때 저장해 둔 사이드카 내용을 쓴다.
+    saved = run.state.get("content", {})
+    title = title or saved.get("title") or f"AI DEOKHU {run.run_id}"
+    description = description or saved.get("hook") or title
 
     if not youtube and not instagram:
         _die("--youtube 또는 --instagram 중 하나 이상을 지정하세요.")
@@ -424,6 +460,72 @@ def upload_cmd(
         typer.echo(storage.usage().render())
     except StorageError as exc:
         typer.secho(f"  (사용량 조회 생략: {exc})", fg=typer.colors.YELLOW)
+
+
+@app.command("doctor")
+def doctor_cmd(config: str = typer.Option("config.yaml", "--config", "-c")):
+    """무엇이 준비됐고 무엇이 남았는지 점검한다. 시작 전에 먼저 실행하세요."""
+    from pipeline.doctor import run_all
+
+    cfg = _load(config)
+    root = Path(__file__).parent
+    sections, can_generate = run_all(root, cfg)
+
+    typer.echo("")
+    for sec in sections:
+        head = f"[{sec.title}]"
+        if sec.required_for:
+            head += f"  ({sec.required_for})"
+        typer.secho(head, bold=True)
+        for check in sec.checks:
+            color = {"ok": typer.colors.GREEN, "warn": typer.colors.YELLOW,
+                     "fail": typer.colors.RED}[check.status]
+            typer.secho(check.render(), fg=color)
+        typer.echo("")
+
+    if can_generate:
+        typer.secho("▶ 영상 제작 준비 완료.", fg=typer.colors.GREEN, bold=True)
+        typer.echo("  python main.py generate --image seeds/{파일명} --mode montage")
+    else:
+        typer.secho("▶ 아직 영상을 만들 수 없습니다. 위의 ✗ 항목을 먼저 해결하세요.",
+                    fg=typer.colors.RED, bold=True)
+
+    for sec in sections[3:]:
+        state = "준비됨" if sec.ready else "미설정"
+        typer.echo(f"  {sec.title}: {state}")
+
+
+@app.command("plan")
+def plan_cmd(
+    seeds: str = typer.Option("seeds", "--seeds"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="기존 사이드카도 덮어쓴다"),
+):
+    """시드 이미지마다 제목·설명을 적을 빈 양식(.yaml)을 만든다."""
+    from pipeline.content import find_sidecar, write_template
+
+    folder = Path(seeds)
+    if not folder.is_dir():
+        _die(f"시드 폴더가 없습니다: {folder}")
+
+    exts = {".png", ".jpg", ".jpeg", ".webp"}
+    images = [p for p in sorted(folder.iterdir())
+              if p.is_file() and p.suffix.lower() in exts]
+    if not images:
+        _die(f"{folder} 에 이미지가 없습니다.")
+
+    made = skipped = 0
+    for img in images:
+        if find_sidecar(img) and not overwrite:
+            skipped += 1
+            continue
+        write_template(img)
+        made += 1
+        typer.echo(f"  + {img.with_suffix('.yaml').name}")
+
+    typer.secho(f"\n✓ {made}개 생성, {skipped}개 건너뜀", fg=typer.colors.GREEN)
+    if made:
+        typer.echo("  각 .yaml 을 열어 title 과 hook 을 채우세요. "
+                   "제목은 조회수에 직접 영향을 줍니다.")
 
 
 if __name__ == "__main__":

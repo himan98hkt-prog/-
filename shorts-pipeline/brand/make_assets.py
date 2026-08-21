@@ -275,7 +275,7 @@ def build_banner(w: int = 2048, h: int = 1152) -> Image.Image:
 
     # 업로드 주기 — 구독 전환에 실제로 효과가 있다
     pill = kr(33)
-    label = "매일 오전 9시 · 오후 9시"
+    label = "매일 저녁 9시"
     bbox = d.textbbox((cx, cy + 186), label, font=pill, anchor="mm")
     pad_x, pad_y = 30, 15
     d.rounded_rectangle(
