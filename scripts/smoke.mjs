@@ -58,15 +58,22 @@ const report = await page.evaluate(async () => {
   const { displayPairs } = await import('/src/core/customfields.js')
   const s = repo.cache.students[0]
   const att = await repo.attendanceOfStudentRange(s.id, '2000-01-01', '2100-01-01')
-  const canvas = await drawReportCard({
+  const base = {
     student: s, month: '2026-08', attendance: summarize(att),
     payment: { amount: 180000, status: '완납' },
     customPairs: displayPairs(repo.getSetting('customFields', []), s.custom, 'report'),
     comment: '이번 달 수업 태도가 좋았습니다.', teacherName: '김강사'
+  }
+  const canvas = await drawReportCard(base)
+  // 학습 항목이 늘어나면 리포트 높이도 늘어나야 한다(잘림 방지)
+  const tall = await drawReportCard({
+    ...base,
+    customPairs: Array.from({ length: 8 }, (_, i) => ({ label: `항목 ${i + 1}`, value: `값 ${i + 1}` }))
   })
-  return { w: canvas.width, h: canvas.height, bytes: canvas.toDataURL('image/png').length }
+  return { w: canvas.width, h: canvas.height, tallH: tall.height, bytes: canvas.toDataURL('image/png').length }
 })
-check('리포트: Canvas 이미지 생성', report.w === 760 && report.h === 1180 && report.bytes > 20000)
+check('리포트: Canvas 이미지 생성', report.w === 760 && report.h > 700 && report.bytes > 20000)
+check('리포트: 학습 항목이 많아지면 높이가 늘어난다 (내용 잘림 방지)', report.tallH > report.h)
 
 // ── 2. 브랜딩 변경 반영 ─────────────────────────────────────
 const branded = await page.evaluate(async () => {

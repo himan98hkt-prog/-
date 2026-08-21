@@ -8,3 +8,5 @@ dist
 coverage
 perf-report.json
 .perf-profile
+screenshots
+*.zip

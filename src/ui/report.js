@@ -4,7 +4,6 @@
 import { branding, logoDataUrl, readableOn, mix } from './branding.js'
 
 const W = 760
-const H = 1180
 const PAD = 44
 
 function loadImage(src) {
@@ -56,15 +55,30 @@ export async function drawReportCard(data) {
   const b = branding()
   const brand = b.brand_color
   const onBrand = readableOn(brand)
+
+  // 내용에 맞춰 높이를 먼저 계산한다 — 출결 종류·학습 항목 수가 학원마다 달라서
+  // 고정 높이로 그리면 항목이 많은 학원에서 아래가 잘린다.
+  const att = data.attendance || { rate: 0, total: 0, present: 0, absent: 0, counts: {} }
+  const entries = Object.entries(att.counts || {}).filter(([, v]) => v > 0)
+  const pairs = (data.customPairs || []).slice(0, 8)
+  const H =
+    168 + 76 + 34 +                                   // 헤더 + 원생 정보
+    150 + 40 +                                        // 출석 요약 카드
+    (30 + entries.length * 42 + 30) +                 // 출결 상세
+    (pairs.length ? 30 + pairs.length * 40 + 30 : 0) + // 학습 현황
+    (data.payment ? 30 + 72 + 26 : 0) +               // 수납
+    (data.comment ? 30 + 150 + 26 : 0) +              // 코멘트
+    76                                                // 푸터
+
   const canvas = document.createElement('canvas')
   canvas.width = W
-  canvas.height = H
+  canvas.height = Math.max(760, Math.round(H))
   const ctx = canvas.getContext('2d')
   const F = (weight, size) => `${weight} ${size}px system-ui, -apple-system, "Noto Sans KR", "Malgun Gothic", sans-serif`
 
   // 배경
   ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, W, H)
+  ctx.fillRect(0, 0, W, canvas.height)
 
   // 헤더
   ctx.fillStyle = brand
@@ -100,7 +114,6 @@ export async function drawReportCard(data) {
   ctx.fillStyle = mix(brand, '#ffffff', 0.9)
   roundRect(ctx, PAD, y, W - PAD * 2, 150, 20)
   ctx.fill()
-  const att = data.attendance || { rate: 0, total: 0, present: 0, absent: 0, counts: {} }
   ctx.fillStyle = brand
   ctx.font = F(700, 56)
   ctx.fillText(`${att.rate}%`, PAD + 28, y + 88)
@@ -129,7 +142,6 @@ export async function drawReportCard(data) {
   ctx.font = F(700, 24)
   ctx.fillText('출결 상세', PAD, y)
   y += 22
-  const entries = Object.entries(att.counts || {}).filter(([, v]) => v > 0)
   const max = Math.max(1, ...entries.map(([, v]) => v))
   entries.forEach(([label, v], i) => {
     const rowY = y + 14 + i * 42
@@ -148,10 +160,9 @@ export async function drawReportCard(data) {
     ctx.font = F(600, 20)
     ctx.fillText(`${v}`, W - PAD - 38, rowY + 22)
   })
-  y += 14 + entries.length * 42 + 18
+  y += 14 + entries.length * 42 + 30
 
   // custom 필드 (계열별 항목: 진도/급수/점수 …)
-  const pairs = (data.customPairs || []).slice(0, 6)
   if (pairs.length) {
     ctx.fillStyle = '#111827'
     ctx.font = F(700, 24)
@@ -171,7 +182,7 @@ export async function drawReportCard(data) {
       ctx.lineTo(W - PAD, rowY + 34)
       ctx.stroke()
     })
-    y += 12 + pairs.length * 40 + 18
+    y += 12 + pairs.length * 40 + 30
   }
 
   // 수납
@@ -191,7 +202,7 @@ export async function drawReportCard(data) {
     ctx.font = F(700, 22)
     const label = `${Number(data.payment.amount || 0).toLocaleString('ko-KR')}원 · ${st}`
     ctx.fillText(label, W - PAD - 22 - ctx.measureText(label).width, y + 44)
-    y += 96
+    y += 98
   }
 
   // 강사 코멘트
@@ -207,20 +218,20 @@ export async function drawReportCard(data) {
     ctx.fillStyle = '#374151'
     ctx.font = F(400, 21)
     wrapText(ctx, data.comment, PAD + 22, y + 42, W - PAD * 2 - 44, 32, 4)
-    y += boxH + 24
+    y += boxH + 26
   }
 
   // 푸터
   ctx.fillStyle = '#9ca3af'
   ctx.font = F(400, 18)
   const foot = [b.name, b.phone, data.teacherName ? `담당 ${data.teacherName}` : null].filter(Boolean).join(' · ')
-  ctx.fillText(foot, PAD, H - 44)
-  ctx.fillText(new Date().toLocaleDateString('ko-KR'), W - PAD - 96, H - 44)
+  ctx.fillText(foot, PAD, canvas.height - 44)
+  ctx.fillText(new Date().toLocaleDateString('ko-KR'), W - PAD - 96, canvas.height - 44)
   ctx.strokeStyle = brand
   ctx.lineWidth = 6
   ctx.beginPath()
-  ctx.moveTo(0, H - 6)
-  ctx.lineTo(W, H - 6)
+  ctx.moveTo(0, canvas.height - 6)
+  ctx.lineTo(W, canvas.height - 6)
   ctx.stroke()
 
   return canvas
