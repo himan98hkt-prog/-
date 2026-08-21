@@ -96,6 +96,17 @@ cd shorts && git checkout claude/auto-video-generation-upload-3kilh6
 cd shorts-pipeline && pip install -r requirements.txt && cp .env.example .env
 ```
 
+### 최신 코드 받기 (설치 후 언제든)
+
+`shorts-pipeline` 폴더의 **`update.bat` 을 더블클릭**하면 됩니다.
+`.env`(fal 키), `seeds`(고른 이미지), `runs`(만든 영상)는 그대로 유지됩니다.
+
+처음 한 번은 아래 명령으로 받으세요 (그다음부터는 더블클릭):
+
+```powershell
+$z="$env:TEMP\a.zip"; $t="$env:TEMP\a_x"; Invoke-WebRequest "https://github.com/himan98hkt-prog/-/archive/refs/heads/claude/auto-video-generation-upload-3kilh6.zip" -OutFile $z -UseBasicParsing; Remove-Item $t -Recurse -Force -EA SilentlyContinue; Expand-Archive $z $t -Force; $s=Get-ChildItem $t -Recurse -Directory -Filter shorts-pipeline | Where-Object { Test-Path (Join-Path $_.FullName main.py) } | Select-Object -First 1; if(-not $s){Write-Host "실패" -ForegroundColor Red}else{Copy-Item "$($s.FullName)\*" "C:\shorts-pipeline\" -Recurse -Force; Write-Host "완료" -ForegroundColor Green}
+```
+
 ### 설치 스크립트 (Windows)
 
 저장소에 `install.ps1` 이 있습니다. 코드를 받은 뒤 한 번에 처리하려면:
