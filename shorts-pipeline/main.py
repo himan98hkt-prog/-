@@ -703,6 +703,86 @@ def curate_cmd(
     typer.echo("\n다음: python main.py doctor")
 
 
+@app.command("connect-youtube")
+def connect_youtube_cmd():
+    """유튜브 계정을 연결한다. 브라우저가 열리면 로그인하고 권한을 허용하세요."""
+    from publish.youtube import UploadError, _credentials, _require_libs
+
+    secret = Path(os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "secrets/client_secret.json"))
+    if not secret.is_absolute():
+        secret = Path(__file__).parent / secret
+    if not secret.exists():
+        _die("client_secret.json 이 없습니다.\n"
+             f"  찾은 위치: {secret}\n"
+             "  작업실 [설정] 탭에서 파일을 올리거나, secrets/ 폴더에 넣으세요.")
+
+    typer.echo("브라우저가 열립니다. 유튜브 채널 계정으로 로그인하고 [허용] 을 누르세요.")
+    typer.echo("  (창이 안 열리면 터미널에 뜬 주소를 직접 붙여넣으세요)\n")
+    try:
+        creds = _credentials()
+        _, _, _, build, _ = _require_libs()
+        yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
+        me = yt.channels().list(part="snippet", mine=True).execute()
+    except UploadError as exc:
+        _die(str(exc))
+    except Exception as exc:                       # noqa: BLE001 - 원인을 그대로 보여준다
+        _die(f"연결에 실패했습니다: {exc}")
+
+    items = me.get("items") or []
+    if not items:
+        _die("이 계정에 유튜브 채널이 없습니다. 채널을 먼저 만들고 다시 시도하세요.")
+    name = items[0]["snippet"]["title"]
+    typer.secho(f"\n연결 완료: {name}", fg=typer.colors.GREEN)
+
+    # 작업실 화면이 채널 이름을 보여줄 수 있게 토큰 옆에 적어 둔다.
+    token = Path(os.getenv("YOUTUBE_TOKEN_FILE", "secrets/youtube_token.json"))
+    if not token.is_absolute():
+        token = Path(__file__).parent / token
+    try:
+        import json as _json
+        data = _json.loads(token.read_text(encoding="utf-8"))
+        data["_channel_title"] = name
+        token.write_text(_json.dumps(data), encoding="utf-8")
+    except (OSError, ValueError):
+        pass                                   # 이름 표시는 있으면 좋은 것일 뿐이다
+
+    typer.echo(f"  토큰을 {token} 에 저장했습니다. 다음부터는 로그인이 필요 없습니다.")
+
+
+@app.command("connect-instagram")
+def connect_instagram_cmd():
+    """인스타 토큰이 살아 있는지 확인한다. 계정 이름이 나오면 성공이다."""
+    import json as _json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    user_id = os.getenv("IG_USER_ID", "").strip()
+    token = os.getenv("IG_ACCESS_TOKEN", "").strip()
+    if not user_id or not token:
+        _die("IG_USER_ID 와 IG_ACCESS_TOKEN 이 둘 다 있어야 합니다.\n"
+             "  작업실 [설정] 탭에서 넣어주세요.")
+
+    qs = urllib.parse.urlencode({
+        "fields": "username,name,followers_count,media_count",
+        "access_token": token,
+    })
+    url = f"https://graph.facebook.com/v21.0/{urllib.parse.quote(user_id)}?{qs}"
+    try:
+        with urllib.request.urlopen(url, timeout=20) as r:   # noqa: S310 - 고정 호스트
+            data = _json.loads(r.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:400]
+        _die(f"인스타 확인 실패 (HTTP {exc.code})\n  {detail}\n"
+             "  토큰이 만료됐거나 IG_USER_ID 가 페이지에 연결돼 있지 않습니다.")
+    except OSError as exc:
+        _die(f"인스타에 연결하지 못했습니다: {exc}")
+
+    typer.secho(f"\n연결 완료: @{data.get('username', '?')}", fg=typer.colors.GREEN)
+    typer.echo(f"  게시물 {data.get('media_count', '?')}개 · "
+               f"팔로워 {data.get('followers_count', '?')}명")
+
+
 @app.command("ui")
 def ui_cmd(
     port: int = typer.Option(8765, "--port"),

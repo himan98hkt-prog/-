@@ -47,6 +47,13 @@ def _env(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+def _mask(value: str) -> str:
+    """점검 결과는 화면에도 뜬다. 키를 알아볼 만큼만 남긴다."""
+    from pipeline.envfile import mask
+
+    return mask(value)
+
+
 def check_core(root: Path) -> Section:
     checks = []
 
@@ -70,7 +77,7 @@ def check_core(root: Path) -> Section:
     checks.append(Check(
         ".env 파일", OK if envf.exists() else FAIL,
         str(envf) if envf.exists() else "없음",
-        "cp .env.example .env 후 값을 채우세요"))
+        "작업실 [설정] 탭에서 값을 넣으면 자동으로 만들어집니다"))
 
     return Section("기본 환경", checks, "필수")
 
@@ -81,8 +88,8 @@ def check_provider(root: Path, provider: str) -> Section:
         key = _env("FAL_API_KEY")
         checks.append(Check(
             "FAL_API_KEY", OK if key else FAIL,
-            f"{key[:8]}…" if key else "없음",
-            "https://fal.ai/dashboard/keys 에서 발급 후 .env 에 기록"))
+            _mask(key) if key else "없음",
+            "https://fal.ai/dashboard/keys 에서 발급 후 작업실 [설정] 탭에 붙여넣기"))
     elif provider == "higgsfield":
         k, s = _env("HIGGSFIELD_API_KEY"), _env("HIGGSFIELD_API_SECRET")
         checks.append(Check(
@@ -139,8 +146,8 @@ def check_youtube(root: Path, cfg: dict) -> Section:
     checks.append(Check(
         "OAuth 클라이언트", OK if secret.exists() else FAIL,
         str(secret) if secret.exists() else "없음",
-        "Google Cloud Console → OAuth 클라이언트 ID(데스크톱 앱) JSON 을 "
-        "secrets/client_secret.json 로 저장"))
+        "Google Cloud Console → OAuth 클라이언트 ID(데스크톱 앱) JSON 을 받아 "
+        "작업실 [설정] 탭에 끌어다 놓으세요"))
 
     token = Path(_env("YOUTUBE_TOKEN_FILE") or "secrets/youtube_token.json")
     if not token.is_absolute():
@@ -148,8 +155,8 @@ def check_youtube(root: Path, cfg: dict) -> Section:
     checks.append(Check(
         "인증 토큰", OK if token.exists() else WARN,
         "발급됨" if token.exists() else "아직 없음",
-        "첫 업로드 때 브라우저 인증이 뜹니다. 자동 실행 전에 한 번 수동으로 "
-        "업로드해 토큰을 만들어 두세요"))
+        "작업실 [설정] 탭 → [유튜브 연결하기] 를 한 번 눌러두세요. "
+        "자동 업로드는 토큰이 있어야 사람 없이 돌아갑니다"))
 
     try:
         import googleapiclient  # noqa: F401
@@ -171,11 +178,12 @@ def check_instagram(root: Path) -> Section:
     uid, tok = _env("IG_USER_ID"), _env("IG_ACCESS_TOKEN")
     checks.append(Check(
         "IG_USER_ID", OK if uid else FAIL, uid or "없음",
-        "인스타 비즈니스 계정 ID (숫자)"))
+        "인스타 비즈니스 계정 ID (숫자). 작업실 [설정] 탭에서 넣습니다"))
     checks.append(Check(
         "IG_ACCESS_TOKEN", OK if tok else FAIL,
-        f"{tok[:10]}…" if tok else "없음",
-        "Meta 개발자 앱에서 instagram_content_publish 권한으로 장기 토큰 발급"))
+        _mask(tok) if tok else "없음",
+        "Meta 개발자 앱에서 instagram_content_publish 권한으로 장기 토큰 발급 후 "
+        "작업실 [설정] 탭에 붙여넣기"))
 
     bucket = _env("S3_BUCKET")
     checks.append(Check(
@@ -187,7 +195,7 @@ def check_instagram(root: Path) -> Section:
         checks.append(Check(
             "스토리지 자격증명", OK if akey else FAIL,
             "설정됨" if akey else "없음",
-            "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY 를 .env 에"))
+            "R2 → Manage API Tokens 에서 받아 작업실 [설정] 탭에 넣으세요"))
         try:
             import boto3  # noqa: F401
             checks.append(Check("boto3", OK, "설치됨"))

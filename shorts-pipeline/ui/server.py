@@ -171,6 +171,111 @@ def estimate(mode: str, clips: int, duration: int) -> dict:
         return {"ok": False, "error": str(exc)}
 
 
+SECRETS = ROOT / "secrets"
+
+
+def _seed_pool() -> list[Path]:
+    """아직 안 쓴 시드. 다 쓴 것은 스케줄러가 seeds/_used/ 로 옮기므로 여기 안 잡힌다."""
+    if not SEEDS.is_dir():
+        return []
+    return [p for p in sorted(SEEDS.iterdir())
+            if p.is_file() and p.suffix.lower() in IMAGE_EXT]
+
+
+def connection_state() -> dict:
+    """[설정] 탭 위쪽 요약. 지금 무엇이 연결됐는지 한 줄로 본다."""
+    from pipeline import envfile
+
+    env = envfile.read_raw()
+
+    def val(key: str) -> str:
+        return (os.getenv(key) or env.get(key, "")).strip()
+
+    secret_file = ROOT / (val("YOUTUBE_CLIENT_SECRET_FILE")
+                          or "secrets/client_secret.json")
+    token_file = ROOT / (val("YOUTUBE_TOKEN_FILE")
+                         or "secrets/youtube_token.json")
+
+    channel = ""
+    if token_file.exists():
+        try:
+            tok = json.loads(token_file.read_text(encoding="utf-8"))
+            channel = tok.get("_channel_title", "")
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    return {
+        "video": {
+            "ready": bool(val("FAL_API_KEY") or val("HIGGSFIELD_API_KEY")),
+            "label": "영상 만들기",
+        },
+        "youtube": {
+            "ready": token_file.exists(),
+            "has_secret": secret_file.exists(),
+            "secret_path": str(secret_file.relative_to(ROOT))
+                            if secret_file.is_relative_to(ROOT) else str(secret_file),
+            "channel": channel,
+            "label": "유튜브",
+        },
+        "instagram": {
+            "ready": bool(val("IG_USER_ID") and val("IG_ACCESS_TOKEN")),
+            "label": "인스타그램",
+        },
+        "storage": {
+            "ready": bool(val("S3_BUCKET") and val("AWS_ACCESS_KEY_ID")
+                          and val("AWS_SECRET_ACCESS_KEY")),
+            "label": "영상 보관함",
+        },
+    }
+
+
+def simple_state() -> dict:
+    """간편 모드 화면에 필요한 것만 추린다."""
+    from pipeline.config import load_config
+
+    conn = connection_state()
+    pool = _seed_pool()
+    runs = list_runs(limit=400)
+    ready = [r for r in runs if r["ready"]]
+
+    try:
+        cfg = load_config(ROOT / "config.yaml")
+        clips, duration = cfg.num_clips, cfg.clip_duration
+        mode = cfg.mode
+    except Exception:                                # noqa: BLE001 - 화면은 계속 떠야 한다
+        clips, duration, mode = 6, 5, "chain"
+
+    est = estimate(mode, clips, duration)
+
+    # 다음에 뭘 하면 되는지 딱 하나만 알려준다
+    if not conn["video"]["ready"]:
+        step = {"id": "key", "text": "fal.ai 키를 먼저 넣어야 영상을 만들 수 있어요.",
+                "action": "설정 열기", "go": "settings"}
+    elif not pool:
+        step = {"id": "seed", "text": "쓸 이미지가 없어요. 미드저니 이미지를 올려주세요.",
+                "action": "이미지 올리기", "go": "images"}
+    elif not ready:
+        step = {"id": "make", "text": "준비 끝. 오늘 영상을 만들어 보세요.",
+                "action": "오늘 영상 만들기", "go": "make"}
+    elif not (conn["youtube"]["ready"] or conn["instagram"]["ready"]):
+        step = {"id": "connect", "text": "영상은 있어요. 이제 유튜브·인스타를 연결하면 자동 업로드까지 됩니다.",
+                "action": "계정 연결하기", "go": "settings"}
+    else:
+        step = {"id": "go", "text": "전부 준비됐어요. 매일 자동 업로드를 켜두면 끝입니다.",
+                "action": "오늘 영상 만들기", "go": "make"}
+
+    return {
+        "connections": conn,
+        "seeds_left": len(pool),
+        "videos_ready": len(ready),
+        "latest": ready[0] if ready else None,
+        "plan": {"mode": mode, "clips": clips, "duration": duration,
+                 "seconds": est.get("seconds"), "cost": est.get("expected")},
+        "next_step": step,
+        "schedule": schedule_state(),
+    }
+
+
 def thumbnail(name: str, box: int = 320) -> bytes | None:
     with _THUMB_LOCK:
         if name in _THUMBS:
@@ -289,6 +394,18 @@ class Handler(BaseHTTPRequestHandler):
             self._json(schedule_state())
             return
 
+        if p == "/api/simple":
+            self._json(simple_state())
+            return
+
+        if p == "/api/settings":
+            from pipeline import envfile
+
+            data = envfile.snapshot()
+            data["connections"] = connection_state()
+            self._json(data)
+            return
+
         if p == "/api/history":
             log = RUNS / "schedule.log"
             lines = []
@@ -351,7 +468,32 @@ class Handler(BaseHTTPRequestHandler):
                 return
         self.send_error(404)
 
+    def _same_origin(self) -> bool:
+        """다른 웹사이트가 몰래 이 서버를 부르지 못하게 막는다.
+
+        이 화면은 내 컴퓨터에서만 열리지만, 브라우저는 아무 사이트에서나
+        127.0.0.1 로 POST 를 보낼 수 있다. 그대로 두면 방문한 광고 페이지가
+        내 fal 키를 바꾸거나 돈 드는 생성을 시작시킬 수 있다.
+
+        - JSON content-type 을 요구하면 브라우저가 사전 요청(preflight)을 보내는데,
+          여기서는 그걸 받아주지 않으므로 크로스 오리진 요청 자체가 막힌다.
+        - Origin 헤더가 붙어 오면 내 주소인지 한 번 더 본다.
+        """
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return False
+        origin = self.headers.get("Origin")
+        if origin:
+            host = self.headers.get("Host", "")
+            allowed = {f"http://{host}", f"https://{host}"}
+            if origin not in allowed:
+                return False
+        return True
+
     def do_POST(self) -> None:
+        if not self._same_origin():
+            self._json({"error": "허용되지 않은 요청입니다."}, 403)
+            return
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
         try:
@@ -378,6 +520,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if u.path == "/api/schedule":
             self._schedule(body)
+            return
+        if u.path == "/api/settings":
+            self._save_settings(body)
+            return
+        if u.path == "/api/client-secret":
+            self._client_secret(body)
+            return
+        if u.path == "/api/connect":
+            self._connect(body)
+            return
+        if u.path == "/api/auto":
+            self._auto(body)
             return
         self.send_error(404)
 
@@ -523,6 +677,128 @@ class Handler(BaseHTTPRequestHandler):
             _THUMBS.clear()
         self._json({"added": added, "skipped": [
             {"name": n, "reason": r} for n, r in skipped]})
+
+    def _save_settings(self, body: dict) -> None:
+        """[설정] 탭에서 넣은 값을 .env 에 쓴다."""
+        from pipeline import envfile
+
+        values = body.get("values")
+        if not isinstance(values, dict):
+            self._json({"error": "보낼 값이 없습니다."}, 400)
+            return
+
+        # 마스킹된 값이 그대로 돌아오면 '안 고침' 이다. 진짜 키를 별표로 덮어쓰면 안 된다.
+        clean = {}
+        for key, raw in values.items():
+            field = envfile.BY_KEY.get(key)
+            if field is None:
+                continue
+            v = str(raw).strip()
+            if field.kind == envfile.SECRET and set(v) <= {"*"} and v:
+                continue
+            if field.kind == envfile.SECRET and "*" * 6 in v:
+                continue
+            clean[key] = v
+
+        try:
+            changed = envfile.write(clean)
+        except OSError as exc:
+            self._json({"error": f".env 를 저장하지 못했습니다: {exc}"}, 500)
+            return
+        self._json({"ok": True, "changed": changed,
+                    "connections": connection_state()})
+
+    def _client_secret(self, body: dict) -> None:
+        """client_secret.json 을 브라우저에서 받아 secrets/ 에 둔다."""
+        import base64
+        import binascii
+
+        from pipeline import envfile
+
+        data_url = str(body.get("data", ""))
+        if "," not in data_url:
+            self._json({"error": "파일을 읽지 못했습니다."}, 400)
+            return
+        try:
+            blob = base64.b64decode(data_url.split(",", 1)[1], validate=True)
+        except (binascii.Error, ValueError):
+            self._json({"error": "파일을 읽지 못했습니다."}, 400)
+            return
+        if len(blob) > 128 * 1024:
+            self._json({"error": "JSON 파일이 아닌 것 같습니다 (너무 큽니다)."}, 400)
+            return
+
+        try:
+            parsed = json.loads(blob.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._json({"error": "JSON 파일이 아닙니다. 구글에서 받은 "
+                                 "client_secret_....json 을 그대로 올려주세요."}, 400)
+            return
+        block = parsed.get("installed") or parsed.get("web")
+        if not isinstance(block, dict) or "client_id" not in block:
+            self._json({"error": "OAuth 클라이언트 파일이 아닙니다. 구글 클라우드 콘솔의 "
+                                 "[사용자 인증 정보]에서 받은 JSON 인지 확인하세요."}, 400)
+            return
+        if parsed.get("web"):
+            self._json({"error": "'웹 애플리케이션' 용으로 만드셨습니다. "
+                                 "'데스크톱 앱' 으로 다시 만들어 주세요."}, 400)
+            return
+
+        SECRETS.mkdir(parents=True, exist_ok=True)
+        dest = SECRETS / "client_secret.json"
+        dest.write_bytes(blob)
+        envfile.write({"YOUTUBE_CLIENT_SECRET_FILE": "secrets/client_secret.json"})
+        self._json({"ok": True, "path": "secrets/client_secret.json",
+                    "connections": connection_state()})
+
+    def _connect(self, body: dict) -> None:
+        """유튜브/인스타 연결을 확인한다. 유튜브는 브라우저 로그인 창이 뜬다."""
+        target = body.get("target")
+        if target not in ("youtube", "instagram"):
+            self._json({"error": "알 수 없는 대상입니다."}, 400)
+            return
+        if jobs.active():
+            self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시도하세요."}, 409)
+            return
+        label = "유튜브 연결" if target == "youtube" else "인스타 연결"
+        job = jobs.start("connect", label,
+                         ["main.py", f"connect-{target}"], ROOT)
+        self._json({"id": job.id})
+
+    def _auto(self, body: dict) -> None:
+        """간편 모드. 이미지를 알아서 고르고 오늘 영상을 만든다."""
+        from publish.scheduler import pick_seed
+
+        if jobs.active():
+            self._json({"error": "이미 작업이 진행 중입니다."}, 409)
+            return
+
+        name = _safe_name(body.get("seed", "")) if body.get("seed") else None
+        # pick_seed 는 seeds/_used 를 만들려 하므로 폴더가 없으면 먼저 막는다
+        seed = (SEEDS / name) if name else (
+            pick_seed(SEEDS, shuffle=False) if SEEDS.is_dir() else None)
+        if seed is None or not seed.exists():
+            self._json({"error": "쓸 수 있는 이미지가 없습니다. "
+                                 "[이미지] 탭에서 먼저 올려주세요."}, 400)
+            return
+
+        from pipeline.config import load_config
+        try:
+            cfg = load_config(ROOT / "config.yaml")
+            mode, clips, duration = cfg.mode, cfg.num_clips, cfg.clip_duration
+        except Exception:                            # noqa: BLE001
+            mode, clips, duration = "chain", 6, 5
+        # 간편 모드는 항상 끊김 없는 chain 이다. montage 는 같은 그림으로 되돌아간다.
+        mode = "chain"
+
+        from pipeline.content import load_content
+        title = load_content(seed).title or seed.stem
+
+        args = ["main.py", "generate", "--image", f"seeds/{seed.name}",
+                "--mode", mode, "--clips", str(clips),
+                "--duration", str(duration), "--yes"]
+        job = jobs.start("generate", title, args, ROOT)
+        self._json({"id": job.id, "seed": seed.name, "title": title})
 
     def _save_meta(self, body: dict) -> None:
         name = _safe_name(body.get("seed", ""))

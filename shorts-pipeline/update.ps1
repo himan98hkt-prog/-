@@ -1,4 +1,4 @@
-# AI DEOKHU 최신 코드 받기
+﻿# AI DEOKHU 최신 코드 받기
 #
 #   update.bat 을 더블클릭하거나, 터미널에서
 #     powershell -ExecutionPolicy Bypass -File update.ps1
@@ -6,6 +6,8 @@
 # .env(fal 키)와 seeds(고른 이미지), runs(만든 영상)는 건드리지 않는다.
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+
 $ZipUrl = "https://github.com/himan98hkt-prog/-/archive/refs/heads/claude/auto-video-generation-upload-3kilh6.zip"
 $Target = $PSScriptRoot
 
@@ -47,7 +49,7 @@ try {
     Copy-Item (Join-Path $src.FullName "*") -Destination $Target -Recurse -Force
     Ok "덮어쓰기 완료"
 } catch {
-    Die "복사 실패: $($_.Exception.Message)`n  작업실(python main.py ui)이 켜져 있으면 끄고 다시 시도하세요."
+    Die "복사 실패: $($_.Exception.Message)`n  작업실이 켜져 있으면 끄고 다시 시도하세요."
 }
 
 Remove-Item $zip, $tmp -Recurse -Force -ErrorAction SilentlyContinue
@@ -60,5 +62,5 @@ foreach ($keep in @(".env", "seeds", "runs")) {
 }
 
 Write-Host "`n업데이트가 끝났습니다." -ForegroundColor Green
-Write-Host "  작업실 열기:  python main.py ui`n" -ForegroundColor White
+Write-Host "  바탕화면의 [AI DEOKHU 작업실] 을 더블클릭하세요.`n" -ForegroundColor White
 Read-Host "엔터를 누르면 닫힙니다"

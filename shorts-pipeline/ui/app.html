@@ -39,6 +39,8 @@
   main{max-width:1240px;margin:0 auto;padding:22px 22px 80px;
        display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start}
   @media(max-width:1000px){main{grid-template-columns:1fr}}
+  /* 간편 모드처럼 오른쪽 칸이 비면 한 칸으로 붙인다 */
+  main.solo{max-width:860px;grid-template-columns:1fr}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
   h2{font-family:var(--disp);font-size:16px;font-weight:700;margin:0 0 4px;
@@ -50,6 +52,55 @@
   .tab{background:var(--panel2);border:1px solid var(--line);color:var(--ink2);
        padding:7px 15px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600}
   .tab[aria-selected=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
+
+  /* 간편 모드 */
+  .hero{background:linear-gradient(150deg,var(--panel2),var(--panel));
+        border:1px solid var(--cyan);border-radius:16px;padding:22px;margin-bottom:16px}
+  .hero .step{font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+              color:var(--cyan);font-family:var(--disp);font-weight:700}
+  .hero .say{font-size:19px;font-weight:600;margin:8px 0 16px;line-height:1.5}
+  .big{width:100%;padding:16px;border:0;border-radius:12px;cursor:pointer;
+       background:var(--cyan);color:#04121A;font-size:17px;font-weight:700}
+  .big:disabled{background:var(--panel2);color:var(--mute);cursor:not-allowed}
+  .big.alt{background:transparent;border:1px solid var(--line);color:var(--ink2);
+           font-size:15px;padding:12px;margin-top:9px}
+  .pills{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:9px;margin-bottom:16px}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:11px 13px;display:flex;align-items:center;gap:9px}
+  .pill .dot{width:9px;height:9px;border-radius:99px;background:var(--mute);flex:none}
+  .pill.on{border-color:var(--good)} .pill.on .dot{background:var(--good)}
+  .pill .nm{font-size:13.5px;font-weight:600}
+  .pill .st{font-size:11.5px;color:var(--mute);margin-left:auto}
+  .pill.on .st{color:var(--good)}
+  .how{counter-reset:h;margin:0;padding:0;list-style:none}
+  .how li{counter-increment:h;position:relative;padding:0 0 13px 34px;font-size:13.5px;
+          color:var(--ink2)}
+  .how li::before{content:counter(h);position:absolute;left:0;top:1px;width:22px;height:22px;
+    border-radius:99px;background:var(--cyanDim);border:1px solid var(--cyan);
+    color:var(--cyanInk);font-size:12px;font-weight:700;display:grid;place-items:center}
+  .how li b{color:var(--ink);font-weight:600}
+
+  /* 설정 */
+  .grp{margin-bottom:18px}
+  .grp > h3{font-size:14px;font-weight:700;margin:0 0 3px;color:var(--ink)}
+  .grp > p{font-size:12.5px;color:var(--mute);margin:0 0 12px}
+  .setf{display:block;margin-bottom:12px}
+  .setf > span{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:4px}
+  .setf input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+              color:var(--ink);padding:9px 11px;font-size:13.5px;font-family:var(--mono)}
+  .setf input:focus{outline:none;border-color:var(--cyan)}
+  .setf .hint{display:block;font-size:11.5px;color:var(--mute);margin-top:4px;
+              font-family:var(--sans)}
+  .setf.done > span:first-of-type::after{content:" ✓";color:var(--good)}
+  .setf .warn{display:block;font-size:11.5px;color:var(--warn);margin-top:4px;
+              font-family:var(--sans)}
+  .drop{border:1.5px dashed var(--line);border-radius:11px;padding:16px;text-align:center;
+        cursor:pointer;font-size:13px;color:var(--mute);margin-bottom:12px}
+  .drop:hover{border-color:var(--cyan);color:var(--cyanInk)}
+  .drop.has{border-style:solid;border-color:var(--good);color:var(--good)}
+  .lnk{display:inline-block;font-size:12.5px;color:var(--cyan);text-decoration:none;
+       border-bottom:1px dotted var(--cyan);margin-right:14px}
 
   /* 시드 격자 */
   .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
@@ -186,17 +237,50 @@
   <div class="status" id="status"></div>
 </header>
 
-<main>
+<main id="main">
   <!-- 왼쪽 -->
   <section>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="t-home" aria-selected="true">대시보드</button>
+      <button class="tab" role="tab" id="t-easy" aria-selected="true">간편 모드</button>
+      <button class="tab" role="tab" id="t-home" aria-selected="false">대시보드</button>
       <button class="tab" role="tab" id="t-make" aria-selected="false">1 · 이미지 고르기</button>
       <button class="tab" role="tab" id="t-runs" aria-selected="false">2 · 완성된 영상</button>
       <button class="tab" role="tab" id="t-auto" aria-selected="false">3 · 자동 업로드</button>
+      <button class="tab" role="tab" id="t-set" aria-selected="false">설정</button>
     </div>
 
-    <div id="p-home">
+    <div id="p-easy">
+      <div class="hero">
+        <div class="step" id="eStep">다음 할 일</div>
+        <div class="say" id="eSay">불러오는 중…</div>
+        <button class="big" id="eGo">오늘 영상 만들기</button>
+        <button class="big alt" id="eGo2" hidden></button>
+      </div>
+
+      <div class="pills" id="ePills"></div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>오늘 만들 영상</h2>
+        <p class="sub" id="ePlan">—</p>
+        <div id="eLatest"></div>
+      </div>
+
+      <div class="card">
+        <h2>어떻게 돌아가나요</h2>
+        <p class="sub">이 네 가지만 알면 됩니다.</p>
+        <ol class="how">
+          <li><b>이미지를 넣는다</b> — 미드저니로 뽑은 그림을 끌어다 놓으면
+              제목·설명·움직임 문구까지 자동으로 붙습니다.</li>
+          <li><b>[오늘 영상 만들기] 를 누른다</b> — 남은 이미지 중 하나를 골라
+              30초짜리 이어지는 영상을 만듭니다. 5분쯤 걸립니다.</li>
+          <li><b>확인하고 올린다</b> — 완성된 영상을 보고 유튜브·인스타에 올립니다.</li>
+          <li><b>예약을 켜두면 끝</b> — [자동 업로드] 탭에서 켜두면 매일 저녁 9시에
+              알아서 만들고 올립니다. 컴퓨터가 켜져 있어야 합니다.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div id="p-home" hidden>
       <div class="stats" id="stats"></div>
 
       <div class="card" style="margin-bottom:14px">
@@ -216,6 +300,59 @@
         <h2>준비 상태</h2>
         <p class="sub">✗ 가 있으면 그 항목부터 해결하세요.</p>
         <div id="doc"></div>
+      </div>
+    </div>
+
+    <div id="p-set" hidden>
+      <div class="card" style="margin-bottom:14px">
+        <h2>지금 연결 상태</h2>
+        <p class="sub">초록불이 켜진 것만 쓸 수 있습니다.</p>
+        <div class="pills" id="sPills" style="margin-bottom:0"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>유튜브 연결</h2>
+        <p class="sub">구글에서 받은 파일을 올리고 버튼 한 번이면 끝입니다.</p>
+        <ol class="how" style="margin-bottom:14px">
+          <li>아래 <b>구글 클라우드 콘솔</b> 에서 프로젝트를 만들고
+              <b>YouTube Data API v3</b> 를 사용 설정합니다.</li>
+          <li><b>사용자 인증 정보 → OAuth 클라이언트 ID → 데스크톱 앱</b> 으로 만들고
+              JSON 을 내려받습니다.</li>
+          <li>내려받은 파일을 아래 상자에 끌어다 놓습니다.</li>
+          <li><b>[유튜브 연결하기]</b> 를 누르고, 열리는 창에서 채널 계정으로 로그인합니다.</li>
+        </ol>
+        <div style="margin-bottom:12px">
+          <a class="lnk" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com"
+             target="_blank" rel="noopener">API 사용 설정 ↗</a>
+          <a class="lnk" href="https://console.cloud.google.com/apis/credentials"
+             target="_blank" rel="noopener">사용자 인증 정보 ↗</a>
+        </div>
+        <div class="drop" id="csDrop">client_secret_....json 을 여기에 끌어다 놓거나 클릭</div>
+        <input type="file" id="csFile" accept=".json,application/json" hidden>
+        <button class="big" id="ytConnect">유튜브 연결하기</button>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>인스타그램 연결</h2>
+        <p class="sub">프로페셔널(비즈니스) 계정이어야 하고, 페이스북 페이지가 연결돼 있어야 합니다.</p>
+        <div style="margin-bottom:12px">
+          <a class="lnk" href="https://developers.facebook.com/tools/explorer/"
+             target="_blank" rel="noopener">그래프 API 탐색기 ↗</a>
+          <a class="lnk" href="https://developers.facebook.com/apps/"
+             target="_blank" rel="noopener">앱 관리 ↗</a>
+        </div>
+        <div id="sGrp-instagram"></div>
+        <button class="big" id="igConnect">인스타 확인하기</button>
+      </div>
+
+      <div class="card">
+        <h2>키와 값</h2>
+        <p class="sub">비밀 키는 앞뒤 네 글자만 보여줍니다. 그대로 두면 안 바뀝니다.</p>
+        <div id="sGrp-video"></div>
+        <div id="sGrp-storage"></div>
+        <div id="sGrp-youtube"></div>
+        <button class="big" id="sSave">저장하기</button>
+        <p class="sub" id="sWhere" style="margin:10px 0 0"></p>
       </div>
     </div>
 
@@ -283,7 +420,9 @@
 
   <!-- 오른쪽 -->
   <aside>
-    <div class="card">
+    <div class="card" id="mkCard">
+      <!-- 간편 모드에서는 이 묶음을 통째로 감춘다. 진행 표시줄만 남긴다. -->
+      <div id="expert">
       <h2>영상 만들기</h2>
       <p class="sub" id="picked">왼쪽에서 이미지를 고르세요.</p>
 
@@ -323,6 +462,7 @@
 
       <div class="cost"><span id="costLabel">예상 비용</span><b id="cost">—</b></div>
       <button class="go" id="go" disabled>영상 만들기</button>
+      </div><!-- /#expert -->
 
       <div class="prog" id="prog" hidden>
         <div class="bar"><i id="fill"></i></div>
@@ -343,6 +483,7 @@ let picked = [];            // 고른 이미지 이름들
 let mode = "chain";
 let activeJob = null;
 let filter = "";
+let stayHere = false;   // 간편 모드·설정에서 시작한 작업은 탭을 옮기지 않는다
 
 const toast = (msg, bad = false) => {
   const t = $("toast");
@@ -364,7 +505,7 @@ async function refresh() {
     STATE = s;
     renderSeeds(); renderRuns();
     if (s.active) { activeJob = s.active.id; renderJob(s.active); }
-    else if (activeJob) { activeJob = null; $("prog").hidden = true; }
+    else if (activeJob) { activeJob = null; $("prog").hidden = true; applyAside(); }
   } catch (e) { /* 서버가 잠깐 멈춘 것뿐일 수 있다 */ }
 }
 
@@ -506,6 +647,7 @@ $("cancel").onclick = async () => {
 
 function renderJob(j) {
   $("prog").hidden = false;
+  applyAside();
   const pct = j.total ? (j.step / j.total) * 100 : (j.status === "done" ? 100 : 6);
   $("fill").style.width = pct + "%";
   $("pstep").textContent = j.status === "running"
@@ -526,15 +668,24 @@ async function poll() {
     const j = await api(`/api/job?id=${activeJob}`);
     renderJob(j);
     if (j.status === "running") { setTimeout(poll, 1500); return; }
-    activeJob = null; $("go").disabled = picked.length === 0;
+    activeJob = null;
+    $("go").disabled = picked.length === 0;
+    $("eGo").disabled = false; $("eGo2").disabled = false;
+    const here = stayHere; stayHere = false;
     if (j.status === "done") {
-      toast(j.kind === "publish" ? "업로드가 끝났습니다." : "영상이 완성됐습니다.");
-      switchTab("runs");
+      toast({ publish: "업로드가 끝났습니다.", connect: "연결됐습니다." }[j.kind]
+             || "영상이 완성됐습니다.");
+      if (!here) switchTab("runs");
     } else if (j.status === "failed") {
       toast("실패했습니다. 아래 기록을 확인하세요.", true);
     }
-    refresh();
-  } catch (e) { activeJob = null; $("go").disabled = false; }
+    refresh(); loadDoctor();
+    if (!$("p-easy").hidden) loadEasy();
+    if (!$("p-set").hidden) loadSettings();
+  } catch (e) {
+    activeJob = null; stayHere = false;
+    $("go").disabled = false; $("eGo").disabled = false; $("eGo2").disabled = false;
+  }
 }
 
 // ── 결과 ────────────────────────────────────────────────────────────
@@ -623,19 +774,216 @@ async function upload(files) {
 }
 
 // ── 탭 · 모드 ───────────────────────────────────────────────────────
-const TABS = ["home", "make", "runs", "auto"];
+const TABS = ["easy", "home", "make", "runs", "auto", "set"];
 function switchTab(which) {
   TABS.forEach((t) => {
     $(`t-${t}`).setAttribute("aria-selected", String(t === which));
     $(`p-${t}`).hidden = t !== which;
   });
+  if (which === "easy") loadEasy();
   if (which === "home") { loadOverview(); loadDoctor(); }
   if (which === "auto") { loadSchedule(); loadHistory(); }
+  if (which === "set") loadSettings();
+  applyAside();
+}
+
+// 간편 모드·설정에서는 오른쪽의 전문가용 양식을 감춘다.
+// 작업이 돌고 있을 때만 진행 표시줄이 남는다.
+function applyAside() {
+  const simple = !$("p-easy").hidden || !$("p-set").hidden;
+  $("expert").hidden = simple;
+  const bare = simple && $("prog").hidden;
+  $("mkCard").hidden = bare;
+  $("main").classList.toggle("solo", bare);
 }
 TABS.forEach((t) => { $(`t-${t}`).onclick = () => switchTab(t); });
 $("q-make").onclick = () => switchTab("make");
 $("q-upload").onclick = () => { switchTab("make"); setTimeout(() => $("pick").click(), 120); };
 $("q-auto").onclick = () => switchTab("auto");
+
+// ── 간편 모드 ───────────────────────────────────────────────────────
+// 초보자가 볼 화면. 지금 눌러야 할 버튼 하나만 크게 보여준다.
+let EASY = null;
+
+function pills(conn) {
+  const order = ["video", "youtube", "instagram", "storage"];
+  return order.map((k) => {
+    const c = conn[k];
+    const note = k === "youtube" && c.ready && c.channel ? c.channel
+               : c.ready ? "연결됨" : "아직";
+    return `<div class="pill ${c.ready ? "on" : ""}"><i class="dot"></i>
+      <span class="nm">${c.label}</span><span class="st">${note}</span></div>`;
+  }).join("");
+}
+
+async function loadEasy() {
+  try {
+    EASY = await api("/api/simple");
+  } catch (e) { return; }
+  const e = EASY;
+  $("ePills").innerHTML = pills(e.connections);
+  $("eSay").textContent = e.next_step.text;
+
+  const go = $("eGo"), alt = $("eGo2");
+  const canMake = e.connections.video.ready && e.seeds_left > 0;
+  go.textContent = e.next_step.action;
+  go.disabled = !!activeJob;
+  go.dataset.go = e.next_step.go;
+
+  // 다음 할 일이 '만들기'가 아니어도, 만들 수 있으면 두 번째 버튼으로 열어준다.
+  if (e.next_step.go !== "make" && canMake) {
+    alt.hidden = false; alt.textContent = "그냥 오늘 영상 만들기";
+    alt.dataset.go = "make"; alt.disabled = !!activeJob;
+  } else { alt.hidden = true; }
+
+  const pl = e.plan;
+  $("ePlan").textContent =
+    `끊김 없는 ${pl.seconds ? Math.round(pl.seconds) : 30}초 영상 · ` +
+    `클립 ${pl.clips}개 · 예상 비용 약 $${(pl.cost ?? 0).toFixed(2)} · ` +
+    `남은 이미지 ${e.seeds_left}장`;
+
+  $("eLatest").innerHTML = e.latest ? `
+    <div class="run">
+      <video src="/api/video?run=${e.latest.id}" controls preload="metadata" playsinline></video>
+      <div class="meta">
+        <div class="t">${e.latest.title || e.latest.id}</div>
+        <div class="d">가장 최근에 만든 영상입니다.</div>
+        <div class="acts">
+          <button class="ghost" id="eUpYt">유튜브에 올리기</button>
+          <button class="ghost" id="eUpBoth">유튜브 + 인스타</button>
+        </div>
+      </div>
+    </div>`
+    : `<div class="empty">아직 만든 영상이 없습니다.</div>`;
+  if (e.latest) {
+    $("eUpYt").onclick = () => publish(e.latest.id, "youtube");
+    $("eUpBoth").onclick = () => publish(e.latest.id, "both");
+  }
+}
+
+async function easyAction(go) {
+  if (go === "settings") { switchTab("set"); return; }
+  if (go === "images") { switchTab("make"); setTimeout(() => $("pick").click(), 120); return; }
+  // go === "make"
+  try {
+    const d = await api("/api/auto", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    activeJob = d.id; stayHere = true;
+    $("prog").hidden = false; $("eGo").disabled = true; $("eGo2").disabled = true;
+    $("log").textContent = "";
+    toast(`"${d.title}" 만드는 중입니다. 5분쯤 걸려요.`);
+    poll();
+  } catch (err) { toast(err.message, true); }
+}
+$("eGo").onclick = () => easyAction($("eGo").dataset.go);
+$("eGo2").onclick = () => easyAction("make");
+
+// ── 설정 ────────────────────────────────────────────────────────────
+let SETTINGS = null;
+
+const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function fieldHtml(f) {
+  return `<label class="setf ${f.filled ? "done" : ""}"><span>${esc(f.label)}</span>
+    <input type="text" data-key="${esc(f.key)}" value="${esc(f.value)}"
+           placeholder="${esc(f.placeholder)}" spellcheck="false" autocomplete="off">
+    ${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ""}
+    ${f.overridden ? `<span class="warn">! ${esc(f.override_note)}</span>` : ""}</label>`;
+}
+
+async function loadSettings() {
+  try { SETTINGS = await api("/api/settings"); } catch (e) { return; }
+  $("sPills").innerHTML = pills(SETTINGS.connections);
+  SETTINGS.groups.forEach((g) => {
+    const box = $(`sGrp-${g.id}`);
+    if (!box) return;
+    const fs = SETTINGS.fields.filter((f) => f.group === g.id);
+    box.innerHTML = `<div class="grp"><h3>${g.label}</h3>${fs.map(fieldHtml).join("")}</div>`;
+  });
+  const yt = SETTINGS.connections.youtube;
+  const drop = $("csDrop");
+  drop.className = "drop" + (yt.has_secret ? " has" : "");
+  drop.textContent = yt.has_secret
+    ? `✓ ${yt.secret_path} 준비됨 — 바꾸려면 다시 올리세요`
+    : "client_secret_....json 을 여기에 끌어다 놓거나 클릭";
+  $("sWhere").textContent = `저장 위치: ${SETTINGS.env_path}`;
+}
+
+$("sSave").onclick = async () => {
+  const values = {};
+  document.querySelectorAll("#p-set input[data-key]").forEach((el) => {
+    values[el.dataset.key] = el.value.trim();
+  });
+  try {
+    const r = await api("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+    toast(r.changed.length ? `${r.changed.length}개 항목을 저장했습니다.` : "바뀐 것이 없습니다.");
+    loadSettings(); loadDoctor();
+  } catch (e) { toast(e.message, true); }
+};
+
+// client_secret.json 받기
+function readSecretFile(file) {
+  if (!file) return;
+  if (!/\.json$/i.test(file.name)) { toast("JSON 파일을 올려주세요.", true); return; }
+  const fr = new FileReader();
+  fr.onload = async () => {
+    try {
+      const r = await api("/api/client-secret", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: fr.result }),
+      });
+      toast("파일을 저장했습니다. 이제 [유튜브 연결하기] 를 누르세요.");
+      loadSettings(); loadDoctor();
+    } catch (e) { toast(e.message, true); }
+  };
+  fr.readAsDataURL(file);
+}
+$("csDrop").onclick = () => $("csFile").click();
+$("csFile").onchange = (ev) => readSecretFile(ev.target.files[0]);
+["dragenter", "dragover"].forEach((n) => $("csDrop").addEventListener(n, (ev) => {
+  ev.preventDefault(); $("csDrop").style.borderColor = "var(--cyan)";
+}));
+$("csDrop").addEventListener("dragleave", () => { $("csDrop").style.borderColor = ""; });
+$("csDrop").addEventListener("drop", (ev) => {
+  ev.preventDefault(); $("csDrop").style.borderColor = "";
+  readSecretFile(ev.dataTransfer.files[0]);
+});
+
+async function connect(target) {
+  try {
+    const d = await api("/api/connect", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target }),
+    });
+    activeJob = d.id; stayHere = true;
+    $("prog").hidden = false; $("log").textContent = "";
+    toast(target === "youtube"
+      ? "로그인 창이 열립니다. 채널 계정으로 로그인하세요."
+      : "인스타 계정을 확인하는 중입니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+}
+$("ytConnect").onclick = () => connect("youtube");
+$("igConnect").onclick = async () => {
+  // 화면에 적어둔 값을 먼저 저장하고 확인한다. 안 그러면 방금 넣은 토큰이 안 먹는다.
+  const values = {};
+  document.querySelectorAll("#sGrp-instagram input[data-key]").forEach((el) => {
+    values[el.dataset.key] = el.value.trim();
+  });
+  try {
+    await api("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+  } catch (e) { toast(e.message, true); return; }
+  connect("instagram");
+};
 
 // ── 요약 ────────────────────────────────────────────────────────────
 async function loadOverview() {
@@ -723,9 +1071,12 @@ $("clips").onchange = updateCost;
 $("duration").onchange = updateCost;
 
 // ── 시작 ────────────────────────────────────────────────────────────
-refresh(); loadDoctor(); loadOverview(); updateCost();
+refresh(); loadDoctor(); loadOverview(); loadEasy(); updateCost(); applyAside();
 setInterval(() => { if (!activeJob) refresh(); }, 6000);
-setInterval(() => { loadDoctor(); loadOverview(); }, 30000);
+setInterval(() => {
+  loadDoctor(); loadOverview();
+  if (!$("p-easy").hidden && !activeJob) loadEasy();
+}, 30000);
 </script>
 </body>
 </html>

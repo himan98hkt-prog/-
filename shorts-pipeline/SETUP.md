@@ -1,5 +1,9 @@
 # 매일 저녁 9시 자동 업로드 — 세팅 안내
 
+> 💡 **여기 나오는 키 입력은 전부 작업실 [설정] 탭에서 클릭으로 할 수 있습니다.**
+> 명령어 없이 하려면 **[START_HERE.md](START_HERE.md)** 를 보세요.
+> 이 문서는 각 키를 *어디서 어떻게 발급받는지* 를 자세히 설명합니다.
+
 **회원님이 직접 하셔야 하는 것만** 순서대로 모았습니다.
 각 단계 끝에서 `python main.py doctor` 를 돌리면 뭐가 남았는지 알려줍니다.
 
@@ -132,12 +136,14 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 2. **Billing** → 카드 등록 → **$20 충전** (약 6편 분량)
 3. **Keys** → *Add key* → 복사
 
-`.env` 에:
+작업실 **[설정] 탭 → fal.ai 키** 에 붙여넣고 **[저장하기]**.
+터미널로 하려면 `.env` 에:
 ```bash
 FAL_API_KEY=발급받은_키
 ```
 
-✅ 확인: `python main.py doctor` → **영상 생성 (fal)** 이 ✓
+✅ 확인: [설정] 탭의 **영상 만들기** 칸에 초록불이 켜지면 됩니다.
+(터미널: `python main.py doctor` → **영상 생성 (fal)** 이 ✓)
 
 ---
 
@@ -268,7 +274,9 @@ curl -s "https://graph.facebook.com/v21.0/페이지ID?\
 fields=instagram_business_account&access_token=장기토큰"
 ```
 
-`.env` 에:
+작업실 **[설정] 탭 → 인스타그램 연결** 에 두 값을 넣고 **[인스타 확인하기]**.
+계정 이름(@ai.deokhu)이 뜨면 성공입니다.
+터미널로 하려면 `.env` 에:
 ```bash
 IG_USER_ID=위에서_받은_숫자_ID
 IG_ACCESS_TOKEN=장기토큰
@@ -282,7 +290,8 @@ IG_ACCESS_TOKEN=장기토큰
 
 1. https://dash.cloudflare.com → **R2** → 버킷 생성 (이름 예: `ai-deokhu`)
 2. **Manage API Tokens** → **Object Read & Write** 토큰 생성
-3. `.env` 에:
+3. 작업실 **[설정] 탭 → 영상 보관함** 에 네 값을 넣고 **[저장하기]**.
+   터미널로 하려면 `.env` 에:
 ```bash
 S3_ENDPOINT_URL=https://<계정ID>.r2.cloudflarestorage.com
 S3_BUCKET=ai-deokhu

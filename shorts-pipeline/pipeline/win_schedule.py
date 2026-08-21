@@ -59,14 +59,17 @@ def write_runner(publish_time: str, targets: list[str], mode: str = "chain") -> 
     """예약이 실행할 배치 파일. 폴더를 옮겨도 따라가도록 %~dp0 을 쓴다."""
     flags = " ".join(f"--{t}" for t in targets) or "--youtube"
     bat = ROOT / "daily.bat"
+    # cmd 는 배치 파일을 OEM 코드페이지(한국어 윈도우는 949)로 읽는다.
+    # UTF-8 로 저장한 한글 주석은 깨져서 명령으로 실행되려다 오류를 낸다.
+    # 그래서 이 파일 안에는 ASCII 만 쓴다.
     bat.write_text(
         "@echo off\r\n"
-        "REM AI DEOKHU 매일 자동 업로드 — 작업 스케줄러가 실행합니다.\r\n"
-        "REM 화면에서 예약을 켤 때 자동으로 만들어집니다. 직접 고치지 마세요.\r\n"
+        "REM AI DEOKHU daily auto-upload. Run by Windows Task Scheduler.\r\n"
+        "REM Generated automatically when you turn the schedule on. Do not edit.\r\n"
         'cd /d "%~dp0"\r\n'
         f"python -m publish.scheduler --at {publish_time} --mode {mode} {flags} "
         '>> "%~dp0runs\\cron.log" 2>&1\r\n',
-        encoding="utf-8")
+        encoding="ascii", newline="")
     return bat
 
 
