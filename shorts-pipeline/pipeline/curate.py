@@ -325,21 +325,24 @@ def safe_name(theme: str, index: int) -> str:
 
 
 def write_sidecar(dest_image: Path, theme: str, prompt_hint: str = "") -> Path:
-    """테마에 맞는 제목·훅을 미리 채운 사이드카를 만든다."""
-    title, hook = COPY.get(theme, COPY["misc"])
+    """이미지 내용에 맞는 제목·훅·움직임 프롬프트를 지어 사이드카에 넣는다.
+
+    테마별 고정 문구를 돌려쓰면 같은 제목이 여러 편 나간다. 원본 프롬프트에서
+    장면의 특징을 뽑아 편마다 다른 제목을 만든다.
+    """
+    from .copywriter import write as write_copy
+
+    copy = write_copy(theme, prompt_hint, seed_key=dest_image.stem)
     dest = dest_image.with_suffix(".yaml")
-    lines = [
-        "# 제목과 훅은 조회수에 직접 영향을 줍니다. 마음에 안 들면 고치세요.",
-        f"title:  {title}",
-        f"hook:   {hook}",
-        "",
-        "# 비우면 config.yaml 의 motion_prompt 를 씁니다.",
-        f"prompt: {prompt_hint}" if prompt_hint else "prompt: ",
-        "",
-        "scene_prompts: []",
-        "",
-    ]
-    dest.write_text("\n".join(lines), encoding="utf-8")
+    dest.write_text(
+        "# 제목과 훅은 조회수에 직접 영향을 줍니다. 마음에 안 들면 고치세요.\n"
+        f"title:  {copy.title}\n"
+        f"hook:   {copy.hook}\n"
+        "\n"
+        "# 영상의 카메라 움직임. 비우면 config.yaml 의 motion_prompt 를 씁니다.\n"
+        f"prompt: {copy.prompt}\n"
+        "\nscene_prompts: []\n",
+        encoding="utf-8")
     return dest
 
 

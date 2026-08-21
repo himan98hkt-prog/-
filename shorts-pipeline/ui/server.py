@@ -309,6 +309,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/save-meta":
             self._save_meta(body)
             return
+        if u.path == "/api/upload":
+            self._upload(body)
+            return
         self.send_error(404)
 
     # -- 동작 ---------------------------------------------------------
@@ -361,6 +364,78 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("publish", f"{run_id} 업로드", args, ROOT)
         self._json({"id": job.id})
+
+    def _upload(self, body: dict) -> None:
+        """브라우저에서 올린 이미지를 seeds/ 에 넣고 제목까지 지어준다."""
+        import base64
+        import binascii
+
+        from pipeline.copywriter import write as write_copy
+        from pipeline.curate import analyze, classify, prompt_from_filename
+
+        files = body.get("files") or []
+        if not files:
+            self._json({"error": "이미지가 없습니다."}, 400)
+            return
+
+        SEEDS.mkdir(parents=True, exist_ok=True)
+        added, skipped = [], []
+        for item in files[:60]:                      # 한 번에 60장까지
+            raw_name = str(item.get("name", "image.png"))
+            data_url = str(item.get("data", ""))
+            if "," not in data_url:
+                skipped.append((raw_name, "형식 오류"))
+                continue
+            try:
+                blob = base64.b64decode(data_url.split(",", 1)[1], validate=True)
+            except (binascii.Error, ValueError):
+                skipped.append((raw_name, "읽을 수 없음"))
+                continue
+            if len(blob) > 25 * 1024 * 1024:
+                skipped.append((raw_name, "25MB 초과"))
+                continue
+
+            ext = Path(raw_name).suffix.lower()
+            if ext not in IMAGE_EXT:
+                skipped.append((raw_name, "이미지가 아님"))
+                continue
+
+            # 파일명은 프롬프트 추출에 쓰이므로 임시로 원본을 살려 저장한다
+            stem = re.sub(r"[^A-Za-z0-9_\-]+", "_", Path(raw_name).stem)[:70] or "seed"
+            tmp = SEEDS / f"__tmp_{stem}{ext}"
+            tmp.write_bytes(blob)
+
+            shot = analyze(tmp)
+            if shot is None:
+                tmp.unlink(missing_ok=True)
+                skipped.append((raw_name, "이미지를 열 수 없음"))
+                continue
+            if shot.disqualified:
+                tmp.unlink(missing_ok=True)
+                skipped.append((raw_name, shot.reasons[0] if shot.reasons else "규격 미달"))
+                continue
+
+            theme = classify(Path(raw_name))
+            n = 1
+            while (SEEDS / f"{theme}_{n:02d}{ext}").exists():
+                n += 1
+            dest = SEEDS / f"{theme}_{n:02d}{ext}"
+            tmp.rename(dest)
+
+            copy = write_copy(theme, prompt_from_filename(Path(raw_name)),
+                              seed_key=dest.stem)
+            dest.with_suffix(".yaml").write_text(
+                "# 화면에서 올리며 자동 작성했습니다. 마음에 안 들면 고치세요.\n"
+                f"title:  {copy.title}\n"
+                f"hook:   {copy.hook}\n"
+                f"\nprompt: {copy.prompt}\n"
+                "\nscene_prompts: []\n", encoding="utf-8")
+            added.append({"name": dest.name, "title": copy.title, "theme": theme})
+
+        with _THUMB_LOCK:
+            _THUMBS.clear()
+        self._json({"added": added, "skipped": [
+            {"name": n, "reason": r} for n, r in skipped]})
 
     def _save_meta(self, body: dict) -> None:
         name = _safe_name(body.get("seed", ""))

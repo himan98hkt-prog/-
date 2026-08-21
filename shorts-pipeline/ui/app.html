@@ -71,6 +71,16 @@
               font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
   .empty{color:var(--mute);font-size:14px;padding:26px 0;text-align:center}
 
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;
+        margin-bottom:14px;color:var(--mute);font-size:13.5px;transition:all .18s}
+  .drop.hot{border-color:var(--cyan);background:var(--cyanDim);color:var(--cyanInk)}
+  .drop b{color:var(--ink);font-size:14.5px;display:block;margin-bottom:3px}
+  .drop button{background:var(--cyanDim);border:1px solid var(--cyan);color:var(--cyanInk);
+               padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:9px}
+  .upstat{font-size:12.5px;margin-top:9px;text-align:left;
+          max-height:120px;overflow:auto;color:var(--ink2)}
+  .upstat .bad{color:var(--bad)}
+
   /* 폼 */
   label.fld{display:block;margin-bottom:12px}
   label.fld span{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
@@ -154,6 +164,14 @@
     <div class="card" id="p-make">
       <h2>시드 이미지</h2>
       <p class="sub" id="seedCount">불러오는 중…</p>
+      <div class="drop" id="drop">
+        <b>이미지를 여기에 끌어다 놓으세요</b>
+        미드저니에서 받은 9:16 세로 이미지 · 제목과 프롬프트는 자동으로 작성됩니다
+        <br><button id="pick">파일 고르기</button>
+        <input type="file" id="file" accept="image/*" multiple hidden>
+        <div class="upstat" id="upstat"></div>
+      </div>
+
       <div class="filters" id="filters"></div>
       <div class="grid" id="grid"></div>
     </div>
@@ -438,6 +456,56 @@ async function publish(runId, tg) {
     activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
     toast("업로드를 시작했습니다."); poll();
   } catch (e) { toast(e.message, true); }
+}
+
+// ── 업로드 ──────────────────────────────────────────────────────────
+const drop = $("drop"), fileInput = $("file"), upstat = $("upstat");
+$("pick").onclick = () => fileInput.click();
+fileInput.onchange = () => { if (fileInput.files.length) upload([...fileInput.files]); };
+
+["dragenter", "dragover"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("hot"); }));
+["dragleave", "drop"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("hot"); }));
+drop.addEventListener("drop", (ev) => {
+  const files = [...(ev.dataTransfer?.files || [])].filter((f) => f.type.startsWith("image/"));
+  if (files.length) upload(files);
+});
+
+const readFile = (f) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res({ name: f.name, data: r.result });
+  r.onerror = () => rej(new Error(f.name));
+  r.readAsDataURL(f);
+});
+
+async function upload(files) {
+  upstat.textContent = `${files.length}장 읽는 중…`;
+  try {
+    const CHUNK = 12;                       // 한 번에 너무 많이 보내면 느려진다
+    let added = 0; const problems = [];
+    for (let i = 0; i < files.length; i += CHUNK) {
+      const part = files.slice(i, i + CHUNK);
+      upstat.textContent = `${i + 1}~${Math.min(i + CHUNK, files.length)} / ${files.length} 올리는 중…`;
+      const payload = await Promise.all(part.map(readFile));
+      const r = await api("/api/upload", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: payload }),
+      });
+      added += r.added.length;
+      problems.push(...r.skipped);
+    }
+    upstat.innerHTML = `<div>${added}장 추가됨</div>` + (problems.length
+      ? problems.slice(0, 8).map((p) => `<div class="bad">${p.name} — ${p.reason}</div>`).join("")
+        + (problems.length > 8 ? `<div class="bad">외 ${problems.length - 8}장</div>` : "")
+      : "");
+    toast(`${added}장을 추가했습니다.` + (problems.length ? ` (${problems.length}장 제외)` : ""));
+    fileInput.value = "";
+    refresh();
+  } catch (e) {
+    upstat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  }
 }
 
 // ── 탭 · 모드 ───────────────────────────────────────────────────────
