@@ -27,26 +27,91 @@ seeds/파일.yaml ─┤ 제목·훅·프롬프트
 
 ---
 
-## STEP 1 · 프로그램 설치 (10분)
+## STEP 1 · 프로그램 설치 (15분)
 
-**Windows**
-- Python: python.org/downloads → **"Add Python to PATH" 체크**
-- ffmpeg: gyan.dev/ffmpeg/builds → `ffmpeg-release-essentials.zip` → 압축 해제 →
-  `bin` 폴더를 시스템 환경변수 PATH 에 추가
-- Git: git-scm.com/download/win
+영상을 만들려면 **Python**(프로그램 실행)과 **ffmpeg**(영상 합성)이 필요합니다.
+Git 은 없어도 됩니다 — 깃허브에서 zip 으로 받으면 됩니다.
 
-**Mac**: `brew install python ffmpeg git`
+### Windows — 자동 (권장)
+
+`winget` 이 PATH 설정까지 해주므로 이 방법이 가장 쉽습니다.
+
+1. `Windows` + `X` → **터미널(관리자)** 선택
+2. 아래를 붙여넣고 실행 (붙여넣기는 마우스 오른쪽 클릭)
+   ```powershell
+   winget install --id Python.Python.3.12 -e --accept-package-agreements --accept-source-agreements
+   winget install --id Gyan.FFmpeg -e --accept-package-agreements --accept-source-agreements
+   ```
+3. **터미널을 완전히 닫고 새로 엽니다.** ← 여기서 대부분 막힙니다.
+   새로 열지 않으면 방금 설치한 것을 인식하지 못합니다
+4. 확인
+   ```powershell
+   python --version
+   ffmpeg -version
+   ```
+
+`Python 3.12.x` 와 `ffmpeg version ...` 이 나오면 성공입니다.
+
+### Windows — 수동
+
+winget 이 없을 때만 씁니다.
+
+1. https://www.python.org/downloads/ 에서 노란 **Download Python** 버튼
+2. 설치 첫 화면의 **"Add python.exe to PATH"** 를 **반드시 체크**하고 Install Now
+3. https://www.gyan.dev/ffmpeg/builds/ 에서 `ffmpeg-release-essentials.zip`
+4. 압축을 풀어 `C:\ffmpeg` 로 옮깁니다. `C:\ffmpeg\bin\ffmpeg.exe` 가 있어야 합니다
+5. 시작 → `환경 변수` 검색 → **시스템 환경 변수 편집**
+6. **[환경 변수]** 버튼
+7. 아래쪽 **"시스템 변수"** 의 **Path** 선택 → **[편집]**
+8. **[새로 만들기]** → `C:\ffmpeg\bin` 입력 → 확인 3번
+9. 터미널을 **새로 열고** 위 확인 명령 실행
+
+### Mac
 
 ```bash
-git clone https://github.com/himan98hkt-prog/-.git shorts
-cd shorts
-git checkout claude/auto-video-generation-upload-3kilh6
-cd shorts-pipeline
-pip install -r requirements.txt
-cp .env.example .env
+brew install python ffmpeg
+python3 --version
+ffmpeg -version
 ```
 
-✅ 확인: `python main.py doctor` → **기본 환경** 이 전부 ✓
+> Mac 은 `python` 이 아니라 **`python3`** 입니다. 이후 모든 명령에서 바꿔 입력하세요.
+
+### 코드 내려받기
+
+Git 없이 zip 으로 받는 편이 간단합니다.
+
+1. 깃허브에서 브랜치 zip 을 받습니다
+   `https://github.com/himan98hkt-prog/-/archive/refs/heads/claude/auto-video-generation-upload-3kilh6.zip`
+2. 압축을 풀고 안의 `shorts-pipeline` 폴더를 `C:\shorts-pipeline` 처럼 찾기 쉬운 곳으로 옮깁니다
+3. 그 폴더에서 터미널을 엽니다 (폴더 빈 곳 우클릭 → **터미널에서 열기**)
+4. ```bash
+   pip install -r requirements.txt
+   copy .env.example .env      # Mac: cp .env.example .env
+   ```
+
+Git 을 쓰시겠다면:
+```bash
+git clone https://github.com/himan98hkt-prog/-.git shorts
+cd shorts && git checkout claude/auto-video-generation-upload-3kilh6
+cd shorts-pipeline && pip install -r requirements.txt && cp .env.example .env
+```
+
+### 설치 스크립트 (Windows)
+
+저장소에 `install.ps1` 이 있습니다. 코드를 받은 뒤 한 번에 처리하려면:
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+✅ 확인: `python main.py doctor` → **[기본 환경]** 네 줄이 전부 ✓
+
+### 자주 막히는 곳
+
+| 메시지 | 해결 |
+|---|---|
+| `...은(는) 내부 또는 외부 명령이 아닙니다` | 터미널을 완전히 닫고 새로 여세요 |
+| `cmdlet ... 인식되지 않습니다` | 위와 같습니다. 그래도 안 되면 PATH 등록 확인 |
+| `pip ... 인식되지 않습니다` | `python -m pip install -r requirements.txt` 로 실행 |
 
 ---
 
