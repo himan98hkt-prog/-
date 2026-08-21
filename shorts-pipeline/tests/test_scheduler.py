@@ -119,6 +119,8 @@ def main() -> int:
     core = sections[0]
     check("ffmpeg 감지", any(c.name == "ffmpeg" and c.status == "ok" for c in core.checks))
 
+    _curate_tests(check, TMP)
+
     shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "═" * 62)
     print(f" 통과 {len(PASSED)} / 실패 {len(FAILED)}")
@@ -126,6 +128,87 @@ def main() -> int:
         print(f"   ✗ {n}")
     print("═" * 62)
     return 1 if FAILED else 0
+
+
+
+
+# ══════════════════════════════════════════════════════════════════════
+def _curate_tests(check, TMP):
+    """curate 검증. 미드저니 출력 형식을 흉내낸 파일로 확인한다."""
+    from pipeline.curate import (
+        analyze, classify, dedupe, prompt_from_filename, prompt_signature,
+    )
+
+    print("\n[테마 분류]")
+    cases = [
+        ("aideokhu_first_person_view_standing_on_a_rope_bridge_between_floating_islands_"
+         "1a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png", "sky_islands"),
+        ("u_POV_walking_through_a_spirit_forest_glowing_mushroom_"
+         "2a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png", "spirit_forest"),
+        ("u_descending_a_vast_temple_staircase_braziers_"
+         "3a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png", "temple"),
+        ("u_from_inside_a_car_at_night_glowing_red_dashboard_"
+         "4a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png", "night_drive"),
+        ("u_something_totally_unrelated_xyz_"
+         "5a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png", "misc"),
+    ]
+    for name, expect in cases:
+        got = classify(Path(name))
+        check(f"{expect} 분류", got == expect, got)
+
+    print("\n[프롬프트 복원]")
+    f = Path("aideokhu_POV_walking_a_frozen_river_between_ice_cliffs_"
+             "1a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png")
+    text = prompt_from_filename(f)
+    check("uuid 제거", "1a2b3c4d" not in text, text[:40])
+    check("문장 복원", "frozen river" in text, text[:40])
+
+    a = Path("u_POV_walking_a_frozen_river_aaaaaaaa-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png")
+    b = Path("u_POV_walking_a_frozen_river_bbbbbbbb-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png")
+    c = Path("u_POV_riding_a_dragon_cccccccc-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png")
+    check("같은 프롬프트는 같은 서명", prompt_signature(a) == prompt_signature(b))
+    check("다른 프롬프트는 다른 서명", prompt_signature(a) != prompt_signature(c))
+
+    print("\n[점수 · 탈락]")
+    d = TMP / "shots"
+    d.mkdir(parents=True, exist_ok=True)
+
+    def shot(name, size, color):
+        p = d / name
+        Image.new("RGB", size, color).save(p)
+        return analyze(p)
+
+    wide = shot("u_wide_castle_1a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                (1920, 1080), (20, 30, 70))
+    check("가로 이미지 탈락", wide.disqualified)
+    check("탈락 사유 명시", any("가로" in r for r in wide.reasons), str(wide.reasons))
+
+    small = shot("u_small_temple_2a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                 (405, 720), (20, 30, 70))
+    check("저해상도 탈락", small.disqualified)
+
+    ok = shot("u_temple_stairs_3a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+              (1080, 1920), (18, 26, 64))
+    check("9:16 세로는 통과", not ok.disqualified, str(ok.reasons))
+
+    bright = shot("u_bright_temple_4a2b3c4d-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                  (1080, 1920), (240, 238, 230))
+    check("너무 밝으면 감점", bright.score < ok.score + 15 and
+          any("밝" in r for r in bright.reasons), f"{bright.score} vs {ok.score}")
+
+    print("\n[중복 묶기]")
+    same_a = shot("u_ice_river_aaaaaaaa-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                  (1080, 1920), (20, 30, 70))
+    same_b = shot("u_ice_river_bbbbbbbb-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                  (1080, 1920), (20, 30, 70))
+    other = shot("u_dragon_flight_cccccccc-1a2b-3c4d-5e6f-1a2b3c4d5e6f.png",
+                 (1080, 1920), (20, 30, 70))
+    groups = dedupe([same_a, same_b, other])
+    check("같은 프롬프트 2장은 한 묶음", any(len(g) == 2 for g in groups),
+          str([len(g) for g in groups]))
+    check("다른 프롬프트는 안 합쳐짐",
+          len(groups) == 2 and all(len(g) <= 2 for g in groups),
+          str([len(g) for g in groups]))
 
 
 if __name__ == "__main__":

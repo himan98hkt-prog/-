@@ -528,6 +528,142 @@ def plan_cmd(
                    "제목은 조회수에 직접 영향을 줍니다.")
 
 
+@app.command("curate")
+def curate_cmd(
+    source: str = typer.Option(..., "--from", "-f", help="미드저니 이미지가 있는 폴더"),
+    seeds: str = typer.Option("seeds", "--seeds"),
+    per_theme: int = typer.Option(3, "--per-theme", help="테마마다 남길 장수"),
+    limit: int = typer.Option(0, "--limit", help="전체 상한 (0=제한 없음)"),
+    min_score: float = typer.Option(45.0, "--min-score", help="이 점수 미만은 제외"),
+    dedupe_threshold: int = typer.Option(24, "--dedupe", help="중복 판정 강도 (낮을수록 엄격)"),
+    allow_crop: bool = typer.Option(False, "--allow-crop",
+                                    help="세로가 아닌 이미지도 잘라서 쓴다"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="분석만 하고 복사하지 않는다"),
+):
+    """미드저니 이미지 수백 장을 테마별로 분류하고 쓸 만한 것만 골라 seeds/ 에 넣는다."""
+    from pipeline.curate import (
+        IMAGE_EXT, analyze, contact_sheet, dedupe as dedupe_groups,
+        prompt_from_filename, safe_name, theme_label, write_sidecar,
+    )
+    import shutil as _shutil
+
+    src = Path(source).expanduser()
+    if not src.is_dir():
+        _die(f"폴더를 찾을 수 없습니다: {src}")
+
+    files = [p for p in sorted(src.rglob("*")) if p.is_file() and p.suffix.lower() in IMAGE_EXT]
+    if not files:
+        _die(f"{src} 에 이미지가 없습니다.")
+
+    typer.echo(f"\n이미지 {len(files)}장을 분석합니다…")
+    shots, broken = [], 0
+    with typer.progressbar(files, label="  분석") as bar:
+        for f in bar:
+            shot = analyze(f)
+            if shot is None:
+                broken += 1
+            else:
+                shots.append(shot)
+    if broken:
+        typer.secho(f"  ⚠ {broken}장은 열지 못해 건너뜁니다.", fg=typer.colors.YELLOW)
+
+    # 세로가 아니거나 해상도가 모자란 것은 점수와 무관하게 뺀다
+    disqualified = [s for s in shots if s.disqualified]
+    if disqualified and not allow_crop:
+        shots = [s for s in shots if not s.disqualified]
+        typer.echo(f"  규격 미달 {len(disqualified)}장을 제외했습니다 "
+                   f"(--allow-crop 으로 포함 가능)")
+    if not shots:
+        _die("쓸 수 있는 이미지가 없습니다. 9:16 세로로 다시 뽑아주세요.")
+
+    # ── 중복 묶기 ────────────────────────────────────────────────────
+    groups = dedupe_groups(shots, threshold=dedupe_threshold)
+    best = [g[0] for g in groups]
+    dupes = len(shots) - len(best)
+    typer.echo(f"  거의 같은 그림 {dupes}장을 묶어 {len(best)}장으로 줄였습니다.")
+
+    # ── 테마별로 나눠 상위만 남긴다 ───────────────────────────────────
+    by_theme: dict[str, list] = {}
+    for shot in best:
+        by_theme.setdefault(shot.theme, []).append(shot)
+
+    picked, rejected = [], []
+    for theme, items in by_theme.items():
+        items.sort(key=lambda s: -s.score)
+        keep = [s for s in items if s.score >= min_score][:per_theme]
+        picked.extend(keep)
+        rejected.extend([s for s in items if s not in keep])
+
+    picked.sort(key=lambda s: -s.score)
+    if limit:
+        picked = picked[:limit]
+
+    # ── 결과 표 ──────────────────────────────────────────────────────
+    typer.echo("")
+    header = f"{'테마':<16} {'후보':>5} {'선택':>5}  {'최고점':>6}"
+    typer.secho(header, bold=True)
+    typer.echo("─" * 42)
+    for theme in sorted(by_theme, key=lambda t: -max(s.score for s in by_theme[t])):
+        items = by_theme[theme]
+        chosen = [s for s in picked if s.theme == theme]
+        typer.echo(f"{theme_label(theme):<16} {len(items):>5} {len(chosen):>5}"
+                   f"  {max(s.score for s in items):>6.1f}")
+    typer.echo("─" * 42)
+    typer.secho(f"{'합계':<16} {len(best):>5} {len(picked):>5}", bold=True)
+
+    if not picked:
+        _die(f"점수 {min_score} 이상인 이미지가 없습니다. --min-score 를 낮춰보세요.")
+
+    # 자주 걸린 탈락 사유
+    reasons: dict[str, int] = {}
+    for s in rejected + (disqualified if not allow_crop else []):
+        for r in s.reasons:
+            reasons[r] = reasons.get(r, 0) + 1
+    if reasons:
+        typer.echo("\n제외된 이유:")
+        for r, n in sorted(reasons.items(), key=lambda kv: -kv[1])[:6]:
+            typer.echo(f"  {n:>4}장  {r}")
+
+    if dry_run:
+        typer.secho("\n[dry-run] 복사하지 않았습니다.", fg=typer.colors.YELLOW)
+        return
+
+    # ── 복사 + 사이드카 ──────────────────────────────────────────────
+    seeds_dir = Path(seeds)
+    seeds_dir.mkdir(parents=True, exist_ok=True)
+    counters: dict[str, int] = {}
+    typer.echo("")
+    for shot in picked:
+        counters[shot.theme] = counters.get(shot.theme, 0) + 1
+        stem = safe_name(shot.theme, counters[shot.theme])
+        dest = seeds_dir / f"{stem}{shot.path.suffix.lower()}"
+        n = 1
+        while dest.exists():
+            n += 1
+            dest = seeds_dir / f"{stem}_{n}{shot.path.suffix.lower()}"
+        _shutil.copy2(shot.path, dest)
+        write_sidecar(dest, shot.theme, prompt_from_filename(shot.path))
+    typer.secho(f"✓ {len(picked)}장을 {seeds_dir}/ 에 복사하고 제목 양식을 만들었습니다.",
+                fg=typer.colors.GREEN)
+
+    # ── 눈으로 확인할 컨택트 시트 ─────────────────────────────────────
+    review = seeds_dir / "_review"
+    if review.exists():
+        _shutil.rmtree(review, ignore_errors=True)
+    made = []
+    for theme in sorted({s.theme for s in picked}):
+        items = [s for s in picked if s.theme == theme]
+        out = review / f"{theme}.jpg"
+        contact_sheet(items, out, title=f"{theme_label(theme)}  ({len(items)}장)")
+        made.append(out)
+    contact_sheet(picked[:36], review / "_all.jpg", title=f"전체 상위 {min(len(picked), 36)}장")
+
+    typer.echo(f"\n확인용 시트: {review}")
+    typer.echo("  _all.jpg 를 먼저 열어보세요. 마음에 안 드는 것은")
+    typer.echo("  seeds/ 에서 이미지와 .yaml 을 함께 지우면 됩니다.")
+    typer.echo("\n다음: python main.py doctor")
+
+
 if __name__ == "__main__":
     try:
         app()
