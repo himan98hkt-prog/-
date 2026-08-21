@@ -126,6 +126,39 @@
        padding:10px 12px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);
        max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-all}
 
+  /* 요약 카드 */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat .n{font-family:var(--disp);font-size:26px;font-weight:700;color:var(--cyan);
+           line-height:1.1;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:12.5px;color:var(--mute);margin-top:3px}
+  .stat.warn .n{color:var(--warn)}
+  .stat.bad .n{color:var(--bad)}
+
+  /* 스위치 */
+  .sw{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none}
+  .sw input{appearance:none;width:46px;height:26px;border-radius:99px;background:var(--panel2);
+            border:1px solid var(--line);position:relative;cursor:pointer;transition:.2s;flex:none}
+  .sw input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+                   border-radius:50%;background:var(--mute);transition:.2s}
+  .sw input:checked{background:var(--cyanDim);border-color:var(--cyan)}
+  .sw input:checked::after{left:23px;background:var(--cyan)}
+  .sw b{font-size:15px}
+
+  .checks{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
+  .checks label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
+  .checks input{accent-color:var(--cyan);width:17px;height:17px;cursor:pointer}
+
+  .hist{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+        background:#050912;border:1px solid var(--line);border-radius:9px;
+        padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap}
+
+  .quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+  .quick button, .quick a{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+        border-radius:10px;padding:12px;cursor:pointer;font-size:13.5px;text-align:center;
+        text-decoration:none;display:block;font-weight:600}
+  .quick button:hover, .quick a:hover{border-color:var(--cyan);color:var(--cyanInk)}
+
   /* 결과 */
   .runs{display:flex;flex-direction:column;gap:11px}
   .run{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px;
@@ -157,11 +190,76 @@
   <!-- 왼쪽 -->
   <section>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="t-make" aria-selected="true">1 · 이미지 고르기</button>
+      <button class="tab" role="tab" id="t-home" aria-selected="true">대시보드</button>
+      <button class="tab" role="tab" id="t-make" aria-selected="false">1 · 이미지 고르기</button>
       <button class="tab" role="tab" id="t-runs" aria-selected="false">2 · 완성된 영상</button>
+      <button class="tab" role="tab" id="t-auto" aria-selected="false">3 · 자동 업로드</button>
     </div>
 
-    <div class="card" id="p-make">
+    <div id="p-home">
+      <div class="stats" id="stats"></div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>바로 하기</h2>
+        <p class="sub">자주 쓰는 동작입니다.</p>
+        <div class="quick">
+          <button id="q-make">영상 만들기</button>
+          <button id="q-upload">이미지 추가</button>
+          <button id="q-auto">자동 업로드 설정</button>
+          <a href="https://studio.youtube.com/" target="_blank" rel="noopener">유튜브 스튜디오 ↗</a>
+          <a href="https://www.instagram.com/ai.deokhu/" target="_blank" rel="noopener">인스타 계정 ↗</a>
+          <a href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener">fal 잔액 ↗</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>준비 상태</h2>
+        <p class="sub">✗ 가 있으면 그 항목부터 해결하세요.</p>
+        <div id="doc"></div>
+      </div>
+    </div>
+
+    <div id="p-auto" hidden>
+      <div class="card" style="margin-bottom:14px">
+        <h2>매일 자동 업로드</h2>
+        <p class="sub" id="autoNote">불러오는 중…</p>
+
+        <label class="sw"><input type="checkbox" id="autoOn"><b>예약 켜기</b></label>
+
+        <div id="autoCfg" style="margin-top:16px">
+          <div class="row">
+            <label class="fld"><span>게시 시각</span>
+              <select id="autoTime">
+                <option value="09:00">오전 9시</option>
+                <option value="12:00">낮 12시</option>
+                <option value="18:00">저녁 6시</option>
+                <option value="21:00" selected>저녁 9시</option>
+                <option value="22:00">밤 10시</option>
+              </select>
+            </label>
+            <label class="fld"><span>영상 방식</span>
+              <select id="autoMode">
+                <option value="chain" selected>이어지는 영상</option>
+                <option value="montage">장면 전환</option>
+              </select>
+            </label>
+          </div>
+          <div class="checks">
+            <label><input type="checkbox" id="autoYt" checked> 유튜브</label>
+            <label><input type="checkbox" id="autoIg"> 인스타그램</label>
+          </div>
+          <button class="go" id="autoSave">예약 저장</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>업로드 이력</h2>
+        <p class="sub">매일 자동 실행 결과가 여기 쌓입니다.</p>
+        <div class="hist" id="hist">아직 기록이 없습니다.</div>
+      </div>
+    </div>
+
+    <div class="card" id="p-make" hidden>
       <h2>시드 이미지</h2>
       <p class="sub" id="seedCount">불러오는 중…</p>
       <div class="drop" id="drop">
@@ -275,6 +373,22 @@ async function loadDoctor() {
     const d = await api("/api/doctor");
     const el = $("status");
     if (!d.ok) { el.innerHTML = `<span class="chip bad">설정 오류</span>`; return; }
+    const doc = $("doc");
+    if (doc) {
+      doc.innerHTML = d.sections.map((sec) => `
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">
+            ${sec.title} ${sec.ready ? "" : '<span style="color:var(--bad)">·  미완료</span>'}
+          </div>
+          ${sec.checks.map((c) => `
+            <div style="font-size:13px;color:var(--ink2);padding-left:4px">
+              <span style="color:${c.status === "ok" ? "var(--good)" : c.status === "warn" ? "var(--warn)" : "var(--bad)"}">
+                ${c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✗"}</span>
+              ${c.name}${c.detail ? ` — ${c.detail}` : ""}
+              ${c.status !== "ok" && c.fix ? `<div style="color:var(--mute);font-size:12px;padding-left:16px">→ ${c.fix}</div>` : ""}
+            </div>`).join("")}
+        </div>`).join("");
+    }
     const find = (t) => d.sections.find((s) => s.title.includes(t));
     const chips = [];
     chips.push(d.can_generate
@@ -509,14 +623,92 @@ async function upload(files) {
 }
 
 // ── 탭 · 모드 ───────────────────────────────────────────────────────
+const TABS = ["home", "make", "runs", "auto"];
 function switchTab(which) {
-  const make = which === "make";
-  $("t-make").setAttribute("aria-selected", make);
-  $("t-runs").setAttribute("aria-selected", !make);
-  $("p-make").hidden = !make; $("p-runs").hidden = make;
+  TABS.forEach((t) => {
+    $(`t-${t}`).setAttribute("aria-selected", String(t === which));
+    $(`p-${t}`).hidden = t !== which;
+  });
+  if (which === "home") { loadOverview(); loadDoctor(); }
+  if (which === "auto") { loadSchedule(); loadHistory(); }
 }
-$("t-make").onclick = () => switchTab("make");
-$("t-runs").onclick = () => switchTab("runs");
+TABS.forEach((t) => { $(`t-${t}`).onclick = () => switchTab(t); });
+$("q-make").onclick = () => switchTab("make");
+$("q-upload").onclick = () => { switchTab("make"); setTimeout(() => $("pick").click(), 120); };
+$("q-auto").onclick = () => switchTab("auto");
+
+// ── 요약 ────────────────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const o = await api("/api/overview");
+    const days = o.days_left;
+    const seedClass = days === 0 ? "bad" : days < 7 ? "warn" : "";
+    $("stats").innerHTML = `
+      <div class="stat ${seedClass}"><div class="n">${o.seeds}</div>
+        <div class="l">남은 이미지 · 약 ${days}일치</div></div>
+      <div class="stat"><div class="n">${o.videos}</div><div class="l">만든 영상</div></div>
+      <div class="stat"><div class="n">${o.published}</div><div class="l">업로드 완료</div></div>
+      <div class="stat"><div class="n">$${o.spent.toFixed(2)}</div><div class="l">누적 비용</div></div>`;
+  } catch (e) { /* 무시 */ }
+}
+
+// ── 자동 업로드 ─────────────────────────────────────────────────────
+async function loadSchedule() {
+  try {
+    const s = await api("/api/schedule");
+    const note = $("autoNote"), cfg = $("autoCfg");
+    if (!s.supported) {
+      note.innerHTML = `<span style="color:var(--warn)">이 기능은 윈도우에서만 됩니다.</span>`;
+      $("autoOn").disabled = true; cfg.hidden = true; return;
+    }
+    $("autoOn").checked = s.enabled;
+    cfg.hidden = !s.enabled;
+    if (s.enabled) {
+      if (s.publish_time) $("autoTime").value = s.publish_time;
+      $("autoYt").checked = s.targets.includes("youtube");
+      $("autoIg").checked = s.targets.includes("instagram");
+      note.innerHTML = `켜져 있습니다 — 매일 <b>${s.start_time || "?"}</b> 에 시작해
+        <b>${s.publish_time || "?"}</b> 에 게시합니다.` +
+        (s.next_run ? `<br>다음 실행: ${s.next_run}` : "");
+    } else {
+      note.textContent = `꺼져 있습니다. 켜면 매일 정해진 시각에 자동으로 만들어 올립니다.`;
+    }
+  } catch (e) { $("autoNote").textContent = "상태를 읽지 못했습니다."; }
+}
+
+$("autoOn").onchange = async () => {
+  const on = $("autoOn").checked;
+  $("autoCfg").hidden = !on;
+  if (!on) {
+    try { const r = await api("/api/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }) });
+      toast(r.message || "예약을 껐습니다."); loadSchedule();
+    } catch (e) { toast(e.message, true); $("autoOn").checked = true; }
+  }
+};
+
+$("autoSave").onclick = async () => {
+  const targets = [];
+  if ($("autoYt").checked) targets.push("youtube");
+  if ($("autoIg").checked) targets.push("instagram");
+  if (!targets.length) { toast("업로드할 곳을 하나 이상 고르세요.", true); return; }
+  try {
+    const r = await api("/api/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: true, time: $("autoTime").value,
+                             mode: $("autoMode").value, targets }),
+    });
+    toast(r.message || "예약을 저장했습니다."); loadSchedule();
+  } catch (e) { toast(e.message, true); }
+};
+
+async function loadHistory() {
+  try {
+    const h = await api("/api/history");
+    $("hist").textContent = h.lines.length ? h.lines.join("\n") : "아직 기록이 없습니다.";
+  } catch (e) { /* 무시 */ }
+}
 
 function setMode(m) {
   mode = m;
@@ -531,9 +723,9 @@ $("clips").onchange = updateCost;
 $("duration").onchange = updateCost;
 
 // ── 시작 ────────────────────────────────────────────────────────────
-refresh(); loadDoctor(); updateCost();
+refresh(); loadDoctor(); loadOverview(); updateCost();
 setInterval(() => { if (!activeJob) refresh(); }, 6000);
-setInterval(loadDoctor, 30000);
+setInterval(() => { loadDoctor(); loadOverview(); }, 30000);
 </script>
 </body>
 </html>

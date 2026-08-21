@@ -89,6 +89,51 @@ def list_runs(limit: int = 30) -> list[dict]:
     return out
 
 
+def overview() -> dict:
+    """대시보드 상단 요약. 한눈에 상태를 본다."""
+    from pipeline.content import find_sidecar
+
+    seeds = list_seeds()
+    with_meta = sum(1 for s in seeds if s["has_meta"])
+    runs = list_runs(limit=400)
+    ready = [r for r in runs if r["ready"]]
+    spent = sum(r["cost"] or 0 for r in runs)
+
+    published = 0
+    log = RUNS / "schedule.log"
+    if log.exists():
+        try:
+            published = sum(1 for ln in log.read_text(encoding="utf-8").splitlines()
+                            if "\tOK\t" in ln or ln.count("OK") and "성공=" in ln)
+        except OSError:
+            pass
+
+    return {
+        "seeds": len(seeds),
+        "seeds_with_meta": with_meta,
+        "days_left": len(seeds),          # 하루 1편 기준
+        "videos": len(ready),
+        "published": published,
+        "spent": round(spent, 2),
+    }
+
+
+def schedule_state() -> dict:
+    from pipeline import win_schedule as ws
+
+    st = ws.status()
+    return {
+        "supported": ws.supported(),
+        "enabled": st.enabled,
+        "start_time": st.start_time,
+        "publish_time": st.publish_time,
+        "next_run": st.next_run,
+        "targets": st.targets,
+        "lead_minutes": ws.LEAD_MINUTES,
+        "note": st.raw,
+    }
+
+
 def doctor_state() -> dict:
     from pipeline.config import load_config
     from pipeline.doctor import run_all
@@ -236,6 +281,25 @@ class Handler(BaseHTTPRequestHandler):
             self._json(doctor_state())
             return
 
+        if p == "/api/overview":
+            self._json(overview())
+            return
+
+        if p == "/api/schedule":
+            self._json(schedule_state())
+            return
+
+        if p == "/api/history":
+            log = RUNS / "schedule.log"
+            lines = []
+            if log.exists():
+                try:
+                    lines = log.read_text(encoding="utf-8").splitlines()[-40:]
+                except OSError:
+                    pass
+            self._json({"lines": list(reversed(lines))})
+            return
+
         if p == "/api/estimate":
             self._json(estimate(
                 q.get("mode", ["chain"])[0],
@@ -312,6 +376,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/upload":
             self._upload(body)
             return
+        if u.path == "/api/schedule":
+            self._schedule(body)
+            return
         self.send_error(404)
 
     # -- 동작 ---------------------------------------------------------
@@ -364,6 +431,26 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("publish", f"{run_id} 업로드", args, ROOT)
         self._json({"id": job.id})
+
+    def _schedule(self, body: dict) -> None:
+        """매일 자동 업로드 예약을 켜고 끈다."""
+        from pipeline import win_schedule as ws
+
+        if not ws.supported():
+            self._json({"error": "윈도우에서만 예약을 설정할 수 있습니다."}, 400)
+            return
+        if body.get("enabled"):
+            targets = [t for t in (body.get("targets") or [])
+                       if t in ("youtube", "instagram")]
+            if not targets:
+                self._json({"error": "업로드할 곳을 하나 이상 고르세요."}, 400)
+                return
+            mode = body.get("mode", "chain")
+            ok, msg = ws.enable(str(body.get("time", "21:00")), targets,
+                                mode if mode in ("chain", "montage") else "chain")
+        else:
+            ok, msg = ws.disable()
+        self._json({"ok": ok, "message": msg}, 200 if ok else 400)
 
     def _upload(self, body: dict) -> None:
         """브라우저에서 올린 이미지를 seeds/ 에 넣고 제목까지 지어준다."""
