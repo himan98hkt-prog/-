@@ -181,12 +181,91 @@ def main() -> int:
     except StorageError as exc:
         check("빈 파일은 오류", "비어" in str(exc))
 
-    # ── 비-AWS 엔드포인트 (R2 형태) ───────────────────────────────
-    print("\n[R2 형태 엔드포인트]")
-    r2 = S3Storage(bucket="r2b", region="auto",
-                   endpoint_url="https://acct.r2.cloudflarestorage.com")
+    # ── R2 (커스텀 엔드포인트) ────────────────────────────────────
+    print("\n[R2 설정]")
+    R2_EP = "https://acct.r2.cloudflarestorage.com"
+    r2 = S3Storage(bucket="r2b", region="auto", endpoint_url=R2_EP)
     check("region auto 허용", r2.region == "auto")
     check("path-style 주소 지정", r2._client().meta.config.s3["addressing_style"] == "path")
+
+    # botocore 1.36+ 는 CRC32 체크섬을 기본 전송한다. R2 는 이를 거부하므로
+    # 커스텀 엔드포인트에서는 반드시 꺼져 있어야 한다.
+    r2_cfg = r2._client().meta.config
+    aws_cfg = S3Storage(bucket="b", region="us-east-1")._client().meta.config
+    check("R2 는 체크섬 계산 when_required",
+          getattr(r2_cfg, "request_checksum_calculation", None) == "when_required",
+          str(getattr(r2_cfg, "request_checksum_calculation", "n/a")))
+    check("AWS 는 기본 동작 유지",
+          getattr(aws_cfg, "request_checksum_calculation", None) == "when_supported",
+          str(getattr(aws_cfg, "request_checksum_calculation", "n/a")))
+
+    try:
+        S3Storage(bucket="b", endpoint_url=R2_EP, acl="public-read")
+        check("R2 + ACL 조합 거부", False)
+    except StorageError as exc:
+        check("R2 + ACL 조합 거부", "ACL" in str(exc))
+
+    tc = S3Storage(bucket="b", multipart_threshold_mb=100)._transfer_config()
+    check("멀티파트 임계값 100MB", tc.multipart_threshold == 100 * 1024 * 1024,
+          f"{tc.multipart_threshold / 1048576:.0f}MB")
+
+    # ── 실제 HTTP: 체크섬 헤더가 나가지 않는지 ─────────────────────
+    print("\n[R2 실제 업로드 — 체크섬 헤더 검사]")
+    with mock_aws():
+        boto3.client("s3", region_name="us-east-1").create_bucket(Bucket="hdr-bucket")
+        storage = S3Storage(bucket="hdr-bucket", region="us-east-1")
+        sent = []
+        base = storage._client
+
+        def spy():
+            c = base()
+            c.meta.events.register(
+                "before-send.s3.*",
+                lambda request, **kw: sent.append(dict(request.headers)) or None,
+            )
+            return c
+
+        storage._client = spy
+        storage.upload(make_file("big.mp4", 12 * 1024), run_id="r5", show_progress=False)
+        check("12MB 는 단일 PUT (멀티파트 아님)", len(sent) == 1, f"{len(sent)}건 요청")
+
+    # ── 무료 티어 사용량 ──────────────────────────────────────────
+    print("\n[무료 티어 사용량]")
+    from publish.storage import BucketUsage, R2_FREE_STORAGE_GB
+
+    u = BucketUsage("b", 3, 12 * 1024 * 1024 * 3)
+    check("총 용량 계산", abs(u.total_gb - 0.0352) < 0.001, f"{u.total_gb:.4f}GB")
+    check("무료 티어 비율", abs(u.free_tier_pct - 0.352) < 0.01, f"{u.free_tier_pct:.3f}%")
+    check("여유 있으면 경고 없음", "⚠" not in u.render())
+    check("80% 넘으면 경고",
+          "⚠" in BucketUsage("b", 1, int(8.5 * 1024 ** 3)).render())
+    check("무료 티어 상수 10GB", R2_FREE_STORAGE_GB == 10)
+
+    with mock_aws():
+        boto3.client("s3", region_name="us-east-1").create_bucket(Bucket="usage-bucket")
+        storage = S3Storage(bucket="usage-bucket", region="us-east-1")
+        check("빈 버킷 사용량 0", storage.usage().object_count == 0)
+        storage.upload(make_file("u1.mp4", 512), run_id="u1", show_progress=False)
+        storage.upload(make_file("u2.mp4", 512), run_id="u2", show_progress=False)
+        usage = storage.usage()
+        check("객체 2개 집계", usage.object_count == 2, f"{usage.object_count}개")
+        check("바이트 합산", usage.total_bytes == 2 * 512 * 1024,
+              f"{usage.total_bytes}B")
+
+    # ── config.yaml 기본값이 R2 무료 티어에 맞는지 ─────────────────
+    print("\n[config.yaml 기본값]")
+    import yaml
+
+    sc = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    sc = sc["publish"]["storage"]
+    check("presigned 기본", sc["url_strategy"] == "presigned", sc["url_strategy"])
+    check("발행 후 삭제 기본 on", sc["delete_after_publish"] is True)
+    check("ACL 비어 있음 (R2 미지원)", not sc["acl"])
+    check("멀티파트 임계값 100MB", sc["multipart_threshold_mb"] == 100)
+    check("region 비움 -> auto 로 폴백", sc["region"] == "")
+    os.environ.pop("S3_ENDPOINT_URL", None)
+    os.environ["S3_BUCKET"] = "cfg-bucket"
+    check("기본 config 로 region auto", S3Storage.from_env(sc).region == "auto")
 
     shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "═" * 62)

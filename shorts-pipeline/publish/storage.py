@@ -26,6 +26,11 @@ from typing import NamedTuple
 
 # 인스타그램이 받아가는 동안 만료되면 안 된다. 인코딩 대기까지 감안한 여유값.
 DEFAULT_EXPIRY_SECONDS = 3600
+
+# Cloudflare R2 무료 티어 (월 갱신, Standard 스토리지 기준).
+R2_FREE_STORAGE_GB = 10
+R2_FREE_CLASS_A = 1_000_000      # 쓰기: PUT / 멀티파트 / LIST
+R2_FREE_CLASS_B = 10_000_000     # 읽기: GET / HEAD
 _CONTENT_TYPES = {
     ".mp4": "video/mp4",
     ".mov": "video/quicktime",
@@ -56,6 +61,34 @@ class UploadedObject:
     @property
     def is_temporary(self) -> bool:
         return self.expires_at is not None
+
+
+@dataclass
+class BucketUsage:
+    bucket: str
+    object_count: int
+    total_bytes: int
+
+    @property
+    def total_gb(self) -> float:
+        return self.total_bytes / (1024 ** 3)
+
+    @property
+    def free_tier_pct(self) -> float:
+        return self.total_gb / R2_FREE_STORAGE_GB * 100
+
+    def render(self) -> str:
+        bar_width = 24
+        filled = min(int(self.free_tier_pct / 100 * bar_width), bar_width)
+        bar = "█" * filled + "·" * (bar_width - filled)
+        line = (
+            f"  보관 {self.total_gb:.2f} / {R2_FREE_STORAGE_GB}GB  "
+            f"[{bar}] {self.free_tier_pct:.1f}%  ({self.object_count}개 객체)"
+        )
+        if self.free_tier_pct >= 80:
+            line += "\n  ⚠ R2 무료 티어 한도에 근접했습니다. "
+            line += "delete_after_publish 를 켜거나 오래된 객체를 지우세요."
+        return line
 
 
 def _require_boto3():
@@ -110,6 +143,7 @@ class S3Storage:
     public_base_url: str | None = None     # CloudFront / R2 커스텀 도메인
     expiry_seconds: int = DEFAULT_EXPIRY_SECONDS
     acl: str | None = None                 # public 전략에서 "public-read" 로 줄 수 있다
+    multipart_threshold_mb: int = 100      # 이 크기 이하는 단일 PUT
 
     # ── 생성 ─────────────────────────────────────────────────────────
     @classmethod
@@ -135,6 +169,7 @@ class S3Storage:
             ),
             expiry_seconds=int(overrides.get("expiry_seconds", DEFAULT_EXPIRY_SECONDS)),
             acl=overrides.get("acl"),
+            multipart_threshold_mb=int(overrides.get("multipart_threshold_mb", 100)),
         )
 
     def __post_init__(self) -> None:
@@ -148,6 +183,12 @@ class S3Storage:
                 "  R2/MinIO 같은 커스텀 엔드포인트는 공개 도메인을 따로 지정해야 합니다.\n"
                 "  S3_PUBLIC_BASE_URL 을 설정하거나 url_strategy 를 presigned 로 두세요."
             )
+        if self.acl and self.endpoint_url:
+            raise StorageError(
+                "커스텀 엔드포인트(R2/B2/MinIO)는 대체로 ACL 을 지원하지 않습니다.\n"
+                "  publish.storage.acl 을 비우고 url_strategy: presigned 를 쓰거나,\n"
+                "  버킷을 공개로 열고 public_base_url 을 지정하세요."
+            )
         if self.expiry_seconds < 60:
             raise StorageError("expiry_seconds 는 최소 60 이상이어야 합니다.")
         # 최대 7일. 그 이상은 SigV4 가 거부한다.
@@ -157,16 +198,47 @@ class S3Storage:
     # ── 클라이언트 ────────────────────────────────────────────────────
     def _client(self):
         b = _require_boto3()
-        cfg = b.Config(
-            signature_version="s3v4",
-            retries={"max_attempts": 5, "mode": "standard"},
-            s3={"addressing_style": "virtual" if not self.endpoint_url else "path"},
-        )
+        kwargs: dict = {
+            "signature_version": "s3v4",
+            "retries": {"max_attempts": 5, "mode": "standard"},
+            "s3": {"addressing_style": "virtual" if not self.endpoint_url else "path"},
+        }
+        if self.endpoint_url:
+            # botocore 1.36 부터 PutObject/UploadPart 에 CRC32 체크섬을 기본으로
+            # 붙인다. R2 를 비롯한 S3 호환 서비스는 이걸 받지 않고
+            #   Header 'x-amz-checksum-algorithm' with value 'CRC32' not implemented
+            # 로 거절한다. 비-AWS 엔드포인트에서는 예전 동작으로 되돌린다.
+            kwargs["request_checksum_calculation"] = "when_required"
+            kwargs["response_checksum_validation"] = "when_required"
+        try:
+            cfg = b.Config(**kwargs)
+        except TypeError:
+            # botocore < 1.36 에는 위 두 옵션이 없다. 그 버전은 애초에 문제도 없다.
+            kwargs.pop("request_checksum_calculation", None)
+            kwargs.pop("response_checksum_validation", None)
+            cfg = b.Config(**kwargs)
         return b.boto3.client(
             "s3",
             region_name=None if self.region == "auto" else self.region,
             endpoint_url=self.endpoint_url,
             config=cfg,
+        )
+
+    def _transfer_config(self):
+        """멀티파트 임계값.
+
+        릴스는 보통 8~20MB 라 boto3 기본값(8MB)이면 대부분 멀티파트로 올라간다.
+        R2 는 멀티파트에 파트 크기 동일 제약이 있고 체크섬 이슈도 파트 업로드에서
+        더 자주 터진다. 임계값을 올려 단일 PUT 으로 보내는 편이 안전하고
+        Class A 연산도 4회에서 1회로 줄어든다.
+        """
+        from boto3.s3.transfer import TransferConfig
+
+        threshold = int(self.multipart_threshold_mb * 1024 * 1024)
+        return TransferConfig(
+            multipart_threshold=threshold,
+            multipart_chunksize=max(threshold // 4, 8 * 1024 * 1024),
+            use_threads=True,
         )
 
     # ── 업로드 ───────────────────────────────────────────────────────
@@ -204,7 +276,8 @@ class S3Storage:
         callback = _Progress(size, f"S3 업로드 {path.name}") if show_progress else None
         try:
             client.upload_file(
-                str(path), self.bucket, key, ExtraArgs=extra, Callback=callback
+                str(path), self.bucket, key, ExtraArgs=extra, Callback=callback,
+                Config=self._transfer_config(),
             )
         except b.NoCredentialsError as exc:
             raise StorageError(_NO_CREDS) from exc
@@ -249,6 +322,26 @@ class S3Storage:
             raise StorageError(f"presigned URL 생성 실패: {exc}") from exc
         expires = datetime.now(timezone.utc) + timedelta(seconds=self.expiry_seconds)
         return url, expires
+
+    # ── 사용량 ───────────────────────────────────────────────────────
+    def usage(self) -> "BucketUsage":
+        """버킷의 객체 수와 총 용량. R2 무료 티어 잔량 확인용.
+
+        ListObjectsV2 자체가 Class A 연산이라 발행 경로에서는 부르지 않는다.
+        upload 명령에서 명시적으로 볼 때만 호출한다.
+        """
+        b = _require_boto3()
+        client = self._client()
+        count = total = 0
+        try:
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=self.bucket):
+                for item in page.get("Contents", []):
+                    count += 1
+                    total += item["Size"]
+        except (b.ClientError, b.BotoCoreError) as exc:
+            raise StorageError(f"버킷 사용량 조회 실패: {exc}") from exc
+        return BucketUsage(self.bucket, count, total)
 
     # ── 정리 ─────────────────────────────────────────────────────────
     def delete(self, key: str) -> None:

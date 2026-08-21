@@ -155,45 +155,62 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 발행 한도는 24시간 롤링 50~100건. `GET /{ig-user-id}/content_publishing_limit`
 로 실사용량을 조회할 수 있다.
 
-### S3 (또는 R2 / B2 / MinIO)
+### 스토리지 — Cloudflare R2 무료 티어 기준
 
-`.env` 에 버킷과 키만 넣으면 `publish --instagram` 이 알아서 올리고 URL 을 만든다.
+기본값이 R2 무료 티어에 맞춰져 있다. **이 용도에서는 사실상 계속 $0 이다.**
+
+| R2 무료 티어 (월 갱신) | 릴스 1편이 쓰는 양 |
+|---|---|
+| 보관 10GB | 발행 직후 삭제 → **0 에 수렴** |
+| 쓰기(Class A) 1M/월 | **1회** (단일 PUT) |
+| 읽기(Class B) 10M/월 | **1회** (인스타그램이 1번 받아감) |
+| 이그레스 **무제한 무료** | — |
+
+R2 대시보드 → R2 → *Manage API Tokens* 에서 **Object Read & Write** 토큰을
+만들면 아래 3개를 한 번에 준다. `.env` 에 넣을 것은 4줄이 전부다.
 
 ```bash
+S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
 S3_BUCKET=my-reels
-S3_REGION=ap-northeast-2
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
 
-기본 전략은 **presigned URL** 이다. 서명된 만료 URL 이라 **버킷을 공개로 열
-필요가 없다** — 인스타그램은 컨테이너 생성 시 한 번만 받아가므로 충분하다.
+`S3_REGION` 은 **비워둔다** — R2 가 요구하는 `auto` 로 자동 설정된다.
 
-AWS 가 아니면 엔드포인트만 바꾸면 된다:
-
-```bash
-# Cloudflare R2
-S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
-S3_REGION=auto
-```
-
-자격증명이 맞는지는 영상 생성에 돈을 쓰기 전에 확인할 수 있다:
+돈 쓰기 전에 자격증명부터 확인하고, 남은 무료 용량도 같이 본다:
 
 ```bash
-python main.py upload --file ./anything.mp4
+$ python main.py upload --file ./test.mp4
+
+✓ 업로드 완료 (12.0 MB)
+  만료 : 2026-08-21 13:49 UTC
+  URL  : https://....r2.cloudflarestorage.com/reels/...?X-Amz-Signature=...
+
+  보관 0.04 / 10GB  [························] 0.4%  (3개 객체)
 ```
 
-`config.yaml` 의 `publish.storage` 에서 조정한다:
+**AWS S3 를 쓰려면** `S3_ENDPOINT_URL` 을 비우고 `S3_REGION` 에 실제 리전을
+넣으면 된다. 나머지 기본값은 그대로 써도 문제없다.
+Backblaze B2 · MinIO 도 엔드포인트만 바꾸면 동작한다.
 
-| 키 | 기본값 | 설명 |
+#### 기본값이 이렇게 잡힌 이유
+
+| 키 | 기본값 | 이유 |
 |---|---|---|
-| `url_strategy` | `presigned` | `public` 으로 두면 영구 URL (공개 버킷/CDN 필요) |
-| `expiry_seconds` | `3600` | presigned 만료. 60 ~ 604800 |
-| `public_base_url` | — | CloudFront / R2 커스텀 도메인 |
-| `prefix` | `reels` | 키 앞부분. `reels/{run_id}/final.mp4` |
-| `delete_after_publish` | `false` | 발행 후 객체를 지워 보관 비용을 아낀다 |
+| `url_strategy` | `presigned` | 서명된 만료 URL. **버킷을 공개로 열 필요가 없다.** 인스타그램은 컨테이너 생성 시 한 번만 받아가므로 충분하다 |
+| `delete_after_publish` | `true` | 발행 후 삭제 → 보관량 0 → 무료 티어 영구 유지. 로컬 `runs/{id}/final.mp4` 는 남으므로 원본을 잃지 않는다 |
+| `multipart_threshold_mb` | `100` | 릴스는 8~20MB 라 대부분 단일 PUT 으로 나간다. R2 의 멀티파트 파트 크기 제약을 안 건드리고 Class A 도 4회 → 1회로 준다 |
+| `acl` | 비움 | **R2 는 ACL 을 지원하지 않는다.** 값을 넣으면 실행 전에 막는다 |
+| `expiry_seconds` | `3600` | 인스타그램 인코딩 대기까지 감안한 여유. 60 ~ 604800(7일) |
+| `prefix` | `reels` | 키는 `reels/{run_id}/final.mp4` |
 
-`--video-url` 로 직접 URL 을 주면 S3 단계를 건너뛴다.
+> **botocore 1.36+ 대응**: 최신 boto3 는 `PutObject` 에 CRC32 체크섬을 기본으로
+> 붙이는데 R2 가 이를 거부한다 (`x-amz-checksum-algorithm ... not implemented`).
+> 커스텀 엔드포인트에서는 `request_checksum_calculation` 을 `when_required` 로
+> 되돌려 이 문제를 피한다. AWS S3 에서는 무결성 검사를 그대로 둔다.
+
+`--video-url` 로 직접 URL 을 주면 스토리지 단계를 건너뛴다.
 
 ---
 
@@ -204,7 +221,7 @@ API 를 한 번도 부르지 않고(비용 $0) 파이프라인 전 구간을 검
 
 ```bash
 python tests/test_pipeline.py    # 통과 35 / 실패 0
-python tests/test_storage.py     # 통과 26 / 실패 0  (moto 필요)
+python tests/test_storage.py     # 통과 45 / 실패 0  (moto 필요)
 ```
 
 S3 쪽은 `moto` 로 실제 S3 프로토콜을 흉내내 검사한다 — presigned 서명,

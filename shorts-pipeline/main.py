@@ -418,6 +418,13 @@ def upload_cmd(
         typer.echo(f"  만료 : {obj.expires_at:%Y-%m-%d %H:%M UTC}")
     typer.echo(f"  URL  : {obj.url}")
 
+    # 무료 티어 잔량. ListObjects 는 Class A 라 여기서만 부른다.
+    try:
+        typer.echo("")
+        typer.echo(storage.usage().render())
+    except StorageError as exc:
+        typer.secho(f"  (사용량 조회 생략: {exc})", fg=typer.colors.YELLOW)
+
 
 if __name__ == "__main__":
     try:

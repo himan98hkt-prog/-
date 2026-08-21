@@ -165,19 +165,43 @@ publish:
 
   # 인스타그램은 로컬 파일을 못 받으므로 최종 mp4 를 S3 호환 스토리지에 올려
   # 공개 URL 을 만든다. AWS S3 / Cloudflare R2 / Backblaze B2 / MinIO 공용.
+  #
+  # ── 기본값은 Cloudflare R2 무료 티어에 맞춰져 있다 ──────────────────
+  #   보관 10GB · 쓰기(Class A) 1M/월 · 읽기(Class B) 10M/월 · 이그레스 무료
+  #   12개월 체험이 아니라 매월 갱신된다.
+  #
+  #   .env 에 이 두 줄만 넣으면 된다:
+  #     S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
+  #     S3_BUCKET=<버킷명>
+  #   (S3_REGION 은 비워두면 auto 로 잡힌다 — R2 가 요구하는 값이다)
+  #
+  #   이 설정에서 릴스 1편이 쓰는 자원:
+  #     보관   발행 직후 삭제되므로 0 에 수렴 (delete_after_publish)
+  #     쓰기   1회 (단일 PUT — multipart_threshold_mb 로 멀티파트 회피)
+  #     읽기   1회 (인스타그램이 컨테이너 생성 시 1번 받아간다)
+  #     이그레스 무료
+  #   -> 월 수천 편을 올려도 무료 티어 안에 머문다.
+  #
+  #   AWS S3 를 쓰려면 endpoint_url 을 비우고 S3_REGION 을 실제 리전으로
+  #   지정하면 된다. 나머지 값은 그대로 써도 문제없다.
   storage:
     enabled: true
-    bucket: ""                 # 비우면 .env 의 S3_BUCKET 을 쓴다
-    region: ""                 # 비우면 S3_REGION. R2 는 auto
-    endpoint_url: ""           # R2/B2/MinIO 사용 시. 비우면 AWS S3
+    bucket: ""                 # 비우면 .env 의 S3_BUCKET
+    region: ""                 # 비우면 S3_REGION, 그것도 없으면 auto (R2 기본)
+    endpoint_url: ""           # 비우면 .env 의 S3_ENDPOINT_URL
     prefix: reels
-    # presigned : 서명된 만료 URL. 버킷을 공개로 열 필요가 없다 (권장)
+    # presigned : 서명된 만료 URL. 버킷을 공개로 열 필요가 없다 (R2 기본 권장)
     # public    : 영구 공개 URL. public_base_url 또는 public-read 버킷 필요
     url_strategy: presigned
-    public_base_url: ""        # CloudFront / R2 커스텀 도메인
+    public_base_url: ""        # R2 커스텀 도메인 / CloudFront
     expiry_seconds: 3600       # presigned 만료. 최소 60, 최대 604800(7일)
-    acl: ""                    # public 전략에서 필요하면 public-read
-    delete_after_publish: false
+    acl: ""                    # R2 는 ACL 미지원. 반드시 비워둘 것
+    # 발행 후 객체를 지운다. 보관량이 0 에 수렴해 무료 티어를 영구 유지한다.
+    # 로컬 runs/{id}/final.mp4 는 남아 있으므로 원본을 잃지 않는다.
+    delete_after_publish: true
+    # 이 크기 이하는 단일 PUT 으로 보낸다. 릴스는 보통 8~20MB 라 대부분 해당된다.
+    # 멀티파트를 피하면 R2 의 파트 크기 제약을 안 건드리고 Class A 도 1회로 끝난다.
+    multipart_threshold_mb: 100
 
   instagram:
     enabled: false
