@@ -103,6 +103,14 @@ docs/                아키텍처 · 사용설명서 목차 · 배포 안내
 
 RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어, 다른 학원 데이터는 조회 자체가 되지 않습니다.
 
+## CI
+
+- `.github/workflows/ci.yml` — push·PR 마다 테스트(96건) + 프로덕션 빌드 + 산출물 3종(Pro·Lite·키 발급기) 확인.
+  빌드 결과는 `dist` 아티팩트로 7일간 보관됩니다.
+- `.github/workflows/verify.yml` — 브라우저가 필요한 검증(스모크 + 성능)은 시간이 걸려
+  Actions 탭에서 **수동 실행**합니다. 원생 수·출결 건수를 입력으로 조절할 수 있고,
+  `perf-report.json` 을 아티팩트로 남깁니다. 릴리스 전 점검용입니다.
+
 ## 문서
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 데이터 모델, 동기화·충돌 정책, 성능 설계

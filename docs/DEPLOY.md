@@ -49,7 +49,17 @@ dist/assets/*            해시가 붙은 JS/CSS
 
 anon key 는 공개돼도 RLS 로 막히지만, `service_role` 키는 절대 프런트에 넣지 않습니다.
 
-## 5. 릴리스 체크리스트
+## 5. CI
+
+| 워크플로 | 실행 시점 | 하는 일 |
+|---|---|---|
+| `CI` | push(main·claude/**), PR | `npm ci` → 테스트 96건 → 프로덕션 빌드 → 산출물 3종 확인 → `dist` 아티팩트 업로드 |
+| `브라우저 검증` | 수동 (Actions 탭) | Chromium 설치 후 `npm run smoke` + `node scripts/perf.mjs` → `perf-report.json` 아티팩트 |
+
+브라우저 검증은 20만 건 더미 생성 때문에 10분 이상 걸려 매 PR 자동 실행에서 제외했습니다.
+릴리스 전에 한 번 돌리고 아티팩트를 보관하세요.
+
+## 6. 릴리스 체크리스트
 
 - [ ] `npm test` 전부 통과 (96건)
 - [ ] `npm run perf` 전 항목 기준 이내 (perf-report.json 보관)
