@@ -33,8 +33,10 @@ const PROFILE_DIR = join(tmpdir(), 'academy-note-perf-profile')
 const PORT = opt('port', 5199)
 const VIEWS = ['attendance', 'students', 'payments', 'timetable', 'counsel', 'expenses', 'dashboard', 'settings']
 
-const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] })
-const kill = () => { try { server.kill('SIGTERM') } catch {} }
+// detached: npx 가 vite 를 자식으로 또 띄우기 때문에, 프로세스 그룹째 종료해야
+// 측정이 끝난 뒤 dev 서버가 고아 프로세스로 남지 않는다
+const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+const kill = () => { try { process.kill(-server.pid, 'SIGTERM') } catch {} }
 process.on('exit', kill)
 process.on('SIGINT', () => { kill(); process.exit(130) })
 
