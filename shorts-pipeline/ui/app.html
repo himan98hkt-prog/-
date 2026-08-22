@@ -149,6 +149,9 @@
   .pidle.warn{color:var(--warn)}
   .pidle.bad{color:var(--bad)}
 
+  .snd{font-size:12px;color:var(--mute);margin-top:3px}
+  .snd.off{color:var(--warn)}
+
   .folderbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
              margin-bottom:14px}
   .folderbox b{font-size:14px}
@@ -405,6 +408,7 @@
         <div id="sGrp-storage"></div>
         <button class="big alt" id="stCheck" style="margin:0 0 18px">보관함 확인하기</button>
         <div id="sGrp-youtube"></div>
+        <div id="sGrp-budget"></div>
         <button class="big" id="sSave">저장하기</button>
         <p class="sub" id="sWhere" style="margin:10px 0 0"></p>
       </div>
@@ -880,6 +884,7 @@ function renderRuns() {
       <div class="meta">
         <div class="t">${r.title || r.id}</div>
         <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
+        <div class="snd ${r.has_sound === false ? "off" : ""}">${soundLabel(r)}</div>
         <div class="acts">
           <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
           <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
@@ -895,6 +900,17 @@ function renderRuns() {
   $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
   $("runs").querySelectorAll("[data-del]").forEach((b) =>
     b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+}
+
+// 소리가 들어갔는지는 결과 파일에서 직접 확인한 값이다. 상태 파일이 아니라.
+function soundLabel(r) {
+  if (r.has_sound === false) {
+    return "🔇 무음 — music/ 폴더에 곡을 넣고 다시 만드세요";
+  }
+  if (r.has_sound === true) {
+    return r.music ? `🔊 ${r.music}` : "🔊 소리 있음";
+  }
+  return "";
 }
 
 async function removeRun(runId, title, mb) {
@@ -1321,8 +1337,23 @@ async function loadOverview() {
       <div class="stat ${o.music ? "" : "warn"}" title="${o.music_note || ""}">
         <div class="n">${o.music ?? 0}</div>
         <div class="l">${o.music ? "배경음악" : "배경음악 없음 · 무음"}</div></div>
-      <div class="stat"><div class="n">$${o.spent.toFixed(2)}</div><div class="l">누적 비용</div></div>`;
+      ${budgetTile(o)}`;
+    const link = $("setBudget");
+    if (link) link.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
   } catch (e) { /* 무시 */ }
+}
+
+// 충전액을 넣어 두면 남은 금액을, 아니면 누적 비용만 보여준다.
+function budgetTile(o) {
+  if (!o.topup) {
+    return `<div class="stat"><div class="n">$${o.spent.toFixed(2)}</div>
+      <div class="l">누적 비용 · <a href="#" id="setBudget">충전액 넣기</a></div></div>`;
+  }
+  const cls = o.left <= 0 ? "bad" : o.used_pct >= 80 ? "warn" : "";
+  const more = o.runs_left != null ? ` · 약 ${o.runs_left}편 더` : "";
+  return `<div class="stat ${cls}" title="충전 $${o.topup.toFixed(2)} 중 $${o.spent.toFixed(2)} 사용">
+    <div class="n">$${o.left.toFixed(2)}</div>
+    <div class="l">남은 금액 (${o.used_pct}% 씀)${more}</div></div>`;
 }
 
 // ── 자동 업로드 ─────────────────────────────────────────────────────

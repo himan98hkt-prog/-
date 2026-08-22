@@ -113,6 +113,8 @@ def list_runs(limit: int = 30) -> list[dict]:
             "mode": state.get("mode"),
             "title": content.get("title", ""),
             "hook": content.get("hook", ""),
+            "music": state.get("music"),
+            "has_sound": _has_sound(final) if final.exists() else None,
         })
         if len(out) >= limit:
             break
@@ -150,7 +152,42 @@ def overview() -> dict:
         "spent": round(spent, 2),
         "music": music_mod.total_tracks(music_dir),
         "music_note": music_mod.describe(music_dir),
+        **budget_state(spent),
     }
+
+
+def budget_state(spent: float) -> dict:
+    """충전해 둔 금액 대비 얼마나 썼는지.
+
+    fal 잔액을 API 로 직접 읽지는 않는다. 대신 [설정]에 넣어 둔 충전액에서
+    이 파이프라인이 쓴 만큼을 뺀다. **fal 대시보드의 실제 잔액과 다를 수
+    있다** — 다른 데서 쓴 것, 실패해서 과금된 것은 여기에 안 잡힌다.
+    """
+    from pipeline import envfile
+
+    raw = envfile.read_raw().get("FAL_TOPUP_USD", "").strip()
+    try:
+        topup = float(raw.replace("$", "").replace(",", "")) if raw else 0.0
+    except ValueError:
+        topup = 0.0
+    if topup <= 0:
+        return {"topup": 0, "left": None, "used_pct": None, "runs_left": None}
+
+    left = round(topup - spent, 2)
+    # 편당 평균 비용으로 몇 편이 더 되는지 어림한다
+    per = (spent / _paid_runs()) if _paid_runs() else 0.0
+    return {
+        "topup": round(topup, 2),
+        "left": left,
+        "used_pct": round(min(100.0, max(0.0, spent / topup * 100)), 1),
+        "per_video": round(per, 2) if per else None,
+        "runs_left": int(left // per) if per > 0 and left > 0 else None,
+    }
+
+
+def _paid_runs() -> int:
+    """비용이 기록된 실행 수. 평균 단가를 내는 데 쓴다."""
+    return sum(1 for r in list_runs(limit=500) if (r.get("cost") or 0) > 0)
 
 
 def schedule_state() -> dict:
@@ -260,6 +297,36 @@ def _positive(value, fallback: int) -> int:
     except (TypeError, ValueError):
         return fallback
     return n if n > 0 else fallback
+
+
+_SOUND_CACHE: dict[tuple, bool] = {}
+
+
+def _has_sound(final: Path) -> bool | None:
+    """영상에 소리 트랙이 실제로 들어 있는지 파일에서 직접 확인한다.
+
+    상태 파일만 믿으면 안 된다. "음악: bright.wav" 라고 찍혔는데 소리가
+    안 들린다는 문의가 나왔다. 무엇이 사실인지는 결과물이 답한다.
+
+    ffprobe 는 느리므로 (경로, 수정시각, 크기) 로 캐시한다.
+    """
+    from pipeline.ffmpeg_util import FFmpegError, has_audio
+
+    try:
+        st = final.stat()
+    except OSError:
+        return None
+    key = (str(final), st.st_mtime_ns, st.st_size)
+    if key in _SOUND_CACHE:
+        return _SOUND_CACHE[key]
+    try:
+        found = has_audio(final)
+    except (FFmpegError, OSError, ValueError):
+        return None
+    if len(_SOUND_CACHE) > 200:
+        _SOUND_CACHE.clear()
+    _SOUND_CACHE[key] = found
+    return found
 
 
 def _group_reasons(items) -> list[dict]:

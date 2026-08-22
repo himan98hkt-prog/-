@@ -61,6 +61,10 @@ FIELDS: tuple[Field, ...] = (
           "R2 는 비워두세요. AWS S3 만 ap-northeast-2 처럼 넣습니다.", ""),
     Field("S3_PUBLIC_BASE_URL", PLAIN, "공개 도메인", "storage",
           "선택 사항. R2 커스텀 도메인을 붙였을 때만 넣습니다.", ""),
+
+    Field("FAL_TOPUP_USD", PLAIN, "fal 충전 금액 ($)", "budget",
+          "fal.ai 에 충전해 둔 금액을 넣으면 남은 금액을 계산해 보여줍니다. "
+          "충전할 때마다 더해서 넣으세요 (20달러씩 두 번이면 40).", "20"),
 )
 
 BY_KEY = {f.key: f for f in FIELDS}
@@ -70,6 +74,7 @@ GROUPS = {
     "youtube": "유튜브 업로드",
     "instagram": "인스타그램 업로드",
     "storage": "영상 보관함 (인스타에 필요)",
+    "budget": "예산",
 }
 
 # KEY=VALUE. 앞의 export 와 양옆 공백을 봐준다.

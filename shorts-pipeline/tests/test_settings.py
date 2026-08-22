@@ -723,6 +723,82 @@ def test_delete_run_guards() -> None:
     check("정상 run id 는 통과", _safe_name("20260822_192936") == "20260822_192936")
 
 
+def test_sound_and_budget() -> None:
+    """소리 유무는 결과 파일에서 직접 확인하고, 남은 금액을 계산한다."""
+    import subprocess
+
+    from ui.server import _has_sound, budget_state
+
+    print("\n[소리 확인 · 예산]")
+    TMP.mkdir(parents=True, exist_ok=True)
+    silent, loud = TMP / "silent.mp4", TMP / "loud.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi",
+                    "-i", "color=c=black:size=64x64:rate=10:duration=1",
+                    "-c:v", "libx264", "-preset", "ultrafast",
+                    "-pix_fmt", "yuv420p", "-y", str(silent)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi",
+                    "-i", "color=c=black:size=64x64:rate=10:duration=1",
+                    "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                    "-c:v", "libx264", "-preset", "ultrafast",
+                    "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+                    "-y", str(loud)], check=True)
+
+    # "음악: bright.wav" 라고 찍혔는데 소리가 안 들린다는 문의가 있었다.
+    # 무엇이 사실인지는 상태 파일이 아니라 결과물이 답한다.
+    check("소리 없는 영상을 알아냄", _has_sound(silent) is False)
+    check("소리 있는 영상을 알아냄", _has_sound(loud) is True)
+    check("없는 파일은 None", _has_sound(TMP / "없다.mp4") is None)
+
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+    check("무음이면 화면에 알려준다", "🔇 무음" in html)
+    check("무엇을 해야 하는지도 알려준다", "music/ 폴더에 곡을 넣고" in html)
+
+    # 예산 — .env 를 건드리지 않고 계산만 확인한다
+    import pipeline.envfile as ef
+
+    real = ef.read_raw
+    try:
+        ef.read_raw = lambda: {"FAL_TOPUP_USD": "20"}
+        b = budget_state(4.30)
+        check("남은 금액", b["left"] == 15.70, str(b["left"]))
+        check("쓴 비율", b["used_pct"] == 21.5, str(b["used_pct"]))
+        ef.read_raw = lambda: {"FAL_TOPUP_USD": "$1,000"}
+        check("$ 와 쉼표를 걸러냄", budget_state(0)["topup"] == 1000.0)
+        ef.read_raw = lambda: {"FAL_TOPUP_USD": "몰라"}
+        check("숫자가 아니면 0", budget_state(1)["topup"] == 0)
+        ef.read_raw = lambda: {}
+        check("안 넣었으면 잔액 표시 안 함", budget_state(1)["left"] is None)
+        ef.read_raw = lambda: {"FAL_TOPUP_USD": "10"}
+        check("다 썼으면 음수로", budget_state(12.5)["left"] == -2.5)
+        check("100% 를 넘기지 않음", budget_state(12.5)["used_pct"] == 100.0)
+    finally:
+        ef.read_raw = real
+
+    check("설정에 충전액 칸이 있다", 'id="sGrp-budget"' in html)
+    check("충전액 항목이 등록돼 있다",
+          any(f.key == "FAL_TOPUP_USD" for f in ef.FIELDS))
+
+
+def test_update_keeps_config() -> None:
+    """update 가 사용자의 config.yaml 을 덮어쓰지 않는지.
+
+    예전에는 폴더를 통째로 -Force 복사해서, 바꿔 놓은 설정(업스케일 끄기 등)이
+    업데이트할 때마다 조용히 되돌아갔다.
+    """
+    print("\n[업데이트가 설정을 지키는지]")
+    raw = (ROOT / "update.ps1").read_bytes()
+    text = raw.decode("utf-8-sig")
+
+    check("BOM 유지", raw[:3] == b"\xef\xbb\xbf")
+    check("CRLF 유지", raw.count(b"\n") == raw.count(b"\r\n"))
+    check("덮어쓰기 전에 따로 빼둔다", "$mine = Get-Content $cfg" in text)
+    check("복사 뒤 되돌려 놓는다",
+          "Set-Content -Path $cfg -Value $mine" in text)
+    check("새 버전은 config.yaml.new 로 남긴다", "config.yaml.new" in text)
+    check("보존 목록에 music 과 config 추가",
+          '".env", "seeds", "runs", "music", "config.yaml"' in text)
+
+
 def main():
     shutil.rmtree(TMP, ignore_errors=True)
     try:
@@ -743,6 +819,8 @@ def main():
         test_montage_clip_count()
         test_clip_select_never_blank()
         test_delete_run_guards()
+        test_sound_and_budget()
+        test_update_keeps_config()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

@@ -44,6 +44,13 @@ $src = Get-ChildItem $tmp -Recurse -Directory -Filter "shorts-pipeline" |
        Select-Object -First 1
 if (-not $src) { Die "받은 파일 안에서 프로그램 폴더를 찾지 못했습니다." }
 
+# config.yaml 은 사용자가 고치는 파일이다. 그냥 덮어쓰면 바꿔 놓은 설정이
+# 조용히 되돌아간다 (업스케일 끄기, 클립 수, 음악 설정 등).
+# 그래서 따로 빼놨다가 되돌려 놓고, 새 버전은 config.yaml.new 로 남긴다.
+$cfg = Join-Path $Target "config.yaml"
+$mine = $null
+if (Test-Path $cfg) { $mine = Get-Content $cfg -Raw -Encoding UTF8 }
+
 try {
     Info "파일을 덮어쓰는 중..."
     Copy-Item (Join-Path $src.FullName "*") -Destination $Target -Recurse -Force
@@ -52,11 +59,23 @@ try {
     Die "복사 실패: $($_.Exception.Message)`n  작업실이 켜져 있으면 끄고 다시 시도하세요."
 }
 
+if ($null -ne $mine) {
+    $fresh = Get-Content $cfg -Raw -Encoding UTF8
+    Set-Content -Path $cfg -Value $mine -Encoding UTF8 -NoNewline
+    if ($fresh -ne $mine) {
+        Set-Content -Path (Join-Path $Target "config.yaml.new") -Value $fresh -Encoding UTF8 -NoNewline
+        Ok "config.yaml 을 지켰습니다 (새 버전은 config.yaml.new)"
+        Write-Host "      새로 생긴 설정이 있는지 두 파일을 비교해 보세요." -ForegroundColor DarkGray
+    } else {
+        Ok "config.yaml 유지됨"
+    }
+}
+
 Remove-Item $zip, $tmp -Recurse -Force -ErrorAction SilentlyContinue
 
 # 보존돼야 할 것들 확인
 Write-Host ""
-foreach ($keep in @(".env", "seeds", "runs")) {
+foreach ($keep in @(".env", "seeds", "runs", "music", "config.yaml")) {
     $p = Join-Path $Target $keep
     if (Test-Path $p) { Ok "$keep 유지됨" }
 }

@@ -127,6 +127,9 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
         final=str(result.path), duration=round(result.duration, 2),
         clip_calls=stats.clip_calls, upscale_calls=stats.upscale_calls,
         cost_usd=round(spent, 4),
+        # 어떤 곡이 들어갔는지 남긴다. 화면에서 "음악 있음/무음" 을 보여주고,
+        # 소리가 안 들릴 때 무엇을 확인해야 하는지 바로 알 수 있게 한다.
+        music=(track.name if track else None),
     )
     run.log("run.finished", duration=result.duration, cost_usd=spent)
 
