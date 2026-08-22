@@ -120,6 +120,40 @@ def intake_tests() -> None:
     check("가로·저해상도 둘 다 걸러짐", reasons.count("—") + reasons.count("해상도") >= 2,
           reasons)
 
+    print("\n[예전에 curate 로 넣은 것 — 원본 폴더를 다시 가리켜도 안전]")
+    # intake 가 생기기 전에 넣은 시드는 인덱스에 없다. 그대로 두고 원래
+    # 미드저니 폴더를 가리키면 272장이 통째로 다시 들어온다.
+    old_src, old_seeds = TMP / "old_dl", TMP / "old_seeds"
+    (old_seeds / "_used").mkdir(parents=True, exist_ok=True)
+    old_names = [f"user_first_person_view_cycling_downhill_scene_{i}_zz{i}{i}.png"
+                 for i in range(5)]
+    for i, name in enumerate(old_names):
+        make_image(old_src / name, 100 + i)
+    # curate 가 하던 일: shutil.copy2 로 복사하고 이름만 바꾼다 (인덱스 없음)
+    shutil.copy2(old_src / old_names[0], old_seeds / "downhill_01.png")
+    shutil.copy2(old_src / old_names[1], old_seeds / "downhill_02.png")
+    shutil.copy2(old_src / old_names[2], old_seeds / "_used" / "downhill_03.png")
+
+    r_old = import_folder(old_src, old_seeds)
+    check("기존 시드를 인덱스에 등록", r_old.bootstrapped == 3, f"{r_old.bootstrapped}장")
+    check("이미 있는 3장은 안 들어옴", len(r_old.added) == 2,
+          str([i.name for i in r_old.added]))
+    check("이유가 '이미 들여온 그림'",
+          all(s.reason == "이미 들여온 그림" for s in r_old.skipped),
+          str({s.reason for s in r_old.skipped}))
+    # _used/ 를 빼먹으면 이미 올린 영상의 시드가 다시 들어온다
+    back = [i for i in r_old.added if i.source == old_names[2]]
+    check("이미 올린(_used) 시드도 안 돌아옴", not back, str([i.source for i in back]))
+    # _used/downhill_03 과 번호가 겹치면 나중에 shutil.move 가 덮어쓴다
+    check("_used 의 번호를 피해 이름 붙임",
+          all(i.name != "downhill_03.png" for i in r_old.added),
+          str([i.name for i in r_old.added]))
+
+    r_old2 = import_folder(old_src, old_seeds)
+    check("두 번째는 아무것도 안 들어옴", not r_old2.added)
+    check("이미 등록했으므로 다시 등록 안 함", r_old2.bootstrapped == 0,
+          f"{r_old2.bootstrapped}장")
+
     print("\n[다시 분류]")
     in_seeds = len([p for p in seeds.glob("*")
                     if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")])

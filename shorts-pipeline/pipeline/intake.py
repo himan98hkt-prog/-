@@ -50,6 +50,7 @@ class Report:
     skipped: list[Item] = field(default_factory=list)
     renamed: list[tuple[str, str]] = field(default_factory=list)
     fixed: list[str] = field(default_factory=list)
+    bootstrapped: int = 0        # 인덱스에 뒤늦게 등록한 기존 시드 수
 
     @property
     def ok(self) -> bool:
@@ -133,10 +134,66 @@ def read_sidecar(image: Path) -> dict:
 
 # ── 들여오기 ──────────────────────────────────────────────────────────
 def _next_name(seeds: Path, theme: str, ext: str) -> Path:
+    """비어 있는 다음 번호. _used/ 에 쓰인 번호도 피한다.
+
+    _used/ 를 안 보면 새 downhill_03 이 예전 downhill_03 과 번호가 겹친다.
+    나중에 스케줄러가 _used/ 로 옮길 때 shutil.move 가 조용히 덮어써서
+    무엇을 올렸는지 기록이 사라진다.
+    """
+    used = seeds / "_used"
     n = 1
-    while (seeds / f"{theme}_{n:02d}{ext}").exists():
+    while ((seeds / f"{theme}_{n:02d}{ext}").exists()
+           or (used / f"{theme}_{n:02d}{ext}").exists()):
         n += 1
     return seeds / f"{theme}_{n:02d}{ext}"
+
+
+def seed_images(seeds: Path) -> list[Path]:
+    """seeds/ 와 seeds/_used/ 의 이미지 전부.
+
+    _used/ 를 빼면 안 된다. 이미 영상으로 만들어 올린 시드가 그리로 가는데,
+    빼놓으면 원본 폴더에 남아 있는 같은 파일이 다시 들어와 **이미 올린 것을
+    또 올리게** 된다.
+    """
+    out = [p for p in sorted(seeds.glob("*")) if p.suffix.lower() in IMAGE_EXT]
+    used = seeds / "_used"
+    if used.is_dir():
+        out += [p for p in sorted(used.glob("*")) if p.suffix.lower() in IMAGE_EXT]
+    return out
+
+
+def bootstrap_index(seeds: Path) -> int:
+    """이미 seeds/ 에 있는 이미지를 내용 해시로 인덱스에 등록한다.
+
+    intake 가 생기기 전에 `curate` 로 넣은 것들은 인덱스에 없다. 그대로
+    두고 원래 미드저니 폴더를 가리키면 **272장이 통째로 다시 들어온다.**
+    curate 는 shutil.copy2 로 복사하므로 seeds/ 의 파일은 원본과 바이트가
+    같다. 그래서 seeds/ 쪽을 해시해 두면 원본이 정확히 걸러진다.
+
+    새로 등록한 장수를 돌려준다.
+    """
+    index = load_index(seeds)
+    known_names = {v.get("name") for v in index.values()}
+    added = 0
+    for image in seed_images(seeds):
+        if image.name in known_names:
+            continue
+        try:
+            digest = file_hash(image)
+        except OSError:
+            continue
+        if digest in index:
+            continue
+        side = read_sidecar(image)
+        index[digest] = {
+            "name": image.name,
+            "source": side.get("source", ""),
+            "theme": side.get("theme", ""),
+        }
+        added += 1
+    if added:
+        save_index(seeds, index)
+    return added
 
 
 def existing_hashes(seeds: Path) -> dict[str, list[int]]:
@@ -150,9 +207,7 @@ def existing_hashes(seeds: Path) -> dict[str, list[int]]:
     out: dict[str, list[int]] = {}
     index = load_index(seeds)
     by_name = {v.get("name"): v.get("source", "") for v in index.values()}
-    for p in sorted(seeds.glob("*")):
-        if p.suffix.lower() not in IMAGE_EXT:
-            continue
+    for p in seed_images(seeds):
         shot = analyze(p)
         if shot is None:
             continue
@@ -179,6 +234,9 @@ def import_folder(source: Path, seeds: Path, *, min_score: float = 0.0,
         raise NotADirectoryError(f"폴더를 찾을 수 없습니다: {source}")
     seeds.mkdir(parents=True, exist_ok=True)
 
+    # 예전에 curate 로 넣은 것들을 먼저 인덱스에 올린다. 안 하면 원래
+    # 미드저니 폴더를 가리켰을 때 있던 것이 통째로 다시 들어온다.
+    report.bootstrapped = bootstrap_index(seeds)
     index = load_index(seeds)
     known = existing_hashes(seeds)
 

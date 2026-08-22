@@ -217,6 +217,27 @@ def _seed_pool() -> list[Path]:
             if p.is_file() and p.suffix.lower() in IMAGE_EXT]
 
 
+def music_state() -> dict:
+    """music/ 안을 분위기별로 보여준다. 넣은 곡이 실제로 잡히는지 확인용."""
+    from pipeline import music as m
+
+    md = ROOT / "music"
+    shelf = m.catalog(md)
+    moods = []
+    for key in (*m.MOODS, "any"):
+        found = shelf.get(key, [])
+        moods.append({
+            "key": key,
+            "label": m.MOOD_LABEL.get(key, key),
+            "count": len(found),
+            "tracks": [f.name for f in found[:8]],
+            "more": max(0, len(found) - 8),
+            "themes": sorted(t for t, mood in m.MOOD_OF.items() if mood == key),
+        })
+    return {"dir": str(md), "total": sum(x["count"] for x in moods),
+            "moods": moods, "note": m.describe(md)}
+
+
 def _group_reasons(items) -> list[dict]:
     """건너뛴 이유를 묶어 센다. 300장을 건너뛰면 목록이 아니라 숫자가 필요하다."""
     counts: dict[str, int] = {}
@@ -476,6 +497,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(schedule_state())
             return
 
+        if p == "/api/music":
+            self._json(music_state())
+            return
         if p == "/api/simple":
             self._json(simple_state())
             return

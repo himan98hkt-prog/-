@@ -157,6 +157,19 @@
                           color:var(--ink2)}
   .folderbox button[disabled]{opacity:.5;cursor:default}
 
+  .moods{display:grid;gap:10px}
+  .mood{border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .mood.empty{border-style:dashed;opacity:.72}
+  .mood .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .mood b{font-size:14px}
+  .mood .cnt{font-size:13px;color:var(--mute);white-space:nowrap}
+  .mood.empty .cnt{color:var(--warn)}
+  .mood .use{font-size:12px;color:var(--mute);margin-top:3px}
+  .mood .list{font-size:12.5px;color:var(--ink2);margin-top:6px;
+              display:flex;flex-wrap:wrap;gap:4px 10px}
+  #musicReload{background:var(--cyanDim);border:1px solid var(--cyan);color:var(--cyanInk);
+               padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+
   /* 폼 */
   label.fld{display:block;margin-bottom:12px}
   label.fld span{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
@@ -275,6 +288,7 @@
       <button class="tab" role="tab" id="t-easy" aria-selected="true">간편 모드</button>
       <button class="tab" role="tab" id="t-home" aria-selected="false">대시보드</button>
       <button class="tab" role="tab" id="t-make" aria-selected="false">1 · 이미지 고르기</button>
+      <button class="tab" role="tab" id="t-music" aria-selected="false">음악</button>
       <button class="tab" role="tab" id="t-runs" aria-selected="false">2 · 완성된 영상</button>
       <button class="tab" role="tab" id="t-auto" aria-selected="false">3 · 자동 업로드</button>
       <button class="tab" role="tab" id="t-set" aria-selected="false">설정</button>
@@ -457,6 +471,17 @@
 
       <div class="filters" id="filters"></div>
       <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="card" id="p-music" hidden>
+      <h2>배경음악</h2>
+      <p class="sub" id="musicNote">불러오는 중…</p>
+      <div class="moods" id="moods"></div>
+      <p class="sub" style="margin-top:12px">
+        곡을 넣거나 지운 뒤 <b>[다시 읽기]</b> 를 누르세요.
+        수노 프롬프트는 <code>music/PROMPTS_SUNO.md</code> 에 있습니다.
+      </p>
+      <button id="musicReload">다시 읽기</button>
     </div>
 
     <div class="card" id="p-runs" hidden>
@@ -911,7 +936,7 @@ $("reclass").onclick = async () => {
 };
 
 // ── 탭 · 모드 ───────────────────────────────────────────────────────
-const TABS = ["easy", "home", "make", "runs", "auto", "set"];
+const TABS = ["easy", "home", "make", "music", "runs", "auto", "set"];
 function switchTab(which) {
   TABS.forEach((t) => {
     $(`t-${t}`).setAttribute("aria-selected", String(t === which));
@@ -921,6 +946,7 @@ function switchTab(which) {
   if (which === "home") { loadOverview(); loadDoctor(); }
   if (which === "auto") { loadSchedule(); loadHistory(); }
   if (which === "set") loadSettings();
+  if (which === "music") loadMusic();
   applyAside();
 }
 
@@ -1135,6 +1161,43 @@ $("igConnect").onclick = async () => {
   } catch (e) { toast(e.message, true); return; }
   connect("instagram");
 };
+
+// ── 배경음악 ────────────────────────────────────────────────────────
+const THEME_KO = {
+  sky_islands: "부유섬", spirit_forest: "정령의 숲", temple: "고대 유적",
+  crystal_cave: "크리스탈 동굴", ice: "얼음 왕국", magic_city: "마법 도시",
+  dragon: "용·비행", underwater: "심해", titan: "거대 존재",
+  library: "도서관", spirit_path: "영혼의 길", anime: "애니 톤",
+  night_drive: "야간 드라이브", downhill: "자전거 다운힐",
+  alley_bike: "골목·자전거", train: "기차", tunnel: "터널",
+  coast: "해안", space: "우주", misc: "기타",
+};
+
+async function loadMusic() {
+  const note = $("musicNote"), box = $("moods");
+  try {
+    const m = await api("/api/music");
+    note.innerHTML = m.total
+      ? `${m.dir} · 모두 <b>${m.total}곡</b>. 영상마다 시드 테마에 맞는 곡이 자동으로 붙습니다.`
+      : `<span style="color:var(--warn)">${m.note}</span>`;
+    box.innerHTML = m.moods.map((x) => {
+      const uses = x.themes.map((t) => THEME_KO[t] || t).join(" · ");
+      return `<div class="mood ${x.count ? "" : "empty"}">
+        <div class="top"><b>${x.label} <span style="color:var(--mute);font-weight:400">
+          music/${x.key}</span></b>
+          <span class="cnt">${x.count ? `${x.count}곡` : "비어 있음"}</span></div>
+        ${uses ? `<div class="use">${uses}</div>` : ""}
+        ${x.tracks.length ? `<div class="list">${
+          x.tracks.map((t) => `<span>${t}</span>`).join("")
+        }${x.more ? `<span>외 ${x.more}곡</span>` : ""}</div>` : ""}
+      </div>`;
+    }).join("");
+  } catch (e) {
+    note.innerHTML = `<span class="bad">${e.message}</span>`;
+  }
+}
+
+$("musicReload").onclick = () => { loadMusic(); loadOverview(); };
 
 // ── 요약 ────────────────────────────────────────────────────────────
 async function loadOverview() {
