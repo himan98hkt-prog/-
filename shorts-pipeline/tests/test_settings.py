@@ -828,7 +828,7 @@ def test_upload_status_is_recorded() -> None:
     check("typer.Exit 이 정말 RuntimeError 상속",
           RuntimeError in _typer.Exit.__mro__, str(_typer.Exit.__mro__[:3]))
 
-    check("목록에 published 를 실어 보낸다", '"published": state.get("published")' in server)
+    check("목록에 published 를 실어 보낸다", '"published": _published_of(d, state)' in server)
     check("카드에 업로드 줄", "uploadLabel(r)" in html)
     check("성공은 링크로", 'target="_blank"' in html)
     check("아직 안 올린 것도 표시", "아직 안 올림" in html)
@@ -837,6 +837,36 @@ def test_upload_status_is_recorded() -> None:
     # schedule.log 문자열 훑기로는 화면에서 누른 업로드가 안 잡혔다
     check("완료 수를 run 상태에서 센다", 'r.get("published") or {}' in server)
     check("진행 표시줄로 화면을 옮긴다", "scrollIntoView" in html)
+
+    # 이 기능이 생기기 전에 올린 영상은 state.json 에 기록이 없다.
+    # 그대로 두면 이미 올린 영상이 "아직 안 올림" 으로 보인다.
+    import json as _json
+    import tempfile
+
+    from ui.server import _published_of
+
+    old_run = Path(tempfile.mkdtemp()) / "20260821_210000"
+    old_run.mkdir(parents=True)
+    (old_run / "log.jsonl").write_text("\n".join([
+        _json.dumps({"iso": "2026-08-21T21:03:11", "event": "publish.youtube",
+                     "video_id": "abc", "url": "https://youtu.be/abc"}),
+        _json.dumps({"iso": "2026-08-21T21:05:40", "event": "publish.instagram",
+                     "media_id": "17", "permalink": "https://instagram.com/reel/x"}),
+        "깨진 줄 publish.youtube {",
+    ]) + "\n", encoding="utf-8")
+
+    back = _published_of(old_run, {})
+    check("예전 유튜브 업로드를 되살림",
+          back.get("youtube", {}).get("url") == "https://youtu.be/abc", str(back))
+    check("예전 인스타 업로드도 되살림",
+          back.get("instagram", {}).get("url") == "https://instagram.com/reel/x")
+    check("깨진 줄이 있어도 죽지 않음", len(back) == 2, str(len(back)))
+    # state.json 에 있으면 그게 최신이다. 로그로 덮어쓰면 실패가 성공이 된다.
+    fresh = {"published": {"youtube": {"ok": False, "error": "쿼터 초과"}}}
+    check("state.json 이 로그보다 우선",
+          _published_of(old_run, fresh)["youtube"]["ok"] is False)
+    check("기록이 아예 없으면 빈 값",
+          _published_of(old_run.parent / "없음", {}) == {})
 
 
 def main():

@@ -115,7 +115,7 @@ def list_runs(limit: int = 30) -> list[dict]:
             "hook": content.get("hook", ""),
             "music": state.get("music"),
             "has_sound": _has_sound(final) if final.exists() else None,
-            "published": state.get("published") or {},
+            "published": _published_of(d, state),
         })
         if len(out) >= limit:
             break
@@ -303,6 +303,56 @@ def _positive(value, fallback: int) -> int:
     except (TypeError, ValueError):
         return fallback
     return n if n > 0 else fallback
+
+
+_PUB_CACHE: dict[tuple, dict] = {}
+
+
+def _published_of(run_dir: Path, state: dict) -> dict:
+    """이 영상이 어디에 올라갔는지.
+
+    새로 올린 것은 state.json 에 바로 남는다. 그 전에 올린 것들은 기록이
+    없어서 화면에 "아직 안 올림" 으로 보였다 — 실제로는 올라가 있는데.
+    log.jsonl 에 publish.* 사건이 남아 있으니 거기서 되살린다.
+    """
+    saved = state.get("published")
+    if saved:
+        return saved
+
+    log = run_dir / "log.jsonl"
+    try:
+        st = log.stat()
+    except OSError:
+        return {}
+    key = (str(log), st.st_mtime_ns, st.st_size)
+    if key in _PUB_CACHE:
+        return _PUB_CACHE[key]
+
+    found: dict[str, dict] = {}
+    try:
+        for line in log.read_text(encoding="utf-8").splitlines():
+            if "publish." not in line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            event = rec.get("event", "")
+            if event == "publish.youtube":
+                found["youtube"] = {"ok": True, "at": rec.get("iso", ""),
+                                    "url": rec.get("url"),
+                                    "video_id": rec.get("video_id")}
+            elif event == "publish.instagram":
+                found["instagram"] = {"ok": True, "at": rec.get("iso", ""),
+                                      "url": rec.get("permalink"),
+                                      "media_id": rec.get("media_id")}
+    except OSError:
+        return {}
+
+    if len(_PUB_CACHE) > 200:
+        _PUB_CACHE.clear()
+    _PUB_CACHE[key] = found
+    return found
 
 
 _SOUND_CACHE: dict[tuple, bool] = {}
