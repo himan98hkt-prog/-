@@ -227,7 +227,10 @@ def _hd_prompt_pack_tests(check) -> None:
 
     print("\n[고급 프롬프트 팩]")
     pack = ROOT / "seeds" / "PROMPTS_HD.md"
-    check("PROMPTS_HD.md 있음", pack.exists())
+    # 로컬에는 있는데 CI 에서만 없으면 커밋이 안 된 것이다.
+    # seeds/* 가 통째로 gitignore 라서 실제로 한 번 그렇게 빠졌다.
+    check("PROMPTS_HD.md 있음", pack.exists(),
+          "" if pack.exists() else "커밋됐는지 확인하세요 (seeds/* 는 gitignore 대상)")
     if not pack.exists():
         return
 
