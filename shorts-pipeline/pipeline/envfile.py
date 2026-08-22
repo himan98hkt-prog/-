@@ -46,8 +46,8 @@ FIELDS: tuple[Field, ...] = (
           "비워두면 토큰으로 자동으로 찾아 채웁니다.",
           "비워두세요 — 자동으로 찾습니다"),
     Field("IG_ACCESS_TOKEN", SECRET, "인스타 액세스 토큰", "instagram",
-          "장기 토큰(60일)을 넣으세요. 만료되면 다시 발급받아야 합니다.",
-          "EAAG..."),
+          "IGAA… 든 EAA… 든 됩니다. 장기 토큰을 넣으세요 — 짧은 토큰이면 확인할 때 알려줍니다.",
+          "IGAA... 또는 EAAG..."),
 
     Field("S3_ENDPOINT_URL", PLAIN, "R2 엔드포인트", "storage",
           "Cloudflare R2 → 계정 ID 가 들어간 주소입니다. AWS S3 면 비워두세요.",

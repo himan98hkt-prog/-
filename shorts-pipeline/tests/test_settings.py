@@ -440,6 +440,60 @@ def test_connect_youtube_survives_scope_error():
             secret.write_bytes(backup)
 
 
+def test_ig_two_login_paths():
+    """메타는 인스타 게시 API 를 두 갈래로 나눠놨고 서버 주소가 다르다.
+
+    사용자가 어느 쪽으로 발급받았는지 알 필요 없어야 한다. 토큰을 보고 우리가 고른다.
+    """
+    section("인스타 토큰 두 종류")
+    from publish.instagram import GRAPH_FB, GRAPH_IG, api_base
+
+    for tok in ("IGAAabc123", "IGQVJxyz"):
+        check(f"{tok[:4]}… 는 graph.instagram.com", api_base(tok) == GRAPH_IG)
+    for tok in ("EAAG123", "EAAB456"):
+        check(f"{tok[:3]}… 는 graph.facebook.com", api_base(tok) == GRAPH_FB)
+    check("모르는 모양은 페이스북으로 (기존 동작 유지)", api_base("zzz") == GRAPH_FB)
+    check("빈 토큰도 안 터짐", api_base("") == GRAPH_FB)
+
+    # 계정 ID 찾는 방법도 갈래마다 다르다
+    import contextlib
+    import io
+    import urllib.request
+
+    import main as main_mod
+
+    def fake(payload):
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def read(self):
+                return json.dumps(payload).encode()
+        return lambda *a, **k: R()
+
+    def run(tok, payload):
+        real = urllib.request.urlopen
+        urllib.request.urlopen = fake(payload)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                return main_mod._find_ig_user_id(tok)
+        finally:
+            urllib.request.urlopen = real
+
+    got = run("IGAAxyz", {"user_id": "17841400000000009", "username": "ai.deokhu"})
+    check("인스타 로그인: /me 로 찾음", got == ("17841400000000009", "@ai.deokhu"), str(got))
+
+    got = run("EAAG123", {"data": [{"name": "Ai.deokhu",
+                                    "instagram_business_account": {"id": "1784140000001"}}]})
+    check("페이스북 로그인: 페이지에서 찾음", got == ("1784140000001", "Ai.deokhu"), str(got))
+
+    got = run("IGAAxyz", {"username": "no-id-here"})
+    check("인스타 로그인인데 ID 가 없으면 None", got is None)
+
+
 def test_ig_user_id_autodiscovery():
     """계정 ID 를 사람이 그래프 API 탐색기에서 옮겨 적게 하지 않는다."""
     section("인스타 계정 ID 자동 찾기")
@@ -596,6 +650,7 @@ def main():
         test_web_app_icons()
         test_job_output_encoding()
         test_connect_youtube_survives_scope_error()
+        test_ig_two_login_paths()
         test_ig_user_id_autodiscovery()
         test_ig_token_expiry_warning()
         test_auto_needs_seed()

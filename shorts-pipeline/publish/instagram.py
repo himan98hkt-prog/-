@@ -9,7 +9,9 @@
   * 로컬 파일을 직접 못 올린다. 반드시 '공개적으로 접근 가능한 URL' 이어야 한다.
   * API 발행은 24시간 롤링 윈도로 제한된다(문서상 50~100건).
     실사용량은 /{ig-user-id}/content_publishing_limit 로 조회한다.
-  * 프로페셔널(비즈니스/크리에이터) 계정 + 연결된 페이스북 페이지가 필요하다.
+  * 프로페셔널(비즈니스/크리에이터) 계정이어야 한다.
+  * 페이스북 페이지는 'Facebook 로그인' 경로에서만 필요하다.
+    'Instagram 로그인' 으로 받은 토큰(IGAA...)은 페이지 없이 인스타만으로 된다.
 """
 
 from __future__ import annotations
@@ -21,9 +23,22 @@ from pathlib import Path
 
 import requests
 
-GRAPH = "https://graph.facebook.com/v21.0"
+# 인스타 게시 API 는 두 갈래이고 서버 주소가 다르다. 엔드포인트 모양은 같다.
+#   'Facebook 로그인이 있는 Instagram API'  -> 토큰 EAA...   graph.facebook.com
+#   'Instagram 로그인이 있는 Instagram API' -> 토큰 IGAA...  graph.instagram.com
+# 앞은 페이스북 페이지가 있어야 하고, 뒤는 페이지 없이 인스타만으로 된다.
+# 어느 쪽으로 발급받았는지 사용자가 알 필요 없게 토큰을 보고 우리가 고른다.
+GRAPH_FB = "https://graph.facebook.com/v21.0"
+GRAPH_IG = "https://graph.instagram.com/v21.0"
+_IG_LOGIN_PREFIXES = ("IGAA", "IGQ")
+
 _FINISHED = "FINISHED"
 _ERROR_STATES = {"ERROR", "EXPIRED"}
+
+
+def api_base(token: str) -> str:
+    """토큰 종류에 맞는 서버 주소."""
+    return GRAPH_IG if token.startswith(_IG_LOGIN_PREFIXES) else GRAPH_FB
 
 
 class UploadError(Exception):
@@ -53,7 +68,7 @@ def publishing_limit() -> dict:
     """남은 발행 가능 횟수를 조회한다."""
     user_id, token = _creds()
     resp = requests.get(
-        f"{GRAPH}/{user_id}/content_publishing_limit",
+        f"{api_base(token)}/{user_id}/content_publishing_limit",
         params={"fields": "config,quota_usage", "access_token": token},
         timeout=60,
     )
@@ -87,7 +102,7 @@ def upload(
 
     # 1) 컨테이너 생성
     resp = requests.post(
-        f"{GRAPH}/{user_id}/media",
+        f"{api_base(token)}/{user_id}/media",
         data={
             "media_type": "REELS",
             "video_url": video_url,
@@ -107,7 +122,7 @@ def upload(
     started = time.time()
     while True:
         st = requests.get(
-            f"{GRAPH}/{container_id}",
+            f"{api_base(token)}/{container_id}",
             params={"fields": "status_code,status", "access_token": token},
             timeout=60,
         )
@@ -125,7 +140,7 @@ def upload(
 
     # 3) 발행
     pub = requests.post(
-        f"{GRAPH}/{user_id}/media_publish",
+        f"{api_base(token)}/{user_id}/media_publish",
         data={"creation_id": container_id, "access_token": token},
         timeout=120,
     )
@@ -139,7 +154,7 @@ def upload(
 
     permalink = ""
     link = requests.get(
-        f"{GRAPH}/{media_id}",
+        f"{api_base(token)}/{media_id}",
         params={"fields": "permalink", "access_token": token},
         timeout=60,
     )

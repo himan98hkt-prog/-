@@ -797,11 +797,13 @@ def connect_instagram_cmd():
         envfile.write({"IG_USER_ID": user_id})
         typer.echo("  .env 에 저장했습니다.")
 
+    from publish.instagram import api_base
+
     qs = urllib.parse.urlencode({
-        "fields": "username,name,followers_count,media_count",
+        "fields": "username,followers_count,media_count",
         "access_token": token,
     })
-    url = f"https://graph.facebook.com/v21.0/{urllib.parse.quote(user_id)}?{qs}"
+    url = f"{api_base(token)}/{urllib.parse.quote(user_id)}?{qs}"
     try:
         with urllib.request.urlopen(url, timeout=20) as r:   # noqa: S310 - 고정 호스트
             data = _json.loads(r.read().decode())
@@ -823,11 +825,35 @@ def connect_instagram_cmd():
 
 
 def _find_ig_user_id(token: str) -> tuple[str, str] | None:
-    """토큰이 닿는 페이지들에서 연결된 인스타 비즈니스 계정을 찾는다."""
+    """토큰으로 인스타 계정 ID 를 찾는다.
+
+    발급 경로에 따라 찾는 방법이 다르다.
+      인스타 로그인 토큰(IGAA...) : /me 가 곧 그 계정이다
+      페이스북 토큰(EAA...)       : /me/accounts 의 페이지들에서 연결된 계정을 본다
+    """
     import json as _json
     import urllib.error
     import urllib.parse
     import urllib.request
+
+    from publish.instagram import GRAPH_IG, api_base
+
+    if api_base(token) == GRAPH_IG:
+        qs = urllib.parse.urlencode({"fields": "user_id,username",
+                                     "access_token": token})
+        try:
+            with urllib.request.urlopen(      # noqa: S310 - 고정 호스트
+                    f"{GRAPH_IG}/me?{qs}", timeout=20) as r:
+                me = _json.loads(r.read().decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")[:300]
+            typer.secho(f"  계정을 못 읽었습니다 (HTTP {exc.code})\n  {detail}",
+                        fg=typer.colors.YELLOW)
+            return None
+        except (OSError, ValueError):
+            return None
+        gid = str(me.get("user_id") or me.get("id") or "")
+        return (gid, f"@{me.get('username', '?')}") if gid else None
 
     qs = urllib.parse.urlencode({
         "fields": "name,instagram_business_account",
@@ -835,7 +861,7 @@ def _find_ig_user_id(token: str) -> tuple[str, str] | None:
     })
     try:
         with urllib.request.urlopen(          # noqa: S310 - 고정 호스트
-                f"https://graph.facebook.com/v21.0/me/accounts?{qs}", timeout=20) as r:
+                f"{api_base(token)}/me/accounts?{qs}", timeout=20) as r:
             pages = _json.loads(r.read().decode()).get("data", [])
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")[:300]
