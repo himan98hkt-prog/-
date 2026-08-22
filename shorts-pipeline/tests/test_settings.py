@@ -274,6 +274,70 @@ def test_daily_bat_is_ascii():
             real.write_bytes(backup)
 
 
+def test_job_output_encoding():
+    """윈도우 파이썬은 파이프로 내보낼 때 코드페이지 949 를 쓴다. 한글이 깨지면 안 된다."""
+    section("작업 로그 인코딩")
+    import time
+
+    from ui import jobs
+
+    job = jobs.start("test", "인코딩",
+                     ["-c", "print('브라우저가 열립니다 [허용]')"], ROOT)
+    for _ in range(60):
+        time.sleep(0.15)
+        if job.status != "running":
+            break
+    check("자식 프로세스가 끝남", job.status == "done", job.status)
+    got = "\n".join(job.lines)
+    check("한글이 안 깨짐", "브라우저가 열립니다 [허용]" in got, got[:60])
+    check("깨짐 문자 없음", "\ufffd" not in got)
+
+
+def test_connect_youtube_survives_scope_error():
+    """업로드 전용 권한이라 channels.list 는 403 이 난다. 그걸로 실패 처리하면 안 된다."""
+    section("유튜브 연결 검증")
+    import publish.youtube as yt_mod
+    from typer.testing import CliRunner
+
+    import main as main_mod
+
+    secrets = ROOT / "secrets"
+    secrets.mkdir(exist_ok=True)
+    secret = secrets / "client_secret.json"
+    had_secret = secret.exists()
+    backup = secret.read_bytes() if had_secret else None
+    secret.write_text('{"installed": {"client_id": "x"}}', encoding="utf-8")
+
+    class FakeCreds:
+        refresh_token = "1//fake-refresh"
+
+    def boom(*a, **k):
+        raise RuntimeError("insufficientPermissions (403)")
+
+    real_creds, real_libs = yt_mod._credentials, yt_mod._require_libs
+    yt_mod._credentials = lambda: FakeCreds()
+    yt_mod._require_libs = lambda: (None, None, None, boom, None)
+    try:
+        res = CliRunner().invoke(main_mod.app, ["connect-youtube"])
+        check("403 이 나도 성공으로 끝남", res.exit_code == 0, str(res.exit_code))
+        check("연결 완료라고 알림", "연결 완료" in res.output, res.output[-120:])
+
+        # 갱신용 토큰이 없으면 경고해야 한다 (내일부터 조용히 실패하는 경우)
+        class NoRefresh:
+            refresh_token = None
+
+        yt_mod._credentials = lambda: NoRefresh()
+        res = CliRunner().invoke(main_mod.app, ["connect-youtube"])
+        check("갱신 토큰 없으면 경고", "갱신용 토큰" in res.output, res.output[-120:])
+        check("그래도 실패로 끝내지는 않음", res.exit_code == 0, str(res.exit_code))
+    finally:
+        yt_mod._credentials, yt_mod._require_libs = real_creds, real_libs
+        if backup is None:
+            secret.unlink(missing_ok=True)
+        else:
+            secret.write_bytes(backup)
+
+
 def test_auto_needs_seed():
     section("간편 모드 안전장치")
     from ui.server import Handler
@@ -299,6 +363,8 @@ def main():
         test_masked_echo_is_ignored()
         test_script_encoding()
         test_daily_bat_is_ascii()
+        test_job_output_encoding()
+        test_connect_youtube_survives_scope_error()
         test_auto_needs_seed()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

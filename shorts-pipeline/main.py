@@ -720,31 +720,49 @@ def connect_youtube_cmd():
     typer.echo("  (창이 안 열리면 터미널에 뜬 주소를 직접 붙여넣으세요)\n")
     try:
         creds = _credentials()
-        _, _, _, build, _ = _require_libs()
-        yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
-        me = yt.channels().list(part="snippet", mine=True).execute()
     except UploadError as exc:
         _die(str(exc))
     except Exception as exc:                       # noqa: BLE001 - 원인을 그대로 보여준다
         _die(f"연결에 실패했습니다: {exc}")
 
-    items = me.get("items") or []
-    if not items:
-        _die("이 계정에 유튜브 채널이 없습니다. 채널을 먼저 만들고 다시 시도하세요.")
-    name = items[0]["snippet"]["title"]
-    typer.secho(f"\n연결 완료: {name}", fg=typer.colors.GREEN)
+    # 여기까지 왔으면 토큰이 저장된 것이고 업로드는 된다.
+    # 채널 이름은 확인용 덤이다. 우리가 받은 권한은 업로드 전용(youtube.upload)이라
+    # channels.list 는 403 이 난다 — 실패해도 연결은 성공이므로 넘어간다.
+    name = ""
+    try:
+        _, _, _, build, _ = _require_libs()
+        yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
+        items = yt.channels().list(part="snippet", mine=True).execute().get("items") or []
+        if items:
+            name = items[0]["snippet"]["title"]
+    except Exception:                              # noqa: BLE001 - 이름 확인은 부가 기능
+        pass
+
+    if name:
+        typer.secho(f"\n연결 완료: {name}", fg=typer.colors.GREEN)
+    else:
+        typer.secho("\n연결 완료", fg=typer.colors.GREEN)
+        typer.echo("  (업로드 전용 권한이라 채널 이름까지는 확인하지 않습니다)")
+
+    # 매일 밤 자동 업로드는 사람 없이 토큰을 갱신해서 돌아간다.
+    # 갱신용 토큰이 없으면 오늘은 되고 내일부터 조용히 실패한다 — 지금 잡아준다.
+    if not getattr(creds, "refresh_token", None):
+        typer.secho("\n! 갱신용 토큰을 못 받았습니다.", fg=typer.colors.YELLOW)
+        typer.echo("  지금은 업로드되지만 몇 시간 뒤 만료되면 다시 로그인해야 합니다.")
+        typer.echo("  secrets/youtube_token.json 을 지우고 다시 연결해 보세요.")
 
     # 작업실 화면이 채널 이름을 보여줄 수 있게 토큰 옆에 적어 둔다.
     token = Path(os.getenv("YOUTUBE_TOKEN_FILE", "secrets/youtube_token.json"))
     if not token.is_absolute():
         token = Path(__file__).parent / token
-    try:
-        import json as _json
-        data = _json.loads(token.read_text(encoding="utf-8"))
-        data["_channel_title"] = name
-        token.write_text(_json.dumps(data), encoding="utf-8")
-    except (OSError, ValueError):
-        pass                                   # 이름 표시는 있으면 좋은 것일 뿐이다
+    if name:
+        try:
+            import json as _json
+            data = _json.loads(token.read_text(encoding="utf-8"))
+            data["_channel_title"] = name
+            token.write_text(_json.dumps(data), encoding="utf-8")
+        except (OSError, ValueError):
+            pass                               # 이름 표시는 있으면 좋은 것일 뿐이다
 
     typer.echo(f"  토큰을 {token} 에 저장했습니다. 다음부터는 로그인이 필요 없습니다.")
 

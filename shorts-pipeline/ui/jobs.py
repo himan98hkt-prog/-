@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 import re
 import subprocess
 import sys
@@ -93,11 +94,15 @@ def start(kind: str, label: str, args: list[str], cwd: Path,
         _jobs[job.id] = job
 
     def run() -> None:
+        # 파이프로 내보낼 때 윈도우 파이썬은 시스템 코드페이지(한국어는 949)를 쓴다.
+        # 우리는 utf-8 로 읽으므로 한글이 전부 ♦ 로 깨졌다. 자식에게 utf-8 을 강제한다.
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
         try:
             proc = subprocess.Popen(
                 [sys.executable, "-u", *args],
                 cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace", bufsize=1,
+                env=env,
             )
             job._proc = proc
             for raw in proc.stdout:
