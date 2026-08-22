@@ -403,6 +403,72 @@ def test_connect_youtube_survives_scope_error():
             secret.write_bytes(backup)
 
 
+def test_ig_token_expiry_warning():
+    """탐색기에서 그냥 복사한 임시 토큰(1~2시간)을 넣는 것이 가장 흔한 함정이다."""
+    section("인스타 토큰 만료 안내")
+    import contextlib
+    import io
+    import time
+    import urllib.request
+
+    import main as main_mod
+
+    def fake(payload):
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def read(self):
+                return json.dumps({"data": payload}).encode()
+        return lambda *a, **k: R()
+
+    def run(payload):
+        real = urllib.request.urlopen
+        urllib.request.urlopen = fake(payload)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                main_mod._report_ig_expiry("tok")
+        finally:
+            urllib.request.urlopen = real
+        return buf.getvalue()
+
+    now = time.time()
+    out = run({"expires_at": 0})
+    check("만료 0 은 '없음' 으로 읽음", "만료: 없음" in out, out.strip()[:50])
+
+    out = run({"expires_at": int(now + 3600)})
+    check("임시 토큰이면 경고", "임시 토큰" in out, out.strip()[:50])
+    check("고치는 방법까지 알려줌", "확장 액세스 토큰" in out)
+
+    out = run({"expires_at": int(now + 5 * 86400)})
+    check("곧 만료면 미리 알림", "5일 뒤 만료" in out, out.strip()[:50])
+
+    out = run({"expires_at": int(now + 59 * 86400)})
+    check("넉넉하면 남은 날짜만", "59일 남았습니다" in out, out.strip()[:50])
+    check("넉넉하면 경고 안 함", "임시 토큰" not in out)
+
+    check("값이 없으면 조용히 넘어감", run({}).strip() == "")
+
+    # 확인에 실패해도 연결 자체를 실패로 만들면 안 된다
+    def boom(*a, **k):
+        raise OSError("network down")
+
+    real = urllib.request.urlopen
+    urllib.request.urlopen = boom
+    try:
+        main_mod._report_ig_expiry("tok")
+        ok = True
+    except Exception:
+        ok = False
+    finally:
+        urllib.request.urlopen = real
+    check("확인 실패해도 안 터짐", ok)
+
+
 def test_auto_needs_seed():
     section("간편 모드 안전장치")
     from ui.server import Handler
@@ -432,6 +498,7 @@ def main():
         test_web_app_icons()
         test_job_output_encoding()
         test_connect_youtube_survives_scope_error()
+        test_ig_token_expiry_warning()
         test_auto_needs_seed()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

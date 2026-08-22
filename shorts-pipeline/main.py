@@ -800,6 +800,50 @@ def connect_instagram_cmd():
     typer.echo(f"  게시물 {data.get('media_count', '?')}개 · "
                f"팔로워 {data.get('followers_count', '?')}명")
 
+    # 토큰이 언제 죽는지 알려준다.
+    # 탐색기에서 그냥 복사하면 1~2시간짜리 임시 토큰이 나온다. 지금은 통과하고
+    # 밤에 조용히 실패하는 가장 흔한 함정이라 여기서 잡아준다.
+    _report_ig_expiry(token)
+
+
+def _report_ig_expiry(token: str) -> None:
+    import json as _json
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    qs = urllib.parse.urlencode({"input_token": token, "access_token": token})
+    try:
+        with urllib.request.urlopen(          # noqa: S310 - 고정 호스트
+                f"https://graph.facebook.com/v21.0/debug_token?{qs}", timeout=20) as r:
+            info = _json.loads(r.read().decode()).get("data", {})
+    except (urllib.error.HTTPError, OSError, ValueError):
+        return                                 # 확인 못 해도 연결 자체는 성공이다
+
+    expires = info.get("expires_at")
+    if expires == 0:                           # 0 은 '만료 없음' 이다 (시스템 사용자 토큰)
+        typer.secho("  토큰 만료: 없음 — 다시 발급받을 필요가 없습니다.",
+                    fg=typer.colors.GREEN)
+        return
+    if not expires:                            # 값을 안 주면 조용히 넘어간다
+        return
+
+    days = (expires - time.time()) / 86400
+    if days < 1:
+        hours = max(0, (expires - time.time()) / 3600)
+        typer.secho(f"\n! 이 토큰은 약 {hours:.0f}시간 뒤 만료됩니다 — 임시 토큰입니다.",
+                    fg=typer.colors.RED)
+        typer.echo("  지금은 올라가지만 오늘 밤 자동 업로드부터 실패합니다.")
+        typer.echo("  액세스 토큰 디버거에서 [확장 액세스 토큰] 을 눌러")
+        typer.echo("  60일짜리로 바꾼 뒤 다시 넣으세요.")
+        typer.echo("  https://developers.facebook.com/tools/debug/accesstoken/")
+    elif days < 14:
+        typer.secho(f"  ! 토큰이 {days:.0f}일 뒤 만료됩니다. 미리 재발급하세요.",
+                    fg=typer.colors.YELLOW)
+    else:
+        typer.echo(f"  토큰 만료까지 약 {days:.0f}일 남았습니다.")
+
 
 @app.command("ui")
 def ui_cmd(
