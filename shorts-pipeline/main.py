@@ -899,6 +899,82 @@ def _report_ig_expiry(token: str) -> None:
         typer.echo(f"  토큰 만료까지 약 {days:.0f}일 남았습니다.")
 
 
+@app.command("connect-storage")
+def connect_storage_cmd():
+    """영상 보관함(R2/S3)이 실제로 되는지 왕복으로 확인한다.
+
+    값이 채워졌는지만 보는 게 아니라, 인스타 업로드가 밟는 경로를 그대로 밟는다.
+    올리기 -> 공개 URL 만들기 -> 그 URL 로 진짜 받아보기 -> 지우기.
+    앞의 셋 중 하나만 막혀도 인스타는 실패하므로 전부 확인해야 의미가 있다.
+    """
+    import tempfile
+    import urllib.error
+    import urllib.request
+
+    from publish.storage import S3Storage, StorageError
+
+    bucket = os.getenv("S3_BUCKET", "").strip()
+    if not bucket:
+        _die("버킷 이름이 없습니다.\n"
+             "  작업실 [설정] 탭 → 영상 보관함 을 채워주세요.")
+    if not os.getenv("AWS_ACCESS_KEY_ID", "").strip():
+        _die("액세스 키가 없습니다.\n"
+             "  R2 → Manage API Tokens 에서 Object Read & Write 토큰을 만드세요.")
+
+    try:
+        store = S3Storage.from_env()
+    except StorageError as exc:
+        _die(str(exc))
+
+    where = store.endpoint_url or f"AWS S3 ({store.region})"
+    typer.echo(f"보관함: {bucket}  @ {where}")
+
+    # 진짜 파일을 하나 올려본다. 몇 바이트라 무료 티어에 영향이 없다.
+    tmp = Path(tempfile.gettempdir()) / "aideokhu_storage_check.txt"
+    tmp.write_text("AI DEOKHU storage check\n", encoding="utf-8")
+    key = None
+    try:
+        typer.echo("  1/4 올리는 중…")
+        obj = store.upload(tmp, key=f"{store.prefix}/_check/connection-test.txt",
+                           show_progress=False)
+        key = obj.key
+        typer.secho("      올라갔습니다.", fg=typer.colors.GREEN)
+
+        typer.echo("  2/4 공개 URL 만드는 중…")
+        if not obj.url:
+            _die("URL 을 만들지 못했습니다. url_strategy 설정을 확인하세요.")
+        typer.secho(f"      {obj.url[:70]}…", fg=typer.colors.GREEN)
+
+        typer.echo("  3/4 그 URL 로 실제로 받아보는 중…")
+        try:
+            with urllib.request.urlopen(obj.url, timeout=30) as r:  # noqa: S310
+                body = r.read()
+            if b"AI DEOKHU" not in body:
+                _die("URL 은 열리는데 내용이 다릅니다. 버킷/경로를 확인하세요.")
+            typer.secho("      받았습니다. 인스타도 이 URL 로 영상을 가져갑니다.",
+                        fg=typer.colors.GREEN)
+        except urllib.error.HTTPError as exc:
+            _die(f"URL 을 열 수 없습니다 (HTTP {exc.code}).\n"
+                 "  presigned URL 이 막혔거나 공개 도메인 설정이 잘못됐습니다.\n"
+                 "  인스타는 이 URL 로 영상을 가져가므로 이게 안 되면 업로드도 실패합니다.")
+        except OSError as exc:
+            _die(f"URL 에 연결하지 못했습니다: {exc}")
+    except StorageError as exc:
+        _die(str(exc))
+    finally:
+        tmp.unlink(missing_ok=True)
+        if key:
+            typer.echo("  4/4 시험 파일 지우는 중…")
+            store.delete(key)
+
+    typer.secho("\n보관함 연결 완료 — 인스타 업로드 준비됐습니다.", fg=typer.colors.GREEN)
+
+    try:
+        typer.echo(store.usage().render())
+    except Exception:                          # noqa: BLE001 - 사용량 표시는 덤이다
+        pass
+
+
 @app.command("ui")
 def ui_cmd(
     port: int = typer.Option(8765, "--port"),

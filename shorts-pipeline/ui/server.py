@@ -791,13 +791,14 @@ class Handler(BaseHTTPRequestHandler):
     def _connect(self, body: dict) -> None:
         """유튜브/인스타 연결을 확인한다. 유튜브는 브라우저 로그인 창이 뜬다."""
         target = body.get("target")
-        if target not in ("youtube", "instagram"):
+        if target not in ("youtube", "instagram", "storage"):
             self._json({"error": "알 수 없는 대상입니다."}, 400)
             return
         if jobs.active():
             self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시도하세요."}, 409)
             return
-        label = "유튜브 연결" if target == "youtube" else "인스타 연결"
+        label = {"youtube": "유튜브 연결", "instagram": "인스타 연결",
+                 "storage": "보관함 확인"}[target]
         job = jobs.start("connect", label,
                          ["main.py", f"connect-{target}"], ROOT)
         self._json({"id": job.id})
