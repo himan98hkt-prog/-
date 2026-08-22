@@ -121,6 +121,7 @@ def main() -> int:
 
     _curate_tests(check, TMP)
     _hd_prompt_pack_tests(check)
+    _upload_queue_tests(check)
 
     shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "═" * 62)
@@ -333,6 +334,79 @@ def _hd_prompt_pack_tests(check) -> None:
     check("세 팩 합쳐도 제목 안 겹침",
           len(everything) == len(set(everything)),
           f"{len(everything) - len(set(everything))}개 중복")
+
+
+def _upload_queue_tests(check) -> None:
+    """예약 업로드 대기열.
+
+    컴퓨터가 꺼져 있으면 예약 시각을 놓친다. 놓친 것을 버리면 사용자는
+    올라간 줄 알고 넘어간다. 그래서 밀린 것은 다음에 켤 때 올리되,
+    너무 오래된 것은 사람이 판단하도록 남긴다.
+    """
+    import tempfile
+    from datetime import datetime, timedelta
+
+    from publish.queue import STALE_HOURS, Queue
+
+    print("\n[예약 업로드]")
+    d = Path(tempfile.mkdtemp())
+    q = Queue.load(d)
+    now = datetime.now()
+
+    q.add("run_due", ["youtube", "instagram"],
+          (now - timedelta(minutes=5)).isoformat())
+    q.add("run_future", ["youtube"], (now + timedelta(hours=3)).isoformat())
+    q.add("run_stale", ["instagram"],
+          (now - timedelta(hours=STALE_HOURS + 1)).isoformat())
+
+    due = q.due()
+    check("지난 예약을 집어낸다", due is not None and due.run == "run_due",
+          due.run if due else "없음")
+    check("미래 예약은 안 건드린다",
+          all(i.run != "run_future" for i in [due] if i))
+    check("너무 밀린 것은 자동으로 안 올린다",
+          [i.run for i in q.stale()] == ["run_stale"], str(q.stale()))
+    check("밀린 것도 버리지는 않는다",
+          any(i.run == "run_stale" for i in q.items))
+
+    # 껐다 켜도 남아야 한다
+    again = Queue.load(d)
+    check("파일로 살아남는다", len(again.items) == 3, f"{len(again.items)}건")
+
+    # 같은 영상을 두 번 예약하면 덮어쓴다 — 두 번 올리면 안 된다
+    q.add("run_due", ["youtube"], (now + timedelta(days=1)).isoformat())
+    dupes = [i for i in Queue.load(d).items
+             if i.run == "run_due" and i.status == "waiting"]
+    check("같은 영상은 예약 하나만", len(dupes) == 1, f"{len(dupes)}건")
+
+    check("취소된다", Queue.load(d).cancel("run_future"))
+    check("취소 뒤엔 안 남는다",
+          all(i.run != "run_future" for i in Queue.load(d).items))
+    check("없는 것 취소는 False", Queue.load(d).cancel("없는run") is False)
+
+    # 올릴 곳이 없으면 예약이 성립하지 않는다
+    try:
+        Queue.load(d).add("x", [], now.isoformat())
+        check("빈 대상은 거부", False)
+    except ValueError:
+        check("빈 대상은 거부", True)
+    try:
+        Queue.load(d).add("x", ["youtube"], "내일 아홉시")
+        check("이상한 시각은 거부", False)
+    except ValueError:
+        check("이상한 시각은 거부", True)
+    # 모르는 대상은 조용히 걸러낸다
+    it = Queue.load(d).add("x", ["youtube", "틱톡"], now.isoformat())
+    check("모르는 대상은 무시", it.targets == ["youtube"], str(it.targets))
+
+    server = (ROOT / "ui" / "server.py").read_text(encoding="utf-8")
+    check("워커가 돈다", "_queue_worker" in server and "daemon=True" in server)
+    check("한 번에 하나만 올린다", "if jobs.active():" in server)
+    check("영상이 지워졌으면 건너뛴다", '"skipped"' in server)
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+    check("카드에 예약 버튼", 'data-sch=' in html)
+    check("예약 상태를 보여준다", "예약됨" in html)
+    check("컴퓨터가 켜져 있어야 한다고 알려준다", "켜져 있고" in html)
 
 
 if __name__ == "__main__":

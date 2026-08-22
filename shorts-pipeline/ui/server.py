@@ -13,6 +13,7 @@ import mimetypes
 import os
 import re
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
@@ -630,6 +631,7 @@ class Handler(BaseHTTPRequestHandler):
                 "runs": list_runs(),
                 "jobs": jobs.recent(),
                 "active": (jobs.active().snapshot() if jobs.active() else None),
+                "queue": upload_queue_state(),
                 "needs_restart": needs_restart(),
             })
             return
@@ -760,6 +762,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/generate":
             self._generate(body)
             return
+        if u.path == "/api/schedule-upload":
+            self._schedule_upload(body)
+            return
         if u.path == "/api/delete-run":
             self._delete_run(body)
             return
@@ -826,6 +831,34 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
         self._json({"id": job.id})
+
+    def _schedule_upload(self, body: dict) -> None:
+        """이 영상을 언제 어디에 올릴지 예약한다. 취소도 여기서."""
+        from publish.queue import Queue
+
+        run_id = _safe_name(body.get("run", ""))
+        if not run_id or not (RUNS / run_id / "final.mp4").exists():
+            self._json({"error": "완성된 영상을 찾을 수 없습니다."}, 400)
+            return
+
+        q = Queue.load(RUNS)
+        if body.get("cancel"):
+            ok = q.cancel(run_id)
+            self._json({"ok": ok, "queue": upload_queue_state()})
+            return
+
+        targets = [t for t in (body.get("targets") or []) if t in ("youtube", "instagram")]
+        if not targets:
+            self._json({"error": "올릴 곳을 하나 이상 고르세요."}, 400)
+            return
+        try:
+            item = q.add(run_id, targets, str(body.get("at", "")),
+                         dry_run=bool(body.get("dry_run")))
+        except ValueError as exc:
+            self._json({"error": f"시각을 읽지 못했습니다: {exc}"}, 400)
+            return
+
+        self._json({"ok": True, "at": item.at, "queue": upload_queue_state()})
 
     def _delete_run(self, body: dict) -> None:
         """만든 영상 하나를 폴더째 지운다.
@@ -1185,11 +1218,71 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": True})
 
 
+def upload_queue_state() -> dict:
+    """예약 업로드 대기열 상태. 화면에 그대로 뿌린다."""
+    from publish.queue import Queue
+
+    q = Queue.load(RUNS)
+    return {
+        "items": q.snapshot(),
+        "waiting": len(q.waiting()),
+        "stale": [i.run for i in q.stale()],
+    }
+
+
+def _queue_worker(interval: float = 20.0) -> None:
+    """예약 시각이 된 영상을 올린다. 작업실이 켜져 있는 동안만 돈다.
+
+    컴퓨터가 꺼져 있으면 당연히 안 돈다. 그래서 지난 예약은 버리지 않고
+    다음에 켜질 때 올린다 (24시간까지). 그보다 오래된 것은 사람이 판단
+    하도록 남겨 둔다 — 하루 지난 영상을 갑자기 올리면 곤란하다.
+    """
+    from publish.queue import Queue
+
+    while True:
+        time.sleep(interval)
+        try:
+            if jobs.active():
+                continue                      # 한 번에 하나만
+            q = Queue.load(RUNS)
+            item = q.due()
+            if item is None:
+                continue
+            if not (RUNS / item.run / "final.mp4").exists():
+                q.mark(item, "skipped", "영상 파일이 없습니다 (지워졌나요?)")
+                continue
+
+            item.tried += 1
+            q.mark(item, "running")
+            args = ["main.py", "publish", "--run", item.run]
+            for t in item.targets:
+                args.append(f"--{t}")
+            if item.dry_run:
+                args.append("--dry-run")
+
+            def done(job, _run=item.run):
+                # 콜백은 작업 스레드에서 온다. 파일을 다시 읽어 최신 상태로.
+                qq = Queue.load(RUNS)
+                for it in qq.items:
+                    if it.run == _run and it.status == "running":
+                        if job.status == "done":
+                            qq.mark(it, "done")
+                        else:
+                            tail = " ".join(job.lines[-3:])[:200]
+                            qq.mark(it, "failed", tail or "업로드에 실패했습니다.")
+                        break
+
+            jobs.start("publish", f"{item.run} 예약 업로드", args, ROOT, on_done=done)
+        except Exception as exc:              # 워커가 조용히 죽으면 안 된다
+            print(f"  ⚠ 예약 업로드 확인 중 오류: {exc}")
+
+
 def serve(port: int = 8765, open_browser: bool = True) -> None:
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}"
     print(f"\n  AI DEOKHU 작업실이 열렸습니다\n  {url}\n")
     print("  창을 닫으려면 이 터미널에서 Ctrl+C 를 누르세요.\n")
+    threading.Thread(target=_queue_worker, daemon=True).start()
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
