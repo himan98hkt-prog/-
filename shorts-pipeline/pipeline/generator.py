@@ -106,5 +106,39 @@ def upscale_frame(
         print(f"    ⚠ 업스케일 실패, 원본 프레임으로 계속합니다 ({exc})")
         return frame
     stats.upscale_calls += 1
+    out = shrink_to_output(out, cfg, run, index=index)
     run.log("upscale.done", index=index, path=str(out))
     return out
+
+
+def shrink_to_output(frame: Path, cfg: Config, run: Run, *, index: int) -> Path:
+    """업스케일한 프레임을 다시 출력 해상도로 줄인다.
+
+    esrgan 은 1080x1920 을 4배(4320x7680)로 키운다. 그걸 그대로 다음 클립의
+    입력으로 보내면 fal 에 **40~80MB 짜리 data URI** 를 올리게 된다.
+    requests 의 timeout 은 소켓이 조용할 때만 도는 값이라, 업로드가 느리게
+    이어지는 동안에는 영영 만료되지 않는다. 실제로 클립 2에서 43분을 멈춰
+    있다가 아무 오류도 못 낸 사례가 나왔다.
+
+    모델은 어차피 출력 해상도로 만든다. 큰 그림을 보낼 이유가 없다.
+    업스케일의 이점(압축 잡티 제거)은 줄이고 나서도 남는다 — 슈퍼샘플링이다.
+    """
+    from PIL import Image
+
+    want = (int(cfg.output["width"]), int(cfg.output["height"]))
+    try:
+        with Image.open(frame) as img:
+            if img.size[0] <= want[0] and img.size[1] <= want[1]:
+                return frame
+            before = img.size
+            small = img.convert("RGB").resize(want, Image.LANCZOS)
+        small.save(frame, "PNG", optimize=True)
+    except OSError as exc:
+        run.log("upscale.shrink_failed", index=index, error=str(exc))
+        return frame
+    mb = frame.stat().st_size / 1e6
+    print(f"    업스케일 프레임을 {before[0]}x{before[1]} -> "
+          f"{want[0]}x{want[1]} 로 줄였습니다 ({mb:.1f}MB)")
+    run.log("upscale.shrunk", index=index, before=list(before), after=list(want),
+            size_mb=round(mb, 2))
+    return frame

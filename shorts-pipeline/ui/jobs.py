@@ -34,6 +34,7 @@ class Job:
     step: int = 0
     total: int = 0
     started: float = field(default_factory=time.time)
+    last_output: float = field(default_factory=time.time)
     finished: float | None = None
     result: dict = field(default_factory=dict)
     _proc: subprocess.Popen | None = None
@@ -41,6 +42,13 @@ class Job:
     @property
     def elapsed(self) -> int:
         return int((self.finished or time.time()) - self.started)
+
+    @property
+    def idle(self) -> int:
+        """마지막 출력 이후 지난 초. 멈춤과 작업 중을 구별하는 유일한 단서다."""
+        if self.status != "running":
+            return 0
+        return int(time.time() - self.last_output)
 
     def snapshot(self, tail: int = 40) -> dict:
         return {
@@ -51,6 +59,7 @@ class Job:
             "step": self.step,
             "total": self.total,
             "elapsed": self.elapsed,
+            "idle": self.idle,
             "lines": self.lines[-tail:],
             "result": self.result,
         }
@@ -110,6 +119,7 @@ def start(kind: str, label: str, args: list[str], cwd: Path,
                 if not line:
                     continue
                 job.lines.append(line)
+                job.last_output = time.time()
                 m = _PROGRESS.search(line)
                 if m:
                     job.step, job.total = int(m.group(1)), int(m.group(2))

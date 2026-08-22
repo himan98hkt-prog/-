@@ -144,6 +144,11 @@
           max-height:120px;overflow:auto;color:var(--ink2)}
   .upstat .bad{color:var(--bad)}
 
+  .pidle{font-size:12px;margin:6px 0 2px;line-height:1.5}
+  .pidle.ok{color:var(--mute)}
+  .pidle.warn{color:var(--warn)}
+  .pidle.bad{color:var(--bad)}
+
   .folderbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
              margin-bottom:14px}
   .folderbox b{font-size:14px}
@@ -540,6 +545,7 @@
       <div class="prog" id="prog" hidden>
         <div class="bar"><i id="fill"></i></div>
         <div class="plabel"><span id="pstep">준비 중…</span><span id="ptime">0초</span></div>
+        <div class="pidle" id="pidle" hidden></div>
         <div class="log" id="log"></div>
         <button class="ghost danger" id="cancel" style="margin-top:10px;width:100%">중단</button>
       </div>
@@ -601,8 +607,15 @@ async function refresh() {
     // 안 그러면 새 버튼을 눌렀을 때 영문 모를 오류만 뜬다.
     $("restartBar").classList.toggle("on", !!s.needs_restart);
     renderSeeds(); renderRuns();
-    if (s.active) { activeJob = s.active.id; renderJob(s.active); }
-    else if (activeJob) { activeJob = null; $("prog").hidden = true; applyAside(); }
+    if (s.active) {
+      activeJob = s.active.id;
+      renderJob(s.active);
+      // 폴링이 끊겨 있으면 여기서 되살린다. 안 그러면 6초 간격 새로고침도
+      // activeJob 이 있다는 이유로 건너뛰어서 화면이 영영 안 움직인다.
+      if (!polling) poll();
+    } else if (activeJob) {
+      activeJob = null; polling = false; $("prog").hidden = true; applyAside();
+    }
   } catch (e) { /* 서버가 잠깐 멈춘 것뿐일 수 있다 */ }
 }
 
@@ -742,6 +755,32 @@ $("cancel").onclick = async () => {
   toast("중단했습니다.");
 };
 
+// 클립 하나를 만드는 동안은 몇 분씩 출력이 없다. 그게 정상인지 멈춘 것인지
+// 화면만 봐서는 알 수가 없다. 마지막 소식 이후 얼마나 지났는지 그대로 보여준다.
+function renderIdle(j) {
+  const box = $("pidle");
+  if (j.status !== "running") { box.hidden = true; return; }
+  const idle = j.idle || 0;
+  box.hidden = false;
+  const mm = Math.floor(idle / 60);
+  if (idle < 75) {
+    box.className = "pidle ok";
+    box.textContent = "정상 동작 중입니다.";
+  } else if (idle < 12 * 60) {
+    box.className = "pidle ok";
+    box.textContent = `${mm}분째 응답을 기다리는 중입니다. `
+      + "클립 하나에 1~10분 걸립니다 — 멈춘 것이 아닙니다.";
+  } else if (idle < 20 * 60) {
+    box.className = "pidle warn";
+    box.textContent = `${mm}분째 새 소식이 없습니다. `
+      + "곧 시간 초과로 넘어가거나 다시 시도합니다. 조금 더 기다려 보세요.";
+  } else {
+    box.className = "pidle bad";
+    box.textContent = `${mm}분째 멈춰 있습니다. `
+      + "[중단] 을 누르고 다시 시도하세요. 이미 만든 클립은 남습니다.";
+  }
+}
+
 function renderJob(j) {
   $("prog").hidden = false;
   applyAside();
@@ -752,6 +791,7 @@ function renderJob(j) {
     : ({ done: "완료", failed: "실패", cancelled: "중단됨" }[j.status] || j.status);
   const m = Math.floor(j.elapsed / 60), s = j.elapsed % 60;
   $("ptime").textContent = m ? `${m}분 ${s}초` : `${s}초`;
+  renderIdle(j);
   const log = $("log");
   const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 24;
   log.textContent = (j.lines || []).join("\n");
@@ -759,12 +799,18 @@ function renderJob(j) {
   $("cancel").hidden = j.status !== "running";
 }
 
+let polling = false;      // 폴링 루프가 두 개 돌지 않게
+let pollMisses = 0;       // 연속 실패 횟수
+
 async function poll() {
-  if (!activeJob) return;
+  if (!activeJob) { polling = false; return; }
+  polling = true;
   try {
     const j = await api(`/api/job?id=${activeJob}`);
+    pollMisses = 0;
     renderJob(j);
     if (j.status === "running") { setTimeout(poll, 1500); return; }
+    polling = false;
     activeJob = null;
     $("go").disabled = picked.length === 0;
     $("eGo").disabled = false; $("eGo2").disabled = false;
@@ -780,8 +826,19 @@ async function poll() {
     if (!$("p-easy").hidden) loadEasy();
     if (!$("p-set").hidden) loadSettings();
   } catch (e) {
+    // 요청 하나가 실패했다고 포기하면 안 된다. 작업은 뒤에서 계속 도는데
+    // 화면만 그 자리에 얼어붙어 "만들다 멈춘 것" 처럼 보인다. 실제로
+    // 여기서 activeJob 을 지워버려 다시는 폴링이 시작되지 않았다.
+    pollMisses += 1;
+    if (pollMisses < 20) {          // 1.5초 -> 최대 3초 간격으로 30초쯤 버틴다
+      setTimeout(poll, Math.min(3000, 1500 + pollMisses * 100));
+      return;
+    }
+    polling = false;
     activeJob = null; stayHere = false;
+    pollMisses = 0;
     $("go").disabled = false; $("eGo").disabled = false; $("eGo2").disabled = false;
+    toast("작업 상태를 읽지 못했습니다. 작업실을 껐다 켜 보세요.", true);
   }
 }
 
@@ -1289,7 +1346,7 @@ $("duration").onchange = updateCost;
 
 // ── 시작 ────────────────────────────────────────────────────────────
 refresh(); loadDoctor(); loadOverview(); loadEasy(); updateCost(); applyAside();
-setInterval(() => { if (!activeJob) refresh(); }, 6000);
+setInterval(() => { if (!activeJob || !polling) refresh(); }, 6000);
 setInterval(() => {
   loadDoctor(); loadOverview();
   if (!$("p-easy").hidden && !activeJob) loadEasy();

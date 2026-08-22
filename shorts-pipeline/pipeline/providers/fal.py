@@ -25,11 +25,51 @@ _DEFAULT_BASE = "https://queue.fal.run"
 _RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
 
+# 이 크기를 넘으면 JPEG 로 다시 인코딩한다. 업로드가 길어지면 requests 의
+# timeout 이 안 돈다 — 소켓이 계속 살아 있어서 만료 타이머가 매번 초기화된다.
+# 4배 업스케일한 PNG(40~80MB)를 그대로 올리다 43분을 멈춘 사례가 있었다.
+# 1080x1920 실사 프레임은 보통 1.5~3MB 다. 8MB 를 넘는다는 것은 업스케일
+# 결과가 그대로 들어왔다는 뜻이다. 기준을 4MB 로 잡았더니 디테일이 아주
+# 많은 정상 프레임까지 JPEG 로 바뀌어서 8MB 로 올렸다.
+MAX_INLINE_MB = 8.0
+
+
 def _data_uri(path: Path) -> str:
-    """fal 은 공개 URL 또는 data URI 를 받는다. 로컬 파일은 data URI 로 올린다."""
+    """fal 은 공개 URL 또는 data URI 를 받는다. 로컬 파일은 data URI 로 올린다.
+
+    너무 크면 JPEG 로 줄여서 보낸다. 화질보다 **끝나는 것**이 먼저다.
+    """
+    size_mb = path.stat().st_size / 1e6
+    if size_mb > MAX_INLINE_MB:
+        shrunk = _to_jpeg(path)
+        if shrunk is not None:
+            data, mime, new_mb = shrunk
+            print(f"    입력 이미지가 커서 JPEG 로 줄여 보냅니다 "
+                  f"({size_mb:.1f}MB -> {new_mb:.1f}MB)", flush=True)
+            return f"data:{mime};base64," + base64.b64encode(data).decode()
+
     suffix = path.suffix.lower().lstrip(".")
     mime = "image/jpeg" if suffix in ("jpg", "jpeg") else f"image/{suffix or 'png'}"
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+
+
+def _to_jpeg(path: Path) -> tuple[bytes, str, float] | None:
+    """JPEG 로 다시 인코딩한 바이트. 실패하면 None (원본을 그대로 쓴다)."""
+    import io
+
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        with Image.open(path) as img:
+            rgb = img.convert("RGB")
+            buf = io.BytesIO()
+            rgb.save(buf, "JPEG", quality=92, optimize=True)
+    except OSError:
+        return None
+    data = buf.getvalue()
+    return data, "image/jpeg", len(data) / 1e6
 
 
 class FalProvider(VideoProvider):
@@ -66,6 +106,9 @@ class FalProvider(VideoProvider):
         # 로그에는 이미지 본문을 빼고 남긴다. data URI 는 수 MB 라 log 를 망친다.
         loggable = {k: v for k, v in payload.items() if not k.endswith("image_url")}
         self.log("fal.submit", endpoint=self.endpoint, payload=loggable)
+        mb = sum(len(v) for k, v in payload.items()
+                 if k.endswith("image_url") and isinstance(v, str)) / 1e6
+        print(f"    fal 에 올리는 중… (이미지 {mb:.1f}MB)", flush=True)
 
         submit = self._request(
             "POST", f"{self.base_url}/{self.endpoint}", json=payload

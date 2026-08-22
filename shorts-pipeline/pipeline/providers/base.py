@@ -40,6 +40,10 @@ class GenerationResult:
     elapsed_seconds: float
 
 
+# 기다리는 동안 이 간격으로 한 줄씩 찍는다. 화면에서 '살아 있음' 을 보여준다.
+HEARTBEAT_SECONDS = 30.0
+
+
 class VideoProvider(ABC):
     """image-to-video provider."""
 
@@ -89,8 +93,14 @@ class VideoProvider(ABC):
         *,
         label: str,
     ) -> dict:
-        """완료될 때까지 폴링. (완료여부, payload) 를 주는 check 를 반복 호출한다."""
+        """완료될 때까지 폴링. (완료여부, payload) 를 주는 check 를 반복 호출한다.
+
+        기다리는 동안 30초마다 한 줄씩 찍는다. 안 그러면 클립 하나에 몇 분씩
+        아무 출력이 없어서, 작업실 화면만 보는 사람은 **멈춘 것과 구별할 수
+        없다.** 실제로 "만들다가 중단되어 멈춰 있다" 는 문의가 나왔다.
+        """
         started = time.time()
+        next_beat = HEARTBEAT_SECONDS
         while True:
             done, payload = check()
             if done:
@@ -101,4 +111,9 @@ class VideoProvider(ABC):
                     f"{label} 이(가) {self.timeout:.0f}초 안에 끝나지 않았습니다. "
                     "타임아웃을 늘리거나 더 짧은 클립으로 시도하세요."
                 )
+            if elapsed >= next_beat:
+                left = max(0, int(self.timeout - elapsed))
+                print(f"      기다리는 중… {int(elapsed)}초 경과 "
+                      f"(최대 {int(self.timeout)}초, {left}초 남음)", flush=True)
+                next_beat += HEARTBEAT_SECONDS
             time.sleep(self.poll_interval)
