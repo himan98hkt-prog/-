@@ -18,6 +18,7 @@ URL 전략은 두 가지다.
 from __future__ import annotations
 
 import os
+import re
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -40,6 +41,10 @@ _CONTENT_TYPES = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
 }
+
+
+# boto3 가 쓰는 것과 같은 규칙. 여기서 미리 걸러 한국어로 알려준다.
+_BUCKET_OK = re.compile(r"^[a-zA-Z0-9.\-_]{1,255}$")
 
 
 class StorageError(Exception):
@@ -155,6 +160,16 @@ class S3Storage:
             raise StorageError(
                 "S3 버킷이 설정되지 않았습니다.\n"
                 "  .env 의 S3_BUCKET 또는 config.yaml 의 publish.storage.bucket 을 채우세요."
+            )
+        # R2 대시보드는 한글 버킷 이름을 만들게 해주지만 S3 프로토콜은 못 받는다.
+        # boto3 가 요청을 보내기도 전에 정규식으로 거부하는데, 그 영어 오류가
+        # 무슨 소린지 알기 어려워서 여기서 먼저 잡는다.
+        if not _BUCKET_OK.match(str(bucket)):
+            raise StorageError(
+                f"버킷 이름 '{bucket}' 은 S3 규격에 맞지 않습니다.\n"
+                "  영문 소문자·숫자·하이픈(-)만 쓸 수 있습니다. 한글은 안 됩니다.\n"
+                "  R2 에서 'ai-deokhu' 같은 이름으로 버킷을 새로 만들고\n"
+                "  작업실 [설정] 탭의 버킷 이름을 그것으로 바꾸세요."
             )
         return cls(
             bucket=bucket,

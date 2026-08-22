@@ -105,6 +105,28 @@ def main() -> int:
     check("빈 문자열은 무시되고 환경변수로 폴백",
           S3Storage.from_env({"bucket": ""}).bucket == "from-env-bucket")
 
+    # ── 버킷 이름 규격 ────────────────────────────────────────────
+    # R2 대시보드는 한글 이름을 만들게 해주지만 S3 프로토콜은 못 받는다.
+    # 실사용에서 '쇼츠-미디어' 버킷을 만들어 놓고 막힌 적이 있다.
+    for bad in ("쇼츠-미디어", "내 버킷", "버킷!"):
+        os.environ["S3_BUCKET"] = bad
+        try:
+            S3Storage.from_env()
+            check(f"버킷 이름 거부: {bad}", False, "통과돼버림")
+        except StorageError as exc:
+            check(f"버킷 이름 거부: {bad}", "S3 규격에 맞지 않습니다" in str(exc))
+            if bad == "쇼츠-미디어":
+                check("한글은 안 된다고 알려줌", "한글은 안 됩니다" in str(exc))
+                check("고치는 방법도 알려줌", "ai-deokhu" in str(exc))
+    for good in ("ai-deokhu", "my.bucket-1", "AB_c"):
+        os.environ["S3_BUCKET"] = good
+        try:
+            S3Storage.from_env()
+            check(f"버킷 이름 허용: {good}", True)
+        except StorageError as exc:
+            check(f"버킷 이름 허용: {good}", False, str(exc)[:60])
+    os.environ["S3_BUCKET"] = "test-bucket"
+
     # ── 실제 업로드 (moto) ────────────────────────────────────────
     print("\n[업로드 — presigned]")
     with mock_aws():
