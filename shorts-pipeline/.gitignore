@@ -10,6 +10,12 @@ seeds/*
 # 조용히 빠진다 — 실제로 PROMPTS_HD.md 가 그렇게 누락됐다.
 !seeds/*.md
 
+# 음원은 용량이 커서 추적하지 않는다. 폴더 구조와 문서만 남긴다.
+music/**
+!music/**/
+!music/*.md
+!music/**/.gitkeep
+
 tests/_tmp/
 __pycache__/
 *.pyc

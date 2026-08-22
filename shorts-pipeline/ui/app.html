@@ -144,6 +144,19 @@
           max-height:120px;overflow:auto;color:var(--ink2)}
   .upstat .bad{color:var(--bad)}
 
+  .folderbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+             margin-bottom:14px}
+  .folderbox b{font-size:14px}
+  .folderbox .sub{margin:4px 0 10px}
+  .folderbox .row{display:flex;gap:8px;flex-wrap:wrap}
+  .folderbox input{flex:1 1 240px;min-width:0}
+  .folderbox button{background:var(--cyanDim);border:1px solid var(--cyan);
+                    color:var(--cyanInk);padding:8px 14px;border-radius:8px;
+                    cursor:pointer;font-size:13px;white-space:nowrap}
+  .folderbox button.ghost{background:transparent;border-color:var(--line);
+                          color:var(--ink2)}
+  .folderbox button[disabled]{opacity:.5;cursor:default}
+
   /* 폼 */
   label.fld{display:block;margin-bottom:12px}
   label.fld span{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
@@ -427,6 +440,19 @@
         <br><button id="pick">파일 고르기</button>
         <input type="file" id="file" accept="image/*" multiple hidden>
         <div class="upstat" id="upstat"></div>
+      </div>
+
+      <div class="folderbox">
+        <b>폴더에서 한 번에 가져오기</b>
+        <p class="sub">미드저니 다운로드 폴더 경로를 넣어 두세요. 누를 때마다
+          <b>새로 받은 것만</b> 골라 옵니다. 이미 들여온 그림은 건너뜁니다.</p>
+        <div class="row">
+          <input id="folder" type="text" spellcheck="false"
+                 placeholder="C:\Users\내이름\Downloads\midjourney">
+          <button id="intake">가져오기</button>
+          <button id="reclass" class="ghost">전체 다시 분류</button>
+        </div>
+        <div class="upstat" id="instat"></div>
       </div>
 
       <div class="filters" id="filters"></div>
@@ -819,6 +845,71 @@ async function upload(files) {
   }
 }
 
+// ── 폴더에서 가져오기 · 다시 분류 ───────────────────────────────────
+const folder = $("folder"), instat = $("instat");
+const FOLDER_KEY = "aideokhu.intakeFolder";
+try { folder.value = localStorage.getItem(FOLDER_KEY) || ""; } catch (e) { /* 무시 */ }
+folder.oninput = () => { try { localStorage.setItem(FOLDER_KEY, folder.value); } catch (e) {} };
+
+function skipLines(skipped) {
+  return (skipped || []).map((s) =>
+    `<div class="bad">${s.count}장 건너뜀 — ${s.reason}</div>`).join("");
+}
+
+function busy(on) {
+  $("intake").disabled = on;
+  $("reclass").disabled = on;
+}
+
+$("intake").onclick = async () => {
+  const path = folder.value.trim();
+  if (!path) { toast("폴더 경로를 넣어 주세요.", true); folder.focus(); return; }
+  busy(true);
+  instat.textContent = "폴더를 살펴보는 중… (장수가 많으면 조금 걸립니다)";
+  try {
+    const r = await api("/api/intake", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder: path }),
+    });
+    const rows = r.added.slice(0, 10).map((a) =>
+      `<div>+ ${a.name} · ${a.title} (${Math.round(a.score)}점)</div>`).join("");
+    instat.innerHTML =
+      `<div>${r.scanned}장을 살펴봐서 ${r.added.length}장을 새로 가져왔습니다.</div>`
+      + rows + (r.added.length > 10 ? `<div>외 ${r.added.length - 10}장</div>` : "")
+      + skipLines(r.skipped);
+    toast(r.added.length ? `${r.added.length}장을 가져왔습니다.`
+                         : "새로 가져올 이미지가 없습니다.");
+    refresh();
+  } catch (e) {
+    instat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  } finally { busy(false); }
+};
+
+$("reclass").onclick = async () => {
+  busy(true);
+  instat.textContent = "seeds 폴더를 다시 살펴보는 중…";
+  try {
+    const r = await api("/api/reclassify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const moved = (r.renamed || []).map((m) =>
+      `<div>↻ ${m.was} → ${m.now}</div>`).join("");
+    instat.innerHTML =
+      `<div>${r.scanned}장을 다시 살펴봤습니다.</div>` + moved
+      + (r.fixed.length ? `<div>사이드카 ${r.fixed.length}개를 정리했습니다.</div>` : "")
+      + skipLines(r.skipped)
+      + (!r.renamed.length && !r.fixed.length
+         ? "<div>고칠 것이 없습니다. 전부 정상입니다.</div>" : "");
+    toast(`${r.scanned}장을 다시 분류했습니다.`);
+    refresh();
+  } catch (e) {
+    instat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  } finally { busy(false); }
+};
+
 // ── 탭 · 모드 ───────────────────────────────────────────────────────
 const TABS = ["easy", "home", "make", "runs", "auto", "set"];
 function switchTab(which) {
@@ -1056,6 +1147,9 @@ async function loadOverview() {
         <div class="l">남은 이미지 · 약 ${days}일치</div></div>
       <div class="stat"><div class="n">${o.videos}</div><div class="l">만든 영상</div></div>
       <div class="stat"><div class="n">${o.published}</div><div class="l">업로드 완료</div></div>
+      <div class="stat ${o.music ? "" : "warn"}" title="${o.music_note || ""}">
+        <div class="n">${o.music ?? 0}</div>
+        <div class="l">${o.music ? "배경음악" : "배경음악 없음 · 무음"}</div></div>
       <div class="stat"><div class="n">$${o.spent.toFixed(2)}</div><div class="l">누적 비용</div></div>`;
   } catch (e) { /* 무시 */ }
 }

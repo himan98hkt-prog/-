@@ -65,8 +65,11 @@ def stitch(
     for c in clips:
         args += ["-i", str(c)]
 
-    audio_args, audio_map = _audio_args(audio, audio_file, len(clips))
+    audio_args, audio_map, audio_graph = _audio_args(
+        audio, audio_file, len(clips), _total_seconds(clips, crossfade, transition))
     args += audio_args
+    if audio_graph:
+        filter_complex = f"{filter_complex};{audio_graph}"
     args += [
         "-filter_complex", filter_complex,
         "-map", f"[{last_label}]",
@@ -124,13 +127,34 @@ def _xfade_graph(
     return ";".join(parts), current
 
 
+def _total_seconds(clips: list[Path], crossfade: float, transition: str) -> float:
+    """합성 후 최종 길이. 크로스페이드만큼 겹치므로 단순 합이 아니다."""
+    try:
+        total = sum(duration_of(c) for c in clips)
+    except FFmpegError:
+        return 0.0
+    if len(clips) > 1 and transition != "cut" and crossfade > 0:
+        total -= crossfade * (len(clips) - 1)
+    return max(0.0, total)
+
+
+# 음악이 영상보다 크면 안 된다. 유튜브·인스타 권장 라우드니스에 맞춘다.
+MUSIC_LUFS = -14.0
+FADE_IN = 1.0
+FADE_OUT = 1.6
+
+
 def _audio_args(
-    audio: str, audio_file: str | None, n_clips: int
-) -> tuple[list[str], list[str]]:
-    """오디오 입력과 매핑을 만든다.
+    audio: str, audio_file: str | None, n_clips: int, total: float = 0.0
+) -> tuple[list[str], list[str], str]:
+    """오디오 입력·매핑·필터그래프를 만든다.
 
     Shorts / Reels 는 오디오 트랙이 없는 파일에서 종종 문제를 일으키므로
     기본값은 무음 트랙 삽입이다.
+
+    음원을 쓸 때는 그냥 붙이지 않는다. 수노에서 받은 곡은 저마다 음량이
+    달라서 어떤 편은 크고 어떤 편은 안 들린다. 라우드니스를 맞추고
+    앞뒤로 페이드를 넣는다. 끊기듯 끝나는 소리는 이탈로 이어진다.
     """
     if audio == "file":
         if not audio_file:
@@ -138,10 +162,29 @@ def _audio_args(
         path = Path(audio_file)
         if not path.exists():
             raise FFmpegError(f"음원 파일이 없습니다: {path}")
-        return (["-stream_loop", "-1", "-i", str(path)], ["-map", f"{n_clips}:a"])
+
+        # 길이를 모르면 예전 방식 그대로 간다. 필터를 걸지 않는다.
+        # 무한 반복 입력을 필터그래프에 물리면 ffmpeg 이 그 스트림을 계속
+        # 당겨 읽어 메모리가 GB 단위로 불어나고 끝나지 않는다. 실제로
+        # 16초짜리 테스트에서 3.8GB 까지 올라가 멈췄다. -t 로 길이를
+        # 못 박아 유한한 스트림으로 만들어야 한다.
+        if total <= 0:
+            return (["-stream_loop", "-1", "-i", str(path)],
+                    ["-map", f"{n_clips}:a"], "")
+
+        chain = [f"loudnorm=I={MUSIC_LUFS}:TP=-1.5:LRA=11",
+                 "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo",
+                 f"afade=t=in:st=0:d={FADE_IN}"]
+        if total > FADE_IN + FADE_OUT:
+            chain.append(f"afade=t=out:st={total - FADE_OUT:.2f}:d={FADE_OUT}")
+        graph = f"[{n_clips}:a]" + ",".join(chain) + "[aout]"
+        # -t 는 -i 앞에 와야 입력 읽기 자체를 끊는다. 뒤에 두면 출력 옵션이 된다.
+        return (["-stream_loop", "-1", "-t", f"{total:.3f}", "-i", str(path)],
+                ["-map", "[aout]"], graph)
 
     # 무음 트랙
     return (
         ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"],
         ["-map", f"{n_clips}:a"],
+        "",
     )

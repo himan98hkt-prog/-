@@ -22,6 +22,7 @@ import typer
 if os.getenv("SHORTS_MOCK"):
     import tests.mock_provider  # noqa: F401
 
+from pipeline import music
 from pipeline.config import Config, ConfigError, load_config
 from pipeline.content import Content, load_content
 from pipeline.costs import actual_cost, estimate
@@ -62,6 +63,45 @@ def _confirm_cost(cfg: Config, assume_yes: bool) -> None:
         raise typer.Exit(code=0)
 
 
+def _resolve_audio(cfg: Config, run: Run, out: dict):
+    """output.audio 를 실제 ffmpeg 인자로 바꾼다.
+
+    auto 면 시드의 테마에 맞는 곡을 music/ 에서 고른다. 곡이 하나도 없으면
+    무음으로 간다 — 여기서 멈추면 하루치 영상이 통째로 날아간다.
+    """
+    from pipeline import music
+
+    mode = str(out.get("audio", "silent") or "silent").lower()
+    if mode != "auto":
+        return mode, out.get("audio_file"), None
+
+    seed = Path(run.state.get("seed_image") or "")
+    theme = _theme_of_seed(seed)
+    track = music.pick(theme, seed.stem or run.run_id,
+                       Path(out.get("music_dir") or "music"))
+    if track is None:
+        typer.secho("  ⚠ music/ 에 곡이 없어 무음으로 만듭니다. "
+                    "수노에서 만든 곡을 music/bright 같은 폴더에 넣으세요.",
+                    fg=typer.colors.YELLOW)
+        return "silent", None, None
+    return "file", str(track.path), track
+
+
+def _theme_of_seed(seed: Path) -> str:
+    """시드 사이드카에 적힌 테마를 먼저 보고, 없으면 파일명으로 분류한다."""
+    from pipeline.curate import classify
+    from pipeline.intake import read_sidecar
+
+    if not seed.name:
+        return "misc"
+    side = read_sidecar(seed)
+    if side.get("theme"):
+        return side["theme"]
+    if side.get("source"):
+        return classify(Path(side["source"]))
+    return classify(seed)
+
+
 def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) -> None:
     """합성 + 결과 요약."""
     typer.echo(f"\n  클립 {len(clips)}개를 합성합니다…")
@@ -72,12 +112,15 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
     crossfade = (
         cfg.crossfade_seconds if cfg.mode == "chain" else cfg.montage_transition_seconds
     )
+    audio_mode, audio_file, track = _resolve_audio(cfg, run, out)
+    if track:
+        typer.echo(f"  음악   : {track.name}  ({music.MOOD_LABEL.get(track.mood, track.mood)})")
     result = stitch(
         clips, run.final,
         width=out["width"], height=out["height"], fps=out["fps"],
         crf=out.get("crf", 18),
         crossfade=crossfade, transition=transition,
-        audio=out.get("audio", "silent"), audio_file=out.get("audio_file"),
+        audio=audio_mode, audio_file=audio_file,
     )
     spent = actual_cost(cfg, stats.clip_calls, stats.upscale_calls)
     run.save_state(
@@ -131,6 +174,8 @@ def generate(
     run = Run.create(RUNS_DIR)
     typer.echo(f"\n▶ run {run.run_id}  (mode={cfg.mode}, {cfg.provider}/{cfg.model_key})")
     run.log("run.started", config=cfg.raw, image=str(image))
+    # 배경음악을 고를 때 시드의 테마가 필요하다. resume 에서도 쓰므로 남긴다.
+    run.save_state(seed_image=str(image))
 
     try:
         warnings = prepare_input(
@@ -551,6 +596,73 @@ def plan_cmd(
     if made:
         typer.echo("  각 .yaml 을 열어 title 과 hook 을 채우세요. "
                    "제목은 조회수에 직접 영향을 줍니다.")
+
+
+@app.command("intake")
+def intake_cmd(
+    source: str = typer.Option(..., "--from", "-f",
+                               help="새로 받은 이미지가 있는 폴더 (다운로드 폴더 등)"),
+    seeds: str = typer.Option("seeds", "--seeds"),
+    min_score: float = typer.Option(0.0, "--min-score", help="이 점수 미만은 제외"),
+    limit: int = typer.Option(0, "--limit", help="한 번에 들여올 최대 장수 (0=제한 없음)"),
+    move: bool = typer.Option(False, "--move", help="복사 대신 원본을 옮긴다"),
+):
+    """새로 받은 이미지 중 **아직 안 들여온 것만** seeds/ 에 넣는다.
+
+    curate 와 달리 이미 있는 것을 건드리지 않는다. 계속 다운로드하면서
+    같은 명령을 반복해도 안전하다.
+    """
+    from pipeline.intake import import_folder
+
+    try:
+        report = import_folder(Path(source), Path(seeds),
+                               min_score=min_score, limit=limit, move=move)
+    except NotADirectoryError as exc:
+        _die(str(exc))
+
+    typer.echo(f"\n{report.scanned}장을 살펴봤습니다.")
+    for item in report.added:
+        typer.echo(f"  + {item.name:<22} {item.title}  ({item.score:.0f}점)")
+
+    reasons: dict[str, int] = {}
+    for item in report.skipped:
+        reasons[item.reason] = reasons.get(item.reason, 0) + 1
+    for reason, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
+        typer.echo(f"  - {n}장 건너뜀 — {reason}")
+
+    if report.added:
+        typer.secho(f"\n✓ {len(report.added)}장을 추가했습니다.", fg=typer.colors.GREEN)
+    else:
+        typer.secho("\n새로 들여올 이미지가 없습니다.", fg=typer.colors.YELLOW)
+
+
+@app.command("reclassify")
+def reclassify_cmd(
+    seeds: str = typer.Option("seeds", "--seeds"),
+    rewrite_copy: bool = typer.Option(False, "--rewrite-copy",
+                                      help="제목·훅도 새로 짓는다 (직접 고친 것이 덮어써진다)"),
+):
+    """seeds/ 를 전부 다시 살펴 테마·사이드카를 지금 기준으로 맞춘다."""
+    from pipeline.intake import reclassify
+
+    try:
+        report = reclassify(Path(seeds), rewrite_copy=rewrite_copy)
+    except NotADirectoryError as exc:
+        _die(str(exc))
+
+    typer.echo(f"\n{report.scanned}장을 다시 살펴봤습니다.")
+    for was, now in report.renamed:
+        typer.echo(f"  ↻ {was}  ->  {now}")
+    for name in report.fixed:
+        typer.echo(f"  ✎ {name} 사이드카 정리")
+    for item in report.skipped:
+        typer.echo(f"  - {item.source} — {item.reason}")
+    if not report.ok:
+        typer.secho("\n고칠 것이 없습니다. 전부 정상입니다.", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"\n✓ 이름 {len(report.renamed)}개, "
+                    f"사이드카 {len(report.fixed)}개를 맞췄습니다.",
+                    fg=typer.colors.GREEN)
 
 
 @app.command("curate")

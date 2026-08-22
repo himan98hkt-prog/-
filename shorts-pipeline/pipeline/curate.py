@@ -233,10 +233,13 @@ def _score(s: Shot) -> None:
     elif s.width < 800:
         s.reasons.append(f"해상도 낮음 ({s.width}px)")
 
-    # 어둡고 채도 높게 — 레퍼런스 계정들의 공통점
-    dark_fit = _bell(s.brightness, 0.16, 0.46)
-    if s.brightness > 0.62:
-        s.reasons.append("너무 밝음")
+    # 톤 — 어두운 판타지와 밝은 대낮 월드, 둘 다 받는다.
+    # 예전에는 0.46 위를 전부 깎았다. 레퍼런스가 어두운 계정뿐이었기 때문인데,
+    # 밝고 탁 트인 3인칭 월드 톤이 늘면서 멀쩡한 이미지가 "너무 밝음" 으로
+    # 20점씩 깎여 나갔다. 실제로 못 쓰는 것은 하늘이 날아간 0.78 위쪽이다.
+    tone_fit = _bell(s.brightness, 0.16, 0.66)
+    if s.brightness > 0.78:
+        s.reasons.append("너무 밝음 — 하늘이 하얗게 날아갔는지 보세요")
     elif s.brightness < 0.10:
         s.reasons.append("너무 어두움")
 
@@ -248,13 +251,17 @@ def _score(s: Shot) -> None:
     if s.contrast < 0.12:
         s.reasons.append("밋밋함")
 
-    # 소실점 대용 — 가운데가 밝으면 '앞으로 갈 길'이 있을 확률이 높다
+    # 소실점 대용 — 가운데가 밝으면 '앞으로 갈 길'이 있을 확률이 높다.
+    # 다만 하늘이 넓은 대낮 사진은 위쪽이 제일 밝아 이 값이 0 이 된다.
+    # 그런 사진도 대비가 살아 있으면 깊이가 있는 것이므로 절반은 인정한다.
     depth_fit = min(s.center_pull / 0.14, 1.0)
+    if depth_fit < 0.5 and s.contrast >= 0.20:
+        depth_fit = 0.5
 
     s.score = round(100 * (
         0.28 * ratio_fit +
         0.10 * res_fit +
-        0.20 * dark_fit +
+        0.20 * tone_fit +
         0.14 * sat_fit +
         0.13 * contrast_fit +
         0.15 * depth_fit

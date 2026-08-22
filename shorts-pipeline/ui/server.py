@@ -138,6 +138,9 @@ def overview() -> dict:
         except OSError:
             pass
 
+    from pipeline import music as music_mod
+
+    music_dir = ROOT / "music"
     return {
         "seeds": len(seeds),
         "seeds_with_meta": with_meta,
@@ -145,6 +148,8 @@ def overview() -> dict:
         "videos": len(ready),
         "published": published,
         "spent": round(spent, 2),
+        "music": music_mod.total_tracks(music_dir),
+        "music_note": music_mod.describe(music_dir),
     }
 
 
@@ -210,6 +215,15 @@ def _seed_pool() -> list[Path]:
         return []
     return [p for p in sorted(SEEDS.iterdir())
             if p.is_file() and p.suffix.lower() in IMAGE_EXT]
+
+
+def _group_reasons(items) -> list[dict]:
+    """건너뛴 이유를 묶어 센다. 300장을 건너뛰면 목록이 아니라 숫자가 필요하다."""
+    counts: dict[str, int] = {}
+    for item in items:
+        counts[item.reason] = counts.get(item.reason, 0) + 1
+    return [{"reason": r, "count": n}
+            for r, n in sorted(counts.items(), key=lambda kv: -kv[1])]
 
 
 def connection_state() -> dict:
@@ -586,6 +600,12 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/upload":
             self._upload(body)
             return
+        if u.path == "/api/intake":
+            self._intake(body)
+            return
+        if u.path == "/api/reclassify":
+            self._reclassify(body)
+            return
         if u.path == "/api/schedule":
             self._schedule(body)
             return
@@ -745,6 +765,57 @@ class Handler(BaseHTTPRequestHandler):
             _THUMBS.clear()
         self._json({"added": added, "skipped": [
             {"name": n, "reason": r} for n, r in skipped]})
+
+    def _intake(self, body: dict) -> None:
+        """폴더 하나를 통째로 훑어 새 이미지만 seeds/ 에 들여온다.
+
+        브라우저는 폴더를 통째로 넘길 수 없다. 그래서 경로를 문자열로 받아
+        서버가 직접 읽는다. 서버는 이 컴퓨터에서만 돌고, 요청은 같은 출처만
+        받으므로 임의 경로 읽기 위험은 파일 선택창과 같은 수준이다.
+        """
+        from pipeline.intake import import_folder
+
+        raw = str(body.get("folder", "")).strip().strip('"')
+        if not raw:
+            self._json({"error": "폴더 경로를 넣어 주세요."}, 400)
+            return
+        try:
+            report = import_folder(Path(raw), SEEDS,
+                                   min_score=float(body.get("min_score") or 0))
+        except NotADirectoryError as exc:
+            self._json({"error": str(exc)}, 400)
+            return
+        except OSError as exc:
+            self._json({"error": f"폴더를 읽지 못했습니다: {exc}"}, 400)
+            return
+
+        with _THUMB_LOCK:
+            _THUMBS.clear()
+        self._json({
+            "scanned": report.scanned,
+            "added": [{"name": i.name, "title": i.title, "theme": i.theme,
+                       "score": i.score} for i in report.added],
+            "skipped": _group_reasons(report.skipped),
+        })
+
+    def _reclassify(self, body: dict) -> None:
+        """seeds/ 전체를 지금 기준으로 다시 분류한다."""
+        from pipeline.intake import reclassify
+
+        try:
+            report = reclassify(SEEDS, rewrite_copy=bool(body.get("rewrite_copy")))
+        except NotADirectoryError as exc:
+            self._json({"error": str(exc)}, 400)
+            return
+
+        with _THUMB_LOCK:
+            _THUMBS.clear()
+        self._json({
+            "scanned": report.scanned,
+            "renamed": [{"was": a, "now": b} for a, b in report.renamed],
+            "fixed": report.fixed,
+            "skipped": _group_reasons(report.skipped),
+        })
 
     def _save_settings(self, body: dict) -> None:
         """[설정] 탭에서 넣은 값을 .env 에 쓴다."""

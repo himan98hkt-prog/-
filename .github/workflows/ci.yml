@@ -88,3 +88,6 @@ jobs:
 
       - name: 설정 · 아이콘 · 연결
         run: python tests/test_settings.py
+
+      - name: 들여오기 · 배경음악
+        run: python tests/test_intake.py

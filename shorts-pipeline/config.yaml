@@ -50,8 +50,12 @@ output:
   height: 1920
   fps: 30
   crf: 18
-  audio: silent            # silent | file
+  # auto  : 시드 테마에 맞는 곡을 music/ 에서 골라 자동으로 깐다 (권장)
+  # file  : audio_file 하나만 계속 쓴다
+  # silent: 무음. 소리가 없으면 끝까지 보지 않는다.
+  audio: auto
   audio_file: ""           # audio: file 일 때 사용할 음원 경로
+  music_dir: music         # audio: auto 일 때 곡을 찾을 폴더
 
 # ── 비용 가드레일 ────────────────────────────────────────────────────
 cost:

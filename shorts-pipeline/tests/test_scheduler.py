@@ -301,6 +301,39 @@ def _hd_prompt_pack_tests(check) -> None:
         for p_ in ride_prompts if len(as_filename(p_).stem) >= 95)
     check("잘린 파일명도 분류됨", long_ok)
 
+    # ── 3인칭 월드 팩 ─────────────────────────────────────────────────
+    print("\n[월드 프롬프트 팩]")
+    world = ROOT / "seeds" / "PROMPTS_WORLD.md"
+    check("PROMPTS_WORLD.md 있음", world.exists(),
+          "" if world.exists() else "커밋됐는지 확인하세요 (seeds/* 는 gitignore 대상)")
+    if not world.exists():
+        return
+
+    world_prompts = [ln for ln in world.read_text(encoding="utf-8").splitlines()
+                     if ln.startswith("third person view ")]
+    check("프롬프트 12개 이상", len(world_prompts) >= 12, f"{len(world_prompts)}개")
+
+    world_titles = []
+    world_wrong = []
+    for prompt in world_prompts:
+        f = as_filename(prompt)
+        theme = classify(f)
+        if theme != "downhill":
+            world_wrong.append(f"{theme}: {prompt[:50]}")
+        world_titles.append(
+            write_copy(theme, prompt_from_filename(f), seed_key=f.stem).title)
+
+    check("전부 자전거 다운힐로", not world_wrong, str(world_wrong[:3]))
+    check("제목 중복 없음", len(world_titles) == len(set(world_titles)),
+          f"{len(world_titles) - len(set(world_titles))}개 중복")
+    check("기본 제목 없음", "끝나지 않는 여행" not in world_titles)
+
+    # 세 팩을 전부 합쳐도 제목이 겹치면 안 된다
+    everything = titles + ride_titles + world_titles
+    check("세 팩 합쳐도 제목 안 겹침",
+          len(everything) == len(set(everything)),
+          f"{len(everything) - len(set(everything))}개 중복")
+
 
 if __name__ == "__main__":
     sys.exit(main())

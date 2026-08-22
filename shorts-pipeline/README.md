@@ -80,6 +80,30 @@ python main.py generate --image seed.png --mode montage --clips 5
 
 ---
 
+## 배경음악
+
+영상만 나오면 끝까지 보지 않습니다. `music/` 아래 **분위기 폴더**에 곡을
+넣어 두면 시드의 테마에 맞는 것을 골라 자동으로 깝니다.
+
+```
+music/bright   밝고 상쾌 — 다운힐, 해안, 애니
+music/epic     웅장     — 용·비행, 거대 존재, 부유섬, 신전
+music/calm     잔잔     — 영혼의 길, 도서관, 숲, 기차
+music/mystic   신비     — 크리스탈, 심해, 얼음, 우주, 터널
+music/city     도시 밤   — 마법 도시, 야간 드라이브, 골목
+music/any      위가 비었을 때의 보험
+```
+
+- `config.yaml` 의 `output.audio: auto` 가 기본값입니다
+- 곡은 **파일명 해시**로 고릅니다. 같은 시드는 항상 같은 곡 — 다시 만들어도 비교가 됩니다
+- 라우드니스 -14 LUFS 로 자동 정규화, 앞 1초 페이드인·뒤 1.6초 페이드아웃
+- 곡이 하나도 없으면 경고만 남기고 **무음으로 진행**합니다. 하루치가 통째로 날아가지 않게
+
+수노(Suno) 프롬프트 25개가 `music/PROMPTS_SUNO.md` 에 있습니다.
+**[Instrumental] 을 켜고 40~60초**로 뽑으세요.
+
+---
+
 ## 명령
 
 | 명령 | 하는 일 |
@@ -91,6 +115,13 @@ python main.py generate --image seed.png --mode montage --clips 5
 | `estimate [--compare]` | API 호출 없이 비용만 계산 |
 | `publish --run ID` | YouTube / Instagram 업로드 (필요 시 S3 자동 업로드) |
 | `upload --run ID` | S3 에만 올려 공개 URL 생성 (자격증명 점검용) |
+| `intake --from 폴더` | 새로 받은 이미지 중 **아직 안 들여온 것만** seeds/ 에 넣기 |
+| `reclassify` | seeds/ 를 전부 다시 살펴 테마·사이드카 맞추기 |
+| `curate --from 폴더` | 수백 장을 훑어 테마마다 상위 N장만 고르기 (초기 세팅용) |
+
+`intake` 와 `curate` 는 목적이 다릅니다. **계속 다운로드하면서 쓰는 쪽은
+`intake`** 입니다. 이미 들여온 그림은 내용 해시로 기억해 두고 건너뛰므로
+같은 폴더를 몇 번 가리켜도 안전합니다.
 
 주요 옵션:
 
