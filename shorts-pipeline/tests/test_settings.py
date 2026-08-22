@@ -274,6 +274,43 @@ def test_daily_bat_is_ascii():
             real.write_bytes(backup)
 
 
+def test_stale_server_detection():
+    """업데이트 후 작업실을 안 껐다 켜면 새 버튼이 '알 수 없는 대상' 으로 죽는다.
+
+    화면(HTML)은 파일에서 매번 새로 읽지만 서버 코드는 켤 때 한 번만 읽는다.
+    실사용에서 정확히 이걸로 막혔다. 그 상태를 알아채는지 확인한다.
+    """
+    section("오래된 서버 감지")
+    import time
+
+    import ui.server as srv_mod
+
+    check("켠 직후에는 재시작 불필요", srv_mod.needs_restart() is False)
+
+    target = ROOT / "pipeline" / "costs.py"
+    orig = target.stat().st_mtime
+    os.utime(target, (time.time() + 5, time.time() + 5))
+    try:
+        check("코드가 바뀌면 알아챔", srv_mod.needs_restart() is True)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), srv_mod.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        c = Client(f"http://127.0.0.1:{server.server_address[1]}")
+        try:
+            _, st = c.get("/api/state")
+            check("화면에 알릴 신호를 보냄", st.get("needs_restart") is True)
+            code, r = c.post("/api/connect", {"target": "tiktok"})
+            check("오류에 재시작하라고 붙여줌",
+                  "다시 실행" in r.get("error", ""), r.get("error", "")[:60])
+        finally:
+            server.shutdown()
+            server.server_close()
+    finally:
+        os.utime(target, (orig, orig))
+
+    check("되돌리면 다시 정상", srv_mod.needs_restart() is False)
+
+
 def test_app_icons():
     """바로가기·브라우저 탭이 쓰는 아이콘. 없으면 다시 기본 아이콘으로 돌아간다."""
     section("앱 아이콘")
@@ -554,6 +591,7 @@ def main():
         test_masked_echo_is_ignored()
         test_script_encoding()
         test_daily_bat_is_ascii()
+        test_stale_server_detection()
         test_app_icons()
         test_web_app_icons()
         test_job_output_encoding()

@@ -57,6 +57,14 @@
        padding:7px 15px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600}
   .tab[aria-selected=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
 
+  /* 재시작 안내 띠 */
+  .restart{
+    display:none;background:var(--warn);color:#231A02;padding:11px 22px;
+    font-size:14px;font-weight:600;text-align:center;
+  }
+  .restart.on{display:block}
+  .restart b{font-weight:700}
+
   /* 간편 모드 */
   .hero{background:linear-gradient(150deg,var(--panel2),var(--panel));
         border:1px solid var(--cyan);border-radius:16px;padding:22px;margin-bottom:16px}
@@ -240,6 +248,11 @@
   <div class="brand">AI <span>DEOKHU</span> 작업실</div>
   <div class="status" id="status"></div>
 </header>
+
+<div class="restart" id="restartBar">
+  최신 코드를 받았습니다. <b>검은 창을 닫고 [AI DEOKHU 작업실] 을 다시 실행하세요.</b>
+  다시 켜야 새 기능이 동작합니다.
+</div>
 
 <main id="main">
   <!-- 왼쪽 -->
@@ -509,6 +522,9 @@ async function refresh() {
   try {
     const s = await api("/api/state");
     STATE = s;
+    // 파일은 새것인데 서버가 예전 코드로 돌고 있으면 알려준다.
+    // 안 그러면 새 버튼을 눌렀을 때 영문 모를 오류만 뜬다.
+    $("restartBar").classList.toggle("on", !!s.needs_restart);
     renderSeeds(); renderRuns();
     if (s.active) { activeJob = s.active.id; renderJob(s.active); }
     else if (activeJob) { activeJob = null; $("prog").hidden = true; applyAside(); }

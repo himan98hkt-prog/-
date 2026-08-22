@@ -24,6 +24,36 @@ from . import jobs
 ROOT = Path(__file__).resolve().parent.parent
 SEEDS = ROOT / "seeds"
 RUNS = ROOT / "runs"
+
+
+def _code_stamp() -> float:
+    """프로그램 코드 파일 중 가장 최근에 바뀐 시각.
+
+    업데이트를 받으면 파일은 새것이 되지만 이미 켜져 있는 서버는 계속
+    예전 코드로 돈다 (파이썬은 모듈을 다시 읽지 않는다). 화면만 새 파일에서
+    읽어오니, 새 버튼이 보이는데 누르면 '알 수 없는 대상' 이 뜬다.
+    부팅 때 찍어둔 값과 지금 값을 비교해 그 상태를 알아챈다.
+    """
+    newest = 0.0
+    for folder in (ROOT / "ui", ROOT / "pipeline", ROOT / "publish"):
+        if folder.is_dir():
+            for f in folder.glob("*.py"):
+                newest = max(newest, f.stat().st_mtime)
+    main = ROOT / "main.py"
+    if main.exists():
+        newest = max(newest, main.stat().st_mtime)
+    return newest
+
+
+# 서버가 켜진 시점의 코드 상태. 이후 파일이 바뀌면 재시작이 필요하다.
+_BOOT_STAMP = _code_stamp()
+
+
+def needs_restart() -> bool:
+    try:
+        return _code_stamp() > _BOOT_STAMP + 1     # 1초는 저장 오차 여유
+    except OSError:
+        return False
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 _THUMBS: dict[str, bytes] = {}
 _THUMB_LOCK = threading.Lock()
@@ -416,6 +446,7 @@ class Handler(BaseHTTPRequestHandler):
                 "runs": list_runs(),
                 "jobs": jobs.recent(),
                 "active": (jobs.active().snapshot() if jobs.active() else None),
+                "needs_restart": needs_restart(),
             })
             return
 
@@ -792,7 +823,10 @@ class Handler(BaseHTTPRequestHandler):
         """유튜브/인스타 연결을 확인한다. 유튜브는 브라우저 로그인 창이 뜬다."""
         target = body.get("target")
         if target not in ("youtube", "instagram", "storage"):
-            self._json({"error": "알 수 없는 대상입니다."}, 400)
+            hint = ("  최신 코드를 받은 뒤 작업실을 다시 켜지 않으면 이렇게 됩니다.\n"
+                    "  검은 창을 닫고 [AI DEOKHU 작업실] 을 다시 실행하세요."
+                    if needs_restart() else "")
+            self._json({"error": f"알 수 없는 대상입니다.\n{hint}".rstrip()}, 400)
             return
         if jobs.active():
             self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시도하세요."}, 409)
