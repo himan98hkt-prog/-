@@ -120,6 +120,7 @@ def main() -> int:
     check("ffmpeg 감지", any(c.name == "ffmpeg" and c.status == "ok" for c in core.checks))
 
     _curate_tests(check, TMP)
+    _hd_prompt_pack_tests(check)
 
     shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "═" * 62)
@@ -209,6 +210,53 @@ def _curate_tests(check, TMP):
     check("다른 프롬프트는 안 합쳐짐",
           len(groups) == 2 and all(len(g) <= 2 for g in groups),
           str([len(g) for g in groups]))
+
+
+# ══════════════════════════════════════════════════════════════════════
+def _hd_prompt_pack_tests(check) -> None:
+    """고급 팩(PROMPTS_HD.md) 프롬프트가 제대로 분류되고 제목이 안 겹치는지.
+
+    파일명 하나로 테마·제목·훅이 전부 정해진다. 그래서 프롬프트를 새로 쓰면
+    사전에 없는 어휘가 생겨 제목이 기본값으로 몰린다. 실제로 용·거대존재
+    프롬프트 4개가 전부 "끝나지 않는 여행" 으로 나왔었다.
+    """
+    import re as _re
+
+    from pipeline.copywriter import write as write_copy
+    from pipeline.curate import classify, prompt_from_filename
+
+    print("\n[고급 프롬프트 팩]")
+    pack = ROOT / "seeds" / "PROMPTS_HD.md"
+    check("PROMPTS_HD.md 있음", pack.exists())
+    if not pack.exists():
+        return
+
+    prompts = [ln for ln in pack.read_text(encoding="utf-8").splitlines()
+               if ln.startswith("first person view ")]
+    check("프롬프트 20개 이상", len(prompts) >= 20, f"{len(prompts)}개")
+
+    def as_filename(prompt: str) -> Path:
+        # 미드저니는 프롬프트 앞부분을 파일명에 넣고 자른다
+        t = _re.sub(r"[^a-z0-9 ]+", " ", prompt.lower())
+        return Path(f"user_{'_'.join(t.split())[:95]}_9f3a2b1c.png")
+
+    titles, themes = [], []
+    for prompt in prompts:
+        f = as_filename(prompt)
+        theme = classify(f)
+        themes.append(theme)
+        titles.append(write_copy(theme, prompt_from_filename(f), seed_key=f.stem).title)
+
+    check("미분류(misc) 없음", "misc" not in themes, f"{themes.count('misc')}개")
+    check("테마가 골고루", len(set(themes)) >= 10, f"{len(set(themes))}종")
+    dup = len(titles) - len(set(titles))
+    check("제목 중복 없음", dup == 0, f"{dup}개 중복")
+    check("기본 제목으로 안 몰림", titles.count("끝나지 않는 여행") <= 1,
+          f"{titles.count('끝나지 않는 여행')}개")
+    check("빈 제목 없음", all(t.strip() for t in titles))
+    # 용을 타는 장면이 '걷는 길' 이 되면 안 된다
+    dragon = [t for t in titles if "용의 등" in t]
+    check("용은 나는 길로", all("나는" in t for t in dragon), str(dragon))
 
 
 if __name__ == "__main__":

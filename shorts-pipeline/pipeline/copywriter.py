@@ -75,6 +75,19 @@ PLACES: list[tuple[tuple[str, ...], str]] = [
     (("palace", "castle"), "성"),
     (("gate", "portal", "door"), "문"),
     (("field", "meadow", "grass"), "들판"),
+    # 1인칭 팩(PROMPTS_HD)에서 쓰는 장소들. 없으면 제목이 기본값으로 몰린다.
+    (("dragon's neck", "dragon's back", "on a dragon"), "용의 등"),
+    (("airship",), "비행선"),
+    (("spine of", "sleeping colossal", "colossal creature"), "거인의 등"),
+    (("giant statue", "colossal statue", "seated statue"), "거상"),
+    (("submersible", "porthole"), "잠수정"),
+    (("catwalk", "walkway", "ledge"), "통로"),
+    (("causeway",), "참배로"),
+    (("glacier",), "빙하"),
+    (("frozen lake", "frozen palace"), "얼음 궁전"),
+    (("orrery", "rotunda"), "천체의"),
+    (("market", "stall"), "장터"),
+    (("sky ship", "prow"), "뱃머리"),
 ]
 
 # ── 움직임 ───────────────────────────────────────────────────────────
@@ -82,7 +95,8 @@ MOVES: list[tuple[tuple[str, ...], str]] = [
     # 이동 수단이 가장 확실한 단서다. 먼저 본다.
     (("riding a bicycle", "cycling", "handlebar", "bike"), "달리는 길"),
     (("riding on the back", "on the back of a dragon", "dragon flying",
-      "airship", "gliding", "flying low", "aerial flight", "low aerial"), "나는 길"),
+      "dragon's neck", "riding on a dragon", "airship", "gliding",
+      "flying low", "aerial flight", "low aerial"), "나는 길"),
     (("swimming", "diving", "swim through"), "헤엄치는 길"),
     (("on a boat", "boat drifting", "wooden boat", "sailing", "raft"), "떠가는 길"),
     (("inside a car", "driving", "racing through", "dashboard",
@@ -90,6 +104,8 @@ MOVES: list[tuple[tuple[str, ...], str]] = [
     # 방향은 그 단어가 실제 동사로 쓰였을 때만 잡는다.
     (("descending", "descend "), "내려가는 길"),
     (("climbing", "ascending", "walking up", "rising through"), "오르는 길"),
+    (("crossing", "wading", "stepping through", "pushing through"), "건너는 길"),
+    (("standing on", "standing between", "looking up along"), "올려다보는 길"),
     (("walking", "first person view", "pov", "walk "), "걷는 길"),
 ]
 
