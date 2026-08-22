@@ -237,7 +237,8 @@
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
          background:var(--panel);border:1px solid var(--cyan);color:var(--ink);
          padding:11px 20px;border-radius:11px;font-size:14px;z-index:50;
-         box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:90vw}
+         box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:min(90vw,620px);
+         white-space:pre-line;text-align:left;line-height:1.55}
   .toast.bad{border-color:var(--bad)}
   [hidden]{display:none !important}
 </style>
@@ -504,11 +505,32 @@ let activeJob = null;
 let filter = "";
 let stayHere = false;   // 간편 모드·설정에서 시작한 작업은 탭을 옮기지 않는다
 
-const toast = (msg, bad = false) => {
+const toast = (msg, bad = false, ms = 4200) => {
   const t = $("toast");
   t.textContent = msg; t.className = "toast" + (bad ? " bad" : ""); t.hidden = false;
-  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 4200);
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, ms);
 };
+
+// 실패 이유를 로그에서 꺼낸다. "기록을 확인하세요" 만 띄우면 아무 도움이 안 된다.
+// main.py 는 치명적 오류를 "✗ ..." 로 찍고 그 아래 줄에 해결 방법을 붙인다.
+function failReason(job) {
+  const lines = (job.lines || []).map((l) => l.trimEnd()).filter(Boolean);
+  const i = lines.findIndex((l) => l.startsWith("✗"));
+  if (i >= 0) {
+    // ✗ 줄부터 이어지는 들여쓴 안내까지 같이 보여준다
+    const out = [lines[i].replace(/^✗\s*/, "")];
+    // lines 는 trimEnd 만 했으므로 들여쓰기가 남아 있다. 원본 배열을 보면
+    // 빈 줄을 걸러낸 만큼 번호가 어긋나서 안내 줄을 놓친다.
+    for (let k = i + 1; k < lines.length && k < i + 5; k++) {
+      if (!/^\s/.test(lines[k])) break;
+      out.push(lines[k].trim());
+    }
+    return out.join("\n");
+  }
+  return lines.length
+    ? `실패했습니다.\n${lines[lines.length - 1]}`
+    : "실패했습니다. 오른쪽 기록을 확인하세요.";
+}
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -699,7 +721,7 @@ async function poll() {
              || "영상이 완성됐습니다.");
       if (!here) switchTab("runs");
     } else if (j.status === "failed") {
-      toast("실패했습니다. 아래 기록을 확인하세요.", true);
+      toast(failReason(j), true, 9000);
     }
     refresh(); loadDoctor();
     if (!$("p-easy").hidden) loadEasy();
