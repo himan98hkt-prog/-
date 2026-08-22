@@ -646,6 +646,56 @@ def test_auto_needs_seed():
         srv.server_close()
 
 
+def test_montage_clip_count() -> None:
+    """장면 전환은 고른 장 수만큼 클립이 나와야 한다.
+
+    실제로 5장을 골랐는데 5초짜리 한 클립만 나왔다. 화면의 클립 수 select 에
+    4/6/8/10 만 있는데 거기에 "5" 를 넣어 select 가 통째로 비었고,
+    Number("") = 0 이 서버로 넘어와 max(1, 0) 으로 1 이 됐다.
+    """
+    from ui.server import clip_count
+
+    print("\n[장면 전환 클립 수]")
+    check("5장이면 5클립", clip_count("", "montage", 5) == 5,
+          str(clip_count("", "montage", 5)))
+    check("0 이 와도 장면 수를 따름", clip_count(0, "montage", 5) == 5)
+    check("화면 값이 달라도 장면 수가 이김", clip_count("6", "montage", 3) == 3)
+    check("홀수도 그대로", clip_count("", "montage", 7) == 7)
+    # 조용히 1 로 깎는 것이 이 버그의 본체였다
+    check("빈 값을 1 로 깎지 않음", clip_count("", "chain", 0) == 6,
+          str(clip_count("", "chain", 0)))
+    check("0 도 1 로 깎지 않음", clip_count(0, "chain", 0) == 6)
+    check("글자가 와도 기본값", clip_count("abc", "chain", 0) == 6)
+    check("이어지는 영상은 화면 값을 씀", clip_count("8", "chain", 0) == 8)
+    check("상한 20", clip_count(99, "chain", 0) == 20)
+    check("장면이 너무 많아도 20", clip_count("", "montage", 40) == 20)
+    check("장면이 없으면 기본값", clip_count("", "montage", 0) == 6)
+
+
+def test_clip_select_never_blank() -> None:
+    """화면이 select 에 목록에 없는 값을 넣지 않는지 본다.
+
+    select.value 에 option 에 없는 문자열을 넣으면 selectedIndex 가 -1 이 되고
+    .value 가 빈 문자열이 된다. 화면상으로는 칸이 텅 비어 보인다.
+    """
+    print("\n[클립 수 칸]")
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+
+    check("syncClips 로 목록을 다시 만든다", "function syncClips(" in html)
+    # 예전 코드: $("clips").value = String(Math.min(n, 10)) — 목록에 없는 값이 들어간다
+    check("value 에 직접 장 수를 넣지 않음",
+          'clips").value = String(Math.min' not in html)
+    check("장면 전환은 고른 장 수로 option 을 만든다",
+          'sel.innerHTML = `<option value="${n}">' in html)
+    check("장면 전환에서는 못 바꾸게 잠근다", "sel.disabled = true" in html)
+    check("이어지는 영상에서는 다시 풀린다", "sel.disabled = false" in html)
+    # 첫 장을 빼고 보내면 첫 번째로 고른 그림이 맨 뒤로 밀린다
+    check("장면은 고른 순서 그대로 전부 보낸다",
+          'scenes: mode === "montage" ? picked.slice() : []' in html)
+    check("보내기 전에 0 이 되지 않게 막는다",
+          '(Number($("clips").value) || 6)' in html)
+
+
 def main():
     shutil.rmtree(TMP, ignore_errors=True)
     try:
@@ -663,6 +713,8 @@ def main():
         test_ig_user_id_autodiscovery()
         test_ig_token_expiry_warning()
         test_auto_needs_seed()
+        test_montage_clip_count()
+        test_clip_select_never_blank()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

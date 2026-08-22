@@ -238,6 +238,30 @@ def music_state() -> dict:
             "moods": moods, "note": m.describe(md)}
 
 
+def clip_count(raw, mode: str, scene_count: int) -> int:
+    """만들 클립 수를 정한다.
+
+    화면의 select 가 비어 있으면 Number("") 가 0 으로 넘어온다. 예전에는
+    그걸 max(1, ...) 로 1 까지 깎아서, **장면 5장을 골랐는데 5초짜리 한
+    클립만** 나왔다. 조용히 1 로 만드는 대신 기본값으로 되돌린다.
+
+    장면 전환은 고른 장 수가 곧 클립 수다. 화면 값을 믿으면 장면이 버려지거나
+    같은 그림이 반복된다.
+    """
+    if mode == "montage" and scene_count > 0:
+        return max(1, min(scene_count, 20))
+    return max(1, min(_positive(raw, 6), 20))
+
+
+def _positive(value, fallback: int) -> int:
+    """숫자로 못 읽히면 fallback. 빈 문자열·None·문자를 전부 받아낸다."""
+    try:
+        n = int(str(value).strip())
+    except (TypeError, ValueError):
+        return fallback
+    return n if n > 0 else fallback
+
+
 def _group_reasons(items) -> list[dict]:
     """건너뛴 이유를 묶어 센다. 300장을 건너뛰면 목록이 아니라 숫자가 필요하다."""
     counts: dict[str, int] = {}
@@ -661,13 +685,14 @@ class Handler(BaseHTTPRequestHandler):
         if mode not in ("chain", "montage"):
             self._json({"error": "mode 가 잘못됐습니다."}, 400)
             return
-        clips = max(1, min(int(body.get("clips", 6)), 20))
-        duration = max(1, min(int(body.get("duration", 5)), 15))
+        scenes = [s for s in (body.get("scenes") or []) if _safe_name(s)]
+
+        clips = clip_count(body.get("clips"), mode, len(scenes))
+        duration = max(1, min(_positive(body.get("duration"), 5), 15))
 
         args = ["main.py", "generate", "--image", f"seeds/{name}",
                 "--mode", mode, "--clips", str(clips),
                 "--duration", str(duration), "--yes"]
-        scenes = [s for s in (body.get("scenes") or []) if _safe_name(s)]
         for s in scenes:
             args += ["--scenes", f"seeds/{s}"]
 

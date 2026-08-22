@@ -702,8 +702,32 @@ function syncForm() {
                         : "왼쪽에서 장면 이미지를 2장 이상 고르세요.")
     : (mode === "chain" ? `선택: ${picked[0]}` : `장면 ${n}장 선택됨`);
   $("go").disabled = n === 0 || activeJob !== null;
-  if (mode === "montage" && n >= 2) $("clips").value = String(Math.min(n, 10));
+  syncClips();
   updateCost();
+}
+
+// 이어지는 영상은 클립 수를 고르고, 장면 전환은 **고른 장 수가 곧 클립 수**다.
+// 예전에는 select 의 value 에 그냥 숫자를 넣었는데, 보기에 없는 값(5,7,9…)을
+// 넣으면 select 가 통째로 비어버린다. 그러면 Number("") 가 0 이 되고 서버가
+// 1 로 올려서, 5장을 골라도 5초짜리 한 클립만 나왔다.
+const CHAIN_CLIPS = [4, 6, 8, 10];
+
+function syncClips() {
+  const sel = $("clips"), dur = Number($("duration").value) || 5;
+  if (mode === "montage") {
+    const n = Math.max(1, Math.min(picked.length, 20));
+    sel.innerHTML = `<option value="${n}">${n}개 (${n * dur}초)</option>`;
+    sel.value = String(n);
+    sel.disabled = true;
+    sel.title = "장면 전환에서는 고른 이미지 수가 클립 수입니다.";
+    return;
+  }
+  const keep = CHAIN_CLIPS.includes(Number(sel.value)) ? sel.value : "6";
+  sel.innerHTML = CHAIN_CLIPS
+    .map((c) => `<option value="${c}">${c}개 (${c * dur}초)</option>`).join("");
+  sel.value = keep;
+  sel.disabled = false;
+  sel.title = "";
 }
 
 // ── 비용 ────────────────────────────────────────────────────────────
@@ -724,7 +748,10 @@ function updateCost() {
 // ── 실행 ────────────────────────────────────────────────────────────
 $("go").onclick = async () => {
   if (!picked.length) return;
-  const clips = Number($("clips").value);
+  // select 가 비어 있어도 0 을 보내지 않는다. 0 은 서버에서 1 이 된다.
+  const clips = mode === "montage"
+    ? picked.length
+    : (Number($("clips").value) || 6);
   const cost = $("cost").textContent;
   if (!confirm(`영상을 만듭니다.\n\n예상 비용 ${cost}\n5~10분 걸립니다.\n\n진행할까요?`)) return;
 
@@ -738,7 +765,9 @@ $("go").onclick = async () => {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         seed: picked[0], mode, clips, duration: Number($("duration").value),
-        scenes: mode === "montage" ? picked.slice(1) : [],
+        // 고른 순서 그대로 1번 장면부터 쓴다. 예전에는 첫 장을 빼고 보내서
+        // 첫 번째로 고른 그림이 맨 마지막 장면으로 밀렸다.
+        scenes: mode === "montage" ? picked.slice() : [],
         title: $("title").value,
       }),
     });
@@ -1342,7 +1371,7 @@ function setMode(m) {
 $("m-chain").onclick = () => setMode("chain");
 $("m-montage").onclick = () => setMode("montage");
 $("clips").onchange = updateCost;
-$("duration").onchange = updateCost;
+$("duration").onchange = () => { syncClips(); updateCost(); };
 
 // ── 시작 ────────────────────────────────────────────────────────────
 refresh(); loadDoctor(); loadOverview(); loadEasy(); updateCost(); applyAside();
