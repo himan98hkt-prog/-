@@ -777,9 +777,25 @@ def connect_instagram_cmd():
 
     user_id = os.getenv("IG_USER_ID", "").strip()
     token = os.getenv("IG_ACCESS_TOKEN", "").strip()
-    if not user_id or not token:
-        _die("IG_USER_ID 와 IG_ACCESS_TOKEN 이 둘 다 있어야 합니다.\n"
+    if not token:
+        _die("IG_ACCESS_TOKEN 이 없습니다.\n"
              "  작업실 [설정] 탭에서 넣어주세요.")
+
+    # 계정 ID 는 토큰만 있으면 우리가 찾을 수 있다. 사람이 그래프 API 탐색기에서
+    # me/accounts 를 쳐서 숫자를 옮겨 적을 이유가 없다.
+    if not user_id:
+        typer.echo("IG_USER_ID 가 비어 있습니다. 토큰으로 직접 찾아봅니다…")
+        found = _find_ig_user_id(token)
+        if not found:
+            _die("인스타 비즈니스 계정을 못 찾았습니다.\n"
+                 "  토큰에 pages_show_list · instagram_basic 권한이 있는지,\n"
+                 "  페이스북 페이지에 인스타 계정이 연결돼 있는지 확인하세요.")
+        user_id, page_name = found
+        typer.secho(f"  찾았습니다: {user_id}  (페이지: {page_name})",
+                    fg=typer.colors.GREEN)
+        from pipeline import envfile
+        envfile.write({"IG_USER_ID": user_id})
+        typer.echo("  .env 에 저장했습니다.")
 
     qs = urllib.parse.urlencode({
         "fields": "username,name,followers_count,media_count",
@@ -804,6 +820,44 @@ def connect_instagram_cmd():
     # 탐색기에서 그냥 복사하면 1~2시간짜리 임시 토큰이 나온다. 지금은 통과하고
     # 밤에 조용히 실패하는 가장 흔한 함정이라 여기서 잡아준다.
     _report_ig_expiry(token)
+
+
+def _find_ig_user_id(token: str) -> tuple[str, str] | None:
+    """토큰이 닿는 페이지들에서 연결된 인스타 비즈니스 계정을 찾는다."""
+    import json as _json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    qs = urllib.parse.urlencode({
+        "fields": "name,instagram_business_account",
+        "access_token": token,
+    })
+    try:
+        with urllib.request.urlopen(          # noqa: S310 - 고정 호스트
+                f"https://graph.facebook.com/v21.0/me/accounts?{qs}", timeout=20) as r:
+            pages = _json.loads(r.read().decode()).get("data", [])
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        typer.secho(f"  페이지 목록을 못 읽었습니다 (HTTP {exc.code})\n  {detail}",
+                    fg=typer.colors.YELLOW)
+        return None
+    except (OSError, ValueError):
+        return None
+
+    linked = [(p["instagram_business_account"]["id"], p.get("name", "?"))
+              for p in pages if p.get("instagram_business_account")]
+    if not linked:
+        if pages:
+            names = ", ".join(p.get("name", "?") for p in pages[:5])
+            typer.secho(f"  페이지는 보이는데({names}) 인스타가 연결돼 있지 않습니다.",
+                        fg=typer.colors.YELLOW)
+        return None
+    if len(linked) > 1:
+        typer.secho("  인스타 계정이 여러 개입니다. 첫 번째를 씁니다:", fg=typer.colors.YELLOW)
+        for i, (gid, nm) in enumerate(linked):
+            typer.echo(f"    {'->' if i == 0 else '  '} {gid}  ({nm})")
+    return linked[0]
 
 
 def _report_ig_expiry(token: str) -> None:

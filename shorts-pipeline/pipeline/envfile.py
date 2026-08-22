@@ -42,9 +42,9 @@ FIELDS: tuple[Field, ...] = (
     Field("YOUTUBE_TOKEN_FILE", PLAIN, "토큰 저장 위치", "youtube",
           "그대로 두면 됩니다.", "secrets/youtube_token.json"),
 
-    Field("IG_USER_ID", PLAIN, "인스타 비즈니스 계정 ID", "instagram",
-          "숫자로만 된 ID 입니다. 그래프 API 탐색기에서 확인합니다.",
-          "17841400000000000"),
+    Field("IG_USER_ID", PLAIN, "인스타 비즈니스 계정 ID (비워도 됩니다)", "instagram",
+          "비워두면 토큰으로 자동으로 찾아 채웁니다.",
+          "비워두세요 — 자동으로 찾습니다"),
     Field("IG_ACCESS_TOKEN", SECRET, "인스타 액세스 토큰", "instagram",
           "장기 토큰(60일)을 넣으세요. 만료되면 다시 발급받아야 합니다.",
           "EAAG..."),

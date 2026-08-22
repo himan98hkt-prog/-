@@ -403,6 +403,66 @@ def test_connect_youtube_survives_scope_error():
             secret.write_bytes(backup)
 
 
+def test_ig_user_id_autodiscovery():
+    """계정 ID 를 사람이 그래프 API 탐색기에서 옮겨 적게 하지 않는다."""
+    section("인스타 계정 ID 자동 찾기")
+    import contextlib
+    import io
+    import urllib.request
+
+    import main as main_mod
+
+    def fake(payload):
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def read(self):
+                return json.dumps(payload).encode()
+        return lambda *a, **k: R()
+
+    def run(payload):
+        real = urllib.request.urlopen
+        urllib.request.urlopen = fake(payload)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                got = main_mod._find_ig_user_id("tok")
+        finally:
+            urllib.request.urlopen = real
+        return got, buf.getvalue()
+
+    got, _ = run({"data": [{"name": "AI DEOKHU",
+                            "instagram_business_account": {"id": "17841400000000001"}}]})
+    check("연결된 계정을 찾음", got == ("17841400000000001", "AI DEOKHU"), str(got))
+
+    got, out = run({"data": [
+        {"name": "AI DEOKHU", "instagram_business_account": {"id": "1784140000000001"}},
+        {"name": "다른페이지", "instagram_business_account": {"id": "1784140000000002"}}]})
+    check("여러 개면 첫 번째를 쓰고 알림", got[0] == "1784140000000001" and "여러 개" in out)
+
+    got, out = run({"data": [{"name": "빈페이지"}]})
+    check("인스타 연결 안 됐으면 None", got is None)
+    check("왜 안 되는지 알려줌", "연결돼 있지 않습니다" in out, out.strip()[:60])
+
+    got, _ = run({"data": []})
+    check("페이지가 없으면 None", got is None)
+
+    # 조회가 터져도 예외를 밖으로 던지지 않는다
+    def boom(*a, **k):
+        raise OSError("down")
+
+    real = urllib.request.urlopen
+    urllib.request.urlopen = boom
+    try:
+        check("조회 실패해도 None 으로 끝남", main_mod._find_ig_user_id("tok") is None)
+    finally:
+        urllib.request.urlopen = real
+
+
 def test_ig_token_expiry_warning():
     """탐색기에서 그냥 복사한 임시 토큰(1~2시간)을 넣는 것이 가장 흔한 함정이다."""
     section("인스타 토큰 만료 안내")
@@ -498,6 +558,7 @@ def main():
         test_web_app_icons()
         test_job_output_encoding()
         test_connect_youtube_survives_scope_error()
+        test_ig_user_id_autodiscovery()
         test_ig_token_expiry_warning()
         test_auto_needs_seed()
     finally:
