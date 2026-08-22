@@ -46,6 +46,19 @@ DETAILS: list[tuple[tuple[str, ...], str]] = [
 
 # ── 장소 — 테마와 프롬프트에서 고른다 ─────────────────────────────────
 PLACES: list[tuple[tuple[str, ...], str]] = [
+    # 자전거 다운힐 팩이 쓰는 풍경들. 좁은 표현이라 넓은 말보다 먼저 봐야 한다.
+    # 'mountain road' 를 'mountain'(설산) 뒤에 두면 고갯길이 설산이 되고,
+    # 'cliff road' 를 'road'(길) 뒤에 두면 해안 도로가 그냥 길이 된다.
+    (("switchback", "hairpin", "mountain road", "ridge road"), "고갯길"),
+    (("coastal road", "cliff road", "seaside road"), "해안 도로"),
+    (("vineyard",), "포도밭"),
+    (("rice terrace", "paddy", "terrace", "terraced"), "계단식 논"),
+    (("lavender", "flower field", "wildflower field"), "꽃밭"),
+    (("tea plantation", "tea field"), "차밭"),
+    (("fjord",), "피오르"),
+    (("mesa", "desert road", "canyon road"), "사막 언덕"),
+    (("lakeside", "lake road"), "호숫가"),
+    (("moor", "highland", "plateau"), "고원"),
     (("rope bridge", "stone bridge", "bridge"), "다리"),
     (("staircase", "stone step", "stairs", "steps"), "계단"),
     (("cathedral",), "대성당"),
@@ -93,6 +106,9 @@ PLACES: list[tuple[tuple[str, ...], str]] = [
 # ── 움직임 ───────────────────────────────────────────────────────────
 MOVES: list[tuple[tuple[str, ...], str]] = [
     # 이동 수단이 가장 확실한 단서다. 먼저 본다.
+    # 내리막이 자전거보다 앞이다. '달리는' 보다 '내려가는' 이 장면에 맞다.
+    (("cycling downhill", "coasting downhill", "downhill", "switchback",
+      "hairpin"), "내려가는 길"),
     (("riding a bicycle", "cycling", "handlebar", "bike"), "달리는 길"),
     (("riding on the back", "on the back of a dragon", "dragon flying",
       "dragon's neck", "riding on a dragon", "airship", "gliding",
@@ -124,6 +140,9 @@ HOOKS: dict[str, list[str]] = {
     "spirit_path": ["여긴 존재하지 않는 곳입니다", "몇 개나 지나야 할까", "뒤돌아보면 안 됩니다"],
     "anime": ["이런 곳에 살고 싶다", "그 여름이 생각나서", "돌아가고 싶은 순간"],
     "night_drive": ["한 번도 안 멈추고 달렸습니다", "이 길 끝에 뭐가 있을까", "새벽 세 시의 도로"],
+    "downhill": ["브레이크 잡지 마세요", "이 내리막이 끝나지 않았으면",
+                 "소리 켜고 바람 들어보세요", "페달 한 번도 안 밟았습니다",
+                 "여기서 30초만 쉬어가세요"],
     "alley_bike": ["이 길 끝에 뭐가 있을까", "골목마다 다른 빛", "비 온 뒤의 골목"],
     "train": ["창밖만 30초", "어디로 가는 기차일까", "종착역이 없는 노선"],
     "tunnel": ["출구가 보이시나요", "끝이 없는 것 같은데", "빛을 향해 계속"],

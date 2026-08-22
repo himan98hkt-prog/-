@@ -39,7 +39,9 @@ THEMES: list[tuple[str, str, tuple[str, ...]]] = [
                                           "ruined_gate", "stone_guardian", "brazier", "pillar")),
     ("crystal_cave",  "크리스탈 동굴",    ("crystal", "cavern", "subterranean", "underground_river",
                                           "dwarven", "stalactite", "molten")),
-    ("ice",           "얼음 왕국",       ("frozen", "ice_", "_ice", "aurora", "snowfield",
+    # "ice_"/"_ice" 로 두면 파일명의 r-ice, serv-ice 가 얼음으로 잡힌다.
+    # 실제로 "green rice terraces" 가 얼음 왕국이 됐다. 양쪽을 다 막는다.
+    ("ice",           "얼음 왕국",       ("frozen", "_ice_", "_icy_", "aurora", "snowfield",
                                           "snowy", "glacier", "northern_lights")),
     ("magic_city",    "마법 도시",       ("magic_city", "wizard", "arcane", "canal_street",
                                           "clocktower", "clock_tower", "festival", "lantern_city",
@@ -57,6 +59,10 @@ THEMES: list[tuple[str, str, tuple[str, ...]]] = [
                                           "watercolor", "pastel")),
     ("night_drive",   "야간 드라이브",    ("dashboard", "windshield", "steering", "car_at_night",
                                           "cockpit", "highway", "tunnel_at_night")),
+    # 다운힐은 alley_bike 보다 먼저 봐야 한다. 둘 다 자전거라
+    # 뒤에 두면 산악 다운힐이 '골목' 으로 분류된다.
+    ("downhill",      "자전거 다운힐",    ("downhill", "switchback", "hairpin",
+                                          "descending_a_mountain", "ridge_road")),
     ("alley_bike",    "골목 · 자전거",    ("bicycle", "alley", "hydrangea", "handlebar")),
     ("train",         "기차 · 궤도",      ("train", "railway", "track")),
     ("tunnel",        "터널 · 통로",      ("tunnel", "corridor", "subway", "passage")),
@@ -69,6 +75,7 @@ THEMES: list[tuple[str, str, tuple[str, ...]]] = [
 # 테마별 기본 제목·훅. 사이드카에 미리 채워 넣는다.
 COPY: dict[str, tuple[str, str]] = {
     "sky_islands":   ("구름 위 다리를 건너", "이 다리 끝에 뭐가 있을까"),
+    "downhill": ("바람을 가르며 내려가는 길", "브레이크 잡지 마세요"),
     "spirit_forest": ("빛나는 숲을 지나", "여긴 지도에 없는 곳입니다"),
     "temple":        ("잊혀진 신전으로", "문을 열면 안 되는 거였는데"),
     "crystal_cave":  ("수정 동굴 아래로", "빛이 어디서 오는 걸까"),

@@ -261,6 +261,46 @@ def _hd_prompt_pack_tests(check) -> None:
     dragon = [t for t in titles if "용의 등" in t]
     check("용은 나는 길로", all("나는" in t for t in dragon), str(dragon))
 
+    # ── 자전거 다운힐 팩 ──────────────────────────────────────────────
+    print("\n[다운힐 프롬프트 팩]")
+    ride = ROOT / "seeds" / "PROMPTS_RIDE.md"
+    check("PROMPTS_RIDE.md 있음", ride.exists(),
+          "" if ride.exists() else "커밋됐는지 확인하세요 (seeds/* 는 gitignore 대상)")
+    if not ride.exists():
+        return
+
+    ride_prompts = [ln for ln in ride.read_text(encoding="utf-8").splitlines()
+                    if ln.startswith("first person view ")]
+    check("프롬프트 12개 이상", len(ride_prompts) >= 12, f"{len(ride_prompts)}개")
+
+    ride_titles, ride_themes = [], []
+    for prompt in ride_prompts:
+        f = as_filename(prompt)
+        theme = classify(f)
+        ride_themes.append(theme)
+        ride_titles.append(
+            write_copy(theme, prompt_from_filename(f), seed_key=f.stem).title)
+
+    # 전부 downhill 이어야 한다. bicycle 이 alley_bike 로 새면 훅이
+    # "비 온 뒤의 골목" 처럼 장면과 전혀 안 맞는 문구가 붙는다.
+    wrong = sorted({t for t in ride_themes if t != "downhill"})
+    check("전부 자전거 다운힐로", not wrong, str(wrong))
+    ride_dup = len(ride_titles) - len(set(ride_titles))
+    check("제목 중복 없음", ride_dup == 0, f"{ride_dup}개 중복")
+    check("기본 제목 없음", "끝나지 않는 여행" not in ride_titles)
+    check("전부 내려가는 길로", all("내려가는" in t for t in ride_titles),
+          str([t for t in ride_titles if "내려가는" not in t]))
+    # 두 팩을 합쳐도 제목이 겹치면 안 된다
+    both = titles + ride_titles
+    check("두 팩 합쳐도 제목 안 겹침", len(both) == len(set(both)),
+          f"{len(both) - len(set(both))}개 중복")
+
+    # 파일명이 95자에서 잘려도 분류 단어가 살아남아야 한다
+    long_ok = all(
+        classify(as_filename(p_)) == "downhill"
+        for p_ in ride_prompts if len(as_filename(p_).stem) >= 95)
+    check("잘린 파일명도 분류됨", long_ok)
+
 
 if __name__ == "__main__":
     sys.exit(main())
