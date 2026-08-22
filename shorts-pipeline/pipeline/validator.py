@@ -48,7 +48,17 @@ def prepare_input(
 
     img = img.convert("RGB")
     w, h = img.size
-    if w < MIN_WIDTH or h < MIN_HEIGHT:
+    # 출력 크기보다 작으면 늘려서 쓰게 되고, 늘린 만큼 흐려진다.
+    # 기준을 720x1280 으로 고정해 두었더니 미드저니 기본 출력(816x1456)이
+    # 조용히 통과했다 — 1080x1920 으로 32% 늘어나는데 아무 말이 없었다.
+    if w < width or h < height:
+        short = round((1 - min(w / width, h / height)) * 100)
+        warnings.append(
+            f"⚠ 입력이 출력보다 작습니다 ({w}x{h} -> {width}x{height}, "
+            f"{short}% 늘림). 늘린 만큼 흐려지고 체이닝에서 더 뭉개집니다.\n"
+            f"     미드저니에서 U 버튼 -> Upscale 로 다시 받으면 좋아집니다."
+        )
+    elif w < MIN_WIDTH or h < MIN_HEIGHT:
         warnings.append(
             f"⚠ 입력 해상도가 낮습니다 ({w}x{h}). "
             f"{MIN_WIDTH}x{MIN_HEIGHT} 이상을 권장합니다 — 체이닝을 거치면 더 뭉개집니다."

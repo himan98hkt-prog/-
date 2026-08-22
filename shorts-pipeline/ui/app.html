@@ -890,6 +890,7 @@ function renderRuns() {
         <div class="t">${r.title || r.id}</div>
         <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
         <div class="snd ${r.has_sound === false ? "off" : ""}">${soundLabel(r)}</div>
+        ${resLabel(r)}
         <div class="ups">${uploadLabel(r)}</div>
         <div class="acts">
           <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
@@ -906,6 +907,20 @@ function renderRuns() {
   $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
   $("runs").querySelectorAll("[data-del]").forEach((b) =>
     b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+}
+
+// 화질이 어디서 깎였는지. 최종 크기만 보면 원인을 알 수 없다 —
+// 모델이 몇으로 줬는지가 같이 보여야 한다.
+function resLabel(r) {
+  const f = r.final_res, s = r.source_res;
+  if (!f) return "";
+  const size = `${f[0]}x${f[1]}`;
+  if (!s) return `<div class="snd">${size}</div>`;
+  const up = s[0] < f[0] || s[1] < f[1];
+  if (!up) return `<div class="snd">${size} · 모델 출력 ${s[0]}x${s[1]}</div>`;
+  const pct = Math.round((1 - Math.min(s[0] / f[0], s[1] / f[1])) * 100);
+  return `<div class="snd off">${size} · 모델이 ${s[0]}x${s[1]} 로 줘서 `
+    + `${pct}% 늘림 — 여기서 화질이 깎입니다</div>`;
 }
 
 // 어디에 올라갔는지 · 실패했으면 왜인지. 토스트는 사라지지만 이건 남는다.

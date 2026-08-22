@@ -27,6 +27,31 @@ def _fmt_elapsed(started: float) -> str:
     return f"{secs // 60}분 {secs % 60}초"
 
 
+def _report_source_size(clip: Path, cfg: Config, run: Run) -> None:
+    """모델이 실제로 내준 해상도를 알려준다.
+
+    "화질이 아쉽다" 의 원인은 대개 여기다. 최종 인코딩(crf 18)은 이미
+    원본과 PSNR 50dB 이상이라 눈으로 구별되지 않는다. 모델이 720p 를
+    주는데 1080p 로 늘리고 있으면 그게 진짜 병목이다.
+    """
+    from .ffmpeg_util import FFmpegError, dimensions_of
+
+    want_w, want_h = int(cfg.output["width"]), int(cfg.output["height"])
+    try:
+        w, h = dimensions_of(clip)
+    except (FFmpegError, OSError):
+        return
+    run.save_state(source_res=[w, h])
+    if w >= want_w and h >= want_h:
+        print(f"    모델 출력 {w}x{h} — 출력({want_w}x{want_h})보다 크거나 같습니다.")
+        return
+    short = round((1 - min(w / want_w, h / want_h)) * 100)
+    print(f"    ⚠ 모델 출력이 {w}x{h} 입니다. {want_w}x{want_h} 로 "
+          f"{short}% 늘려 씁니다 — 여기서 화질이 깎입니다.")
+    print("      더 높은 해상도를 주는 모델로 바꾸면 개선됩니다 "
+          "(config.yaml 의 model).")
+
+
 def _progress(index: int, total: int, cfg: Config, started: float) -> None:
     accumulated = index * cfg.clip_duration
     print(
@@ -93,6 +118,8 @@ def run_chain(
         )
         clips.append(run.clip(index))
         _progress(index, total, cfg, started)
+        if index == 1:
+            _report_source_size(run.clip(index), cfg, run)
         run.save_state(mode="chain", clips_done=index, total=total)
 
         if index == total:

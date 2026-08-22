@@ -135,11 +135,15 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
         # 어떤 곡이 들어갔는지 남긴다. 화면에서 "음악 있음/무음" 을 보여주고,
         # 소리가 안 들릴 때 무엇을 확인해야 하는지 바로 알 수 있게 한다.
         music=(track.name if track else None),
+        final_res=[out["width"], out["height"]],
     )
     run.log("run.finished", duration=result.duration, cost_usd=spent)
 
     typer.secho("\n✓ 완료", fg=typer.colors.GREEN, bold=True)
     typer.echo(f"  파일   : {result.path}")
+    typer.echo(f"  화질   : {out['width']}x{out['height']}"
+               + (f"  (모델 출력 {src[0]}x{src[1]})"
+                  if (src := run.state.get("source_res")) else ""))
     typer.echo(f"  길이   : {result.duration:.2f}초")
     typer.echo(f"  크기   : {result.size_mb:.1f} MB")
     typer.echo(

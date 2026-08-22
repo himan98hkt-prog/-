@@ -869,6 +869,50 @@ def test_upload_status_is_recorded() -> None:
           _published_of(old_run.parent / "없음", {}) == {})
 
 
+def test_quality_diagnosis() -> None:
+    """화질이 어디서 깎였는지 알려주는지.
+
+    "화질이 아쉽다" 는 최종 인코딩 탓이 아니다. crf 18 은 원본 대비
+    PSNR 50dB 이상이라 눈으로 구별되지 않는다(실측). 진짜 원인은 시드
+    이미지와 모델 출력이 목표 해상도보다 작은 것이다. 그걸 짚어줘야 한다.
+    """
+    from pipeline.validator import prepare_input
+
+    print("\n[화질 진단]")
+    TMP.mkdir(parents=True, exist_ok=True)
+
+    # 미드저니 기본 출력 크기. 예전 기준(720x1280)으로는 조용히 통과했다.
+    small = TMP / "mj_base.png"
+    Image.new("RGB", (816, 1456), (40, 60, 90)).save(small)
+    warns = prepare_input(small, TMP / "in_small.png", width=1080, height=1920)
+    joined = " ".join(warns)
+    check("미드저니 기본 출력에 경고", "입력이 출력보다 작습니다" in joined, joined[:70])
+    check("몇 % 늘리는지 알려줌", "24% 늘림" in joined, joined[:90])
+    check("무엇을 하면 되는지 알려줌", "Upscale" in joined)
+
+    big = TMP / "mj_upscaled.png"
+    Image.new("RGB", (1620, 2880), (40, 60, 90)).save(big)
+    warns2 = prepare_input(big, TMP / "in_big.png", width=1080, height=1920)
+    check("업스케일한 시드는 경고 없음",
+          not any("작습니다" in w for w in warns2), str(warns2))
+
+    modes = (ROOT / "pipeline" / "modes.py").read_text(encoding="utf-8")
+    check("모델 출력 해상도를 잰다", "_report_source_size" in modes)
+    check("첫 클립에서만 잰다", "if index == 1:" in modes)
+    check("상태에 남긴다", "run.save_state(source_res=[w, h])" in modes)
+
+    main_py = (ROOT / "main.py").read_text(encoding="utf-8")
+    check("완료 요약에 화질 줄", '화질   :' in main_py)
+    check("최종 해상도를 상태에 남긴다", "final_res=" in main_py)
+
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+    check("카드에 해상도 표시", "resLabel(r)" in html)
+    check("늘린 비율까지 보여줌", "% 늘림 — 여기서 화질이 깎입니다" in html)
+
+    cfg = (ROOT / "config.yaml").read_text(encoding="utf-8")
+    check("4K 를 쓸지 판단할 근거가 문서에", "2160x3840" in cfg and "VP9/AV1" in cfg)
+
+
 def main():
     shutil.rmtree(TMP, ignore_errors=True)
     try:
@@ -892,6 +936,7 @@ def main():
         test_sound_and_budget()
         test_update_keeps_config()
         test_upload_status_is_recorded()
+        test_quality_diagnosis()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 
