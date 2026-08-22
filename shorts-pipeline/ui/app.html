@@ -884,12 +884,31 @@ function renderRuns() {
           <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
           <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
           <button class="ghost" data-up="${r.id}" data-tg="both">둘 다</button>
+          <button class="ghost danger" data-del="${r.id}"
+                  data-title="${(r.title || r.id).replace(/"/g, "&quot;")}"
+                  data-mb="${r.size_mb}">삭제</button>
         </div>
       </div>
     </div>`).join("")
     : `<div class="empty">아직 완성된 영상이 없습니다.</div>`;
 
   $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
+  $("runs").querySelectorAll("[data-del]").forEach((b) =>
+    b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+}
+
+async function removeRun(runId, title, mb) {
+  // 되돌릴 수 없다. 무엇을 지우는지 제목까지 보여주고 한 번 더 묻는다.
+  if (!confirm(`이 영상을 지웁니다.\n\n  ${title}\n  ${runId} · ${mb}MB\n\n`
+               + "되돌릴 수 없습니다. 진행할까요?")) return;
+  try {
+    const r = await api("/api/delete-run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: runId }),
+    });
+    toast(`지웠습니다. ${r.freed_mb}MB 를 비웠습니다.`);
+    refresh(); loadOverview();
+  } catch (e) { toast(e.message, true); }
 }
 
 async function publish(runId, tg) {
@@ -1100,6 +1119,7 @@ async function loadEasy() {
         <div class="acts">
           <button class="ghost" id="eUpYt">유튜브에 올리기</button>
           <button class="ghost" id="eUpBoth">유튜브 + 인스타</button>
+          <button class="ghost danger" id="eDel">삭제</button>
         </div>
       </div>
     </div>`
@@ -1107,6 +1127,8 @@ async function loadEasy() {
   if (e.latest) {
     $("eUpYt").onclick = () => publish(e.latest.id, "youtube");
     $("eUpBoth").onclick = () => publish(e.latest.id, "both");
+    $("eDel").onclick = () => removeRun(
+      e.latest.id, e.latest.title || e.latest.id, e.latest.size_mb ?? "?");
   }
 }
 

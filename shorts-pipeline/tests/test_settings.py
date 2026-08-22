@@ -696,6 +696,33 @@ def test_clip_select_never_blank() -> None:
           '(Number($("clips").value) || 6)' in html)
 
 
+def test_delete_run_guards() -> None:
+    """영상 삭제는 되돌릴 수 없다. 막는 것들이 실제로 막는지 본다."""
+    print("\n[영상 삭제]")
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+    server = (ROOT / "ui" / "server.py").read_text(encoding="utf-8")
+
+    check("완성된 영상마다 삭제 버튼", 'data-del="${r.id}"' in html)
+    check("간편 모드에도 삭제 버튼", 'id="eDel"' in html)
+    check("지우기 전에 한 번 더 묻는다", "되돌릴 수 없습니다. 진행할까요?" in html)
+    check("무엇을 지우는지 제목까지 보여준다", "${title}" in html)
+    check("비운 용량을 알려준다", "freed_mb" in html and "freed_mb" in server)
+
+    # 경로 검사 — 이름 검사만으로는 심볼릭 링크를 못 막는다
+    check("이름을 검사한다", '_safe_name(body.get("run", ""))' in server)
+    check("실경로가 runs/ 안인지 본다", "is_relative_to(RUNS.resolve())" in server)
+    check("쓰고 있는 영상은 못 지운다", "지금 쓰고 있는 영상입니다" in server)
+
+    from ui.server import _SAFE, _safe_name
+
+    bad = ["../seeds", "..", "/etc/passwd", "a/../../b", "", "a/b",
+           "20260101_000000/../../seeds"]
+    blocked = [n for n in bad if _safe_name(n) is None]
+    check("경로 탈출 이름을 전부 막음", len(blocked) == len(bad),
+          f"통과해버린 것: {[n for n in bad if _safe_name(n) is not None]}")
+    check("정상 run id 는 통과", _safe_name("20260822_192936") == "20260822_192936")
+
+
 def main():
     shutil.rmtree(TMP, ignore_errors=True)
     try:
@@ -715,6 +742,7 @@ def main():
         test_auto_needs_seed()
         test_montage_clip_count()
         test_clip_select_never_blank()
+        test_delete_run_guards()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

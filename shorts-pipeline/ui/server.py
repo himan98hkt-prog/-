@@ -635,6 +635,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/generate":
             self._generate(body)
             return
+        if u.path == "/api/delete-run":
+            self._delete_run(body)
+            return
         if u.path == "/api/publish":
             self._publish(body)
             return
@@ -698,6 +701,52 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
         self._json({"id": job.id})
+
+    def _delete_run(self, body: dict) -> None:
+        """만든 영상 하나를 폴더째 지운다.
+
+        되돌릴 수 없다. 그래서 세 겹으로 막는다 —
+        이름 검사, 실제 경로가 runs/ 안인지, 그리고 지금 쓰고 있는 작업인지.
+        """
+        import shutil
+
+        run_id = _safe_name(body.get("run", ""))
+        if not run_id:
+            self._json({"error": "어떤 영상인지 알 수 없습니다."}, 400)
+            return
+
+        target = RUNS / run_id
+        # 심볼릭 링크나 '..' 로 runs/ 밖을 가리키게 만들 수 없도록 실경로로 확인한다
+        try:
+            resolved = target.resolve()
+            inside = resolved.is_relative_to(RUNS.resolve())
+        except OSError:
+            inside = False
+        if not inside or not resolved.is_dir():
+            self._json({"error": "그런 영상이 없습니다."}, 404)
+            return
+
+        # 지금 만들고 있거나 올리고 있는 것을 지우면 작업이 깨진다
+        job = jobs.active()
+        if job is not None and run_id in " ".join(job.lines[-40:] or []) + job.label:
+            self._json({"error": "지금 쓰고 있는 영상입니다. 끝난 뒤에 지우세요."}, 409)
+            return
+
+        freed = 0
+        for f in resolved.rglob("*"):
+            if f.is_file():
+                try:
+                    freed += f.stat().st_size
+                except OSError:
+                    pass
+        try:
+            shutil.rmtree(resolved)
+        except OSError as exc:
+            self._json({"error": f"지우지 못했습니다: {exc}"}, 500)
+            return
+
+        self._json({"ok": True, "run": run_id,
+                    "freed_mb": round(freed / 1048576, 1)})
 
     def _publish(self, body: dict) -> None:
         if jobs.active():
