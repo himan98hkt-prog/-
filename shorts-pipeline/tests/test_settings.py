@@ -799,6 +799,46 @@ def test_update_keeps_config() -> None:
           '".env", "seeds", "runs", "music", "config.yaml"' in text)
 
 
+def test_upload_status_is_recorded() -> None:
+    """업로드 결과가 남아서 화면에서 완료 여부를 볼 수 있어야 한다.
+
+    예전에는 log.jsonl 에만 적어서, 올린 뒤 토스트가 사라지면 무엇이
+    올라갔는지 확인할 방법이 없었다.
+    """
+    print("\n[업로드 결과 표시]")
+    main_py = (ROOT / "main.py").read_text(encoding="utf-8")
+    html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
+    server = (ROOT / "ui" / "server.py").read_text(encoding="utf-8")
+
+    check("결과를 run 상태에 저장", "run.save_state(published=done)" in main_py)
+    check("성공하면 링크까지 남긴다", 'record("youtube", ok=True, url=res.url' in main_py)
+    check("실패도 이유와 함께 남긴다", 'record("instagram", ok=False, error=str(exc))' in main_py)
+
+    # 한쪽이 죽어도 다른 쪽은 시도해야 한다. 예전에는 _die 로 즉시 끝났다.
+    yt_block = main_py[main_py.index("if youtube:"):main_py.index("if instagram:")]
+    check("유튜브 실패가 인스타를 막지 않음", "_die(" not in yt_block,
+          "유튜브 블록에 _die 가 남아 있음")
+    check("끝에 한 번만 실패로 종료", "업로드에 실패했습니다" in main_py)
+
+    # typer.Exit 은 RuntimeError 를 상속한다. 넓게 잡으면 이유가 빈칸이 된다.
+    check("typer.Exit 을 정확히 잡는다", "except typer.Exit as exc:" in main_py)
+    check("넓은 RuntimeError 로 안 잡는다",
+          "except (ig.UploadError, RuntimeError, OSError)" not in main_py)
+    import typer as _typer
+    check("typer.Exit 이 정말 RuntimeError 상속",
+          RuntimeError in _typer.Exit.__mro__, str(_typer.Exit.__mro__[:3]))
+
+    check("목록에 published 를 실어 보낸다", '"published": state.get("published")' in server)
+    check("카드에 업로드 줄", "uploadLabel(r)" in html)
+    check("성공은 링크로", 'target="_blank"' in html)
+    check("아직 안 올린 것도 표시", "아직 안 올림" in html)
+    check("대시보드에 실패 수", "upload_failed" in server and "upload_failed" in html)
+    check("대시보드에 대기 수", "not_published" in server and "not_published" in html)
+    # schedule.log 문자열 훑기로는 화면에서 누른 업로드가 안 잡혔다
+    check("완료 수를 run 상태에서 센다", 'r.get("published") or {}' in server)
+    check("진행 표시줄로 화면을 옮긴다", "scrollIntoView" in html)
+
+
 def main():
     shutil.rmtree(TMP, ignore_errors=True)
     try:
@@ -821,6 +861,7 @@ def main():
         test_delete_run_guards()
         test_sound_and_budget()
         test_update_keeps_config()
+        test_upload_status_is_recorded()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

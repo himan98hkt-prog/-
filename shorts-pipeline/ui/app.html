@@ -151,6 +151,11 @@
 
   .snd{font-size:12px;color:var(--mute);margin-top:3px}
   .snd.off{color:var(--warn)}
+  .ups{font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:3px 9px}
+  .ups .ok{color:var(--good)}
+  .ups .bad{color:var(--bad)}
+  .ups .pend{color:var(--mute)}
+  .ups a{color:var(--cyan)}
 
   .folderbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
              margin-bottom:14px}
@@ -885,6 +890,7 @@ function renderRuns() {
         <div class="t">${r.title || r.id}</div>
         <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
         <div class="snd ${r.has_sound === false ? "off" : ""}">${soundLabel(r)}</div>
+        <div class="ups">${uploadLabel(r)}</div>
         <div class="acts">
           <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
           <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
@@ -900,6 +906,27 @@ function renderRuns() {
   $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
   $("runs").querySelectorAll("[data-del]").forEach((b) =>
     b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+}
+
+// 어디에 올라갔는지 · 실패했으면 왜인지. 토스트는 사라지지만 이건 남는다.
+const UP_NAMES = { youtube: "유튜브", instagram: "인스타" };
+
+function uploadLabel(r) {
+  const p = r.published || {};
+  const keys = Object.keys(p);
+  if (!keys.length) return `<span class="pend">아직 안 올림</span>`;
+  return keys.map((k) => {
+    const v = p[k] || {};
+    const name = UP_NAMES[k] || k;
+    const when = v.at ? ` · ${v.at.slice(5, 16).replace("T", " ")}` : "";
+    if (v.ok) {
+      const link = v.url
+        ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">보기</a>` : "";
+      return `<span class="ok">✓ ${name}${v.dry_run ? " (연습)" : ""}${when}</span>${link}`;
+    }
+    return `<span class="bad" title="${esc(v.error || "")}">✗ ${name} 실패 — `
+      + `${esc((v.error || "").split("\n")[0].slice(0, 60))}</span>`;
+  }).join(" ");
 }
 
 // 소리가 들어갔는지는 결과 파일에서 직접 확인한 값이다. 상태 파일이 아니라.
@@ -937,7 +964,12 @@ async function publish(runId, tg) {
       body: JSON.stringify({ run: runId, targets }),
     });
     activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
-    toast("업로드를 시작했습니다."); poll();
+    applyAside();
+    // 진행 표시줄은 오른쪽(좁은 화면에서는 아래)에 있다. 안 보이면
+    // "아무 일도 안 일어난다" 로 읽힌다. 눌렀으면 그쪽으로 데려간다.
+    $("prog").scrollIntoView({ behavior: "smooth", block: "center" });
+    toast("업로드를 시작했습니다. 진행 상황이 아래에 나옵니다.");
+    poll();
   } catch (e) { toast(e.message, true); }
 }
 
@@ -1333,7 +1365,10 @@ async function loadOverview() {
       <div class="stat ${seedClass}"><div class="n">${o.seeds}</div>
         <div class="l">남은 이미지 · 약 ${days}일치</div></div>
       <div class="stat"><div class="n">${o.videos}</div><div class="l">만든 영상</div></div>
-      <div class="stat"><div class="n">${o.published}</div><div class="l">업로드 완료</div></div>
+      <div class="stat ${o.upload_failed ? "bad" : ""}"><div class="n">${o.published}</div>
+        <div class="l">업로드 완료${
+          o.upload_failed ? ` · <b>실패 ${o.upload_failed}</b>` : ""
+        }${o.not_published ? ` · 대기 ${o.not_published}` : ""}</div></div>
       <div class="stat ${o.music ? "" : "warn"}" title="${o.music_note || ""}">
         <div class="n">${o.music ?? 0}</div>
         <div class="l">${o.music ? "배경음악" : "배경음악 없음 · 무음"}</div></div>

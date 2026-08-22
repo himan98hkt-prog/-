@@ -115,6 +115,7 @@ def list_runs(limit: int = 30) -> list[dict]:
             "hook": content.get("hook", ""),
             "music": state.get("music"),
             "has_sound": _has_sound(final) if final.exists() else None,
+            "published": state.get("published") or {},
         })
         if len(out) >= limit:
             break
@@ -131,14 +132,17 @@ def overview() -> dict:
     ready = [r for r in runs if r["ready"]]
     spent = sum(r["cost"] or 0 for r in runs)
 
-    published = 0
-    log = RUNS / "schedule.log"
-    if log.exists():
-        try:
-            published = sum(1 for ln in log.read_text(encoding="utf-8").splitlines()
-                            if "\tOK\t" in ln or ln.count("OK") and "성공=" in ln)
-        except OSError:
-            pass
+    # 예전에는 schedule.log 를 문자열로 훑어 셌다. 화면에서 누른 업로드는
+    # 거기 안 남아서 0 으로 보였다. 이제 각 run 의 결과를 직접 센다.
+    published = sum(
+        1 for r in runs
+        if any(v.get("ok") for v in (r.get("published") or {}).values())
+    )
+    pending = sum(1 for r in runs if r["ready"] and not (r.get("published") or {}))
+    failed_up = sum(
+        1 for r in runs
+        if any(v.get("ok") is False for v in (r.get("published") or {}).values())
+    )
 
     from pipeline import music as music_mod
 
@@ -149,6 +153,8 @@ def overview() -> dict:
         "days_left": len(seeds),          # 하루 1편 기준
         "videos": len(ready),
         "published": published,
+        "not_published": pending,
+        "upload_failed": failed_up,
         "spent": round(spent, 2),
         "music": music_mod.total_tracks(music_dir),
         "music_note": music_mod.describe(music_dir),

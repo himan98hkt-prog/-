@@ -63,6 +63,11 @@ def _confirm_cost(cfg: Config, assume_yes: bool) -> None:
         raise typer.Exit(code=0)
 
 
+def _now() -> str:
+    from datetime import datetime
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
 def _resolve_audio(cfg: Config, run: Run, out: dict):
     """output.audio 를 실제 ffmpeg 인자로 바꾼다.
 
@@ -394,9 +399,19 @@ def publish_cmd(
     if not youtube and not instagram:
         _die("--youtube 또는 --instagram 중 하나 이상을 지정하세요.")
 
+    # 결과를 run 상태에 남긴다. 예전에는 log.jsonl 에만 적어서, 화면에서는
+    # 무엇이 올라갔는지 확인할 방법이 없었다.
+    done = dict(run.state.get("published") or {})
+    failed = []
+
+    def record(target: str, **fields) -> None:
+        done[target] = {"at": _now(), "dry_run": dry_run, **fields}
+        run.save_state(published=done)
+
     if youtube:
         from publish import youtube as yt
         yc = cfg.publish_cfg.get("youtube", {})
+        typer.echo("\n  유튜브에 올리는 중…")
         try:
             res = yt.upload(
                 run.final,
@@ -411,15 +426,33 @@ def publish_cmd(
                 dry_run=dry_run,
             )
         except yt.UploadError as exc:
-            _die(str(exc))
-        typer.secho(f"✓ YouTube: {res.url}", fg=typer.colors.GREEN)
-        run.log("publish.youtube", video_id=res.video_id, url=res.url)
+            # 여기서 죽으면 인스타는 시도조차 못 한다. 실제로 "둘 다" 를
+            # 눌렀을 때 한쪽 실패가 다른 쪽까지 막고 있었다.
+            typer.secho(f"✗ YouTube 실패: {exc}", fg=typer.colors.RED)
+            record("youtube", ok=False, error=str(exc))
+            failed.append(("유튜브", str(exc)))
+        else:
+            typer.secho(f"✓ YouTube: {res.url}", fg=typer.colors.GREEN)
+            run.log("publish.youtube", video_id=res.video_id, url=res.url)
+            record("youtube", ok=True, url=res.url, video_id=res.video_id)
 
     if instagram:
         from publish import instagram as ig
         ic = cfg.publish_cfg.get("instagram", {})
-        url, uploaded = _resolve_media_url(cfg, run, video_url, dry_run)
+        typer.echo("\n  인스타그램에 올리는 중…")
+        uploaded = None
         try:
+            # _resolve_media_url 은 실패하면 _die -> typer.Exit 을 던진다.
+            # typer.Exit 은 RuntimeError 를 상속하므로 넓게 잡으면 이유가
+            # 빈 문자열로 기록되고, 안 잡으면 인스타 실패가 기록조차 안 된다.
+            # (click.exceptions.Exit 을 잡아도 안 된다 — typer 는 자기 것을 쓴다.)
+            try:
+                url, uploaded = _resolve_media_url(cfg, run, video_url, dry_run)
+            except typer.Exit as exc:
+                raise ig.UploadError(
+                    "인스타그램에 넘길 공개 URL 이 없습니다. "
+                    "[설정] 탭에서 영상 보관함(R2)을 연결하세요."
+                ) from exc
             res = ig.upload(
                 url,
                 caption=ic.get("caption_template", "{description}")
@@ -427,17 +460,28 @@ def publish_cmd(
                 share_to_feed=bool(ic.get("share_to_feed", True)),
                 dry_run=dry_run,
             )
-        except ig.UploadError as exc:
-            _die(str(exc))
-        typer.secho(f"✓ Instagram: {res.permalink or res.media_id}", fg=typer.colors.GREEN)
-        run.log("publish.instagram", media_id=res.media_id, permalink=res.permalink)
+        except (ig.UploadError, OSError) as exc:
+            typer.secho(f"✗ Instagram 실패: {exc}", fg=typer.colors.RED)
+            record("instagram", ok=False, error=str(exc))
+            failed.append(("인스타그램", str(exc)))
+        else:
+            typer.secho(f"✓ Instagram: {res.permalink or res.media_id}",
+                        fg=typer.colors.GREEN)
+            run.log("publish.instagram", media_id=res.media_id,
+                    permalink=res.permalink)
+            record("instagram", ok=True, url=res.permalink, media_id=res.media_id)
 
-        # 발행이 끝났으면 스토리지를 비워 비용을 아낀다.
-        sc = cfg.publish_cfg.get("storage", {})
-        if uploaded and sc.get("delete_after_publish") and not dry_run:
-            from publish.storage import S3Storage
-            S3Storage.from_env(sc).delete(uploaded.key)
-            typer.echo(f"  S3 객체 삭제: {uploaded.key}")
+            # 발행이 끝났으면 스토리지를 비워 비용을 아낀다.
+            sc = cfg.publish_cfg.get("storage", {})
+            if uploaded and sc.get("delete_after_publish") and not dry_run:
+                from publish.storage import S3Storage
+                S3Storage.from_env(sc).delete(uploaded.key)
+                typer.echo(f"  S3 객체 삭제: {uploaded.key}")
+
+    if failed:
+        names = " · ".join(n for n, _ in failed)
+        _die(f"{names} 업로드에 실패했습니다.\n  "
+             + "\n  ".join(f"{n}: {e}" for n, e in failed))
 
 
 def _resolve_media_url(cfg: Config, run: Run, video_url: str, dry_run: bool):
