@@ -274,6 +274,71 @@ def test_daily_bat_is_ascii():
             real.write_bytes(backup)
 
 
+def test_app_icons():
+    """바로가기·브라우저 탭이 쓰는 아이콘. 없으면 다시 기본 아이콘으로 돌아간다."""
+    section("앱 아이콘")
+    icons = ROOT / "brand" / "icons"
+
+    for name in ("studio.ico", "update.ico", "folder.ico"):
+        f = icons / name
+        check(f"{name} 있음", f.exists())
+        if not f.exists():
+            continue
+        raw = f.read_bytes()
+        check(f"{name} 은 진짜 ICO", raw[:4] == b"\x00\x00\x01\x00", str(raw[:4]))
+        # 16px 부터 256px 까지 여러 장이 들어 있어야 작업표시줄·바탕화면 양쪽에서 또렷하다
+        count = int.from_bytes(raw[4:6], "little")
+        check(f"{name} 에 여러 크기 담김 ({count}장)", count >= 6, str(count))
+        from PIL import Image
+        with Image.open(f) as im:
+            got = {s2[0] for s2 in im.info.get("sizes", set())}
+        check(f"{name} 에 16·32·256 포함", {16, 32, 256} <= got, str(sorted(got)))
+
+    for name, side in (("app-32.png", 32), ("app-192.png", 192), ("app-512.png", 512)):
+        f = icons / name
+        check(f"{name} 있음", f.exists())
+        if f.exists():
+            from PIL import Image
+            with Image.open(f) as im:
+                check(f"{name} 크기 {side}", im.size == (side, side), str(im.size))
+
+    # 아이콘이 없어도 바로가기 스크립트가 죽지 않아야 한다
+    ps1 = (ROOT / "shortcuts.ps1").read_bytes().decode("utf-8-sig")
+    check("아이콘 없을 때 기본값으로 물러남", "shell32.dll,220" in ps1)
+    check("전용 아이콘을 먼저 씀", "studio.ico" in ps1)
+
+
+def test_web_app_icons():
+    section("브라우저 앱 아이콘")
+    from ui.server import Handler
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        for path in ("/favicon.ico", "/icon-192.png", "/icon-512.png"):
+            with urllib.request.urlopen(base + path, timeout=10) as r:
+                body = r.read()
+            check(f"{path} 내려감", r.status == 200)
+            check(f"{path} 은 PNG", body[:4] == b"\x89PNG")
+
+        with urllib.request.urlopen(base + "/manifest.webmanifest", timeout=10) as r:
+            ctype = r.headers["Content-Type"]
+            man = json.loads(r.read())
+        # 크롬은 이 타입이 아니면 [앱으로 설치] 를 안 띄우는 경우가 있다
+        check("manifest 타입이 맞음", ctype.startswith("application/manifest+json"), ctype)
+        check("독립 창으로 뜸", man.get("display") == "standalone")
+        check("아이콘 두 종류", len(man.get("icons", [])) == 2)
+        check("이름 있음", man.get("name") == "AI DEOKHU 작업실")
+
+        html = urllib.request.urlopen(base + "/", timeout=10).read().decode()
+        check("화면에 favicon 연결됨", 'rel="icon"' in html)
+        check("화면에 manifest 연결됨", 'rel="manifest"' in html)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_job_output_encoding():
     """윈도우 파이썬은 파이프로 내보낼 때 코드페이지 949 를 쓴다. 한글이 깨지면 안 된다."""
     section("작업 로그 인코딩")
@@ -363,6 +428,8 @@ def main():
         test_masked_echo_is_ignored()
         test_script_encoding()
         test_daily_bat_is_ascii()
+        test_app_icons()
+        test_web_app_icons()
         test_job_output_encoding()
         test_connect_youtube_survives_scope_error()
         test_auto_needs_seed()

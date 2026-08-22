@@ -31,12 +31,19 @@ function Make($name, $target, $cmdArgs, $icon) {
     Write-Host "  OK  $name" -ForegroundColor Green
 }
 
+# 전용 아이콘. 없으면(구버전 폴더) 윈도우 기본 아이콘으로 물러난다.
+function Icon($file, $fallback) {
+    $p = Join-Path $Root "brand\icons\$file"
+    if (Test-Path $p) { return "$p,0" }
+    return $fallback
+}
+
 Write-Host "`n바탕화면 바로가기를 만듭니다" -ForegroundColor White
 Write-Host "폴더: $Root`n"
 
-Make "AI DEOKHU 작업실"   (Join-Path $Root "start.bat")     "" "shell32.dll,220"
-Make "AI DEOKHU 업데이트" (Join-Path $Root "update.bat")    "" "shell32.dll,238"
-Make "AI DEOKHU 폴더"     "explorer.exe"                 $Root "shell32.dll,4"
+Make "AI DEOKHU 작업실"   (Join-Path $Root "start.bat")  "" (Icon "studio.ico" "shell32.dll,220")
+Make "AI DEOKHU 업데이트" (Join-Path $Root "update.bat") "" (Icon "update.ico" "shell32.dll,238")
+Make "AI DEOKHU 폴더"     "explorer.exe"              $Root (Icon "folder.ico" "shell32.dll,4")
 
 Write-Host "`n바탕화면을 확인하세요." -ForegroundColor Green
 Write-Host "  [AI DEOKHU 작업실] 을 더블클릭하면 브라우저에서 관리 화면이 열립니다.`n"

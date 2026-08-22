@@ -373,6 +373,43 @@ class Handler(BaseHTTPRequestHandler):
             self._bytes(html, "text/html; charset=utf-8", cache=False)
             return
 
+        # 브라우저 탭 아이콘과 [앱으로 설치]. 없으면 조용히 404.
+        if p in ("/favicon.ico", "/icon-192.png", "/icon-512.png"):
+            name = {"/favicon.ico": "app-32.png",
+                    "/icon-192.png": "app-192.png",
+                    "/icon-512.png": "app-512.png"}[p]
+            f = ROOT / "brand" / "icons" / name
+            if f.exists():
+                self._bytes(f.read_bytes(), "image/png")
+            else:
+                self.send_error(404)
+            return
+
+        if p == "/manifest.webmanifest":
+            # 엣지·크롬이 이걸 보고 [앱으로 설치] 를 띄운다.
+            # 설치하면 주소창 없는 창으로 뜨고 작업 표시줄에 아이콘이 박힌다.
+            manifest = {
+                "name": "AI DEOKHU 작업실",
+                "short_name": "AI DEOKHU",
+                "start_url": "/",
+                "scope": "/",
+                "display": "standalone",
+                "background_color": "#070B1A",
+                "theme_color": "#070B1A",
+                "lang": "ko",
+                "icons": [
+                    {"src": "/icon-192.png", "sizes": "192x192",
+                     "type": "image/png", "purpose": "any"},
+                    {"src": "/icon-512.png", "sizes": "512x512",
+                     "type": "image/png", "purpose": "any"},
+                ],
+            }
+            # 크롬은 manifest 의 Content-Type 을 본다. application/json 이면
+            # 설치 제안이 안 뜨는 경우가 있다.
+            self._bytes(json.dumps(manifest, ensure_ascii=False).encode(),
+                        "application/manifest+json; charset=utf-8", cache=False)
+            return
+
         if p == "/api/state":
             self._json({
                 "seeds": list_seeds(),
