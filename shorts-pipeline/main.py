@@ -893,6 +893,15 @@ def _report_ig_expiry(token: str) -> None:
     import urllib.parse
     import urllib.request
 
+    from publish.instagram import GRAPH_IG, api_base
+
+    if api_base(token) == GRAPH_IG:
+        # debug_token 은 페이스북 쪽 기능이라 인스타 로그인 토큰에는 못 쓴다.
+        # 만료를 정확히 읽을 방법이 없으니 통상값을 알려주고 넘어간다.
+        typer.echo("  Instagram 로그인 토큰입니다. 보통 60일이며 만료일은 조회할 수 없습니다.")
+        typer.echo("  두 달쯤 뒤 업로드가 실패하면 같은 자리에서 다시 발급하세요.")
+        return
+
     qs = urllib.parse.urlencode({"input_token": token, "access_token": token})
     try:
         with urllib.request.urlopen(          # noqa: S310 - 고정 호스트

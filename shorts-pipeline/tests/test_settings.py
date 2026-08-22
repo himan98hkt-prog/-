@@ -591,6 +591,15 @@ def test_ig_token_expiry_warning():
     out = run({"expires_at": 0})
     check("만료 0 은 '없음' 으로 읽음", "만료: 없음" in out, out.strip()[:50])
 
+    # 인스타 로그인 토큰은 debug_token 을 못 쓴다. 조용히 넘어가면 사용자는
+    # 만료가 없는 줄 오해한다. 통상값을 알려주는지 본다.
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        main_mod._report_ig_expiry("IGAAxyz")
+    ig_out = buf.getvalue()
+    check("인스타 로그인 토큰은 따로 안내", "보통 60일" in ig_out, ig_out.strip()[:60])
+    check("재발급 위치도 알려줌", "다시 발급" in ig_out)
+
     out = run({"expires_at": int(now + 3600)})
     check("임시 토큰이면 경고", "임시 토큰" in out, out.strip()[:50])
     check("고치는 방법까지 알려줌", "확장 액세스 토큰" in out)
