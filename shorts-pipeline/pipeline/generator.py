@@ -31,6 +31,17 @@ def make_provider(cfg: Config, run: Run) -> VideoProvider:
     )
 
 
+def fold_negative(prompt: str, negative: str) -> str:
+    """네거티브를 안 받는 모델을 위해 금지 사항을 긍정 프롬프트에 녹인다.
+
+    버리는 것보다 낫다. 대부분의 영상 모델이 "Avoid: ..." 는 알아듣는다.
+    """
+    words = " ".join((negative or "").split()).strip(" ,.")
+    if not words:
+        return prompt
+    return f"{prompt.rstrip('. ')}. Avoid: {words}."
+
+
 def generate_clip(
     provider: VideoProvider,
     cfg: Config,
@@ -45,9 +56,14 @@ def generate_clip(
     """클립 하나를 만든다. 실패하면 동일 파라미터로 최대 2회 더 시도한다."""
     dest = run.clip(index)
     model = cfg.model
+    # 네거티브를 안 받는 모델(hailuo 등)이면 **버리지 말고** 긍정 프롬프트에
+    # 녹여 넣는다. 예전에는 그냥 버렸다. kling -> hailuo 로 바꾼 순간
+    # "morphing architecture / distorted geometry" 같은 왜곡 방지 지시가
+    # 통째로 사라졌고, 사용자가 곧바로 "애니메이션이 이상하다" 고 신고했다.
     req = GenerationRequest(
         image=image,
-        prompt=prompt,
+        prompt=(prompt if model.supports_negative
+                else fold_negative(prompt, cfg.negative_prompt)),
         duration=cfg.clip_duration,
         negative_prompt=cfg.negative_prompt if model.supports_negative else "",
         end_image=end_image if model.supports_end_image else None,

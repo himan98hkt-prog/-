@@ -222,6 +222,97 @@ def music_tests() -> None:
     check("상태를 한 줄로 알려줌", "밝고 상쾌 3곡" in music.describe(md),
           music.describe(md))
 
+    # ── 곡이 있는데 무음으로 나가면 안 된다 ─────────────────────────
+    # 실제 신고: music/epic 과 music/bright 에 곡 4개를 넣어둔 사용자가
+    # alley_bike(=city) 시드로 만든 영상에서 소리를 못 들었다. city 폴더가
+    # 비었다는 이유로 무음이 됐다. 분위기가 조금 안 맞아도 소리는 있어야 한다.
+    md2 = TMP / "music_partial"
+    for mood, names in (("epic", ("e1.mp3", "e2.mp3", "e3.mp3")), ("bright", ("b1.mp3",))):
+        (md2 / mood).mkdir(parents=True, exist_ok=True)
+        for n in names:
+            (md2 / mood / n).write_bytes(b"\0" * 32)
+
+    silent = [th for th in ("alley_bike", "magic_city", "night_drive", "ice",
+                            "space", "spirit_forest", "library", "misc")
+              if music.pick(th, f"{th}_05", md2) is None]
+    check("빈 분위기여도 무음으로 안 간다", not silent, f"무음: {silent}")
+
+    got = music.pick("alley_bike", "alley_bike_05", md2)
+    check("가진 곡 중에서 고른다", got is not None and got.mood in ("epic", "bright"),
+          got.mood if got else "-")
+    check("같은 시드는 늘 같은 곡",
+          music.pick("alley_bike", "alley_bike_05", md2).path == got.path)
+    check("딱 맞는 분위기가 있으면 그것을 먼저",
+          music.pick("dragon", "dragon_01", md2).mood == "epic")
+    check("정말 한 곡도 없으면 그때만 무음",
+          music.pick("ice", "x", TMP / "music_none") is None)
+
+
+def prompt_tests() -> None:
+    """미드저니 파일명에서 프롬프트를 되살릴 때 낱말을 잃지 않아야 한다.
+
+    이 문자열이 그대로 **돈 내고 부르는 영상 모델**에 들어간다. 망가진
+    프롬프트는 곧 망가진 영상이고, 다시 만들려면 또 돈이 든다.
+    """
+    from pipeline.curate import prompt_from_filename
+
+    print("\n[파일명에서 프롬프트 되살리기]")
+
+    # 실제 신고 화면에 찍혀 있던 것: alley 가 all 로 잘리고 격자 번호 1 이 붙었다
+    got = prompt_from_filename(Path(
+        "himan98_first_person_view_riding_a_bicycle_down_a_narrow_japanese_all_1.png"))
+    check("잘린 끝 조각과 격자 번호를 뗀다",
+          got == "first person view riding a bicycle down a narrow japanese", got)
+
+    got = prompt_from_filename(Path(
+        "himan98_first_person_view_riding_a_bicycle_down_a_narrow_japanese_alley_at_ni_0.png"))
+    check("끝에 남은 전치사도 정리한다",
+          got == "first person view riding a bicycle down a narrow japanese alley", got)
+
+    # 예전에는 앞 토큰을 무조건 버려서 first 와 aurora 가 날아갔다
+    got = prompt_from_filename(Path(
+        "first_person_view_descending_a_temple_staircase_lit_by_braziers"
+        "_a1b2c3d4-e5f6-7890-abcd-ef1234567890.png"))
+    check("사용자명이 없으면 첫 낱말을 안 버린다", got.startswith("first person view"), got)
+
+    got = prompt_from_filename(Path("aurora_over_a_frozen_lake.png"))
+    check("주제어를 잃지 않는다", got == "aurora over a frozen lake", got)
+
+    check("숫자 섞인 사용자명은 뗀다",
+          prompt_from_filename(Path("u1_a_glowing_forest_path_at_dawn_3.png"))
+          == "a glowing forest path at dawn")
+    check("3d 같은 말은 사용자명이 아니다",
+          prompt_from_filename(Path("3d_render_of_a_neon_tunnel_2.png"))
+          == "3d render of a neon tunnel")
+    check("멀쩡한 세 글자 낱말은 남긴다",
+          prompt_from_filename(Path("koi_pond_at_dusk.png")) == "koi pond at dusk")
+    check("짧은 이름도 망가뜨리지 않는다",
+          prompt_from_filename(Path("neon_alley.png")) == "neon alley")
+
+
+def negative_prompt_tests() -> None:
+    """네거티브를 안 받는 모델에서도 왜곡 방지 지시가 살아 있어야 한다."""
+    from pipeline.config import load_config
+    from pipeline.generator import fold_negative
+
+    print("\n[네거티브 프롬프트]")
+    cfg = load_config(ROOT / "config.yaml", mode="chain")
+    base = "a temple staircase, constant forward motion"
+    got = fold_negative(base, cfg.negative_prompt)
+
+    check("원래 프롬프트를 지키다", got.startswith(base))
+    check("금지 사항이 살아남는다", "morphing architecture" in got, got[-70:])
+    check("Avoid 로 표시한다", "Avoid:" in got)
+    check("네거티브가 비면 그대로", fold_negative(base, "") == base)
+    check("공백만 있어도 그대로", fold_negative(base, "   \n ") == base)
+    check("마침표가 겹치지 않는다", ".." not in fold_negative(base + ".", "blur"))
+
+    # hailuo 는 네거티브를 안 받는다 — 그래서 이 경로가 실제로 쓰인다
+    h = load_config(ROOT / "config.yaml", mode="chain", model="hailuo_23_pro")
+    check("hailuo 는 네거티브를 안 받는다", h.model.supports_negative is False)
+    k = load_config(ROOT / "config.yaml", mode="chain", model="kling_25_turbo_pro")
+    check("kling 은 받는다", k.model.supports_negative is True)
+
 
 def stitch_audio_tests() -> None:
     from pipeline.stitcher import _audio_args
@@ -265,6 +356,8 @@ def main() -> int:
     try:
         intake_tests()
         music_tests()
+        prompt_tests()
+        negative_prompt_tests()
         stitch_audio_tests()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

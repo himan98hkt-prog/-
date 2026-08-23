@@ -360,14 +360,60 @@ def write_sidecar(dest_image: Path, theme: str, prompt_hint: str = "") -> Path:
     return dest
 
 
+# 사용자명으로 보이는 토큰 — 숫자가 섞여 있으면 거의 확실하다 (himan98, u1 …).
+_HANDLE = re.compile(r"^(?=.*\d)[a-z0-9]+$", re.I)
+# 숫자가 섞였어도 프롬프트에 흔히 쓰이는 말은 사용자명이 아니다.
+_NOT_HANDLE = {"3d", "2d", "4k", "8k", "16k", "1st", "35mm", "50mm", "85mm"}
+# 세 글자 이하지만 멀쩡한 낱말 — 잘린 조각과 구분해야 한다.
+_SHORT_OK = {
+    "a", "an", "the", "at", "in", "on", "of", "up", "to", "by", "no",
+    "sea", "sky", "ice", "fog", "sun", "red", "old", "far", "dim", "wet",
+    "two", "one", "big", "top", "low", "hot", "cat", "dog", "man", "eye",
+    "run", "fly", "war", "art", "sad", "new", "koi", "zen", "jet", "car",
+}
+# 문장 끝에 남으면 어색한 토큰 — 잘린 자리에 흔히 남는다.
+_DANGLING = {"a", "an", "the", "at", "in", "on", "of", "to", "by", "with",
+             "and", "over", "under", "near", "into", "from", "through",
+             "down", "up", "for", "as", "its", "his", "her", "their"}
+
+
 def prompt_from_filename(path: Path) -> str:
-    """미드저니 파일명에서 프롬프트 문장을 복원한다 (해시·사용자명 제거)."""
+    """미드저니 파일명에서 프롬프트 문장을 복원한다.
+
+    파일명은 프롬프트를 그대로 담지만 **온전하지 않다.** 앞에 사용자명이,
+    뒤에 격자 번호(_0.._3)가 붙고, 95자쯤에서 낱말 한가운데가 잘린다.
+    그대로 쓰면 돈 내고 부르는 영상 모델에 이런 게 들어간다:
+
+        first person view riding a bicycle down a narrow japanese all 1
+                                                                ^^^^^^^
+        (alley 가 잘려 all, 뒤의 1 은 격자 번호)
+
+    실제로 사용자가 "애니메이션이 이상하다" 고 신고한 영상의 프롬프트다.
+    예전 코드는 여기에 더해 **앞 토큰을 무조건 하나 버려서**,
+    `first_person_view_…` 의 first 와 `aurora_over_a_frozen_lake` 의
+    aurora 까지 날렸다 — 주제어가 통째로 사라진 것이다.
+    """
     stem = path.stem
     stem = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "", stem)
     stem = re.sub(r"_+", " ", stem).strip(" _-")
-    # 앞쪽 사용자명 토큰을 떼어낸다
     parts = stem.split()
-    if parts and len(parts) > 3:
+
+    # 1) 끝의 격자 번호를 뗀다 (0~3, 넉넉히 두 자리까지)
+    while parts and re.fullmatch(r"\d{1,2}", parts[-1]):
+        parts.pop()
+
+    # 2) 앞의 사용자명 — **숫자가 섞였을 때만** 뗀다. 확실하지 않으면 남긴다.
+    #    낱말 하나를 잘못 버리는 쪽이 남겨두는 쪽보다 훨씬 나쁘다.
+    if len(parts) > 3 and _HANDLE.match(parts[0]) and parts[0].lower() not in _NOT_HANDLE:
         parts = parts[1:]
+
+    # 3) 잘려나간 끝 조각을 뗀다 (three 글자 이하이면서 멀쩡한 낱말이 아닌 것)
+    while len(parts) > 2 and len(parts[-1]) <= 3 and parts[-1].lower() not in _SHORT_OK:
+        parts.pop()
+
+    # 4) 끝에 남은 전치사·관사를 정리한다
+    while len(parts) > 2 and parts[-1].lower() in _DANGLING:
+        parts.pop()
+
     text = " ".join(parts).strip()
     return re.sub(r"\s+", " ", text)[:200]

@@ -109,14 +109,25 @@ def _hash(seed: str) -> int:
 
 
 def pick(theme: str, seed_key: str, music_dir: Path) -> Track | None:
-    """테마에 맞는 곡 하나. 없으면 None (무음으로 간다).
+    """테마에 맞는 곡 하나. **곡이 한 곡이라도 있으면 무음으로 가지 않는다.**
 
-    분위기 폴더 -> any 폴더 -> music/ 바로 아래 순으로 찾는다.
+    찾는 순서: 딱 맞는 분위기 -> any -> 가진 것 중 아무거나.
+
+    마지막 단계가 중요하다. 예전에는 딱 맞는 분위기 폴더가 비면 그대로
+    무음이었다. 실제로 `music/epic` 과 `music/bright` 에 곡 4개를 넣어둔
+    사용자가, `alley_bike`(=city) 시드로 만든 영상에서 소리를 못 들었다.
+    분위기가 조금 안 맞는 것과 아무 소리도 없는 것 중에서는 **소리가 있는
+    쪽이 언제나 낫다** — 무음이면 끝까지 보지 않는다.
     """
     music_dir = Path(music_dir)
     mood = mood_for(theme)
     shelf = catalog(music_dir)
-    for key in (mood, "any"):
+
+    order = [mood, "any"]
+    # 남은 분위기도 정해진 순서로 훑는다. 같은 시드는 늘 같은 곡을 받아야 한다.
+    order += [m for m in (*MOODS, "any") if m not in order]
+
+    for key in order:
         found = shelf.get(key)
         if found:
             return Track(found[_hash(seed_key or theme) % len(found)], key)
