@@ -687,7 +687,16 @@ def test_clip_select_never_blank() -> None:
           'clips").value = String(Math.min' not in html)
     check("장면 전환은 고른 장 수로 option 을 만든다",
           'sel.innerHTML = `<option value="${n}">' in html)
-    check("장면 전환에서는 못 바꾸게 잠근다", "sel.disabled = true" in html)
+    # 예전에는 선택지 하나짜리 드롭다운을 disabled 로 뒀는데, 사용자에게는
+    # "장면 전환은 1개밖에 못 고른다" 로 읽혔다. 이제 드롭다운 자체를 감추고
+    # 정해진 값을 글로 보여준다.
+    check("장면 전환에서는 드롭다운을 감춘다",
+          '$("clipsPick").hidden = true' in html)
+    check("정해진 값을 글로 보여준다",
+          '$("clipsFixed").hidden = false' in html and 'clipsRead' in html)
+    check("이어지는 영상에서는 다시 드러낸다",
+          '$("clipsPick").hidden = false' in html)
+    check("장면 1장짜리 장면 전환은 막는다", "MIN_SCENES" in html)
     check("이어지는 영상에서는 다시 풀린다", "sel.disabled = false" in html)
     # 첫 장을 빼고 보내면 첫 번째로 고른 그림이 맨 뒤로 밀린다
     check("장면은 고른 순서 그대로 전부 보낸다",

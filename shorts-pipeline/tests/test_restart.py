@@ -165,6 +165,62 @@ def test_busy_port() -> None:
         blocker.close()
 
 
+def test_montage_needs_two() -> None:
+    """화면을 거치지 않고 API 를 직접 불러도 1장짜리 장면 전환은 막아야 한다."""
+    print("\n[장면 전환 최소 장 수] 서버도 스스로 막는다")
+
+    work = make_work_at(TMP / "w2")
+    (work / "seeds" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    (work / "seeds" / "b.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    port = free_port()
+    p = launch(work, port)
+    try:
+        if not up(port):
+            check("작업실이 뜬다", False, "시간 초과")
+            return
+
+        def post(payload):
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/generate",
+                data=json.dumps(payload).encode(), method="POST",
+                headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    return r.status, json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                return e.code, json.loads(e.read().decode())
+
+        code, body = post({"seed": "a.png", "mode": "montage", "scenes": ["a.png"]})
+        check("장면 1장은 거절한다", code == 400, f"{code} {body}")
+        check("무엇을 하라고 알려준다",
+              "2장 이상" in body.get("error", ""), body.get("error", ""))
+
+        code, body = post({"seed": "a.png", "mode": "montage", "scenes": []})
+        check("장면 0장도 거절한다", code == 400, f"{code} {body}")
+
+        # chain 은 1장으로도 정상이다 — 막아버리면 안 된다
+        code, body = post({"seed": "a.png", "mode": "chain", "clips": 2})
+        check("이어지는 영상은 1장으로도 된다", code == 200, f"{code} {body}")
+    finally:
+        p.terminate()
+        try:
+            p.wait(timeout=8)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+
+def make_work_at(dest: Path) -> Path:
+    dest.mkdir(parents=True)
+    for name in ("main.py", "config.yaml"):
+        shutil.copy2(ROOT / name, dest / name)
+    for d in ("pipeline", "publish", "ui", "brand"):
+        shutil.copytree(ROOT / d, dest / d,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    (dest / "seeds").mkdir()
+    (dest / "runs").mkdir()
+    return dest
+
+
 def test_config_diff() -> None:
     print("\n[새 권장 설정] 업데이트가 config.yaml 을 안 덮어써서 안 닿던 것")
 
@@ -253,6 +309,7 @@ def main() -> int:
     try:
         test_takeover()
         test_busy_port()
+        test_montage_needs_two()
         test_config_diff()
         test_stamp_sees_providers()
     finally:

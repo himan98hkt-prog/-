@@ -2,12 +2,16 @@
 
     python tests/test_ui_copy.py
 
-두 가지를 확인한다.
+세 가지를 확인한다.
   1) 클립 길이를 바꾸면 **클립 수 선택지가 따라 바뀌는지.** 예전에는 [4,6,8,10]
      고정이라 10초를 고르면 6개 = 60초짜리가 나왔다. 쇼츠로는 너무 길고
      값은 두 배였다.
   2) [AI로 제목 3개 뽑기] 가 실제로 눌리고, 고르면 제목 칸에 들어가고,
      키가 없거나 서버가 죽었을 때 **사람이 읽을 수 있는 말**이 뜨는지.
+  3) **장면 전환**에서 클립 수가 고른 장 수를 따라가고, 1장으로는 만들 수
+     없는지. 예전에는 선택지 하나짜리 드롭다운이라 "장면 전환은 1개만
+     고를 수 있다" 로 읽혔고, 1장으로도 버튼이 눌려서 같은 그림 한 컷이
+     나왔다.
 
 OpenRouter 는 부르지 않는다. 같은 모양으로 대답하는 가짜 서버를 띄우고
 OPENROUTER_BASE_URL 로 그쪽을 보게 한다. 돈도 무료 한도도 쓰지 않는다.
@@ -126,6 +130,12 @@ def make_seed(seeds: Path) -> None:
         "theme:  temple\n"
         "source: descending_a_vast_temple_staircase_lit_by_braziers_abc123.png\n",
         encoding="utf-8")
+    # 장면 전환을 눌러보려면 여러 장이 있어야 한다
+    for i, name in enumerate(("alley_02", "ice_03", "sky_04"), start=1):
+        Image.new("RGB", (816, 1456), (30 + i * 40, 40, 90)).save(seeds / f"{name}.png")
+        (seeds / f"{name}.yaml").write_text(
+            f"title:  장면 {i}\nhook:   훅 {i}\nprompt: forward motion scene {i}\n"
+            f"theme:  {name.rsplit('_', 1)[0]}\n", encoding="utf-8")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -255,6 +265,34 @@ def main() -> int:
                   bool(page.inner_text("#suggestNote").strip()))
             check("제목은 여전히 그대로",
                   page.input_value("#title") == "잠긴 신전을 지나")
+
+            # ── 3. 장면 전환의 클립 수 ────────────────────────────
+            page.click("#m-montage")
+            page.wait_for_timeout(400)
+            check("장면 전환에서는 드롭다운을 감춘다", page.is_hidden("#clipsPick"))
+            check("정해진 값으로 보여준다", not page.is_hidden("#clipsFixed"))
+
+            # 이 시점에 chain 에서 고른 1장이 남아 있다
+            check("1장이면 만들 수 없다", not page.is_enabled("#go"))
+            msg = page.inner_text("#picked")
+            check("왜 안 되는지 알려준다", "1장뿐" in msg and "이어지는 영상" in msg, msg)
+
+            page.locator("#grid .seed").nth(1).click()
+            page.wait_for_timeout(400)
+            read = page.inner_text("#clipsRead")
+            check("2장이면 2개로 잡힌다", "2장 = 2개" in read, read)
+            check("2장부터 만들 수 있다", page.is_enabled("#go"))
+
+            page.locator("#grid .seed").nth(2).click()
+            page.wait_for_timeout(400)
+            check("3장이면 3개로 따라온다", "3장 = 3개" in page.inner_text("#clipsRead"),
+                  page.inner_text("#clipsRead"))
+
+            page.click("#m-chain")
+            page.wait_for_timeout(500)
+            check("돌아오면 드롭다운이 살아난다", not page.is_hidden("#clipsPick"))
+            check("장면 수가 클립 수로 새지 않는다", page.input_value("#clips") == "3",
+                  page.input_value("#clips"))
 
             check("콘솔 오류 0건", not errors, "; ".join(errors[:3]))
             browser.close()

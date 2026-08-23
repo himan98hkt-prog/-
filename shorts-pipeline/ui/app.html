@@ -232,6 +232,13 @@
   .cfgtext li b{color:var(--ink)}
   .cfgtext li s{opacity:.6}
   .cfgacts{display:flex;gap:8px;flex-shrink:0}
+
+  /* 장면 전환에서 클립 수는 고르는 게 아니라 정해지는 값이다 */
+  .fld.fixed[hidden]{display:none}
+  .readout{border:1px dashed var(--line);border-radius:9px;padding:10px 12px;
+           color:var(--ink2);font-size:13.5px;background:rgba(255,255,255,.02)}
+  .readout.warn{border-color:var(--bad);color:var(--bad);border-style:solid}
+  #picked.bad{color:var(--bad)}
   .go.small{padding:9px 16px;font-size:13.5px;width:auto;margin:0}
   .ghost[disabled]:hover{border-color:var(--line);color:var(--ink2)}
 
@@ -563,16 +570,23 @@
         </button>
         <button class="mode" id="m-montage" aria-pressed="false">
           <b>장면 전환</b>
-          <small>여러 장면을 컷으로 잇습니다. 이미지를 여러 장 고르세요.</small>
+          <small>여러 장면을 컷으로 잇습니다. <b>이미지를 2장 이상</b> 고르세요 —
+          고른 장 수가 곧 클립 수입니다.</small>
         </button>
       </div>
 
       <div class="row">
-        <label class="fld"><span>클립 수</span>
+        <label class="fld" id="clipsPick"><span>클립 수</span>
           <select id="clips">
             <option value="3" selected>3개 (30초)</option>
           </select>
         </label>
+        <!-- 장면 전환에서는 고른 장 수가 곧 클립 수라 고를 것이 없다.
+             선택지 하나짜리 드롭다운을 두면 '1개밖에 못 고른다' 로 읽힌다. -->
+        <div class="fld fixed" id="clipsFixed" hidden>
+          <span>클립 수</span>
+          <div class="readout" id="clipsRead">—</div>
+        </div>
         <label class="fld"><span>클립 길이</span>
           <select id="duration">
             <option value="5">5초 — 컷이 잦습니다</option>
@@ -839,13 +853,24 @@ $("suggestBtn").onclick = async () => {
   }
 };
 
+// 장면 전환은 **장면이 2장 이상**이어야 뜻이 있다. 1장으로 돌리면 같은 그림
+// 하나로 끝나는 영상이 나온다 — 예전에 실제로 나갔던 결과물이다.
+const MIN_SCENES = 2;
+
 function syncForm() {
   const n = picked.length;
+  const short = mode === "montage" && n > 0 && n < MIN_SCENES;
+
   $("picked").textContent = n === 0
     ? (mode === "chain" ? "왼쪽에서 이미지 1장을 고르세요."
                         : "왼쪽에서 장면 이미지를 2장 이상 고르세요.")
+    : short ? `장면이 ${n}장뿐입니다. 한 장 더 고르거나 [이어지는 영상] 을 쓰세요.`
     : (mode === "chain" ? `선택: ${picked[0]}` : `장면 ${n}장 선택됨`);
-  $("go").disabled = n === 0 || activeJob !== null;
+  $("picked").classList.toggle("bad", short);
+
+  // 장면 1장짜리 '장면 전환' 은 만들 수 없게 막는다. 예전에는 눌러졌고,
+  // 5초짜리 한 컷이 나와서 "이게 맞나" 하는 신고로 이어졌다.
+  $("go").disabled = n === 0 || short || activeJob !== null;
   syncClips();
   updateCost();
 }
@@ -866,15 +891,30 @@ function chainClips(dur) {
 
 function syncClips() {
   const sel = $("clips"), dur = Number($("duration").value) || 5;
+
   if (mode === "montage") {
+    // 고를 것이 없으므로 드롭다운을 감추고 정해진 값을 그냥 보여준다.
     const n = Math.max(1, Math.min(picked.length, 20));
-    sel.innerHTML = `<option value="${n}">${n}개 (${n * dur}초)</option>`;
+    sel.innerHTML = `<option value="${n}">${n}개</option>`;
     sel.value = String(n);
     sel.dataset.dur = String(dur);
-    sel.disabled = true;
-    sel.title = "장면 전환에서는 고른 이미지 수가 클립 수입니다.";
+    $("clipsPick").hidden = true;
+    $("clipsFixed").hidden = false;
+    const read = $("clipsRead");
+    if (picked.length < MIN_SCENES) {
+      read.textContent = "장면을 2장 이상 고르세요";
+      read.classList.add("warn");
+    } else {
+      const secs = n * dur;
+      read.textContent = `장면 ${n}장 = ${n}개 · ${secs}초`
+        + (secs > 60 ? " — 좀 깁니다" : "");
+      read.classList.toggle("warn", secs > 60);
+    }
     return;
   }
+
+  $("clipsPick").hidden = false;
+  $("clipsFixed").hidden = true;
   const opts = chainClips(dur);
   // 길이를 바꿔도 총 길이를 최대한 유지한다. 30초 기본, 없으면 가장 가까운 것.
   const wantSec = (Number(sel.value) || 0) * (Number(sel.dataset.dur) || dur) || 30;
@@ -906,6 +946,10 @@ function updateCost() {
 // ── 실행 ────────────────────────────────────────────────────────────
 $("go").onclick = async () => {
   if (!picked.length) return;
+  if (mode === "montage" && picked.length < MIN_SCENES) {
+    toast("장면 전환은 이미지를 2장 이상 골라야 합니다.", true);
+    return;
+  }
   // select 가 비어 있어도 0 을 보내지 않는다. 0 은 서버에서 1 이 된다.
   const clips = mode === "montage"
     ? picked.length
@@ -1697,10 +1741,17 @@ async function loadHistory() {
 }
 
 function setMode(m) {
+  const was = mode;
   mode = m;
   $("m-chain").setAttribute("aria-pressed", m === "chain");
   $("m-montage").setAttribute("aria-pressed", m === "montage");
   if (m === "chain" && picked.length > 1) picked = picked.slice(0, 1);
+  // 장면 전환에서 쓰던 개수(장면 수)가 이어지는 영상으로 넘어오면, 아무것도
+  // 안 했는데 길이와 비용이 바뀐다. 30초 기준으로 되돌린다.
+  if (m === "chain" && was === "montage") {
+    $("clips").dataset.dur = "";
+    $("clips").value = "";        // 값까지 비워야 30초 기준으로 다시 잡힌다
+  }
   syncForm(); renderSeeds();
 }
 $("m-chain").onclick = () => setMode("chain");
@@ -1709,7 +1760,7 @@ $("clips").onchange = updateCost;
 $("duration").onchange = () => { syncClips(); updateCost(); };
 
 // ── 시작 ────────────────────────────────────────────────────────────
-refresh(); loadDoctor(); loadOverview(); loadEasy(); updateCost(); applyAside();
+refresh(); loadDoctor(); loadOverview(); loadEasy(); syncForm(); applyAside();
 setInterval(() => { if (!activeJob || !polling) refresh(); }, 6000);
 setInterval(() => {
   loadDoctor(); loadOverview();

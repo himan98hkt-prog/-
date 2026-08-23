@@ -881,6 +881,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "mode 가 잘못됐습니다."}, 400)
             return
         scenes = [s for s in (body.get("scenes") or []) if _safe_name(s)]
+        # 장면 전환에 장면이 1개면 같은 그림 하나로 끝나는 영상이 나온다.
+        # 그럴 거면 chain 이 맞다. 화면에서도 막지만 여기서 한 번 더 본다.
+        if mode == "montage" and len(scenes) < 2:
+            self._json({"error": "장면 전환은 이미지를 2장 이상 골라야 합니다. "
+                                 "1장으로 만들려면 [이어지는 영상] 을 쓰세요."}, 400)
+            return
 
         clips = clip_count(body.get("clips"), mode, len(scenes))
         duration = max(1, min(_positive(body.get("duration"), 5), 15))
