@@ -55,7 +55,7 @@ jobs:
   shorts-pipeline:
     name: shorts-pipeline 테스트
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: shorts-pipeline
@@ -91,3 +91,14 @@ jobs:
 
       - name: 들여오기 · 배경음악
         run: python tests/test_intake.py
+
+      - name: 무료 LLM 제목 작성
+        run: python tests/test_llm.py
+
+      # 클립 길이/개수 연동과 [AI로 제목 뽑기] 는 브라우저에서만 재현된다.
+      # OpenRouter 는 부르지 않는다 — 가짜 서버를 띄워 그쪽을 보게 한다.
+      - name: 브라우저에서 화면 눌러보기
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python tests/test_ui_copy.py

@@ -218,6 +218,20 @@
          border-radius:9px;padding:9px 14px;cursor:pointer;font-size:13.5px}
   .ghost:hover{border-color:var(--cyan);color:var(--cyanInk)}
   .ghost.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .ghost[disabled]{opacity:.5;cursor:default}
+  .ghost[disabled]:hover{border-color:var(--line);color:var(--ink2)}
+
+  /* AI 제목 제안 */
+  .suggest{margin:10px 0 4px}
+  .suggest > small{display:block;margin-top:7px;color:var(--ink2);line-height:1.5}
+  .suggest > small.bad{color:var(--bad)}
+  #suggestList{display:grid;gap:8px;margin-top:9px}
+  .sg{display:block;width:100%;text-align:left;cursor:pointer;
+      background:transparent;border:1px solid var(--line);border-radius:10px;
+      padding:10px 12px;color:var(--ink)}
+  .sg:hover{border-color:var(--cyan)}
+  .sg b{display:block;font-size:14.5px;font-weight:600}
+  .sg span{display:block;margin-top:3px;font-size:12.5px;color:var(--ink2)}
 
   /* 진행 */
   .prog{margin-top:14px}
@@ -528,16 +542,13 @@
       <div class="row">
         <label class="fld"><span>클립 수</span>
           <select id="clips">
-            <option value="4">4개 (20초)</option>
-            <option value="6" selected>6개 (30초)</option>
-            <option value="8">8개 (40초)</option>
-            <option value="10">10개 (50초)</option>
+            <option value="3" selected>3개 (30초)</option>
           </select>
         </label>
         <label class="fld"><span>클립 길이</span>
           <select id="duration">
-            <option value="5" selected>5초</option>
-            <option value="10">10초</option>
+            <option value="5">5초 — 컷이 잦습니다</option>
+            <option value="10" selected>10초 — 한 장면을 오래 (권장)</option>
           </select>
         </label>
       </div>
@@ -545,6 +556,12 @@
       <label class="fld"><span>제목</span><input type="text" id="title" placeholder="예: 골목을 지나"></label>
       <label class="fld"><span>훅 — 인스타 첫 줄에 그대로 나갑니다</span>
         <input type="text" id="hook" placeholder="예: 이 길 끝에 뭐가 있을까"></label>
+
+      <div class="suggest">
+        <button class="ghost" id="suggestBtn" type="button">✨ AI로 제목 3개 뽑기</button>
+        <small id="suggestNote"></small>
+        <div id="suggestList"></div>
+      </div>
       <label class="fld"><span>움직임 프롬프트 (비우면 기본값)</span>
         <textarea id="prompt" placeholder="forward motion through ..."></textarea></label>
 
@@ -702,8 +719,57 @@ function choose(name) {
     $("hook").value = first.hook || "";
     $("prompt").value = first.prompt || "";
   }
+  clearSuggest();
   syncForm(); renderSeeds();
 }
+
+// ── AI 제목 제안 ────────────────────────────────────────────────────
+// 무료 한도(하루 50회)가 있으므로 **누를 때만** 부른다. 이미지를 무더기로
+// 들여올 때는 절대 부르지 않는다 — 272장이면 첫날에 한도가 날아간다.
+function clearSuggest(note = "") {
+  $("suggestList").innerHTML = "";
+  const el = $("suggestNote");
+  el.textContent = note;
+  el.classList.remove("bad");
+}
+
+function applySuggest(s) {
+  $("title").value = s.title || $("title").value;
+  if (s.hook) $("hook").value = s.hook;
+  clearSuggest("적용했습니다. 마음에 안 들면 다시 뽑아 보세요.");
+}
+
+$("suggestBtn").onclick = async () => {
+  if (!picked.length) { clearSuggest("먼저 왼쪽에서 이미지를 고르세요."); return; }
+  const btn = $("suggestBtn"), note = $("suggestNote");
+  btn.disabled = true;
+  btn.textContent = "생각하는 중…";
+  clearSuggest("무료 모델이라 10~30초쯤 걸립니다.");
+  try {
+    const d = await api("/api/suggest-copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0] }),
+    });
+    const list = d.suggestions || [];
+    if (!list.length) { note.textContent = "후보를 못 받았습니다. 다시 눌러 보세요."; return; }
+    note.textContent = d.status && d.status.cap
+      ? `마음에 드는 것을 누르세요. 오늘 ${d.status.used}/${d.status.cap}회 사용.`
+      : "마음에 드는 것을 누르세요.";
+    $("suggestList").innerHTML = list.map((s, i) =>
+      `<button class="sg" type="button" data-i="${i}">` +
+      `<b>${esc(s.title)}</b><span>${esc(s.hook || "")}</span></button>`).join("");
+    [...$("suggestList").querySelectorAll(".sg")]
+      .forEach((el) => { el.onclick = () => applySuggest(list[Number(el.dataset.i)]); });
+  } catch (e) {
+    $("suggestList").innerHTML = "";
+    note.textContent = e.message;
+    note.classList.add("bad");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ AI로 제목 3개 뽑기";
+  }
+};
 
 function syncForm() {
   const n = picked.length;
@@ -720,7 +786,15 @@ function syncForm() {
 // 예전에는 select 의 value 에 그냥 숫자를 넣었는데, 보기에 없는 값(5,7,9…)을
 // 넣으면 select 가 통째로 비어버린다. 그러면 Number("") 가 0 이 되고 서버가
 // 1 로 올려서, 5장을 골라도 5초짜리 한 클립만 나왔다.
-const CHAIN_CLIPS = [4, 6, 8, 10];
+// 고를 수 있는 클립 수는 **길이에 따라 달라진다.** 총 길이를 20~50초에
+// 묶어두기 위해서다. 예전에는 [4,6,8,10] 로 고정이라 10초 클립을 고르면
+// 6개 = 60초짜리가 나왔다 — 쇼츠로는 너무 길고 값은 두 배였다.
+const TOTALS = [20, 30, 40, 50];
+
+function chainClips(dur) {
+  const out = TOTALS.map((s) => s / dur).filter((n) => Number.isInteger(n) && n >= 1);
+  return out.length ? out : [Math.max(1, Math.round(30 / dur))];
+}
 
 function syncClips() {
   const sel = $("clips"), dur = Number($("duration").value) || 5;
@@ -728,14 +802,20 @@ function syncClips() {
     const n = Math.max(1, Math.min(picked.length, 20));
     sel.innerHTML = `<option value="${n}">${n}개 (${n * dur}초)</option>`;
     sel.value = String(n);
+    sel.dataset.dur = String(dur);
     sel.disabled = true;
     sel.title = "장면 전환에서는 고른 이미지 수가 클립 수입니다.";
     return;
   }
-  const keep = CHAIN_CLIPS.includes(Number(sel.value)) ? sel.value : "6";
-  sel.innerHTML = CHAIN_CLIPS
+  const opts = chainClips(dur);
+  // 길이를 바꿔도 총 길이를 최대한 유지한다. 30초 기본, 없으면 가장 가까운 것.
+  const wantSec = (Number(sel.value) || 0) * (Number(sel.dataset.dur) || dur) || 30;
+  const keep = opts.reduce((a, b) =>
+    Math.abs(b * dur - wantSec) < Math.abs(a * dur - wantSec) ? b : a);
+  sel.innerHTML = opts
     .map((c) => `<option value="${c}">${c}개 (${c * dur}초)</option>`).join("");
-  sel.value = keep;
+  sel.value = String(keep);
+  sel.dataset.dur = String(dur);
   sel.disabled = false;
   sel.title = "";
 }

@@ -62,6 +62,15 @@ FIELDS: tuple[Field, ...] = (
     Field("S3_PUBLIC_BASE_URL", PLAIN, "공개 도메인", "storage",
           "선택 사항. R2 커스텀 도메인을 붙였을 때만 넣습니다.", ""),
 
+    Field("OPENROUTER_API_KEY", SECRET, "OpenRouter 키 (없어도 됩니다)", "copy",
+          "무료입니다. openrouter.ai → Keys 에서 만드세요. 카드 등록 없이 하루 50회까지 "
+          "무료 모델을 쓸 수 있습니다. 넣지 않으면 지금처럼 규칙으로 제목을 짓습니다.",
+          "sk-or-v1-..."),
+    Field("OPENROUTER_MODEL", PLAIN, "쓸 모델 (비워두세요)", "copy",
+          "비워두면 그때그때 살아 있는 무료 모델 중에서 자동으로 고릅니다. "
+          "무료 모델은 수시로 없어지므로 직접 적지 않는 편이 안전합니다.",
+          "비워두세요 — 자동으로 고릅니다"),
+
     Field("FAL_TOPUP_USD", PLAIN, "fal 충전 금액 ($)", "budget",
           "fal.ai 에 충전해 둔 금액을 넣으면 남은 금액을 계산해 보여줍니다. "
           "충전할 때마다 더해서 넣으세요 (20달러씩 두 번이면 40).", "20"),
@@ -74,6 +83,7 @@ GROUPS = {
     "youtube": "유튜브 업로드",
     "instagram": "인스타그램 업로드",
     "storage": "영상 보관함 (인스타에 필요)",
+    "copy": "제목 자동 작성 (선택)",
     "budget": "예산",
 }
 

@@ -236,6 +236,16 @@ def doctor_state() -> dict:
     }
 
 
+def copy_status() -> dict:
+    """제목 자동 작성(OpenRouter)이 켜져 있는지, 오늘 몇 번 썼는지."""
+    from pipeline import llm
+
+    try:
+        return llm.status(RUNS)
+    except Exception as exc:                    # 여기서 화면이 죽으면 안 된다
+        return {"enabled": False, "detail": f"확인하지 못했습니다: {exc}"}
+
+
 def estimate(mode: str, clips: int, duration: int) -> dict:
     from pipeline.config import load_config
     from pipeline.costs import estimate as est
@@ -636,6 +646,10 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if p == "/api/copy-status":
+            self._json(copy_status())
+            return
+
         if p == "/api/doctor":
             self._json(doctor_state())
             return
@@ -778,6 +792,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/save-meta":
             self._save_meta(body)
             return
+        if u.path == "/api/suggest-copy":
+            self._suggest_copy(body)
+            return
         if u.path == "/api/upload":
             self._upload(body)
             return
@@ -831,6 +848,44 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
         self._json({"id": job.id})
+
+    def _suggest_copy(self, body: dict) -> None:
+        """무료 LLM 으로 제목·훅 후보를 받아온다. 실패해도 화면은 멀쩡해야 한다."""
+        from pipeline import llm
+        from pipeline.content import load_content
+        from pipeline.curate import prompt_from_filename
+        from pipeline.intake import read_sidecar
+
+        name = _safe_name(body.get("seed", ""))
+        image = SEEDS / name
+        if not name or not image.exists():
+            self._json({"error": "이미지를 찾을 수 없습니다."}, 400)
+            return
+        if not llm.enabled():
+            self._json({"error": "OpenRouter 키가 없습니다. [설정] 탭에서 넣어 주세요 "
+                                 "— 무료이고 카드도 필요 없습니다."}, 400)
+            return
+
+        # 원본 미드저니 프롬프트가 가장 좋은 재료다. 없으면 사이드카·파일명 순.
+        side = read_sidecar(image)
+        source = side.get("source") or ""
+        scene = prompt_from_filename(Path(source)) if source else ""
+        if not scene:
+            scene = load_content(image).prompt or prompt_from_filename(image)
+
+        theme = side.get("theme") or image.stem.rsplit("_", 1)[0]
+        try:
+            found = llm.suggest(theme, scene, base_title=side.get("title", ""),
+                                base_hook=side.get("hook", ""), state_dir=RUNS)
+        except llm.LLMUnavailable as exc:
+            self._json({"error": str(exc)}, 400)
+            return
+        except Exception as exc:
+            self._json({"error": f"제목을 받아오지 못했습니다: {exc}"}, 400)
+            return
+
+        self._json({"ok": True, "status": copy_status(),
+                    "suggestions": [{"title": s.title, "hook": s.hook} for s in found]})
 
     def _schedule_upload(self, body: dict) -> None:
         """이 영상을 언제 어디에 올릴지 예약한다. 취소도 여기서."""
@@ -1187,11 +1242,14 @@ class Handler(BaseHTTPRequestHandler):
             cfg = load_config(ROOT / "config.yaml")
             mode, clips, duration = cfg.mode, cfg.num_clips, cfg.clip_duration
         except Exception:                            # noqa: BLE001
-            mode, clips, duration = "chain", 6, 5
+            mode, clips, duration = "chain", 3, 10
         # 간편 모드는 항상 끊김 없는 chain 이다. montage 는 같은 그림으로 되돌아간다.
         mode = "chain"
 
         from pipeline.content import load_content
+        # 영상 한 편에 무료 호출 1회. 하루 한 편이면 한도(40회)에 한참 못 미친다.
+        # 실패하면 규칙으로 지은 제목이 그대로 쓰인다 — 여기서 막히지 않는다.
+        _polish_seed(seed)
         title = load_content(seed).title or seed.stem
 
         args = ["main.py", "generate", "--image", f"seeds/{seed.name}",
@@ -1205,18 +1263,71 @@ class Handler(BaseHTTPRequestHandler):
         if not name or not (SEEDS / name).exists():
             self._json({"error": "이미지를 찾을 수 없습니다."}, 400)
             return
-        title = str(body.get("title", "")).strip()
-        hook = str(body.get("hook", "")).strip()
-        prompt = str(body.get("prompt", "")).strip()
-        dest = (SEEDS / name).with_suffix(".yaml")
-        dest.write_text(
-            "# 웹 화면에서 저장했습니다.\n"
+        save_meta(SEEDS / name,
+                  title=str(body.get("title", "")).strip(),
+                  hook=str(body.get("hook", "")).strip(),
+                  prompt=str(body.get("prompt", "")).strip())
+        self._json({"ok": True})
+
+
+def _polish_seed(seed: Path) -> None:
+    """간편 모드에서 제목을 무료 LLM 으로 한 번 다듬는다.
+
+    **무슨 일이 있어도 조용히 넘어간다.** 여기서 예외가 새면 영상 생성 자체가
+    시작조차 못 한다. 키가 없으면 아무것도 하지 않는다.
+    """
+    try:
+        from pipeline import llm
+
+        if not llm.enabled():
+            return
+        from pipeline.content import load_content
+        from pipeline.copywriter import write as write_copy
+        from pipeline.curate import prompt_from_filename
+        from pipeline.intake import read_sidecar
+
+        side = read_sidecar(seed)
+        source = side.get("source") or ""
+        scene = prompt_from_filename(Path(source)) if source else ""
+        content = load_content(seed)
+        if not scene:
+            scene = content.prompt or prompt_from_filename(seed)
+
+        theme = side.get("theme") or seed.stem.rsplit("_", 1)[0]
+        base = write_copy(theme, scene, seed_key=seed.stem)
+        base = type(base)(title=content.title or base.title,
+                          hook=content.hook or base.hook,
+                          prompt=content.prompt or base.prompt)
+        better = llm.polish(base, theme, scene, state_dir=RUNS)
+        if better.title != base.title or better.hook != base.hook:
+            save_meta(seed, title=better.title, hook=better.hook,
+                      prompt=better.prompt)
+    except Exception as exc:                    # noqa: BLE001
+        print(f"  · 제목 다듬기는 건너뜁니다: {exc}")
+
+
+def save_meta(image: Path, *, title: str, hook: str, prompt: str) -> Path:
+    """사이드카의 제목·훅·프롬프트를 고친다. **theme 과 source 는 지키면서.**
+
+    예전에는 화면에서 제목을 저장하면 파일을 통째로 새로 써서 theme/source 가
+    날아갔다. 그 두 줄이 없으면 나중에 [다시 분류] 를 눌러도 그 이미지만
+    분류가 안 된다 — 원본 프롬프트를 잃어버리기 때문이다.
+    """
+    from pipeline.intake import read_sidecar
+
+    keep = read_sidecar(image)
+    dest = image.with_suffix(".yaml")
+    body = ("# 웹 화면에서 저장했습니다.\n"
             f"title:  {title}\n"
             f"hook:   {hook}\n"
             f"prompt: {prompt}\n"
-            "\nscene_prompts: []\n",
-            encoding="utf-8")
-        self._json({"ok": True})
+            "\nscene_prompts: []\n")
+    tail = "".join(f"{k}:  {keep[k]}\n" for k in ("theme", "source") if keep.get(k))
+    if tail:
+        body += ("\n# 아래 두 줄은 자동으로 다시 분류할 때 씁니다. 지우지 마세요.\n"
+                 + tail)
+    dest.write_text(body, encoding="utf-8")
+    return dest
 
 
 def upload_queue_state() -> dict:
