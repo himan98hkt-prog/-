@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import mimetypes
 import os
 import re
+import socket
 import threading
 import time
 import webbrowser
@@ -36,10 +38,20 @@ def _code_stamp() -> float:
     부팅 때 찍어둔 값과 지금 값을 비교해 그 상태를 알아챈다.
     """
     newest = 0.0
+    # 하위 폴더(pipeline/providers)와 화면 파일(app.html)까지 본다.
+    # 예전에는 세 폴더의 바로 밑 .py 만 봐서, provider 만 바뀐 업데이트는
+    # 알아채지 못하고 옛 코드로 계속 돌았다.
     for folder in (ROOT / "ui", ROOT / "pipeline", ROOT / "publish"):
-        if folder.is_dir():
-            for f in folder.glob("*.py"):
-                newest = max(newest, f.stat().st_mtime)
+        if not folder.is_dir():
+            continue
+        for pattern in ("*.py", "*/*.py", "*.html"):
+            for f in folder.glob(pattern):
+                if "__pycache__" in f.parts:
+                    continue
+                try:
+                    newest = max(newest, f.stat().st_mtime)
+                except OSError:
+                    pass
     main = ROOT / "main.py"
     if main.exists():
         newest = max(newest, main.stat().st_mtime)
@@ -234,6 +246,28 @@ def doctor_state() -> dict:
             for s in sections
         ],
     }
+
+
+CONFIG = ROOT / "config.yaml"
+CONFIG_NEW = ROOT / "config.yaml.new"
+
+
+def config_diff_state() -> dict:
+    """업데이트로 들어온 새 설정 중, 아직 적용 안 된 것.
+
+    update.ps1 이 사용자 config.yaml 을 지키느라 새 값은 config.yaml.new 로만
+    들어간다. 그러면 개선된 기본값이 영영 안 닿는다 — 실제로 비용을 30% 낮추는
+    설정이 몇 시간 동안 적용되지 않은 채였다. 그래서 화면에 꺼내 보여준다.
+    """
+    from pipeline import configdiff
+
+    try:
+        changes = configdiff.compare(CONFIG, CONFIG_NEW)
+    except Exception:                                # noqa: BLE001
+        return {"changes": []}
+    return {"changes": [{"key": c.key, "label": c.label,
+                         "current": c.current, "incoming": c.incoming}
+                        for c in changes]}
 
 
 def copy_status() -> dict:
@@ -643,11 +677,16 @@ class Handler(BaseHTTPRequestHandler):
                 "active": (jobs.active().snapshot() if jobs.active() else None),
                 "queue": upload_queue_state(),
                 "needs_restart": needs_restart(),
+                "config_diff": config_diff_state()["changes"],
             })
             return
 
         if p == "/api/copy-status":
             self._json(copy_status())
+            return
+
+        if p == "/api/config-diff":
+            self._json(config_diff_state())
             return
 
         if p == "/api/doctor":
@@ -795,6 +834,12 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/suggest-copy":
             self._suggest_copy(body)
             return
+        if u.path == "/api/quit":
+            self._quit()
+            return
+        if u.path == "/api/apply-config":
+            self._apply_config(body)
+            return
         if u.path == "/api/upload":
             self._upload(body)
             return
@@ -848,6 +893,46 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
         self._json({"id": job.id})
+
+    def _apply_config(self, body: dict) -> None:
+        """새 설정을 사용자 config.yaml 에 반영한다. 고르는 것은 사용자다."""
+        from pipeline import configdiff
+
+        if jobs.active():
+            self._json({"error": "작업이 끝난 뒤에 바꿔주세요."}, 409)
+            return
+
+        changes = configdiff.compare(CONFIG, CONFIG_NEW)
+        if not changes:
+            self._json({"ok": True, "changed": [], "diff": config_diff_state()})
+            return
+
+        picked = body.get("keys")
+        wanted = {c.key: c.incoming for c in changes
+                  if not isinstance(picked, list) or c.key in picked}
+        try:
+            changed = configdiff.apply(CONFIG, wanted)
+        except OSError as exc:
+            self._json({"error": f"설정을 저장하지 못했습니다: {exc}"}, 500)
+            return
+
+        # 다 반영했으면 .new 는 치운다. 남겨두면 계속 알림이 뜬다.
+        if not configdiff.compare(CONFIG, CONFIG_NEW):
+            CONFIG_NEW.unlink(missing_ok=True)
+
+        self._json({"ok": True, "changed": changed, "diff": config_diff_state()})
+
+    def _quit(self) -> None:
+        """작업실을 닫는다. 새로 켜는 쪽이 자리를 넘겨받을 때 쓴다.
+
+        영상을 만드는 중이면 거절한다 — 돈이 든 작업을 중간에 끊으면 안 된다.
+        """
+        if jobs.active():
+            self._json({"error": "작업이 진행 중입니다."}, 409)
+            return
+        self._json({"ok": True})
+        print("  다른 창에서 작업실을 이어받습니다. 이 창은 닫습니다.")
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def _suggest_copy(self, body: dict) -> None:
         """무료 LLM 으로 제목·훅 후보를 받아온다. 실패해도 화면은 멀쩡해야 한다."""
@@ -1391,8 +1476,75 @@ def _queue_worker(interval: float = 20.0) -> None:
             print(f"  ⚠ 예약 업로드 확인 중 오류: {exc}")
 
 
+def _studio_on(port: int) -> bool:
+    """그 포트에 우리 작업실이 이미 떠 있는지 확인한다."""
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/api/state", timeout=2.5) as r:
+            return "needs_restart" in json.loads(r.read().decode("utf-8"))
+    except (urllib.error.URLError, ValueError, OSError, TimeoutError):
+        return False
+
+
+def _ask_old_studio_to_quit(port: int) -> bool:
+    """먼저 떠 있던 작업실에 '비켜달라' 고 부탁하고, 포트가 풀릴 때까지 기다린다."""
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/quit", data=b"{}", method="POST",
+        headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=5).read()
+    except urllib.error.HTTPError:
+        return False                      # 옛 버전이라 이 기능이 없다
+    except (urllib.error.URLError, OSError, TimeoutError):
+        pass                              # 끊기면서 오류가 나는 게 정상이다
+
+    for _ in range(40):                   # 최대 10초
+        time.sleep(0.25)
+        with socket.socket() as s:
+            s.settimeout(0.4)
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                return True
+    return False
+
+
+def _bind(port: int) -> ThreadingHTTPServer:
+    """포트를 잡는다. 옛 작업실이 물고 있으면 넘겨받는다.
+
+    업데이트를 받고 작업실을 다시 켤 때, 먼저 떠 있던 창이 아직 살아 있으면
+    새로 켜는 쪽이 '주소가 이미 사용 중' 으로 죽는다. 그런데 브라우저는
+    **옛 서버에 그대로 붙어 있으므로** 화면은 멀쩡해 보인다. 그래서 노란
+    '다시 실행하세요' 띠가 아무리 다시 켜도 안 사라진다. 실제로 그런 신고가
+    들어왔다. 여기서 옛 서버를 정리하고 자리를 넘겨받는다.
+    """
+    try:
+        return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    except OSError as exc:
+        if exc.errno not in (errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", 10048)):
+            raise
+    if not _studio_on(port):
+        raise SystemExit(
+            f"\n  {port} 번 포트를 다른 프로그램이 쓰고 있습니다.\n"
+            f"  그 프로그램을 끄거나, 다른 번호로 여세요:\n"
+            f"      python main.py ui --port {port + 1}\n")
+
+    print("  먼저 열려 있던 작업실을 닫는 중…")
+    if not _ask_old_studio_to_quit(port):
+        raise SystemExit(
+            "\n  이미 열려 있는 작업실을 닫지 못했습니다.\n"
+            "  검은 창이 하나 더 떠 있으면 그 창에서 Ctrl+C 를 누르거나,\n"
+            "  작업 관리자에서 python 을 끝낸 뒤 다시 실행하세요.\n")
+    print("  닫았습니다. 새 작업실로 이어갑니다.")
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+
+
 def serve(port: int = 8765, open_browser: bool = True) -> None:
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    httpd = _bind(port)
     url = f"http://127.0.0.1:{port}"
     print(f"\n  AI DEOKHU 작업실이 열렸습니다\n  {url}\n")
     print("  창을 닫으려면 이 터미널에서 Ctrl+C 를 누르세요.\n")

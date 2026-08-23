@@ -219,6 +219,20 @@
   .ghost:hover{border-color:var(--cyan);color:var(--cyanInk)}
   .ghost.danger:hover{border-color:var(--bad);color:var(--bad)}
   .ghost[disabled]{opacity:.5;cursor:default}
+
+  /* 새 권장 설정 알림 */
+  .cfgbar{display:flex;gap:14px;align-items:center;justify-content:space-between;
+          flex-wrap:wrap;margin:0 auto 14px;max-width:1500px;
+          background:rgba(40,180,220,.10);border:1px solid var(--cyan);
+          border-radius:12px;padding:13px 16px;color:var(--ink)}
+  .cfgbar[hidden]{display:none}
+  .cfgtext{flex:1 1 380px;line-height:1.55;font-size:13.5px}
+  .cfgtext ul{margin:8px 0 0;padding-left:18px}
+  .cfgtext li{margin:3px 0;color:var(--ink2)}
+  .cfgtext li b{color:var(--ink)}
+  .cfgtext li s{opacity:.6}
+  .cfgacts{display:flex;gap:8px;flex-shrink:0}
+  .go.small{padding:9px 16px;font-size:13.5px;width:auto;margin:0}
   .ghost[disabled]:hover{border-color:var(--line);color:var(--ink2)}
 
   /* AI 제목 제안 */
@@ -307,6 +321,20 @@
 <div class="restart" id="restartBar">
   최신 코드를 받았습니다. <b>검은 창을 닫고 [AI DEOKHU 작업실] 을 다시 실행하세요.</b>
   다시 켜야 새 기능이 동작합니다.
+  <small>다시 켰는데도 이 줄이 남아 있으면, 예전 검은 창이 하나 더 떠 있는 것입니다.
+  그 창을 닫고 다시 실행하세요.</small>
+</div>
+
+<div class="cfgbar" id="cfgBar" hidden>
+  <div class="cfgtext">
+    <b>새 권장 설정이 있습니다.</b> 업데이트는 받았지만, 사용자가 바꾼 설정을
+    지키느라 아래 값은 아직 적용되지 않았습니다.
+    <ul id="cfgList"></ul>
+  </div>
+  <div class="cfgacts">
+    <button class="go small" id="cfgApply">새 설정 적용</button>
+    <button class="ghost" id="cfgSkip">그대로 두기</button>
+  </div>
 </div>
 
 <main id="main">
@@ -633,6 +661,7 @@ async function refresh() {
     // 파일은 새것인데 서버가 예전 코드로 돌고 있으면 알려준다.
     // 안 그러면 새 버튼을 눌렀을 때 영문 모를 오류만 뜬다.
     $("restartBar").classList.toggle("on", !!s.needs_restart);
+    renderConfigDiff(s.config_diff || []);
     renderSeeds(); renderRuns();
     if (s.active) {
       activeJob = s.active.id;
@@ -722,6 +751,45 @@ function choose(name) {
   clearSuggest();
   syncForm(); renderSeeds();
 }
+
+// ── 새 권장 설정 ────────────────────────────────────────────────────
+// 업데이트는 사용자 config.yaml 을 덮어쓰지 않는다 (바꿔놓은 설정이 되돌아가면
+// 안 되니까). 그래서 개선된 기본값이 안 닿는다 — 비용을 30% 낮추는 설정이
+// 적용 안 된 채로 계속 쓰이던 일이 실제로 있었다. 여기서 꺼내 보여준다.
+let cfgSkipped = false;
+
+function renderConfigDiff(changes) {
+  const bar = $("cfgBar");
+  if (cfgSkipped || !changes.length) { bar.hidden = true; return; }
+  $("cfgList").innerHTML = changes.map((c) =>
+    `<li>${esc(c.label)} — <s>${esc(c.current)}</s> → <b>${esc(c.incoming)}</b></li>`
+  ).join("");
+  bar.hidden = false;
+}
+
+$("cfgSkip").onclick = () => { cfgSkipped = true; $("cfgBar").hidden = true; };
+
+$("cfgApply").onclick = async () => {
+  const btn = $("cfgApply");
+  btn.disabled = true;
+  try {
+    const d = await api("/api/apply-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    renderConfigDiff((d.diff && d.diff.changes) || []);
+    toast(d.changed && d.changed.length
+      ? `${d.changed.length}개 설정을 적용했습니다.`
+      : "이미 최신 설정입니다.");
+    updateCost();
+    refresh();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 // ── AI 제목 제안 ────────────────────────────────────────────────────
 // 무료 한도(하루 50회)가 있으므로 **누를 때만** 부른다. 이미지를 무더기로
