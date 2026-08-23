@@ -384,6 +384,10 @@ def publish_cmd(
     youtube: bool = typer.Option(False, "--youtube"),
     instagram: bool = typer.Option(False, "--instagram"),
     video_url: str = typer.Option("", "--video-url", help="인스타그램용 공개 mp4 URL"),
+    publish_at: str = typer.Option(
+        "", "--publish-at",
+        help="유튜브 공개 예약 시각 (예: 2026-08-25T21:00). "
+             "지금 올리고 그 시각에 공개하므로 컴퓨터가 꺼져 있어도 됩니다."),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ):
     """완성된 영상을 업로드한다."""
@@ -427,6 +431,7 @@ def publish_cmd(
                 category_id=str(yc.get("category_id", "24")),
                 state_dir=RUNS_DIR,
                 daily_cap=int(yc.get("daily_upload_cap", 90)),
+                publish_at=publish_at or None,
                 dry_run=dry_run,
             )
         except yt.UploadError as exc:
@@ -438,7 +443,11 @@ def publish_cmd(
         else:
             typer.secho(f"✓ YouTube: {res.url}", fg=typer.colors.GREEN)
             run.log("publish.youtube", video_id=res.video_id, url=res.url)
-            record("youtube", ok=True, url=res.url, video_id=res.video_id)
+            record("youtube", ok=True, url=res.url, video_id=res.video_id,
+                   publish_at=publish_at or None)
+            if publish_at:
+                typer.echo(f"    {publish_at} 에 공개됩니다 "
+                           "(그때 컴퓨터가 꺼져 있어도 됩니다).")
 
     if instagram:
         from publish import instagram as ig

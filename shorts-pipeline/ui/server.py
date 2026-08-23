@@ -853,7 +853,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             item = q.add(run_id, targets, str(body.get("at", "")),
-                         dry_run=bool(body.get("dry_run")))
+                         dry_run=bool(body.get("dry_run")),
+                         kind=str(body.get("kind", "upload_at")))
         except ValueError as exc:
             self._json({"error": f"시각을 읽지 못했습니다: {exc}"}, 400)
             return
@@ -1257,6 +1258,8 @@ def _queue_worker(interval: float = 20.0) -> None:
             args = ["main.py", "publish", "--run", item.run]
             for t in item.targets:
                 args.append(f"--{t}")
+            if item.kind == "publish_at" and "youtube" in item.targets:
+                args += ["--publish-at", item.at]
             if item.dry_run:
                 args.append("--dry-run")
 

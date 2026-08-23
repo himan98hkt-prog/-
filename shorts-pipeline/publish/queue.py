@@ -38,6 +38,9 @@ class Item:
     at: str                       # ISO. 로컬 시각.
     status: str = "waiting"       # waiting | running | done | failed | skipped
     dry_run: bool = False         # 연습. 진짜로 안 올리고 경로만 확인한다.
+    # upload_at : 그 시각에 이 컴퓨터가 올린다 (켜져 있어야 함)
+    # publish_at: 지금 올리고 유튜브가 그 시각에 공개한다 (꺼져 있어도 됨)
+    kind: str = "upload_at"
     error: str = ""
     finished_at: str = ""
     tried: int = 0
@@ -76,6 +79,7 @@ class Queue:
                     finished_at=str(r.get("finished_at", "")),
                     tried=int(r.get("tried", 0) or 0),
                     dry_run=bool(r.get("dry_run", False)),
+                    kind=str(r.get("kind", "upload_at")),
                 ))
         return cls(path=path, items=items)
 
@@ -87,7 +91,7 @@ class Queue:
 
     # ── 조작 ─────────────────────────────────────────────────────────
     def add(self, run: str, targets: list[str], at: str,
-            dry_run: bool = False) -> Item:
+            dry_run: bool = False, kind: str = "upload_at") -> Item:
         """같은 영상의 기다리는 예약은 덮어쓴다. 두 번 올리지 않기 위해서."""
         clean = [t for t in targets if t in VALID_TARGETS]
         if not clean:
@@ -96,7 +100,8 @@ class Queue:
         self.items = [i for i in self.items
                       if not (i.run == run and i.status == "waiting")]
         item = Item(run=run, targets=clean, at=when.isoformat(timespec="minutes"),
-                    dry_run=dry_run)
+                    dry_run=dry_run,
+                    kind=kind if kind in ("upload_at", "publish_at") else "upload_at")
         self.items.append(item)
         self.save()
         return item
@@ -127,9 +132,12 @@ class Queue:
             if i.status != "waiting":
                 continue
             when = i.when()
-            if when is None or when > now:
+            if when is None:
                 continue
-            if now - when > timedelta(hours=STALE_HOURS):
+            # publish_at 은 지금 올려야 한다. 유튜브가 그 시각에 공개한다.
+            if i.kind != "publish_at" and when > now:
+                continue
+            if i.kind != "publish_at" and now - when > timedelta(hours=STALE_HOURS):
                 continue                     # 너무 밀린 것은 사람이 판단한다
             if best is None or (i.when() or now) < (best.when() or now):
                 best = i

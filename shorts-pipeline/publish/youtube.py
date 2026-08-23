@@ -85,6 +85,26 @@ def check_quota(state_dir: Path, cap: int) -> tuple[int, int]:
     return data["count"], cap
 
 
+def _rfc3339(value: str) -> str:
+    """'2026-08-25T21:00' 같은 로컬 시각을 UTC RFC3339 로 바꾼다.
+
+    유튜브는 UTC 를 요구한다. 로컬 시각을 그대로 보내면 9시간 어긋난다.
+    """
+    from datetime import datetime, timezone
+
+    try:
+        dt = datetime.fromisoformat(value.strip().replace(" ", "T"))
+    except ValueError as exc:
+        raise UploadError(
+            f"공개 예약 시각을 읽지 못했습니다: {value!r} "
+            "(예: 2026-08-25T21:00)") from exc
+    if dt.tzinfo is None:
+        dt = dt.astimezone()                    # 이 컴퓨터의 표준시로 해석
+    if dt <= datetime.now(timezone.utc):
+        raise UploadError(f"공개 예약 시각이 이미 지났습니다: {value}")
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def upload(
     video: Path,
     *,
@@ -95,8 +115,15 @@ def upload(
     category_id: str = "24",
     state_dir: Path = Path("runs"),
     daily_cap: int = 90,
+    publish_at: str | None = None,
     dry_run: bool = False,
 ) -> UploadResult:
+    """유튜브에 올린다.
+
+    publish_at 을 주면 **지금 올리고 그 시각에 공개**한다 (RFC3339).
+    유튜브 서버가 공개를 처리하므로 그 시각에 이 컴퓨터가 꺼져 있어도 된다.
+    예약 공개는 비공개 업로드에서만 동작하므로 privacy 를 private 로 강제한다.
+    """
     if not video.exists():
         raise UploadError(f"업로드할 영상이 없습니다: {video}")
 
@@ -111,8 +138,13 @@ def upload(
     title = title[:100]
     description = description[:5000]
 
+    when = _rfc3339(publish_at) if publish_at else None
+    if when:
+        privacy = "private"        # 예약 공개는 비공개 업로드에서만 된다
+
     if dry_run:
-        print(f"  [dry-run] YouTube 업로드 생략: {title!r} ({privacy})")
+        extra = f", {when} 에 공개 예약" if when else ""
+        print(f"  [dry-run] YouTube 업로드 생략: {title!r} ({privacy}{extra})")
         return UploadResult("dry-run", "https://youtube.com/shorts/dry-run")
 
     _, _, _, build, MediaFileUpload = _require_libs()
@@ -126,6 +158,8 @@ def upload(
         },
         "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False},
     }
+    if when:
+        body["status"]["publishAt"] = when
     media = MediaFileUpload(str(video), chunksize=8 * 1024 * 1024, resumable=True,
                             mimetype="video/mp4")
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)

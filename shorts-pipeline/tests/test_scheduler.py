@@ -405,8 +405,56 @@ def _upload_queue_tests(check) -> None:
     check("영상이 지워졌으면 건너뛴다", '"skipped"' in server)
     html = (ROOT / "ui" / "app.html").read_text(encoding="utf-8")
     check("카드에 예약 버튼", 'data-sch=' in html)
-    check("예약 상태를 보여준다", "예약됨" in html)
+    check("예약 상태를 보여준다", "업로드 예약" in html and "공개 예약" in html)
     check("컴퓨터가 켜져 있어야 한다고 알려준다", "켜져 있고" in html)
+
+    # ── 지금 올리고 나중에 공개 (컴퓨터가 꺼져 있어도 되는 길) ──────
+    print("\n[유튜브 공개 예약]")
+    from publish.youtube import UploadError, _rfc3339
+
+    later = (now + timedelta(days=2)).strftime("%Y-%m-%dT21:00")
+    stamp = _rfc3339(later)
+    check("UTC RFC3339 로 바꾼다", stamp.endswith("Z") and "T" in stamp, stamp)
+    # 한국(UTC+9) 21:00 은 12:00Z 다. 로컬 그대로 보내면 9시간 어긋난다.
+    import os
+    from datetime import datetime as _dt
+    keep = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "Asia/Seoul"
+        __import__("time").tzset()
+        check("한국 21시는 12시 UTC",
+              _rfc3339("2026-12-25T21:00") == "2026-12-25T12:00:00Z",
+              _rfc3339("2026-12-25T21:00"))
+    finally:
+        if keep is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = keep
+        __import__("time").tzset()
+
+    for bad in ("내일 아홉시", "2020-01-01T09:00"):
+        try:
+            _rfc3339(bad)
+            check(f"{bad!r} 는 거부", False)
+        except UploadError:
+            check(f"{bad!r} 는 거부", True)
+
+    yt = (ROOT / "publish" / "youtube.py").read_text(encoding="utf-8")
+    check("publishAt 을 보낸다", 'body["status"]["publishAt"] = when' in yt)
+    # 예약 공개는 비공개 업로드에서만 된다. 공개로 올리면 즉시 공개된다.
+    check("예약이면 비공개로 강제", 'privacy = "private"' in yt)
+
+    # publish_at 예약은 시각을 기다리지 않고 지금 올려야 한다
+    q2 = Queue.load(Path(tempfile.mkdtemp()))
+    q2.add("r_pub", ["youtube"], (now + timedelta(days=2)).isoformat(),
+           kind="publish_at")
+    q2.add("r_up", ["youtube"], (now + timedelta(days=2)).isoformat(),
+           kind="upload_at")
+    d2 = q2.due()
+    check("공개 예약은 지금 올린다", d2 is not None and d2.run == "r_pub",
+          d2.run if d2 else "없음")
+    server2 = (ROOT / "ui" / "server.py").read_text(encoding="utf-8")
+    check("워커가 --publish-at 을 넘긴다", '"--publish-at", item.at' in server2)
 
 
 if __name__ == "__main__":
