@@ -1,0 +1,49 @@
+name: PianoEvent AI
+
+on:
+  push:
+    branches: [main]
+    paths: ['pianoevent-ai/**', '.github/workflows/pianoevent.yml']
+  pull_request:
+    paths: ['pianoevent-ai/**', '.github/workflows/pianoevent.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: pianoevent-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: pianoevent-ai
+
+jobs:
+  verify:
+    name: 린트 · 테스트 · 빌드 · 스모크
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pianoevent-ai/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 린트
+        run: npm run lint
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 단위 테스트
+        run: npm test
+
+      - name: 프로덕션 빌드
+        run: npm run build
+
+      - name: 스모크 (실제 서버 기동 후 원장·학부모 흐름 검증)
+        run: npm run smoke
