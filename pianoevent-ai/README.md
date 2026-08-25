@@ -107,11 +107,19 @@ supabase/functions/gemini-proxy/   모바일 앱용 API 키 은닉 프록시
 ## 4. 검증
 
 ```bash
-npm test     # 62건 — 순서 배치, 시간 계산, 파서, 대본, AI 응답 방어 파싱, 집계
+npm test       # 72건 — 순서 배치, 시간 계산, 날짜 표기, 파서, 대본, AI 응답 방어 파싱, 집계
 npm run smoke  # 26건 — 실제 서버에 요청해 원장·학부모 흐름 전체를 밟는다
+npm run shots  # 주요 화면을 screenshots/ 에 캡처 (Playwright)
 ```
 
-스모크는 `.data` 를 임시로 옮겨 두고 돌기 때문에 실제 작업 데이터를 건드리지 않습니다.
+스모크와 캡처는 `.data` 를 임시로 옮겨 두고 돌기 때문에 실제 작업 데이터를 건드리지 않습니다.
+시스템에 설치된 Chromium 을 쓰려면 `CHROMIUM_PATH` 를 지정하세요.
+
+### 시간대
+
+순서표의 예상 시각은 서버(대개 UTC)와 브라우저(원장의 로컬)에서 같은 값이 나와야 하므로,
+표기와 입력 해석을 모두 **고정된 학원 시간대**에서 수행합니다 (기본 `Asia/Seoul`,
+`NEXT_PUBLIC_APP_TIME_ZONE` 으로 변경). `lib/format.ts` 한곳에만 모여 있습니다.
 
 ---
 

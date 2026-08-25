@@ -1,3 +1,4 @@
+import { normalizeEventAt } from '@/lib/format'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
 import { getRepository } from '@/lib/store'
 import type { EventStatus } from '@/lib/types'
@@ -19,8 +20,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (typeof body.greeting === 'string') patch.greeting = body.greeting.trim().slice(0, 800) || null
     const eventAt = str(body.event_at, 40)
     if (eventAt) {
-      if (Number.isNaN(new Date(eventAt).getTime())) return fail('행사 일시를 올바르게 입력해 주세요.')
-      patch.event_at = new Date(eventAt).toISOString()
+      const iso = normalizeEventAt(eventAt)
+      if (!iso) return fail('행사 일시를 올바르게 입력해 주세요.')
+      patch.event_at = iso
     }
     if (STATUSES.includes(body.status as EventStatus)) patch.status = body.status
 

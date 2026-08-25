@@ -5,15 +5,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
+import { isoAtLocalTime, toDatetimeLocal } from '@/lib/format'
 import { SEASON_LABEL, type EventType, type SeasonTheme } from '@/lib/types'
 
-function defaultDateTime() {
-  const d = new Date()
-  d.setDate(d.getDate() + 21)
-  d.setHours(15, 0, 0, 0)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+/** 3주 뒤 오후 3시 (학원 시간대 기준) */
+const defaultDateTime = () => toDatetimeLocal(isoAtLocalTime(21, 15))
 
 export function NewEventForm() {
   const router = useRouter()

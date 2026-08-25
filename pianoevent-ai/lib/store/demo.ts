@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { isoAtLocalTime } from '@/lib/format'
 import { estimateDurationSec } from '@/lib/program/order'
 import type { NewEvent, NewRsvp, NewStudent, ProgramAssignment, Repository } from '@/lib/store/types'
 import type { Academy, EventRecord, EventStudent, Rsvp } from '@/lib/types'
@@ -26,8 +27,7 @@ function seed(): Db {
   const academyId = 'demo-academy'
   const eventId = 'demo-event'
   const created = nowIso()
-  const eventAt = new Date(Date.now() + 21 * 24 * 3600 * 1000)
-  eventAt.setHours(15, 0, 0, 0)
+  const eventAt = isoAtLocalTime(21, 15)
 
   const roster: [string, string, string, number, EventStudent['level'], string | null][] = [
     ['김서연', '엘리제를 위하여', '베토벤', 210, 'intermediate', '올해로 세 번째 무대에 서는 학생입니다'],
@@ -61,7 +61,7 @@ function seed(): Db {
         academy_id: academyId,
         title: '제12회 정기 연주회',
         type: 'recital',
-        event_at: eventAt.toISOString(),
+        event_at: eventAt,
         venue: '구민회관 소공연장',
         status: 'draft',
         theme: null,

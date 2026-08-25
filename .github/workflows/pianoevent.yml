@@ -31,6 +31,9 @@ jobs:
           cache-dependency-path: pianoevent-ai/package-lock.json
 
       - name: 의존성 설치
+        # 화면 캡처(npm run shots)에만 쓰는 브라우저는 CI 에서 내려받지 않는다
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: npm ci
 
       - name: 린트
