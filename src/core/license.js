@@ -1,13 +1,30 @@
-// 자체검증 라이선스 키 (오프라인 검증).
+// 자체검증 인증키(시디키) — 서버 없이 오프라인에서 검증된다.
 //
-// 형식: 12자 = [플랜 1자][랜덤 7자][체크섬 4자]  → 표기는 4자씩 끊어 'XXXX-XXXX-XXXX'
-//   - 플랜 문자: L = Lite, P = Pro
-//   - 체크섬: SALT + 본문 8자를 해시한 값의 하위 20비트를 base32(4자)로 인코딩
+// 형식(v2): 12자 = [제품 1자][플랜 1자][랜덤 6자][체크섬 4자] → 표기는 'XXXX-XXXX-XXXX'
+//   제품 문자   A = 통합(피아노 관리노트 + 학원 관리노트 공용)
+//              M = 학원 관리노트 전용
+//              K = 피아노 관리노트 전용
+//   플랜 문자   L = Lite(단일 기기·오프라인)   P = Pro(다기기·실시간 동기화)
+//   체크섬     SALT + 본문 8자를 해시한 값의 하위 20비트를 base32 4자로 인코딩
 //
-// 주의: SALT는 이 제품 전용 신규 값이다. 구제품(피아노학원 관리노트) 키는 이 salt로 검증되지 않으며
-//       그 반대도 성립한다 — 의도된 동작이다. SALT를 바꾸면 이미 판매된 키가 전부 무효가 되므로
-//       출시 후에는 절대 수정하지 말 것.
+// 형식(v1): 12자 = [플랜 1자][랜덤 7자][체크섬 4자]. 초기 발급분 호환을 위해 계속 인정한다.
+//
+// 두 제품에서 같은 키를 쓰려면: 이 파일을 두 제품에 그대로 넣고 PRODUCT_CODE 만 바꾼다
+// (학원 관리노트 = 'M', 피아노 관리노트 = 'K'). 제품 문자가 'A' 인 키는 양쪽 모두에서 열린다.
+//
+// 주의: SALT 를 바꾸면 이미 발급한 키가 전부 무효가 된다. 출시 후에는 절대 수정하지 말 것.
 export const LICENSE_SALT = 'ACADEMY-NOTE::2026::a7f3-kQ9v-Zt2m::v1'
+
+/** 이 빌드가 어떤 제품인지. 피아노 관리노트에 이식할 때만 'K' 로 바꾼다. */
+export const PRODUCT_CODE = 'M'
+
+export const PRODUCTS = {
+  A: { code: 'A', label: '통합(피아노+학원)', accepts: ['M', 'K'] },
+  M: { code: 'M', label: '학원 관리노트', accepts: ['M'] },
+  K: { code: 'K', label: '피아노 관리노트', accepts: ['K'] }
+}
+
+export const TRIAL_DAYS = 14
 
 // Crockford base32 — 사람이 받아 적을 때 헷갈리는 I, L, O, U 제외
 const B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -42,31 +59,86 @@ export function formatKey(raw) {
   return k.replace(/(.{4})(?=.)/g, '$1-')
 }
 
-export function generateKey(plan = 'lite') {
-  const planChar = plan === 'pro' ? 'P' : 'L'
-  const buf = new Uint8Array(7)
+function randomChars(n) {
+  const buf = new Uint8Array(n)
   globalThis.crypto.getRandomValues(buf)
-  let body = planChar
-  for (const b of buf) body += B32[b % 32]
+  let out = ''
+  for (const b of buf) out += B32[b % 32]
+  return out
+}
+
+/**
+ * 키 발급.
+ * @param {'lite'|'pro'} plan
+ * @param {'A'|'M'|'K'} product  기본은 통합('A') — 두 제품에서 모두 열린다
+ */
+export function generateKey(plan = 'lite', product = 'A') {
+  const planChar = plan === 'pro' ? 'P' : 'L'
+  const prod = PRODUCTS[product] ? product : 'A'
+  const body = prod + planChar + randomChars(6)
   return formatKey(body + checksumOf(body))
 }
 
-export function verifyKey(input) {
+/**
+ * 키 검증. 이 빌드(PRODUCT_CODE)에서 쓸 수 있는 키인지까지 본다.
+ * @returns {{ok:true, plan, product, key, version}|{ok:false, reason}}
+ */
+export function verifyKey(input, { productCode = PRODUCT_CODE } = {}) {
   const key = normalizeKey(input)
-  if (key.length !== 12) return { ok: false, reason: '키는 12자리입니다 (예: PXXX-XXXX-XXXX)' }
+  if (!key) return { ok: false, reason: '인증키를 입력해 주세요' }
+  if (key.length !== 12) return { ok: false, reason: `인증키는 12자리입니다 (현재 ${key.length}자)` }
+
   const body = key.slice(0, 8)
   const sum = key.slice(8)
-  const planChar = body[0]
-  if (!PLANS[planChar]) return { ok: false, reason: '플랜 문자가 올바르지 않습니다 (L 또는 P로 시작)' }
-  for (const ch of body.slice(1) + sum) {
-    if (!B32.includes(ch)) return { ok: false, reason: `사용할 수 없는 문자가 있습니다: ${ch}` }
+  // 앞 두 자리는 제품·플랜 문자(L 처럼 base32 에 없는 글자도 쓴다), 나머지는 base32 만 허용
+  for (const ch of key.slice(2)) {
+    if (!B32.includes(ch)) return { ok: false, reason: `쓸 수 없는 문자가 있습니다: ${ch} (I·L·O·U 는 쓰지 않습니다)` }
   }
   if (checksumOf(body) !== sum) return { ok: false, reason: '검증번호가 맞지 않습니다. 키를 다시 확인해 주세요' }
-  return { ok: true, plan: PLANS[planChar], key: formatKey(key) }
+
+  const head = body[0]
+  // v1: 첫 글자가 플랜 문자(L/P) — 제품 구분이 없던 초기 발급분
+  if (PLANS[head] && !PRODUCTS[head]) {
+    return { ok: true, plan: PLANS[head], product: 'A', key: formatKey(key), version: 1 }
+  }
+  const product = PRODUCTS[head]
+  if (!product) return { ok: false, reason: '제품 문자가 올바르지 않습니다 (A·M·K 또는 L·P 로 시작)' }
+  const plan = PLANS[body[1]]
+  if (!plan) return { ok: false, reason: '플랜 문자가 올바르지 않습니다 (두 번째 자리는 L 또는 P)' }
+  if (!product.accepts.includes(productCode)) {
+    return { ok: false, reason: `${product.label} 전용 키입니다. 이 제품에서는 사용할 수 없습니다` }
+  }
+  return { ok: true, plan, product: head, key: formatKey(key), version: 2 }
 }
 
 // 저장은 원문 대신 해시로 (백업 파일에 키 원문이 남지 않도록)
 export function hashKey(input) {
   const k = normalizeKey(input)
   return `h1:${hash32(`${LICENSE_SALT}#${k}`).toString(16).padStart(8, '0')}${hash32(`${k}#${LICENSE_SALT}`).toString(16).padStart(8, '0')}`
+}
+
+/** 설치 기기 지문 — 지원 문의 시 "몇 번 기기" 를 확인하는 용도 (개인정보 없음) */
+export function deviceFingerprint(seed = '') {
+  const env = [
+    seed,
+    globalThis.navigator?.userAgent || '',
+    globalThis.screen ? `${screen.width}x${screen.height}` : '',
+    Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  ].join('|')
+  return hash32(env).toString(32).toUpperCase().padStart(7, '0').slice(-6)
+}
+
+const DAY = 86400000
+
+/**
+ * 체험 상태 계산 (순수 함수).
+ * @param {{startedAt?:string, today?:string|Date, days?:number}} opts
+ */
+export function trialStatus({ startedAt, today = new Date(), days = TRIAL_DAYS } = {}) {
+  if (!startedAt) return { active: false, started: false, daysLeft: days, expired: false }
+  const start = new Date(startedAt).getTime()
+  const now = today instanceof Date ? today.getTime() : new Date(today).getTime()
+  const used = Math.floor((now - start) / DAY)
+  const daysLeft = Math.max(0, days - used)
+  return { active: daysLeft > 0, started: true, daysLeft, expired: daysLeft <= 0 }
 }

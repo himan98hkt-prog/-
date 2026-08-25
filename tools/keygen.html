@@ -25,16 +25,25 @@
 <body>
   <div class="wrap">
     <h1>라이선스 키 발급기 <span class="muted">판매자 전용 — 고객에게 배포 금지</span></h1>
-    <p class="muted">이 발급기는 앱과 동일한 salt/알고리즘(<code>src/core/license.js</code>)을 가져다 쓰므로 키가 항상 앱과 맞습니다.
-      구제품(피아노학원 관리노트) 발급기와는 salt 가 달라 서로 호환되지 않습니다.</p>
+    <p class="muted">앱과 같은 모듈(<code>src/core/license.js</code>)을 그대로 import 하므로 발급한 키는 항상 앱에서 열립니다.
+      <b>통합키(A로 시작)</b> 하나면 피아노 관리노트와 학원 관리노트 양쪽에서 사용할 수 있습니다
+      (피아노 앱에도 같은 <code>license.js</code> 를 넣고 <code>PRODUCT_CODE</code> 만 <code>'K'</code> 로 바꾸면 됩니다).</p>
 
     <div class="card">
       <div class="row">
         <div style="flex:1">
-          <label>플랜</label>
+          <label>제품 (첫 자리)</label>
+          <select id="product">
+            <option value="A">통합 A — 피아노 + 학원 관리노트 공용 (권장)</option>
+            <option value="M">학원 관리노트 전용 M</option>
+            <option value="K">피아노 관리노트 전용 K</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>플랜 (둘째 자리)</label>
           <select id="plan">
-            <option value="lite">Lite (단일 기기) — L 로 시작</option>
-            <option value="pro">Pro (멀티 기기·실시간) — P 로 시작</option>
+            <option value="lite">Lite (단일 기기·오프라인) — L</option>
+            <option value="pro">Pro (멀티 기기·실시간 동기화) — P</option>
           </select>
         </div>
         <div style="width:130px">
@@ -61,18 +70,19 @@
   </div>
 
   <script type="module">
-    import { generateKey, verifyKey, formatKey } from '../src/core/license.js'
+    import { generateKey, verifyKey, formatKey, PRODUCTS } from '../src/core/license.js'
 
     const $ = (id) => document.getElementById(id)
     let keys = []
 
     $('gen').onclick = () => {
       const plan = $('plan').value
+      const product = $('product').value
       const n = Math.max(1, Math.min(500, Number($('count').value) || 1))
       const seen = new Set()
       keys = []
       while (keys.length < n) {
-        const k = generateKey(plan)
+        const k = generateKey(plan, product)
         if (seen.has(k)) continue
         seen.add(k)
         keys.push(k)
@@ -91,12 +101,14 @@
       if (!keys.length) return
       const memo = $('memo').value.replaceAll('"', "'")
       const plan = $('plan').value
+      const product = $('product').value
       const today = new Date().toISOString().slice(0, 10)
-      const csv = ['key,plan,issued_at,memo', ...keys.map((k) => `${k},${plan},${today},"${memo}"`)].join('\n')
+      const csv = ['key,product,plan,issued_at,memo',
+        ...keys.map((k) => `${k},${product},${plan},${today},"${memo}"`)].join('\n')
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `license_${plan}_${today}.csv`
+      a.download = `license_${product}${plan === 'pro' ? 'P' : 'L'}_${today}.csv`
       a.click()
     }
 
@@ -104,8 +116,10 @@
       const v = e.target.value.trim()
       const out = $('verifyOut')
       if (!v) { out.textContent = '키를 입력하면 유효성과 플랜을 확인합니다.'; out.className = 'muted'; return }
-      const r = verifyKey(v)
-      out.textContent = r.ok ? `유효한 키입니다 · 플랜: ${r.plan.toUpperCase()} · 표기: ${formatKey(v)}` : `사용할 수 없는 키: ${r.reason}`
+      const r = verifyKey(v, { productCode: 'M' }).ok ? verifyKey(v, { productCode: 'M' }) : verifyKey(v, { productCode: 'K' })
+      out.textContent = r.ok
+        ? `유효한 키 · ${PRODUCTS[r.product]?.label || '통합'} · ${r.plan.toUpperCase()} · v${r.version} · 표기 ${formatKey(v)}`
+        : `사용할 수 없는 키: ${r.reason}`
       out.className = r.ok ? 'ok' : 'bad'
     }
   </script>

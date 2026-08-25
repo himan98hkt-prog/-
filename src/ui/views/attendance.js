@@ -5,6 +5,10 @@ import { ATT, ATT_LIST, summarize } from '../../core/attendance.js'
 import { toYmd, addDays, WEEKDAYS, dowOf } from '../../core/date.js'
 import { visibleClasses } from '../../core/perm.js'
 import { classesOnDow } from '../../core/schedule.js'
+import { openBulkNotice } from './bulk-notice.js'
+import { printTable } from '../print.js'
+import { monthRange, toMonth } from '../../core/date.js'
+import { ATT_LABELS, monthlyRegister } from '../../core/register.js'
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
@@ -35,7 +39,11 @@ export async function render(root, ctx) {
         }), '해당 요일 반만'
       )
     ),
-    h('div', { style: { marginTop: '10px' } }, classBar)
+    h('div', { style: { marginTop: '10px' } }, classBar),
+    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
+      canWrite ? h('button', { class: 'btn sm', onClick: notifyAbsentees }, '오늘 결석자 일괄 안내') : null,
+      h('button', { class: 'btn sm', onClick: printRegister }, '월간 출석부 인쇄')
+    )
   )
 
   root.append(head, h('div', { class: 'card' }, summaryBox, board))
@@ -64,6 +72,30 @@ export async function render(root, ctx) {
         h('span', { class: 'muted' }, ` ${repo.enrolledCount(c.id)}명`)
       ))
     }
+  }
+
+  async function notifyAbsentees() {
+    const records = await repo.attendanceOfRange(date, date)
+    const ids = [...new Set(records.filter((r) => r.status === ATT.ABSENT).map((r) => r.student_id))]
+    if (!ids.length) return toast('오늘 결석 처리된 원생이 없습니다 👍')
+    openBulkNotice({ studentIds: ids, templateId: 'absent', title: `${date} 결석 안내 (${ids.length}명)` })
+  }
+
+  /** 월간 출석부 — 세무·학부모 문의 대응용으로 한 달치를 한 장에 뽑는다 */
+  async function printRegister() {
+    if (!classId) return toast('반을 먼저 선택해 주세요', 'error')
+    const month = toMonth(date)
+    const { from, to } = monthRange(month)
+    const cls = repo.cache.classById.get(classId)
+    const roster = repo.rosterOf(classId, to)
+    const records = await repo.attendanceOfClassMonth(classId, month)
+    const table = monthlyRegister({ month, roster, records })
+    printTable({
+      title: `${month} 출석부 — ${cls?.name || ''}`,
+      subtitle: `대상 ${roster.length}명 · ${from} ~ ${to} · 표기 ${Object.entries(ATT_LABELS).map(([k, v]) => `${v}=${k}`).join(' ')}`,
+      headers: table.headers,
+      rows: table.rows
+    })
   }
 
   async function load() {

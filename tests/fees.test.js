@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitInstallments, decorate, statusOf, settleMonth, billableFor, PAY_STATUS } from '../src/core/fees.js'
+import { splitInstallments, decorate, statusOf, settleMonth, billableFor, computeBill, overdueDays, billingPolicy, PAY_STATUS } from '../src/core/fees.js'
 
 describe('수납 상태 판정', () => {
   it('일시납은 paid_at 유무로 완납/미납', () => {
@@ -90,5 +90,72 @@ describe('수강 기준 청구액', () => {
       classMap
     )
     expect(amount).toBe(230000)
+  })
+})
+
+describe('할인 정책과 청구 계산', () => {
+  const classMap = new Map([
+    ['c1', { id: 'c1', name: '초등A', fee: 150000 }],
+    ['c2', { id: 'c2', name: '피아노', fee: 120000 }]
+  ])
+  const enrolls = [{ class_id: 'c1' }, { class_id: 'c2' }]
+
+  it('반 수강료를 합산하고 내역을 남긴다', () => {
+    const bill = computeBill({ enrollments: enrolls, classMap })
+    expect(bill.base).toBe(270000)
+    expect(bill.total).toBe(270000)
+    expect(bill.lines.map((l) => l.label)).toEqual(['초등A', '피아노'])
+  })
+
+  it('개별 수강료(fee_override)가 반 수강료보다 우선한다', () => {
+    const bill = computeBill({ enrollments: [{ class_id: 'c1', fee_override: 100000 }], classMap })
+    expect(bill.total).toBe(100000)
+  })
+
+  it('형제 할인은 형제가 2명 이상일 때만 붙는다', () => {
+    const policy = { sibling: { enabled: true, type: 'percent', value: 10 } }
+    expect(computeBill({ enrollments: enrolls, classMap, policy, siblingCount: 1 }).total).toBe(270000)
+    const two = computeBill({ enrollments: enrolls, classMap, policy, siblingCount: 2 })
+    expect(two.total).toBe(243000)
+    expect(two.lines.at(-1)).toMatchObject({ label: '형제 할인(2명)', amount: -27000 })
+  })
+
+  it("applyTo:'others' 면 첫째는 할인에서 뺀다", () => {
+    const policy = { sibling: { enabled: true, type: 'amount', value: 20000, applyTo: 'others' } }
+    expect(computeBill({ enrollments: enrolls, classMap, policy, siblingCount: 2, isFirstSibling: true }).total).toBe(270000)
+    expect(computeBill({ enrollments: enrolls, classMap, policy, siblingCount: 2, isFirstSibling: false }).total).toBe(250000)
+  })
+
+  it('개인 할인과 형제 할인은 함께 적용되고 절사 단위로 맞춘다', () => {
+    const bill = computeBill({
+      student: { discount: { type: 'percent', value: 7, memo: '장기 등록' } },
+      enrollments: enrolls,
+      classMap,
+      policy: { sibling: { enabled: true, type: 'percent', value: 10 }, roundUnit: 1000 },
+      siblingCount: 3
+    })
+    // 270,000 - 27,000(형제) - 18,900(개인) = 224,100 → 1,000원 절사 = 224,000
+    expect(bill.total).toBe(224000)
+    expect(bill.discount).toBe(46000)
+  })
+
+  it('할인이 수강료보다 커도 음수 청구는 만들지 않는다', () => {
+    const bill = computeBill({
+      student: { discount: { type: 'amount', value: 999999 } },
+      enrollments: [{ class_id: 'c1' }],
+      classMap
+    })
+    expect(bill.total).toBe(0)
+  })
+
+  it('수강 내역이 없으면 청구하지 않는다', () => {
+    expect(computeBill({ enrollments: [], classMap }).total).toBe(0)
+  })
+
+  it('연체 일수는 납부 기준일을 기준으로 센다', () => {
+    expect(overdueDays('2026-03', '2026-03-05')).toBe(-5)
+    expect(overdueDays('2026-03', '2026-03-10')).toBe(0)
+    expect(overdueDays('2026-03', '2026-03-25')).toBe(15)
+    expect(overdueDays('2026-03', '2026-04-01', 5)).toBe(27)
   })
 })

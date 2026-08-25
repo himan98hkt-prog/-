@@ -10,3 +10,4 @@ perf-report.json
 .perf-profile
 screenshots
 *.zip
+dist-demo

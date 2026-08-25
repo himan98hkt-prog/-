@@ -9,7 +9,16 @@ export const BACKUP_TABLES = [
   'counselLogs', 'notices', 'monthlyStats'
 ]
 
+// 인증키·설치 식별자는 "이 기기" 의 것이라 백업에 담지 않는다.
+// (백업 파일을 옮겨 다니며 라이선스를 복제하는 것을 막고, 복원해도 그 기기의 인증이 유지된다)
+export const DEVICE_ONLY_SETTINGS = ['license', 'installId', 'trialStartedAt', 'lastBackupAt']
+
+function stripDeviceSettings(rows = []) {
+  return rows.filter((r) => !DEVICE_ONLY_SETTINGS.includes(r?.key))
+}
+
 export function buildBackup(tables, meta = {}) {
+  const data = { ...tables, settings: stripDeviceSettings(tables.settings) }
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -17,8 +26,8 @@ export function buildBackup(tables, meta = {}) {
     app: meta.app || '학원 관리노트',
     plan: meta.plan || 'lite',
     academy: meta.academy || null,
-    counts: Object.fromEntries(BACKUP_TABLES.map((t) => [t, (tables[t] || []).length])),
-    data: Object.fromEntries(BACKUP_TABLES.map((t) => [t, tables[t] || []]))
+    counts: Object.fromEntries(BACKUP_TABLES.map((t) => [t, (data[t] || []).length])),
+    data: Object.fromEntries(BACKUP_TABLES.map((t) => [t, data[t] || []]))
   }
 }
 
@@ -40,6 +49,8 @@ export function parseBackup(text) {
 function migrate(json) {
   const data = json.data || {}
   for (const t of BACKUP_TABLES) if (!Array.isArray(data[t])) data[t] = []
+  // 예전 백업에 인증키가 들어 있더라도 복원 대상에서 제외한다
+  data.settings = stripDeviceSettings(data.settings)
   // v0 -> v1: 출결 status 한글화, 원생 custom 필드 기본값
   if (Number(json.version || 0) < 1) {
     const map = { present: '출석', late: '지각', absent: '결석', makeup: '보강', early: '조퇴' }

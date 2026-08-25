@@ -4,7 +4,7 @@
 import { db } from './db.js'
 import { uid } from '../core/id.js'
 import { monthRange, toYmd, toMonth } from '../core/date.js'
-import { decorate, statusOf, PAY_STATUS } from '../core/fees.js'
+import { decorate, statusOf, computeBill, billingPolicy, PAY_STATUS } from '../core/fees.js'
 import { assignSiblingGroups } from '../core/siblings.js'
 
 const SYNCED_TABLES = new Set([
@@ -61,6 +61,9 @@ export async function init() {
   plan = cache.settings.get('license')?.plan || 'lite'
   cache.ready = true
   emit('ready')
+  // 형제 묶기는 첫 화면을 그린 뒤에 맞춘다 — 엑셀 가져오기·백업 복원·데모 데이터처럼
+  // 앱 밖에서 들어온 명단도 형제 할인이 먹어야 하지만, 이걸 기다리느라 시작이 늦어지면 안 된다.
+  setTimeout(() => { syncSiblingGroups().catch((e) => console.warn('형제 묶기 실패', e)) }, 0)
   return cache
 }
 
@@ -342,30 +345,80 @@ export async function savePayment(p) {
   return put('payments', row)
 }
 
-/** 월 청구서 일괄 생성 — 이미 있는 원생은 건너뛴다 */
-export async function generateMonthlyBills(month, { defaultFee = 0 } = {}) {
+export function policy() {
+  return billingPolicy(getSetting('billing'))
+}
+
+/** 형제 그룹 크기와 첫째 여부 — 할인 계산에 쓴다 */
+function siblingInfo(student) {
+  if (!student.siblings_group) return { count: 1, isFirst: false }
+  const group = cache.students
+    .filter((s) => s.siblings_group === student.siblings_group && s.status !== '퇴원')
+    .sort((a, b) => String(a.joined_at || '').localeCompare(String(b.joined_at || '')) || String(a.id).localeCompare(String(b.id)))
+  return { count: group.length, isFirst: group[0]?.id === student.id }
+}
+
+/** 그 달에 하루라도 걸쳐 있는 수강 내역 (월 중 등록·종료도 청구 대상) */
+export function enrollmentsInMonth(studentId, month) {
+  if (!month) return activeEnrollments({ studentId })
+  const { from, to } = monthRange(month)
+  return cache.enrollments.filter((e) => {
+    if (e.student_id !== studentId) return false
+    if (e.started_at && e.started_at > to) return false
+    if (e.ended_at && e.ended_at < from) return false
+    return true
+  })
+}
+
+/** 원생 한 명의 이번 달 청구 계산(할인 포함) — 미리보기와 실제 생성이 같은 함수를 쓴다 */
+export function billFor(student, { month, policy: p = policy() } = {}) {
+  const sib = siblingInfo(student)
+  return computeBill({
+    student,
+    enrollments: enrollmentsInMonth(student.id, month),
+    classMap: cache.classById,
+    policy: p,
+    siblingCount: sib.count,
+    isFirstSibling: sib.isFirst
+  })
+}
+
+/**
+ * 월 청구 미리보기 — 만들기 전에 "누가 얼마" 를 눈으로 확인한다.
+ * @returns {{rows:Array, total:number, skipped:number}}
+ */
+export async function previewMonthlyBills(month) {
   const existing = new Set((await db.payments.where('month').equals(month).toArray()).map((p) => p.student_id))
-  const created = []
+  const rows = []
+  let skipped = 0
   for (const s of cache.students) {
-    if (s.status !== '재원' || existing.has(s.id)) continue
-    const enrolls = activeEnrollments({ studentId: s.id })
-    if (!enrolls.length) continue
-    const amount = enrolls.reduce((sum, e) => {
-      if (e.fee_override != null && e.fee_override !== '') return sum + Number(e.fee_override || 0)
-      return sum + Number(cache.classById.get(e.class_id)?.fee || defaultFee || 0)
-    }, 0)
-    if (!amount) continue
-    created.push({
-      id: uid(),
-      student_id: s.id,
-      month,
-      amount,
-      method: null,
-      paid_at: null,
-      status: PAY_STATUS.UNPAID,
-      installments: []
-    })
+    if (s.status !== '재원') continue
+    if (existing.has(s.id)) { skipped++; continue }
+    const bill = billFor(s, { month })
+    if (!bill.total) continue
+    rows.push({ student: s, bill })
   }
+  return { rows, total: rows.reduce((sum, r) => sum + r.bill.total, 0), skipped }
+}
+
+/** 월 청구서 일괄 생성 — 이미 있는 원생은 건너뛰고, 할인 내역을 청구서에 남긴다 */
+export async function generateMonthlyBills(month, opts = {}) {
+  const { rows } = await previewMonthlyBills(month)
+  const dueDay = opts.dueDay ?? policy().dueDay
+  const created = rows.map(({ student, bill }) => ({
+    id: uid(),
+    student_id: student.id,
+    month,
+    amount: bill.total,
+    base_amount: bill.base,
+    discount: bill.discount,
+    lines: bill.lines,
+    due_date: `${month}-${String(dueDay).padStart(2, '0')}`,
+    method: null,
+    paid_at: null,
+    status: PAY_STATUS.UNPAID,
+    installments: []
+  }))
   if (created.length) await putMany('payments', created)
   return created
 }

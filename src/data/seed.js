@@ -7,6 +7,7 @@ import { addDays, addMonths, toYmd, pad2 } from '../core/date.js'
 import { ATT, DEFAULT_REASON_TAGS } from '../core/attendance.js'
 import { PRESETS } from '../core/customfields.js'
 import { DEFAULT_TEMPLATES } from '../core/templates.js'
+import { DEVICE_ONLY_SETTINGS } from '../core/backup.js'
 
 const SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배조백허유남심노정'.split('')
 const GIVEN = ['서준', '민준', '서연', '지우', '하은', '도윤', '지호', '수아', '지안', '유진', '예린', '시우', '하준', '서윤', '주원', '채원', '지민', '건우', '다은', '윤서', '은우', '가온', '나윤', '태윤', '소율', '준서', '이준', '아린', '리원', '해준']
@@ -346,8 +347,16 @@ export async function seedBulk(opts = {}, onProgress = () => {}) {
   return { students: studentRows.length, classes: classes.length, attendance: written, payments: payments.length }
 }
 
-export async function clearAll() {
+/**
+ * 전체 초기화. 인증키·설치 식별자는 이 기기의 것이라 기본적으로 남긴다
+ * (데모 시드나 초기화를 했다고 해서 다시 인증을 받게 만들지 않는다).
+ */
+export async function clearAll({ keepDeviceSettings = true } = {}) {
+  const keep = keepDeviceSettings
+    ? (await db.settings.bulkGet(DEVICE_ONLY_SETTINGS)).filter(Boolean)
+    : []
   await db.transaction('rw', db.tables, async () => {
     await Promise.all(db.tables.map((t) => t.clear()))
+    if (keep.length) await db.settings.bulkPut(keep)
   })
 }

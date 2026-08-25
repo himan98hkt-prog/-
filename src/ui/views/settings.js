@@ -4,10 +4,14 @@ import { h, clear, toast, modal, field, confirmDialog, copyText } from '../dom.j
 import { branding, saveBranding, resizeImage, logoDataUrl, updateManifest } from '../branding.js'
 import { FIELD_TYPES, PRESETS, validateField } from '../../core/customfields.js'
 import { DEFAULT_TEMPLATES, TEMPLATE_VARS, unknownVars } from '../../core/templates.js'
-import { verifyKey, hashKey, formatKey } from '../../core/license.js'
+import { formatKey, PRODUCTS } from '../../core/license.js'
+import { entitlement, activateWithKey, deviceCode } from '../activation.js'
 import { buildBackup, parseBackup, BACKUP_TABLES } from '../../core/backup.js'
 import { ROLES } from '../../core/perm.js'
 import { db } from '../../data/db.js'
+import { restoreFromBackup } from '../../data/restore.js'
+import { downloadCsv } from '../../core/csv.js'
+import { toYmd, toMonth, addMonths, daysBetween } from '../../core/date.js'
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
@@ -18,8 +22,9 @@ export async function render(root, ctx) {
     section('학습 항목 (계열별 custom 필드)', customFieldSection(repo)),
     section('과목 · 반 · 강사', peopleSection(repo, isOwner)),
     section('알림 문구 템플릿', templateSection(repo)),
-    section('라이선스 / 플랜', licenseSection(repo)),
-    section('백업 · 복원', backupSection(repo)),
+    section('수납 정책 (납부일 · 형제 할인)', billingSection(repo)),
+    section('인증키 · 플랜', licenseSection(repo)),
+    section('백업 · 복원 · 내보내기', backupSection(repo)),
     repo.getPlan() === 'pro' ? section('Pro 동기화 (Supabase)', proSection(repo)) : null,
     section('개발자 · 데모 도구', devSection(repo))
   ].filter(Boolean)
@@ -285,40 +290,104 @@ function templateSection(repo) {
       }, '기본값 복원')))
 }
 
-// ── 라이선스 ────────────────────────────────────────────────
+// ── 인증키(시디키) ──────────────────────────────────────────
 function licenseSection(repo) {
-  const lic = repo.getSetting('license') || null
-  const input = h('input', { type: 'text', placeholder: 'XXXX-XXXX-XXXX', value: lic?.key || '' })
-  const state = h('div', { class: 'small' })
+  const box = h('div')
 
-  const paintState = () => {
-    const cur = repo.getSetting('license')
-    clear(state)
-    state.append(cur
-      ? h('span', { class: 'badge ok' }, `${cur.plan === 'pro' ? 'Pro' : 'Lite'} 활성화됨 (${cur.key})`)
-      : h('span', { class: 'badge warn' }, '체험 모드 — 라이선스 키를 입력하면 플랜이 활성화됩니다'))
+  const paint = () => {
+    const ent = entitlement()
+    const lic = repo.getSetting('license')
+    const input = h('input', { type: 'text', placeholder: 'AAAA-AAAA-AAAA', value: lic?.key || '' })
+    input.addEventListener('input', () => { input.value = formatKey(input.value).slice(0, 14) })
+
+    clear(box)
+    box.append(
+      ent.mode === 'licensed'
+        ? h('div', {},
+          h('span', { class: 'badge ok' }, `${lic.plan === 'pro' ? 'Pro' : 'Lite'} 인증됨`),
+          h('div', { class: 'small muted', style: { marginTop: '6px' } },
+            `키 ${lic.key} · ${PRODUCTS[lic.product]?.label || '통합'} · 인증일 ${(lic.activated_at || '').slice(0, 10)} · 기기번호 ${lic.device || deviceCode()}`))
+        : h('span', { class: 'badge warn' },
+          ent.mode === 'trial' ? `체험 ${ent.daysLeft}일 남음 — 인증키를 넣으면 계속 사용합니다` : '미인증'),
+
+      h('div', { class: 'row', style: { marginTop: '10px' } },
+        h('div', { class: 'grow' }, input),
+        h('button', {
+          class: 'btn primary', onClick: async () => {
+            const res = await activateWithKey(input.value)
+            if (!res.ok) return toast(res.reason, 'error')
+            toast(`${res.plan === 'pro' ? 'Pro' : 'Lite'} 인증 완료. 앱을 새로고침합니다`, 'ok')
+            setTimeout(() => location.reload(), 800)
+          }
+        }, lic ? '키 교체' : '인증')),
+
+      h('p', { class: 'small muted' },
+        'Lite 키(두 번째 자리 L)는 기기 1대, Pro 키(P)는 여러 기기 동시 사용과 실시간 동기화를 지원합니다. ',
+        '첫 자리가 A인 통합키는 피아노 관리노트에서도 같은 키로 열립니다.'),
+
+      h('div', { class: 'row small muted' },
+        h('span', { class: 'grow' }, `이 기기 번호: ${deviceCode()} (재발급·문의 시 사용)`),
+        h('button', { class: 'linkbtn', onClick: () => copyText(deviceCode()).then(() => toast('복사했습니다')) }, '복사')),
+
+      lic
+        ? h('div', { style: { marginTop: '10px' } },
+          h('button', {
+            class: 'btn sm danger', onClick: async () => {
+              if (!await confirmDialog('이 기기에서 인증을 해제합니다. 자료는 지워지지 않습니다.', { title: '인증 해제', okLabel: '해제', danger: true })) return
+              await repo.setSetting('license', null)
+              toast('인증을 해제했습니다')
+              setTimeout(() => location.reload(), 600)
+            }
+          }, '이 기기 인증 해제'))
+        : null
+    )
   }
-  paintState()
+  paint()
+  return box
+}
+
+// ── 수납 정책 ───────────────────────────────────────────────
+// 매달 계산기로 두드리던 형제 할인·절사 규칙을 한 번만 정해 두면 청구 생성이 알아서 계산한다.
+function billingSection(repo) {
+  const p = repo.policy()
+  const dueDay = h('input', { type: 'number', min: '1', max: '28', value: p.dueDay })
+  const roundUnit = h('select', {}, ...[1, 100, 1000].map((u) =>
+    h('option', { value: String(u), selected: p.roundUnit === u }, u === 1 ? '절사 없음' : `${u.toLocaleString('ko-KR')}원 단위 절사`)))
+  const sibOn = h('input', { type: 'checkbox', checked: p.sibling.enabled, style: { width: 'auto' } })
+  const sibValue = h('input', { type: 'number', min: '0', value: p.sibling.value })
+  const sibType = h('select', {},
+    h('option', { value: 'percent', selected: p.sibling.type === 'percent' }, '%'),
+    h('option', { value: 'amount', selected: p.sibling.type === 'amount' }, '원'))
+  const sibApply = h('select', {},
+    h('option', { value: 'all', selected: p.sibling.applyTo === 'all' }, '형제 전원'),
+    h('option', { value: 'others', selected: p.sibling.applyTo === 'others' }, '첫째 제외(둘째부터)'))
 
   return h('div', {},
-    state,
+    h('div', { class: 'inline-fields' },
+      field('납부 기준일', dueDay, '이 날이 지나면 오늘 할 일에 미납 독촉이 뜹니다'),
+      field('청구액 절사', roundUnit)),
+    h('div', { class: 'card', style: { marginTop: '10px' } },
+      h('label', { class: 'row', style: { gap: '8px' } }, sibOn, h('b', {}, '형제·자매 할인 자동 적용')),
+      h('div', { class: 'inline-fields', style: { marginTop: '8px' } },
+        field('할인', h('div', { class: 'row' }, h('div', { class: 'grow' }, sibValue), sibType)),
+        field('적용 대상', sibApply)),
+      h('p', { class: 'small muted' }, '학부모 연락처가 같으면 형제로 자동 인식됩니다(원생 탭 기준).')),
     h('div', { class: 'row', style: { marginTop: '10px' } },
-      h('div', { class: 'grow' }, input),
       h('button', {
         class: 'btn primary', onClick: async () => {
-          const res = verifyKey(input.value)
-          if (!res.ok) return toast(res.reason, 'error')
-          await repo.setSetting('license', {
-            key: res.key, key_hash: hashKey(res.key), plan: res.plan, activated_at: new Date().toISOString()
+          await repo.setSetting('billing', {
+            dueDay: Math.min(28, Math.max(1, Number(dueDay.value) || 10)),
+            roundUnit: Number(roundUnit.value) || 1,
+            sibling: {
+              enabled: sibOn.checked,
+              type: sibType.value,
+              value: Number(sibValue.value) || 0,
+              applyTo: sibApply.value
+            }
           })
-          repo.setPlan(res.plan)
-          input.value = formatKey(input.value)
-          paintState()
-          toast(`${res.plan === 'pro' ? 'Pro' : 'Lite'} 플랜이 활성화되었습니다. 앱을 새로고침합니다`, 'ok')
-          setTimeout(() => location.reload(), 900)
+          toast('수납 정책을 저장했습니다', 'ok')
         }
-      }, '활성화')),
-    h('p', { class: 'small muted' }, 'Lite 키(L로 시작)는 이 기기 1대, Pro 키(P로 시작)는 여러 기기 동시 사용과 실시간 동기화를 지원합니다.'))
+      }, '저장')))
 }
 
 // ── 백업/복원 ───────────────────────────────────────────────
@@ -332,14 +401,7 @@ function backupSection(repo) {
       const backup = parseBackup(await f.text())
       const counts = Object.entries(backup.counts || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')
       if (!await confirmDialog(`현재 데이터를 모두 지우고 복원합니다.\n\n${counts}`, { title: '백업 복원', okLabel: '복원', danger: true })) return
-      await db.transaction('rw', db.tables, async () => {
-        for (const t of BACKUP_TABLES) {
-          if (!db[t]) continue
-          await db[t].clear()
-          const rows = backup.data[t] || []
-          if (rows.length) await db[t].bulkPut(rows)
-        }
-      })
+      await restoreFromBackup(backup)
       toast('복원했습니다. 앱을 새로고침합니다', 'ok')
       setTimeout(() => location.reload(), 800)
     } catch (err) {
@@ -347,8 +409,11 @@ function backupSection(repo) {
     }
   })
 
+  const lastLine = h('div', { class: 'small muted' }, lastBackupText(repo))
+
   return h('div', {},
-    h('div', { class: 'row wrap' },
+    lastLine,
+    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
       h('button', {
         class: 'btn primary', onClick: async () => {
           const tables = {}
@@ -358,11 +423,63 @@ function backupSection(repo) {
           const a = h('a', { href: URL.createObjectURL(blob), download: `${branding().name}_백업_${new Date().toISOString().slice(0, 10)}.json` })
           a.click()
           setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+          await repo.setSetting('lastBackupAt', new Date().toISOString())
+          lastLine.textContent = lastBackupText(repo)
           toast('백업 파일을 저장했습니다', 'ok')
         }
       }, '백업 파일 내려받기'),
       h('div', { class: 'grow' }, fileInput)),
-    h('p', { class: 'small muted' }, '이 백업 파일은 Pro 전환 시 그대로 업로드해 마이그레이션할 수 있습니다.'))
+    h('p', { class: 'small muted' }, '이 백업 파일은 Pro 전환 시 그대로 업로드해 마이그레이션할 수 있습니다.'),
+    h('div', { class: 'card-title', style: { marginTop: '12px' } }, '엑셀(CSV) 내보내기'),
+    h('div', { class: 'row wrap' },
+      h('button', { class: 'btn sm', onClick: () => exportStudentsCsv(repo) }, '원생 명단'),
+      h('button', { class: 'btn sm', onClick: () => exportPaymentsCsv(repo) }, '수납 내역(12개월)'),
+      h('button', { class: 'btn sm', onClick: () => exportAttendanceCsv(repo) }, '출결 기록(3개월)')),
+    h('p', { class: 'small muted' }, '세무·회계 정리나 다른 프로그램으로 옮길 때 사용하세요. 엑셀에서 바로 열립니다.'))
+}
+
+function lastBackupText(repo) {
+  const at = repo.getSetting('lastBackupAt')
+  if (!at) return '아직 백업한 적이 없습니다. 자료는 이 기기에만 있습니다.'
+  const days = daysBetween(String(at).slice(0, 10), toYmd())
+  return `마지막 백업 ${String(at).slice(0, 10)} (${days === 0 ? '오늘' : `${days}일 전`})`
+}
+
+async function exportStudentsCsv(repo) {
+  const rows = repo.cache.students.map((s) => [
+    s.name, s.status, s.school || '', s.grade || '',
+    repo.studentClasses(s.id).map((c) => c.name).join(' '),
+    s.phone || '', s.parent_phone || '', s.joined_at || '', s.memo || ''
+  ])
+  downloadCsv(`원생명단_${toYmd()}.csv`, ['이름', '상태', '학교', '학년', '반', '학생연락처', '학부모연락처', '등록일', '메모'], rows)
+  toast(`원생 ${rows.length}명을 저장했습니다`, 'ok')
+}
+
+async function exportPaymentsCsv(repo) {
+  const months = Array.from({ length: 12 }, (_, i) => addMonths(toMonth(toYmd()), -i))
+  const rows = []
+  for (const m of months) {
+    for (const p of await repo.paymentsOfMonth(m)) {
+      const st = repo.cache.studentById.get(p.student_id)
+      rows.push([m, st?.name || '(삭제)', p.base_amount ?? p.amount, p.discount || 0, p.amount, p.paid, p.remaining, p.status, p.method || '', p.paid_at || ''])
+    }
+  }
+  downloadCsv(`수납내역_${toYmd()}.csv`, ['월', '원생', '기본', '할인', '청구', '납부', '잔액', '상태', '방법', '납부일'], rows)
+  toast(`${rows.length}건을 저장했습니다`, 'ok')
+}
+
+async function exportAttendanceCsv(repo) {
+  const to = toYmd()
+  const from = `${addMonths(toMonth(to), -2)}-01`
+  const records = await repo.attendanceOfRange(from, to)
+  const rows = records.map((r) => [
+    r.date,
+    repo.cache.studentById.get(r.student_id)?.name || '(삭제)',
+    repo.cache.classById.get(r.class_id)?.name || '',
+    r.status, r.reason_tag || ''
+  ]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+  downloadCsv(`출결기록_${from}_${to}.csv`, ['날짜', '원생', '반', '상태', '사유'], rows)
+  toast(`${rows.length}건을 저장했습니다`, 'ok')
 }
 
 // ── 개발자/데모 도구 ────────────────────────────────────────

@@ -24,6 +24,7 @@ export function visibleClasses(user, classes = []) {
 }
 
 export const NAV = [
+  { id: 'today', label: '오늘', icon: '🏠', perm: 'attendance:read' },
   { id: 'attendance', label: '출결', icon: '✓', perm: 'attendance:read' },
   { id: 'students', label: '원생', icon: '👤', perm: 'students:read' },
   { id: 'payments', label: '수납', icon: '₩', perm: 'payments:read' },

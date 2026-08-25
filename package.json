@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "perf": "node scripts/perf.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "demo": "node scripts/singlefile.mjs",
+    "shots": "node scripts/shots.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.10",

@@ -28,18 +28,37 @@ const context = await chromium.launchPersistentContext(PROFILE_DIR, {
 const page = context.pages()[0] || await context.newPage()
 
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'domcontentloaded' })
+
+// 인증 화면도 판매 자료에 필요하므로 한 장 찍고 지나간다
+await page.waitForSelector('.cover.activation, .app-nav button')
+if (await page.$('.cover.activation')) {
+  await page.screenshot({ path: `${OUT}/00-인증키.png` })
+  console.log('  ✓ 00-인증키.png')
+}
+
 await page.evaluate(async (key) => {
   const { seedDemo } = await import('/src/data/seed.js')
   await seedDemo(key, { students: 36 })
   const { db } = await import('/src/data/db.js')
+  const { generateKey, verifyKey, hashKey } = await import('/src/core/license.js')
+  const res = verifyKey(generateKey('lite', 'A'))
+  await db.settings.put({
+    key: 'license',
+    value: { key: res.key, key_hash: hashKey(res.key), plan: res.plan, product: res.product, activated_at: new Date().toISOString() }
+  })
   const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
-  if (owner) localStorage.setItem('academy-note:session', JSON.stringify({ userId: owner.id, at: Date.now() }))
+  if (owner) {
+    const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
+    localStorage.setItem('academy-note:session', payload)
+    sessionStorage.setItem('academy-note:session', payload)
+  }
 }, SCENARIO)
 
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
 await page.waitForSelector('.app-nav button')
 
 const VIEWS = [
+  ['today', '00-오늘'],
   ['attendance', '01-출결'],
   ['students', '02-원생'],
   ['payments', '03-수납'],

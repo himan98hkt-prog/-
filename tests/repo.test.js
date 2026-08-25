@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { describe, it, expect, beforeAll } from 'vitest'
 import { db } from '../src/data/db.js'
 import * as repo from '../src/data/repo.js'
-import { toMonth, toYmd } from '../src/core/date.js'
+import { toMonth, toYmd, addMonths } from '../src/core/date.js'
 import { ATT } from '../src/core/attendance.js'
 
 const month = toMonth(toYmd())
@@ -124,5 +124,45 @@ describe('집계 캐시 무효화', () => {
     await repo.recomputeMonth(month)
     await repo.remove('payments', pay.id)
     expect(await db.monthlyStats.get(month)).toBeUndefined()
+  })
+})
+
+describe('할인 정책 반영 청구', () => {
+  const nextMonth = addMonths(month, 1)
+
+  it('미리보기는 만들기 전에 누가 얼마인지 보여 준다', async () => {
+    const { rows, total, skipped } = await repo.previewMonthlyBills(nextMonth)
+    const byName = Object.fromEntries(rows.map((r) => [r.student.name, r.bill.total]))
+    expect(byName['김서준']).toBe(240000)
+    expect(byName['김서연']).toBe(150000)
+    expect(total).toBe(390000)
+    expect(skipped).toBe(0)
+    expect(await db.payments.where('month').equals(nextMonth).count()).toBe(0) // 미리보기는 저장하지 않는다
+  })
+
+  it('형제 할인을 켜면 형제 두 명 모두에게 적용된다', async () => {
+    await repo.setSetting('billing', { sibling: { enabled: true, type: 'percent', value: 10 }, roundUnit: 100 })
+    const created = await repo.generateMonthlyBills(nextMonth)
+    const byStudent = Object.fromEntries(created.map((c) => [c.student_id, c]))
+    expect(byStudent.s1.amount).toBe(216000)      // 240,000 - 10%
+    expect(byStudent.s1.base_amount).toBe(240000)
+    expect(byStudent.s1.discount).toBe(24000)
+    expect(byStudent.s2.amount).toBe(135000)
+    expect(byStudent.s1.lines.at(-1).label).toContain('형제 할인')
+    await repo.setSetting('billing', null)
+  })
+
+  it('청구서에 납부 기한을 적어 둔다', async () => {
+    const rows = await db.payments.where('month').equals(nextMonth).toArray()
+    expect(rows[0].due_date).toBe(`${nextMonth}-10`)
+  })
+
+  it('월 중간에 등록해도 그 달 청구에 포함된다', async () => {
+    const later = addMonths(month, 2)
+    await db.enrollments.put({ id: 'e5', student_id: 's2', class_id: 'c2', started_at: `${later}-25`, ended_at: null })
+    await repo.init()
+    const { rows } = await repo.previewMonthlyBills(later)
+    const mine = rows.find((r) => r.student.id === 's2')
+    expect(mine.bill.total).toBe(270000)  // 150,000 + 120,000
   })
 })

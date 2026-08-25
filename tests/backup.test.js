@@ -60,3 +60,33 @@ describe('Pro 마이그레이션 페이로드', () => {
     expect(() => toProPayload(buildBackup(sample), null)).toThrow(/academy_id/)
   })
 })
+
+describe('인증키는 백업에 담지 않는다', () => {
+  const tables = {
+    settings: [
+      { key: 'branding', value: { name: '아라 잉글리시' } },
+      { key: 'license', value: { key: 'ALAB-CDEF-GHJK', plan: 'lite' } },
+      { key: 'installId', value: 'inst-1' },
+      { key: 'trialStartedAt', value: '2026-03-01T00:00:00.000Z' }
+    ],
+    students: [{ id: 's1', name: '김하늘' }]
+  }
+
+  it('내보낼 때 기기 전용 설정을 뺀다', () => {
+    const backup = buildBackup(tables)
+    const keys = backup.data.settings.map((s) => s.key)
+    expect(keys).toEqual(['branding'])
+    expect(backup.counts.settings).toBe(1)
+    expect(JSON.stringify(backup)).not.toContain('ALAB-CDEF-GHJK')
+  })
+
+  it('예전 백업에 인증키가 들어 있어도 복원하지 않는다', () => {
+    const legacy = {
+      format: 'academy-note-backup',
+      version: 1,
+      data: { settings: [{ key: 'license', value: { key: 'ALAB-CDEF-GHJK' } }, { key: 'branding', value: {} }] }
+    }
+    const parsed = parseBackup(JSON.stringify(legacy))
+    expect(parsed.data.settings.map((s) => s.key)).toEqual(['branding'])
+  })
+})

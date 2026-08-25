@@ -9,6 +9,9 @@ import { toYmd, addMonths, toMonth } from '../../core/date.js'
 import { summarize } from '../../core/attendance.js'
 import { openReportModal } from './report-modal.js'
 import { openNoticeModal } from './notice-modal.js'
+import { openImportStudents } from './import-students.js'
+import { openBulkNotice } from './bulk-notice.js'
+import { downloadCsv } from '../../core/csv.js'
 
 export async function render(root, ctx) {
   const { repo } = ctx
@@ -34,6 +37,11 @@ export async function render(root, ctx) {
       h('div', { class: 'grow' }, search),
       classSelect,
       canWrite ? h('button', { class: 'btn primary', onClick: () => openEditor() }, '+ 원생 등록') : null
+    ),
+    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
+      canWrite ? h('button', { class: 'btn sm', onClick: () => openImportStudents({ onDone: apply }) }, '엑셀 가져오기') : null,
+      h('button', { class: 'btn sm', onClick: exportCsv }, '명단 내보내기'),
+      h('button', { class: 'btn sm', onClick: bulkNotice }, '보이는 원생에게 일괄 안내')
     ),
     h('div', { class: 'row wrap', style: { marginTop: '10px' } }, statusChips, h('span', { class: 'right' }, count))
   )
@@ -79,6 +87,28 @@ export async function render(root, ctx) {
 
   paintChips()
   apply()
+
+  function visibleStudents() {
+    return repo.searchStudents(query, { status: status || undefined, classId: classId || undefined })
+  }
+
+  function exportCsv() {
+    const rows = visibleStudents().map((s) => [
+      s.name, s.status, s.school || '', s.grade || '',
+      repo.studentClasses(s.id).map((c) => c.name).join(' '),
+      s.phone || '', s.parent_phone || '', s.joined_at || '', s.memo || ''
+    ])
+    if (!rows.length) return toast('내보낼 원생이 없습니다', 'error')
+    downloadCsv(`원생명단_${toYmd()}.csv`,
+      ['이름', '상태', '학교', '학년', '반', '학생연락처', '학부모연락처', '등록일', '메모'], rows)
+    toast(`${rows.length}명을 CSV로 저장했습니다`, 'ok')
+  }
+
+  function bulkNotice() {
+    const list = visibleStudents()
+    if (!list.length) return toast('대상 원생이 없습니다', 'error')
+    openBulkNotice({ studentIds: list.map((s) => s.id), templateId: 'absent', title: `일괄 안내 (${list.length}명)` })
+  }
 
   // ── 원생 카드 ──────────────────────────────────────────────
   async function openCard(student) {
@@ -152,7 +182,12 @@ export async function render(root, ctx) {
       parent_phone: h('input', { type: 'tel', value: student?.parent_phone || '' }),
       status: h('select', {}, ...STUDENT_STATUS.map((s) => h('option', { value: s, selected: (student?.status || '재원') === s }, s))),
       joined_at: h('input', { type: 'date', value: student?.joined_at || toYmd() }),
-      memo: h('textarea', { value: student?.memo || '' })
+      memo: h('textarea', { value: student?.memo || '' }),
+      discountType: h('select', {},
+        h('option', { value: 'percent', selected: (student?.discount?.type || 'percent') === 'percent' }, '%'),
+        h('option', { value: 'amount', selected: student?.discount?.type === 'amount' }, '원')),
+      discountValue: h('input', { type: 'number', min: '0', value: student?.discount?.value ?? '' }),
+      discountMemo: h('input', { type: 'text', value: student?.discount?.memo || '', placeholder: '예) 장기 등록' })
     }
     const customInputs = new Map()
     for (const cf of fields) {
@@ -189,6 +224,9 @@ export async function render(root, ctx) {
           field('등록일', f.joined_at)
         ),
         field('반 배정', classPicker),
+        h('div', { class: 'inline-fields' },
+          field('할인', h('div', { class: 'row' }, h('div', { class: 'grow' }, f.discountValue), f.discountType), '청구 생성 때 자동으로 빠집니다'),
+          field('할인 사유', f.discountMemo)),
         fields.length ? h('div', {}, h('div', { class: 'card-title' }, '학습 항목'),
           h('div', { class: 'inline-fields' }, ...fields.map((cf) => field(cf.label, customInputs.get(cf.key))))) : null,
         field('메모', f.memo)
@@ -218,6 +256,9 @@ export async function render(root, ctx) {
               joined_at: f.joined_at.value,
               left_at: f.status.value === '퇴원' ? (student?.left_at || toYmd()) : null,
               memo: f.memo.value.trim(),
+              discount: Number(f.discountValue.value) > 0
+                ? { type: f.discountType.value, value: Number(f.discountValue.value), memo: f.discountMemo.value.trim() }
+                : null,
               custom
             })
             // 반 배정 반영

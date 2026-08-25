@@ -6,8 +6,10 @@ import * as repo from '../data/repo.js'
 import { navFor, can, ROLES } from '../core/perm.js'
 import { currentUser, login, logout, findByPin, autoLoginIfSolo } from './session.js'
 import { openWizard } from './views/wizard.js'
+import { requireActivation, entitlement, entitlementBadge } from './activation.js'
 import { openKiosk } from './views/kiosk.js'
 
+import * as today from './views/today.js'
 import * as attendance from './views/attendance.js'
 import * as students from './views/students.js'
 import * as payments from './views/payments.js'
@@ -17,7 +19,7 @@ import * as expenses from './views/expenses.js'
 import * as dashboard from './views/dashboard.js'
 import * as settings from './views/settings.js'
 
-const VIEWS = { attendance, students, payments, timetable, counsel, expenses, dashboard, settings }
+const VIEWS = { today, attendance, students, payments, timetable, counsel, expenses, dashboard, settings }
 
 export const app = {
   root: null,
@@ -27,6 +29,7 @@ export const app = {
   current: null,
   cleanup: null,
   allowPro: false,
+  entitlement: null,
   sync: null
 }
 
@@ -35,6 +38,10 @@ export async function boot({ allowPro = false } = {}) {
   await repo.init()
   applyBranding()
   document.addEventListener('branding:changed', renderHeader)
+
+  const ent = await requireActivation()
+  repo.setPlan(ent.plan)
+  app.entitlement = ent
 
   app.root = $('#app')
   clear(app.root)
@@ -56,10 +63,10 @@ export async function boot({ allowPro = false } = {}) {
     startSync().catch((e) => console.warn('동기화 시작 실패', e))
   }
 
-  window.addEventListener('hashchange', () => mount(location.hash.slice(1) || 'attendance'))
+  window.addEventListener('hashchange', () => mount(location.hash.slice(1) || 'today'))
   renderHeader()
   renderNav()
-  mount(location.hash.slice(1) || 'attendance')
+  mount(location.hash.slice(1) || 'today')
 }
 
 export async function startSync() {
@@ -84,7 +91,7 @@ export function renderHeader() {
     h('div', { class: 'grow truncate' },
       h('div', { class: 'title truncate' }, b.name),
       h('div', { class: 'sub' },
-        `${repo.getPlan() === 'pro' ? 'Pro' : 'Lite'}${user ? ` · ${user.name}(${ROLES[user.role]?.label || user.role})` : ''}`,
+        `${entitlementBadge(app.entitlement || entitlement())}${user ? ` · ${user.name}(${ROLES[user.role]?.label || user.role})` : ''}`,
         syncState ? h('span', { style: { marginLeft: '6px' } },
           h('span', { class: `sync-dot ${syncState.online ? 'on' : 'off'}` }),
           syncState.pending ? ` 대기 ${syncState.pending}` : ' 동기화됨') : null

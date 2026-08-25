@@ -4,10 +4,10 @@
 //   2) 계열이 다른 학원 2곳(영어학원/태권도장)을 custom 필드만 바꿔 운영
 //   3) 로고·학원명·컬러 변경이 헤더/리포트/설치 아이콘에 반영
 //   5) 백업 → 초기화 → 복원 왕복
-//   6) 라이선스 키 발급 → 입력 → 플랜 활성화
+//   6) 인증키(시디키) 게이트: 키 없이는 못 들어가고, 발급한 키로 열린다
 
 import { spawn } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
@@ -18,6 +18,9 @@ const results = []
 
 // detached: npx 가 vite 를 자식으로 또 띄우기 때문에, 프로세스 그룹째 종료해야
 // 측정이 끝난 뒤 dev 서버가 고아 프로세스로 남지 않는다
+// 인증 게이트를 매번 처음 상태에서 확인하려면 프로필(=IndexedDB)이 깨끗해야 한다
+rmSync(PROFILE_DIR, { recursive: true, force: true })
+
 const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
 const kill = () => { try { process.kill(-server.pid, 'SIGTERM') } catch {} }
 process.on('exit', kill)
@@ -32,6 +35,28 @@ page.setDefaultTimeout(60000)
 page.on('pageerror', (e) => console.error('  [page error]', e.message))
 
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'domcontentloaded' })
+
+// ── 0. 인증키 게이트 ────────────────────────────────────────
+await page.waitForSelector('.cover.activation')
+check('인증: 키가 없으면 앱 대신 인증 화면이 뜬다', await page.isVisible('.cover.activation input'))
+check('인증: 인증 전에는 앱 화면(탭)이 없다', !(await page.$('.app-nav button')))
+
+await page.fill('.cover.activation input', 'ZZZZ-ZZZZ-ZZZZ')
+await page.click('.cover.activation .btn.primary')
+const badMsg = await page.textContent('.activation-msg')
+check('인증: 잘못된 키는 이유를 알려 주고 막는다', /검증번호|자리|문자/.test(badMsg || ''))
+
+const { generateKey } = await import('../src/core/license.js')
+const proKey = generateKey('pro', 'A')   // 통합키(A) — 피아노 관리노트와 공용
+await page.fill('.cover.activation input', proKey)
+await page.click('.cover.activation .btn.primary')
+await page.waitForSelector('.cover .panel h2')
+check('인증: 발급한 통합키를 넣으면 앱이 열린다', !(await page.$('.cover.activation')))
+
+// 인증 직후에는 시작 마법사가 이어진다 (학원명 → 컬러 → 과목 → PIN)
+await runWizard('스모크 학원')
+check('마법사: 4단계 설정 + PIN 로그인으로 앱이 준비된다', await page.isVisible('.app-nav button'))
+check('인증: Pro 키는 헤더에 Pro 로 표시된다', (await page.textContent('.app-header .sub'))?.includes('Pro'))
 
 // ── 1. 영어학원 시나리오 ────────────────────────────────────
 await seed('english')
@@ -100,44 +125,57 @@ check('브랜딩: 로고 미업로드 시 이니셜 아이콘 생성', branded.i
 const roundTrip = await page.evaluate(async () => {
   const { db } = await import('/src/data/db.js')
   const { buildBackup, parseBackup, BACKUP_TABLES } = await import('/src/core/backup.js')
+  const { restoreFromBackup } = await import('/src/data/restore.js')
   const tables = {}
   for (const t of BACKUP_TABLES) tables[t] = db[t] ? await db[t].toArray() : []
   const json = JSON.stringify(buildBackup(tables, { plan: 'lite', academy: '테스트 학원' }))
   const beforeCounts = { students: tables.students.length, attendance: tables.attendance.length }
 
-  await db.transaction('rw', db.tables, async () => { await Promise.all(db.tables.map((t) => t.clear())) })
+  // 자료가 날아간 상황을 흉내 낸다 (인증은 기기에 남아 있는 상태)
+  await db.transaction('rw', [db.students, db.attendance, db.payments], async () => {
+    await Promise.all([db.students.clear(), db.attendance.clear(), db.payments.clear()])
+  })
   const emptied = await db.students.count()
 
-  const backup = parseBackup(json)
-  await db.transaction('rw', db.tables, async () => {
-    for (const t of BACKUP_TABLES) {
-      if (!db[t]) continue
-      await db[t].clear()
-      if (backup.data[t].length) await db[t].bulkPut(backup.data[t])
-    }
-  })
-  return { beforeCounts, emptied, after: { students: await db.students.count(), attendance: await db.attendance.count() } }
+  await restoreFromBackup(parseBackup(json))
+  return {
+    beforeCounts,
+    emptied,
+    after: { students: await db.students.count(), attendance: await db.attendance.count() },
+    licenseKept: !!(await db.settings.get('license'))
+  }
 })
+check('백업: 복원 후에도 이 기기 인증은 그대로 유지된다', roundTrip.licenseKept === true)
 check('백업: 초기화 후 복원으로 원생/출결이 그대로 돌아온다',
   roundTrip.emptied === 0 &&
   roundTrip.after.students === roundTrip.beforeCounts.students &&
   roundTrip.after.attendance === roundTrip.beforeCounts.attendance)
 
-// ── 4. 라이선스 발급 → 입력 → 플랜 활성화 ───────────────────
+// ── 4. 인증 상태 유지 / 백업에 키가 새지 않는지 ─────────────
 const license = await page.evaluate(async () => {
-  const { generateKey, verifyKey, hashKey } = await import('/src/core/license.js')
   const repo = await import('/src/data/repo.js')
-  const key = generateKey('pro')
-  const res = verifyKey(key)
-  if (!res.ok) return { ok: false, reason: res.reason }
-  await repo.setSetting('license', { key: res.key, key_hash: hashKey(res.key), plan: res.plan })
-  repo.setPlan(res.plan)
-  const liteKey = generateKey('lite')
-  return { ok: true, plan: repo.getPlan(), stored: repo.getSetting('license').plan, litePlan: verifyKey(liteKey).plan, tampered: verifyKey(key.slice(0, -1) + (key.at(-1) === 'A' ? 'B' : 'A')).ok }
+  const { db } = await import('/src/data/db.js')
+  const { buildBackup, BACKUP_TABLES } = await import('/src/core/backup.js')
+  const { verifyKey, generateKey } = await import('/src/core/license.js')
+  const tables = {}
+  for (const t of BACKUP_TABLES) tables[t] = db[t] ? await db[t].toArray() : []
+  const backup = buildBackup(tables, { plan: repo.getPlan() })
+  const pianoOnly = generateKey('lite', 'K')
+  return {
+    plan: repo.getPlan(),
+    stored: repo.getSetting('license')?.plan,
+    product: repo.getSetting('license')?.product,
+    device: repo.getSetting('license')?.device,
+    backupHasKey: JSON.stringify(backup).includes(repo.getSetting('license')?.key || 'x'),
+    pianoRejected: verifyKey(pianoOnly).ok,
+    pianoReason: verifyKey(pianoOnly).reason
+  }
 })
-check('라이선스: Pro 키 입력 시 Pro 플랜 활성화', license.ok && license.plan === 'pro' && license.stored === 'pro')
-check('라이선스: Lite 키는 Lite 로 인식', license.litePlan === 'lite')
-check('라이선스: 한 글자 바뀐 키는 거부', license.tampered === false)
+check('인증: 데모 시드·초기화 뒤에도 인증이 유지된다', license.plan === 'pro' && license.stored === 'pro')
+check('인증: 통합키(A)로 인식된다', license.product === 'A')
+check('인증: 기기번호가 함께 저장된다', !!license.device)
+check('인증: 백업 파일에 인증키가 들어가지 않는다', license.backupHasKey === false)
+check('인증: 피아노 전용 키(K)는 이 제품에서 거부', license.pianoRejected === false && /피아노/.test(license.pianoReason || ''))
 
 // Pro 플랜에서 동기화 설정 UI 노출
 await reload()
@@ -146,6 +184,84 @@ await page.waitForSelector('details')
 const hasProSection = await page.evaluate(() =>
   [...document.querySelectorAll('details summary')].some((s) => s.textContent.includes('Pro 동기화')))
 check('Pro: 설정에 동기화 섹션이 나타난다', hasProSection)
+
+// ── 4-2. 원장 반복업무 기능 ─────────────────────────────────
+await page.click('.app-nav button[data-view="today"]')
+await page.waitForSelector('.todo-item, .todo-empty')
+const todo = await page.evaluate(() => ({
+  items: [...document.querySelectorAll('.todo-item b')].map((b) => b.textContent),
+  hasAction: !!document.querySelector('.todo-item .btn')
+}))
+check('오늘: 할 일 목록이 그려진다', todo.items.length > 0 && todo.hasAction)
+
+const bulk = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  const { openBulkNotice } = await import('/src/ui/views/bulk-notice.js')
+  openBulkNotice({ studentIds: repo.cache.students.slice(0, 5).map((s) => s.id), templateId: 'payment', amounts: {} })
+  await new Promise((r) => setTimeout(r, 50))
+  return {
+    rows: document.querySelectorAll('.modal .pick-row').length,
+    preview: document.querySelector('.modal textarea.msg')?.value || '',
+    actions: [...document.querySelectorAll('.modal-actions button')].map((b) => b.textContent)
+  }
+})
+check('일괄 안내: 대상 목록과 문구가 만들어진다', bulk.rows === 5 && bulk.preview.length > 10)
+check('일괄 안내: 번호 복사·CSV·문자앱 버튼 제공', bulk.actions.join().includes('번호만 복사') && bulk.actions.join().includes('CSV'))
+await page.keyboard.press('Escape')
+
+const billing = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  const { toMonth, toYmd, addMonths } = await import('/src/core/date.js')
+  const month = addMonths(toMonth(toYmd()), 1)
+  await repo.setSetting('billing', { sibling: { enabled: true, type: 'percent', value: 10 }, roundUnit: 100, dueDay: 10 })
+  const plain = await repo.previewMonthlyBills(month)
+  await repo.setSetting('billing', null)
+  const noDiscount = await repo.previewMonthlyBills(month)
+  const withSibling = plain.rows.filter((r) => r.bill.discount > 0)
+  return {
+    count: plain.rows.length,
+    discounted: withSibling.length,
+    sample: withSibling[0]?.bill?.lines?.at(-1)?.label || '',
+    cheaper: plain.total < noDiscount.total,
+    saved: 0
+  }
+})
+check('청구: 미리보기가 재원생별 금액을 계산한다', billing.count > 0)
+check('청구: 형제 할인이 자동 반영된다', billing.discounted > 0 && billing.cheaper && /형제 할인/.test(billing.sample))
+
+const csv = await page.evaluate(async () => {
+  const { parseStudentTable } = await import('/src/core/csv.js')
+  const repo = await import('/src/data/repo.js')
+  const text = '이름\t학년\t학부모 연락처\n스모크학생\t초3\t010-9999-8888\n' + repo.cache.students[0].name + '\t초4\t' + (repo.cache.students[0].parent_phone || '')
+  const res = parseStudentTable(text, { existing: repo.cache.students })
+  return { rows: res.rows.length, first: res.rows[0], dup: res.rows[1]?.duplicate }
+})
+check('엑셀 가져오기: 붙여넣은 표에서 원생을 인식한다', csv.rows === 2 && csv.first.name === '스모크학생' && csv.first.parent_phone === '010-9999-8888')
+check('엑셀 가져오기: 이미 등록된 원생을 중복으로 표시한다', csv.dup === true)
+
+const register = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  const { monthlyRegister } = await import('/src/core/register.js')
+  const { toMonth, toYmd } = await import('/src/core/date.js')
+  const cls = repo.cache.classes[0]
+  const month = toMonth(toYmd())
+  const roster = repo.rosterOf(cls.id, toYmd())
+  const records = await repo.attendanceOfClassMonth(cls.id, month)
+  const t = monthlyRegister({ month, roster, records })
+  return { headers: t.headers.length, rows: t.rows.length, tail: t.rows[0]?.slice(-3) }
+})
+check('출석부: 월간 표(원생 × 날짜 + 출석률)를 만든다', register.rows > 0 && register.headers > 4 && String(register.tail?.[2]).includes('%'))
+
+const receipt = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  const { drawReceipt } = await import('/src/ui/receipt.js')
+  const { toMonth, toYmd } = await import('/src/core/date.js')
+  const pays = await repo.paymentsOfMonth(toMonth(toYmd()))
+  const paid = pays.find((p) => p.paid > 0) || pays[0]
+  const canvas = await drawReceipt({ payment: paid, student: repo.cache.studentById.get(paid.student_id) })
+  return { w: canvas.width, h: canvas.height, bytes: canvas.toDataURL('image/png').length }
+})
+check('영수증: 수납 영수증 이미지를 생성한다', receipt.w === 700 && receipt.h > 400 && receipt.bytes > 10000)
 
 // ── 5. 태권도장 시나리오 (계열 전환) ────────────────────────
 await seed('taekwondo')
@@ -173,6 +289,24 @@ function check(name, ok) {
   console.log(`  ${ok ? '✅' : '❌'} ${name}`)
 }
 
+/** 시작 마법사를 끝까지 진행한다 */
+async function runWizard(name) {
+  if (!(await page.$('.cover .panel'))) return
+  await page.fill('.cover .panel input[type=text]', name)
+  for (let i = 0; i < 3; i++) {
+    await page.click('.cover .panel .btn.primary')
+    await page.waitForTimeout(120)
+  }
+  await page.click('.cover .panel .btn.primary')  // 시작하기
+  // Pro 키로 인증하면 기기마다 PIN 을 묻는다 (원장 기본 PIN 0000)
+  const pad = await page.waitForSelector('.pin-pad, .app-nav button')
+  if (await page.$('.pin-pad')) {
+    for (let i = 0; i < 4; i++) await page.click('.pin-pad button:has-text("0")')
+  }
+  await page.waitForSelector('.app-nav button')
+  return pad
+}
+
 async function seed(scenario) {
   console.log(`\n▶ 데모 시드: ${scenario}`)
   await page.evaluate(async (key) => {
@@ -180,7 +314,13 @@ async function seed(scenario) {
     await seedDemo(key, { students: 30 })
     const { db } = await import('/src/data/db.js')
     const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
-    if (owner) localStorage.setItem('academy-note:session', JSON.stringify({ userId: owner.id, at: Date.now() }))
+    // 시드로 사용자 id 가 바뀌므로 세션도 새 원장으로 갈아 끼운다
+    // (Pro 는 sessionStorage 를 먼저 보기 때문에 둘 다 써 준다)
+    if (owner) {
+      const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
+      sessionStorage.setItem('academy-note:session', payload)
+      localStorage.setItem('academy-note:session', payload)
+    }
   }, scenario)
 }
 

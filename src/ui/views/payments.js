@@ -1,9 +1,13 @@
 // 수납 탭 — 월별 현황 / 미납 필터 / 분할납부 계산기 / 월말 마감 도우미
 
 import { h, clear, toast, modal, field, debounce, confirmDialog } from '../dom.js'
-import { formatWon, splitInstallments, decorate, settleMonth, PAY_STATUS } from '../../core/fees.js'
+import { formatWon, splitInstallments, decorate, settleMonth, overdueDays, PAY_STATUS } from '../../core/fees.js'
 import { toMonth, toYmd, addMonths } from '../../core/date.js'
 import { openNoticeModal } from './notice-modal.js'
+import { openBulkNotice } from './bulk-notice.js'
+import { openReceipt } from '../receipt.js'
+import { downloadCsv } from '../../core/csv.js'
+import { printTable } from '../print.js'
 
 export async function render(root, ctx) {
   const { repo } = ctx
@@ -27,6 +31,11 @@ export async function render(root, ctx) {
       h('input', { type: 'search', placeholder: '원생 검색', style: { maxWidth: '200px' }, onInput: debounce((e) => { query = e.target.value; paint() }, 200) }),
       canWrite ? h('button', { class: 'btn right', onClick: generateBills }, '이번 달 청구 생성') : null,
       canWrite ? h('button', { class: 'btn primary', onClick: closeMonth }, '월말 마감') : null
+    ),
+    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
+      h('button', { class: 'btn sm', onClick: remindUnpaid }, '미납자 일괄 안내'),
+      h('button', { class: 'btn sm', onClick: exportLedger }, '수납대장 CSV'),
+      h('button', { class: 'btn sm', onClick: printLedger }, '수납대장 인쇄')
     ),
     h('div', { style: { marginTop: '10px' } }, filterBar)
   )
@@ -96,10 +105,14 @@ export async function render(root, ctx) {
         h('td', {}, formatWon(p.amount)),
         h('td', {}, formatWon(p.paid)),
         h('td', {}, p.remaining ? h('span', { style: { color: 'var(--danger)' } }, formatWon(p.remaining)) : '-'),
-        h('td', {}, h('span', { class: `badge ${p.status === '완납' ? 'ok' : p.status === '부분' ? 'warn' : 'danger'}` }, p.status)),
+        h('td', {},
+          h('span', { class: `badge ${p.status === '완납' ? 'ok' : p.status === '부분' ? 'warn' : 'danger'}` }, p.status),
+          lateDays(p) > 0 ? h('div', { class: 'small', style: { color: 'var(--danger)' } }, `연체 ${lateDays(p)}일`) : null,
+          p.discount ? h('div', { class: 'small muted' }, `할인 ${formatWon(p.discount)}`) : null),
         h('td', { class: 'right' },
           h('div', { class: 'row', style: { gap: '4px', justifyContent: 'flex-end' } },
             p.status !== '완납' && st ? h('button', { class: 'btn sm', onClick: () => openNoticeModal({ student: st, templateId: 'payment', extra: { month, amount: p.remaining } }) }, '안내') : null,
+            p.paid > 0 && st ? h('button', { class: 'btn sm', onClick: () => openReceipt({ payment: p, student: st }) }, '영수증') : null,
             canWrite ? h('button', { class: 'btn sm', onClick: () => openEditor(p, st) }, '수정') : null
           ))
       ))
@@ -112,10 +125,97 @@ export async function render(root, ctx) {
       h('div', { class: 'l' }, label))
   }
 
+  function lateDays(p) {
+    if (p.status === PAY_STATUS.FULL) return 0
+    const due = p.due_date ? p.due_date.slice(8, 10) : repo.policy().dueDay
+    return Math.max(0, overdueDays(p.month, toYmd(), Number(due)))
+  }
+
+  function visibleRows() {
+    const q = query.trim().toLowerCase()
+    return rows.filter((p) => {
+      if (filter !== '전체' && p.status !== filter) return false
+      if (!q) return true
+      const st = repo.cache.studentById.get(p.student_id)
+      return `${st?.name || ''} ${st?.school || ''}`.toLowerCase().includes(q)
+    })
+  }
+
+  function remindUnpaid() {
+    const unpaid = rows.filter((p) => p.status !== PAY_STATUS.FULL && p.remaining > 0)
+    if (!unpaid.length) return toast('미납자가 없습니다 👍')
+    openBulkNotice({
+      studentIds: unpaid.map((p) => p.student_id),
+      templateId: 'payment',
+      month,
+      amounts: Object.fromEntries(unpaid.map((p) => [p.student_id, p.remaining])),
+      title: `${month} 미납 안내 (${unpaid.length}명)`
+    })
+  }
+
+  function ledgerRows() {
+    return visibleRows().map((p) => {
+      const st = repo.cache.studentById.get(p.student_id)
+      return [
+        st?.name || '(삭제된 원생)', st?.grade || '',
+        repo.studentClasses(p.student_id).map((c) => c.name).join(' '),
+        p.base_amount ?? p.amount, p.discount || 0, p.amount, p.paid, p.remaining,
+        p.status, p.method || '', p.paid_at || '', lateDays(p) || ''
+      ]
+    })
+  }
+
+  const LEDGER_HEAD = ['원생', '학년', '반', '기본', '할인', '청구', '납부', '잔액', '상태', '방법', '납부일', '연체(일)']
+
+  function exportLedger() {
+    const data = ledgerRows()
+    if (!data.length) return toast('내보낼 내역이 없습니다', 'error')
+    downloadCsv(`수납대장_${month}.csv`, LEDGER_HEAD, data)
+    toast(`${data.length}건을 CSV로 저장했습니다`, 'ok')
+  }
+
+  function printLedger() {
+    const data = ledgerRows()
+    if (!data.length) return toast('인쇄할 내역이 없습니다', 'error')
+    const totals = data.reduce((acc, r) => {
+      acc.billed += Number(r[5]) || 0; acc.paid += Number(r[6]) || 0; acc.rest += Number(r[7]) || 0
+      return acc
+    }, { billed: 0, paid: 0, rest: 0 })
+    printTable({
+      title: `${month} 수납대장`,
+      subtitle: `청구 ${formatWon(totals.billed)} · 수납 ${formatWon(totals.paid)} · 미수 ${formatWon(totals.rest)} · ${data.length}건`,
+      headers: LEDGER_HEAD,
+      rows: data.map((r) => r.map((v, i) => ([3, 4, 5, 6, 7].includes(i) && v !== '' ? Number(v).toLocaleString('ko-KR') : v)))
+    })
+  }
+
   async function generateBills() {
-    const created = await repo.generateMonthlyBills(month)
-    await load()
-    toast(created.length ? `${created.length}건의 청구를 생성했습니다` : '새로 만들 청구가 없습니다', created.length ? 'ok' : 'info')
+    const { rows: preview, total, skipped } = await repo.previewMonthlyBills(month)
+    if (!preview.length) {
+      return toast(skipped ? '이미 모든 재원생의 청구가 있습니다' : '청구할 수강 내역이 없습니다')
+    }
+    const listBox = h('div', { style: { maxHeight: '300px', overflow: 'auto' } })
+    for (const { student, bill } of preview) {
+      listBox.append(h('div', { class: 'pick-row' },
+        h('span', { class: 'grow' }, student.name,
+          bill.discount ? h('span', { class: 'small', style: { color: 'var(--ok)' } }, ` · 할인 ${formatWon(bill.discount)}`) : null),
+        h('span', {}, formatWon(bill.total))))
+    }
+    modal({
+      title: `${month} 청구 생성 미리보기`,
+      body: h('div', {},
+        h('p', { class: 'small muted' },
+          `재원생 ${preview.length}명 · 합계 ${formatWon(total)}${skipped ? ` · 이미 청구된 ${skipped}명은 건너뜁니다` : ''}`),
+        listBox,
+        h('p', { class: 'small muted' }, '형제 할인·개인 할인은 설정 > 수납 정책에서 바꿀 수 있습니다.')),
+      actions: [{
+        label: `${preview.length}건 만들기`, kind: 'primary', onClick: async () => {
+          const created = await repo.generateMonthlyBills(month)
+          await load()
+          toast(`${created.length}건의 청구를 생성했습니다`, 'ok')
+        }
+      }]
+    })
   }
 
   async function closeMonth() {

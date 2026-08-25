@@ -185,3 +185,34 @@ tbody tr:hover { background: #fafafa; }
 @media (min-width: 860px) {
   .vl-viewport { height: calc(100dvh - var(--header-h) - var(--nav-h) - 200px); }
 }
+
+/* 인증(시디키) 화면 */
+.cover.activation { background: linear-gradient(170deg, var(--brand-soft), #fff 60%); }
+.btn.block { display: block; width: 100%; margin-top: 10px; padding: 12px; font-size: 15px; }
+.divider { height: 1px; background: var(--line); margin: 18px 0 14px; }
+.linkbtn { background: none; border: 0; color: var(--brand); cursor: pointer; padding: 0; font-size: 12px; text-decoration: underline; }
+
+/* 오늘 할 일 */
+.todo-item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.todo-item:last-child { border-bottom: 0; }
+.todo-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--brand-soft); font-size: 17px; flex: none; }
+.todo-item.warn .todo-ico { background: #fef3c7; }
+.todo-item.danger .todo-ico { background: #fee2e2; }
+.todo-empty { padding: 22px 0; text-align: center; color: var(--muted); }
+.pick-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.pick-row input[type=checkbox] { width: 18px; height: 18px; flex: none; }
+textarea.msg { width: 100%; min-height: 120px; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+
+/* 인쇄물 (출석부·수납대장·영수증) */
+.print-only { display: none; }
+@media print {
+  .app-header, .app-nav, .no-print, .toast { display: none !important; }
+  body { background: #fff; }
+  main { padding: 0 !important; }
+  .card { box-shadow: none; border: 0; padding: 0; }
+  .print-only { display: block; }
+  .print-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .print-table th, .print-table td { border: 1px solid #999; padding: 3px 4px; text-align: center; }
+  .print-table th { background: #f3f4f6; }
+  @page { size: A4 landscape; margin: 10mm; }
+}

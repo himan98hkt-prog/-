@@ -11,6 +11,7 @@ import { writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
+import { generateKey } from '../src/core/license.js'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -31,7 +32,7 @@ const SKIP_SEED = args.includes('--skip-seed')
 // 측정 도중 페이지를 리로드해 버리기 때문이다
 const PROFILE_DIR = join(tmpdir(), 'academy-note-perf-profile')
 const PORT = opt('port', 5199)
-const VIEWS = ['attendance', 'students', 'payments', 'timetable', 'counsel', 'expenses', 'dashboard', 'settings']
+const VIEWS = ['today', 'attendance', 'students', 'payments', 'timetable', 'counsel', 'expenses', 'dashboard', 'settings']
 
 // detached: npx 가 vite 를 자식으로 또 띄우기 때문에, 프로세스 그룹째 종료해야
 // 측정이 끝난 뒤 dev 서버가 고아 프로세스로 남지 않는다
@@ -73,12 +74,25 @@ if (SKIP_SEED && existing.attendance > 0) {
   console.log(`  생성 완료 (${(seedMs / 1000).toFixed(1)}s)`)
 }
 
-// PIN 로그인 화면을 건너뛰도록 원장 계정으로 세션을 미리 넣어둔다
-await page.evaluate(async () => {
+// 인증키 게이트와 PIN 로그인은 측정 대상이 아니므로 미리 통과시켜 둔다
+// (키는 앱과 같은 모듈로 발급한 Lite 통합키 — 실제 고객 상태와 동일하다)
+const perfKey = generateKey('lite', 'A')
+await page.evaluate(async (key) => {
   const { db } = await import('/src/data/db.js')
+  const { verifyKey, hashKey } = await import('/src/core/license.js')
+  const res = verifyKey(key)
+  await db.settings.put({
+    key: 'license',
+    value: { key: res.key, key_hash: hashKey(res.key), plan: res.plan, product: res.product, activated_at: new Date().toISOString() }
+  })
+  await db.settings.put({ key: 'wizardDone', value: true })
   const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
-  if (owner) localStorage.setItem('academy-note:session', JSON.stringify({ userId: owner.id, at: Date.now() }))
-})
+  if (owner) {
+    const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
+    localStorage.setItem('academy-note:session', payload)
+    sessionStorage.setItem('academy-note:session', payload)
+  }
+}, perfKey)
 console.log('')
 
 // 시드 후 새 세션으로 앱을 다시 띄운다 (실사용과 같은 콜드 스타트)

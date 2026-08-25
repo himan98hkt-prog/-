@@ -96,3 +96,81 @@ export function billableFor(enrollments = [], classMap = new Map()) {
 export function formatWon(n) {
   return `${Math.round(Number(n) || 0).toLocaleString('ko-KR')}원`
 }
+
+// ── 할인 정책과 청구 계산 ───────────────────────────────────
+// 원장이 매달 계산기로 두드리던 형제 할인·개인 할인을 규칙으로 굳힌다.
+// 규칙을 여기 모아 두면 "왜 이 금액이 나왔는지" 를 청구서에 그대로 적어 줄 수 있다.
+
+export const DEFAULT_BILLING = {
+  dueDay: 10,              // 납부 기준일 — 이 날이 지나야 미납 독촉 대상이 된다
+  roundUnit: 100,          // 최종 금액 절사 단위
+  sibling: {
+    enabled: false,
+    type: 'percent',       // 'percent' | 'amount'
+    value: 10,
+    applyTo: 'all'         // 'all' = 형제 전원, 'others' = 첫째를 뺀 나머지
+  }
+}
+
+export function billingPolicy(saved) {
+  const s = saved || {}
+  return { ...DEFAULT_BILLING, ...s, sibling: { ...DEFAULT_BILLING.sibling, ...(s.sibling || {}) } }
+}
+
+function discountAmount(rule, base) {
+  if (!rule) return 0
+  const value = Number(rule.value) || 0
+  if (value <= 0) return 0
+  const raw = rule.type === 'amount' ? value : (base * value) / 100
+  return Math.min(base, Math.round(raw))
+}
+
+/**
+ * 원생 한 명의 이번 달 청구액.
+ * @param {object} opts
+ * @param {object} opts.student            student.discount = {type,value,memo} 로 개인 할인
+ * @param {Array}  opts.enrollments        이 원생의 유효 수강 내역
+ * @param {Map}    opts.classMap           class_id -> class
+ * @param {object} [opts.policy]           billingPolicy()
+ * @param {number} [opts.siblingCount]     형제 그룹 인원(본인 포함)
+ * @param {boolean}[opts.isFirstSibling]   형제 중 첫째인지 (applyTo:'others' 에서만 씀)
+ * @returns {{base:number, total:number, lines:Array, discount:number}}
+ */
+export function computeBill({ student = {}, enrollments = [], classMap = new Map(), policy, siblingCount = 1, isFirstSibling = false }) {
+  const p = billingPolicy(policy)
+  const lines = []
+  let base = 0
+  for (const e of enrollments) {
+    const cls = classMap.get(e.class_id)
+    const amount = e.fee_override != null && e.fee_override !== ''
+      ? Number(e.fee_override) || 0
+      : Number(cls?.fee) || 0
+    if (!amount) continue
+    base += amount
+    lines.push({ label: cls?.name || '수강', amount })
+  }
+  if (!base) return { base: 0, total: 0, discount: 0, lines }
+
+  let discount = 0
+  if (p.sibling.enabled && siblingCount >= 2 && !(p.sibling.applyTo === 'others' && isFirstSibling)) {
+    const amt = discountAmount(p.sibling, base)
+    if (amt) { discount += amt; lines.push({ label: `형제 할인(${siblingCount}명)`, amount: -amt }) }
+  }
+  const own = student.discount
+  if (own && Number(own.value) > 0) {
+    const amt = discountAmount(own, base)
+    if (amt) { discount += amt; lines.push({ label: own.memo ? `할인 · ${own.memo}` : '개인 할인', amount: -amt }) }
+  }
+
+  const unit = Math.max(1, Number(p.roundUnit) || 1)
+  const total = Math.max(0, Math.floor((base - discount) / unit) * unit)
+  return { base, total, discount: base - total, lines }
+}
+
+/** 납부 기한 대비 연체 일수 (0 이하면 아직 기한 전) */
+export function overdueDays(month, today, dueDay = DEFAULT_BILLING.dueDay) {
+  const due = `${month}-${String(dueDay).padStart(2, '0')}`
+  const [y1, m1, d1] = due.split('-').map(Number)
+  const [y2, m2, d2] = String(today).split('-').map(Number)
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000)
+}
