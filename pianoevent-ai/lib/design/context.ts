@@ -26,4 +26,8 @@ export interface DesignContext {
   copy: DesignCopy
   /** 초대장 링크 — 포스터·카드 하단 안내에 쓴다 */
   inviteUrl: string
+  /** 학원 로고 이미지 주소. 없으면 로고 자리를 비운다 */
+  logoUrl: string | null
+  /** 미리보기에서만 true — 로고가 없을 때 자리 안내를 그린다 */
+  placeholder: boolean
 }

@@ -134,6 +134,8 @@ async function run() {
   const posterHtml = await poster.text()
   check('포스터 인쇄면 렌더', poster.ok && posterHtml.includes('스모크 정기 연주회'))
   check('포스터에 연주자 이름 노출', posterHtml.includes('김서연'))
+  check('포스터에 학원 로고가 들어감', posterHtml.includes('data:image/svg+xml'))
+  check('인쇄물에는 빈 로고 자리를 찍지 않음', !posterHtml.includes('로고 자리'))
 
   const certificate = await call(`/events/${event.id}/design/print?template=certificate&theme=ivory-gold`)
   const certificateHtml = await certificate.text()

@@ -14,6 +14,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [designTheme, setDesignTheme] = useState(academy.design_theme ?? 'classic-navy')
+  const [logoUrl, setLogoUrl] = useState(academy.logo_url ?? '')
 
   async function save(formData: FormData) {
     setPending(true)
@@ -73,8 +74,28 @@ export function AcademyForm({ academy }: { academy: Academy }) {
             </div>
             <div>
               <Label htmlFor="logo_url">로고 이미지 주소 (선택)</Label>
-              <Input id="logo_url" name="logo_url" defaultValue={academy.logo_url ?? ''} placeholder="https://..." />
-              <FieldHint>Supabase Storage 등에 올린 이미지 URL 을 넣으세요.</FieldHint>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="logo_url"
+                  name="logo_url"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+                {logoUrl.trim() && (
+                  // 외부 URL 이라 next/image 대신 img 로 그린다
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt="로고 미리보기"
+                    className="h-10 w-10 shrink-0 rounded-full border border-border object-contain"
+                  />
+                )}
+              </div>
+              <FieldHint>
+                정사각형에 가까운 이미지(투명 배경 PNG·SVG)가 가장 잘 맞습니다. 포스터·순서지·입장권·상장의 로고
+                자리에 테마가 정한 모양으로 들어갑니다.
+              </FieldHint>
             </div>
           </div>
 

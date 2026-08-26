@@ -1,3 +1,4 @@
+import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
@@ -22,7 +23,8 @@ export function ProgramCover({ ctx }: { ctx: DesignContext }) {
           textAlign: 'center',
         }}
       >
-        <p style={{ ...T.label(11) }}>{academy.name}</p>
+        <LogoSlot ctx={ctx} />
+        <p style={{ ...T.label(11), marginTop: 16 }}>{academy.name}</p>
         <p style={{ marginTop: 8, fontSize: 13, letterSpacing: '0.2em', color: 'var(--d-muted)' }}>{copy.subtitle}</p>
 
         <h1 style={{ ...T.display(46), marginTop: 40 }}>{event.title}</h1>
@@ -150,8 +152,11 @@ export function ProgramInner({ ctx }: { ctx: DesignContext }) {
   return (
     <Sheet theme={theme} page="a4-portrait">
       <div style={{ height: '100%', padding: '70px 72px 56px', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ textAlign: 'center', marginBottom: 26 }}>
-          <h2 style={{ ...T.display(28) }}>연주 순서</h2>
+        <header
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 26 }}
+        >
+          <LogoSlot ctx={ctx} height={34} />
+          <h2 style={{ ...T.display(28), marginTop: 12 }}>연주 순서</h2>
           <p style={{ marginTop: 8, fontSize: 12, color: 'var(--d-muted)' }}>
             {event.title} · 연주자 {plan.items.length}명
           </p>
@@ -202,8 +207,9 @@ export function ProgramBifold({ ctx }: { ctx: DesignContext }) {
             background: 'var(--d-paper-alt)',
           }}
         >
-          <p style={{ ...T.label(10) }}>{academy.name}</p>
-          <h1 style={{ ...T.display(32), marginTop: 26 }}>{event.title}</h1>
+          <LogoSlot ctx={ctx} height={46} />
+          <p style={{ ...T.label(10), marginTop: 14 }}>{academy.name}</p>
+          <h1 style={{ ...T.display(32), marginTop: 22 }}>{event.title}</h1>
           <div style={{ marginTop: 18 }}>
             <OrnamentDivider id={theme.ornament} width={160} />
           </div>

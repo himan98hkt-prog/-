@@ -59,7 +59,8 @@ export function DesignStudio({
   const template = getTemplate(templateId)
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const ctx = useMemo(
-    () => ({ theme, academy, event, plan, copy, inviteUrl }),
+    // 미리보기에서는 로고가 없어도 자리를 표시해 어디에 들어가는지 보이게 한다
+    () => ({ theme, academy, event, plan, copy, inviteUrl, logoUrl: academy.logo_url, placeholder: true }),
     [theme, academy, event, plan, copy, inviteUrl],
   )
 

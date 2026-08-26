@@ -1,3 +1,4 @@
+import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
@@ -26,7 +27,10 @@ export function TicketStrip({ ctx }: { ctx: DesignContext }) {
             }}
           >
             <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
-              <p style={{ ...T.label(9.5) }}>{academy.name}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <LogoSlot ctx={ctx} height={26} align="start" />
+                <p style={{ ...T.label(9.5) }}>{academy.name}</p>
+              </div>
               <h2 style={{ ...T.display(24), marginTop: 10 }}>{event.title}</h2>
               <p style={{ marginTop: 10, fontSize: 12.5, color: 'var(--d-muted)' }}>
                 {d.year}. {d.month}. {d.day} ({d.weekday}) {d.time}
@@ -88,8 +92,11 @@ export function SocialCard({ ctx }: { ctx: DesignContext }) {
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <p style={{ ...T.label(13) }}>{academy.name}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <LogoSlot ctx={ctx} height={72} align="start" />
+            <p style={{ ...T.label(13) }}>{academy.name}</p>
+          </div>
           <TrebleClef size={30} opacity={0.85} />
         </div>
 
@@ -144,8 +151,9 @@ export function ThankYouCards({ ctx }: { ctx: DesignContext }) {
               textAlign: 'center',
             }}
           >
+            <LogoSlot ctx={ctx} height={38} />
             <TrebleClef size={22} opacity={0.85} />
-            <h2 style={{ ...T.display(26), marginTop: 20 }}>고맙습니다</h2>
+            <h2 style={{ ...T.display(26), marginTop: 16 }}>고맙습니다</h2>
             <div style={{ marginTop: 14 }}>
               <OrnamentDivider id={theme.ornament} width={160} />
             </div>
@@ -186,8 +194,9 @@ export function Certificates({ ctx, limit }: { ctx: DesignContext; limit?: numbe
               textAlign: 'center',
             }}
           >
-            <p style={{ ...T.label(12) }}>{academy.name}</p>
-            <h1 style={{ ...T.display(40), marginTop: 22, letterSpacing: '0.3em' }}>참 가 상</h1>
+            <LogoSlot ctx={ctx} height={48} />
+            <p style={{ ...T.label(12), marginTop: 12 }}>{academy.name}</p>
+            <h1 style={{ ...T.display(40), marginTop: 18, letterSpacing: '0.3em' }}>참 가 상</h1>
 
             <div style={{ marginTop: 18 }}>
               <OrnamentDivider id={theme.ornament} width={220} />

@@ -50,7 +50,9 @@ function seed(): Db {
         id: academyId,
         name: '하모니 피아노학원',
         director_name: '김보람',
-        logo_url: null,
+        // 데모용 로고 (인라인 SVG). 실제 학원은 설정에서 이미지 주소를 넣는다
+        logo_url:
+          'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2231%22%20fill%3D%22%231f2a44%22%2F%3E%3Cg%20fill%3D%22%23f5efe0%22%3E%3Crect%20x%3D%2217%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2225%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2233%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2241%22%20y%3D%2219%22%20width%3D%226%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%23b3892f%22%3E%3Crect%20x%3D%2221.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3Crect%20x%3D%2229.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3Crect%20x%3D%2237.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E',
         theme_color: '#1f2a44',
         design_theme: 'classic-navy',
         created_at: created,

@@ -1,3 +1,4 @@
+import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
 import { Sheet, type as T } from '@/components/design/sheet'
 import type { DesignContext } from '@/lib/design/context'
@@ -31,7 +32,9 @@ export function PosterClassic({ ctx }: { ctx: DesignContext }) {
           padding: '86px 84px 68px',
         }}
       >
-        <p style={{ ...T.label(12), marginBottom: 18 }}>{academy.name}</p>
+        <LogoSlot ctx={ctx} />
+
+        <p style={{ ...T.label(12), marginTop: 18, marginBottom: 18 }}>{academy.name}</p>
 
         <TrebleClef size={30} opacity={0.9} />
 
@@ -120,7 +123,11 @@ export function PosterModern({ ctx }: { ctx: DesignContext }) {
           <span style={{ fontSize: 13, letterSpacing: '0.2em' }}>{copy.subtitle}</span>
         </div>
 
-        <div style={{ padding: '64px 64px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '52px 64px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ marginBottom: 26 }}>
+            <LogoSlot ctx={ctx} align="start" />
+          </div>
+
           <h1 style={{ ...T.display(62), maxWidth: 560 }}>{event.title}</h1>
 
           <div style={{ marginTop: 46, display: 'flex', alignItems: 'flex-start', gap: 30 }}>
@@ -168,8 +175,9 @@ export function PosterProgram({ ctx }: { ctx: DesignContext }) {
   return (
     <Sheet theme={theme} page="a4-portrait">
       <div style={{ height: '100%', padding: '78px 64px 60px', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ textAlign: 'center' }}>
-          <p style={{ ...T.label(11), marginBottom: 14 }}>{academy.name}</p>
+        <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <LogoSlot ctx={ctx} height={44} />
+          <p style={{ ...T.label(11), marginTop: 12, marginBottom: 14 }}>{academy.name}</p>
           <h1 style={{ ...T.display(44) }}>{event.title}</h1>
           <p style={{ marginTop: 12, fontSize: 14, letterSpacing: '0.14em', color: 'var(--d-muted)' }}>
             {d.year}. {d.month}. {d.day} ({d.weekday}) {d.time}

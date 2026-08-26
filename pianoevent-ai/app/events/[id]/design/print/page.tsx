@@ -56,14 +56,19 @@ export default async function DesignPrintPage({
         <PrintButton />
       </div>
 
-      <div className="flex flex-col items-center gap-6 print:gap-0">{renderTemplate(template.id, {
-        theme,
-        academy,
-        event,
-        plan,
-        copy,
-        inviteUrl: `/e/${event.id}`,
-      })}</div>
+      <div className="flex flex-col items-center gap-6 print:gap-0">
+        {renderTemplate(template.id, {
+          theme,
+          academy,
+          event,
+          plan,
+          copy,
+          inviteUrl: `/e/${event.id}`,
+          logoUrl: academy.logo_url,
+          // 인쇄물에는 빈 로고 상자를 찍지 않는다
+          placeholder: false,
+        })}
+      </div>
     </div>
   )
 }

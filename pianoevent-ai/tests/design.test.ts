@@ -50,6 +50,21 @@ describe('디자인 테마', () => {
     }
   })
 
+  it('모든 테마가 로고 자리를 정의한다', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(['plain', 'circle', 'ring', 'plate'], theme.id).toContain(theme.logo.shape)
+      expect(theme.logo.height, theme.id).toBeGreaterThanOrEqual(40)
+      expect(theme.logo.height, theme.id).toBeLessThanOrEqual(96)
+    }
+  })
+
+  it('어두운 테마의 로고는 밝은 판 위에 올린다', () => {
+    // 배경이 어두우면 투명 배경 로고가 묻히므로 plate 로 받쳐 준다
+    for (const id of ['midnight-stage', 'halloween-night']) {
+      expect(getTheme(id).logo.shape, id).toBe('plate')
+    }
+  })
+
   it('강조색은 종이색과 충분히 구분된다', () => {
     for (const theme of DESIGN_THEMES) {
       expect(theme.palette.accent.toLowerCase(), theme.id).not.toBe(theme.palette.paper.toLowerCase())

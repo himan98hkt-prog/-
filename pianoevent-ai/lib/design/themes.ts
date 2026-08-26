@@ -19,6 +19,17 @@ export type OrnamentId =
 
 export type FrameId = 'deco' | 'thin' | 'double' | 'rounded' | 'ribbon' | 'none'
 
+/** 로고를 어떤 모양으로 앉힐지 — 테마 성격에 맞춘다 */
+export type LogoShape =
+  /** 이미지 그대로 */
+  | 'plain'
+  /** 원형으로 잘라 넣기 */
+  | 'circle'
+  /** 원형 + 얇은 금/강조색 테두리 */
+  | 'ring'
+  /** 밝은 판 위에 올려 어두운 배경에서도 보이게 */
+  | 'plate'
+
 export interface DesignTheme {
   id: string
   name: string
@@ -44,6 +55,8 @@ export interface DesignTheme {
   frame: FrameId
   /** 배경 질감 */
   texture: 'none' | 'grain' | 'glow' | 'gradient'
+  /** 로고 자리 표현 방식과 기본 높이(px, 96dpi 기준) */
+  logo: { shape: LogoShape; height: number }
 }
 
 const SERIF_CLASSIC = "'Nanum Myeongjo', 'Apple SD Gothic Neo', serif"
@@ -75,6 +88,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'deco',
     frame: 'double',
     texture: 'grain',
+    logo: { shape: 'ring', height: 62 },
   },
   {
     id: 'ivory-gold',
@@ -96,6 +110,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'keys',
     frame: 'thin',
     texture: 'none',
+    logo: { shape: 'ring', height: 58 },
   },
   {
     id: 'blush-romance',
@@ -117,6 +132,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'floral',
     frame: 'rounded',
     texture: 'none',
+    logo: { shape: 'circle', height: 64 },
   },
   {
     id: 'forest-calm',
@@ -138,6 +154,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'leaf',
     frame: 'thin',
     texture: 'none',
+    logo: { shape: 'circle', height: 60 },
   },
   {
     id: 'modern-mono',
@@ -159,6 +176,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'wave',
     frame: 'none',
     texture: 'none',
+    logo: { shape: 'plain', height: 52 },
   },
   {
     id: 'pastel-kids',
@@ -180,6 +198,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'stars',
     frame: 'rounded',
     texture: 'none',
+    logo: { shape: 'circle', height: 68 },
   },
   {
     id: 'crayon-play',
@@ -201,6 +220,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'stars',
     frame: 'rounded',
     texture: 'none',
+    logo: { shape: 'circle', height: 68 },
   },
   {
     id: 'midnight-stage',
@@ -222,6 +242,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'spotlight',
     frame: 'thin',
     texture: 'glow',
+    logo: { shape: 'plate', height: 60 },
   },
   {
     id: 'christmas-warm',
@@ -243,6 +264,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'holly',
     frame: 'ribbon',
     texture: 'none',
+    logo: { shape: 'ring', height: 62 },
   },
   {
     id: 'halloween-night',
@@ -264,6 +286,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     ornament: 'moon',
     frame: 'none',
     texture: 'glow',
+    logo: { shape: 'plate', height: 62 },
   },
 ]
 
