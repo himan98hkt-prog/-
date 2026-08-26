@@ -21,7 +21,11 @@ export default async function DesignPrintPage({
   const event = await repo.getEvent(params.id)
   if (!event) notFound()
 
-  const [academy, students] = await Promise.all([repo.getAcademy(event.academy_id), repo.listStudents(event.id)])
+  const [academy, students, rsvps] = await Promise.all([
+    repo.getAcademy(event.academy_id),
+    repo.listStudents(event.id),
+    repo.listRsvps(event.id),
+  ])
   if (!academy) notFound()
 
   const { plan } = resolvePlan(students)
@@ -45,6 +49,8 @@ export default async function DesignPrintPage({
     photoUrl: event.photo_url ?? academy.photo_url,
     // 인쇄물에는 빈 로고·사진 상자를 찍지 않는다
     placeholder: false,
+    // 좌석 배치도·접수 확인표가 실제 회신을 쓴다
+    rsvps,
   }
 
   return (

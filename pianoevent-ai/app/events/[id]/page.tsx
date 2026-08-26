@@ -2,6 +2,7 @@ import { CalendarDays, Check, MapPin, Mic2, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { PlanPanel } from '@/components/event/plan-panel'
 import { PrepPanel } from '@/components/event/prep-panel'
 import { ProgramPanel } from '@/components/event/program-panel'
 import { RosterEditor } from '@/components/event/roster-editor'
@@ -19,6 +20,7 @@ export const dynamic = 'force-dynamic'
 const TABS = [
   { key: 'roster', label: '학생 명단' },
   { key: 'program', label: '순서표 · 대본' },
+  { key: 'plan', label: '리허설 · 예산 · 좌석' },
   { key: 'prep', label: '진행 준비' },
 ] as const
 
@@ -107,10 +109,11 @@ export default async function EventPage({
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const students = await repo.listStudents(event.id)
+  const [students, rsvps] = await Promise.all([repo.listStudents(event.id), repo.listRsvps(event.id)])
   const { plan } = resolvePlan(students)
-  const tab =
-    searchParams.tab === 'program' ? 'program' : searchParams.tab === 'prep' ? 'prep' : 'roster'
+  const tab = (['roster', 'program', 'plan', 'prep'] as const).includes(searchParams.tab as never)
+    ? (searchParams.tab as 'roster' | 'program' | 'plan' | 'prep')
+    : 'roster'
 
   return (
     <AppShell academyName={academy.name}>
@@ -191,6 +194,7 @@ export default async function EventPage({
 
       {tab === 'roster' && <RosterEditor eventId={event.id} students={students} />}
       {tab === 'program' && <ProgramPanel event={event} students={students} />}
+      {tab === 'plan' && <PlanPanel academy={academy} event={event} plan={plan} rsvps={rsvps} />}
       {tab === 'prep' && <PrepPanel academy={academy} event={event} plan={plan} />}
     </AppShell>
   )

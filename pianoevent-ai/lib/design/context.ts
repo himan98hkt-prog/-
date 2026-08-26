@@ -1,5 +1,5 @@
 import type { DesignTheme } from '@/lib/design/themes'
-import type { Academy, EventRecord, ProgramPlan } from '@/lib/types'
+import type { Academy, EventRecord, ProgramPlan, Rsvp } from '@/lib/types'
 
 /** 원장이 직접 고쳐 쓰는 문구 */
 export interface DesignCopy {
@@ -32,4 +32,6 @@ export interface DesignContext {
   photoUrl: string | null
   /** 미리보기에서만 true — 로고·사진이 없을 때 자리 안내를 그린다 */
   placeholder: boolean
+  /** 좌석 배치도·접수 확인표에 쓰는 참석 회신. 없으면 빈 배열로 다룬다 */
+  rsvps?: Rsvp[]
 }

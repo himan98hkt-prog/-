@@ -109,23 +109,31 @@ export function Sheet({
   page,
   children,
   decorated = true,
+  flow = false,
 }: {
   theme: DesignTheme
   page: PageSize
   children: React.ReactNode
   decorated?: boolean
+  /**
+   * 내용이 한 장을 넘칠 수 있는 문서(대본·명단·표)는 flow 로 둔다.
+   * 포스터처럼 높이를 고정하면 학생이 많을 때 뒷부분이 그대로 잘려 나간다.
+   * flow 면 종이가 세로로 늘어나고, 인쇄할 때 브라우저가 페이지를 나눈다.
+   */
+  flow?: boolean
 }) {
   const size = PAGE_PX[page]
 
   return (
     <div
-      className="d-sheet print-avoid-break"
+      className={flow ? 'd-sheet' : 'd-sheet print-avoid-break'}
       style={{
         ...themeVars(theme),
         width: size.w,
-        height: size.h,
+        height: flow ? 'auto' : size.h,
+        minHeight: size.h,
         position: 'relative',
-        overflow: 'hidden',
+        overflow: flow ? 'visible' : 'hidden',
         background: 'var(--d-paper)',
         color: 'var(--d-ink)',
         fontFamily: 'var(--d-body)',
@@ -134,7 +142,18 @@ export function Sheet({
       <Texture theme={theme} />
       <OrnamentBackdrop id={theme.ornament} />
       {decorated && <Frame theme={theme} />}
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>{children}</div>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: flow ? 'auto' : '100%',
+          minHeight: flow ? size.h : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {children}
+      </div>
     </div>
   )
 }

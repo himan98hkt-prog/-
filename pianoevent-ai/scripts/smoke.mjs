@@ -168,6 +168,80 @@ async function run() {
   check('관객용 한 벌 인쇄', pack.ok && packHtml.includes('관객용 한 벌'))
   check('한 벌에 여러 양식이 함께 나옴', packHtml.includes('연주 순서') && packHtml.includes('ADMIT ONE'))
 
+  console.log('\n▸ 확장 양식 · 원장 운영 계산')
+
+  const notes = await call(`/events/${event.id}/design/print?template=program-notes&theme=vienna-hall`)
+  const notesHtml = await notes.text()
+  check('곡 해설 순서지 렌더', notes.ok && notesHtml.includes('엘리제를 위하여'))
+
+  const trifold = await call(`/events/${event.id}/design/print?template=program-trifold&theme=royal-emerald`)
+  check('3단 접지 프로그램 렌더', trifold.ok && (await trifold.text()).includes('관람 안내'))
+
+  const story = await call(`/events/${event.id}/design/print?template=story-card&theme=cotton-candy`)
+  const storyHtml = await story.text()
+  check('SNS 세로 스토리 렌더', story.ok && storyHtml.includes('세로 스토리'))
+
+  const banner = await call(`/events/${event.id}/design/print?template=banner-stand&theme=cherry-spring`)
+  check('X배너 시안 렌더', banner.ok && (await banner.text()).includes('X배너 시안'))
+
+  const invitationCard = await call(`/events/${event.id}/design/print?template=invitation-card&theme=antique-rose`)
+  check('초대장 카드 2매 렌더', invitationCard.ok && (await invitationCard.text()).includes('참석 회신'))
+
+  const backstage = await call(`/events/${event.id}/design/print?template=backstage-board&theme=summer-marine`)
+  const backstageHtml = await backstage.text()
+  check('대기 순서판 렌더', backstage.ok && backstageHtml.includes('대기 순서'))
+  check('대기 순서판에 연주자 이름', backstageHtml.includes('김서연'))
+
+  const award = await call(`/events/${event.id}/design/print?template=award-sheet&theme=graduation-day`)
+  check('시상 명단 렌더', award.ok && (await award.text()).includes('시상 명단'))
+
+  const mcSheet = await call(`/events/${event.id}/design/print?template=mc-script&theme=steinway-black`)
+  const mcHtml = await mcSheet.text()
+  check('사회자 대본 인쇄면 렌더', mcSheet.ok && mcHtml.includes('사회자 대본'))
+  check('대본에 곡별 멘트가 들어감', mcHtml.includes('엘리제를 위하여'))
+
+  const rehearsal = await call(`/events/${event.id}/design/print?template=rehearsal-sheet&theme=winter-snow`)
+  const rehearsalHtml = await rehearsal.text()
+  check('리허설 시간표 렌더', rehearsal.ok && rehearsalHtml.includes('리허설 시간표'))
+  check('조별 소집이 계산됨', rehearsalHtml.includes('조 ·') && rehearsalHtml.includes('도착'))
+
+  const budget = await call(`/events/${event.id}/design/print?template=budget-sheet&theme=newyear-red`)
+  const budgetHtml = await budget.text()
+  check('예산·정산표 렌더', budget.ok && budgetHtml.includes('권장 참가비'))
+  check('예산표에 대관료가 들어감', budgetHtml.includes('대관료'))
+
+  const parentNotice = await call(`/events/${event.id}/design/print?template=parent-notice&theme=peach-blossom`)
+  check('학부모 안내문 렌더', parentNotice.ok && (await parentNotice.text()).includes('관람 안내'))
+
+  const studentNotice = await call(`/events/${event.id}/design/print?template=student-notice&theme=milky-bear`)
+  check('학생 준비 안내문 렌더', studentNotice.ok && (await studentNotice.text()).includes('연주회 준비물'))
+
+  const noticePack = await call(`/events/${event.id}/design/print?pack=notice&theme=sunlit-ivory`)
+  check('안내문 한 벌 인쇄', noticePack.ok && (await noticePack.text()).includes('안내문 한 벌'))
+
+  // 학생이 많으면 문서가 한 장을 넘는다. 넘친 부분이 잘려 사라지면 안 된다.
+  const bigRoster = Array.from({ length: 34 }, (_, i) => `학생${i + 1}\t연습곡 ${i + 1}\t체르니\t2:30\t중급`).join('\n')
+  const bigCreated = await json('/api/events', {
+    title: '대형 연주회 스모크',
+    type: 'recital',
+    event_at: '2026-11-14T15:00',
+    venue: '아트홀',
+  })
+  const bigId = (await bigCreated.json())?.event?.id
+  await json(`/api/events/${bigId}/students`, { text: bigRoster })
+  await json(`/api/events/${bigId}/program`, {})
+  const bigScript = await call(`/events/${bigId}/design/print?template=mc-script&theme=classic-navy`)
+  const bigScriptHtml = await bigScript.text()
+  check('34명 대본에서 마지막 연주자까지 나옴', bigScript.ok && bigScriptHtml.includes('학생34'))
+  const bigProgram = await call(`/events/${bigId}/design/print?template=program-inner&theme=classic-navy`)
+  check('34명 순서지에서 마지막 연주자까지 나옴', (await bigProgram.text()).includes('학생34'))
+
+  const planTab = await call(`/events/${event.id}?tab=plan`)
+  const planHtml = await planTab.text()
+  check('리허설·예산·좌석 탭 렌더', planTab.ok && planHtml.includes('리허설 시간표'))
+  check('순서표 점검 결과 노출', planHtml.includes('순서표 점검'))
+  check('권장 참가비 계산 노출', planHtml.includes('권장 참가비'))
+
   const prep = await call(`/events/${event.id}?tab=prep`)
   const prepHtml = await prep.text()
   check('진행 준비 탭 렌더', prep.ok && prepHtml.includes('준비 체크리스트'))

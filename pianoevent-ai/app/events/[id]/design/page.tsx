@@ -16,7 +16,7 @@ export default async function DesignPage({ params }: { params: { id: string } })
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const students = await repo.listStudents(event.id)
+  const [students, rsvps] = await Promise.all([repo.listStudents(event.id), repo.listRsvps(event.id)])
   const { plan } = resolvePlan(students)
   const base = defaultCopy(academy, event)
   const copy: DesignCopy = { ...base, ...(event.design_copy ?? {}) }
@@ -37,6 +37,7 @@ export default async function DesignPage({ params }: { params: { id: string } })
         academy={academy}
         event={event}
         plan={plan}
+        rsvps={rsvps}
         inviteUrl={`/e/${event.id}`}
         initialCopy={copy}
       />

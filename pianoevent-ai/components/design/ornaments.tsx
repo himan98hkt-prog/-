@@ -136,6 +136,157 @@ export function OrnamentDivider({ id, width = 220 }: { id: OrnamentId; width?: n
     )
   }
 
+  if (id === 'cherry') {
+    return (
+      <svg width={width} height="24" viewBox="0 0 220 24" fill="none" aria-hidden>
+        <path d="M12 12h82M126 12h82" stroke={stroke} strokeOpacity="0.45" strokeLinecap="round" />
+        <g transform="translate(110 12)">
+          {[0, 72, 144, 216, 288].map((a) => (
+            <ellipse key={a} cx="0" cy="-5.4" rx="3.1" ry="5.2" fill={stroke} fillOpacity="0.72" transform={`rotate(${a})`} />
+          ))}
+          <circle r="1.7" fill={stroke} />
+        </g>
+        <circle cx="98" cy="8" r="1.3" fill={stroke} fillOpacity="0.5" />
+        <circle cx="122" cy="16" r="1.3" fill={stroke} fillOpacity="0.5" />
+      </svg>
+    )
+  }
+
+  if (id === 'snow') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M14 11h82M124 11h82" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" strokeDasharray="1 5" />
+        <g transform="translate(110 11)" stroke={stroke} strokeLinecap="round">
+          {[0, 60, 120].map((a) => (
+            <line key={a} x1="-8.5" y1="0" x2="8.5" y2="0" strokeWidth="1.1" transform={`rotate(${a})`} />
+          ))}
+          {[0, 60, 120, 180, 240, 300].map((a) => (
+            <path key={a} d="M5.4 0l2.4-2.4M5.4 0l2.4 2.4" strokeWidth="0.8" strokeOpacity="0.85" transform={`rotate(${a})`} />
+          ))}
+        </g>
+      </svg>
+    )
+  }
+
+  if (id === 'maple') {
+    return (
+      <svg width={width} height="24" viewBox="0 0 220 24" fill="none" aria-hidden>
+        <path d="M12 12h84M124 12h84" stroke={stroke} strokeOpacity="0.45" strokeLinecap="round" />
+        <g transform="translate(110 12)">
+          <path
+            d="M0-9l3.1 5.6 5.6-1.4-2.4 4.6 5.1 1.1-4.6 3.1 2 3.4-5.3-.8L2.7 9 0 5.6-2.7 9l-.8-2.4-5.3.8 2-3.4-4.6-3.1 5.1-1.1-2.4-4.6 5.6 1.4L0-9Z"
+            fill={stroke}
+            fillOpacity="0.8"
+          />
+          <path d="M0 5.6V11" stroke={stroke} strokeWidth="0.9" strokeLinecap="round" />
+        </g>
+      </svg>
+    )
+  }
+
+  if (id === 'ribbon') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M10 11h86M124 11h86" stroke={stroke} strokeOpacity="0.45" strokeLinecap="round" />
+        <g transform="translate(110 10)">
+          <path d="M-1.4 0C-4-4-8.5-5-10.5-2.6-12.3-.4-9.8 2.6-5.4 3l4-1.6Z" fill={stroke} fillOpacity="0.78" />
+          <path d="M1.4 0C4-4 8.5-5 10.5-2.6 12.3-.4 9.8 2.6 5.4 3l-4-1.6Z" fill={stroke} fillOpacity="0.78" />
+          <path d="M-2.6 2.4-6 9.4M2.6 2.4 6 9.4" stroke={stroke} strokeOpacity="0.6" strokeLinecap="round" />
+          <circle cy="0.6" r="2" fill={stroke} />
+        </g>
+      </svg>
+    )
+  }
+
+  if (id === 'heart') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M14 11h80M126 11h80" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" strokeDasharray="2 5" />
+        <path
+          d="M110 17c-8-5.4-8-11.4-3.6-12.4 2.2-.5 3.6 1 3.6 2.2 0-1.2 1.4-2.7 3.6-2.2C118 5.6 118 11.6 110 17Z"
+          fill={stroke}
+          fillOpacity="0.85"
+        />
+        <path d="M98 11c1.8-2.4 4-2.4 5.4 0-1.8 2.4-4 2.4-5.4 0ZM122 11c-1.8-2.4-4-2.4-5.4 0 1.8 2.4 4 2.4 5.4 0Z" fill={stroke} fillOpacity="0.45" />
+      </svg>
+    )
+  }
+
+  if (id === 'pearl') {
+    return (
+      <svg width={width} height="16" viewBox="0 0 220 16" fill="none" aria-hidden>
+        <path d="M0 8h72M148 8h72" stroke={stroke} strokeOpacity="0.28" />
+        {[78, 88, 98, 110, 122, 132, 142].map((x, i) => (
+          <circle key={x} cx={x} cy="8" r={i === 3 ? 3.4 : 3.4 - Math.abs(i - 3) * 0.7} fill={stroke} fillOpacity={0.85 - Math.abs(i - 3) * 0.14} />
+        ))}
+      </svg>
+    )
+  }
+
+  if (id === 'sun') {
+    return (
+      <svg width={width} height="24" viewBox="0 0 220 24" fill="none" aria-hidden>
+        <path d="M6 12c16-6 32 6 48 0s32-6 48 0" stroke={stroke} strokeOpacity="0.45" strokeLinecap="round" />
+        <path d="M118 12c16-6 32 6 48 0s32-6 48 0" stroke={stroke} strokeOpacity="0.45" strokeLinecap="round" />
+        <g transform="translate(110 12)">
+          <circle r="4.4" fill={stroke} fillOpacity="0.85" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+            <line key={a} x1="0" y1="-7" x2="0" y2="-9.6" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" transform={`rotate(${a})`} />
+          ))}
+        </g>
+      </svg>
+    )
+  }
+
+  if (id === 'candle') {
+    return (
+      <svg width={width} height="26" viewBox="0 0 220 26" fill="none" aria-hidden>
+        <path d="M10 18h88M122 18h88" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" />
+        <g transform="translate(110 0)">
+          <path d="M0 3c3 3.4 4.4 5.6 4.4 7.8 0 2.6-2 4.4-4.4 4.4s-4.4-1.8-4.4-4.4C-4.4 8.6-3 6.4 0 3Z" fill={stroke} fillOpacity="0.85" />
+          <path d="M0 7.4c1.2 1.6 1.8 2.6 1.8 3.6 0 1.2-.8 2-1.8 2s-1.8-.8-1.8-2c0-1 .6-2 1.8-3.6Z" fill="var(--d-paper)" fillOpacity="0.55" />
+          <rect x="-3" y="16.4" width="6" height="9" rx="1" fill={stroke} fillOpacity="0.55" />
+        </g>
+      </svg>
+    )
+  }
+
+  if (id === 'ivy') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M6 11c14 0 14-6 28-6s14 6 28 6 14-6 28-6" stroke={stroke} strokeOpacity="0.45" fill="none" strokeLinecap="round" />
+        <path d="M124 11c14 0 14-6 28-6s14 6 28 6 14-6 28-6" stroke={stroke} strokeOpacity="0.45" fill="none" strokeLinecap="round" />
+        {[[100, 8], [110, 14], [120, 8]].map(([x, y]) => (
+          <path key={`${x}-${y}`} d={`M${x} ${y}c5-1.6 7.4-5 7.4-9.6-4.8 1-7.8 4.4-7.4 9.6Z`} fill={stroke} fillOpacity="0.6" />
+        ))}
+      </svg>
+    )
+  }
+
+  if (id === 'note') {
+    return (
+      <svg width={width} height="24" viewBox="0 0 220 24" fill="none" aria-hidden>
+        <path d="M8 12h88M124 12h88" stroke={stroke} strokeOpacity="0.35" strokeLinecap="round" />
+        <path
+          d="M104 6.6v9.8a3.4 3.4 0 1 1-1.8-3V4.4l14-3.4v11a3.4 3.4 0 1 1-1.8-3V3.6l-10.4 3Z"
+          fill={stroke}
+          fillOpacity="0.9"
+        />
+      </svg>
+    )
+  }
+
+  if (id === 'arch') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M4 18h84M132 18h84" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" />
+        <path d="M96 18V11a14 14 0 0 1 28 0v7" stroke={stroke} strokeWidth="1.3" fill="none" />
+        <path d="M100 18v-7a10 10 0 0 1 20 0v7" stroke={stroke} strokeOpacity="0.4" fill="none" />
+        <path d="M92 18h36" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
   // moon / deco
   return (
     <svg width={width} height="16" viewBox="0 0 220 16" fill="none" aria-hidden>
@@ -262,6 +413,137 @@ export function OrnamentCorner({
             <path d="M6 26v26" stroke={stroke} strokeOpacity="0.4" />
           </>
         )
+      case 'cherry':
+        return (
+          <>
+            <path d="M8 46C8 24 24 8 46 8" stroke={stroke} strokeOpacity="0.45" fill="none" />
+            <g transform="translate(34 18)">
+              {[0, 72, 144, 216, 288].map((a) => (
+                <ellipse key={a} cx="0" cy="-5" rx="2.8" ry="4.8" fill={stroke} fillOpacity="0.6" transform={`rotate(${a})`} />
+              ))}
+              <circle r="1.5" fill={stroke} />
+            </g>
+            <circle cx="16" cy="34" r="1.6" fill={stroke} fillOpacity="0.45" />
+          </>
+        )
+      case 'snow':
+        return (
+          <>
+            <g transform="translate(20 20)" stroke={stroke} strokeLinecap="round">
+              {[0, 60, 120].map((a) => (
+                <line key={a} x1="-9" y1="0" x2="9" y2="0" strokeWidth="1" strokeOpacity="0.8" transform={`rotate(${a})`} />
+              ))}
+              {[0, 60, 120, 180, 240, 300].map((a) => (
+                <path key={a} d="M5.6 0l2.4-2.4M5.6 0l2.4 2.4" strokeWidth="0.7" strokeOpacity="0.6" transform={`rotate(${a})`} />
+              ))}
+            </g>
+            <circle cx="44" cy="12" r="1.4" fill={stroke} fillOpacity="0.5" />
+            <circle cx="12" cy="44" r="1.1" fill={stroke} fillOpacity="0.4" />
+          </>
+        )
+      case 'maple':
+        return (
+          <>
+            <path d="M8 48C8 24 24 8 48 8" stroke={stroke} strokeOpacity="0.45" fill="none" />
+            <g transform="translate(28 24) scale(0.9)">
+              <path
+                d="M0-9l3.1 5.6 5.6-1.4-2.4 4.6 5.1 1.1-4.6 3.1 2 3.4-5.3-.8L2.7 9 0 5.6-2.7 9l-.8-2.4-5.3.8 2-3.4-4.6-3.1 5.1-1.1-2.4-4.6 5.6 1.4L0-9Z"
+                fill={stroke}
+                fillOpacity="0.6"
+              />
+            </g>
+            <circle cx="46" cy="14" r="1.6" fill={stroke} fillOpacity="0.4" />
+          </>
+        )
+      case 'ribbon':
+        return (
+          <>
+            <path d="M6 52V6h46" stroke={stroke} strokeOpacity="0.55" fill="none" />
+            <g transform="translate(26 20)">
+              <path d="M-1.2 0C-3.4-3.4-7.2-4.2-8.8-2.2-10.4-.4-8.2 2.2-4.6 2.6l3.4-1.4Z" fill={stroke} fillOpacity="0.65" />
+              <path d="M1.2 0C3.4-3.4 7.2-4.2 8.8-2.2 10.4-.4 8.2 2.2 4.6 2.6L1.2 1.2Z" fill={stroke} fillOpacity="0.65" />
+              <circle cy="0.6" r="1.7" fill={stroke} />
+            </g>
+          </>
+        )
+      case 'heart':
+        return (
+          <>
+            <path d="M8 44C8 24 24 8 44 8" stroke={stroke} strokeOpacity="0.4" fill="none" strokeDasharray="2 5" />
+            <path
+              d="M28 30c-7-4.8-7-10 -3.2-10.9 1.9-.4 3.2.9 3.2 2 0-1.1 1.3-2.4 3.2-2C35 20 35 25.2 28 30Z"
+              fill={stroke}
+              fillOpacity="0.7"
+            />
+            <circle cx="14" cy="14" r="1.8" fill={stroke} fillOpacity="0.5" />
+          </>
+        )
+      case 'pearl':
+        return (
+          <>
+            <path d="M8 52V8h44" stroke={stroke} strokeOpacity="0.35" fill="none" />
+            {[14, 24, 34, 44].map((v, i) => (
+              <circle key={v} cx={v} cy="8" r={3 - i * 0.4} fill={stroke} fillOpacity={0.7 - i * 0.12} />
+            ))}
+            {[18, 28, 38].map((v, i) => (
+              <circle key={v} cx="8" cy={v} r={2.6 - i * 0.4} fill={stroke} fillOpacity={0.6 - i * 0.12} />
+            ))}
+          </>
+        )
+      case 'sun':
+        return (
+          <>
+            <g transform="translate(18 18)">
+              <circle r="5" fill={stroke} fillOpacity="0.7" />
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+                <line key={a} x1="0" y1="-8" x2="0" y2="-11" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.7" transform={`rotate(${a})`} />
+              ))}
+            </g>
+            <path d="M8 48c10-5 20 5 30 0s14-3 14-3" stroke={stroke} strokeOpacity="0.35" fill="none" strokeLinecap="round" />
+          </>
+        )
+      case 'candle':
+        return (
+          <>
+            <path d="M10 50C10 26 26 10 50 10" stroke={stroke} strokeOpacity="0.4" fill="none" />
+            <g transform="translate(26 20)">
+              <path d="M0-8c2.8 3.2 4.2 5.4 4.2 7.4 0 2.4-1.9 4.2-4.2 4.2S-4.2 1.8-4.2-.6C-4.2-2.6-2.8-4.8 0-8Z" fill={stroke} fillOpacity="0.75" />
+              <rect x="-2.6" y="4.6" width="5.2" height="8" rx="1" fill={stroke} fillOpacity="0.45" />
+            </g>
+          </>
+        )
+      case 'ivy':
+        return (
+          <>
+            <path d="M6 52C6 30 22 12 46 8" stroke={stroke} strokeOpacity="0.5" fill="none" />
+            {[
+              [14, 38],
+              [22, 26],
+              [34, 16],
+            ].map(([x, y]) => (
+              <path key={`${x}-${y}`} d={`M${x} ${y}c5.4-1.6 8-4.8 8-10-5.4 1-8.6 4.6-8 10Z`} fill={stroke} fillOpacity="0.5" />
+            ))}
+          </>
+        )
+      case 'note':
+        return (
+          <>
+            <path
+              d="M16 20v11a3.2 3.2 0 1 1-1.7-2.8V18l12-2.9v10.4a3.2 3.2 0 1 1-1.7-2.8v-5.5L16 20Z"
+              fill={stroke}
+              fillOpacity="0.65"
+            />
+            <circle cx="42" cy="14" r="1.6" fill={stroke} fillOpacity="0.4" />
+          </>
+        )
+      case 'arch':
+        return (
+          <>
+            <path d="M8 54V22a16 16 0 0 1 16-16h30" stroke={stroke} strokeWidth="1.2" strokeOpacity="0.8" fill="none" />
+            <path d="M15 54V24a11 11 0 0 1 11-11h28" stroke={stroke} strokeOpacity="0.4" fill="none" />
+            <circle cx="24" cy="13" r="1.8" fill={stroke} fillOpacity="0.6" />
+          </>
+        )
       default:
         // deco — 아르데코 계단선
         return (
@@ -318,6 +600,51 @@ export function OrnamentBackdrop({ id }: { id: OrnamentId }) {
             'radial-gradient(80% 40% at 80% 8%, color-mix(in srgb, var(--d-accent) 22%, transparent) 0%, transparent 60%)',
         }}
       />
+    )
+  }
+
+  if (id === 'sun' || id === 'candle') {
+    return (
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background:
+            'radial-gradient(90% 45% at 50% 0%, color-mix(in srgb, var(--d-accent) 16%, transparent) 0%, transparent 65%)',
+        }}
+      />
+    )
+  }
+
+  if (id === 'snow') {
+    return (
+      <svg aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} width="100%" height="100%">
+        <defs>
+          <pattern id="d-snow" width="86" height="86" patternUnits="userSpaceOnUse">
+            <circle cx="18" cy="22" r="2" fill="var(--d-accent)" fillOpacity="0.16" />
+            <circle cx="60" cy="54" r="1.4" fill="var(--d-accent)" fillOpacity="0.13" />
+            <circle cx="38" cy="72" r="1" fill="var(--d-accent)" fillOpacity="0.1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#d-snow)" />
+      </svg>
+    )
+  }
+
+  if (id === 'cherry') {
+    return (
+      <svg aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} width="100%" height="100%">
+        <defs>
+          <pattern id="d-cherry" width="104" height="104" patternUnits="userSpaceOnUse">
+            <ellipse cx="22" cy="26" rx="3" ry="5" fill="var(--d-accent)" fillOpacity="0.12" transform="rotate(24 22 26)" />
+            <ellipse cx="72" cy="62" rx="2.6" ry="4.4" fill="var(--d-accent)" fillOpacity="0.1" transform="rotate(-38 72 62)" />
+            <ellipse cx="46" cy="90" rx="2.2" ry="3.6" fill="var(--d-accent)" fillOpacity="0.08" transform="rotate(12 46 90)" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#d-cherry)" />
+      </svg>
     )
   }
 

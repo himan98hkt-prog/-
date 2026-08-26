@@ -8,6 +8,18 @@ import {
   PosterPhoto,
   PosterProgram,
 } from '@/components/design/templates/posters'
+import { InvitationCards, StoryCard, BannerStand } from '@/components/design/templates/invites'
+import {
+  AttendanceSheet,
+  BudgetSheet,
+  McScriptSheet,
+  ParentNotice,
+  RehearsalSheet,
+  StudentNotice,
+} from '@/components/design/templates/ops-extra'
+import { PosterDuo, PosterTypographic } from '@/components/design/templates/posters-extra'
+import { ProgramNotes, ProgramTrifold } from '@/components/design/templates/program-extra'
+import { AwardSheet, BackstageBoard, PhotoZone, SeatingChart } from '@/components/design/templates/stage'
 import type { DesignContext } from '@/lib/design/context'
 
 /**
@@ -44,6 +56,40 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <Certificates ctx={ctx} limit={preview ? 1 : undefined} />
     case 'nametag':
       return <NameTags ctx={ctx} limitSheets={preview ? 1 : undefined} />
+    case 'poster-typographic':
+      return <PosterTypographic ctx={ctx} />
+    case 'poster-duo':
+      return <PosterDuo ctx={ctx} />
+    case 'program-notes':
+      return <ProgramNotes ctx={ctx} />
+    case 'program-trifold':
+      return <ProgramTrifold ctx={ctx} />
+    case 'invitation-card':
+      return <InvitationCards ctx={ctx} />
+    case 'story-card':
+      return <StoryCard ctx={ctx} />
+    case 'banner-stand':
+      return <BannerStand ctx={ctx} />
+    case 'seating-chart':
+      return <SeatingChart ctx={ctx} />
+    case 'backstage-board':
+      return <BackstageBoard ctx={ctx} />
+    case 'photo-zone':
+      return <PhotoZone ctx={ctx} />
+    case 'award-sheet':
+      return <AwardSheet ctx={ctx} />
+    case 'mc-script':
+      return <McScriptSheet ctx={ctx} />
+    case 'rehearsal-sheet':
+      return <RehearsalSheet ctx={ctx} />
+    case 'attendance-sheet':
+      return <AttendanceSheet ctx={ctx} />
+    case 'budget-sheet':
+      return <BudgetSheet ctx={ctx} />
+    case 'parent-notice':
+      return <ParentNotice ctx={ctx} />
+    case 'student-notice':
+      return <StudentNotice ctx={ctx} />
     default:
       return <PosterClassic ctx={ctx} />
   }

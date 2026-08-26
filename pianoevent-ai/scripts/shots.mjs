@@ -61,6 +61,30 @@ const SHOTS = [
   ['32-cue-sheet.png', print_('cue-sheet', 'daylight-studio'), 900, true],
   ['33-checklist.png', print_('checklist', 'sunlit-ivory'), 900, true],
   ['34-prep-panel.png', `/events/${EVENT_ID}?tab=prep`, 1280, true],
+
+  // ── 확장된 양식 17종 · 새 테마 ─────────────────────────────
+  ['35-plan-panel.png', `/events/${EVENT_ID}?tab=plan`, 1280, true],
+  ['36-poster-typographic.png', print_('poster-typographic', 'gallery-white'), 900, true],
+  ['37-poster-duo.png', print_('poster-duo', 'marble-white'), 900, true],
+  ['38-program-notes.png', print_('program-notes', 'vienna-hall'), 900, true],
+  ['39-program-trifold.png', print_('program-trifold', 'royal-emerald'), 1240, true],
+  ['40-invitation-card.png', print_('invitation-card', 'antique-rose'), 900, true],
+  ['41-story-card.png', print_('story-card', 'cotton-candy'), 820, true],
+  ['42-banner-stand.png', print_('banner-stand', 'cherry-spring'), 620, true],
+  ['43-seating-chart.png', print_('seating-chart', 'platinum-grey'), 1240, true],
+  ['44-backstage-board.png', print_('backstage-board', 'summer-marine'), 900, true],
+  ['45-photo-zone.png', print_('photo-zone', 'lavender-dream'), 1240, true],
+  ['46-award-sheet.png', print_('award-sheet', 'graduation-day'), 900, true],
+  ['47-mc-script.png', print_('mc-script', 'steinway-black'), 900, true],
+  ['48-rehearsal-sheet.png', print_('rehearsal-sheet', 'winter-snow'), 900, true],
+  ['49-attendance-sheet.png', print_('attendance-sheet', 'autumn-maple'), 900, true],
+  ['50-budget-sheet.png', print_('budget-sheet', 'newyear-red'), 900, true],
+  ['51-parent-notice.png', print_('parent-notice', 'peach-blossom'), 900, true],
+  ['52-student-notice.png', print_('student-notice', 'milky-bear'), 900, true],
+  ['53-poster-opera.png', print_('poster-classic', 'opera-crimson'), 900, true],
+  ['54-cover-ribbon.png', print_('program-cover', 'ribbon-cream'), 900, true],
+  ['55-social-bonbon.png', print_('social-card', 'bonbon-mint'), 1000, true],
+  ['56-design-studio-family.png', `/events/${EVENT_ID}/design`, 1440, true],
 ]
 
 const post = (path, body) =>

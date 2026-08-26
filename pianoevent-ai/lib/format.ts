@@ -103,6 +103,13 @@ export function formatEventDate(iso: string): string {
   return `${p.year}년 ${p.month}월 ${p.day}일 (${WEEKDAY[p.weekday]}) ${ampm(p.hour, p.minute)}`
 }
 
+/** 학원 시간대 기준 월(1~12) — 계절 테마 추천에 쓴다 */
+export function eventMonth(iso: string): number {
+  const d = toDate(iso)
+  if (!d) return new Date().getMonth() + 1
+  return zonedParts(d).month
+}
+
 /** ISO → "2026.03.14" */
 export function formatShortDate(iso: string): string {
   const d = toDate(iso)

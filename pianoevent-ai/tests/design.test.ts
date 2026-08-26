@@ -4,11 +4,35 @@ import {
   CATEGORY_LABEL,
   DESIGN_TEMPLATES,
   PAGE_PX,
+  PRINT_PACKS,
   getTemplate,
+  packTemplates,
   sheetCount,
   templatesByCategory,
 } from '@/lib/design/templates'
-import { DESIGN_THEMES, getTheme, themeVars } from '@/lib/design/themes'
+import {
+  DESIGN_THEMES,
+  getTheme,
+  seasonalThemeIds,
+  themeVars,
+  themesByFamily,
+} from '@/lib/design/themes'
+
+/**
+ * WCAG 상대 명도 대비. 인쇄물은 화면보다 대비가 더 떨어져 보이므로
+ * 색을 새로 넣을 때마다 여기서 걸러 낸다.
+ */
+function relativeLuminance(hex: string): number {
+  const value = hex.replace('#', '')
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16) / 255)
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+function contrast(a: string, b: string): number {
+  const [x, y] = [relativeLuminance(a), relativeLuminance(b)].sort((m, n) => n - m)
+  return (x + 0.05) / (y + 0.05)
+}
 import type { Academy, EventRecord } from '@/lib/types'
 
 const HEX = /^#[0-9a-f]{6}$/i
@@ -129,5 +153,83 @@ describe('기본 문구', () => {
 
   it('주최에 학원명이 들어간다', () => {
     expect(defaultCopy(academy, { type: 'recital' } as EventRecord).host).toContain('하모니 피아노학원')
+  })
+})
+
+describe('디자인 확장 — 테마 40종 · 양식 32종', () => {
+  it('테마가 40종이고 id 가 겹치지 않는다', () => {
+    expect(DESIGN_THEMES).toHaveLength(40)
+    expect(new Set(DESIGN_THEMES.map((t) => t.id)).size).toBe(40)
+  })
+
+  it('모든 테마가 성격 묶음에 하나씩만 들어간다', () => {
+    const grouped = themesByFamily().flatMap((g) => g.items)
+    expect(grouped).toHaveLength(DESIGN_THEMES.length)
+    expect(new Set(grouped.map((t) => t.id)).size).toBe(DESIGN_THEMES.length)
+  })
+
+  it('요청받은 성격이 모두 있다 — 고급·클래식, 사랑스러운, 계절', () => {
+    const families = themesByFamily().map((g) => g.family)
+    expect(families).toContain('classic')
+    expect(families).toContain('lovely')
+    expect(families).toContain('season')
+    for (const group of themesByFamily()) {
+      expect(group.items.length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('본문 글씨가 종이 위에서 읽힌다 — ink 와 paper 대비 7:1 이상', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(contrast(theme.palette.ink, theme.palette.paper)).toBeGreaterThanOrEqual(7)
+    }
+  })
+
+  it('보조 글씨도 최소 대비를 지킨다 — muted 와 paper 3:1 이상', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(contrast(theme.palette.muted, theme.palette.paper)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('강조색이 큰 숫자로 쓰여도 보인다 — accent 와 paper 3:1 이상', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(contrast(theme.palette.accent, theme.palette.paper)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('제목 밴드 글씨가 밴드 위에서 읽힌다 — 4.5:1 이상', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(contrast(theme.palette.bandInk, theme.palette.band)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('양식이 32종이고 id 가 겹치지 않는다', () => {
+    expect(DESIGN_TEMPLATES).toHaveLength(32)
+    expect(new Set(DESIGN_TEMPLATES.map((t) => t.id)).size).toBe(32)
+  })
+
+  it('모든 양식이 분류에 들어가고 용지 규격이 정의돼 있다', () => {
+    const listed = templatesByCategory().flatMap((g) => g.items)
+    expect(listed).toHaveLength(DESIGN_TEMPLATES.length)
+    for (const template of DESIGN_TEMPLATES) {
+      expect(PAGE_PX[template.page]).toBeTruthy()
+    }
+  })
+
+  it('한 벌 인쇄는 용지가 같은 양식만 묶는다', () => {
+    for (const pack of PRINT_PACKS) {
+      const pages = new Set(packTemplates(pack).map((t) => t.page))
+      expect(pages.size).toBe(1)
+      expect(packTemplates(pack).length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('행사 달에 맞는 계절 테마를 추천한다', () => {
+    for (const month of [1, 4, 7, 10]) {
+      const ids = seasonalThemeIds(month)
+      expect(ids.length).toBeGreaterThanOrEqual(3)
+      for (const id of ids) {
+        expect(DESIGN_THEMES.some((t) => t.id === id)).toBe(true)
+      }
+    }
   })
 })

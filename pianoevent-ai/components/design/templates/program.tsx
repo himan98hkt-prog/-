@@ -155,8 +155,8 @@ export function ProgramInner({ ctx }: { ctx: DesignContext }) {
   const { theme, event, copy, plan } = ctx
 
   return (
-    <Sheet theme={theme} page="a4-portrait">
-      <div style={{ height: '100%', padding: '70px 72px 56px', display: 'flex', flexDirection: 'column' }}>
+    <Sheet theme={theme} page="a4-portrait" flow>
+      <div style={{ flex: 1, padding: '70px 72px 56px', display: 'flex', flexDirection: 'column' }}>
         <header
           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 26 }}
         >
@@ -170,7 +170,7 @@ export function ProgramInner({ ctx }: { ctx: DesignContext }) {
           </div>
         </header>
 
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1 }}>
           <ProgramList ctx={ctx} />
         </div>
 

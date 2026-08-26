@@ -20,8 +20,8 @@ export function CueSheet({ ctx }: { ctx: DesignContext }) {
   const d = dateParts(event.event_at)
 
   return (
-    <Sheet theme={theme} page="a4-portrait" decorated={false}>
-      <div style={{ height: '100%', padding: '52px 54px 40px', display: 'flex', flexDirection: 'column' }}>
+    <Sheet theme={theme} page="a4-portrait" decorated={false} flow>
+      <div style={{ flex: 1, padding: '52px 54px 40px', display: 'flex', flexDirection: 'column' }}>
         <header style={{ textAlign: 'center', paddingBottom: 14, borderBottom: '2px solid var(--d-ink)' }}>
           <p style={{ ...T.label(10) }}>{academy.name}</p>
           <h1 style={{ ...T.display(26), marginTop: 8 }}>{event.title} · 당일 진행표</h1>
@@ -98,8 +98,8 @@ export function ChecklistSheet({ ctx }: { ctx: DesignContext }) {
   const columns = [groups.slice(0, half), groups.slice(half)]
 
   return (
-    <Sheet theme={theme} page="a4-portrait" decorated={false}>
-      <div style={{ height: '100%', padding: '52px 50px 40px', display: 'flex', flexDirection: 'column' }}>
+    <Sheet theme={theme} page="a4-portrait" decorated={false} flow>
+      <div style={{ flex: 1, padding: '52px 50px 40px', display: 'flex', flexDirection: 'column' }}>
         <header style={{ textAlign: 'center' }}>
           <p style={{ ...T.label(10) }}>{academy.name}</p>
           <h1 style={{ ...T.display(26), marginTop: 8 }}>{event.title} · 준비 체크리스트</h1>
