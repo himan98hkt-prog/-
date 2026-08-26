@@ -13,7 +13,9 @@
     "smoke": "node scripts/smoke.mjs",
     "shots": "node scripts/shots.mjs",
     "demo": "next build && next start",
-    "reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('데모 데이터를 처음 상태로 되돌렸습니다.')\""
+    "reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('데모 데이터를 처음 상태로 되돌렸습니다.')\"",
+    "promo": "node scripts/promo-shots.mjs",
+    "verify:detail": "node scripts/verify-detail.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
