@@ -16,7 +16,8 @@
     "reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('데모 데이터를 처음 상태로 되돌렸습니다.')\"",
     "promo": "node scripts/promo-shots.mjs",
     "verify:detail": "node scripts/verify-detail.mjs",
-    "mobile": "node scripts/mobile.mjs"
+    "mobile": "node scripts/mobile.mjs",
+    "pack": "node scripts/pack.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

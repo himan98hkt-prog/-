@@ -3,13 +3,17 @@
 피아노학원 **정기 연주회 · 시즌 특강 올인원 기획** 도구.
 학생 명단 하나로 연주 순서표 → 사회자 대본 → 모바일 초대장 → 참석 집계까지 한 번에 만듭니다.
 
-> **처음이신가요?** [docs/LOCAL.md](docs/LOCAL.md) 에 명령창 여는 법부터 순서대로 적어 두었습니다.
+> **처음이신가요?** 명령어를 칠 필요 없습니다. 배포 묶음의 `시작하기.bat`(맥은 `시작하기-맥용.command`)을
+> 두 번 클릭하면 Node.js 설치·준비 작업·브라우저 열기까지 알아서 합니다. → [docs/LOCAL.md](docs/LOCAL.md)
+>
+> **판매를 고민 중이라면** 설치형으로 팔면 안 되는 이유와 대안을 [docs/SELLING.md](docs/SELLING.md) 에 정리했습니다.
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000  (환경변수 없이 바로 전 기능 동작)
 npm run reset    # 데모 데이터를 처음 상태로 되돌리기
 npm run mobile   # 같은 와이파이의 휴대폰에서 열기 (주소 + QR 코드 표시)
+npm run pack     # 배포용 ZIP 만들기 (실행기가 맨 위에 오도록 구성)
 npm test         # 순수 로직 단위 테스트 62건
 npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 26건 검증
 ```

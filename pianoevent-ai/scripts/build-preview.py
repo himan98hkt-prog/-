@@ -167,16 +167,18 @@ html = f"""<!DOCTYPE html>
 <section>
   <div class="wrap">
     <p class="eyebrow">직접 눌러 보시려면</p>
-    <h2 style="margin-top:.5em">내 컴퓨터에서 실행하기</h2>
-    <p class="lead">아래 세 줄이면 실제 프로그램이 켜집니다. 데모 학원과 학생 12명이 이미 들어 있어 바로 눌러 보실 수 있습니다.</p>
+    <h2 style="margin-top:.5em">두 번 클릭하면 끝입니다</h2>
+    <p class="lead">명령어를 칠 일은 없습니다. 받으신 폴더 맨 위의 파일을 두 번 누르기만 하면 됩니다.
+      데모 학원과 학생 12명이 이미 들어 있어 바로 눌러 보실 수 있습니다.</p>
     <div class="steps">
-      <div class="step"><span class="n">1</span><p>nodejs.org 에서 <b>LTS</b> 를 내려받아 설치합니다. (한 번만)</p></div>
-      <div class="step"><span class="n">2</span><p>받으신 <b>pianoevent-ai</b> 폴더에서 명령창을 열고
-        <code>npm install</code> 을 실행합니다. (1~3분)</p></div>
-      <div class="step"><span class="n">3</span><p><code>npm run dev</code> 를 실행한 뒤 브라우저에서
-        <code>http://localhost:3000</code> 을 엽니다.</p></div>
+      <div class="step"><span class="n">1</span><p>받으신 ZIP 파일을 오른쪽 클릭 &rarr; <b>압축 풀기</b></p></div>
+      <div class="step"><span class="n">2</span><p>풀린 폴더의 <b>시작하기.bat</b> 을 두 번 클릭
+        <br><small>맥이라면 <b>시작하기-맥용.command</b></small></p></div>
+      <div class="step"><span class="n">3</span><p>처음 한 번만 2~4분 기다리면 브라우저가 저절로 열립니다.
+        필요한 프로그램은 알아서 설치됩니다.</p></div>
     </div>
-    <p class="lead">자세한 안내는 함께 드린 <b>docs/LOCAL.md</b> 와 <b>docs/MANUAL.md</b> 에 있습니다.</p>
+    <p class="lead">휴대폰으로 보시려면 <b>휴대폰으로-보기.bat</b> 을 누르세요. QR 코드가 뜹니다.
+      자세한 사용법은 함께 드린 <b>docs/MANUAL.md</b> 에 있습니다.</p>
   </div>
 </section>
 
