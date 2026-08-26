@@ -153,6 +153,26 @@ async function run() {
   const nametag = await call(`/events/${event.id}/design/print?template=nametag&theme=pastel-kids`)
   check('좌석 이름표 렌더', nametag.ok && (await nametag.text()).includes('좌석 이름표'))
 
+  const cueSheet = await call(`/events/${event.id}/design/print?template=cue-sheet&theme=daylight-studio`)
+  const cueHtml = await cueSheet.text()
+  check('당일 진행표 렌더', cueSheet.ok && cueHtml.includes('당일 진행표'))
+  check('진행표에 리허설·시상이 들어감', cueHtml.includes('무대 리허설') && cueHtml.includes('시상'))
+
+  const checklist = await call(`/events/${event.id}/design/print?template=checklist&theme=sunlit-ivory`)
+  const checklistHtml = await checklist.text()
+  check('준비 체크리스트 렌더', checklist.ok && checklistHtml.includes('준비 체크리스트'))
+  check('체크리스트에 조율 예약이 들어감', checklistHtml.includes('조율 예약'))
+
+  const pack = await call(`/events/${event.id}/design/print?pack=audience&theme=daylight-studio`)
+  const packHtml = await pack.text()
+  check('관객용 한 벌 인쇄', pack.ok && packHtml.includes('관객용 한 벌'))
+  check('한 벌에 여러 양식이 함께 나옴', packHtml.includes('연주 순서') && packHtml.includes('ADMIT ONE'))
+
+  const prep = await call(`/events/${event.id}?tab=prep`)
+  const prepHtml = await prep.text()
+  check('진행 준비 탭 렌더', prep.ok && prepHtml.includes('준비 체크리스트'))
+  check('학부모 안내 문구 4종 노출', prepHtml.includes('첫 공지') && prepHtml.includes('끝나고 감사'))
+
   console.log('\n▸ 학부모 초대장')
 
   await json(`/api/events/${event.id}`, { status: 'published' }, 'PATCH')

@@ -1,5 +1,5 @@
 import type { DesignContext } from '@/lib/design/context'
-import type { PhotoShape } from '@/lib/design/themes'
+import { PHOTO_FILTER, type PhotoShape } from '@/lib/design/themes'
 
 function radiusFor(shape: PhotoShape, width: number, height: number): string {
   switch (shape) {
@@ -67,7 +67,13 @@ export function PhotoFrame({
       <img
         src={photoUrl}
         alt={`${ctx.academy.name} 사진`}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          filter: PHOTO_FILTER[theme.photo.treatment ?? 'natural'],
+        }}
       />
     </div>
   )
@@ -76,13 +82,14 @@ export function PhotoFrame({
 /** 사진을 배경으로 깔고 글씨가 읽히도록 어둡게 덮는 층 */
 export function PhotoBackdrop({ ctx, opacity = 0.55 }: { ctx: DesignContext; opacity?: number }) {
   if (!ctx.photoUrl) return null
+  const filter = PHOTO_FILTER[ctx.theme.photo.treatment ?? 'natural']
   return (
     <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ctx.photoUrl}
         alt=""
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter }}
       />
       <div
         style={{
@@ -92,6 +99,55 @@ export function PhotoBackdrop({ ctx, opacity = 0.55 }: { ctx: DesignContext; opa
             color-mix(in srgb, var(--d-paper) ${Math.round(opacity * 100)}%, transparent) 0%,
             color-mix(in srgb, var(--d-paper) ${Math.round(Math.min(1, opacity + 0.35) * 100)}%, transparent) 55%,
             var(--d-paper) 100%)`,
+        }}
+      />
+    </div>
+  )
+}
+
+/**
+ * 전면 사진 — 지면을 사진이 가득 채우고, 글씨가 들어갈 아래쪽만 어둡게 덮는다.
+ * 실제 촬영 사진을 쓸 때 가장 "진짜 포스터" 같아 보이는 방식이다.
+ */
+export function PhotoFullBleed({ ctx, scrim = 0.72 }: { ctx: DesignContext; scrim?: number }) {
+  const { photoUrl, theme, academy } = ctx
+
+  if (!photoUrl) {
+    return (
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(160deg, var(--d-paper-alt) 0%, var(--d-accent-soft) 100%)`,
+        }}
+      />
+    )
+  }
+
+  return (
+    <div aria-hidden style={{ position: 'absolute', inset: 0 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photoUrl}
+        alt={`${academy.name} 사진`}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          filter: PHOTO_FILTER[theme.photo.treatment ?? 'natural'],
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(180deg,
+            rgba(0,0,0,0.34) 0%,
+            rgba(0,0,0,0.06) 34%,
+            rgba(0,0,0,${scrim * 0.62}) 68%,
+            rgba(0,0,0,${scrim}) 100%)`,
         }}
       />
     </div>

@@ -11,12 +11,13 @@ import type { DesignCopy } from '@/lib/design/context'
 import {
   CATEGORY_LABEL,
   PAGE_PX,
+  PRINT_PACKS,
   getTemplate,
   sheetCount,
   templatesByCategory,
   type TemplateDef,
 } from '@/lib/design/templates'
-import { DESIGN_THEMES, getTheme } from '@/lib/design/themes'
+import { getTheme, themesByTone } from '@/lib/design/themes'
 import type { Academy, EventRecord, ProgramPlan } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -151,28 +152,39 @@ export function DesignStudio({
             <CardTitle>테마</CardTitle>
             <CardDescription>{getTheme(themeId).tagline}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-1.5">
-            {DESIGN_THEMES.map((item) => {
-              const active = item.id === themeId
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setThemeId(item.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                    active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate">{item.name}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">{item.mood.join(' · ')}</span>
-                  </span>
-                  <ThemeSwatch id={item.id} />
-                </button>
-              )
-            })}
+          <CardContent className="grid gap-4">
+            {themesByTone().map((group) => (
+              <div key={group.tone}>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {group.label} · {group.items.length}종
+                </p>
+                <div className="grid gap-1.5">
+                  {group.items.map((item) => {
+                    const active = item.id === themeId
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setThemeId(item.id)}
+                        aria-pressed={active}
+                        className={cn(
+                          'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                          active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{item.name}</span>
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {item.mood.join(' · ')}
+                          </span>
+                        </span>
+                        <ThemeSwatch id={item.id} />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
             <FieldHint>테마마다 색과 서체가 한 벌로 맞춰져 있습니다. 학원 기본 테마는 설정 화면에서 정합니다.</FieldHint>
           </CardContent>
         </Card>
@@ -200,6 +212,25 @@ export function DesignStudio({
                   onChange={(e) => setCopy((prev) => ({ ...prev, [key]: e.target.value }))}
                 />
               </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>한 벌 인쇄</CardTitle>
+            <CardDescription>양식을 하나씩 고르지 않고 필요한 것을 묶어서 한 번에 뽑습니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {PRINT_PACKS.map((pack) => (
+              <a key={pack.id} href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`} target="_blank" rel="noreferrer">
+                <Button variant="outline" className="h-auto w-full justify-start py-2.5 text-left">
+                  <span>
+                    <span className="block text-sm font-medium">{pack.name}</span>
+                    <span className="block text-xs font-normal text-muted-foreground">{pack.description}</span>
+                  </span>
+                </Button>
+              </a>
             ))}
           </CardContent>
         </Card>

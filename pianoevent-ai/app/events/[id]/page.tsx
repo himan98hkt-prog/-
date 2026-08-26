@@ -1,12 +1,14 @@
-import { CalendarDays, MapPin, Mic2, Palette, Send } from 'lucide-react'
+import { CalendarDays, Check, MapPin, Mic2, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { PrepPanel } from '@/components/event/prep-panel'
 import { ProgramPanel } from '@/components/event/program-panel'
 import { RosterEditor } from '@/components/event/roster-editor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatEventDate } from '@/lib/format'
+import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
 import { getRepository } from '@/lib/store'
 import { EVENT_STATUS_LABEL } from '@/lib/types'
@@ -17,7 +19,77 @@ export const dynamic = 'force-dynamic'
 const TABS = [
   { key: 'roster', label: '학생 명단' },
   { key: 'program', label: '순서표 · 대본' },
+  { key: 'prep', label: '진행 준비' },
 ] as const
+
+/**
+ * 처음 쓰는 원장을 위한 3단계 안내.
+ * 무엇부터 해야 하는지 몰라 멈추는 지점이 여기라서, 화면 맨 위에 순서를 박아 둔다.
+ */
+function StepGuide({
+  eventId,
+  hasStudents,
+  hasProgram,
+  hasPrint,
+}: {
+  eventId: string
+  hasStudents: boolean
+  hasProgram: boolean
+  hasPrint: boolean
+}) {
+  const steps = [
+    {
+      done: hasStudents,
+      title: '① 학생 명단 넣기',
+      body: '엑셀에서 복사해 붙여넣으면 됩니다.',
+      href: `/events/${eventId}?tab=roster`,
+    },
+    {
+      done: hasProgram,
+      title: '② 순서표 · 대본 만들기',
+      body: '버튼 한 번이면 순서와 사회자 멘트가 나옵니다.',
+      href: `/events/${eventId}?tab=program`,
+    },
+    {
+      done: hasPrint,
+      title: '③ 인쇄물 · 초대장 보내기',
+      body: '포스터를 뽑고 초대장 링크를 단톡방에 보냅니다.',
+      href: `/events/${eventId}/design`,
+    },
+  ]
+
+  if (hasStudents && hasProgram && hasPrint) return null
+
+  return (
+    <ol className="mb-5 grid gap-3 sm:grid-cols-3">
+      {steps.map((step) => (
+        <li key={step.title}>
+          <Link
+            href={step.href}
+            className={cn(
+              'flex h-full gap-2.5 rounded-lg border px-4 py-3 transition-colors',
+              step.done ? 'border-accent/40 bg-accent/5' : 'border-border hover:bg-secondary',
+            )}
+          >
+            <span
+              className={cn(
+                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]',
+                step.done ? 'bg-accent text-accent-foreground' : 'border border-input text-muted-foreground',
+              )}
+              aria-hidden
+            >
+              {step.done ? <Check className="h-3 w-3" /> : ''}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{step.title}</span>
+              <span className="block text-xs text-muted-foreground">{step.body}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const event = await getRepository().getEvent(params.id)
@@ -36,7 +108,9 @@ export default async function EventPage({
   if (!event) notFound()
 
   const students = await repo.listStudents(event.id)
-  const tab = searchParams.tab === 'program' ? 'program' : 'roster'
+  const { plan } = resolvePlan(students)
+  const tab =
+    searchParams.tab === 'program' ? 'program' : searchParams.tab === 'prep' ? 'prep' : 'roster'
 
   return (
     <AppShell academyName={academy.name}>
@@ -108,11 +182,16 @@ export default async function EventPage({
         ))}
       </nav>
 
-      {tab === 'roster' ? (
-        <RosterEditor eventId={event.id} students={students} />
-      ) : (
-        <ProgramPanel event={event} students={students} />
-      )}
+      <StepGuide
+        eventId={event.id}
+        hasStudents={students.length > 0}
+        hasProgram={event.program_source !== null}
+        hasPrint={event.status === 'published' || event.design_template !== null}
+      />
+
+      {tab === 'roster' && <RosterEditor eventId={event.id} students={students} />}
+      {tab === 'program' && <ProgramPanel event={event} students={students} />}
+      {tab === 'prep' && <PrepPanel academy={academy} event={event} plan={plan} />}
     </AppShell>
   )
 }

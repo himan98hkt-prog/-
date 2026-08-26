@@ -1,6 +1,6 @@
 export type PageSize = 'a4-portrait' | 'a4-landscape' | 'square'
 
-export type TemplateCategory = 'poster' | 'program' | 'invite' | 'stage'
+export type TemplateCategory = 'poster' | 'program' | 'invite' | 'stage' | 'ops'
 
 export interface TemplateDef {
   id: string
@@ -46,6 +46,15 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     id: 'poster-photo',
     name: '사진 포스터',
     description: '학원 전경이나 지난 연주회 사진을 크게 싣는 포스터. 사진 한 장이 설명을 대신합니다.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'poster-fullbleed',
+    name: '전면 사진 포스터',
+    description: '사진이 지면 전체를 채우고 글씨가 그 위에 얹힙니다. 실제 촬영 사진이 있을 때 가장 실감 납니다.',
     category: 'poster',
     page: 'a4-portrait',
     needsProgram: false,
@@ -117,6 +126,24 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     perSheet: 2,
   },
   {
+    id: 'cue-sheet',
+    name: '당일 진행표',
+    description: '도착·리허설·객석 개방·연주·시상·정리까지 시각과 담당이 적힌 큐시트. 사회자와 스태프가 손에 듭니다.',
+    category: 'ops',
+    page: 'a4-portrait',
+    needsProgram: true,
+    perStudent: false,
+  },
+  {
+    id: 'checklist',
+    name: '준비 체크리스트',
+    description: 'D-30부터 종료 후까지 무엇을 언제 해야 하는지. 행사 날짜에 맞춰 날짜가 자동으로 계산됩니다.',
+    category: 'ops',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
     id: 'certificate',
     name: '참가 상장',
     description: '학생 이름이 자동으로 들어간 상장. 인원수만큼 이어서 인쇄됩니다.',
@@ -148,6 +175,7 @@ export const CATEGORY_LABEL: Record<TemplateCategory, string> = {
   program: '프로그램·순서지',
   invite: '초대·홍보',
   stage: '행사 당일',
+  ops: '진행 문서',
 }
 
 export function templatesByCategory(): { category: TemplateCategory; items: TemplateDef[] }[] {
@@ -163,4 +191,41 @@ export function sheetCount(templateId: string, studentCount: number): number {
   if (!template?.perStudent) return 1
   const perSheet = template.perSheet ?? 1
   return Math.max(1, Math.ceil(studentCount / perSheet))
+}
+
+/**
+ * 한 벌 인쇄 — 원장이 매번 양식을 하나씩 골라 인쇄하던 것을 묶는다.
+ * 인쇄 대화상자는 용지 크기를 한 번만 정할 수 있으므로 한 벌 안의 양식은 용지가 같아야 한다.
+ */
+export interface PrintPack {
+  id: string
+  name: string
+  description: string
+  templates: string[]
+}
+
+export const PRINT_PACKS: PrintPack[] = [
+  {
+    id: 'audience',
+    name: '관객용 한 벌',
+    description: '포스터 · 프로그램 표지 · 순서지 · 입장권을 한 번에 인쇄합니다.',
+    templates: ['poster-classic', 'program-cover', 'program-inner', 'ticket-strip'],
+  },
+  {
+    id: 'day',
+    name: '당일 운영 한 벌',
+    description: '진행표 · 준비 체크리스트 · 좌석 이름표를 한 번에 인쇄합니다.',
+    templates: ['cue-sheet', 'checklist', 'nametag'],
+  },
+]
+
+export function getPack(id: string | null | undefined): PrintPack | null {
+  return PRINT_PACKS.find((p) => p.id === id) ?? null
+}
+
+/** 한 벌 안에서 실제로 인쇄할 양식 — 첫 양식과 용지가 같은 것만 남긴다 */
+export function packTemplates(pack: PrintPack): TemplateDef[] {
+  const defs = pack.templates.map((id) => getTemplate(id))
+  const page = defs[0]?.page
+  return defs.filter((def) => def.page === page)
 }

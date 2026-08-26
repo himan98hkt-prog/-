@@ -1,6 +1,6 @@
 import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
-import { PhotoFrame } from '@/components/design/photo'
+import { PhotoFrame, PhotoFullBleed } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import type { DesignContext } from '@/lib/design/context'
 import { formatEventDate, formatShortDate, formatWallClock } from '@/lib/format'
@@ -293,6 +293,81 @@ export function PosterPhoto({ ctx }: { ctx: DesignContext }) {
               <span>{copy.host}</span>
               <span>{copy.contact}</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+/**
+ * 전면 사진 포스터 — 사진이 지면을 가득 채우고 글씨가 그 위에 얹힌다.
+ * 실제 촬영 사진을 쓸 때 가장 실감 나는 형태다.
+ */
+export function PosterFullBleed({ ctx }: { ctx: DesignContext }) {
+  const { theme, academy, event, copy, plan } = ctx
+  const d = dateParts(event.event_at)
+  const onPhoto = '#ffffff'
+
+  return (
+    <Sheet theme={theme} page="a4-portrait" decorated={false}>
+      <PhotoFullBleed ctx={ctx} />
+
+      <div
+        style={{
+          position: 'relative',
+          height: '100%',
+          padding: '52px 56px 56px',
+          display: 'flex',
+          flexDirection: 'column',
+          color: onPhoto,
+          textShadow: '0 1px 14px rgba(0,0,0,.35)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <LogoSlot ctx={ctx} height={46} align="start" />
+          <div>
+            <p style={{ fontSize: 11, letterSpacing: '0.3em', opacity: 0.9 }}>{academy.name}</p>
+            <p style={{ marginTop: 5, fontSize: 12, letterSpacing: '0.16em', opacity: 0.85 }}>{copy.subtitle}</p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 'auto' }}>
+          <h1 style={{ ...T.display(54), color: onPhoto }}>{event.title}</h1>
+
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'baseline', gap: 16 }}>
+            <span style={{ ...T.display(44), color: onPhoto }}>
+              {d.month}.{d.day}
+            </span>
+            <span style={{ fontSize: 15, opacity: 0.9 }}>
+              {d.year} {d.weekday}요일 {d.time}
+            </span>
+          </div>
+          {event.venue && <p style={{ marginTop: 10, fontSize: 16, opacity: 0.92 }}>{event.venue}</p>}
+
+          {plan.items.length > 0 && (
+            <p style={{ marginTop: 20, fontSize: 12, opacity: 0.85, lineHeight: 1.9 }}>
+              {plan.items
+                .slice(0, 12)
+                .map((item) => item.student.student_name)
+                .join(' · ')}
+              {plan.items.length > 12 ? ' 외' : ''}
+            </p>
+          )}
+
+          <div
+            style={{
+              marginTop: 22,
+              paddingTop: 14,
+              borderTop: '1px solid rgba(255,255,255,.35)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: 11.5,
+              opacity: 0.9,
+            }}
+          >
+            <span>{copy.host}</span>
+            <span>{copy.contact}</span>
           </div>
         </div>
       </div>

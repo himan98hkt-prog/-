@@ -76,8 +76,22 @@ export interface DesignTheme {
   texture: 'none' | 'grain' | 'glow' | 'gradient'
   /** 로고 자리 표현 방식과 기본 높이(px, 96dpi 기준) */
   logo: { shape: LogoShape; height: number }
-  /** 사진 자리 표현 방식 */
-  photo: { shape: PhotoShape }
+  /** 사진 자리 표현 방식과 톤 보정 */
+  photo: { shape: PhotoShape; treatment?: PhotoTreatment }
+}
+
+/**
+ * 사진 톤 보정 — 학원마다 사진 밝기가 제각각이라 테마 색과 겉돌기 쉽다.
+ * natural(그대로) · bright(밝게) · warm(따뜻하게) · soft(부드럽게) · mono(흑백)
+ */
+export type PhotoTreatment = 'natural' | 'bright' | 'warm' | 'soft' | 'mono'
+
+export const PHOTO_FILTER: Record<PhotoTreatment, string> = {
+  natural: 'none',
+  bright: 'brightness(1.06) saturate(1.04)',
+  warm: 'sepia(0.12) saturate(1.08) brightness(1.02)',
+  soft: 'contrast(0.94) brightness(1.04) saturate(0.96)',
+  mono: 'grayscale(1) contrast(1.05)',
 }
 
 const SERIF_CLASSIC = "'Nanum Myeongjo', 'Apple SD Gothic Neo', serif"
@@ -89,6 +103,98 @@ const ROUND = "'Jua', 'Noto Sans KR', sans-serif"
 const HAND = "'Gaegu', 'Noto Sans KR', cursive"
 
 export const DESIGN_THEMES: DesignTheme[] = [
+  {
+    id: 'daylight-studio',
+    name: '데이라이트 스튜디오',
+    tagline: '흰 바탕에 사진이 주인공. 실제 사진을 크게 쓰고 싶을 때 가장 잘 맞습니다.',
+    mood: ['밝음', '사진', '깨끗'],
+    palette: {
+      paper: '#ffffff',
+      paperAlt: '#f4f5f7',
+      ink: '#1c1f24',
+      muted: '#6d737d',
+      accent: '#2f6f6a',
+      accentSoft: '#e3efed',
+      line: '#e2e5ea',
+      band: '#1c1f24',
+      bandInk: '#ffffff',
+    },
+    fonts: { display: SANS, body: SANS },
+    ornament: 'wave',
+    frame: 'none',
+    texture: 'none',
+    logo: { shape: 'plain', height: 54 },
+    photo: { shape: 'rect', treatment: 'natural' },
+  },
+  {
+    id: 'sunlit-ivory',
+    name: '햇살 아이보리',
+    tagline: '창으로 빛이 드는 연습실 같은 밝기. 낮 시간 연주회에.',
+    mood: ['밝음', '따뜻', '부드러움'],
+    palette: {
+      paper: '#fffdf8',
+      paperAlt: '#fdf4e5',
+      ink: '#403528',
+      muted: '#8b7c66',
+      accent: '#c9932f',
+      accentSoft: '#f7e9cd',
+      line: '#eadcc2',
+      band: '#c9932f',
+      bandInk: '#fffdf8',
+    },
+    fonts: { display: SERIF_SOFT, body: SANS },
+    ornament: 'garland',
+    frame: 'thin',
+    texture: 'none',
+    logo: { shape: 'ring', height: 60 },
+    photo: { shape: 'rounded', treatment: 'warm' },
+  },
+  {
+    id: 'blossom-white',
+    name: '블라썸 화이트',
+    tagline: '흰 바탕에 옅은 분홍. 사진이 화사하게 보입니다.',
+    mood: ['밝음', '화사', '깨끗'],
+    palette: {
+      paper: '#ffffff',
+      paperAlt: '#fdf3f4',
+      ink: '#3d2f33',
+      muted: '#8a757b',
+      accent: '#c96b7a',
+      accentSoft: '#fbe4e7',
+      line: '#f0dde1',
+      band: '#c96b7a',
+      bandInk: '#ffffff',
+    },
+    fonts: { display: SERIF_THIN, body: SANS },
+    ornament: 'floral',
+    frame: 'rounded',
+    texture: 'none',
+    logo: { shape: 'circle', height: 62 },
+    photo: { shape: 'rounded', treatment: 'bright' },
+  },
+  {
+    id: 'sky-linen',
+    name: '스카이 리넨',
+    tagline: '맑은 하늘빛과 리넨 질감. 야외·주말 낮 공연에.',
+    mood: ['밝음', '산뜻', '가벼움'],
+    palette: {
+      paper: '#fbfcfe',
+      paperAlt: '#eaf1f8',
+      ink: '#22303f',
+      muted: '#63768a',
+      accent: '#3f7fb0',
+      accentSoft: '#dcebf6',
+      line: '#d3e0ec',
+      band: '#22303f',
+      bandInk: '#fbfcfe',
+    },
+    fonts: { display: SERIF_SOFT, body: SANS },
+    ornament: 'wave',
+    frame: 'thin',
+    texture: 'grain',
+    logo: { shape: 'circle', height: 58 },
+    photo: { shape: 'rect', treatment: 'bright' },
+  },
   {
     id: 'classic-navy',
     name: '클래식 네이비',
@@ -460,6 +566,25 @@ export const DESIGN_THEMES: DesignTheme[] = [
 ]
 
 export const DEFAULT_THEME_ID = 'classic-navy'
+
+/** 종이색의 밝기 — 밝은 테마와 어두운 테마를 갈라 보여 주기 위한 판정 */
+export function themeLuminance(theme: DesignTheme): number {
+  const hex = theme.palette.paper.replace('#', '')
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+export function isDarkTheme(theme: DesignTheme): boolean {
+  return themeLuminance(theme) < 0.35
+}
+
+export function themesByTone(): { tone: 'light' | 'dark'; label: string; items: DesignTheme[] }[] {
+  return [
+    { tone: 'light', label: '밝은 테마', items: DESIGN_THEMES.filter((t) => !isDarkTheme(t)) },
+    { tone: 'dark', label: '어두운 테마', items: DESIGN_THEMES.filter((t) => isDarkTheme(t)) },
+  ]
+}
 
 export function getTheme(id: string | null | undefined): DesignTheme {
   return DESIGN_THEMES.find((t) => t.id === id) ?? DESIGN_THEMES[0]

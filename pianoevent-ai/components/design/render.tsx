@@ -1,6 +1,13 @@
 import { Certificates, NameTags, SocialCard, ThankYouCards, TicketStrip } from '@/components/design/templates/cards'
+import { ChecklistSheet, CueSheet } from '@/components/design/templates/ops'
 import { ProgramBifold, ProgramCover, ProgramInner } from '@/components/design/templates/program'
-import { PosterClassic, PosterModern, PosterPhoto, PosterProgram } from '@/components/design/templates/posters'
+import {
+  PosterClassic,
+  PosterFullBleed,
+  PosterModern,
+  PosterPhoto,
+  PosterProgram,
+} from '@/components/design/templates/posters'
 import type { DesignContext } from '@/lib/design/context'
 
 /**
@@ -11,6 +18,8 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
   switch (templateId) {
     case 'poster-modern':
       return <PosterModern ctx={ctx} />
+    case 'poster-fullbleed':
+      return <PosterFullBleed ctx={ctx} />
     case 'poster-photo':
       return <PosterPhoto ctx={ctx} />
     case 'poster-program':
@@ -27,6 +36,10 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <SocialCard ctx={ctx} />
     case 'thankyou-card':
       return <ThankYouCards ctx={ctx} />
+    case 'cue-sheet':
+      return <CueSheet ctx={ctx} />
+    case 'checklist':
+      return <ChecklistSheet ctx={ctx} />
     case 'certificate':
       return <Certificates ctx={ctx} limit={preview ? 1 : undefined} />
     case 'nametag':

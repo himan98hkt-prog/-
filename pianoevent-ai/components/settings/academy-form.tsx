@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { DESIGN_THEMES, getTheme } from '@/lib/design/themes'
+import { getTheme, themesByTone } from '@/lib/design/themes'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -131,36 +131,47 @@ export function AcademyForm({ academy }: { academy: Academy }) {
             <FieldHint className="mb-2 mt-0">
               포스터·순서지·입장권·상장에 공통으로 쓰입니다. 행사마다 다르게 고를 수도 있습니다.
             </FieldHint>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {DESIGN_THEMES.map((theme) => {
-                const active = theme.id === designTheme
-                return (
-                  <button
-                    key={theme.id}
-                    type="button"
-                    onClick={() => setDesignTheme(theme.id)}
-                    aria-pressed={active}
-                    className={cn(
-                      'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                      active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate">{theme.name}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{theme.mood.join(' · ')}</span>
-                    </span>
-                    <span className="flex shrink-0 gap-1" aria-hidden>
-                      {[theme.palette.paper, theme.palette.band, theme.palette.accent].map((color, index) => (
-                        <span
-                          key={index}
-                          className="h-4 w-4 rounded-full border border-black/10"
-                          style={{ background: color }}
-                        />
-                      ))}
-                    </span>
-                  </button>
-                )
-              })}
+            <div className="grid gap-4">
+              {themesByTone().map((group) => (
+                <div key={group.tone}>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {group.label} · {group.items.length}종
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {group.items.map((theme) => {
+                      const active = theme.id === designTheme
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setDesignTheme(theme.id)}
+                          aria-pressed={active}
+                          className={cn(
+                            'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                            active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
+                          )}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate">{theme.name}</span>
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {theme.mood.join(' · ')}
+                            </span>
+                          </span>
+                          <span className="flex shrink-0 gap-1" aria-hidden>
+                            {[theme.palette.paper, theme.palette.band, theme.palette.accent].map((color, index) => (
+                              <span
+                                key={index}
+                                className="h-4 w-4 rounded-full border border-black/10"
+                                style={{ background: color }}
+                              />
+                            ))}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
             <FieldHint>선택: {getTheme(designTheme).tagline}</FieldHint>
           </div>

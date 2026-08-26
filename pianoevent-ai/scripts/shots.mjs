@@ -54,6 +54,13 @@ const SHOTS = [
   ['25-social-spring.png', print_('social-card', 'spring-bloom'), 1000, true],
   ['26-cover-moonlit.png', print_('program-cover', 'moonlit-blue'), 900, true],
   ['27-ticket-pearl.png', print_('ticket-strip', 'pearl-mint'), 900, true],
+  ['28-fullbleed-sunlit.png', print_('poster-fullbleed', 'sunlit-ivory'), 900, true],
+  ['29-fullbleed-daylight.png', print_('poster-fullbleed', 'daylight-studio'), 900, true],
+  ['30-photo-blossom.png', print_('poster-photo', 'blossom-white'), 900, true],
+  ['31-cover-sky.png', print_('program-cover', 'sky-linen'), 900, true],
+  ['32-cue-sheet.png', print_('cue-sheet', 'daylight-studio'), 900, true],
+  ['33-checklist.png', print_('checklist', 'sunlit-ivory'), 900, true],
+  ['34-prep-panel.png', `/events/${EVENT_ID}?tab=prep`, 1280, true],
 ]
 
 const post = (path, body) =>
@@ -81,7 +88,7 @@ async function seed() {
   await fetch(`${BASE}/api/events/${EVENT_ID}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'published', design_theme: 'noir-gold' }),
+    body: JSON.stringify({ status: 'published', design_theme: 'daylight-studio' }),
   })
 
   const replies = [
