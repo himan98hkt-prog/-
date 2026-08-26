@@ -151,7 +151,7 @@ export function ProgramPanel({ event, students }: { event: EventRecord; students
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>순서표</CardTitle>
-              <Link href={`/events/${event.id}/program/print`} target="_blank">
+              <Link href={`/events/${event.id}/design/print?template=program-inner`} target="_blank">
                 <Button variant="outline" size="sm">
                   <Printer className="h-4 w-4" aria-hidden />
                   인쇄 · PDF

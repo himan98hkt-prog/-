@@ -1,8 +1,46 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input, Label, Select, Textarea } from '@/components/ui/field'
+
+/**
+ * 학부모 참석 회신 폼.
+ * 초대장 테마(--d-*)를 그대로 입어 종이 초대장과 같은 인상을 준다.
+ */
+
+const field: React.CSSProperties = {
+  width: '100%',
+  height: 46,
+  padding: '0 14px',
+  borderRadius: 10,
+  border: '1px solid var(--d-line)',
+  background: 'var(--d-paper)',
+  color: 'var(--d-ink)',
+  fontSize: 15,
+  fontFamily: 'inherit',
+}
+
+const label: React.CSSProperties = {
+  display: 'block',
+  marginBottom: 7,
+  fontSize: 13,
+  color: 'var(--d-muted)',
+  letterSpacing: '0.02em',
+}
+
+function choiceStyle(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    border: `1px solid ${active ? 'var(--d-accent)' : 'var(--d-line)'}`,
+    background: active ? 'var(--d-accent)' : 'transparent',
+    color: active ? 'var(--d-band-ink)' : 'var(--d-ink)',
+    fontSize: 15,
+    fontWeight: active ? 700 : 400,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  }
+}
 
 export function RsvpForm({ eventId }: { eventId: string }) {
   const [attending, setAttending] = useState(true)
@@ -38,80 +76,126 @@ export function RsvpForm({ eventId }: { eventId: string }) {
 
   if (done) {
     return (
-      <div className="rounded-lg border border-accent/30 bg-accent/5 p-6 text-center">
-        <p className="text-base font-semibold">회신이 전달되었습니다.</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {attending ? '공연장에서 뵙겠습니다. 아이의 무대를 함께 응원해 주세요.' : '알려 주셔서 감사합니다.'}
+      <div
+        style={{
+          padding: '26px 20px',
+          borderRadius: 12,
+          border: '1px solid var(--d-accent)',
+          background: 'var(--d-accent-soft)',
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--d-display)' }}>회신이 전달되었습니다.</p>
+        <p style={{ marginTop: 8, fontSize: 14, color: 'var(--d-muted)', lineHeight: 1.7 }}>
+          {attending
+            ? '공연장에서 뵙겠습니다. 아이의 무대를 함께 응원해 주세요.'
+            : '알려 주셔서 감사합니다. 다음 무대에서 뵙겠습니다.'}
         </p>
-        <Button variant="ghost" size="sm" className="mt-4" onClick={() => setDone(false)}>
+        <button
+          type="button"
+          onClick={() => setDone(false)}
+          style={{
+            marginTop: 16,
+            background: 'none',
+            border: 'none',
+            color: 'var(--d-muted)',
+            fontSize: 13,
+            textDecoration: 'underline',
+            textUnderlineOffset: 4,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
           다시 입력하기
-        </Button>
+        </button>
       </div>
     )
   }
 
   return (
-    <form action={submit} className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form action={submit} style={{ display: 'grid', gap: 18 }}>
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: '1fr 1fr' }}>
         <div>
-          <Label htmlFor="student_name">학생 이름</Label>
-          <Input id="student_name" name="student_name" required maxLength={40} placeholder="김서연" />
+          <label htmlFor="student_name" style={label}>
+            학생 이름
+          </label>
+          <input id="student_name" name="student_name" required maxLength={40} placeholder="김서연" style={field} />
         </div>
         <div>
-          <Label htmlFor="parent_name">보호자 성함</Label>
-          <Input id="parent_name" name="parent_name" required maxLength={40} placeholder="김○○" />
+          <label htmlFor="parent_name" style={label}>
+            보호자 성함
+          </label>
+          <input id="parent_name" name="parent_name" required maxLength={40} placeholder="김○○" style={field} />
         </div>
       </div>
 
       <div>
-        <Label htmlFor="attending">참석 여부</Label>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={attending ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => setAttending(true)}
-            aria-pressed={attending}
-          >
+        <span style={label}>참석 여부</span>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" onClick={() => setAttending(true)} aria-pressed={attending} style={choiceStyle(attending)}>
             참석합니다
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant={!attending ? 'default' : 'outline'}
-            className="flex-1"
             onClick={() => setAttending(false)}
             aria-pressed={!attending}
+            style={choiceStyle(!attending)}
           >
-            참석이 어렵습니다
-          </Button>
+            어렵습니다
+          </button>
         </div>
       </div>
 
       {attending && (
         <div>
-          <Label htmlFor="headcount">참석 인원 (학생 포함)</Label>
-          <Select id="headcount" name="headcount" defaultValue="2">
+          <label htmlFor="headcount" style={label}>
+            참석 인원 (학생 포함)
+          </label>
+          <select id="headcount" name="headcount" defaultValue="2" style={field}>
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
                 {n}명
               </option>
             ))}
-          </Select>
+          </select>
         </div>
       )}
 
       <div>
-        <Label htmlFor="message">아이에게 남기는 응원 메시지 (선택)</Label>
-        <Textarea id="message" name="message" maxLength={300} placeholder="연습한 만큼만 하고 오면 돼. 우리 딸 최고!" />
+        <label htmlFor="message" style={label}>
+          아이에게 남기는 응원 메시지 (선택)
+        </label>
+        <textarea
+          id="message"
+          name="message"
+          maxLength={300}
+          placeholder="연습한 만큼만 하고 오면 돼. 우리 딸 최고!"
+          style={{ ...field, height: 92, padding: '12px 14px', lineHeight: 1.6, resize: 'vertical' }}
+        />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p style={{ fontSize: 13.5, color: '#c0392b' }}>{error}</p>}
 
-      <Button type="submit" size="lg" disabled={pending}>
+      <button
+        type="submit"
+        disabled={pending}
+        style={{
+          height: 52,
+          borderRadius: 10,
+          border: 'none',
+          background: 'var(--d-band)',
+          color: 'var(--d-band-ink)',
+          fontSize: 16,
+          fontWeight: 700,
+          fontFamily: 'inherit',
+          cursor: pending ? 'default' : 'pointer',
+          opacity: pending ? 0.6 : 1,
+        }}
+      >
         {pending ? '보내는 중…' : '참석 여부 보내기'}
-      </Button>
+      </button>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--d-muted)', lineHeight: 1.7 }}>
         입력하신 정보는 이 행사의 참석 집계 목적으로만 쓰이며, 행사 종료 후 학원 정책에 따라 삭제됩니다.
       </p>
     </form>

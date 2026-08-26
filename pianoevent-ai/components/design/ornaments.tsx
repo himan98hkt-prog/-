@@ -71,6 +71,60 @@ export function OrnamentDivider({ id, width = 220 }: { id: OrnamentId; width?: n
     )
   }
 
+  if (id === 'foil') {
+    return (
+      <svg width={width} height="14" viewBox="0 0 220 14" fill="none" aria-hidden>
+        <path d="M0 4h220M0 10h220" stroke={stroke} strokeOpacity="0.35" />
+        <path d="M92 7h36" stroke={stroke} strokeWidth="1.6" />
+        <path d="M110 1.5l2.2 4.1 4.6.8-3.3 3.3.8 4.6-4.3-2.2-4.3 2.2.8-4.6-3.3-3.3 4.6-.8L110 1.5Z" fill={stroke} />
+      </svg>
+    )
+  }
+
+  if (id === 'lyre') {
+    return (
+      <svg width={width} height="26" viewBox="0 0 220 26" fill="none" aria-hidden>
+        <path d="M6 13h84M130 13h84" stroke={stroke} strokeOpacity="0.5" strokeLinecap="round" />
+        <path
+          d="M100 22c-3-6-4-11-3-15 1-4 4-6 7-6M120 22c3-6 4-11 3-15-1-4-4-6-7-6"
+          stroke={stroke}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <path d="M104 8h12M103 12h14M102 16h16" stroke={stroke} strokeOpacity="0.75" strokeWidth="0.9" />
+        <path d="M100 22h20" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (id === 'garland') {
+    return (
+      <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
+        <path d="M78 11c8-8 20-8 32 0 12 8 24 8 32 0" stroke={stroke} strokeOpacity="0.6" strokeLinecap="round" />
+        <path d="M12 11h60M148 11h60" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" />
+        {[86, 100, 120, 134].map((x, i) => (
+          <path
+            key={x}
+            d={`M${x} ${i % 2 ? 6 : 16}c4 2 4 6 0 8-4-2-4-6 0-8Z`}
+            fill={stroke}
+            fillOpacity="0.6"
+          />
+        ))}
+      </svg>
+    )
+  }
+
+  if (id === 'confetti') {
+    return (
+      <svg width={width} height="24" viewBox="0 0 220 24" fill="none" aria-hidden>
+        <path d="M14 12h74M132 12h74" stroke={stroke} strokeOpacity="0.4" strokeLinecap="round" strokeDasharray="1 7" />
+        <circle cx="96" cy="7" r="2" fill={stroke} fillOpacity="0.7" />
+        <rect x="122" y="14" width="4" height="4" rx="1" fill={stroke} fillOpacity="0.55" transform="rotate(24 124 16)" />
+        <path d="M106 5v10a4 4 0 1 1-2-3.4V7l8-2v8a4 4 0 1 1-2-3.4V3l-4 1V5Z" fill={stroke} />
+      </svg>
+    )
+  }
+
   if (id === 'holly') {
     return (
       <svg width={width} height="22" viewBox="0 0 220 22" fill="none" aria-hidden>
@@ -148,6 +202,46 @@ export function OrnamentCorner({
             <path d="M24 26c0-6 4-10 8-10s8 4 8 10-4 10-8 10-8-4-8-10Z" fill={stroke} fillOpacity="0.7" />
             <circle cx="20" cy="34" r="2.6" fill={stroke} />
             <circle cx="42" cy="20" r="2.6" fill={stroke} />
+          </>
+        )
+      case 'foil':
+        return (
+          <>
+            <path d="M8 52V8h44" stroke={stroke} strokeOpacity="0.9" fill="none" />
+            <path d="M13 52V13h39" stroke={stroke} strokeOpacity="0.45" fill="none" />
+            <circle cx="8" cy="8" r="2.6" fill={stroke} />
+            <circle cx="52" cy="8" r="1.6" fill={stroke} fillOpacity="0.6" />
+            <circle cx="8" cy="52" r="1.6" fill={stroke} fillOpacity="0.6" />
+          </>
+        )
+      case 'lyre':
+        return (
+          <>
+            <path d="M10 50C10 26 26 10 50 10" stroke={stroke} strokeOpacity="0.55" fill="none" />
+            <path d="M22 34c-2-6-1-11 3-14 4-3 8-2 10 1" stroke={stroke} strokeWidth="1.2" fill="none" />
+            <path d="M24 26h12M23 30h14" stroke={stroke} strokeOpacity="0.7" strokeWidth="0.8" />
+          </>
+        )
+      case 'garland':
+        return (
+          <>
+            <path d="M8 46C8 24 24 8 46 8" stroke={stroke} strokeOpacity="0.5" fill="none" />
+            {[
+              [20, 30],
+              [30, 20],
+              [40, 13],
+            ].map(([x, y]) => (
+              <path key={`${x}-${y}`} d={`M${x} ${y}c5 2 5 7 0 9-5-2-5-7 0-9Z`} fill={stroke} fillOpacity="0.55" />
+            ))}
+          </>
+        )
+      case 'confetti':
+        return (
+          <>
+            <circle cx="14" cy="16" r="2.6" fill={stroke} fillOpacity="0.8" />
+            <rect x="30" y="10" width="5" height="5" rx="1" fill={stroke} fillOpacity="0.55" transform="rotate(20 32 12)" />
+            <circle cx="12" cy="36" r="1.8" fill={stroke} fillOpacity="0.5" />
+            <path d="M40 24v10a3 3 0 1 1-1.6-2.6V26l6-1.4V33a3 3 0 1 1-1.6-2.6v-7L40 24Z" fill={stroke} fillOpacity="0.7" />
           </>
         )
       case 'moon':
