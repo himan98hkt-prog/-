@@ -1,3 +1,5 @@
+import { DESIGN_THEMES } from '@/lib/design/themes'
+import { DESIGN_TEMPLATES } from '@/lib/design/templates'
 import { normalizeEventAt } from '@/lib/format'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
 import { getRepository } from '@/lib/store'
@@ -25,6 +27,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       patch.event_at = iso
     }
     if (STATUSES.includes(body.status as EventStatus)) patch.status = body.status
+
+    const theme = str(body.design_theme, 40)
+    if (theme && DESIGN_THEMES.some((t) => t.id === theme)) patch.design_theme = theme
+    const template = str(body.design_template, 40)
+    if (template && DESIGN_TEMPLATES.some((t) => t.id === template)) patch.design_template = template
+    if (body.design_copy && typeof body.design_copy === 'object' && !Array.isArray(body.design_copy)) {
+      // 문구는 자유 입력이라 키를 고정하고 길이를 제한한다
+      const source = body.design_copy as Record<string, unknown>
+      const copy: Record<string, string> = {}
+      for (const key of ['subtitle', 'host', 'contact', 'footnote']) {
+        if (typeof source[key] === 'string') copy[key] = (source[key] as string).trim().slice(0, 200)
+      }
+      patch.design_copy = copy
+    }
 
     if (Object.keys(patch).length === 0) return fail('변경할 내용이 없습니다.')
     return ok({ event: await repo.updateEvent(params.id, patch) })

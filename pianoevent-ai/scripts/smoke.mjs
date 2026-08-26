@@ -113,6 +113,36 @@ async function run() {
   const scriptPage = await call(`/events/${event.id}/script`)
   check('사회자 대본 페이지 렌더', scriptPage.ok && (await scriptPage.text()).includes('사회자 대본'))
 
+  console.log('\n▸ 인쇄물 디자인')
+
+  const studio = await call(`/events/${event.id}/design`)
+  check('디자인 스튜디오 렌더', studio.ok && (await studio.text()).includes('인쇄물 디자인'))
+
+  const savedDesign = await json(
+    `/api/events/${event.id}`,
+    { design_theme: 'blush-romance', design_template: 'program-cover', design_copy: { subtitle: '봄 정기 연주회' } },
+    'PATCH',
+  )
+  const savedBody = await savedDesign.json()
+  check('양식·테마·문구 저장', savedDesign.ok && savedBody.event?.design_theme === 'blush-romance', savedBody.error ?? '')
+  check('문구는 허용된 키만 저장', savedBody.event?.design_copy?.subtitle === '봄 정기 연주회')
+
+  const badTheme = await json(`/api/events/${event.id}`, { design_theme: '없는테마' }, 'PATCH')
+  check('없는 테마는 저장하지 않음', badTheme.status === 400)
+
+  const poster = await call(`/events/${event.id}/design/print?template=poster-classic&theme=classic-navy`)
+  const posterHtml = await poster.text()
+  check('포스터 인쇄면 렌더', poster.ok && posterHtml.includes('스모크 정기 연주회'))
+  check('포스터에 연주자 이름 노출', posterHtml.includes('김서연'))
+
+  const certificate = await call(`/events/${event.id}/design/print?template=certificate&theme=ivory-gold`)
+  const certificateHtml = await certificate.text()
+  check('참가 상장은 인원수만큼 렌더', certificate.ok && certificateHtml.includes('참 가 상'))
+  check('상장에 곡명이 들어감', certificateHtml.includes('엘리제를 위하여'))
+
+  const nametag = await call(`/events/${event.id}/design/print?template=nametag&theme=pastel-kids`)
+  check('좌석 이름표 렌더', nametag.ok && (await nametag.text()).includes('좌석 이름표'))
+
   console.log('\n▸ 학부모 초대장')
 
   await json(`/api/events/${event.id}`, { status: 'published' }, 'PATCH')

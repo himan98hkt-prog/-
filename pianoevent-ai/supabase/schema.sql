@@ -15,8 +15,13 @@ create table if not exists public.academies (
   director_name text        not null default '원장',
   logo_url      text,
   theme_color   text        not null default '#1f2a44',
+  -- 인쇄물 기본 디자인 테마 (lib/design/themes.ts 의 id)
+  design_theme  text,
   created_at    timestamptz not null default now()
 );
+
+-- 기존 설치본 업그레이드용
+alter table public.academies add column if not exists design_theme text;
 
 create index if not exists academies_owner_idx on public.academies(owner_id);
 
@@ -49,8 +54,17 @@ create table if not exists public.events (
   mc_closing           text,
   program_source       text check (program_source in ('ai', 'rule')),
   program_generated_at timestamptz,
+  -- 행사별 디자인 (비어 있으면 학원 기본 테마를 따른다)
+  design_theme         text,
+  design_template      text,
+  design_copy          jsonb,
   created_at           timestamptz not null default now()
 );
+
+-- 기존 설치본 업그레이드용
+alter table public.events add column if not exists design_theme    text;
+alter table public.events add column if not exists design_template text;
+alter table public.events add column if not exists design_copy     jsonb;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 

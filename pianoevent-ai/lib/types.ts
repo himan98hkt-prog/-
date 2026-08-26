@@ -14,6 +14,8 @@ export interface Academy {
   director_name: string
   logo_url: string | null
   theme_color: string
+  /** 인쇄물 기본 디자인 테마 (lib/design/themes.ts 의 id) */
+  design_theme: string | null
   created_at: string
 }
 
@@ -36,6 +38,12 @@ export interface EventRecord {
   /** 마지막 순서표 생성이 AI 였는지 규칙 엔진이었는지 */
   program_source: 'ai' | 'rule' | null
   program_generated_at: string | null
+  /** 이 행사에서 쓰는 디자인 테마. 비어 있으면 학원 기본 테마를 따른다 */
+  design_theme: string | null
+  /** 마지막으로 고른 인쇄 양식 */
+  design_template: string | null
+  /** 인쇄물 문구 (부제·주최·문의·안내) */
+  design_copy: Record<string, string> | null
   created_at: string
 }
 

@@ -1,3 +1,4 @@
+import { DESIGN_THEMES } from '@/lib/design/themes'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
 import { currentAcademyId } from '@/lib/session'
 import { getRepository } from '@/lib/store'
@@ -16,6 +17,8 @@ export async function PATCH(req: Request) {
     const color = str(body.theme_color, 20)
     if (color && /^#[0-9a-fA-F]{6}$/.test(color)) patch.theme_color = color
     if (typeof body.logo_url === 'string') patch.logo_url = body.logo_url.trim() || null
+    const theme = str(body.design_theme, 40)
+    if (theme && DESIGN_THEMES.some((t) => t.id === theme)) patch.design_theme = theme
 
     if (Object.keys(patch).length === 0) return fail('변경할 내용이 없습니다.')
     return ok({ academy: await repo.updateAcademy(academy.id, patch) })

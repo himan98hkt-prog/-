@@ -22,6 +22,8 @@ const BACKUP = join(mkdtempSync(join(tmpdir(), 'pianoevent-shots-')), 'data')
 
 const EVENT_ID = 'demo-event'
 
+const print_ = (template, theme) => `/events/${EVENT_ID}/design/print?template=${template}&theme=${theme}`
+
 /** [파일명, 경로, 뷰포트 폭, 전체 페이지 여부] */
 const SHOTS = [
   ['01-home.png', '/', 1280, false],
@@ -34,6 +36,17 @@ const SHOTS = [
   ['08-invite-mobile.png', `/e/${EVENT_ID}`, 390, true],
   ['09-seasons.png', '/seasons', 1280, false],
   ['10-settings.png', '/settings', 1280, true],
+  ['11-design-studio.png', `/events/${EVENT_ID}/design`, 1440, true],
+  ['12-poster-classic.png', print_('poster-classic', 'classic-navy'), 900, true],
+  ['13-poster-modern.png', print_('poster-modern', 'modern-mono'), 900, true],
+  ['14-poster-program.png', print_('poster-program', 'ivory-gold'), 900, true],
+  ['15-program-cover.png', print_('program-cover', 'blush-romance'), 900, true],
+  ['16-program-bifold.png', print_('program-bifold', 'forest-calm'), 1240, true],
+  ['17-ticket.png', print_('ticket-strip', 'midnight-stage'), 900, true],
+  ['18-social-card.png', print_('social-card', 'halloween-night'), 1000, true],
+  ['19-certificate.png', print_('certificate', 'christmas-warm'), 1240, true],
+  ['20-nametag.png', print_('nametag', 'pastel-kids'), 900, true],
+  ['21-thankyou.png', print_('thankyou-card', 'crayon-play'), 900, true],
 ]
 
 const post = (path, body) =>

@@ -52,6 +52,7 @@ function seed(): Db {
         director_name: '김보람',
         logo_url: null,
         theme_color: '#1f2a44',
+        design_theme: 'classic-navy',
         created_at: created,
       },
     ],
@@ -71,6 +72,9 @@ function seed(): Db {
         mc_closing: null,
         program_source: null,
         program_generated_at: null,
+        design_theme: null,
+        design_template: null,
+        design_copy: null,
         created_at: created,
       },
     ],
@@ -135,6 +139,7 @@ export class DemoRepository implements Repository {
       director_name: '원장',
       logo_url: null,
       theme_color: '#1f2a44',
+      design_theme: null,
       created_at: nowIso(),
     }
     db.academies.push(academy)
@@ -189,6 +194,9 @@ export class DemoRepository implements Repository {
       mc_closing: null,
       program_source: null,
       program_generated_at: null,
+      design_theme: null,
+      design_template: null,
+      design_copy: null,
       created_at: nowIso(),
     }
     db.events.push(event)

@@ -1,3 +1,6 @@
+/* 인쇄물 테마용 한글 서체. 오프라인이면 시스템 서체로 자연스럽게 대체된다 */
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Jua&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Song+Myung&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,4 +1,4 @@
-import { CalendarDays, MapPin, Mic2, Send } from 'lucide-react'
+import { CalendarDays, MapPin, Mic2, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
@@ -70,6 +70,12 @@ export default async function EventPage({
               <Button variant="outline" size="sm">
                 <Mic2 className="h-4 w-4" aria-hidden />
                 사회자 대본
+              </Button>
+            </Link>
+            <Link href={`/events/${event.id}/design`}>
+              <Button variant="outline" size="sm">
+                <Palette className="h-4 w-4" aria-hidden />
+                인쇄물 디자인
               </Button>
             </Link>
             <Link href={`/events/${event.id}/invite`}>
