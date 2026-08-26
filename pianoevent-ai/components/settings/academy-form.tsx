@@ -15,6 +15,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
   const [message, setMessage] = useState<string | null>(null)
   const [designTheme, setDesignTheme] = useState(academy.design_theme ?? 'classic-navy')
   const [logoUrl, setLogoUrl] = useState(academy.logo_url ?? '')
+  const [photoUrl, setPhotoUrl] = useState(academy.photo_url ?? '')
 
   async function save(formData: FormData) {
     setPending(true)
@@ -28,6 +29,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
           director_name: formData.get('director_name'),
           theme_color: formData.get('theme_color'),
           logo_url: formData.get('logo_url'),
+          photo_url: photoUrl,
           design_theme: designTheme,
         }),
       })
@@ -97,6 +99,31 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                 자리에 테마가 정한 모양으로 들어갑니다.
               </FieldHint>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="photo_url">학원 대표 사진 (선택)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="photo_url"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              {photoUrl.trim() && (
+                // 외부 URL 이라 next/image 대신 img 로 그린다
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={photoUrl}
+                  alt="학원 사진 미리보기"
+                  className="h-12 w-16 shrink-0 rounded border border-border object-cover"
+                />
+              )}
+            </div>
+            <FieldHint>
+              학원 전경·연습실 사진을 넣으면 사진 포스터와 프로그램 표지에 쓰입니다. 행사마다 다른 사진을 쓰려면
+              행사 화면의 인쇄물 디자인에서 따로 지정하세요.
+            </FieldHint>
           </div>
 
           <div>

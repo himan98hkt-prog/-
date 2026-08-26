@@ -1,5 +1,6 @@
 import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
+import { PhotoBackdrop, PhotoFrame } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
 import type { DesignContext } from '@/lib/design/context'
@@ -83,8 +84,11 @@ export function SocialCard({ ctx }: { ctx: DesignContext }) {
 
   return (
     <Sheet theme={theme} page="square" decorated={false}>
+      {/* 사진이 있으면 배경으로 깔고, 글씨가 읽히도록 아래쪽으로 갈수록 종이색으로 덮는다 */}
+      <PhotoBackdrop ctx={ctx} />
       <div
         style={{
+          position: 'relative',
           height: '100%',
           padding: 78,
           display: 'flex',
@@ -151,9 +155,13 @@ export function ThankYouCards({ ctx }: { ctx: DesignContext }) {
               textAlign: 'center',
             }}
           >
-            <LogoSlot ctx={ctx} height={38} />
+            {ctx.photoUrl ? (
+              <PhotoFrame ctx={ctx} width={theme.photo.shape === 'circle' ? 92 : 150} height={92} />
+            ) : (
+              <LogoSlot ctx={ctx} height={38} />
+            )}
             <TrebleClef size={22} opacity={0.85} />
-            <h2 style={{ ...T.display(26), marginTop: 16 }}>고맙습니다</h2>
+            <h2 style={{ ...T.display(26), marginTop: 14 }}>고맙습니다</h2>
             <div style={{ marginTop: 14 }}>
               <OrnamentDivider id={theme.ornament} width={160} />
             </div>

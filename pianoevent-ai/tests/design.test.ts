@@ -65,6 +65,12 @@ describe('디자인 테마', () => {
     }
   })
 
+  it('모든 테마가 사진 자리 모양을 정의한다', () => {
+    for (const theme of DESIGN_THEMES) {
+      expect(['rect', 'rounded', 'circle', 'arch'], theme.id).toContain(theme.photo.shape)
+    }
+  })
+
   it('강조색은 종이색과 충분히 구분된다', () => {
     for (const theme of DESIGN_THEMES) {
       expect(theme.palette.accent.toLowerCase(), theme.id).not.toBe(theme.palette.paper.toLowerCase())
@@ -87,6 +93,11 @@ describe('인쇄 양식', () => {
     expect(groups).toHaveLength(Object.keys(CATEGORY_LABEL).length)
     for (const group of groups) expect(group.items.length).toBeGreaterThan(0)
     expect(groups.flatMap((g) => g.items)).toHaveLength(DESIGN_TEMPLATES.length)
+  })
+
+  it('사진을 쓰는 양식이 포함돼 있다', () => {
+    expect(DESIGN_TEMPLATES.some((t) => t.id === 'poster-photo')).toBe(true)
+    expect(getTemplate('poster-photo').category).toBe('poster')
   })
 
   it('모르는 id 는 첫 양식으로 떨어진다', () => {

@@ -1,5 +1,6 @@
 import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
+import { PhotoFrame } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
 import type { DesignContext } from '@/lib/design/context'
@@ -33,8 +34,12 @@ export function ProgramCover({ ctx }: { ctx: DesignContext }) {
           <OrnamentDivider id={theme.ornament} width={220} />
         </div>
 
-        <div style={{ marginTop: 46 }}>
-          <TrebleClef size={40} opacity={0.9} />
+        <div style={{ marginTop: 40 }}>
+          {ctx.photoUrl || ctx.placeholder ? (
+            <PhotoFrame ctx={ctx} width={theme.photo.shape === 'circle' ? 240 : 360} height={240} />
+          ) : (
+            <TrebleClef size={40} opacity={0.9} />
+          )}
         </div>
 
         <p style={{ marginTop: 46, fontSize: 16, fontFamily: 'var(--d-display)' }}>

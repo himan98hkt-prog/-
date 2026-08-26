@@ -137,6 +137,14 @@ async function run() {
   check('포스터에 학원 로고가 들어감', posterHtml.includes('data:image/svg+xml'))
   check('인쇄물에는 빈 로고 자리를 찍지 않음', !posterHtml.includes('로고 자리'))
 
+  const photoPoster = await call(`/events/${event.id}/design/print?template=poster-photo&theme=modern-mono`)
+  const photoHtml = await photoPoster.text()
+  check('사진 포스터 렌더', photoPoster.ok && photoHtml.includes('스모크 정기 연주회'))
+  check('학원 대표 사진이 인쇄물에 들어감', photoHtml.includes('data:image/svg+xml'))
+
+  const badPhoto = await json(`/api/events/${event.id}`, { photo_url: 'javascript:alert(1)' }, 'PATCH')
+  check('사진 주소는 http(s)·data 이미지만 허용', badPhoto.status === 400)
+
   const certificate = await call(`/events/${event.id}/design/print?template=certificate&theme=ivory-gold`)
   const certificateHtml = await certificate.text()
   check('참가 상장은 인원수만큼 렌더', certificate.ok && certificateHtml.includes('참 가 상'))

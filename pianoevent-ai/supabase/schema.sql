@@ -17,11 +17,14 @@ create table if not exists public.academies (
   theme_color   text        not null default '#1f2a44',
   -- 인쇄물 기본 디자인 테마 (lib/design/themes.ts 의 id)
   design_theme  text,
+  -- 학원 대표 사진 (Storage 공개 URL 등)
+  photo_url     text,
   created_at    timestamptz not null default now()
 );
 
 -- 기존 설치본 업그레이드용
 alter table public.academies add column if not exists design_theme text;
+alter table public.academies add column if not exists photo_url    text;
 
 create index if not exists academies_owner_idx on public.academies(owner_id);
 
@@ -58,6 +61,7 @@ create table if not exists public.events (
   design_theme         text,
   design_template      text,
   design_copy          jsonb,
+  photo_url            text,
   created_at           timestamptz not null default now()
 );
 
@@ -65,6 +69,7 @@ create table if not exists public.events (
 alter table public.events add column if not exists design_theme    text;
 alter table public.events add column if not exists design_template text;
 alter table public.events add column if not exists design_copy     jsonb;
+alter table public.events add column if not exists photo_url       text;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 

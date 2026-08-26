@@ -1,6 +1,6 @@
 import { Certificates, NameTags, SocialCard, ThankYouCards, TicketStrip } from '@/components/design/templates/cards'
 import { ProgramBifold, ProgramCover, ProgramInner } from '@/components/design/templates/program'
-import { PosterClassic, PosterModern, PosterProgram } from '@/components/design/templates/posters'
+import { PosterClassic, PosterModern, PosterPhoto, PosterProgram } from '@/components/design/templates/posters'
 import type { DesignContext } from '@/lib/design/context'
 
 /**
@@ -11,6 +11,8 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
   switch (templateId) {
     case 'poster-modern':
       return <PosterModern ctx={ctx} />
+    case 'poster-photo':
+      return <PosterPhoto ctx={ctx} />
     case 'poster-program':
       return <PosterProgram ctx={ctx} />
     case 'program-cover':

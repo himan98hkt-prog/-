@@ -43,6 +43,15 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     perStudent: false,
   },
   {
+    id: 'poster-photo',
+    name: '사진 포스터',
+    description: '학원 전경이나 지난 연주회 사진을 크게 싣는 포스터. 사진 한 장이 설명을 대신합니다.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
     id: 'poster-program',
     name: '포스터 + 출연진',
     description: '포스터 한 장에 연주자 이름과 곡을 모두 담습니다. 게시용 겸 안내용.',

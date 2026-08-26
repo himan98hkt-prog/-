@@ -53,15 +53,26 @@ export function DesignStudio({
   const [templateId, setTemplateId] = useState(event.design_template ?? 'poster-classic')
   const [themeId, setThemeId] = useState(event.design_theme ?? academy.design_theme ?? 'classic-navy')
   const [copy, setCopy] = useState<DesignCopy>(initialCopy)
+  const [photoUrl, setPhotoUrl] = useState(event.photo_url ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const template = getTemplate(templateId)
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const ctx = useMemo(
-    // 미리보기에서는 로고가 없어도 자리를 표시해 어디에 들어가는지 보이게 한다
-    () => ({ theme, academy, event, plan, copy, inviteUrl, logoUrl: academy.logo_url, placeholder: true }),
-    [theme, academy, event, plan, copy, inviteUrl],
+    // 미리보기에서는 로고·사진이 없어도 자리를 표시해 어디에 들어가는지 보이게 한다
+    () => ({
+      theme,
+      academy,
+      event,
+      plan,
+      copy,
+      inviteUrl,
+      logoUrl: academy.logo_url,
+      photoUrl: photoUrl.trim() || academy.photo_url,
+      placeholder: true,
+    }),
+    [theme, academy, event, plan, copy, inviteUrl, photoUrl],
   )
 
   const page = PAGE_PX[template.page]
@@ -76,7 +87,12 @@ export function DesignStudio({
       await fetch(`/api/events/${event.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ design_theme: themeId, design_template: templateId, design_copy: copy }),
+        body: JSON.stringify({
+          design_theme: themeId,
+          design_template: templateId,
+          design_copy: copy,
+          photo_url: photoUrl.trim(),
+        }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2200)
@@ -185,6 +201,39 @@ export function DesignStudio({
                 />
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>사진</CardTitle>
+            <CardDescription>사진 포스터·프로그램 표지·SNS 카드·감사 카드에 쓰입니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div>
+              <Label htmlFor="photo-url">이 행사에 쓸 사진 주소</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="photo-url"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  placeholder={academy.photo_url ? '비우면 학원 대표 사진을 씁니다' : 'https://...'}
+                />
+                {(photoUrl.trim() || academy.photo_url) && (
+                  // 외부 URL 이라 next/image 대신 img 로 그린다
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photoUrl.trim() || academy.photo_url || ''}
+                    alt="사진 미리보기"
+                    className="h-12 w-16 shrink-0 rounded border border-border object-cover"
+                  />
+                )}
+              </div>
+              <FieldHint>
+                가로가 긴 사진(3:2 정도)이 가장 잘 맞습니다. 학생 얼굴이 나오는 사진은 학부모 동의를 받은 것만
+                쓰세요. 비워 두면 설정의 학원 대표 사진이 쓰입니다.
+              </FieldHint>
+            </div>
           </CardContent>
         </Card>
       </div>

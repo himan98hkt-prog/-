@@ -65,7 +65,9 @@ export default async function DesignPrintPage({
           copy,
           inviteUrl: `/e/${event.id}`,
           logoUrl: academy.logo_url,
-          // 인쇄물에는 빈 로고 상자를 찍지 않는다
+          // 행사 사진이 없으면 학원 대표 사진으로 내려간다
+          photoUrl: event.photo_url ?? academy.photo_url,
+          // 인쇄물에는 빈 로고·사진 상자를 찍지 않는다
           placeholder: false,
         })}
       </div>

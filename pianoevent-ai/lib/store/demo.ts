@@ -18,6 +18,10 @@ interface Db {
   rsvps: Rsvp[]
 }
 
+/** 데모용 학원 사진 (인라인 SVG 일러스트). 실제 학원은 설정에서 사진 주소를 넣는다 */
+const DEMO_PHOTO =
+  'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20500%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22w%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23fdf6e7%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23f0e2c8%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22800%22%20height%3D%22500%22%20fill%3D%22%23f7f1e6%22%2F%3E%3Crect%20x%3D%22500%22%20y%3D%2260%22%20width%3D%22230%22%20height%3D%22250%22%20rx%3D%226%22%20fill%3D%22url%28%23w%29%22%2F%3E%3Cpath%20d%3D%22M615%2060v250M500%20185h230%22%20stroke%3D%22%23e0cfae%22%20stroke-width%3D%226%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%22380%22%20width%3D%22800%22%20height%3D%22120%22%20fill%3D%22%23eadfcc%22%2F%3E%3Cpath%20d%3D%22M120%20380h560%22%20stroke%3D%22%23dccdb4%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M170%20300c0-46%2060-78%20150-78%2096%200%20168%2026%20200%2062%2020%2022%206%2046-28%2046H196c-16%200-26-12-26-30Z%22%20fill%3D%22%231f2a44%22%2F%3E%3Cpath%20d%3D%22M186%20246c34-30%2096-48%20156-48%2074%200%20140%2022%20176%2056-40-26-104-42-176-42-58%200-116%2014-156%2034Z%22%20fill%3D%22%232f3d5e%22%2F%3E%3Crect%20x%3D%22196%22%20y%3D%22316%22%20width%3D%22210%22%20height%3D%2226%22%20rx%3D%224%22%20fill%3D%22%23fbf7ee%22%2F%3E%3Cg%20fill%3D%22%231f2a44%22%3E%3Crect%20x%3D%22210%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22228%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22254%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22272%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22290%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22316%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22334%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22360%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3Crect%20x%3D%22378%22%20y%3D%22316%22%20width%3D%225%22%20height%3D%2216%22%2F%3E%3C%2Fg%3E%3Crect%20x%3D%22214%22%20y%3D%22342%22%20width%3D%2214%22%20height%3D%2242%22%20fill%3D%22%231f2a44%22%2F%3E%3Crect%20x%3D%22392%22%20y%3D%22342%22%20width%3D%2214%22%20height%3D%2242%22%20fill%3D%22%231f2a44%22%2F%3E%3Crect%20x%3D%22470%22%20y%3D%22330%22%20width%3D%2214%22%20height%3D%2254%22%20fill%3D%22%231f2a44%22%2F%3E%3Crect%20x%3D%22250%22%20y%3D%22368%22%20width%3D%22120%22%20height%3D%2212%22%20rx%3D%224%22%20fill%3D%22%238a6b45%22%2F%3E%3Crect%20x%3D%22262%22%20y%3D%22380%22%20width%3D%228%22%20height%3D%2230%22%20fill%3D%22%238a6b45%22%2F%3E%3Crect%20x%3D%22350%22%20y%3D%22380%22%20width%3D%228%22%20height%3D%2230%22%20fill%3D%22%238a6b45%22%2F%3E%3Cpath%20d%3D%22M672%20336h56l-8%2048h-40l-8-48Z%22%20fill%3D%22%23b3892f%22%2F%3E%3Cpath%20d%3D%22M700%20336c-4-30%2010-48%2030-56-8%2026-14%2042-30%2056Zm0%200c4-26-8-42-26-50%206%2022%2012%2036%2026%2050Z%22%20fill%3D%22%233f6b4a%22%2F%3E%3C%2Fsvg%3E'
+
 const FILE = join(process.cwd(), '.data', 'store.json')
 const globalRef = globalThis as unknown as { __pianoeventDemoDb?: Db }
 
@@ -55,6 +59,7 @@ function seed(): Db {
           'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2231%22%20fill%3D%22%231f2a44%22%2F%3E%3Cg%20fill%3D%22%23f5efe0%22%3E%3Crect%20x%3D%2217%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2225%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2233%22%20y%3D%2219%22%20width%3D%226.4%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3Crect%20x%3D%2241%22%20y%3D%2219%22%20width%3D%226%22%20height%3D%2226%22%20rx%3D%221.2%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%23b3892f%22%3E%3Crect%20x%3D%2221.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3Crect%20x%3D%2229.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3Crect%20x%3D%2237.4%22%20y%3D%2219%22%20width%3D%224%22%20height%3D%2215%22%20rx%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E',
         theme_color: '#1f2a44',
         design_theme: 'classic-navy',
+        photo_url: DEMO_PHOTO,
         created_at: created,
       },
     ],
@@ -77,6 +82,7 @@ function seed(): Db {
         design_theme: null,
         design_template: null,
         design_copy: null,
+        photo_url: null,
         created_at: created,
       },
     ],
@@ -142,6 +148,7 @@ export class DemoRepository implements Repository {
       logo_url: null,
       theme_color: '#1f2a44',
       design_theme: null,
+      photo_url: null,
       created_at: nowIso(),
     }
     db.academies.push(academy)
@@ -199,6 +206,7 @@ export class DemoRepository implements Repository {
       design_theme: null,
       design_template: null,
       design_copy: null,
+      photo_url: null,
       created_at: nowIso(),
     }
     db.events.push(event)

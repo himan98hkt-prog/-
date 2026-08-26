@@ -28,6 +28,8 @@ export interface DesignContext {
   inviteUrl: string
   /** 학원 로고 이미지 주소. 없으면 로고 자리를 비운다 */
   logoUrl: string | null
-  /** 미리보기에서만 true — 로고가 없을 때 자리 안내를 그린다 */
+  /** 학원·행사 사진 주소. 행사 사진이 없으면 학원 대표 사진으로 내려간다 */
+  photoUrl: string | null
+  /** 미리보기에서만 true — 로고·사진이 없을 때 자리 안내를 그린다 */
   placeholder: boolean
 }

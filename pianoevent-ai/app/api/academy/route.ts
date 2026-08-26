@@ -17,6 +17,13 @@ export async function PATCH(req: Request) {
     const color = str(body.theme_color, 20)
     if (color && /^#[0-9a-fA-F]{6}$/.test(color)) patch.theme_color = color
     if (typeof body.logo_url === 'string') patch.logo_url = body.logo_url.trim() || null
+    if (typeof body.photo_url === 'string') {
+      const url = body.photo_url.trim()
+      if (url && !/^(https?:\/\/|data:image\/)/i.test(url)) {
+        return fail('사진 주소는 http(s) 또는 이미지 data URI 여야 합니다.')
+      }
+      patch.photo_url = url.slice(0, 4000) || null
+    }
     const theme = str(body.design_theme, 40)
     if (theme && DESIGN_THEMES.some((t) => t.id === theme)) patch.design_theme = theme
 

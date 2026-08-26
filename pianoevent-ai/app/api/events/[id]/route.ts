@@ -28,6 +28,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
     if (STATUSES.includes(body.status as EventStatus)) patch.status = body.status
 
+    if (typeof body.photo_url === 'string') {
+      const url = body.photo_url.trim()
+      // data: URI 도 허용한다 (학원이 직접 붙여넣는 경우가 있다)
+      if (url && !/^(https?:\/\/|data:image\/)/i.test(url)) {
+        return fail('사진 주소는 http(s) 또는 이미지 data URI 여야 합니다.')
+      }
+      patch.photo_url = url.slice(0, 4000) || null
+    }
+
     const theme = str(body.design_theme, 40)
     if (theme && DESIGN_THEMES.some((t) => t.id === theme)) patch.design_theme = theme
     const template = str(body.design_template, 40)

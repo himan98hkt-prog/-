@@ -16,6 +16,8 @@ export interface Academy {
   theme_color: string
   /** 인쇄물 기본 디자인 테마 (lib/design/themes.ts 의 id) */
   design_theme: string | null
+  /** 학원 대표 사진 — 행사 사진이 없을 때 인쇄물에 쓰인다 */
+  photo_url: string | null
   created_at: string
 }
 
@@ -44,6 +46,8 @@ export interface EventRecord {
   design_template: string | null
   /** 인쇄물 문구 (부제·주최·문의·안내) */
   design_copy: Record<string, string> | null
+  /** 이 행사의 대표 사진 (작년 연주회·단체 사진 등). 없으면 학원 대표 사진을 쓴다 */
+  photo_url: string | null
   created_at: string
 }
 

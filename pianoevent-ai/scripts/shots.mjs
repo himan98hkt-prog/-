@@ -39,6 +39,7 @@ const SHOTS = [
   ['11-design-studio.png', `/events/${EVENT_ID}/design`, 1440, true],
   ['12-poster-classic.png', print_('poster-classic', 'classic-navy'), 900, true],
   ['13-poster-modern.png', print_('poster-modern', 'modern-mono'), 900, true],
+  ['13b-poster-photo.png', print_('poster-photo', 'classic-navy'), 900, true],
   ['14-poster-program.png', print_('poster-program', 'ivory-gold'), 900, true],
   ['15-program-cover.png', print_('program-cover', 'blush-romance'), 900, true],
   ['16-program-bifold.png', print_('program-bifold', 'forest-calm'), 1240, true],

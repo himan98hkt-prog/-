@@ -1,5 +1,6 @@
 import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
+import { PhotoFrame } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import type { DesignContext } from '@/lib/design/context'
 import { formatEventDate, formatShortDate, formatWallClock } from '@/lib/format'
@@ -232,6 +233,68 @@ export function PosterProgram({ ctx }: { ctx: DesignContext }) {
             {copy.contact ? ` · ${copy.contact}` : ''}
           </p>
         </footer>
+      </div>
+    </Sheet>
+  )
+}
+
+/** 사진이 주인공인 포스터 */
+export function PosterPhoto({ ctx }: { ctx: DesignContext }) {
+  const { theme, academy, event, copy, plan } = ctx
+  const d = dateParts(event.event_at)
+
+  return (
+    <Sheet theme={theme} page="a4-portrait" decorated={false}>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '44px 56px 26px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <LogoSlot ctx={ctx} height={44} align="start" />
+          <div>
+            <p style={{ ...T.label(10.5) }}>{academy.name}</p>
+            <p style={{ marginTop: 5, fontSize: 12, letterSpacing: '0.16em', color: 'var(--d-accent)' }}>
+              {copy.subtitle}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ padding: '0 56px' }}>
+          <PhotoFrame ctx={ctx} width="100%" height={460} />
+        </div>
+
+        <div style={{ padding: '34px 56px 44px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <h1 style={{ ...T.display(46) }}>{event.title}</h1>
+
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'baseline', gap: 18 }}>
+            <span style={{ ...T.display(40), color: 'var(--d-accent)' }}>
+              {d.month}.{d.day}
+            </span>
+            <span style={{ fontSize: 15, color: 'var(--d-muted)' }}>
+              {d.year} {d.weekday}요일 {d.time}
+            </span>
+          </div>
+          {event.venue && <p style={{ marginTop: 10, fontSize: 16 }}>{event.venue}</p>}
+
+          {event.greeting && (
+            <p style={{ marginTop: 20, maxWidth: 520, ...T.body(13.5), whiteSpace: 'pre-line' }}>{event.greeting}</p>
+          )}
+
+          <div style={{ marginTop: 'auto', paddingTop: 22 }}>
+            {plan.items.length > 0 && (
+              <p style={{ marginBottom: 14, fontSize: 12, color: 'var(--d-muted)', lineHeight: 1.9 }}>
+                {plan.items
+                  .slice(0, 14)
+                  .map((item) => item.student.student_name)
+                  .join(' · ')}
+                {plan.items.length > 14 ? ' 외' : ''}
+              </p>
+            )}
+            <p style={{ marginBottom: 14, fontSize: 11.5, color: 'var(--d-muted)' }}>{copy.footnote}</p>
+            <div style={{ height: 1, background: 'var(--d-line)', marginBottom: 12 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--d-muted)' }}>
+              <span>{copy.host}</span>
+              <span>{copy.contact}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </Sheet>
   )

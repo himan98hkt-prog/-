@@ -30,6 +30,17 @@ export type LogoShape =
   /** 밝은 판 위에 올려 어두운 배경에서도 보이게 */
   | 'plate'
 
+/** 사진을 어떤 모양으로 앉힐지 */
+export type PhotoShape =
+  /** 직각 사각형 */
+  | 'rect'
+  /** 모서리를 둥글린 사각형 */
+  | 'rounded'
+  /** 원형 */
+  | 'circle'
+  /** 위쪽이 둥근 아치 — 무대 커튼 같은 인상 */
+  | 'arch'
+
 export interface DesignTheme {
   id: string
   name: string
@@ -57,6 +68,8 @@ export interface DesignTheme {
   texture: 'none' | 'grain' | 'glow' | 'gradient'
   /** 로고 자리 표현 방식과 기본 높이(px, 96dpi 기준) */
   logo: { shape: LogoShape; height: number }
+  /** 사진 자리 표현 방식 */
+  photo: { shape: PhotoShape }
 }
 
 const SERIF_CLASSIC = "'Nanum Myeongjo', 'Apple SD Gothic Neo', serif"
@@ -89,6 +102,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'double',
     texture: 'grain',
     logo: { shape: 'ring', height: 62 },
+    photo: { shape: 'arch' },
   },
   {
     id: 'ivory-gold',
@@ -111,6 +125,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'thin',
     texture: 'none',
     logo: { shape: 'ring', height: 58 },
+    photo: { shape: 'arch' },
   },
   {
     id: 'blush-romance',
@@ -133,6 +148,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'rounded',
     texture: 'none',
     logo: { shape: 'circle', height: 64 },
+    photo: { shape: 'rounded' },
   },
   {
     id: 'forest-calm',
@@ -155,6 +171,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'thin',
     texture: 'none',
     logo: { shape: 'circle', height: 60 },
+    photo: { shape: 'rounded' },
   },
   {
     id: 'modern-mono',
@@ -177,6 +194,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'none',
     texture: 'none',
     logo: { shape: 'plain', height: 52 },
+    photo: { shape: 'rect' },
   },
   {
     id: 'pastel-kids',
@@ -199,6 +217,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'rounded',
     texture: 'none',
     logo: { shape: 'circle', height: 68 },
+    photo: { shape: 'circle' },
   },
   {
     id: 'crayon-play',
@@ -221,6 +240,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'rounded',
     texture: 'none',
     logo: { shape: 'circle', height: 68 },
+    photo: { shape: 'circle' },
   },
   {
     id: 'midnight-stage',
@@ -243,6 +263,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'thin',
     texture: 'glow',
     logo: { shape: 'plate', height: 60 },
+    photo: { shape: 'rect' },
   },
   {
     id: 'christmas-warm',
@@ -265,6 +286,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'ribbon',
     texture: 'none',
     logo: { shape: 'ring', height: 62 },
+    photo: { shape: 'rounded' },
   },
   {
     id: 'halloween-night',
@@ -287,6 +309,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
     frame: 'none',
     texture: 'glow',
     logo: { shape: 'plate', height: 62 },
+    photo: { shape: 'rounded' },
   },
 ]
 
