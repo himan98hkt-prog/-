@@ -15,7 +15,8 @@
     "demo": "next build && next start",
     "reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('데모 데이터를 처음 상태로 되돌렸습니다.')\"",
     "promo": "node scripts/promo-shots.mjs",
-    "verify:detail": "node scripts/verify-detail.mjs"
+    "verify:detail": "node scripts/verify-detail.mjs",
+    "mobile": "node scripts/mobile.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -37,6 +38,7 @@
     "eslint-config-next": "^14.2.35",
     "playwright": "^1.62.1",
     "postcss": "^8.5.26",
+    "qrcode-terminal": "^0.12.0",
     "tailwindcss": "^3.4.19",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"

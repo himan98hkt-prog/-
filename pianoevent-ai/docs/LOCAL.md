@@ -62,8 +62,8 @@ A. https://git-scm.com 에서 설치하거나, GitHub 페이지에서 초록색 
 받아 압축을 푼 뒤 `pianoevent-ai` 폴더에서 3단계의 `npm install` 부터 하면 됩니다.
 
 **Q. 휴대폰에서도 보고 싶습니다.**
-A. 같은 와이파이에 있으면, 명령창에 `npm run dev -- -H 0.0.0.0` 을 치고 컴퓨터의 IP 주소
-(예: `http://192.168.0.5:3000`)로 접속하면 됩니다.
+A. `npm run mobile` 을 실행하세요. 휴대폰으로 접속할 주소와 QR 코드가 명령창에 뜹니다.
+자세한 내용은 [MOBILE.md](MOBILE.md) 를 보세요.
 
 **Q. 입력한 내용은 어디에 저장되나요?**
 A. `pianoevent-ai/.data/store.json` 파일에 저장됩니다. 이 파일을 지우면 처음 데모 상태로 돌아갑니다.

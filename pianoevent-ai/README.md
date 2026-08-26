@@ -9,6 +9,7 @@
 npm install
 npm run dev      # http://localhost:3000  (환경변수 없이 바로 전 기능 동작)
 npm run reset    # 데모 데이터를 처음 상태로 되돌리기
+npm run mobile   # 같은 와이파이의 휴대폰에서 열기 (주소 + QR 코드 표시)
 npm test         # 순수 로직 단위 테스트 62건
 npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 26건 검증
 ```
@@ -190,6 +191,7 @@ npm run shots  # 주요 화면을 screenshots/ 에 캡처 (Playwright)
 ## 5. 배포와 정책 준수
 
 - [docs/LOCAL.md](docs/LOCAL.md) — 내 컴퓨터에서 실행해 보기 (명령창 여는 법부터)
+- [docs/MOBILE.md](docs/MOBILE.md) — 휴대폰에서 테스트하기 (같은 와이파이 · 인터넷 배포)
 - [docs/MANUAL.md](docs/MANUAL.md) — 원장님용 사용설명서 (화면 순서 그대로)
 - [docs/PRICING.md](docs/PRICING.md) — 가격 정책 제안 (단건 4.9만 · 연간 19.8만)
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — 연주회 운영 병목 분석과 반영 내역
