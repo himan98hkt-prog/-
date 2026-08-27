@@ -46,8 +46,46 @@ await page.click('.cover.activation .btn.primary')
 const badMsg = await page.textContent('.activation-msg')
 check('인증: 잘못된 키는 이유를 알려 주고 막는다', /검증번호|자리|문자/.test(badMsg || ''))
 
+// 먼저 피아노 관리노트 발급 키가 그대로 열리는지 본다 (그쪽 앱을 고치지 않는 길)
+const { generatePianoKey, pianoKeyForName } = await import('../src/core/license-piano.js')
+const pianoNameKey = pianoKeyForName('아첼음악학원')
+await page.fill('.cover.activation input', pianoNameKey)
+await page.click('.cover.activation .btn.primary')
+const needName = await page.textContent('.activation-msg')
+check('인증: 피아노 학원명 키는 학원명을 함께 넣으라고 안내한다', /학원명/.test(needName || ''))
+check('인증: 안내와 함께 학원명 칸이 열린다', await page.isVisible('.cover.activation input:nth-of-type(1) ~ div input, .cover.activation div input'))
+
+const nameField = page.locator('.cover.activation input').nth(1)
+await nameField.fill('아첼음악학원')
+await page.click('.cover.activation .btn.primary')
+await page.waitForSelector('.cover .panel h2')
+check('인증: 피아노 학원명 키 + 학원명으로 앱이 열린다', !(await page.$('.cover.activation')))
+const prefilled = await page.inputValue('.cover .panel input[type=text]')
+check('인증: 키에 담긴 학원명이 마법사에 미리 채워진다', prefilled === '아첼음악학원')
+
+// 이 세션은 다시 처음 상태로 돌려 두고, 실제 스모크는 Pro 통합키로 진행한다
+await page.evaluate(async () => {
+  const { db } = await import('/src/data/db.js')
+  await db.settings.delete('license')
+  await db.settings.delete('pendingAcademyName')
+})
+await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
+await page.waitForSelector('.cover.activation')
+
+const pianoKey = generatePianoKey()
+await page.fill('.cover.activation input', pianoKey)
+await page.click('.cover.activation .btn.primary')
+await page.waitForSelector('.cover .panel h2')
+check('인증: 피아노 자기검증 키는 학원명 없이 바로 열린다', !(await page.$('.cover.activation')))
+await page.evaluate(async () => {
+  const { db } = await import('/src/data/db.js')
+  await db.settings.delete('license')
+})
+await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
+await page.waitForSelector('.cover.activation')
+
 const { generateKey } = await import('../src/core/license.js')
-const proKey = generateKey('pro', 'A')   // 통합키(A) — 피아노 관리노트와 공용
+const proKey = generateKey('pro', 'A')   // 통합키(A) — 학원 관리노트 방식
 await page.fill('.cover.activation input', proKey)
 await page.click('.cover.activation .btn.primary')
 await page.waitForSelector('.cover .panel h2')

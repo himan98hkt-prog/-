@@ -15,6 +15,10 @@
 // 주의: SALT 를 바꾸면 이미 발급한 키가 전부 무효가 된다. 출시 후에는 절대 수정하지 말 것.
 export const LICENSE_SALT = 'ACADEMY-NOTE::2026::a7f3-kQ9v-Zt2m::v1'
 
+// 피아노학원 관리노트가 이미 팔아 온 키는 그 제품의 규칙 그대로 인정한다.
+// (그쪽 앱을 고치지 않아도 두 제품이 같은 키를 쓰게 만드는 길이다 — license-piano.js 참고)
+import { verifyPianoKey, PIANO_CHARS } from './license-piano.js'
+
 /** 이 빌드가 어떤 제품인지. 피아노 관리노트에 이식할 때만 'K' 로 바꾼다. */
 export const PRODUCT_CODE = 'M'
 
@@ -23,6 +27,18 @@ export const PRODUCTS = {
   M: { code: 'M', label: '학원 관리노트', accepts: ['M'] },
   K: { code: 'K', label: '피아노 관리노트', accepts: ['K'] }
 }
+
+/**
+ * 다른 salt 로 이미 발급된 키를 계속 인정하기 위한 자리.
+ *
+ * 피아노 관리노트가 자체 salt 로 키를 팔아 왔다면, 그 salt 를 여기 등록하는 것만으로
+ * **이미 판매된 키를 회수하지 않고** 두 제품에서 함께 쓸 수 있다.
+ * 새로 발급하는 키는 항상 위의 LICENSE_SALT + 통합키(A) 를 쓴다.
+ *
+ *   { salt: '피아노 앱의 salt 문자열', product: 'K', label: '피아노 관리노트 기존 발급분',
+ *     planOf: (body) => 'lite' | 'pro' }   // planOf 를 주지 않으면 앞 두 자리 규칙을 그대로 적용
+ */
+export const LEGACY_KEY_SOURCES = []
 
 export const TRIAL_DAYS = 14
 
@@ -43,8 +59,8 @@ function hash32(str) {
   return h >>> 0
 }
 
-export function checksumOf(body) {
-  const h = hash32(`${LICENSE_SALT}|${body}`)
+export function checksumOf(body, salt = LICENSE_SALT) {
+  const h = hash32(`${salt}|${body}`)
   let out = ''
   for (let i = 0; i < 4; i++) out = B32[(h >>> (i * 5)) & 31] + out
   return out
@@ -83,23 +99,67 @@ export function generateKey(plan = 'lite', product = 'A') {
  * 키 검증. 이 빌드(PRODUCT_CODE)에서 쓸 수 있는 키인지까지 본다.
  * @returns {{ok:true, plan, product, key, version}|{ok:false, reason}}
  */
-export function verifyKey(input, { productCode = PRODUCT_CODE } = {}) {
+export function verifyKey(input, {
+  productCode = PRODUCT_CODE,
+  legacySources = LEGACY_KEY_SOURCES,
+  academyName = null,
+  pianoPlan = 'lite'
+} = {}) {
   const key = normalizeKey(input)
   if (!key) return { ok: false, reason: '인증키를 입력해 주세요' }
   if (key.length !== 12) return { ok: false, reason: `인증키는 12자리입니다 (현재 ${key.length}자)` }
 
   const body = key.slice(0, 8)
   const sum = key.slice(8)
-  // 앞 두 자리는 제품·플랜 문자(L 처럼 base32 에 없는 글자도 쓴다), 나머지는 base32 만 허용
-  for (const ch of key.slice(2)) {
-    if (!B32.includes(ch)) return { ok: false, reason: `쓸 수 없는 문자가 있습니다: ${ch} (I·L·O·U 는 쓰지 않습니다)` }
-  }
-  if (checksumOf(body) !== sum) return { ok: false, reason: '검증번호가 맞지 않습니다. 키를 다시 확인해 주세요' }
 
+  // 1) 우리 형식
+  if (checksumOf(body) === sum) return classify(key, body, productCode)
+
+  // 2) 피아노 관리노트에서 발급된 키 — 자기검증 방식은 학원명 없이, 학원명 방식은 학원명과 함께
+  const piano = verifyPianoKey(key, { academyName })
+  if (piano.ok) {
+    return {
+      ok: true,
+      plan: pianoPlan === 'pro' ? 'pro' : 'lite',
+      product: 'K',
+      key: piano.key,
+      version: 0,
+      scheme: 'piano',
+      source: piano.mode === 'name' ? `피아노 관리노트 · 학원명 방식(${piano.name})` : '피아노 관리노트 발급분',
+      academyName: piano.name || null
+    }
+  }
+
+  // 다른 salt 로 발급된 기존 키(예: 피아노 관리노트가 먼저 팔아 온 키)
+  for (const src of legacySources) {
+    if (!src?.salt || checksumOf(body, src.salt) !== sum) continue
+    const plan = src.planOf ? src.planOf(body) : (PLANS[body[1]] || PLANS[body[0]] || 'lite')
+    const product = PRODUCTS[src.product] || PRODUCTS.A
+    if (!product.accepts.includes(productCode)) {
+      return { ok: false, reason: `${product.label} 전용 키입니다. 이 제품에서는 사용할 수 없습니다` }
+    }
+    return { ok: true, plan, product: product.code, key: formatKey(key), version: 0, source: src.label || 'legacy' }
+  }
+
+  // 어느 규칙에도 맞지 않았다 — 오타인지 형식 자체가 다른지 구분해 알려 준다
+  const allowed = new Set([...B32, ...PIANO_CHARS])
+  for (const ch of key) {
+    if (!allowed.has(ch)) return { ok: false, reason: `쓸 수 없는 문자가 있습니다: ${ch}` }
+  }
+  return {
+    ok: false,
+    reason: academyName
+      ? '검증번호가 맞지 않습니다. 키와 학원명을 다시 확인해 주세요'
+      : '검증번호가 맞지 않습니다. 피아노 관리노트에서 학원명으로 받은 키라면 학원명도 함께 넣어 주세요'
+  }
+}
+
+/** 체크섬이 맞은 키의 제품·플랜을 읽는다 */
+function classify(key, body, productCode) {
   const head = body[0]
   // v1: 첫 글자가 플랜 문자(L/P) — 제품 구분이 없던 초기 발급분
   if (PLANS[head] && !PRODUCTS[head]) {
-    return { ok: true, plan: PLANS[head], product: 'A', key: formatKey(key), version: 1 }
+    return { ok: true, plan: PLANS[head], product: 'A', key: formatKey(key), version: 1, source: 'primary' }
   }
   const product = PRODUCTS[head]
   if (!product) return { ok: false, reason: '제품 문자가 올바르지 않습니다 (A·M·K 또는 L·P 로 시작)' }
@@ -108,7 +168,7 @@ export function verifyKey(input, { productCode = PRODUCT_CODE } = {}) {
   if (!product.accepts.includes(productCode)) {
     return { ok: false, reason: `${product.label} 전용 키입니다. 이 제품에서는 사용할 수 없습니다` }
   }
-  return { ok: true, plan, product: head, key: formatKey(key), version: 2 }
+  return { ok: true, plan, product: head, key: formatKey(key), version: 2, source: 'primary' }
 }
 
 // 저장은 원문 대신 해시로 (백업 파일에 키 원문이 남지 않도록)

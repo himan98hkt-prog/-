@@ -35,8 +35,12 @@ export function entitlement(now = new Date()) {
   return { mode: 'none', plan: 'lite', daysLeft: 0, trial: t }
 }
 
-export async function activateWithKey(input) {
-  const res = verifyKey(input)
+/**
+ * @param {string} input        인증키
+ * @param {{academyName?:string}} opts  피아노 관리노트의 '학원명 방식' 키를 쓸 때만 필요
+ */
+export async function activateWithKey(input, { academyName } = {}) {
+  const res = verifyKey(input, { academyName: academyName?.trim() || null })
   if (!res.ok) return res
   const lic = {
     key: res.key,
@@ -44,10 +48,17 @@ export async function activateWithKey(input) {
     plan: res.plan,
     product: res.product,
     version: res.version,
+    scheme: res.scheme || 'academy-note',
+    source: res.source || 'primary',
+    academy_name: res.academyName || null,
     device: deviceCode(),
     activated_at: new Date().toISOString()
   }
   await repo.setSetting('license', lic)
+  // 학원명으로 받은 키라면 그 이름이 곧 학원 이름이다 — 마법사에 미리 채워 준다
+  if (res.academyName && !repo.getSetting('branding')?.name) {
+    await repo.setSetting('pendingAcademyName', res.academyName)
+  }
   repo.setPlan(res.plan)
   return { ok: true, license: lic, plan: res.plan }
 }
@@ -95,9 +106,31 @@ export function requireActivation({ onActivated } = {}) {
 
       const msg = h('p', { class: 'small activation-msg', style: { minHeight: '18px', color: 'var(--danger)' } })
 
+      // 피아노 관리노트에서 '학원명으로 받은 키' 는 학원명이 있어야 검증된다.
+      // 평소에는 접어 두고, 필요할 때(또는 그 키로 실패했을 때) 펼친다.
+      const nameInput = h('input', { type: 'text', placeholder: '예) 아첼음악학원', autocomplete: 'off' })
+      const nameRow = h('div', { style: { display: 'none', marginTop: '10px' } },
+        h('div', { class: 'small muted', style: { marginBottom: '4px', textAlign: 'left' } },
+          '피아노 관리노트에서 학원명으로 받은 키라면 그때 알려 주신 학원명을 그대로 넣어 주세요'),
+        nameInput)
+      const nameToggle = h('button', {
+        class: 'linkbtn', type: 'button',
+        onClick: () => { showName(nameRow.style.display === 'none') }
+      }, '피아노 관리노트 키인가요?')
+      nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit() })
+
+      function showName(on) {
+        nameRow.style.display = on ? 'block' : 'none'
+        if (on) nameInput.focus()
+      }
+
       async function submit() {
-        const res = await activateWithKey(input.value)
-        if (!res.ok) { msg.textContent = res.reason; return }
+        const res = await activateWithKey(input.value, { academyName: nameInput.value })
+        if (!res.ok) {
+          msg.textContent = res.reason
+          if (/학원명/.test(res.reason)) showName(true)
+          return
+        }
         toast('인증되었습니다. 감사합니다!', 'ok')
         done(entitlement())
       }
@@ -107,6 +140,7 @@ export function requireActivation({ onActivated } = {}) {
         h('h2', { style: { marginBottom: '4px' } }, '학원 관리노트'),
         h('p', { class: 'muted small' }, '구매하신 인증키를 입력하면 바로 시작합니다.'),
         h('div', { style: { marginTop: '18px' } }, input),
+        nameRow,
         msg,
         h('button', { class: 'btn primary block', onClick: submit }, '인증하고 시작하기'),
         h('div', { class: 'divider' }),
@@ -121,15 +155,15 @@ export function requireActivation({ onActivated } = {}) {
             }
           }, `${TRIAL_DAYS}일 무료 체험 시작 (키 없이 전 기능)`),
         h('div', { class: 'row small muted', style: { marginTop: '14px' } },
-          h('span', { class: 'grow' }, `기기번호 ${deviceCode()}`),
+          nameToggle,
+          h('span', { class: 'grow right' }, `기기번호 ${deviceCode()}`),
           h('button', {
             class: 'linkbtn',
             onClick: () => copyText(deviceCode()).then(() => toast('기기번호를 복사했습니다'))
           }, '복사')),
         h('p', { class: 'small muted' },
-          '구매·재발급 문의 시 위 기기번호를 함께 알려 주세요. 인증키는 ',
-          h('b', {}, '피아노 관리노트와 공용'),
-          '입니다 (A로 시작하는 통합키).')
+          '구매·재발급 문의 시 위 기기번호를 함께 알려 주세요. ',
+          h('b', {}, '피아노 관리노트에서 쓰던 인증키를 그대로 쓸 수 있습니다.'))
       )
       input.focus()
     }

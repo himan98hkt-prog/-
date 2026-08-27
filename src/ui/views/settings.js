@@ -299,6 +299,10 @@ function licenseSection(repo) {
     const lic = repo.getSetting('license')
     const input = h('input', { type: 'text', placeholder: 'AAAA-AAAA-AAAA', value: lic?.key || '' })
     input.addEventListener('input', () => { input.value = formatKey(input.value).slice(0, 14) })
+    const nameInput = h('input', {
+      type: 'text', placeholder: '피아노 관리노트에서 학원명으로 받은 키일 때만',
+      value: lic?.academy_name || ''
+    })
 
     clear(box)
     box.append(
@@ -306,7 +310,7 @@ function licenseSection(repo) {
         ? h('div', {},
           h('span', { class: 'badge ok' }, `${lic.plan === 'pro' ? 'Pro' : 'Lite'} 인증됨`),
           h('div', { class: 'small muted', style: { marginTop: '6px' } },
-            `키 ${lic.key} · ${PRODUCTS[lic.product]?.label || '통합'} · 인증일 ${(lic.activated_at || '').slice(0, 10)} · 기기번호 ${lic.device || deviceCode()}`))
+            `키 ${lic.key} · ${lic.scheme === 'piano' ? '피아노 관리노트 발급분' : (PRODUCTS[lic.product]?.label || '통합')} · 인증일 ${(lic.activated_at || '').slice(0, 10)} · 기기번호 ${lic.device || deviceCode()}`))
         : h('span', { class: 'badge warn' },
           ent.mode === 'trial' ? `체험 ${ent.daysLeft}일 남음 — 인증키를 넣으면 계속 사용합니다` : '미인증'),
 
@@ -314,16 +318,18 @@ function licenseSection(repo) {
         h('div', { class: 'grow' }, input),
         h('button', {
           class: 'btn primary', onClick: async () => {
-            const res = await activateWithKey(input.value)
+            const res = await activateWithKey(input.value, { academyName: nameInput.value })
             if (!res.ok) return toast(res.reason, 'error')
             toast(`${res.plan === 'pro' ? 'Pro' : 'Lite'} 인증 완료. 앱을 새로고침합니다`, 'ok')
             setTimeout(() => location.reload(), 800)
           }
         }, lic ? '키 교체' : '인증')),
 
+      h('div', { style: { marginTop: '8px' } }, nameInput),
       h('p', { class: 'small muted' },
         'Lite 키(두 번째 자리 L)는 기기 1대, Pro 키(P)는 여러 기기 동시 사용과 실시간 동기화를 지원합니다. ',
-        '첫 자리가 A인 통합키는 피아노 관리노트에서도 같은 키로 열립니다.'),
+        '첫 자리가 A인 통합키와 ', h('b', {}, '피아노 관리노트에서 발급받은 키'), '는 두 제품에서 모두 열립니다. ',
+        '피아노 쪽에서 학원명으로 받은 키라면 위 칸에 그 학원명을 넣어 주세요.'),
 
       h('div', { class: 'row small muted' },
         h('span', { class: 'grow' }, `이 기기 번호: ${deviceCode()} (재발급·문의 시 사용)`),

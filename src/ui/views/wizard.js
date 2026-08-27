@@ -19,7 +19,11 @@ const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#7c3aed', '#db2777', '#f59e0b'
 
 export function openWizard() {
   return new Promise((resolve) => {
-    const state = { name: '', category: '교과', color: COLORS[0], pin: '0000', demo: false }
+    // 피아노 관리노트의 '학원명 방식' 키로 인증했다면 그 이름을 그대로 채워 준다
+    const state = {
+      name: repo.getSetting('pendingAcademyName') || '',
+      category: '교과', color: COLORS[0], pin: '0000', demo: false
+    }
     let step = 0
     const body = h('div')
     const cover = h('div', { class: 'cover' }, h('div', { class: 'panel card' }, body))

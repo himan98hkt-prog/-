@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   generateKey, verifyKey, normalizeKey, formatKey, checksumOf, hashKey,
-  LICENSE_SALT, PRODUCT_CODE, trialStatus, deviceFingerprint
+  LICENSE_SALT, PRODUCT_CODE, LEGACY_KEY_SOURCES, trialStatus, deviceFingerprint
 } from '../src/core/license.js'
 
 describe('인증키(시디키)', () => {
@@ -127,5 +127,80 @@ describe('체험 기간', () => {
     expect(done.active).toBe(false)
     expect(done.expired).toBe(true)
     expect(done.daysLeft).toBe(0)
+  })
+})
+
+describe('다른 salt 로 이미 발급된 키 (피아노 관리노트 기존 발급분)', () => {
+  // 피아노 앱이 자체 salt 로 팔아 온 키를 흉내 낸다
+  const PIANO_SALT = 'PIANO-NOTE::OLD::salt-example'
+  const legacy = [{ salt: PIANO_SALT, product: 'K', label: '피아노 관리노트 기존 발급분' }]
+  const legacyKey = (body) => formatKey(body + checksumOf(body, PIANO_SALT))
+
+  it('기본값은 비어 있어 아무 키나 통과시키지 않는다', () => {
+    expect(LEGACY_KEY_SOURCES).toEqual([])
+    expect(verifyKey(legacyKey('KLABC123')).ok).toBe(false)
+  })
+
+  it('salt 를 등록하면 기존 키를 회수하지 않고 그대로 인정한다', () => {
+    const res = verifyKey(legacyKey('KLABC123'), { productCode: 'K', legacySources: legacy })
+    expect(res.ok).toBe(true)
+    expect(res.plan).toBe('lite')
+    expect(res.product).toBe('K')
+    expect(res.version).toBe(0)
+    expect(res.source).toContain('피아노')
+  })
+
+  it('등록된 키의 제품 범위는 그대로 지킨다 (피아노 전용은 학원 앱에서 거부)', () => {
+    const res = verifyKey(legacyKey('KPABC123'), { productCode: 'M', legacySources: legacy })
+    expect(res.ok).toBe(false)
+    expect(res.reason).toContain('피아노 관리노트')
+  })
+
+  it('플랜 읽는 규칙을 제품별로 바꿔 끼울 수 있다', () => {
+    const custom = [{ salt: PIANO_SALT, product: 'K', label: 'old', planOf: () => 'pro' }]
+    expect(verifyKey(legacyKey('XXABC123'), { productCode: 'K', legacySources: custom }).plan).toBe('pro')
+  })
+
+  it('새로 발급하는 키는 여전히 현재 salt 를 쓴다', () => {
+    const fresh = generateKey('pro', 'A')
+    expect(verifyKey(fresh, { legacySources: legacy }).source).toBe('primary')
+    expect(verifyKey(fresh, { legacySources: legacy }).version).toBe(2)
+  })
+})
+
+describe('피아노 관리노트 키를 이 앱에서 쓰기', () => {
+  it('피아노 자기검증 키는 학원명 없이 그대로 열린다', () => {
+    const res = verifyKey('79AK-3MCU-ADYC')
+    expect(res.ok).toBe(true)
+    expect(res.scheme).toBe('piano')
+    expect(res.plan).toBe('lite')
+    expect(res.source).toContain('피아노')
+  })
+
+  it('피아노 학원명 키는 학원명을 함께 넣으면 열린다', () => {
+    const key = 'XVXA-FGGN-97KU'           // = 아첼음악학원
+    expect(verifyKey(key).ok).toBe(false)
+    const res = verifyKey(key, { academyName: '아첼음악학원' })
+    expect(res.ok).toBe(true)
+    expect(res.academyName).toBe('아첼음악학원')
+    expect(verifyKey(key, { academyName: '다른학원' }).ok).toBe(false)
+  })
+
+  it('학원명 없이 실패하면 학원명을 넣어 보라고 안내한다', () => {
+    expect(verifyKey('XVXA-FGGN-97KU').reason).toContain('학원명')
+  })
+
+  it('피아노 문자표에만 있는 글자(L·U)를 거부하지 않는다', () => {
+    expect(verifyKey('UTVE-JUVP-7WQ3', { academyName: '아라 잉글리시' }).ok).toBe(true)
+  })
+
+  it('필요하면 피아노 키를 Pro 로 인정할 수도 있다', () => {
+    expect(verifyKey('79AK-3MCU-ADYC', { pianoPlan: 'pro' }).plan).toBe('pro')
+  })
+
+  it('우리 형식 키는 여전히 우리 규칙으로 판정된다', () => {
+    const mine = generateKey('pro', 'A')
+    expect(verifyKey(mine).scheme).toBeUndefined()
+    expect(verifyKey(mine).version).toBe(2)
   })
 })

@@ -25,18 +25,20 @@
 <body>
   <div class="wrap">
     <h1>라이선스 키 발급기 <span class="muted">판매자 전용 — 고객에게 배포 금지</span></h1>
-    <p class="muted">앱과 같은 모듈(<code>src/core/license.js</code>)을 그대로 import 하므로 발급한 키는 항상 앱에서 열립니다.
-      <b>통합키(A로 시작)</b> 하나면 피아노 관리노트와 학원 관리노트 양쪽에서 사용할 수 있습니다
-      (피아노 앱에도 같은 <code>license.js</code> 를 넣고 <code>PRODUCT_CODE</code> 만 <code>'K'</code> 로 바꾸면 됩니다).</p>
+    <p class="muted">앱과 같은 모듈(<code>src/core/license.js</code>)을 그대로 import 하므로 발급한 키는 항상 앱에서 열립니다.</p>
+    <p class="muted"><b>공용키(피아노 방식)</b> 를 고르면 <b>피아노학원 관리노트와 학원 관리노트 양쪽에서 그대로 열립니다.</b>
+      피아노 앱을 고칠 필요가 없습니다(그쪽 발급기와 같은 규칙으로 만들기 때문입니다). 새로 파는 키는 이걸 쓰세요.<br>
+      학원 관리노트 전용 키가 필요할 때만 A/M/K 방식을 고르면 됩니다.</p>
 
     <div class="card">
       <div class="row">
         <div style="flex:1">
-          <label>제품 (첫 자리)</label>
+          <label>키 방식</label>
           <select id="product">
-            <option value="A">통합 A — 피아노 + 학원 관리노트 공용 (권장)</option>
+            <option value="PIANO">공용키 — 피아노 + 학원 관리노트 양쪽에서 열림 (권장)</option>
+            <option value="A">통합 A — 학원 관리노트 방식(피아노 앱 업데이트 필요)</option>
             <option value="M">학원 관리노트 전용 M</option>
-            <option value="K">피아노 관리노트 전용 K</option>
+            <option value="K">피아노 관리노트 전용 K (학원 앱에서는 거부)</option>
           </select>
         </div>
         <div style="flex:1">
@@ -45,6 +47,7 @@
             <option value="lite">Lite (단일 기기·오프라인) — L</option>
             <option value="pro">Pro (멀티 기기·실시간 동기화) — P</option>
           </select>
+          <p id="planHint" class="muted" style="font-size:12px;margin-top:4px"></p>
         </div>
         <div style="width:130px">
           <label>발급 수량</label>
@@ -65,15 +68,32 @@
     <div class="card">
       <label>키 검증 (고객 문의 대응용)</label>
       <input id="verifyInput" placeholder="XXXX-XXXX-XXXX" />
-      <p id="verifyOut" class="muted">키를 입력하면 유효성과 플랜을 확인합니다.</p>
+      <label style="margin-top:10px">학원명 (피아노 관리노트에서 학원명으로 발급한 키일 때만)</label>
+      <input id="verifyName" placeholder="예: 아첼음악학원" />
+      <p id="verifyOut" class="muted">키를 입력하면 어느 제품·어느 방식으로 발급된 키인지 확인합니다.</p>
+    </div>
+
+    <div class="card">
+      <label>피아노 관리노트 · 학원명으로 키 만들기 (기존 방식 그대로)</label>
+      <input id="nameKeyInput" placeholder="예: 아첼음악학원" />
+      <p id="nameKeyOut" class="muted">학원명을 넣으면 그 학원의 키가 나옵니다. 같은 이름이면 언제나 같은 키입니다.</p>
     </div>
   </div>
 
   <script type="module">
     import { generateKey, verifyKey, formatKey, PRODUCTS } from '../src/core/license.js'
+    import { generatePianoKey, pianoKeyForName } from '../src/core/license-piano.js'
 
     const $ = (id) => document.getElementById(id)
     let keys = []
+
+    $('product').onchange = () => {
+      const piano = $('product').value === 'PIANO'
+      $('plan').disabled = piano
+      $('planHint').textContent = piano
+        ? '공용키에는 플랜 구분이 없습니다 (Lite 로 동작). Pro 로 팔 때는 A 방식을 쓰세요.'
+        : ''
+    }
 
     $('gen').onclick = () => {
       const plan = $('plan').value
@@ -82,7 +102,7 @@
       const seen = new Set()
       keys = []
       while (keys.length < n) {
-        const k = generateKey(plan, product)
+        const k = product === 'PIANO' ? generatePianoKey() : generateKey(plan, product)
         if (seen.has(k)) continue
         seen.add(k)
         keys.push(k)
@@ -104,21 +124,37 @@
       const product = $('product').value
       const today = new Date().toISOString().slice(0, 10)
       const csv = ['key,product,plan,issued_at,memo',
-        ...keys.map((k) => `${k},${product},${plan},${today},"${memo}"`)].join('\n')
+        ...keys.map((k) => `${k},${product === 'PIANO' ? '공용(피아노방식)' : product},${product === 'PIANO' ? 'lite' : plan},${today},"${memo}"`)].join('\n')
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `license_${product}${plan === 'pro' ? 'P' : 'L'}_${today}.csv`
+      a.download = `license_${product === 'PIANO' ? 'SHARED' : product + (plan === 'pro' ? 'P' : 'L')}_${today}.csv`
       a.click()
+    }
+
+    $('verifyName').oninput = () => $('verifyInput').oninput({ target: $('verifyInput') })
+
+    $('nameKeyInput').oninput = (e) => {
+      const v = e.target.value.trim()
+      const out = $('nameKeyOut')
+      if (!v) { out.textContent = '학원명을 넣으면 그 학원의 키가 나옵니다. 같은 이름이면 언제나 같은 키입니다.'; out.className = 'muted'; return }
+      out.textContent = `${v} → ${pianoKeyForName(v)}`
+      out.className = 'ok'
     }
 
     $('verifyInput').oninput = (e) => {
       const v = e.target.value.trim()
       const out = $('verifyOut')
       if (!v) { out.textContent = '키를 입력하면 유효성과 플랜을 확인합니다.'; out.className = 'muted'; return }
-      const r = verifyKey(v, { productCode: 'M' }).ok ? verifyKey(v, { productCode: 'M' }) : verifyKey(v, { productCode: 'K' })
+      const name = $('verifyName').value.trim()
+      const opts = { academyName: name || null }
+      const r = verifyKey(v, { ...opts, productCode: 'M' }).ok
+        ? verifyKey(v, { ...opts, productCode: 'M' })
+        : verifyKey(v, { ...opts, productCode: 'K' })
       out.textContent = r.ok
-        ? `유효한 키 · ${PRODUCTS[r.product]?.label || '통합'} · ${r.plan.toUpperCase()} · v${r.version} · 표기 ${formatKey(v)}`
+        ? (r.scheme === 'piano'
+          ? `유효한 키 · ${r.source} · 두 제품 공용 · 표기 ${r.key}`
+          : `유효한 키 · ${PRODUCTS[r.product]?.label || '통합'} · ${r.plan.toUpperCase()} · v${r.version} · 표기 ${formatKey(v)}`)
         : `사용할 수 없는 키: ${r.reason}`
       out.className = r.ok ? 'ok' : 'bad'
     }
