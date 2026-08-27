@@ -106,6 +106,11 @@ export class SupabaseRepository implements Repository {
     return SupabaseRepository.unwrap(result, '학생 목록 조회') as EventStudent[]
   }
 
+  async getStudent(id: string) {
+    const result = await this.db.from('event_students').select('*').eq('id', id).maybeSingle()
+    return SupabaseRepository.unwrap(result, '학생 조회') as EventStudent | null
+  }
+
   async addStudents(eventId: string, rows: NewStudent[]) {
     if (rows.length === 0) return []
     const result = await this.db.from('event_students').insert(rows.map((r) => toRow(eventId, r))).select()
@@ -180,5 +185,6 @@ function toRow(eventId: string, row: NewStudent) {
     duration_sec: estimateDurationSec(row.level, row.duration_sec),
     level: row.level,
     note: row.note ?? null,
+    photo_asset_id: row.photo_asset_id ?? null,
   }
 }

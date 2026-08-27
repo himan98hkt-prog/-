@@ -25,7 +25,7 @@ function crc32(bytes: Uint8Array): number {
 
 export interface ZipEntry {
   name: string
-  data: Uint8Array
+  data: Uint8Array<ArrayBufferLike>
 }
 
 /** 파일 목록 → ZIP 바이트 */

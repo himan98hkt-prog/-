@@ -21,6 +21,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       patch.duration_sec = Number.isFinite(n) && n > 0 ? Math.round(n) : null
     }
 
+    // 이 아이의 사진 — 보관함에 실제로 있는 것만 받는다 (없는 id 를 넣어 두면 화면이 빈 상자가 된다)
+    if (body.photo_asset_id !== undefined) {
+      const value = body.photo_asset_id
+      if (value === null || value === '') {
+        patch.photo_asset_id = null
+      } else if (typeof value === 'string') {
+        const repo = getRepository()
+        const student = await repo.getStudent(params.id)
+        if (!student) return fail('학생을 찾을 수 없습니다.', 404)
+        const event = await repo.getEvent(student.event_id)
+        const academy = event ? await repo.getAcademy(event.academy_id) : null
+        const owned = (academy?.assets ?? []).some((asset) => asset.id === value)
+        if (!owned) return fail('보관함에 없는 사진입니다.')
+        patch.photo_asset_id = value
+      }
+    }
+
     if (Object.keys(patch).length === 0) return fail('변경할 내용이 없습니다.')
     return ok({ student: await getRepository().updateStudent(params.id, patch) })
   })

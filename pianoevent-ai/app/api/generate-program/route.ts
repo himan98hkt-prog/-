@@ -43,6 +43,7 @@ export async function POST(req: Request) {
           level,
           order_no: index + 1,
           mc_script: null,
+          photo_asset_id: null,
           note: typeof row.note === 'string' ? row.note.trim() : null,
           created_at: now,
         },

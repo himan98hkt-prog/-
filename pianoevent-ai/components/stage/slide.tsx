@@ -173,6 +173,77 @@ function Body({
   }
 
   if (slide.kind === 'performance') {
+    // 사진이 있으면 왼쪽에 얼굴, 오른쪽에 이름 — 없으면 가운데 정렬 그대로
+    if (slide.photo) {
+      return (
+        <div
+          style={{
+            position: 'relative',
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: '440px 1fr',
+            alignItems: 'center',
+            gap: 56,
+            padding: '56px 80px 72px',
+          }}
+        >
+          <div
+            style={{
+              width: 440,
+              height: 440,
+              borderRadius: theme.photo.shape === 'circle' ? '50%' : theme.photo.shape === 'rect' ? 0 : 28,
+              overflow: 'hidden',
+              border: '6px solid var(--d-accent-soft)',
+              boxShadow: '0 18px 44px rgba(0,0,0,0.28)',
+              background: 'var(--d-paper-alt)',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={slide.photo}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+          <div style={{ textAlign: 'left', minWidth: 0 }}>
+            <p style={{ ...label(21), color: 'var(--d-accent)' }}>{slide.eyebrow}</p>
+            <h1
+              style={{
+                fontFamily: 'var(--d-display)',
+                fontSize: slide.title.length > 8 ? 76 : 94,
+                fontWeight: 700,
+                lineHeight: 1.1,
+                letterSpacing: '-0.02em',
+                marginTop: 12,
+              }}
+            >
+              {slide.title}
+            </h1>
+            <div style={{ marginTop: 14 }}>
+              <OrnamentDivider id={theme.ornament} width={280} />
+            </div>
+            <p style={{ marginTop: 14, fontSize: 34, fontWeight: 600, lineHeight: 1.3 }}>{slide.subtitle}</p>
+            {slide.body ? (
+              <p
+                style={{
+                  marginTop: 18,
+                  fontSize: 22,
+                  lineHeight: 1.7,
+                  color: 'var(--d-muted)',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {slide.body}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={center}>
         <p style={{ ...label(21), color: 'var(--d-accent)' }}>{slide.eyebrow}</p>

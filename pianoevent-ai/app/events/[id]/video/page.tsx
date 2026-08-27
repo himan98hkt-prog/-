@@ -1,0 +1,73 @@
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { AppShell } from '@/components/app-shell'
+import { VideoStudio } from '@/components/video/video-studio'
+import { studentPhotos } from '@/lib/assets'
+import { getTheme } from '@/lib/design/themes'
+import { formatEventDate } from '@/lib/format'
+import { resolvePlan } from '@/lib/program/resolve'
+import { currentAcademy } from '@/lib/session'
+import { getRepository } from '@/lib/store'
+
+export const dynamic = 'force-dynamic'
+export const metadata = { title: '감동영상' }
+
+/**
+ * 감동영상 — 사진과 영상, 음악을 모아 한 편으로 만든다.
+ * 전부 이 컴퓨터 안에서 처리한다. 아이들 얼굴이 어디로도 올라가지 않는다.
+ */
+export default async function VideoPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { theme?: string }
+}) {
+  const repo = getRepository()
+  const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
+  if (!event) notFound()
+
+  const students = await repo.listStudents(event.id)
+  const { plan } = resolvePlan(students)
+  const theme = getTheme(searchParams.theme ?? event.design_theme ?? academy.design_theme)
+  const photos = studentPhotos(academy.assets ?? [], students)
+
+  return (
+    <AppShell academyName={academy.name}>
+      <div className="mb-5">
+        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
+          ← {event.title}
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">감동영상</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {formatEventDate(event.event_at)} · 학생 {plan.items.length}명 — 명단과 아이 사진에서 장면이 만들어집니다.
+          연습 사진·동영상과 음악을 더하면 한 편이 됩니다.
+        </p>
+        <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
+          <strong>사진과 영상은 이 컴퓨터 밖으로 나가지 않습니다.</strong> 영상을 만드는 일도 이 브라우저 안에서
+          합니다 — 올리는 곳도, 기다리는 줄도 없습니다. 다만 화면을 그리면서 담기 때문에{' '}
+          <strong>영상 길이만큼 시간이 걸리고</strong>, 만드는 동안 이 창을 그대로 두셔야 합니다.
+        </p>
+      </div>
+
+      <VideoStudio
+        event={event}
+        plan={plan}
+        academyName={academy.name}
+        initialThemeId={theme.id}
+        photos={photos}
+      />
+
+      <div className="mt-5 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+        <p className="rounded-md border border-border px-3 py-2.5">
+          <strong className="text-foreground">언제 쓰나요</strong> — 개회 전 대기 시간에 스크린에 틀거나,
+          연주회가 끝난 뒤 학부모 단톡방에 보냅니다. 시상식 전에 틀면 객석이 조용해집니다.
+        </p>
+        <p className="rounded-md border border-border px-3 py-2.5">
+          <strong className="text-foreground">음악은 직접 준비하십시오</strong> — 이 프로그램은 음원을 제공하지
+          않습니다. 저작권이 있는 곡을 학원 밖으로 공개하면 문제가 될 수 있습니다.
+        </p>
+      </div>
+    </AppShell>
+  )
+}

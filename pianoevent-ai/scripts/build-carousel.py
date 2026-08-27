@@ -139,8 +139,8 @@ h2 .hi{color:var(--burgundy);}
 .sw p{font-size:14px;padding:8px 6px;text-align:center;color:var(--ink2);line-height:1.3;}
 
 /* 비교표 */
-.cmp{width:100%;border-collapse:collapse;font-size:21px;}
-.cmp th,.cmp td{padding:14px 12px;text-align:left;border-bottom:1px solid rgba(43,38,32,.14);}
+.cmp{width:100%;border-collapse:collapse;font-size:20px;}
+.cmp th,.cmp td{padding:9px 11px;text-align:left;border-bottom:1px solid rgba(43,38,32,.14);}
 .cmp thead th{font-size:20px;color:var(--ink2);background:rgba(160,124,44,.1);}
 .cmp .ours{background:var(--navy);color:#fff;font-weight:700;}
 .cmp tbody .ours{background:rgba(30,42,86,.08);color:var(--navy);font-weight:700;}
@@ -189,7 +189,7 @@ def slide(n, total, body, dark=False, eyebrow='', title='', lead=''):
 </section>'''
 
 
-TOTAL = 15
+TOTAL = 16
 S = []
 
 # 01 표지 ────────────────────────────────────────────────────
@@ -401,9 +401,31 @@ S.append(slide(10, TOTAL, dark=True,
       <div class="item"><span class="mk">✓</span><span>어두운 공연장용 <b>검은 화면</b> · PDF 저장 · <b>인터넷 없이</b></span></div>
     </div>'''))
 
-# 11 운영 계산 ───────────────────────────────────────────────
-S.append(slide(11, TOTAL, dark=True,
-    eyebrow='기능 08 · 원장님이 손으로 하던 계산',
+# 11 아이 사진 · 감동영상 ───────────────────────────────────
+S.append(slide(11, TOTAL,
+    eyebrow='기능 08 · 아이 사진과 감동영상',
+    title='이름만 뜨는 화면과<br><span class="hi">아이 얼굴이 뜨는 화면</span>은 다릅니다',
+    body='''
+    <div class="chain">
+      <span class="seed">아이 사진 한 장</span>
+      <p class="arrow">▼</p>
+      <div class="chips">
+        <span class="chip on">무대 화면 연주자 슬라이드</span>
+        <span class="chip">파워포인트 .pptx 안에 실제 그림으로</span>
+        <span class="chip">감동영상 장면</span>
+      </div>
+      <p class="chain-note">명단에 한 번 넣으면 세 곳에 함께 들어갑니다</p>
+    </div>
+    <div class="list" style="margin-top:28px">
+      <div class="item"><span class="mk">✓</span><span>30명이라도 <b>파일 이름으로 한꺼번에</b> 짝지어 줍니다 — <b>김서연.jpg</b></span></div>
+      <div class="item"><span class="mk">✓</span><span><b>감동영상</b> — 연습 사진·동영상·음악을 고르면 한 편이 만들어집니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>장면 순서와 이름 자막은 <b>명단에서 이미 알고</b> 짜 드립니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>사진은 <b>컴퓨터 밖으로 나가지 않습니다</b> — 영상도 브라우저 안에서</span></div>
+    </div>'''))
+
+# 12 운영 계산 ───────────────────────────────────────────────
+S.append(slide(12, TOTAL, dark=True,
+    eyebrow='기능 09 · 원장님이 손으로 하던 계산',
     title='순서표가 나온 뒤에도<br>일은 남습니다',
     body='''
     <div class="card">
@@ -422,9 +444,9 @@ S.append(slide(11, TOTAL, dark=True,
       <b>&ldquo;3열 4~6번&rdquo;</b>처럼 그대로 보낼 수 있는 표기로 나옵니다.</p>
     </div>'''))
 
-# 12 점검 ───────────────────────────────────────────────────
-S.append(slide(12, TOTAL,
-    eyebrow='기능 09 · 순서표 정밀 점검',
+# 13 점검 ───────────────────────────────────────────────────
+S.append(slide(13, TOTAL,
+    eyebrow='기능 10 · 순서표 정밀 점검',
     title='당일 전화를 부르는 것들을<br><span class="hi">미리 잡습니다</span>',
     body='''
     <div class="list">
@@ -439,9 +461,9 @@ S.append(slide(12, TOTAL,
       <b>반드시 확인 / 확인 권장 / 참고</b> 세 등급으로, <b>고치는 법 한 줄</b>과 함께 나옵니다.
     </p>'''))
 
-# 13 이미지 보관함 ───────────────────────────────────────────
-S.append(slide(13, TOTAL,
-    eyebrow='기능 10 · 이미지 보관함',
+# 14 이미지 보관함 ───────────────────────────────────────────
+S.append(slide(14, TOTAL,
+    eyebrow='기능 11 · 이미지 보관함',
     title='사진을 끌어다 놓으면<br>전부에 들어갑니다',
     body='''
     <div class="chain">
@@ -462,8 +484,8 @@ S.append(slide(13, TOTAL,
       사진 주소를 다시 찾을 일이 없습니다.
     </p>'''))
 
-# 14 인터넷·AI 없이도 ────────────────────────────────────────
-S.append(slide(14, TOTAL, dark=True,
+# 15 인터넷·AI 없이도 ────────────────────────────────────────
+S.append(slide(15, TOTAL, dark=True,
     eyebrow='가장 많이 받는 질문',
     title='AI 키도 인터넷도<br><span class="hi" style="color:#D9B95C">필요 없습니다</span>',
     body='''
@@ -482,8 +504,8 @@ S.append(slide(14, TOTAL, dark=True,
       설정 화면에 <b style="color:#fff">지금 이 컴퓨터에서 되는 것</b>이 그대로 표시됩니다.
     </p>'''))
 
-# 15 비교 + CTA ──────────────────────────────────────────────
-S.append(slide(15, TOTAL,
+# 16 비교 + CTA ──────────────────────────────────────────────
+S.append(slide(16, TOTAL,
     eyebrow='왜 이것이어야 하는가',
     title='디자인 도구도 관리 프로그램도<br>연주회를 알지는 못합니다',
     body='''
@@ -498,6 +520,8 @@ S.append(slide(15, TOTAL,
         <tr><th>리허설 · 좌석</th><td>손 계산</td><td>없음</td><td>없음</td><td class="ours">자동</td></tr>
         <tr><th>연주회 PPT</th><td>해마다 한 장씩 재제작</td><td>한 장씩 직접</td><td>영상 별도 견적</td>
           <td class="ours">명단 넣으면 자동 · .pptx 수정</td></tr>
+        <tr><th>감동영상</th><td>무비메이커로 한 장씩</td><td>기능 없음</td><td>영상 별도 견적</td>
+          <td class="ours">명단·사진에서 자동 · 브라우저 안에서</td></tr>
         <tr><th>비용</th><td>시간 15~25h</td><td>월 구독</td><td>1장 5~15만원</td><td class="ours">연 1회 · 무제한</td></tr>
       </tbody>
     </table>

@@ -25,6 +25,8 @@
 | 인쇄물 40종 × 테마 100종 · 인쇄 · PDF 저장 | `components/design/` |
 | 무대 화면 — 연주회장 스크린용 16:9 슬라이드 · PDF 저장 | `lib/stage/deck.ts` |
 | 파워포인트(.pptx) 파일 만들기 | `lib/stage/pptx.ts` · `lib/stage/zip.ts` |
+| 아이 사진을 무대 화면·PPT에 넣기 | `lib/assets.ts` · `lib/image.ts` |
+| 감동영상 만들기 (사진·동영상·음악 → 한 편) | `lib/video/` · 브라우저 MediaRecorder |
 | 리허설 조별 소집 시각·문자 | `lib/ops/rehearsal.ts` |
 | 참가비 역산·예산표 | `lib/ops/budget.ts` |
 | 좌석 배치 | `lib/ops/seating.ts` |

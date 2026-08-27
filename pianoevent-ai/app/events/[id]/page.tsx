@@ -1,4 +1,4 @@
-import { CalendarDays, Check, MapPin, Mic2, MonitorPlay, Palette, Send } from 'lucide-react'
+import { CalendarDays, Check, Film, MapPin, Mic2, MonitorPlay, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
@@ -174,6 +174,12 @@ export default async function EventPage({
                 무대 화면
               </Button>
             </Link>
+            <Link href={`/events/${event.id}/video`}>
+              <Button variant="outline" size="sm">
+                <Film className="h-4 w-4" aria-hidden />
+                감동영상
+              </Button>
+            </Link>
             <Link href={`/events/${event.id}/invite`}>
               <Button size="sm">
                 <Send className="h-4 w-4" aria-hidden />
@@ -212,7 +218,7 @@ export default async function EventPage({
       />
 
       {tab === 'roster' && (
-        <RosterEditor eventId={event.id} students={students} pastEvents={pastEvents} />
+        <RosterEditor eventId={event.id} students={students} pastEvents={pastEvents} assets={academy.assets ?? []} />
       )}
       {tab === 'program' && <ProgramPanel event={event} students={students} />}
       {tab === 'plan' && <PlanPanel academy={academy} event={event} plan={plan} rsvps={rsvps} />}

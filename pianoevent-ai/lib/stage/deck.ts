@@ -38,6 +38,8 @@ export interface StageSlide {
   counter?: string
   /** 예상 시각 — 사회자 화면에만 뜬다 */
   at?: string
+  /** 이 화면에 띄울 사진 (data URI 또는 주소). 아이 얼굴이 뜨면 객석이 조용해진다 */
+  photo?: string
   /** 사회자용 — 다음 슬라이드가 무엇인지 */
   next?: string
 }
@@ -49,12 +51,15 @@ export interface StageDeckOptions {
   show_sections: boolean
   /** 오늘의 순서 슬라이드를 넣을지 */
   show_agenda: boolean
+  /** 아이 사진을 연주자 화면에 띄울지 */
+  show_photos: boolean
 }
 
 export const DEFAULT_STAGE_OPTIONS: StageDeckOptions = {
   show_commentary: true,
   show_sections: true,
   show_agenda: true,
+  show_photos: true,
 }
 
 /** 한 화면에 무리 없이 들어가는 순서 줄 수. 넘으면 순서 슬라이드를 나눈다 */
@@ -84,6 +89,8 @@ export function buildStageDeck(
   plan: ProgramPlan,
   academyName: string,
   options: StageDeckOptions = DEFAULT_STAGE_OPTIONS,
+  /** 학생 id → 사진 주소. 이미지 보관함에서 풀어 넘긴다 */
+  photos: Record<string, string> = {},
 ): StageSlide[] {
   const slides: StageSlide[] = []
   const total = plan.items.length
@@ -138,6 +145,7 @@ export function buildStageDeck(
       title: student.student_name,
       subtitle: [student.piece_title, student.composer].filter(Boolean).join(' · '),
       body: options.show_commentary ? pieceCommentary(student) : undefined,
+      photo: options.show_photos ? photos[student.id] : undefined,
       counter: `${item.order_no} / ${total}`,
       at: formatWallClock(event.event_at, item.start_offset_sec),
     })

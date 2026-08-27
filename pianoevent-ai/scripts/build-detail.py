@@ -1,7 +1,18 @@
 import base64, pathlib, re
 
 ROOT = pathlib.Path('/home/user/-/pianoevent-ai')
-TPL = pathlib.Path('/root/.claude/skills/synced/accelssam-detail-page/template.html').read_text()
+# 스킬이 동기화되는 경로는 계정마다 다르고 가끔 바뀐다 — 찾아서 쓴다
+def _template():
+    roots = [pathlib.Path.home() / '.claude/skills', pathlib.Path('/root/.claude/skills')]
+    for root in roots:
+        for found in sorted(root.glob('**/accelssam-detail-page/template.html')):
+            if '.trash' in str(found):
+                continue
+            return found.read_text()
+    raise SystemExit('accelssam-detail-page 스킬의 template.html 을 찾지 못했습니다.')
+
+
+TPL = _template()
 
 # 템플릿의 <style> 블록(디자인 시스템)을 그대로 가져온다
 style = re.search(r'<style>(.*?)</style>', TPL, re.S).group(1)
@@ -340,7 +351,7 @@ BODY = """
       <div><p class="v">78곡</p><p class="k">곡 사전<br>작곡가 · 시간 · 해설</p></div>
       <div><p class="v">40종</p><p class="k">인쇄물 양식</p></div>
       <div><p class="v">100종</p><p class="k">디자인 테마</p></div>
-      <div><p class="v">8가지</p><p class="k">순서표 자동 점검</p></div>
+      <div><p class="v">3곳</p><p class="k">아이 사진 한 번 →<br>화면 · PPT · 영상</p></div>
     </div>
 
     <div class="feat-grid">
@@ -351,42 +362,42 @@ BODY = """
         <b>작곡가 &middot; 난이도 &middot; 연주시간</b>이 함께 들어가고, 사회자 멘트에 쓸 <b>곡 해설</b>까지 준비됩니다.</p>
         <p class="only">엑셀에도 캔바에도 없는 것</p>
       </div>
-      <div class="feat reveal" style="--d:0.08s">
+      <div class="feat reveal" style="--d:0.07s">
         <p class="n">02 &nbsp;순서 자동 배치</p>
         <h4>흐름과 시각을 동시에 계산합니다</h4>
         <p>오프닝 &rarr; 초급 &rarr; 중급 &rarr; 앙상블 &rarr; 피날레. 곡 사이 전환 시간과 중간 휴식까지 넣어
         <b>몇 시에 끝나는지</b>를 알려 줍니다. 마음에 안 드는 곳은 <b>위·아래 버튼으로 직접</b> 옮깁니다.</p>
         <p class="only">바꾸면 40종이 함께 바뀜</p>
       </div>
-      <div class="feat reveal" style="--d:0.16s">
+      <div class="feat reveal" style="--d:0.14s">
         <p class="n">03 &nbsp;사회자 대본</p>
         <h4>곡마다 멘트가 쓰여 있습니다</h4>
         <p>곡 &middot; 작곡가 &middot; 학생 메모를 엮어 오프닝부터 클로징까지. 무대 옆은 어두우니
         <b>큰 글씨 인쇄</b>로 나갑니다.</p>
         <p class="only">밤새 쓰던 그 문장</p>
       </div>
-      <div class="feat reveal" style="--d:0.24s">
+      <div class="feat reveal" style="--d:0.21s">
         <p class="n">04 &nbsp;순서표 점검</p>
         <h4>당일 전화를 부르는 것들을 미리 잡습니다</h4>
         <p>같은 곡 중복, 형제자매가 멀리 떨어짐, 어린 학생이 맨 뒤, 같은 작곡가 3연속,
         휴식 없이 70분 초과 &mdash; <b>8가지를 3등급으로</b> 알려 주고 고치는 법까지 적어 줍니다.</p>
         <p class="only">사람이 놓치는 것</p>
       </div>
-      <div class="feat reveal" style="--d:0.32s">
+      <div class="feat reveal" style="--d:0.28s">
         <p class="n">05 &nbsp;인쇄물</p>
         <h4>양식 40종 &times; 테마 100종</h4>
         <p>포스터 7 &middot; 프로그램 5 &middot; 초대·홍보 6 &middot; 행사 당일 12 &middot; 진행 문서 10.
         테마 하나를 고르면 <b>전부 같은 색과 서체</b>를 입습니다. 한 벌 인쇄로 여러 장을 한 번에.</p>
         <p class="only">외주비 0원</p>
       </div>
-      <div class="feat reveal" style="--d:0.40s">
+      <div class="feat reveal" style="--d:0.35s">
         <p class="n">06 &nbsp;모바일 초대장</p>
         <h4>링크 하나로 참석 인원이 쌓입니다</h4>
         <p>단톡방에 올리면 학부모가 눌러 회신하고, <b>가정 수 &middot; 총원 &middot; 응원 메시지</b>가 저절로
         모입니다. 그 인원이 그대로 좌석 배치로 넘어갑니다.</p>
         <p class="only">답장 세지 않아도 됨</p>
       </div>
-      <div class="feat reveal" style="--d:0.48s">
+      <div class="feat reveal" style="--d:0.42s">
         <p class="n">07 &nbsp;무대 화면</p>
         <h4>명단만 넣으면 연주회 PPT가 나옵니다</h4>
         <p>해마다 파워포인트로 다시 만들던 그 화면입니다. 명단을 넣으면 <b>16:9 슬라이드가 통째로</b> 만들어져
@@ -394,57 +405,71 @@ BODY = """
         <b>테마 100종</b>을 그 자리에서 바꿔 보고, <b>진짜 .pptx 파일</b>로 받으면 파워포인트에서 바로 고칩니다.</p>
         <p class="only">순서를 바꾸면 PPT도 바뀜</p>
       </div>
+      <div class="feat reveal" style="--d:0.49s">
+        <p class="n">08 &nbsp;아이 사진</p>
+        <h4>한 번 넣으면 세 곳에 들어갑니다</h4>
+        <p>명단에 사진을 넣으면 <b>무대 화면 &middot; 파워포인트 &middot; 감동영상</b>에 함께 올라갑니다.
+        30명이라도 <b>파일 이름으로 한꺼번에</b> 짝지어 줍니다. 사진이 없는 아이는 이름만 크게 나옵니다.</p>
+        <p class="only">빈 상자를 찍지 않음</p>
+      </div>
       <div class="feat reveal" style="--d:0.56s">
-        <p class="n">08 &nbsp;리허설 시간표</p>
+        <p class="n">09 &nbsp;감동영상</p>
+        <h4>무비메이커를 열지 않습니다</h4>
+        <p>연습 사진 &middot; 동영상 &middot; 배경음악을 고르면 한 편이 만들어집니다. 장면 순서와 이름 자막은
+        <b>명단에서 이미 알고 있으므로</b> 짜 드립니다. 브라우저 안에서 만들어 바로 내려받습니다.</p>
+        <p class="only">사진이 컴퓨터 밖으로 안 나감</p>
+      </div>
+      <div class="feat reveal" style="--d:0.63s">
+        <p class="n">10 &nbsp;리허설 시간표</p>
         <h4>조 단위 소집 시각과 문자까지</h4>
         <p>전원을 한 번에 부르면 대기실이 터집니다. 5명씩 묶어 <b>조별 도착 시각</b>을 계산하고
         조마다 보낼 <b>문자를 만들어</b> 둡니다. 문자 30통이 6통이 됩니다.</p>
         <p class="only">당일 아침의 계산</p>
       </div>
-      <div class="feat reveal" style="--d:0.64s">
-        <p class="n">09 &nbsp;참가비 계산</p>
+      <div class="feat reveal" style="--d:0.70s">
+        <p class="n">11 &nbsp;참가비 계산</p>
         <h4>대관료 확정 전에도 안내가 나갑니다</h4>
         <p>항목 10가지 예산에서 <b>1인당 원가와 권장 참가비</b>를 역산합니다. 선택 항목을 끄면 즉시
         다시 계산되고, <b>안내 문구</b>까지 복사해 보냅니다.</p>
         <p class="only">감으로 정하지 않음</p>
       </div>
-      <div class="feat reveal" style="--d:0.72s">
-        <p class="n">10 &nbsp;좌석 배치</p>
+      <div class="feat reveal" style="--d:0.77s">
+        <p class="n">12 &nbsp;좌석 배치</p>
         <h4>가족은 붙여 앉히고 앞줄은 비웁니다</h4>
         <p>참석 회신을 <b>가정 단위</b>로 앉히고 앞 두 줄은 연주자석으로 둡니다.
         <b>&ldquo;3열 4~6번&rdquo;</b>처럼 학부모에게 그대로 보낼 수 있는 표기로 나옵니다.</p>
         <p class="only">접수처에 붙이면 끝</p>
       </div>
-      <div class="feat reveal" style="--d:0.80s">
-        <p class="n">11 &nbsp;이미지 보관함</p>
+      <div class="feat reveal" style="--d:0.84s">
+        <p class="n">13 &nbsp;이미지 보관함</p>
         <h4>사진을 끌어다 놓으면 전부에 들어갑니다</h4>
         <p>로고 &middot; 학원 상징 &middot; 사진을 한 번만 올리면 됩니다. 휴대폰 사진도 <b>인쇄 크기로 자동 축소</b>,
         테마마다 <b>모양은 알아서</b> 맞춰집니다. 포스터엔 단체사진, 표지엔 학원 전경처럼 따로 지정도 됩니다.</p>
         <p class="only">주소 다시 찾을 일 없음</p>
       </div>
-      <div class="feat reveal" style="--d:0.88s">
-        <p class="n">12 &nbsp;준비 체크리스트</p>
+      <div class="feat reveal" style="--d:0.91s">
+        <p class="n">14 &nbsp;준비 체크리스트</p>
         <h4>D-30부터 종료 후까지</h4>
         <p>30가지 할 일이 <b>행사 날짜에 맞춰</b> 날짜와 함께 나옵니다. 학부모 안내 문자 4종도
         시기별로 준비돼 있습니다.</p>
         <p class="only">빠뜨릴 수가 없음</p>
       </div>
-      <div class="feat reveal" style="--d:0.96s">
-        <p class="n">13 &nbsp;시즌 특강</p>
+      <div class="feat reveal" style="--d:0.98s">
+        <p class="n">15 &nbsp;시즌 특강</p>
         <h4>할로윈 &middot; 크리스마스 &middot; 방학</h4>
         <p>테마를 고르면 <b>4주 커리큘럼과 인쇄용 활동지</b>가 나옵니다. 연주회가 없는 달에도
         학원이 돌아갑니다.</p>
         <p class="only">자료 사서 짜깁기 안 함</p>
       </div>
-      <div class="feat reveal" style="--d:1.04s">
-        <p class="n">14 &nbsp;지난 행사에서 가져오기</p>
+      <div class="feat reveal" style="--d:1.05s">
+        <p class="n">16 &nbsp;지난 행사에서 가져오기</p>
         <h4>작년 명단을 1분 만에 되살립니다</h4>
         <p>학원은 학생이 그대로입니다. <b>이름과 난이도는 그대로</b> 가져오고 곡만 비워 줍니다.
         해마다 20~30명을 다시 치던 일이 클릭 한 번이 됩니다.</p>
         <p class="only">두 번째 연주회부터가 진짜</p>
       </div>
       <div class="feat reveal" style="--d:1.12s">
-        <p class="n">15 &nbsp;인터넷 &middot; AI 키 없이</p>
+        <p class="n">17 &nbsp;인터넷 &middot; AI 키 없이</p>
         <h4>이 컴퓨터 안에서 전부 만들어집니다</h4>
         <p>AI 키를 넣지 않아도 순서표 &middot; 대본 &middot; 인쇄물 &middot; 무대 화면이 전부 나옵니다.
         학생 이름과 사진은 <b>학원 컴퓨터 밖으로 나가지 않습니다.</b>
@@ -600,10 +625,73 @@ BODY = """
   </div>
 </section>
 
+<!-- ── 08 아이 사진 · 감동영상 ──────────────────────── -->
+<section class="usp">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">08 /</span> 아이 사진과 감동영상</p>
+    <h2 class="reveal" style="--d:0.1s">이름만 뜨는 화면과<br><span class="accent">아이 얼굴이 뜨는 화면</span>은 다릅니다</h2>
+    <p class="sub reveal" style="--d:0.18s">웃는 사진 한 장이 객석을 조용하게 만듭니다.
+    사진은 <strong>명단에 한 번만</strong> 넣으면 무대 화면 &middot; 파워포인트 &middot; 감동영상에 <strong>전부</strong> 들어갑니다.</p>
+
+    <div class="feat-grid">
+      <div class="feat reveal">
+        <p class="n">사진 넣기</p>
+        <h4>파일 이름만 맞으면 한꺼번에</h4>
+        <p>30명 사진을 한 장씩 고르실 필요 없습니다. <b>[사진 한꺼번에 올리기]</b> 를 누르고 폴더를 통째로 고르면,
+        <b>파일 이름에 아이 이름이 들어 있는 것끼리 알아서 짝지어</b> 줍니다.
+        <code>김서연.jpg</code>, <code>2026 윤채원 연습.jpg</code> 둘 다 걸립니다.</p>
+        <p class="only">휴대폰 사진도 자동 축소</p>
+      </div>
+      <div class="feat reveal" style="--d:0.08s">
+        <p class="n">무대 화면 &middot; PPT</p>
+        <h4>연주자 화면이 얼굴과 함께 뜹니다</h4>
+        <p>사진을 넣으면 <b>왼쪽에 얼굴, 오른쪽에 이름 &middot; 곡 &middot; 해설</b> 로 바뀝니다.
+        내려받는 <b>.pptx 파일 안에도 그 사진이 실제 그림으로</b> 들어가, 파워포인트에서 바로 옮기고 키울 수 있습니다.
+        사진이 없는 아이는 이름만 크게 나옵니다 &mdash; 빈 상자가 뜨지 않습니다.</p>
+        <p class="only">넣고 빼기 한 번으로</p>
+      </div>
+      <div class="feat reveal" style="--d:0.16s">
+        <p class="n">감동영상</p>
+        <h4>무비메이커를 열지 않습니다</h4>
+        <p>연습 사진 &middot; 동영상 &middot; 배경음악을 고르면 <b>한 편이 만들어집니다.</b>
+        장면 순서와 이름 자막은 <b>명단에서 이미 알고 있으므로</b> 짜 드립니다.
+        사진은 천천히 확대되고 장면은 겹쳐 넘어갑니다. 자막 색과 서체는 고른 테마 그대로입니다.</p>
+        <p class="only">사진 한 장씩 끌어다 놓지 않음</p>
+      </div>
+    </div>
+
+    <div class="chain reveal" style="--d:0.2s">
+      <span class="seed">아이 사진 한 장</span>
+      <p class="arrow">&#9660;</p>
+      <div class="chain-row">
+        <span>무대 화면 연주자 슬라이드</span><span>파워포인트 .pptx</span><span>감동영상 장면</span>
+      </div>
+      <p class="last">한 번 넣으면 세 곳에 함께 들어갑니다</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.26s">
+      <p class="n-title">&#128274; 아이들 사진은 컴퓨터 밖으로 나가지 않습니다</p>
+      <p>사진을 어디에 올리는 것이 아닙니다. <strong>이 컴퓨터 안에서</strong> 크기를 줄여 보관하고,
+      영상도 <strong>브라우저 안에서</strong> 만듭니다. 올리는 곳도, 기다리는 줄도, 계정도 없습니다.
+      감동영상에 더한 연습 사진 &middot; 동영상 &middot; 음악은 <strong>아예 저장하지도 않습니다</strong> &mdash;
+      영상을 만들 때만 쓰입니다.</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.32s">
+      <p class="n-title">&#9200; 솔직히 말씀드릴 것</p>
+      <p>영상은 화면을 그리면서 담기 때문에 <strong>영상 길이만큼 시간이 걸립니다</strong> &mdash; 3분짜리는 3분.
+      만드는 동안 창을 그대로 두셔야 합니다. 대신 프로그램을 따로 깔 필요가 없고 인터넷도 필요 없습니다.
+      크롬 &middot; 엣지 최신판이면 <strong>MP4</strong> 로 나와 파워포인트에 넣거나 카카오톡으로 보낼 수 있고,
+      아니면 WebM 으로 나오며 <strong>화면에 무엇으로 만들어졌는지 그대로 적어 드립니다.</strong>
+      배경음악은 원장님이 준비하십시오 &mdash; 음원은 제공하지 않습니다.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ── 05 이용 안내 ─────────────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">08 /</span> 이용 안내</p>
+    <p class="eyebrow reveal"><span class="num">09 /</span> 이용 안내</p>
     <h2 class="reveal" style="--d:0.1s">피아노 이벤트 솔루션 이용 안내</h2>
     <div class="info-cards">
       <div class="info-card red reveal">
@@ -628,7 +716,7 @@ BODY = """
 <!-- ── 서비스 범위 ──────────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">09 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
+    <p class="eyebrow reveal"><span class="num">10 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
     <h2 class="reveal" style="--d:0.1s">사시기 전에<br><span class="accent">이것부터</span> 확인해 주세요</h2>
     <div class="scope-grid">
       <div class="scope-col yes reveal">
@@ -662,7 +750,7 @@ BODY = """
 <!-- ── 명단은 어떻게 넣는가 ─────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">10 /</span> 학생 명단은 어떻게 넣나요</p>
+    <p class="eyebrow reveal"><span class="num">11 /</span> 학생 명단은 어떻게 넣나요</p>
     <h2 class="reveal" style="--d:0.1s">이미 가지고 계신 것을<br>그대로 씁니다</h2>
     <div class="flow">
       <div class="flow-step reveal">
@@ -698,7 +786,7 @@ BODY = """
 <!-- ── 다른 방법과 비교 ─────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">11 /</span> 지금 쓰시는 방법과 비교하면</p>
+    <p class="eyebrow reveal"><span class="num">12 /</span> 지금 쓰시는 방법과 비교하면</p>
     <h2 class="reveal" style="--d:0.1s">디자인 도구도, 관리 프로그램도<br><span class="accent">연주회를 알지는 못합니다</span></h2>
     <div class="cmp-wrap reveal" style="--d:0.2s">
       <table class="cmp">
@@ -791,7 +879,7 @@ BODY = """
 <!-- ── 06 이런 원장님께 ─────────────────────────────── -->
 <section class="recommend">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">12 /</span> 이런 원장님께 추천합니다</p>
+    <p class="eyebrow reveal"><span class="num">13 /</span> 이런 원장님께 추천합니다</p>
     <h2 class="reveal" style="--d:0.1s">올해 연주회는<br><span class="accent">준비가 아니라 무대</span>에 집중하세요</h2>
     <div class="pill-list">
       <div class="pill reveal"><span class="icon check">&#10003;</span><span>연주회 시즌마다 순서표와 대본 때문에 밤을 새우는 원장님</span></div>

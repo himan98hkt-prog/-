@@ -97,8 +97,12 @@ create table if not exists public.event_students (
   order_no     integer,
   mc_script    text,
   note         text,
+  -- 이미지 보관함(academies.assets)의 사진 id. 무대 화면과 감동영상에 쓴다
+  photo_asset_id text,
   created_at   timestamptz not null default now()
 );
+
+alter table public.event_students add column if not exists photo_asset_id text;
 
 create index if not exists event_students_event_idx on public.event_students(event_id, order_no nulls last, created_at);
 

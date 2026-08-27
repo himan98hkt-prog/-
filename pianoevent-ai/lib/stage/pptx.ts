@@ -1,6 +1,6 @@
 import type { DesignTheme } from '@/lib/design/themes'
 import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
-import { zipStore } from '@/lib/stage/zip'
+import { zipStore, type ZipEntry } from '@/lib/stage/zip'
 
 /**
  * 무대 화면 → 진짜 파워포인트 파일(.pptx).
@@ -24,6 +24,17 @@ const SLIDE_H = px(STAGE_SLIDE_H)
 const encoder = new TextEncoder()
 const bytes = (text: string) => encoder.encode(text)
 const hex = (color: string) => color.replace('#', '').toUpperCase().slice(0, 6)
+
+/** data:image/...;base64,... → [바이트, 확장자]. 주소(http)는 파일에 넣을 수 없으므로 건너뛴다 */
+export function decodeDataUri(uri: string): { bytes: Uint8Array; ext: 'png' | 'jpeg' | 'gif' } | null {
+  const match = /^data:image\/(png|jpe?g|gif);base64,([A-Za-z0-9+/=]+)$/i.exec(uri.trim())
+  if (!match) return null
+  const ext = match[1].toLowerCase().startsWith('jp') ? 'jpeg' : (match[1].toLowerCase() as 'png' | 'gif')
+  const binary = typeof atob === 'function' ? atob(match[2]) : Buffer.from(match[2], 'base64').toString('binary')
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  return { bytes, ext }
+}
 
 function esc(text: string): string {
   return text
@@ -106,6 +117,19 @@ function textBox(
   )
 }
 
+/** 사진 한 장. 정사각으로 잘라 넣는다 (srcRect 로 가운데를 남긴다) */
+function picture(x: number, y: number, w: number, h: number, relId: string, name = '사진'): string {
+  shapeId += 1
+  return (
+    `<p:pic><p:nvPicPr><p:cNvPr id="${shapeId}" name="${esc(name)}"/><p:cNvPicPr>` +
+    `<a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
+    `<p:blipFill><a:blip r:embed="${relId}"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+    `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
+    `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 8000"/></a:avLst></a:prstGeom>` +
+    `<a:ln w="38100"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></p:spPr></p:pic>`
+  )
+}
+
 function rect(x: number, y: number, w: number, h: number, color: string, name = '띠'): string {
   shapeId += 1
   return (
@@ -133,7 +157,13 @@ function palette(theme: DesignTheme, dark: boolean): Palette {
     : { paper: p.paper, ink: p.ink, muted: p.muted, accent: p.accent, accentSoft: p.accentSoft, line: p.line }
 }
 
-function slideXml(slide: StageSlide, theme: DesignTheme, academyName: string, dark: boolean): string {
+function slideXml(
+  slide: StageSlide,
+  theme: DesignTheme,
+  academyName: string,
+  dark: boolean,
+  photoRelId: string | null,
+): string {
   const c = palette(theme, dark)
   const display = pptFont(theme.fonts.display)
   const body = pptFont(theme.fonts.body)
@@ -181,6 +211,38 @@ function slideXml(slide: StageSlide, theme: DesignTheme, academyName: string, da
         ),
       )
     })
+  } else if (slide.kind === 'performance' && photoRelId) {
+    // 사진이 있으면 왼쪽에 얼굴, 오른쪽에 이름 — 화면과 같은 자리
+    const photoSize = px(440)
+    shapes.push(picture(px(80), px(140), photoSize, photoSize, photoRelId, `${slide.title} 사진`))
+    const textX = px(80) + photoSize + px(56)
+    const textW = SLIDE_W - textX - px(80)
+    shapes.push(
+      textBox(textX, px(190), textW, px(30), [
+        { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
+      ]),
+    )
+    shapes.push(
+      textBox(textX, px(226), textW, px(110), [
+        {
+          align: 'l',
+          runs: [{ text: slide.title, size: slide.title.length > 8 ? 76 : 94, color: c.ink, bold: true, font: display }],
+        },
+      ]),
+    )
+    shapes.push(rect(textX, px(348), px(280), px(2), c.accentSoft, '가름선'))
+    shapes.push(
+      textBox(textX, px(368), textW, px(48), [
+        { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 34, color: c.ink, bold: true, font: body }] },
+      ]),
+    )
+    if (slide.body) {
+      shapes.push(
+        textBox(textX, px(430), textW, px(130), [
+          { align: 'l', runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
+        ], 't', '곡 해설'),
+      )
+    }
   } else if (slide.kind === 'performance') {
     shapes.push(
       textBox(pad, px(196), width, px(30), [
@@ -422,9 +484,10 @@ export function buildPptx({
     `<Relationship Id="rId1" Type="${DOC_REL}/slideMaster" Target="../slideMasters/slideMaster1.xml"/>` +
     `</Relationships>`
 
-  const slideRels =
+  const slideRels = (photoTarget: string | null) =>
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELS_NS}">` +
     `<Relationship Id="rId1" Type="${DOC_REL}/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>` +
+    (photoTarget ? `<Relationship Id="rId2" Type="${DOC_REL}/image" Target="../media/${photoTarget}"/>` : '') +
     `</Relationships>`
 
   const core =
@@ -441,7 +504,7 @@ export function buildPptx({
     `xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">` +
     `<Application>PianoEvent</Application><Slides>${count}</Slides></Properties>`
 
-  const entries = [
+  const entries: ZipEntry[] = [
     { name: '[Content_Types].xml', data: bytes(contentTypes) },
     { name: '_rels/.rels', data: bytes(rootRels) },
     { name: 'docProps/core.xml', data: bytes(core) },
@@ -454,10 +517,41 @@ export function buildPptx({
     { name: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', data: bytes(layoutRels) },
     { name: 'ppt/theme/theme1.xml', data: bytes(themeXml(theme)) },
   ]
+  // 사진은 ppt/media/ 에 실제 파일로 넣는다. 같은 사진을 두 번 담지 않게 모아 둔다
+  const media = new Map<string, { file: string; ext: string }>()
+  const photoOf = (slide: StageSlide): string | null => {
+    if (!slide.photo) return null
+    const known = media.get(slide.photo)
+    if (known) return known.file
+    const decoded = decodeDataUri(slide.photo)
+    if (!decoded) return null // http 주소는 파일에 넣을 수 없다 — 사진 없이 그린다
+    const file = `image${media.size + 1}.${decoded.ext === 'jpeg' ? 'jpg' : decoded.ext}`
+    media.set(slide.photo, { file, ext: decoded.ext })
+    entries.push({ name: `ppt/media/${file}`, data: decoded.bytes })
+    return file
+  }
+
   slides.forEach((slide, index) => {
-    entries.push({ name: `ppt/slides/slide${index + 1}.xml`, data: bytes(slideXml(slide, theme, academyName, dark)) })
-    entries.push({ name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: bytes(slideRels) })
+    const photoFile = photoOf(slide)
+    entries.push({
+      name: `ppt/slides/slide${index + 1}.xml`,
+      data: bytes(slideXml(slide, theme, academyName, dark, photoFile ? 'rId2' : null)),
+    })
+    entries.push({ name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: bytes(slideRels(photoFile)) })
   })
+
+  // 그림 확장자는 [Content_Types].xml 에 선언해야 파워포인트가 연다
+  const extensions = new Set([...media.values()].map((entry) => (entry.ext === 'jpeg' ? 'jpg' : entry.ext)))
+  if (extensions.size > 0) {
+    const defaults = [...extensions]
+      .map((ext) => `<Default Extension="${ext}" ContentType="image/${ext === 'jpg' ? 'jpeg' : ext}"/>`)
+      .join('')
+    const index = entries.findIndex((entry) => entry.name === '[Content_Types].xml')
+    entries[index] = {
+      name: '[Content_Types].xml',
+      data: bytes(contentTypes.replace('<Default Extension="xml"', `${defaults}<Default Extension="xml"`)),
+    }
+  }
 
   return zipStore(entries)
 }

@@ -98,6 +98,7 @@ function seed(): Db {
       level,
       order_no: null,
       mc_script: null,
+      photo_asset_id: null,
       note,
       created_at: created,
     })),
@@ -248,6 +249,11 @@ export class DemoRepository implements Repository {
     )
   }
 
+  async getStudent(id: string) {
+    const found = load().students.find((s) => s.id === id)
+    return found ? clone(found) : null
+  }
+
   async addStudents(eventId: string, rows: NewStudent[]) {
     const db = load()
     const created = rows.map((row) => toStudent(eventId, row))
@@ -340,6 +346,7 @@ function toStudent(eventId: string, row: NewStudent): EventStudent {
     order_no: null,
     mc_script: null,
     note: row.note ?? null,
+    photo_asset_id: row.photo_asset_id ?? null,
     created_at: nowIso(),
   }
 }

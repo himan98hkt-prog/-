@@ -16,6 +16,7 @@ export interface NewStudent {
   duration_sec: number | null
   level: EventStudent['level']
   note?: string | null
+  photo_asset_id?: string | null
 }
 
 export interface ProgramAssignment {
@@ -57,6 +58,7 @@ export interface Repository {
   deleteEvent(id: string): Promise<void>
 
   listStudents(eventId: string): Promise<EventStudent[]>
+  getStudent(id: string): Promise<EventStudent | null>
   addStudents(eventId: string, rows: NewStudent[]): Promise<EventStudent[]>
   replaceStudents(eventId: string, rows: NewStudent[]): Promise<EventStudent[]>
   updateStudent(id: string, patch: Partial<NewStudent>): Promise<EventStudent>

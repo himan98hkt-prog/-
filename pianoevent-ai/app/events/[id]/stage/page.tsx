@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { StageScreen } from '@/components/stage/stage-screen'
-import { resolveLogo } from '@/lib/assets'
+import { resolveLogo, studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
 import { resolvePlan } from '@/lib/program/resolve'
@@ -33,6 +33,8 @@ export default async function StagePage({
   const theme = getTheme(searchParams.theme ?? event.design_theme ?? academy.design_theme)
   // 장수는 화면에서 테마·항목을 바꿔도 바뀌므로 첫 화면에 보일 값만 계산한다
   const slideCount = buildStageDeck(event, plan, academy.name).length
+  const photos = studentPhotos(academy.assets ?? [], students)
+  const withPhoto = Object.keys(photos).length
 
   return (
     <AppShell academyName={academy.name} className="container py-8 print:max-w-none print:p-0">
@@ -56,6 +58,26 @@ export default async function StagePage({
           {formatEventDate(event.event_at)} · 학생 {plan.items.length}명 · 슬라이드 {slideCount}장 — 명단과 순서표에서
           바로 만들어집니다. 순서를 바꾸면 이 화면도 함께 바뀝니다.
         </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {withPhoto > 0 ? (
+            <>
+              아이 사진 <strong className="text-foreground">{withPhoto}명</strong> 분이 연주자 화면에 함께 올라갑니다.
+              {withPhoto < plan.items.length && ` 나머지 ${plan.items.length - withPhoto}명은 이름만 나옵니다 — `}
+              {withPhoto < plan.items.length && (
+                <Link href={`/events/${event.id}?tab=roster`} className="underline underline-offset-4">
+                  명단에서 사진 넣기
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              <Link href={`/events/${event.id}?tab=roster`} className="underline underline-offset-4">
+                명단에서 아이 사진
+              </Link>
+              을 넣으면 연주자 화면에 그 얼굴이 함께 올라갑니다. 웃는 사진 한 장이 객석을 조용하게 만듭니다.
+            </>
+          )}
+        </p>
         <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
           노트북을 빔프로젝터·TV 에 연결하고 <strong>[전체화면]</strong> 을 누르세요. 넘기기는{' '}
           <strong>→ ← 화살표 · 스페이스 · 화면 클릭</strong> — 프레젠터(리모컨)도 그대로 됩니다.
@@ -68,6 +90,7 @@ export default async function StagePage({
         plan={plan}
         academyName={academy.name}
         initialThemeId={theme.id}
+        photos={photos}
         logoUrl={resolveLogo(academy.assets ?? [], event.image_map, academy.logo_url)}
       />
 

@@ -38,8 +38,11 @@ export interface AcademyAsset {
 /** 이미지 하나가 넘을 수 없는 크기(문자 기준). data URI 라 원본보다 약 1.37배 커진다 */
 export const ASSET_MAX_CHARS = 900_000
 
-/** 보관함 전체 장수 상한 — 실수로 수십 장을 올려 저장소를 채우지 않게 */
-export const ASSET_MAX_COUNT = 40
+/**
+ * 보관함 전체 장수 상한.
+ * 학생 사진을 아이마다 한 장씩 넣으면 한 반 30명 + 학원 사진이 들어가야 한다.
+ */
+export const ASSET_MAX_COUNT = 120
 
 export function isAssetUrl(url: string): boolean {
   return /^(https?:\/\/|data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);)/i.test(url)
@@ -88,4 +91,22 @@ export function assetSizeLabel(url: string): string {
   if (!url.startsWith('data:')) return '외부 주소'
   const kb = Math.round((url.length * 0.75) / 1024)
   return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`
+}
+
+/**
+ * 학생 id → 사진 주소.
+ * 아이마다 지정한 사진만 담는다. 지정이 없으면 그 아이 화면에는 사진이 없다 —
+ * 엉뚱한 아이 얼굴이 올라가느니 없는 편이 낫다.
+ */
+export function studentPhotos(
+  assets: AcademyAsset[],
+  students: { id: string; photo_asset_id: string | null }[],
+): Record<string, string> {
+  const byId = new Map(assets.map((asset) => [asset.id, asset.url]))
+  const out: Record<string, string> = {}
+  for (const student of students) {
+    const url = student.photo_asset_id ? byId.get(student.photo_asset_id) : undefined
+    if (url) out[student.id] = url
+  }
+  return out
 }

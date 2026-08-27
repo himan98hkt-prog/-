@@ -94,6 +94,7 @@ function toStudents(text: string) {
       level: row.level,
       order_no: null,
       mc_script: null,
+      photo_asset_id: null,
       note: row.note,
       created_at: '2026-01-01T00:00:00.000Z',
     })),
@@ -582,6 +583,14 @@ function App() {
             <div>
               <b>초대장 링크가 진짜 링크가 됩니다</b>
               <p>단톡방에 올리면 학부모가 눌러 참석 회신을 남기고, 인원이 저절로 쌓입니다.</p>
+            </div>
+            <div>
+              <b>아이 사진과 감동영상</b>
+              <p>
+                명단에 아이 사진을 넣으면 무대 화면 · 파워포인트 · 감동영상에 <b>함께</b> 들어갑니다. 30명이라도 파일
+                이름으로 한꺼번에 짝지어 줍니다. 연습 사진·동영상·음악을 고르면 <b>감동영상 한 편</b>이
+                브라우저 안에서 만들어집니다 — 사진이 컴퓨터 밖으로 나가지 않습니다.
+              </p>
             </div>
             <div>
               <b>연주회 PPT를 파일로</b>

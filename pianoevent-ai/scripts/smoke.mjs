@@ -149,6 +149,42 @@ async function run() {
   check('슬라이드가 글상자다 (그림 아님)', pptxText.includes('txBox="1"'))
   check('고른 테마가 파일에 들어감', pptxText.includes('ppt/theme/theme1.xml'))
 
+  console.log('\n▸ 아이 사진 · 감동영상')
+
+  const photoPixel =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const savedPhoto = await json('/api/academy/assets', { kind: 'photo', label: '아이 사진', url: photoPixel })
+  const savedPhotoBody = await savedPhoto.json()
+  check('아이 사진 보관함에 올리기', savedPhoto.status === 201, String(savedPhoto.status))
+
+  const rosterNow = await (await call(`/api/events/${event.id}/students`)).json()
+  const firstId = rosterNow.students?.[0]?.id
+  const linked = await json(`/api/students/${firstId}`, { photo_asset_id: savedPhotoBody.asset?.id }, 'PATCH')
+  const linkedBody = await linked.json()
+  check('아이에게 사진 붙이기', linked.ok && linkedBody.student?.photo_asset_id === savedPhotoBody.asset?.id)
+
+  const badPhotoId = await json(`/api/students/${firstId}`, { photo_asset_id: 'nope' }, 'PATCH')
+  check('보관함에 없는 사진은 거절', badPhotoId.status === 400)
+
+  const unlinked = await json(`/api/students/${firstId}`, { photo_asset_id: null }, 'PATCH')
+  check('사진 빼기', unlinked.ok && (await unlinked.json()).student?.photo_asset_id === null)
+  await json(`/api/students/${firstId}`, { photo_asset_id: savedPhotoBody.asset?.id }, 'PATCH')
+
+  const stageWithPhoto = await call(`/events/${event.id}/stage`)
+  check('무대 화면에 아이 사진이 실린다', (await stageWithPhoto.text()).includes(photoPixel.slice(0, 60)))
+
+  const pptxWithPhoto = await call(`/api/events/${event.id}/pptx`)
+  const pptxPhotoText = new TextDecoder('utf-8').decode(new Uint8Array(await pptxWithPhoto.arrayBuffer()))
+  check('파워포인트 파일에 사진이 실제 그림으로 들어감', pptxPhotoText.includes('ppt/media/image1.png'))
+  check('사진 확장자가 선언됨', pptxPhotoText.includes('<Default Extension="png"'))
+
+  const videoPage = await call(`/events/${event.id}/video`)
+  const videoHtml = await videoPage.text()
+  check('감동영상 화면 렌더', videoPage.ok && videoHtml.includes('감동영상'))
+  check('사진·동영상·음악을 고를 수 있음', videoHtml.includes('사진 고르기') && videoHtml.includes('음악 고르기'))
+  check('걸리는 시간을 미리 알려 줌', videoHtml.includes('영상 길이만큼'))
+  check('저장하지 않는다고 밝힘', videoHtml.includes('저장되지 않습니다'))
+
   const pptxBare = await call(`/api/events/${event.id}/pptx?agenda=0&sections=0&commentary=0`)
   const bareBody = new Uint8Array(await pptxBare.arrayBuffer())
   const bareText = new TextDecoder('utf-8').decode(bareBody)
@@ -350,9 +386,14 @@ async function run() {
   const addedLogo = await addLogo.json()
   check('보관함에 로고 추가', addLogo.status === 201 && Boolean(addedLogo.asset?.id), addedLogo.error ?? '')
 
+  const beforeCount = addedLogo.academy?.assets?.length ?? 0
   const addPhoto = await json('/api/academy/assets', { kind: 'photo', label: '스모크 사진', url: PNG })
   const addedPhoto = await addPhoto.json()
-  check('보관함에 사진 추가', addPhoto.status === 201 && addedPhoto.academy?.assets?.length === 2)
+  check(
+    '보관함에 사진 추가',
+    addPhoto.status === 201 && addedPhoto.academy?.assets?.length === beforeCount + 1,
+    `${beforeCount} → ${addedPhoto.academy?.assets?.length}`,
+  )
 
   const badAsset = await json('/api/academy/assets', { kind: 'photo', label: 'x', url: 'ftp://nope' })
   check('이미지가 아닌 주소는 거부', badAsset.status === 400)

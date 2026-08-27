@@ -1,3 +1,4 @@
+import { studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
 import { resolvePlan } from '@/lib/program/resolve'
 import { buildStageDeck, DEFAULT_STAGE_OPTIONS } from '@/lib/stage/deck'
@@ -24,12 +25,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const off = (key: string) => url.searchParams.get(key) !== '0'
   const { plan } = resolvePlan(students)
   const theme = getTheme(url.searchParams.get('theme') ?? event.design_theme ?? academy.design_theme)
-  const slides = buildStageDeck(event, plan, academy.name, {
-    ...DEFAULT_STAGE_OPTIONS,
-    show_commentary: off('commentary'),
-    show_sections: off('sections'),
-    show_agenda: off('agenda'),
-  })
+  const slides = buildStageDeck(
+    event,
+    plan,
+    academy.name,
+    {
+      ...DEFAULT_STAGE_OPTIONS,
+      show_commentary: off('commentary'),
+      show_sections: off('sections'),
+      show_agenda: off('agenda'),
+      show_photos: off('photos'),
+    },
+    studentPhotos(academy.assets ?? [], students),
+  )
 
   const file = buildPptx({
     slides,

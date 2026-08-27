@@ -72,6 +72,8 @@ export interface EventStudent {
   mc_script: string | null
   /** 원장이 남긴 학생 특징 메모 — 멘트 생성의 재료 */
   note: string | null
+  /** 이미지 보관함에 있는 이 아이의 사진. 무대 화면·영상에 들어간다 */
+  photo_asset_id: string | null
   created_at: string
 }
 

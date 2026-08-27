@@ -25,18 +25,22 @@ export function StageScreen({
   academyName,
   initialThemeId,
   logoUrl,
+  photos = {},
 }: {
   event: EventRecord
   plan: ProgramPlan
   academyName: string
   initialThemeId: string
   logoUrl: string | null
+  /** 학생 id → 사진 주소 */
+  photos?: Record<string, string>
 }) {
   const [themeId, setThemeId] = useState(initialThemeId)
   const [options, setOptions] = useState<StageDeckOptions>({
     show_commentary: true,
     show_sections: true,
     show_agenda: true,
+    show_photos: true,
   })
   const [index, setIndex] = useState(0)
   const [dark, setDark] = useState(true)
@@ -47,9 +51,10 @@ export function StageScreen({
   const [scale, setScale] = useState(1)
 
   const theme = useMemo(() => getTheme(themeId), [themeId])
+  const photoCount = Object.keys(photos).length
   const slides = useMemo(
-    () => buildStageDeck(event, plan, academyName, options),
-    [event, plan, academyName, options],
+    () => buildStageDeck(event, plan, academyName, options, photos),
+    [event, plan, academyName, options, photos],
   )
   const last = slides.length - 1
 
@@ -124,6 +129,7 @@ export function StageScreen({
   if (!options.show_commentary) query.set('commentary', '0')
   if (!options.show_sections) query.set('sections', '0')
   if (!options.show_agenda) query.set('agenda', '0')
+  if (!options.show_photos) query.set('photos', '0')
   if (dark) query.set('dark', '1')
   const pptxUrl = `/api/events/${event.id}/pptx?${query.toString()}`
 
@@ -255,6 +261,12 @@ export function StageScreen({
               hint="첫 무대 · 한 뼘 더 · 마지막 무대"
               checked={options.show_sections}
               onChange={(v) => setOptions((prev) => ({ ...prev, show_sections: v }))}
+            />
+            <Toggle
+              label="아이 사진"
+              hint={photoCount > 0 ? `${photoCount}명 사진이 들어 있습니다` : '명단에서 사진을 먼저 넣으세요'}
+              checked={options.show_photos}
+              onChange={(v) => setOptions((prev) => ({ ...prev, show_photos: v }))}
             />
           </div>
           <div className="mt-1 flex flex-wrap gap-2">

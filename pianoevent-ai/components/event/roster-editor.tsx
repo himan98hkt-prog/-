@@ -11,6 +11,9 @@ import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field
 import { formatDuration } from '@/lib/format'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
+import { BulkPhotoUpload, StudentPhotoCell } from '@/components/event/student-photos'
+import type { AcademyAsset } from '@/lib/assets'
+import { FACE_SHRINK, shrinkImage } from '@/lib/image'
 import { LEVEL_LABEL, type EventStudent, type Level } from '@/lib/types'
 
 const LEVELS = Object.keys(LEVEL_LABEL) as Level[]
@@ -23,12 +26,35 @@ export function RosterEditor({
   eventId,
   students,
   pastEvents = [],
+  assets = [],
 }: {
   eventId: string
   students: EventStudent[]
   /** 명단을 그대로 가져올 수 있는 지난 행사들 */
   pastEvents?: { id: string; title: string; count: number }[]
+  /** 이미지 보관함 — 아이 사진을 여기서 고른다 */
+  assets?: AcademyAsset[]
 }) {
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null)
+
+  async function uploadPhoto(student: EventStudent, file: File) {
+    setPhotoBusy(student.id)
+    try {
+      const url = await shrinkImage(file, FACE_SHRINK)
+      const created = await fetch('/api/academy/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'photo', label: `${student.student_name} 사진`, url }),
+      })
+      const body = await created.json()
+      if (!created.ok) throw new Error(body.error ?? '사진을 올리지 못했습니다.')
+      await patchStudent(student.id, { photo_asset_id: body.asset.id })
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '사진을 올리지 못했습니다.')
+    } finally {
+      setPhotoBusy(null)
+    }
+  }
   const router = useRouter()
   const [paste, setPaste] = useState('')
   const [pending, setPending] = useState(false)
@@ -272,8 +298,27 @@ export function RosterEditor({
       <Card>
         <CardHeader>
           <CardTitle>연주자 {students.length}명</CardTitle>
-          <CardDescription>칸을 눌러 바로 고칠 수 있습니다. 소요시간을 비우면 난이도로 추정합니다.</CardDescription>
+          <CardDescription>
+            칸을 눌러 바로 고칠 수 있습니다. 소요시간을 비우면 난이도로 추정합니다.
+            <br />
+            <strong>아이 사진</strong>을 넣으면 무대 화면과 감동영상에 그 얼굴이 함께 올라갑니다.
+          </CardDescription>
         </CardHeader>
+        {students.length > 0 && (
+          <div className="px-5 pb-3">
+            <BulkPhotoUpload
+              students={students}
+              onDone={(matched, skipped) => {
+                setMessage(
+                  skipped.length === 0
+                    ? `사진 ${matched}장을 아이들과 짝지었습니다.`
+                    : `사진 ${matched}장을 짝지었습니다. 이름을 찾지 못한 파일 ${skipped.length}개는 건너뛰었습니다 — ${skipped.slice(0, 3).join(', ')}`,
+                )
+                router.refresh()
+              }}
+            />
+          </div>
+        )}
         <CardContent className="p-0">
           {students.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
@@ -284,6 +329,7 @@ export function RosterEditor({
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">사진</th>
                     <th className="px-4 py-2 font-medium">이름</th>
                     <th className="px-4 py-2 font-medium">연주곡</th>
                     <th className="px-4 py-2 font-medium">작곡가</th>
@@ -296,6 +342,15 @@ export function RosterEditor({
                 <tbody>
                   {students.map((s) => (
                     <tr key={s.id} className="border-b border-border/60 last:border-0">
+                      <td className="px-2 py-1.5">
+                        <StudentPhotoCell
+                          student={s}
+                          assets={assets}
+                          busy={photoBusy === s.id}
+                          onPick={(assetId) => patchStudent(s.id, { photo_asset_id: assetId })}
+                          onUpload={(file) => void uploadPhoto(s, file)}
+                        />
+                      </td>
                       <td className="px-2 py-1.5">
                         <Input
                           defaultValue={s.student_name}

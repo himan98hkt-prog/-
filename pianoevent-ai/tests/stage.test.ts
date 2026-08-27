@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildProgram } from '@/lib/program/order'
 import { getTheme } from '@/lib/design/themes'
 import { buildStageDeck, DEFAULT_STAGE_OPTIONS } from '@/lib/stage/deck'
-import { buildPptx, pptFont } from '@/lib/stage/pptx'
+import { buildPptx, decodeDataUri, pptFont } from '@/lib/stage/pptx'
 import type { EventRecord } from '@/lib/types'
 import { student } from './helpers'
 
@@ -104,7 +104,7 @@ describe('무대 화면 슬라이드', () => {
 
   it('부 전환·순서 화면을 끄면 그만큼만 줄어든다', () => {
     const full = deck()
-    const bare = deck({ show_commentary: true, show_sections: false, show_agenda: false })
+    const bare = deck({ show_commentary: true, show_sections: false, show_agenda: false, show_photos: true })
     expect(bare.filter((slide) => slide.kind === 'section')).toHaveLength(0)
     expect(bare.filter((slide) => slide.kind === 'agenda')).toHaveLength(0)
     expect(bare.length).toBeLessThan(full.length)
@@ -222,5 +222,78 @@ describe('파워포인트 파일 만들기', () => {
     expect(pptFont("'Nanum Myeongjo', Batang, serif")).toBe('바탕')
     expect(pptFont("'Gaegu', Gungsuh, cursive")).toBe('궁서')
     expect(pptFont("'Noto Sans KR', 'Malgun Gothic', sans-serif")).toBe('맑은 고딕')
+  })
+})
+
+/** 1×1 빨강 PNG — 사진이 파일에 실제로 들어가는지 보는 용도 */
+const TINY_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+describe('아이 사진', () => {
+  const withPhotos = () => {
+    const plan = buildProgram(roster)
+    const photos = Object.fromEntries(plan.items.slice(0, 2).map((item) => [item.student.id, TINY_PNG]))
+    return { plan, photos, slides: buildStageDeck(event, plan, '하모니 피아노학원', DEFAULT_STAGE_OPTIONS, photos) }
+  }
+
+  it('사진을 넣은 아이 화면에만 사진이 붙는다', () => {
+    const { slides, photos } = withPhotos()
+    const performances = slides.filter((slide) => slide.kind === 'performance')
+    expect(performances.filter((slide) => slide.photo).length).toBe(Object.keys(photos).length)
+    expect(performances.filter((slide) => !slide.photo).length).toBe(roster.length - Object.keys(photos).length)
+  })
+
+  it('사진 끄기를 하면 한 장도 붙지 않는다', () => {
+    const plan = buildProgram(roster)
+    const photos = Object.fromEntries(plan.items.map((item) => [item.student.id, TINY_PNG]))
+    const slides = buildStageDeck(
+      event,
+      plan,
+      '하모니',
+      { ...DEFAULT_STAGE_OPTIONS, show_photos: false },
+      photos,
+    )
+    expect(slides.every((slide) => !slide.photo)).toBe(true)
+  })
+
+  it('data URI 를 바이트로 푼다', () => {
+    const decoded = decodeDataUri(TINY_PNG)
+    expect(decoded).not.toBeNull()
+    expect(decoded!.ext).toBe('png')
+    // PNG 서명
+    expect(Array.from(decoded!.bytes.slice(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47])
+  })
+
+  it('주소(http)로 된 사진은 파일에 넣지 않는다 — 넣을 바이트가 없다', () => {
+    expect(decodeDataUri('https://example.com/a.png')).toBeNull()
+  })
+
+  it('파워포인트 파일에 사진이 실제 파일로 들어간다', () => {
+    const { slides } = withPhotos()
+    const text = new TextDecoder('utf-8').decode(
+      buildPptx({ slides, theme: getTheme('classic-navy'), academyName: '하모니', title: '연주회' }),
+    )
+    expect(text).toContain('ppt/media/image1.png')
+    expect(text).toContain('<Default Extension="png" ContentType="image/png"/>')
+    expect(text).toContain('r:embed="rId2"')
+  })
+
+  it('같은 사진을 두 번 담지 않는다', () => {
+    const plan = buildProgram(roster)
+    const photos = Object.fromEntries(plan.items.map((item) => [item.student.id, TINY_PNG]))
+    const slides = buildStageDeck(event, plan, '하모니', DEFAULT_STAGE_OPTIONS, photos)
+    const text = new TextDecoder('utf-8').decode(
+      buildPptx({ slides, theme: getTheme('classic-navy'), academyName: '하모니', title: '연주회' }),
+    )
+    expect(text).toContain('ppt/media/image1.png')
+    expect(text).not.toContain('ppt/media/image2.png')
+  })
+
+  it('사진이 없으면 그림 부품도 만들지 않는다', () => {
+    const text = new TextDecoder('utf-8').decode(
+      buildPptx({ slides: deck(), theme: getTheme('classic-navy'), academyName: '하모니', title: '연주회' }),
+    )
+    expect(text).not.toContain('ppt/media/')
+    expect(text).not.toContain('<Default Extension="png"')
   })
 })

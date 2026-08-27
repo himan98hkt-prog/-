@@ -75,6 +75,9 @@ try {
   browser = await chromium.launch(existsSync(executablePath) ? { executablePath } : {})
 
   // 1280×720 이 1:1 로 들어가도록 창을 넉넉히 잡는다 — 축소 없이 실제 크기로 본다
+  // 리브레오피스가 있으면 만든 pptx 를 실제로 열어 본다 (없는 환경에서는 그 검사만 건너뛴다)
+  const soffice = spawnSync('which', ['soffice'], { encoding: 'utf8' }).stdout.trim()
+
   const context = await browser.newContext({ viewport: { width: 1600, height: 1100 }, deviceScaleFactor: 1 })
   const page = await context.newPage()
   await page.goto(`${BASE}/events/${EVENT_ID}/stage?theme=${THEME}`, { waitUntil: 'networkidle' })
@@ -233,7 +236,6 @@ try {
 
   // 글자가 실제로 그려지는가 — XML 이 맞아도 파워포인트가 안 보여 줄 수 있다.
   // 리브레오피스가 깔려 있을 때만 돌린다 (판매용 프로그램에는 필요 없다).
-  const soffice = spawnSync('which', ['soffice'], { encoding: 'utf8' }).stdout.trim()
   if (soffice) {
     const renderDir = join(OUT, 'pptx-render')
     rmSync(renderDir, { recursive: true, force: true })
@@ -257,6 +259,63 @@ try {
     }
   } else {
     console.log('  · 리브레오피스가 없어 실제 열림 검사는 건너뜁니다')
+  }
+
+
+  // ── 아이 사진 ────────────────────────────────────────────────
+  // 실제로 사진을 올려 아이에게 붙이고, 화면과 파워포인트 파일에 얼굴이 들어가는지 본다
+  const madePhoto = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 400
+    canvas.height = 400
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#C86A4A'
+    ctx.fillRect(0, 0, 400, 400)
+    ctx.fillStyle = '#fff'
+    ctx.beginPath()
+    ctx.arc(200, 170, 70, 0, Math.PI * 2)
+    ctx.fill()
+    return canvas.toDataURL('image/jpeg', 0.8)
+  })
+  const uploaded = await page.request.post(`${BASE}/api/academy/assets`, {
+    data: { kind: 'photo', label: '검사용 아이 사진', url: madePhoto },
+  })
+  const uploadedBody = await uploaded.json()
+  check('아이 사진 올리기', uploaded.ok(), String(uploaded.status()))
+  const roster = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
+  const firstStudent = roster.students?.[0]
+  const assigned = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
+    data: { photo_asset_id: uploadedBody.asset?.id },
+  })
+  check('아이에게 사진 붙이기', assigned.ok(), String(assigned.status()))
+  const rejected = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
+    data: { photo_asset_id: 'no-such-asset' },
+  })
+  check('보관함에 없는 사진은 거절한다', rejected.status() === 400, String(rejected.status()))
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(500)
+  const photoSlides = await page.evaluate(async () => {
+    const res = await fetch(location.href)
+    const html = await res.text()
+    return html.includes('data:image/jpeg')
+  })
+  check('무대 화면에 아이 사진이 실린다', photoSlides)
+
+  const pptxPhoto = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?theme=${THEME}`)
+  const pptxPhotoPath = join(OUT, 'stage-photo.pptx')
+  writeFileSync(pptxPhotoPath, Buffer.from(await pptxPhoto.body()))
+  const photoNames = spawnSync('unzip', ['-Z1', pptxPhotoPath], { encoding: 'utf8' }).stdout.trim().split('\n')
+  check('파워포인트 파일 안에 사진이 들어감', photoNames.some((name) => name.startsWith('ppt/media/')), photoNames.filter((n) => n.startsWith('ppt/media/')).join(', '))
+  if (soffice) {
+    const photoDir = join(OUT, 'pptx-photo')
+    rmSync(photoDir, { recursive: true, force: true })
+    mkdirSync(photoDir, { recursive: true })
+    spawnSync(soffice, ['--headless', '--norestore', '--convert-to', 'pdf', '--outdir', photoDir, pptxPhotoPath], {
+      encoding: 'utf8',
+      timeout: 300_000,
+    })
+    check('사진이 든 파워포인트도 실제로 열린다', existsSync(join(photoDir, 'stage-photo.pdf')))
   }
 
   // 항목을 끄면 슬라이드도 줄어드는가

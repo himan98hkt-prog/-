@@ -14,6 +14,11 @@ export interface ShrinkOptions {
 
 export const PHOTO_SHRINK: ShrinkOptions = { maxEdge: 1600, quality: 0.82 }
 export const LOGO_SHRINK: ShrinkOptions = { maxEdge: 512, quality: 0.92 }
+/**
+ * 학생 얼굴 사진 — 한 반이 30명이면 30장이 보관함에 들어간다.
+ * 무대 화면(1280×720)과 영상(1920×1080)에 쓰기에 충분하면서 저장소를 채우지 않는 크기.
+ */
+export const FACE_SHRINK: ShrinkOptions = { maxEdge: 1000, quality: 0.78 }
 
 export function shrinkOptionsFor(kind: 'logo' | 'symbol' | 'photo'): ShrinkOptions {
   return kind === 'photo' ? PHOTO_SHRINK : LOGO_SHRINK
