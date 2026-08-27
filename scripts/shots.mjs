@@ -30,7 +30,7 @@ const page = context.pages()[0] || await context.newPage()
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'domcontentloaded' })
 
 // 인증 화면도 판매 자료에 필요하므로 한 장 찍고 지나간다
-await page.waitForSelector('.cover.activation, .app-nav button')
+await page.waitForSelector('.cover.activation, .app-rail button, .app-nav button')
 if (await page.$('.cover.activation')) {
   await page.screenshot({ path: `${OUT}/00-인증키.png` })
   console.log('  ✓ 00-인증키.png')
@@ -55,7 +55,7 @@ await page.evaluate(async (key) => {
 }, SCENARIO)
 
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
-await page.waitForSelector('.app-nav button')
+await page.waitForSelector('.app-rail button, .app-nav button')
 
 const VIEWS = [
   ['today', '00-오늘'],

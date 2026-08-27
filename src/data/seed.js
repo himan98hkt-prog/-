@@ -29,7 +29,7 @@ function phone(i) {
 export const DEMO_SCENARIOS = {
   english: {
     label: '영어학원 (아라 잉글리시)',
-    academy: { name: '아라 잉글리시', brand_color: '#2563eb', phone: '02-000-0000' },
+    academy: { name: '아라 잉글리시', brand_color: '#2c4a7c', phone: '02-000-0000' },
     customFields: PRESETS['어학'],
     subjects: [
       { name: 'Reading', color: '#2563eb' },
@@ -46,7 +46,7 @@ export const DEMO_SCENARIOS = {
   },
   taekwondo: {
     label: '태권도장 (성무 태권도)',
-    academy: { name: '성무 태권도', brand_color: '#dc2626', phone: '02-000-0000' },
+    academy: { name: '성무 태권도', brand_color: '#a63a3a', phone: '02-000-0000' },
     customFields: PRESETS['체육'],
     subjects: [
       { name: '품새', color: '#dc2626' },
@@ -63,7 +63,7 @@ export const DEMO_SCENARIOS = {
   },
   piano: {
     label: '피아노학원 (아첼 음악)',
-    academy: { name: '아첼 음악학원', brand_color: '#7c3aed', phone: '02-000-0000' },
+    academy: { name: '아첼 음악학원', brand_color: '#7a3b62', phone: '02-000-0000' },
     customFields: PRESETS['예체능'],
     subjects: [
       { name: '피아노', color: '#7c3aed' },

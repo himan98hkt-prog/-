@@ -97,7 +97,7 @@ console.log('')
 
 // 시드 후 새 세션으로 앱을 다시 띄운다 (실사용과 같은 콜드 스타트)
 await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
-await page.waitForSelector('.app-nav button', { timeout: 120000 })
+await page.waitForSelector('.app-rail button, .app-nav button', { timeout: 120000 })
 
 const rows = []
 

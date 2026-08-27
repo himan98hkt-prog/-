@@ -15,14 +15,24 @@ const CATEGORIES = [
   { key: '체육', label: '체육 (태권도·주짓수)', subjects: ['품새', '겨루기'] },
   { key: '공부방', label: '공부방 · 스터디카페', subjects: ['자기주도'] }
 ]
-const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#7c3aed', '#db2777', '#f59e0b', '#0891b2', '#111827']
+// 간판·현수막에 인쇄해도 촌스럽지 않은 톤으로 골랐다 (형광·원색 제외)
+const COLORS = [
+  { hex: '#2c4a7c', name: '남색' },
+  { hex: '#2f6d8f', name: '청록' },
+  { hex: '#2e6b4f', name: '초록' },
+  { hex: '#a8843f', name: '금색' },
+  { hex: '#a63a3a', name: '진홍' },
+  { hex: '#7a3b62', name: '자주' },
+  { hex: '#5b4b8a', name: '보라' },
+  { hex: '#33302c', name: '먹색' }
+]
 
 export function openWizard() {
   return new Promise((resolve) => {
     // 피아노 관리노트의 '학원명 방식' 키로 인증했다면 그 이름을 그대로 채워 준다
     const state = {
       name: repo.getSetting('pendingAcademyName') || '',
-      category: '교과', color: COLORS[0], pin: '0000', demo: false
+      category: '교과', color: COLORS[0].hex, pin: '0000', demo: false
     }
     let step = 0
     const body = h('div')
@@ -78,9 +88,11 @@ export function openWizard() {
         clear(colorRow)
         for (const c of COLORS) {
           colorRow.append(h('button', {
-            class: 'chip', style: { background: c, color: '#fff', outline: state.color === c ? '3px solid #111827' : 'none' },
-            onClick: () => { state.color = c; document.documentElement.style.setProperty('--brand', c); paintColors() }
-          }, ' '))
+            class: `swatch ${state.color === c.hex ? 'on' : ''}`,
+            style: { background: c.hex },
+            title: c.name,
+            onClick: () => { state.color = c.hex; document.documentElement.style.setProperty('--brand', c.hex); paintColors() }
+          }, h('span', { class: 'swatch-name' }, c.name)))
         }
       }
       paintColors()

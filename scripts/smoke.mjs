@@ -39,7 +39,7 @@ await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'domcontentlo
 // ── 0. 인증키 게이트 ────────────────────────────────────────
 await page.waitForSelector('.cover.activation')
 check('인증: 키가 없으면 앱 대신 인증 화면이 뜬다', await page.isVisible('.cover.activation input'))
-check('인증: 인증 전에는 앱 화면(탭)이 없다', !(await page.$('.app-nav button')))
+check('인증: 인증 전에는 앱 화면(탭)이 없다', !(await page.$('.app-rail button, .app-nav button')))
 
 await page.fill('.cover.activation input', 'ZZZZ-ZZZZ-ZZZZ')
 await page.click('.cover.activation .btn.primary')
@@ -98,7 +98,7 @@ check('인증: 발급한 통합키를 넣으면 앱이 열린다', !(await page.
 
 // 인증 직후에는 시작 마법사가 이어진다 (학원명 → 컬러 → 과목 → PIN)
 await runWizard('스모크 학원')
-check('마법사: 4단계 설정 + PIN 로그인으로 앱이 준비된다', await page.isVisible('.app-nav button'))
+check('마법사: 4단계 설정 + PIN 로그인으로 앱이 준비된다', await page.isVisible('.app-rail button, .app-nav button'))
 check('인증: Pro 키는 헤더에 Pro 로 표시된다', (await page.textContent('.app-header .sub'))?.includes('Pro'))
 
 // ── 1. 영어학원 시나리오 ────────────────────────────────────
@@ -106,12 +106,12 @@ await seed('english')
 await reload()
 let info = await snapshot()
 check('영어학원: 헤더에 학원명 반영', info.headerTitle === '아라 잉글리시')
-check('영어학원: 브랜드 컬러가 CSS 변수에 반영', info.brand === '#2563eb')
+check('영어학원: 브랜드 컬러가 CSS 변수에 반영', info.brand === '#2c4a7c')
 check('영어학원: custom 필드는 어학 세트', info.fieldKeys.join() === 'level,level_test,book')
 check('영어학원: 원생 목록 렌더', info.students > 0)
 
 // 출결 체크(첫 원생 탭)
-await page.click('.app-nav button[data-view="attendance"]')
+await goTo('attendance')
 await page.waitForSelector('.att-cell')
 const before = await page.getAttribute('.att-cell', 'data-status')
 await page.click('.att-cell')
@@ -146,7 +146,7 @@ check('리포트: 학습 항목이 많아지면 높이가 늘어난다 (내용 �
 // ── 2. 브랜딩 변경 반영 ─────────────────────────────────────
 const branded = await page.evaluate(async () => {
   const { saveBranding } = await import('/src/ui/branding.js')
-  await saveBranding({ name: '테스트 학원', brand_color: '#dc2626' })
+  await saveBranding({ name: '테스트 학원', brand_color: '#a63a3a' })
   const manifestHref = document.querySelector('link[rel=manifest]')?.href || ''
   const manifest = manifestHref.startsWith('blob:') ? await (await fetch(manifestHref)).json() : null
   return {
@@ -159,9 +159,9 @@ const branded = await page.evaluate(async () => {
   }
 })
 check('브랜딩: 헤더 학원명 변경', branded.header === '테스트 학원')
-check('브랜딩: --brand CSS 변수 변경', branded.brand === '#dc2626')
+check('브랜딩: --brand CSS 변수 변경', branded.brand === '#a63a3a')
 check('브랜딩: 문서 제목 변경', branded.title === '테스트 학원')
-check('브랜딩: 동적 manifest 에 학원명·컬러 반영', branded.manifestName === '테스트 학원' && branded.manifestColor === '#dc2626')
+check('브랜딩: 동적 manifest 에 학원명·컬러 반영', branded.manifestName === '테스트 학원' && branded.manifestColor === '#a63a3a')
 check('브랜딩: 로고 미업로드 시 이니셜 아이콘 생성', branded.iconIsPng)
 
 // ── 3. 백업 → 초기화 → 복원 ────────────────────────────────
@@ -222,14 +222,14 @@ check('인증: 피아노 전용 키(K)는 이 제품에서 거부', license.pian
 
 // Pro 플랜에서 동기화 설정 UI 노출
 await reload()
-await page.click('.app-nav button[data-view="settings"]')
+await goTo('settings')
 await page.waitForSelector('details')
 const hasProSection = await page.evaluate(() =>
   [...document.querySelectorAll('details summary')].some((s) => s.textContent.includes('Pro 동기화')))
 check('Pro: 설정에 동기화 섹션이 나타난다', hasProSection)
 
 // ── 4-2. 원장 반복업무 기능 ─────────────────────────────────
-await page.click('.app-nav button[data-view="today"]')
+await goTo('today')
 await page.waitForSelector('.todo-item, .todo-empty')
 const todo = await page.evaluate(() => ({
   items: [...document.querySelectorAll('.todo-item b')].map((b) => b.textContent),
@@ -311,7 +311,7 @@ await seed('taekwondo')
 await reload()
 info = await snapshot()
 check('태권도장: 학원명 전환', info.headerTitle === '성무 태권도')
-check('태권도장: 브랜드 컬러 전환', info.brand === '#dc2626')
+check('태권도장: 브랜드 컬러 전환', info.brand === '#a63a3a')
 check('태권도장: custom 필드가 체육 세트로 교체', info.fieldKeys.join() === 'belt,promo_at,goal')
 check('태권도장: 원생 카드 항목이 띠 급수로 표시', info.samplePairs.some((p) => p.label === '띠 급수' && p.value))
 
@@ -332,6 +332,29 @@ function check(name, ok) {
   console.log(`  ${ok ? '✅' : '❌'} ${name}`)
 }
 
+/**
+ * 실제 사용자처럼 메뉴를 눌러 화면을 옮긴다.
+ * 넓은 화면이면 왼쪽 사이드바, 좁으면 하단 탭(없으면 '더보기' 시트)을 쓴다.
+ */
+async function goTo(view) {
+  const rail = await page.$(`.app-rail button[data-view="${view}"]`)
+  if (rail && await rail.isVisible()) { await rail.click() } else {
+    const tab = await page.$(`.app-nav button[data-view="${view}"]`)
+    if (tab) await tab.click()
+    else {
+      await page.click('.app-nav button[data-view="more"]')
+      await page.click(`.modal .list-row:has-text("${NAV_LABEL[view] || view}")`)
+    }
+  }
+  await page.waitForFunction((v) => location.hash === `#${v}`, view)
+  await page.waitForTimeout(150)
+}
+
+const NAV_LABEL = {
+  today: '오늘', attendance: '출결', students: '원생', payments: '수납',
+  timetable: '시간표', counsel: '상담', expenses: '지출', dashboard: '현황', settings: '설정'
+}
+
 /** 시작 마법사를 끝까지 진행한다 */
 async function runWizard(name) {
   if (!(await page.$('.cover .panel'))) return
@@ -342,11 +365,11 @@ async function runWizard(name) {
   }
   await page.click('.cover .panel .btn.primary')  // 시작하기
   // Pro 키로 인증하면 기기마다 PIN 을 묻는다 (원장 기본 PIN 0000)
-  const pad = await page.waitForSelector('.pin-pad, .app-nav button')
+  const pad = await page.waitForSelector('.pin-pad, .app-rail button, .app-nav button')
   if (await page.$('.pin-pad')) {
     for (let i = 0; i < 4; i++) await page.click('.pin-pad button:has-text("0")')
   }
-  await page.waitForSelector('.app-nav button')
+  await page.waitForSelector('.app-rail button, .app-nav button')
   return pad
 }
 
@@ -369,7 +392,7 @@ async function seed(scenario) {
 
 async function reload() {
   await page.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
-  await page.waitForSelector('.app-nav button')
+  await page.waitForSelector('.app-rail button, .app-nav button')
 }
 
 function snapshot() {

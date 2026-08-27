@@ -4,7 +4,7 @@ import { getSetting, setSetting } from '../data/repo.js'
 
 export const DEFAULT_BRANDING = {
   name: '학원 관리노트',
-  brand_color: '#2563eb',
+  brand_color: '#2c4a7c',
   logo: null,       // dataURL (Lite: IndexedDB 에 그대로 저장 / Pro: Storage URL)
   phone: '',
   slogan: ''

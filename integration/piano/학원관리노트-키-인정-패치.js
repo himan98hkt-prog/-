@@ -2,12 +2,14 @@
    피아노학원 관리노트 앱에 붙여 넣는 패치
    — 학원 관리노트에서 발급한 인증키(A·K 방식)도 이 앱에서 열리게 합니다.
 
-   붙이는 법 (3분)
-     1. 피아노 관리노트 앱 HTML 을 엽니다.
-     2. 기존 라이선스 코드(licSelfValid / licKey 가 들어 있는 <script>) 바로 아래에
-        이 파일 내용을 그대로 붙여 넣습니다.
-     3. 키를 확인하는 곳에서 licSelfValid(키) 대신 licAnyValid(키, 학원명) 을 부릅니다.
-        (학원명 방식 키를 쓰던 화면이라면 두 번째 인자에 그 학원명을 그대로 넘기면 됩니다)
+   붙이는 법 (1분)
+     피아노 관리노트 index.html 의 </body> 바로 위에 아래 한 줄을 넣고 이 파일을 같은 폴더에 둡니다.
+
+         <script src="academy-note-key.js"><\/script>
+
+     또는 이 파일 내용을 <script> ... <\/script> 로 감싸 </body> 바로 위에 붙여 넣습니다.
+     기존 코드는 한 글자도 고치지 않습니다 — 앱의 licSelfValid 를 감싸서
+     "원래 규칙으로 먼저 보고, 아니면 학원 관리노트 규칙으로 한 번 더" 보게 만듭니다.
 
    붙여도 기존 동작은 하나도 바뀌지 않습니다.
      · 지금까지 판 피아노 키(자기검증 방식·학원명 방식) → 그대로 통과
@@ -118,4 +120,16 @@
   root.anVerifyAcademyNoteKey = anVerify
   root.licAnyValid = licAnyValid
   root.licDescribe = licDescribe
+
+  // 앱에 이미 있는 판정 함수를 감싼다 (기존 동작은 그대로, 우리 키만 추가로 인정)
+  //   licValid(학원명, 키) = licKey(학원명) === 키 || licSelfValid(키)
+  // 이므로 licSelfValid 하나만 감싸면 인증 화면과 실행 중 재검증 양쪽에 모두 적용된다.
+  if (typeof root.licSelfValid === 'function' && !root.licSelfValid.__anPatched) {
+    var origSelfValid = root.licSelfValid
+    var wrapped = function (key) {
+      return origSelfValid(key) || anVerify(key).ok
+    }
+    wrapped.__anPatched = true
+    root.licSelfValid = wrapped
+  }
 })();

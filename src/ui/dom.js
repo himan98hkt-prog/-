@@ -78,7 +78,8 @@ export function modal({ title, body, actions = [], wide = false, onClose }) {
   const card = h('div', { class: `modal ${wide ? 'wide' : ''}` },
     h('div', { class: 'modal-head' },
       h('h3', {}, title),
-      h('button', { class: 'icon-btn', onClick: close, 'aria-label': '닫기' }, '✕')
+      h('button', { class: 'icon-btn', onClick: close, 'aria-label': '닫기', title: '닫기' },
+        h('span', { style: { fontSize: '18px', lineHeight: '1' } }, '×'))
     ),
     h('div', { class: 'modal-body' }, body),
     actions.length ? footer : null

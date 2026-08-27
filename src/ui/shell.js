@@ -1,6 +1,7 @@
 // 앱 셸 — 헤더/탭/라우팅/로그인 커버.
 
-import { h, $, clear, toast } from './dom.js'
+import { h, $, clear, toast, modal } from './dom.js'
+import { icon } from './icons.js'
 import { applyBranding, branding, logoDataUrl, initialsOf } from './branding.js'
 import * as repo from '../data/repo.js'
 import { navFor, can, ROLES } from '../core/perm.js'
@@ -26,6 +27,7 @@ export const app = {
   main: null,
   header: null,
   nav: null,
+  rail: null,
   current: null,
   cleanup: null,
   allowPro: false,
@@ -46,9 +48,10 @@ export async function boot({ allowPro = false } = {}) {
   app.root = $('#app')
   clear(app.root)
   app.header = h('header', { class: 'app-header' })
+  app.rail = h('nav', { class: 'app-rail', 'aria-label': '주요 메뉴' })
   app.main = h('main')
-  app.nav = h('nav', { class: 'app-nav' })
-  app.root.append(app.header, app.main, app.nav)
+  app.nav = h('nav', { class: 'app-nav', 'aria-label': '주요 메뉴' })
+  app.root.append(app.header, h('div', { class: 'app-body' }, app.rail, app.main), app.nav)
 
   if (!repo.getSetting('wizardDone')) {
     await openWizard()
@@ -81,40 +84,94 @@ export function renderHeader() {
   const b = branding()
   const user = currentUser()
   clear(app.header)
-  const logo = b.logo
-    ? h('img', { class: 'logo', src: b.logo, alt: b.name })
-    : h('div', { class: 'logo center', style: { fontWeight: '700', fontSize: '13px' } }, initialsOf(b.name))
 
-  const syncState = app.sync?.status?.() || null
+  const logo = b.logo
+    ? h('img', { class: 'logo', src: b.logo, alt: '' })
+    : h('div', { class: 'logo' }, initialsOf(b.name))
+
+  const sync = app.sync?.status?.() || null
+  const ent = app.entitlement || entitlement()
+  const badge = entitlementBadge(ent)
+
   app.header.append(
     logo,
     h('div', { class: 'grow truncate' },
       h('div', { class: 'title truncate' }, b.name),
       h('div', { class: 'sub' },
-        `${entitlementBadge(app.entitlement || entitlement())}${user ? ` · ${user.name}(${ROLES[user.role]?.label || user.role})` : ''}`,
-        syncState ? h('span', { style: { marginLeft: '6px' } },
-          h('span', { class: `sync-dot ${syncState.online ? 'on' : 'off'}` }),
-          syncState.pending ? ` 대기 ${syncState.pending}` : ' 동기화됨') : null
+        h('span', { class: `badge ${ent.mode === 'trial' ? 'warn' : 'brand'}` }, badge),
+        user ? h('span', { class: 'truncate' }, `${user.name} · ${ROLES[user.role]?.label || user.role}`) : null,
+        sync
+          ? h('span', { class: 'row', style: { gap: '4px' } },
+            h('span', { class: `sync-dot ${sync.online ? 'on' : 'off'}` }),
+            h('span', {}, sync.pending ? `대기 ${sync.pending}` : '동기화됨'))
+          : null
       )
     ),
-    h('button', { class: 'hbtn', onClick: () => openKiosk() }, '키오스크'),
-    user ? h('button', {
-      class: 'hbtn',
-      onClick: async () => { logout(); location.reload() }
-    }, '잠금') : null
+    h('button', { class: 'hbtn', onClick: () => openKiosk(), title: '학생이 직접 출석 체크하는 화면' },
+      icon('kiosk', { size: 17 }), h('span', { class: 'kiosk-label' }, '키오스크')),
+    user
+      ? h('button', {
+        class: 'hbtn', title: '자리를 비울 때 잠급니다',
+        onClick: async () => { logout(); location.reload() }
+      }, icon('lock', { size: 17 }), h('span', { class: 'kiosk-label' }, '잠금'))
+      : null
   )
 }
 
 export function renderNav() {
   const user = currentUser()
   const items = navFor(user?.role || 'owner')
-  clear(app.nav)
+  const primary = items.filter((n) => n.primary)
+  const rest = items.filter((n) => !n.primary)
+
+  // 데스크톱: 왼쪽 사이드바에 전부 펼친다
+  clear(app.rail)
+  app.rail.append(h('div', { class: 'rail-label' }, '메뉴'))
   for (const item of items) {
+    if (item.id === 'timetable' && rest.length) {
+      app.rail.append(h('div', { class: 'rail-label' }, '관리'))
+    }
+    app.rail.append(h('button', {
+      class: app.current === item.id ? 'active' : '',
+      dataset: { view: item.id },
+      onClick: () => { location.hash = item.id }
+    }, icon(item.icon, { size: 19 }), h('span', {}, item.label)))
+  }
+
+  // 모바일: 다섯 칸 + 더보기
+  clear(app.nav)
+  for (const item of primary) {
     app.nav.append(h('button', {
       class: app.current === item.id ? 'active' : '',
       dataset: { view: item.id },
       onClick: () => { location.hash = item.id }
-    }, h('span', { class: 'ico' }, item.icon), h('span', {}, item.label)))
+    }, h('span', { class: 'ico' }, icon(item.icon, { size: 21 })), h('span', {}, item.label)))
+  }
+  if (rest.length) {
+    const activeInRest = rest.some((n) => n.id === app.current)
+    app.nav.append(h('button', {
+      class: activeInRest ? 'active' : '',
+      dataset: { view: 'more' },
+      onClick: () => openMoreSheet(rest)
+    }, h('span', { class: 'ico' }, icon('more', { size: 21 })), h('span', {}, '더보기')))
+  }
+}
+
+/** 하단 탭에 들어가지 못한 메뉴 — 큰 글씨·설명과 함께 보여 준다 */
+function openMoreSheet(items) {
+  const list = h('div', {})
+  const { close } = modal({ title: '메뉴', body: list, actions: [] })
+  for (const item of items) {
+    list.append(h('button', {
+      class: 'list-row link',
+      style: { width: '100%', border: 0, background: 'none', textAlign: 'left', cursor: 'pointer' },
+      onClick: () => { close(); location.hash = item.id }
+    },
+      h('span', { class: 'todo-ico', style: { width: '38px', height: '38px' } }, icon(item.icon, { size: 19 })),
+      h('span', { class: 'grow' },
+        h('b', {}, item.label),
+        h('div', { class: 'small muted' }, item.desc || '')),
+      icon('chevronRight', { size: 18 })))
   }
 }
 

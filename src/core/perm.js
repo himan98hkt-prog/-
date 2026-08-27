@@ -23,16 +23,18 @@ export function visibleClasses(user, classes = []) {
   return classes.filter((c) => c.teacher_id === user.id)
 }
 
+// primary: 휴대폰 하단 탭에 놓을 다섯 개. 나머지는 '더보기' 로 들어간다.
+// (탭이 아홉 개면 아무것도 눈에 들어오지 않는다)
 export const NAV = [
-  { id: 'today', label: '오늘', icon: '🏠', perm: 'attendance:read' },
-  { id: 'attendance', label: '출결', icon: '✓', perm: 'attendance:read' },
-  { id: 'students', label: '원생', icon: '👤', perm: 'students:read' },
-  { id: 'payments', label: '수납', icon: '₩', perm: 'payments:read' },
-  { id: 'timetable', label: '시간표', icon: '🗓', perm: 'timetable:read' },
-  { id: 'counsel', label: '상담', icon: '💬', perm: 'counsel:read' },
-  { id: 'expenses', label: '지출', icon: '📉', perm: 'expenses:read' },
-  { id: 'dashboard', label: '현황', icon: '📊', perm: 'stats:read' },
-  { id: 'settings', label: '설정', icon: '⚙', perm: 'settings:read' }
+  { id: 'today', label: '오늘', icon: 'home', perm: 'attendance:read', primary: true, desc: '오늘 처리할 일' },
+  { id: 'attendance', label: '출결', icon: 'checkCircle', perm: 'attendance:read', primary: true, desc: '반별 출석 체크' },
+  { id: 'students', label: '원생', icon: 'users', perm: 'students:read', primary: true, desc: '원생 등록·검색' },
+  { id: 'payments', label: '수납', icon: 'won', perm: 'payments:read', primary: true, desc: '청구·수납·미납' },
+  { id: 'timetable', label: '시간표', icon: 'calendar', perm: 'timetable:read', desc: '주간 수업 배치' },
+  { id: 'counsel', label: '상담', icon: 'chat', perm: 'counsel:read', desc: '상담일지·등록 전환' },
+  { id: 'expenses', label: '지출', icon: 'wallet', perm: 'expenses:read', desc: '학원 운영비' },
+  { id: 'dashboard', label: '현황', icon: 'chart', perm: 'stats:read', desc: '매출·출석률 추이' },
+  { id: 'settings', label: '설정', icon: 'settings', perm: 'settings:read', desc: '학원 정보·백업·인증' }
 ]
 
 export function navFor(role) {

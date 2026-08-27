@@ -63,7 +63,7 @@ export function buildTodos(input) {
     items.push({
       id: 'attendance-pending',
       level: TODO_LEVEL.WARN,
-      icon: '✅',
+      icon: 'checkCircle',
       title: `출결 미체크 ${pending.length}개 반`,
       desc: pending.map((c) => c.name).slice(0, 4).join(', ') + (pending.length > 4 ? ` 외 ${pending.length - 4}개` : ''),
       count: pending.length,
@@ -84,7 +84,7 @@ export function buildTodos(input) {
     items.push({
       id: 'absent-notice',
       level: TODO_LEVEL.DANGER,
-      icon: '📮',
+      icon: 'send',
       title: `결석 안내 ${absentees.length}명`,
       desc: absentees.map((s) => s.name).slice(0, 5).join(', '),
       count: absentees.length,
@@ -101,7 +101,7 @@ export function buildTodos(input) {
     items.push({
       id: 'unpaid',
       level: TODO_LEVEL.DANGER,
-      icon: '💳',
+      icon: 'won',
       title: `미납 ${overdue.length}건 · ${sum.toLocaleString('ko-KR')}원`,
       desc: `납부 기준일(${dueDay}일)이 지났습니다. 일괄 안내로 한 번에 보낼 수 있습니다`,
       count: overdue.length,
@@ -116,7 +116,7 @@ export function buildTodos(input) {
     items.push({
       id: 'makeup',
       level: TODO_LEVEL.INFO,
-      icon: '🔁',
+      icon: 'repeat',
       title: `오늘 보강 ${makeups.length}건`,
       desc: makeups.map((m) => studentById.get(m.student_id)?.name).filter(Boolean).join(', '),
       count: makeups.length,
@@ -135,7 +135,7 @@ export function buildTodos(input) {
     items.push({
       id: 'counsel-followup',
       level: TODO_LEVEL.WARN,
-      icon: '📞',
+      icon: 'phone',
       title: `후속 상담 대기 ${staleCounsel.length}건`,
       desc: staleCounsel.slice(0, 3).map((c) => `${studentById.get(c.student_id)?.name || '신규'} — ${c.next_action}`).join(' / '),
       count: staleCounsel.length,
@@ -149,7 +149,7 @@ export function buildTodos(input) {
     items.push({
       id: 'backup',
       level: backupDays === null || backupDays >= backupWarnDays * 2 ? TODO_LEVEL.DANGER : TODO_LEVEL.WARN,
-      icon: '💾',
+      icon: 'save',
       title: backupDays === null ? '백업을 아직 한 번도 하지 않았습니다' : `백업한 지 ${backupDays}일 지났습니다`,
       desc: '자료는 이 기기에만 있습니다. 파일 하나로 내려받아 두세요',
       count: 1,
