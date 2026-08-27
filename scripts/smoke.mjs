@@ -101,6 +101,16 @@ await runWizard('스모크 학원')
 check('마법사: 4단계 설정 + PIN 로그인으로 앱이 준비된다', await page.isVisible('.app-rail button, .app-nav button'))
 check('인증: Pro 키는 헤더에 Pro 로 표시된다', (await page.textContent('.app-header .sub'))?.includes('Pro'))
 
+// 처음 들어온 선생님에게 뜨는 안내 — 확인하고 닫는다
+await page.waitForSelector('.coach .box')
+const coachText = await page.textContent('.coach .box')
+check('첫 사용 안내: 앱을 처음 열면 3장짜리 안내가 뜬다', /오늘|출석|문자/.test(coachText || ''))
+for (let i = 0; i < 3; i++) {
+  await page.click('.coach .btn.primary')
+  await page.waitForTimeout(120)
+}
+check('첫 사용 안내: 끝까지 넘기면 사라진다', !(await page.$('.coach')))
+
 // ── 1. 영어학원 시나리오 ────────────────────────────────────
 await seed('english')
 await reload()
@@ -382,6 +392,7 @@ async function seed(scenario) {
     const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
     // 시드로 사용자 id 가 바뀌므로 세션도 새 원장으로 갈아 끼운다
     // (Pro 는 sessionStorage 를 먼저 보기 때문에 둘 다 써 준다)
+    await db.settings.put({ key: 'coachDone', value: true })
     if (owner) {
       const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
       sessionStorage.setItem('academy-note:session', payload)

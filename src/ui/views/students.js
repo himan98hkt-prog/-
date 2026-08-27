@@ -9,6 +9,7 @@ import { toYmd, addMonths, toMonth } from '../../core/date.js'
 import { summarize } from '../../core/attendance.js'
 import { openReportModal } from './report-modal.js'
 import { openNoticeModal } from './notice-modal.js'
+import { icon } from '../icons.js'
 import { openImportStudents } from './import-students.js'
 import { openBulkNotice } from './bulk-notice.js'
 import { downloadCsv } from '../../core/csv.js'
@@ -36,18 +37,23 @@ export async function render(root, ctx) {
     h('div', { class: 'row wrap' },
       h('div', { class: 'grow' }, search),
       classSelect,
-      canWrite ? h('button', { class: 'btn primary', onClick: () => openEditor() }, '+ 원생 등록') : null
+      canWrite ? h('button', { class: 'btn primary', onClick: () => openEditor() }, icon('plus', { size: 17 }), '원생 등록') : null
     ),
     h('div', { class: 'row wrap', style: { marginTop: '8px' } },
-      canWrite ? h('button', { class: 'btn sm', onClick: () => openImportStudents({ onDone: apply }) }, '엑셀 가져오기') : null,
-      h('button', { class: 'btn sm', onClick: exportCsv }, '명단 내보내기'),
-      h('button', { class: 'btn sm', onClick: bulkNotice }, '보이는 원생에게 일괄 안내')
+      canWrite ? h('button', { class: 'btn sm', onClick: () => openImportStudents({ onDone: apply }) }, icon('upload', { size: 15 }), '엑셀에서 가져오기') : null,
+      h('button', { class: 'btn sm', onClick: exportCsv }, icon('download', { size: 15 }), '명단 내보내기'),
+      h('button', { class: 'btn sm', onClick: bulkNotice }, icon('send', { size: 15 }), '보이는 원생에게 일괄 안내')
     ),
     h('div', { class: 'row wrap', style: { marginTop: '10px' } }, statusChips, h('span', { class: 'right' }, count))
   )
 
   const viewport = h('div', { class: 'vl-viewport' })
-  root.append(head, h('div', { style: { marginTop: '12px' } }, viewport))
+  root.append(
+    h('div', { class: 'page-head' },
+      h('h1', {}, '원생'),
+      h('p', {}, '이름을 누르면 출석률·수납·형제까지 한 장으로 보입니다.')),
+    head,
+    h('div', { style: { marginTop: '12px' } }, viewport))
 
   const list = new VirtualList(viewport, {
     rowHeight: 64,

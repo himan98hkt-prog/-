@@ -14,6 +14,7 @@
   /* 브랜드 — 학원이 고른 색. branding.js 가 실행 중에 덮어쓴다 */
   --brand: #2f6d8f;
   --brand-dark: #23566f;
+  --brand-lift: #4a89ab;
   --brand-light: #d8e7ef;
   --brand-soft: #f0f6f9;
   --on-brand: #ffffff;
@@ -55,12 +56,12 @@
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
   --font-serif: "Nanum Myeongjo", "AppleMyungjo", Batang, serif;
-  --step: 15px;
+  --step: 16px;
 }
 
 /* 큰 글씨 모드 — 설정에서 켠다 */
-:root[data-textsize="large"] { --step: 17px; }
-:root[data-textsize="xlarge"] { --step: 19px; }
+:root[data-textsize="large"] { --step: 18px; }
+:root[data-textsize="xlarge"] { --step: 20.5px; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -199,22 +200,25 @@ main { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
 
 /* ── 버튼 ────────────────────────────────────────────────── */
 .btn {
-  --btn-h: 42px;
+  --btn-h: 46px;
   height: var(--btn-h); display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  border-radius: var(--radius-sm); padding: 0 15px; cursor: pointer;
-  font-size: .93em; font-weight: 600; white-space: nowrap; letter-spacing: -.01em;
+  border-radius: var(--radius-sm); padding: 0 16px; cursor: pointer;
+  font-size: .95em; font-weight: 700; white-space: nowrap; letter-spacing: -.01em;
   box-shadow: var(--shadow-1);
   transition: background .15s, border-color .15s, box-shadow .15s, transform .08s, color .15s;
 }
 .btn:hover { background: var(--surface-2); border-color: var(--ink-3); }
 .btn:active { transform: translateY(1px); box-shadow: none; }
 
+/* 주 동작 버튼 — 한 화면에 하나만. 그라데이션과 그림자로 "여기를 누르세요" 를 분명히 한다 */
 .btn.primary {
-  background: var(--brand); color: var(--on-brand); border-color: var(--brand);
-  box-shadow: 0 1px 2px rgba(26,23,20,.10), 0 6px 14px -8px var(--brand);
+  background: linear-gradient(160deg, var(--brand-lift), var(--brand) 55%, var(--brand-dark));
+  color: var(--on-brand); border-color: transparent; font-weight: 800;
+  box-shadow: 0 10px 20px -12px var(--brand), 0 1px 2px rgba(26,23,20,.12);
 }
-.btn.primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.primary:active { filter: brightness(.96); }
 
 .btn.soft { background: var(--brand-soft); color: var(--brand-dark); border-color: transparent; box-shadow: none; }
 .btn.soft:hover { background: var(--brand-light); }
@@ -225,8 +229,8 @@ main { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
 .btn.danger { color: var(--danger); border-color: var(--danger-soft); background: var(--danger-soft); box-shadow: none; }
 .btn.danger:hover { background: #f6dedb; border-color: var(--danger); }
 
-.btn.sm { --btn-h: 34px; padding: 0 11px; font-size: .84em; border-radius: 9px; }
-.btn.lg { --btn-h: 52px; padding: 0 22px; font-size: 1.02em; border-radius: var(--radius); }
+.btn.sm { --btn-h: 36px; padding: 0 12px; font-size: .86em; border-radius: 9px; }
+.btn.lg { --btn-h: 56px; padding: 0 24px; font-size: 1.06em; font-weight: 800; border-radius: var(--radius); }
 .btn.block { display: flex; width: 100%; }
 .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .btn svg { flex: none; }
@@ -324,10 +328,11 @@ input[type=checkbox] { width: 20px; height: 20px; min-height: 0; accent-color: v
 table { width: 100%; border-collapse: collapse; font-size: .93em; }
 th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line-2); }
 th {
-  font-size: .76em; color: var(--ink-3); font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; border-bottom: 1px solid var(--line); background: var(--surface-2);
-  position: sticky; top: 0; z-index: 1;
+  font-size: .78em; color: #fff; font-weight: 800; letter-spacing: .02em;
+  background: var(--ink); border-bottom: 0; position: sticky; top: 0; z-index: 1;
 }
+th:first-child { border-radius: var(--radius) 0 0 0; }
+th:last-child { border-radius: 0 var(--radius) 0 0; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr:hover { background: var(--brand-soft); }
 tbody tr:last-child td { border-bottom: 0; }
@@ -569,4 +574,78 @@ textarea.msg { width: 100%; min-height: 130px; font-size: .95em; }
 /* 넓은 화면에서는 사이드바만 쓴다 (아래 탭은 감춘다 — 규칙 순서상 여기서 확정) */
 @media (min-width: 1024px) {
   .app-nav { display: none !important; }
+}
+
+/* ── 안내 상자 ───────────────────────────────────────────────
+   설명이 필요한 자리에 문장을 그냥 흘려 두면 아무도 읽지 않는다.
+   왼쪽 굵은 선 + 색으로 "읽어야 하는 것" 임을 먼저 알린다. */
+.callout {
+  border: 1px solid var(--line); border-left: 5px solid var(--ink-3);
+  border-radius: 0 var(--radius) var(--radius) 0; padding: 14px 16px; margin: 14px 0;
+  font-size: .92em; line-height: 1.75; background: var(--surface-2); color: var(--ink-2);
+}
+.callout b { color: var(--ink); }
+.callout.tip { background: #fdf8ec; border-color: #ecdcb4; border-left-color: var(--gold); }
+.callout.ok { background: var(--ok-soft); border-color: #bfddcb; border-left-color: var(--ok); }
+.callout.warn { background: var(--warn-soft); border-color: #ecd9b4; border-left-color: var(--warn); }
+.callout.bad { background: var(--danger-soft); border-color: #f0c9ce; border-left-color: var(--danger); }
+.callout p { margin: 0 0 6px; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* ── 번호가 붙는 절차 안내 ───────────────────────────────── */
+ol.steps { list-style: none; counter-reset: st; margin: 16px 0; padding: 0; }
+ol.steps li {
+  counter-increment: st; position: relative; padding: 13px 0 13px 48px;
+  border-bottom: 1px solid var(--line-2); font-size: .95em; line-height: 1.7;
+}
+ol.steps li:last-child { border-bottom: 0; }
+ol.steps li::before {
+  content: counter(st); position: absolute; left: 0; top: 12px;
+  width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--gold);
+  font-size: .88em; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+
+/* ── 방금 한 일 되돌리기 ─────────────────────────────────── */
+.undobar {
+  display: flex; align-items: center; gap: 10px; background: #fdf8ec;
+  border: 1px solid #ecdcb4; border-radius: var(--radius); padding: 11px 14px;
+  margin: 12px 0 0; font-size: .9em; color: var(--ink-2);
+}
+.undobar .grow { min-width: 0; }
+
+/* ── 떠 있는 도움말 버튼 ─────────────────────────────────── */
+.helpfab {
+  position: fixed; right: 18px; bottom: calc(var(--nav-h) + 18px); z-index: 30;
+  width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-2); cursor: pointer;
+  box-shadow: var(--shadow-2); display: flex; align-items: center; justify-content: center;
+  transition: transform .12s, box-shadow .15s;
+}
+.helpfab:hover { transform: translateY(-2px); box-shadow: var(--shadow-3); }
+@media (min-width: 1024px) { .helpfab { bottom: 22px; } }
+@media print { .helpfab { display: none; } }
+
+/* 좁은 화면 — 할 일 카드의 버튼은 글줄을 밀지 않고 아래로 내려간다 */
+@media (max-width: 560px) {
+  .todo-item { flex-wrap: wrap; }
+  .todo-item .grow { flex: 1 1 60%; }
+  .todo-item .btn { width: 100%; margin-top: 4px; }
+  .stat .v { font-size: 1.35em; }
+  .greeting h1 { font-size: 1.32em; }
+  .page-head h1 { font-size: 1.25em; }
+  .list-row { padding: 12px 14px; }
+  .card { padding: 14px; }
+  .view { padding: 14px 12px 24px; }
+}
+/* 금액이 길어도 타일 밖으로 나가지 않게 */
+.stat .v { overflow-wrap: anywhere; }
+
+/* 날짜 이동 줄 — 좁은 화면에서는 화살표만, 가운데 날짜가 넓게 */
+.datebar { gap: 8px; }
+.datebar .btn:first-child, .datebar .btn:last-child { flex: none; }
+@media (max-width: 560px) {
+  .datebar .lbl { display: none; }
+  .datebar .btn:first-child, .datebar .btn:last-child { width: 46px; padding: 0; }
+  .datebar > .btn:nth-child(2) { flex: 1; min-width: 0; }
+  .att-board { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }

@@ -12,13 +12,16 @@ import { db } from '../../data/db.js'
 import { restoreFromBackup } from '../../data/restore.js'
 import { downloadCsv } from '../../core/csv.js'
 import { toYmd, toMonth, addMonths, daysBetween } from '../../core/date.js'
+import { showCoach } from '../coach.js'
+import { openInstallGuide } from '../install.js'
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
   const isOwner = (user?.role || 'owner') === 'owner'
 
   const sections = [
-    section('브랜딩 (학원명 · 로고 · 색상)', brandingSection(repo), true),
+    section('화면 · 사용 편의', displaySection(repo), true),
+    section('브랜딩 (학원명 · 로고 · 색상)', brandingSection(repo)),
     section('학습 항목 (계열별 custom 필드)', customFieldSection(repo)),
     section('과목 · 반 · 강사', peopleSection(repo, isOwner)),
     section('알림 문구 템플릿', templateSection(repo)),
@@ -36,6 +39,37 @@ function section(title, body, open = false) {
   return h('details', { class: 'card', open, style: { marginBottom: '12px' } },
     h('summary', { style: { cursor: 'pointer', fontWeight: '700' } }, title),
     h('div', { style: { marginTop: '12px' } }, body))
+}
+
+// ── 화면·사용 편의 ──────────────────────────────────────────
+// 선생님 연령대가 넓다. 글씨 크기와 안내는 언제든 다시 조절할 수 있어야 한다.
+function displaySection(repo) {
+  const cur = repo.getSetting('textSize') || 'normal'
+  const box = h('div', { class: 'row wrap' })
+  const SIZES = [['normal', '보통'], ['large', '크게'], ['xlarge', '아주 크게']]
+  const paint = () => {
+    clear(box)
+    for (const [key, label] of SIZES) {
+      box.append(h('button', {
+        class: `chip ${(repo.getSetting('textSize') || 'normal') === key ? 'active' : ''}`,
+        onClick: async () => {
+          await repo.setSetting('textSize', key)
+          document.documentElement.dataset.textsize = key
+          paint()
+          toast(`글씨를 ${label} 로 바꿨습니다`, 'ok')
+        }
+      }, label))
+    }
+  }
+  paint()
+
+  return h('div', {},
+    field('글씨 크기', box, '화면 전체 글씨가 함께 커집니다. 언제든 되돌릴 수 있습니다.'),
+    h('div', { class: 'row wrap', style: { marginTop: '6px' } },
+      h('button', { class: 'btn', onClick: () => showCoach() }, '처음 안내 다시 보기'),
+      h('button', { class: 'btn', onClick: () => openInstallGuide() }, '홈 화면에 설치하기')),
+    h('div', { class: 'callout tip' },
+      h('p', {}, h('b', {}, '화면 오른쪽 아래 동그란 버튼'), ' 을 누르면 언제든 안내를 다시 볼 수 있습니다.')))
 }
 
 // ── 브랜딩 ──────────────────────────────────────────────────

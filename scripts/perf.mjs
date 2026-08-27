@@ -86,6 +86,7 @@ await page.evaluate(async (key) => {
     value: { key: res.key, key_hash: hashKey(res.key), plan: res.plan, product: res.product, activated_at: new Date().toISOString() }
   })
   await db.settings.put({ key: 'wizardDone', value: true })
+  await db.settings.put({ key: 'coachDone', value: true })
   const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
   if (owner) {
     const payload = JSON.stringify({ userId: owner.id, at: Date.now() })

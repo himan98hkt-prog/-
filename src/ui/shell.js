@@ -8,6 +8,8 @@ import { navFor, can, ROLES } from '../core/perm.js'
 import { currentUser, login, logout, findByPin, autoLoginIfSolo } from './session.js'
 import { openWizard } from './views/wizard.js'
 import { requireActivation, entitlement, entitlementBadge } from './activation.js'
+import { showCoach } from './coach.js'
+import { watchInstallPrompt, openInstallGuide, isStandalone } from './install.js'
 import { openKiosk } from './views/kiosk.js'
 
 import * as today from './views/today.js'
@@ -66,10 +68,34 @@ export async function boot({ allowPro = false } = {}) {
     startSync().catch((e) => console.warn('동기화 시작 실패', e))
   }
 
+  watchInstallPrompt()
+  renderHelpButton()
   window.addEventListener('hashchange', () => mount(location.hash.slice(1) || 'today'))
   renderHeader()
   renderNav()
   mount(location.hash.slice(1) || 'today')
+}
+
+/** 화면 오른쪽 아래 물음표 — 언제든 안내를 다시 볼 수 있게 */
+function renderHelpButton() {
+  const btn = h('button', {
+    class: 'helpfab', title: '사용 안내', 'aria-label': '사용 안내',
+    onClick: () => {
+      modal({
+        title: '도움말',
+        body: h('div', {},
+          h('p', { class: 'muted small' }, '필요한 것을 골라 주세요.'),
+          h('button', { class: 'btn block lg', onClick: () => { document.querySelector('.modal-backdrop')?.remove(); showCoach() } },
+            icon('sparkle', { size: 18 }), '처음 안내 다시 보기'),
+          h('button', { class: 'btn block lg', style: { marginTop: '8px' }, onClick: () => { document.querySelector('.modal-backdrop')?.remove(); openInstallGuide() } },
+            icon('download', { size: 18 }), isStandalone() ? '설치 상태 확인' : '홈 화면에 설치하기'),
+          h('div', { class: 'callout tip' },
+            h('p', {}, h('b', {}, '막히면 여기를 누르세요.'), ' 화면마다 무엇을 하는 곳인지 위쪽에 한 줄로 적어 두었습니다.'))),
+        actions: [{ label: '닫기' }]
+      })
+    }
+  }, icon('sparkle', { size: 20 }))
+  document.body.append(btn)
 }
 
 export async function startSync() {

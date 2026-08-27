@@ -46,6 +46,7 @@ await page.evaluate(async (key) => {
     key: 'license',
     value: { key: res.key, key_hash: hashKey(res.key), plan: res.plan, product: res.product, activated_at: new Date().toISOString() }
   })
+  await db.settings.put({ key: 'coachDone', value: true })
   const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
   if (owner) {
     const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
@@ -132,8 +133,22 @@ await mobile.setViewportSize({ width: 390, height: 844 })
 await mobile.goto(`http://localhost:${PORT}/lite.html`, { waitUntil: 'load' })
 await mobile.waitForSelector('.app-nav button')
 await mobile.waitForTimeout(600)
-await mobile.screenshot({ path: `${OUT}/${SCENARIO}-12-모바일-출결.png` })
-console.log(`  ✓ ${SCENARIO}-12-모바일-출결.png`)
+await mobile.screenshot({ path: `${OUT}/${SCENARIO}-12-모바일-오늘.png` })
+console.log(`  ✓ ${SCENARIO}-12-모바일-오늘.png`)
+
+// 모바일 출결 — 실제로 가장 많이 쓰는 화면
+await mobile.click('.app-nav button[data-view="attendance"]')
+await mobile.waitForSelector('.att-cell')
+await mobile.waitForTimeout(400)
+await mobile.screenshot({ path: `${OUT}/${SCENARIO}-13-모바일-출결.png` })
+console.log(`  ✓ ${SCENARIO}-13-모바일-출결.png`)
+
+// 모바일 '더보기' 시트
+await mobile.click('.app-nav button[data-view="more"]')
+await mobile.waitForSelector('.modal')
+await mobile.waitForTimeout(300)
+await mobile.screenshot({ path: `${OUT}/${SCENARIO}-14-모바일-더보기.png` })
+console.log(`  ✓ ${SCENARIO}-14-모바일-더보기.png`)
 
 await context.close()
 kill()

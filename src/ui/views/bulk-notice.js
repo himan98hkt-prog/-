@@ -29,6 +29,12 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
     .filter(Boolean)
     .map((s) => ({ student: s, on: true }))
 
+  // 오늘 이미 보낸 사람은 표시해 준다 (같은 학부모에게 두 번 보내는 실수를 막는다)
+  const sentToday = new Set()
+  repo.db.notices.where('sent_at').startsWith(toYmd()).each((n) => sentToday.add(n.student_id))
+    .then(() => paint())
+    .catch(() => {})
+
   const listBox = h('div', { style: { maxHeight: '240px', overflow: 'auto' } })
   const preview = h('textarea', { class: 'msg', readonly: true })
   const chips = h('div', { class: 'row wrap' })
@@ -70,6 +76,7 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
           amounts[row.student.id] != null
             ? h('span', { class: 'small muted' }, ` · ${formatWon(amounts[row.student.id])}`)
             : null),
+        sentToday.has(row.student.id) ? h('span', { class: 'badge ok' }, '오늘 보냄') : null,
         h('span', { class: `small ${phone ? 'muted' : ''}`, style: phone ? {} : { color: 'var(--danger)' } },
           phone || '연락처 없음')))
     }
@@ -108,8 +115,9 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
       h('div', { style: { marginTop: '10px' } },
         h('div', { class: 'small muted', style: { marginBottom: '4px' } }, '미리보기 (첫 번째 대상 기준 — 이름·금액은 각자 값으로 바뀝니다)'),
         preview),
-      h('p', { class: 'small muted' },
-        '문구를 복사해 문자·카톡에 붙여넣어 발송하세요. 누르는 순간 발송 이력이 기록되어 "누구에게 보냈는지" 가 남습니다.')),
+      h('div', { class: 'callout tip' },
+        h('p', {}, h('b', {}, '보내는 방법'), ' — 아래 "전체 문구 복사" 를 누르고, 문자앱에서 붙여넣기(길게 누르기 → 붙여넣기) 하시면 됩니다.'),
+        h('p', {}, '누르는 순간 발송 이력이 남아, 같은 학부모에게 두 번 보내는 일을 막아 줍니다.'))),
     actions: [
       {
         label: '번호만 복사', keepOpen: true, onClick: async () => {

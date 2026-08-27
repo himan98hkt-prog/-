@@ -8,6 +8,7 @@ import { openBulkNotice } from './bulk-notice.js'
 import { openReceipt } from '../receipt.js'
 import { downloadCsv } from '../../core/csv.js'
 import { printTable } from '../print.js'
+import { icon } from '../icons.js'
 
 export async function render(root, ctx) {
   const { repo } = ctx
@@ -16,37 +17,61 @@ export async function render(root, ctx) {
   let filter = '전체'
   let query = ''
   let rows = []
+  let shown = 60          // 처음에는 60줄만. 필요하면 아래에서 더 불러온다
 
   const statBox = h('div', { class: 'grid cols4' })
   const tbody = h('tbody')
   const filterBar = h('div', { class: 'row wrap' })
 
-  const monthInput = h('input', { type: 'month', value: month, style: { maxWidth: '160px' }, onChange: (e) => { month = e.target.value; load() } })
+  const monthInput = h('input', {
+    type: 'month', value: month, class: 'hidden',
+    onChange: (e) => { month = e.target.value; paintMonth(); load() }
+  })
+  const monthLabel = h('button', {
+    class: 'btn', style: { minWidth: '150px' },
+    onClick: () => { monthInput.showPicker ? monthInput.showPicker() : monthInput.click() }
+  })
+  const paintMonth = () => {
+    const [y, m] = month.split('-')
+    clear(monthLabel)
+    monthLabel.append(icon('calendar', { size: 17 }), h('b', {}, `${y}년 ${Number(m)}월`))
+    monthInput.value = month
+  }
+  paintMonth()
+  const shiftMonth = (n) => { month = addMonths(month, n); paintMonth(); load() }
 
   const head = h('div', { class: 'card' },
     h('div', { class: 'row wrap' },
-      h('button', { class: 'btn sm', onClick: () => { month = addMonths(month, -1); monthInput.value = month; load() } }, '‹'),
-      monthInput,
-      h('button', { class: 'btn sm', onClick: () => { month = addMonths(month, 1); monthInput.value = month; load() } }, '›'),
-      h('input', { type: 'search', placeholder: '원생 검색', style: { maxWidth: '200px' }, onInput: debounce((e) => { query = e.target.value; paint() }, 200) }),
-      canWrite ? h('button', { class: 'btn right', onClick: generateBills }, '이번 달 청구 생성') : null,
-      canWrite ? h('button', { class: 'btn primary', onClick: closeMonth }, '월말 마감') : null
+      h('button', { class: 'btn', onClick: () => shiftMonth(-1), title: '지난달' }, icon('chevronLeft', { size: 17 })),
+      monthLabel, monthInput,
+      h('button', { class: 'btn', onClick: () => shiftMonth(1), title: '다음달' }, icon('chevronRight', { size: 17 })),
+      h('input', {
+        type: 'search', placeholder: '원생 이름으로 찾기', style: { maxWidth: '220px' },
+        onInput: debounce((e) => { query = e.target.value; shown = 60; paint() }, 200)
+      }),
+      canWrite ? h('button', { class: 'btn primary right', onClick: generateBills }, icon('plus', { size: 17 }), '이번 달 청구 생성') : null,
+      canWrite ? h('button', { class: 'btn', onClick: closeMonth }, icon('checkCircle', { size: 17 }), '월말 마감') : null
     ),
     h('div', { class: 'row wrap', style: { marginTop: '8px' } },
-      h('button', { class: 'btn sm', onClick: remindUnpaid }, '미납자 일괄 안내'),
-      h('button', { class: 'btn sm', onClick: exportLedger }, '수납대장 CSV'),
-      h('button', { class: 'btn sm', onClick: printLedger }, '수납대장 인쇄')
+      h('button', { class: 'btn sm', onClick: remindUnpaid }, icon('send', { size: 15 }), '미납자 일괄 안내'),
+      h('button', { class: 'btn sm', onClick: exportLedger }, icon('download', { size: 15 }), '수납대장 CSV'),
+      h('button', { class: 'btn sm', onClick: printLedger }, icon('printer', { size: 15 }), '수납대장 인쇄')
     ),
     h('div', { style: { marginTop: '10px' } }, filterBar)
   )
 
-  root.append(head,
+  root.append(
+    h('div', { class: 'page-head' },
+      h('h1', {}, '수납'),
+      h('p', {}, '이번 달 청구를 한 번에 만들고, 미납은 일괄 안내로 보냅니다.')),
+    head,
     h('div', { style: { marginTop: '12px' } }, statBox),
     h('div', { class: 'card', style: { marginTop: '12px' } },
       h('div', { class: 'scroll-x' },
         h('table', {},
           h('thead', {}, h('tr', {},
-            h('th', {}, '원생'), h('th', {}, '청구'), h('th', {}, '납부'), h('th', {}, '잔액'), h('th', {}, '상태'), h('th', {}, '')
+            h('th', {}, '원생'), h('th', { class: 'num' }, '청구'), h('th', { class: 'num' }, '납부'),
+            h('th', { class: 'num' }, '잔액'), h('th', {}, '상태'), h('th', {}, '')
           )),
           tbody
         )
@@ -55,6 +80,8 @@ export async function render(root, ctx) {
   )
 
   async function load() {
+    policy = repo.policy()
+    shown = 60
     rows = await repo.paymentsOfMonth(month)
     const expenses = await repo.expensesOfMonth(month)
     const s = settleMonth(rows, expenses)
@@ -75,7 +102,7 @@ export async function render(root, ctx) {
     for (const [name, n] of options) {
       filterBar.append(h('button', {
         class: `chip ${filter === name ? 'active' : ''}`,
-        onClick: () => { filter = name; paintFilters(s); paint() }
+        onClick: () => { filter = name; shown = 60; paintFilters(s); paint() }
       }, `${name} ${n}`))
     }
   }
@@ -95,16 +122,20 @@ export async function render(root, ctx) {
     })
 
     if (!filtered.length) {
-      tbody.append(h('tr', {}, h('td', { colSpan: 6, class: 'muted' }, '해당 조건의 수납 내역이 없습니다. "이번 달 청구 생성"을 눌러 보세요.')))
+      tbody.append(h('tr', {}, h('td', { colSpan: 6 },
+        h('div', { class: 'empty' },
+          h('div', { class: 'emoji' }, icon('receipt', { size: 26 })),
+          h('b', {}, '이 달의 청구 내역이 없습니다'),
+          h('p', {}, '"이번 달 청구 생성"을 누르면 재원생의 수강료가 한 번에 만들어집니다.')))))
       return
     }
-    for (const p of filtered) {
+    for (const p of filtered.slice(0, shown)) {
       const st = repo.cache.studentById.get(p.student_id)
       tbody.append(h('tr', {},
         h('td', {}, h('b', {}, st?.name || '(삭제된 원생)'), h('div', { class: 'small muted' }, st?.grade || '')),
-        h('td', {}, formatWon(p.amount)),
-        h('td', {}, formatWon(p.paid)),
-        h('td', {}, p.remaining ? h('span', { style: { color: 'var(--danger)' } }, formatWon(p.remaining)) : '-'),
+        h('td', { class: 'num' }, formatWon(p.amount)),
+        h('td', { class: 'num' }, formatWon(p.paid)),
+        h('td', { class: 'num' }, p.remaining ? h('b', { style: { color: 'var(--danger)' } }, formatWon(p.remaining)) : '-'),
         h('td', {},
           h('span', { class: `badge ${p.status === '완납' ? 'ok' : p.status === '부분' ? 'warn' : 'danger'}` }, p.status),
           lateDays(p) > 0 ? h('div', { class: 'small', style: { color: 'var(--danger)' } }, `연체 ${lateDays(p)}일`) : null,
@@ -117,6 +148,18 @@ export async function render(root, ctx) {
           ))
       ))
     }
+    paintMoreRow(filtered)
+  }
+
+  function paintMoreRow(filtered) {
+    const rest = filtered.length - shown
+    if (rest <= 0) return
+    tbody.append(h('tr', {}, h('td', { colSpan: 6, style: { textAlign: 'center', padding: '14px' } },
+      h('button', {
+        class: 'btn', onClick: () => { shown += 200; paint() }
+      }, `${rest.toLocaleString('ko-KR')}명 더 보기`),
+      h('div', { class: 'small muted', style: { marginTop: '6px' } },
+        '이름으로 찾거나 위의 미납·부분 칩을 누르면 바로 걸러집니다'))))
   }
 
   function stat(label, value, kind = '') {
@@ -125,9 +168,10 @@ export async function render(root, ctx) {
       h('div', { class: 'l' }, label))
   }
 
+  let policy = repo.policy()
   function lateDays(p) {
     if (p.status === PAY_STATUS.FULL) return 0
-    const due = p.due_date ? p.due_date.slice(8, 10) : repo.policy().dueDay
+    const due = p.due_date ? p.due_date.slice(8, 10) : policy.dueDay
     return Math.max(0, overdueDays(p.month, toYmd(), Number(due)))
   }
 

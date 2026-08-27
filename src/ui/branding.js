@@ -49,9 +49,12 @@ export function applyBranding() {
   const root = document.documentElement
   root.style.setProperty('--brand', b.brand_color)
   root.style.setProperty('--brand-dark', mix(b.brand_color, '#000000', 0.22))
+  root.style.setProperty('--brand-lift', mix(b.brand_color, '#ffffff', 0.26))
   root.style.setProperty('--brand-light', mix(b.brand_color, '#ffffff', 0.86))
   root.style.setProperty('--brand-soft', mix(b.brand_color, '#ffffff', 0.94))
   root.style.setProperty('--on-brand', readableOn(b.brand_color))
+  // 큰 글씨 모드 — 선생님 연령대가 넓어 설정에서 바꿀 수 있게 해 둔다
+  root.dataset.textsize = getSetting('textSize') || 'normal'
   document.title = b.name
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', b.brand_color)
