@@ -236,6 +236,42 @@ async function run() {
   const bigProgram = await call(`/events/${bigId}/design/print?template=program-inner&theme=classic-navy`)
   check('34명 순서지에서 마지막 연주자까지 나옴', (await bigProgram.text()).includes('학생34'))
 
+  console.log('\n▸ 곡 사전 · 순서 직접 조정')
+
+  const catalogEvent = await json('/api/events', {
+    title: '곡 사전 스모크',
+    type: 'recital',
+    event_at: '2027-05-16T15:00',
+    venue: '연습실',
+  })
+  const catId = (await catalogEvent.json())?.event?.id
+  // 이름과 곡만 있는 명단 — 나머지는 사전이 채워야 한다
+  const bare = await json(`/api/events/${catId}/students`, {
+    text: '김서연\t엘리제를 위하여\n박지호\t징글벨\n이하윤\t녹턴 op.9 no.2',
+  })
+  const bareRows = (await bare.json()).students ?? []
+  check('곡만 적어도 작곡가가 채워짐', bareRows[0]?.composer === '베토벤', bareRows[0]?.composer ?? '(빈칸)')
+  check('곡만 적어도 연주시간이 채워짐', bareRows[0]?.duration_sec === 210, String(bareRows[0]?.duration_sec))
+  check('곡만 적어도 난이도가 채워짐', bareRows[0]?.level === 'intermediate', bareRows[0]?.level ?? '')
+
+  await json(`/api/events/${catId}/program`, {})
+  const beforeOrder = await call(`/api/events/${catId}/students`)
+  const beforeRows = (await beforeOrder.json()).students ?? []
+  const reversed = [...beforeRows].sort((a, b) => (b.order_no ?? 0) - (a.order_no ?? 0)).map((r) => r.id)
+  const reordered = await json(`/api/events/${catId}/program`, { order: reversed }, 'PATCH')
+  check('순서를 손으로 바꿔 저장', reordered.ok, (await reordered.clone().json()).error ?? '')
+  const afterRows = (await (await call(`/api/events/${catId}/students`)).json()).students ?? []
+  const afterOrder = [...afterRows].sort((a, b) => (a.order_no ?? 0) - (b.order_no ?? 0)).map((r) => r.id)
+  check('바뀐 순서가 그대로 저장됨', afterOrder.join(',') === reversed.join(','))
+  check('순서를 바꿔도 멘트가 남는다', afterRows.every((r) => (r.mc_script ?? '').length > 0))
+
+  const partial = await json(`/api/events/${catId}/program`, { order: [reversed[0]] }, 'PATCH')
+  const partialBody = await partial.json()
+  check('빠뜨린 학생도 사라지지 않음', partialBody.order?.length === bareRows.length)
+
+  const programTab = await call(`/events/${catId}?tab=program`)
+  check('순서 직접 바꾸기 노출', (await programTab.text()).includes('순서 직접 바꾸기'))
+
   console.log('\n▸ 이미지 보관함')
 
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='

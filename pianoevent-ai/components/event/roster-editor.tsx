@@ -6,8 +6,10 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { PieceInput } from '@/components/event/piece-input'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
 import { formatDuration } from '@/lib/format'
+import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
 import { LEVEL_LABEL, type EventStudent, type Level } from '@/lib/types'
 
@@ -36,6 +38,18 @@ export function RosterEditor({
   const preview = paste.trim() ? parseRoster(paste) : null
   const [source, setSource] = useState('')
   const [keepPieces, setKeepPieces] = useState(false)
+  // 곡 사전 자동완성 — 곡을 고르면 나머지 칸이 함께 채워진다
+  const [draft, setDraft] = useState({ piece: '', composer: '', level: 'beginner', minutes: 0, seconds: 0 })
+
+  function applyCatalog(entry: CatalogEntry) {
+    setDraft({
+      piece: entry.title,
+      composer: entry.composer,
+      level: entry.level,
+      minutes: Math.floor(entry.duration_sec / 60),
+      seconds: entry.duration_sec % 60,
+    })
+  }
 
   /** 지난 행사에서 명단을 그대로 가져온다 — 학원은 학생이 그대로다 */
   async function importFromEvent() {
@@ -83,7 +97,12 @@ export function RosterEditor({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '명단을 등록하지 못했습니다.')
       setWarnings(data.warnings ?? [])
-      setMessage(`${data.students.length}명을 등록했습니다.`)
+      const filled = preview?.autofilled ?? []
+      setMessage(
+        filled.length > 0
+          ? `${data.students.length}명을 등록했습니다. 곡 사전이 ${filled.length}곡의 빈칸을 대신 채웠습니다.`
+          : `${data.students.length}명을 등록했습니다.`,
+      )
       setPaste('')
       router.refresh()
     } catch (e) {
@@ -115,6 +134,7 @@ export function RosterEditor({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '학생을 추가하지 못했습니다.')
+      setDraft({ piece: '', composer: '', level: 'beginner', minutes: 0, seconds: 0 })
       router.refresh()
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '학생을 추가하지 못했습니다.')
@@ -195,6 +215,10 @@ export function RosterEditor({
           <CardDescription>
             엑셀·구글시트에서 표를 복사해 그대로 붙여넣으세요. 헤더(이름·연주곡·작곡가·시간·난이도·비고)를 자동으로
             인식합니다. 곡은 원장님이 정하신 것을 그대로 적으시면 됩니다 — 악보는 학원에서 쓰시던 것을 씁니다.
+            <strong className="text-foreground">
+              {' '}
+              작곡가나 연주시간을 비워 두시면 곡 사전 {CATALOG_SIZE}곡에서 알아서 채웁니다.
+            </strong>
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -375,15 +399,32 @@ export function RosterEditor({
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="piece_title">연주곡</Label>
-              <Input id="piece_title" name="piece_title" maxLength={120} />
+              <PieceInput
+                id="piece_title"
+                name="piece_title"
+                value={draft.piece}
+                onChange={(piece) => setDraft((d) => ({ ...d, piece }))}
+                onPick={applyCatalog}
+              />
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="composer">작곡가</Label>
-              <Input id="composer" name="composer" maxLength={80} />
+              <Input
+                id="composer"
+                name="composer"
+                maxLength={80}
+                value={draft.composer}
+                onChange={(e) => setDraft((d) => ({ ...d, composer: e.target.value }))}
+              />
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="level">난이도</Label>
-              <Select id="level" name="level" defaultValue="beginner">
+              <Select
+                id="level"
+                name="level"
+                value={draft.level}
+                onChange={(e) => setDraft((d) => ({ ...d, level: e.target.value }))}
+              >
                 {LEVELS.map((level) => (
                   <option key={level} value={level}>
                     {LEVEL_LABEL[level]}
@@ -394,9 +435,26 @@ export function RosterEditor({
             <div className="sm:col-span-2">
               <Label htmlFor="minutes">소요시간</Label>
               <div className="flex items-center gap-1">
-                <Input id="minutes" name="minutes" type="number" min={0} max={30} defaultValue={0} className="w-16" />
+                <Input
+                  id="minutes"
+                  name="minutes"
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={draft.minutes}
+                  onChange={(e) => setDraft((d) => ({ ...d, minutes: Number(e.target.value) || 0 }))}
+                  className="w-16"
+                />
                 <span className="text-sm text-muted-foreground">분</span>
-                <Input name="seconds" type="number" min={0} max={59} defaultValue={0} className="w-16" />
+                <Input
+                  name="seconds"
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={draft.seconds}
+                  onChange={(e) => setDraft((d) => ({ ...d, seconds: Number(e.target.value) || 0 }))}
+                  className="w-16"
+                />
                 <span className="text-sm text-muted-foreground">초</span>
               </div>
               <FieldHint>0 이면 난이도로 추정합니다.</FieldHint>

@@ -4,6 +4,9 @@ const exe = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const b = await chromium.launch(existsSync(exe) ? { executablePath: exe } : {})
 const URL = 'file:///home/user/-/pianoevent-ai/detail/piano-event-detail.html'
 const shots = [
+  ['detail-features', 1100, '.feat-grid'],
+  ['detail-chain', 1100, '.chain'],
+  ['detail-numbers', 1100, '.numbers'],
   ['detail-scope', 1000, '.scope-grid'],
   ['detail-flow', 1000, '.flow'],
   ['detail-compare', 1000, '.cmp-wrap'],

@@ -1,4 +1,5 @@
 import { formatDuration } from '@/lib/format'
+import { findPiece } from '@/lib/program/catalog'
 import type { EventStudent, ProgramItem, ProgramPlan, Stage } from '@/lib/types'
 
 /**
@@ -73,8 +74,12 @@ function pieceNote(title: string): string | null {
   return null
 }
 
-/** 곡 해설 한 줄 — 곡명 → 작곡가 → 마지막엔 난이도 기반 일반 해설 순으로 떨어진다 */
+/** 곡 해설 한 줄 — 곡 사전 → 옛 키워드 → 작곡가 → 난이도 순으로 떨어진다 */
 export function pieceCommentary(student: EventStudent): string {
+  // 곡 사전에 있는 곡이면 그 곡을 위해 쓰인 해설을 그대로 쓴다
+  const catalog = findPiece(student.piece_title)
+  if (catalog) return catalog.blurb
+
   const byPiece = pieceNote(student.piece_title)
   if (byPiece) return byPiece
 

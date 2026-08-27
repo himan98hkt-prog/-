@@ -1,3 +1,4 @@
+import { completeFromCatalog } from '@/lib/program/catalog'
 import type { Level } from '@/lib/types'
 
 /** 엑셀에서 복사한 표(TSV) 또는 CSV 한 줄 */
@@ -16,6 +17,8 @@ export interface RosterParseResult {
   errors: string[]
   /** 헤더를 인식했는지 (못 하면 열 순서로 읽는다) */
   headerDetected: boolean
+  /** 곡 사전이 대신 채워 준 칸 — 원장에게 무엇이 자동으로 들어갔는지 알린다 */
+  autofilled: { student_name: string; piece_title: string; fields: string[] }[]
 }
 
 const HEADER_ALIASES: Record<keyof RosterRow, string[]> = {
@@ -119,7 +122,9 @@ export function parseRoster(text: string): RosterParseResult {
     .filter((l) => l.length > 0)
 
   const errors: string[] = []
-  if (lines.length === 0) return { rows: [], errors: ['붙여넣은 내용이 없습니다.'], headerDetected: false }
+  if (lines.length === 0) {
+    return { rows: [], errors: ['붙여넣은 내용이 없습니다.'], headerDetected: false, autofilled: [] }
+  }
 
   const first = splitLine(lines[0]).map(clean)
   const header = detectHeader(first)
@@ -135,6 +140,7 @@ export function parseRoster(text: string): RosterParseResult {
   }
 
   const rows: RosterRow[] = []
+  const autofilled: RosterParseResult['autofilled'] = []
   body.forEach((line, i) => {
     const cells = splitLine(line).map(clean)
     const lineNo = i + (header ? 2 : 1)
@@ -159,19 +165,35 @@ export function parseRoster(text: string): RosterParseResult {
       errors.push(`${lineNo}행: 소요시간 "${rawDuration}" 을 읽지 못해 난이도 기준으로 추정합니다.`)
     }
 
-    rows.push({
-      student_name: name,
+    // 곡 사전으로 빈칸을 채운다. 원장이 적은 값은 절대 덮어쓰지 않는다.
+    const rawLevel = at('level')
+    const completed = completeFromCatalog({
       piece_title: piece,
       composer: at('composer'),
       duration_sec: duration,
-      level: parseLevel(at('level')),
+      level: parseLevel(rawLevel),
+      levelGiven: Boolean(rawLevel.trim()),
+    })
+
+    const fields: string[] = []
+    if (completed.filled.composer) fields.push('작곡가')
+    if (completed.filled.duration) fields.push('연주시간')
+    if (completed.filled.level) fields.push('난이도')
+    if (fields.length > 0) autofilled.push({ student_name: name, piece_title: piece, fields })
+
+    rows.push({
+      student_name: name,
+      piece_title: piece,
+      composer: completed.composer,
+      duration_sec: completed.duration_sec,
+      level: completed.level,
       note: at('note') || null,
     })
   })
 
   if (rows.length === 0) errors.push('읽어 들인 학생이 없습니다. 이름·곡명 열이 있는지 확인해 주세요.')
 
-  return { rows, errors, headerDetected: Boolean(header) }
+  return { rows, errors, headerDetected: Boolean(header), autofilled }
 }
 
 /** 내보내기용 CSV (엑셀에서 한글이 깨지지 않도록 BOM 포함) */

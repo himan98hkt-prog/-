@@ -23,6 +23,7 @@ import { buildRehearsal, rehearsalCallMessage } from '@/lib/ops/rehearsal'
 import { buildSeating, seatLabel } from '@/lib/ops/seating'
 import { diagnoseProgram, ISSUE_LEVEL_LABEL } from '@/lib/program/diagnose'
 import { buildProgram } from '@/lib/program/order'
+import { CATALOG_SIZE } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
 import { buildMcScript } from '@/lib/program/script'
 import type { Academy, EventRecord, EventStudent, Rsvp } from '@/lib/types'
@@ -77,9 +78,10 @@ const RSVPS: Rsvp[] = DEMO_RSVPS.map((r, i) => ({
 }))
 
 /** 붙여넣은 텍스트 → 앱과 같은 학생 레코드 */
-function toStudents(text: string): { students: EventStudent[]; errors: string[] } {
-  const { rows, errors } = parseRoster(text)
+function toStudents(text: string) {
+  const { rows, errors, autofilled } = parseRoster(text)
   return {
+    autofilled,
     students: rows.map((row, i) => ({
       id: `s${i}`,
       event_id: 'demo',
@@ -144,7 +146,7 @@ function App() {
     return () => ro.disconnect()
   }, [])
 
-  const { students, errors } = useMemo(() => toStudents(text), [text])
+  const { students, errors, autofilled } = useMemo(() => toStudents(text), [text])
   const plan = useMemo(() => buildProgram(students), [students])
   const script = useMemo(
     () => buildMcScript(plan, { eventTitle: EVENT.title, academyName: ACADEMY.name }),
@@ -239,10 +241,17 @@ function App() {
           />
           <div className="rowline">
             <span className="tag">{students.length}명 읽음</span>
+            {autofilled.length > 0 && (
+              <span className="tag tag--fill">곡 사전이 {autofilled.length}곡 채움</span>
+            )}
             <button type="button" className="ghost" onClick={() => setText(DEMO_ROSTER)}>
               예시 명단으로 되돌리기
             </button>
           </div>
+          <p className="hint">
+            <b>직접 해보세요</b> — 아무 줄에서 <b>작곡가와 시간을 지워</b> 보세요. 곡 사전 {CATALOG_SIZE}곡에서
+            알아서 다시 채웁니다. 원장님이 적은 값이 있으면 절대 덮어쓰지 않습니다.
+          </p>
           {errors.length > 0 && (
             <ul className="notes">
               {errors.slice(0, 4).map((e) => (

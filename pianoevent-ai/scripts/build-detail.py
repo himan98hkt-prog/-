@@ -21,6 +21,36 @@ IMG = {k: b64(v) for k, v in {
 }.items()}
 
 EXTRA_CSS = """
+  /* ── 기능 격자 ───────────────────────────────────── */
+  .feat-grid{display:grid;gap:1rem;margin-top:1.8rem;}
+  @media (min-width:620px){.feat-grid{grid-template-columns:1fr 1fr;}}
+  @media (min-width:960px){.feat-grid{grid-template-columns:repeat(3,1fr);}}
+  .feat{border:1px solid rgba(120,100,70,.2);border-radius:12px;padding:1.15rem;background:#fff;
+    display:flex;flex-direction:column;gap:.5rem;}
+  .feat .n{font-size:.7rem;letter-spacing:.16em;font-weight:700;color:var(--gold,#B3892F);}
+  .feat h4{margin:0;font-size:1.02rem;line-height:1.4;}
+  .feat p{margin:0;font-size:.88rem;line-height:1.7;opacity:.85;}
+  .feat .only{margin-top:auto;padding-top:.7rem;border-top:1px dashed rgba(120,100,70,.25);
+    font-size:.8rem;font-weight:700;color:#8A5A1E;}
+
+  /* ── 한 번 입력 → 전부 연쇄 ─────────────────────── */
+  .chain{margin-top:1.8rem;border:1px solid rgba(120,100,70,.2);border-radius:14px;
+    background:#fff;padding:1.5rem 1.2rem;text-align:center;}
+  .chain .seed{display:inline-block;padding:.7em 1.6em;border-radius:999px;
+    background:#2A2118;color:#F5EDDD;font-weight:700;font-size:.98rem;}
+  .chain .arrow{font-size:1.3rem;color:var(--gold,#B3892F);line-height:1;margin:.7rem 0;}
+  .chain-row{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;}
+  .chain-row span{padding:.45em 1em;border-radius:999px;border:1px solid rgba(120,100,70,.3);
+    background:#FBF6EA;font-size:.86rem;}
+  .chain .last{margin-top:1.2rem;font-size:.92rem;font-weight:700;}
+
+  /* ── 숫자 띠 ─────────────────────────────────────── */
+  .numbers{display:grid;gap:.9rem;margin-top:1.6rem;grid-template-columns:repeat(2,1fr);}
+  @media (min-width:720px){.numbers{grid-template-columns:repeat(4,1fr);}}
+  .numbers div{border:1px solid rgba(120,100,70,.2);border-radius:12px;padding:1rem .8rem;
+    text-align:center;background:#fff;}
+  .numbers .v{font-size:1.7rem;font-weight:800;color:var(--gold,#B3892F);line-height:1.1;margin:0;}
+  .numbers .k{font-size:.8rem;line-height:1.5;opacity:.8;margin:.5em 0 0;}
   /* ── 체험 버튼 ───────────────────────────────────── */
   .try-btn{
     display:inline-flex;align-items:center;gap:.55em;
@@ -267,10 +297,141 @@ BODY = """
   </div>
 </section>
 
+
+<!-- ── 기능 전체 ────────────────────────────────────── -->
+<section class="usp">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">03 /</span> 이 프로그램이 하는 일 전부</p>
+    <h2 class="reveal" style="--d:0.1s">명단 하나를 넣으면<br><span class="accent">여기까지</span> 나옵니다</h2>
+
+    <div class="numbers reveal" style="--d:0.15s">
+      <div><p class="v">78곡</p><p class="k">곡 사전<br>작곡가 · 시간 · 해설</p></div>
+      <div><p class="v">32종</p><p class="k">인쇄물 양식</p></div>
+      <div><p class="v">40종</p><p class="k">디자인 테마</p></div>
+      <div><p class="v">8가지</p><p class="k">순서표 자동 점검</p></div>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat reveal">
+        <p class="n">01 &nbsp;곡 사전</p>
+        <h4>곡 제목만 치면 나머지가 따라옵니다</h4>
+        <p>학원 연주회에 실제로 오르는 78곡 &mdash; 부르크뮐러부터 히사이시 조까지. 곡을 고르면
+        <b>작곡가 &middot; 난이도 &middot; 연주시간</b>이 함께 들어가고, 사회자 멘트에 쓸 <b>곡 해설</b>까지 준비됩니다.</p>
+        <p class="only">엑셀에도 캔바에도 없는 것</p>
+      </div>
+      <div class="feat reveal" style="--d:0.08s">
+        <p class="n">02 &nbsp;순서 자동 배치</p>
+        <h4>흐름과 시각을 동시에 계산합니다</h4>
+        <p>오프닝 &rarr; 초급 &rarr; 중급 &rarr; 앙상블 &rarr; 피날레. 곡 사이 전환 시간과 중간 휴식까지 넣어
+        <b>몇 시에 끝나는지</b>를 알려 줍니다. 마음에 안 드는 곳은 <b>위·아래 버튼으로 직접</b> 옮깁니다.</p>
+        <p class="only">바꾸면 32종이 함께 바뀜</p>
+      </div>
+      <div class="feat reveal" style="--d:0.16s">
+        <p class="n">03 &nbsp;사회자 대본</p>
+        <h4>곡마다 멘트가 쓰여 있습니다</h4>
+        <p>곡 &middot; 작곡가 &middot; 학생 메모를 엮어 오프닝부터 클로징까지. 무대 옆은 어두우니
+        <b>큰 글씨 인쇄</b>로 나갑니다.</p>
+        <p class="only">밤새 쓰던 그 문장</p>
+      </div>
+      <div class="feat reveal" style="--d:0.24s">
+        <p class="n">04 &nbsp;순서표 점검</p>
+        <h4>당일 전화를 부르는 것들을 미리 잡습니다</h4>
+        <p>같은 곡 중복, 형제자매가 멀리 떨어짐, 어린 학생이 맨 뒤, 같은 작곡가 3연속,
+        휴식 없이 70분 초과 &mdash; <b>8가지를 3등급으로</b> 알려 주고 고치는 법까지 적어 줍니다.</p>
+        <p class="only">사람이 놓치는 것</p>
+      </div>
+      <div class="feat reveal" style="--d:0.32s">
+        <p class="n">05 &nbsp;인쇄물</p>
+        <h4>양식 32종 &times; 테마 40종</h4>
+        <p>포스터 7 &middot; 프로그램 5 &middot; 초대·홍보 5 &middot; 행사 당일 7 &middot; 진행 문서 8.
+        테마 하나를 고르면 <b>전부 같은 색과 서체</b>를 입습니다. 한 벌 인쇄로 여러 장을 한 번에.</p>
+        <p class="only">외주비 0원</p>
+      </div>
+      <div class="feat reveal" style="--d:0.4s">
+        <p class="n">06 &nbsp;모바일 초대장</p>
+        <h4>링크 하나로 참석 인원이 쌓입니다</h4>
+        <p>단톡방에 올리면 학부모가 눌러 회신하고, <b>가정 수 &middot; 총원 &middot; 응원 메시지</b>가 저절로
+        모입니다. 그 인원이 그대로 좌석 배치로 넘어갑니다.</p>
+        <p class="only">답장 세지 않아도 됨</p>
+      </div>
+      <div class="feat reveal" style="--d:0.48s">
+        <p class="n">07 &nbsp;리허설 시간표</p>
+        <h4>조 단위 소집 시각과 문자까지</h4>
+        <p>전원을 한 번에 부르면 대기실이 터집니다. 5명씩 묶어 <b>조별 도착 시각</b>을 계산하고
+        조마다 보낼 <b>문자를 만들어</b> 둡니다. 문자 30통이 6통이 됩니다.</p>
+        <p class="only">당일 아침의 계산</p>
+      </div>
+      <div class="feat reveal" style="--d:0.56s">
+        <p class="n">08 &nbsp;참가비 계산</p>
+        <h4>대관료 확정 전에도 안내가 나갑니다</h4>
+        <p>항목 10가지 예산에서 <b>1인당 원가와 권장 참가비</b>를 역산합니다. 선택 항목을 끄면 즉시
+        다시 계산되고, <b>안내 문구</b>까지 복사해 보냅니다.</p>
+        <p class="only">감으로 정하지 않음</p>
+      </div>
+      <div class="feat reveal" style="--d:0.64s">
+        <p class="n">09 &nbsp;좌석 배치</p>
+        <h4>가족은 붙여 앉히고 앞줄은 비웁니다</h4>
+        <p>참석 회신을 <b>가정 단위</b>로 앉히고 앞 두 줄은 연주자석으로 둡니다.
+        <b>&ldquo;3열 4~6번&rdquo;</b>처럼 학부모에게 그대로 보낼 수 있는 표기로 나옵니다.</p>
+        <p class="only">접수처에 붙이면 끝</p>
+      </div>
+      <div class="feat reveal" style="--d:0.72s">
+        <p class="n">10 &nbsp;이미지 보관함</p>
+        <h4>사진을 끌어다 놓으면 전부에 들어갑니다</h4>
+        <p>로고 &middot; 학원 상징 &middot; 사진을 한 번만 올리면 됩니다. 휴대폰 사진도 <b>인쇄 크기로 자동 축소</b>,
+        테마마다 <b>모양은 알아서</b> 맞춰집니다. 포스터엔 단체사진, 표지엔 학원 전경처럼 따로 지정도 됩니다.</p>
+        <p class="only">주소 다시 찾을 일 없음</p>
+      </div>
+      <div class="feat reveal" style="--d:0.8s">
+        <p class="n">11 &nbsp;준비 체크리스트</p>
+        <h4>D-30부터 종료 후까지</h4>
+        <p>30가지 할 일이 <b>행사 날짜에 맞춰</b> 날짜와 함께 나옵니다. 학부모 안내 문자 4종도
+        시기별로 준비돼 있습니다.</p>
+        <p class="only">빠뜨릴 수가 없음</p>
+      </div>
+      <div class="feat reveal" style="--d:0.88s">
+        <p class="n">12 &nbsp;시즌 특강</p>
+        <h4>할로윈 &middot; 크리스마스 &middot; 방학</h4>
+        <p>테마를 고르면 <b>4주 커리큘럼과 인쇄용 활동지</b>가 나옵니다. 연주회가 없는 달에도
+        학원이 돌아갑니다.</p>
+        <p class="only">자료 사서 짜깁기 안 함</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 한 번 입력 → 전부 연쇄 ──────────────────────── -->
+<section class="guide">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">04 /</span> 왜 이게 다른가</p>
+    <h2 class="reveal" style="--d:0.1s">한 곳을 고치면<br><span class="accent">전부 따라 바뀝니다</span></h2>
+    <p class="sub reveal" style="--d:0.16s">다른 도구들은 각 결과물이 따로 놉니다. 순서 하나가 바뀌면 전부 손으로 다시 고쳐야 합니다.</p>
+    <div class="chain reveal" style="--d:0.22s">
+      <span class="seed">학생 명단 한 번 입력</span>
+      <p class="arrow">&#9660;</p>
+      <div class="chain-row">
+        <span>연주 순서</span><span>예상 시각</span><span>러닝타임</span><span>곡 해설</span><span>사회자 멘트</span>
+      </div>
+      <p class="arrow">&#9660;</p>
+      <div class="chain-row">
+        <span>포스터</span><span>프로그램 표지</span><span>순서지</span><span>곡 해설 순서지</span><span>3단 접지</span>
+        <span>입장권</span><span>초대장 카드</span><span>SNS 스토리</span><span>X배너</span>
+        <span>상장</span><span>이름표</span><span>대기 순서판</span><span>포토존</span><span>시상 명단</span>
+      </div>
+      <p class="arrow">&#9660;</p>
+      <div class="chain-row">
+        <span>리허설 소집 시각</span><span>조별 문자</span><span>좌석 배치도</span><span>접수 확인표</span>
+        <span>당일 진행표</span><span>참가비</span><span>예산표</span><span>학부모 안내문</span>
+      </div>
+      <p class="last">순서 하나를 바꾸면 &mdash; 위의 <b>32종이 동시에</b> 다시 만들어집니다</p>
+    </div>
+  </div>
+</section>
+
 <!-- ── 03 화면 미리보기 ─────────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">03 /</span> 실제 화면</p>
+    <p class="eyebrow reveal"><span class="num">05 /</span> 실제 화면</p>
     <h2 class="reveal" style="--d:0.1s">노트북에서도, 태블릿에서도,<br><span class="accent">휴대폰에서도</span> 그대로입니다</h2>
     <p class="sub reveal" style="--d:0.18s" style="font-size:var(--fs-body);color:var(--ink-soft);margin-top:1em;">학원에서 노트북으로 만들고, 집에서 태블릿으로 고치고, 학부모는 휴대폰으로 엽니다.</p>
 
@@ -302,7 +463,7 @@ BODY = """
 <!-- ── 04 인쇄물 ────────────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">04 /</span> 인쇄물 미리보기</p>
+    <p class="eyebrow reveal"><span class="num">06 /</span> 인쇄물 미리보기</p>
     <h2 class="reveal" style="--d:0.1s">A4 용지에 그대로,<br><span class="accent">디자인 외주 없이</span></h2>
     <p class="sub reveal" style="--d:0.18s">아래는 실제로 출력되는 모습입니다. 학원 이름과 로고, 학생 이름이 모두 자동으로 들어갑니다.</p>
 
@@ -331,7 +492,7 @@ BODY = """
 <!-- ── 05 이용 안내 ─────────────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">05 /</span> 이용 안내</p>
+    <p class="eyebrow reveal"><span class="num">07 /</span> 이용 안내</p>
     <h2 class="reveal" style="--d:0.1s">피아노 이벤트 솔루션 이용 안내</h2>
     <div class="info-cards">
       <div class="info-card red reveal">
@@ -356,7 +517,7 @@ BODY = """
 <!-- ── 서비스 범위 ──────────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">06 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
+    <p class="eyebrow reveal"><span class="num">08 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
     <h2 class="reveal" style="--d:0.1s">사시기 전에<br><span class="accent">이것부터</span> 확인해 주세요</h2>
     <div class="scope-grid">
       <div class="scope-col yes reveal">
@@ -389,7 +550,7 @@ BODY = """
 <!-- ── 명단은 어떻게 넣는가 ─────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">07 /</span> 학생 명단은 어떻게 넣나요</p>
+    <p class="eyebrow reveal"><span class="num">09 /</span> 학생 명단은 어떻게 넣나요</p>
     <h2 class="reveal" style="--d:0.1s">이미 가지고 계신 것을<br>그대로 씁니다</h2>
     <div class="flow">
       <div class="flow-step reveal">
@@ -425,7 +586,7 @@ BODY = """
 <!-- ── 다른 방법과 비교 ─────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">08 /</span> 지금 쓰시는 방법과 비교하면</p>
+    <p class="eyebrow reveal"><span class="num">10 /</span> 지금 쓰시는 방법과 비교하면</p>
     <h2 class="reveal" style="--d:0.1s">디자인 도구도, 관리 프로그램도<br><span class="accent">연주회를 알지는 못합니다</span></h2>
     <div class="cmp-wrap reveal" style="--d:0.2s">
       <table class="cmp">
@@ -511,7 +672,7 @@ BODY = """
 <!-- ── 06 이런 원장님께 ─────────────────────────────── -->
 <section class="recommend">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">09 /</span> 이런 원장님께 추천합니다</p>
+    <p class="eyebrow reveal"><span class="num">11 /</span> 이런 원장님께 추천합니다</p>
     <h2 class="reveal" style="--d:0.1s">올해 연주회는<br><span class="accent">준비가 아니라 무대</span>에 집중하세요</h2>
     <div class="pill-list">
       <div class="pill reveal"><span class="icon check">&#10003;</span><span>연주회 시즌마다 순서표와 대본 때문에 밤을 새우는 원장님</span></div>

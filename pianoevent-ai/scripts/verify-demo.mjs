@@ -24,6 +24,13 @@ await probe('리허설 조 계산', async () => (await page.locator('.calc__list
 await probe('좌석 표기 생성', async () => (await page.locator('.calc article').nth(2).locator('li').count()) >= 4)
 await probe('구매 링크', async () => (await page.locator('a.cta').getAttribute('href')).includes('add-to-cart=2089'))
 
+// 곡 사전이 실제로 빈칸을 채우는가
+await page.locator('.roster').fill('이름\t연주곡\n김서연\t엘리제를 위하여\n박지호\t징글벨')
+await page.waitForTimeout(400)
+await probe('곡 사전이 빈칸을 채움', async () => (await page.locator('.tag--fill').innerText()).includes('2곡'))
+await probe('채워진 시간이 러닝타임에 반영', async () =>
+  (await page.locator('.summary').innerText()).includes('분'))
+
 // 명단을 고치면 전부 다시 계산되는가
 await page.locator('.roster').fill('홍길동\t캐논 변주곡\t파헬벨\t4:00\t중급\n김철수\t젓가락 행진곡\t전래\t1:30\t초급')
 await page.waitForTimeout(500)

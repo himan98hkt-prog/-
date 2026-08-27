@@ -277,6 +277,23 @@ main.shell {
   color: var(--brass);
 }
 
+.tag--fill {
+  background: transparent;
+  border-color: var(--brass);
+}
+
+.hint {
+  padding: 0.7rem 0.9rem;
+  border-left: 2px solid var(--brass);
+  background: var(--brass-soft);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.hint b {
+  color: var(--ink);
+}
+
 .ghost {
   border: 1px solid var(--line);
   background: transparent;

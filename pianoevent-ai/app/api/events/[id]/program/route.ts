@@ -67,3 +67,50 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     })
   })
 }
+
+/**
+ * 원장이 손으로 고친 순서를 저장한다.
+ *
+ * 자동 배치는 출발점일 뿐이다. "이 아이는 앞쪽에", "형제는 붙여서" 같은
+ * 원장만 아는 사정이 늘 있고, 그걸 못 바꾸면 자동 배치는 쓸모가 없다.
+ * 멘트는 건드리지 않는다 — 순서만 바뀐다.
+ */
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  return guard(async () => {
+    const repo = getRepository()
+    const event = await repo.getEvent(params.id)
+    if (!event) return fail('행사를 찾을 수 없습니다.', 404)
+
+    const students = await repo.listStudents(params.id)
+    if (students.length === 0) return fail('학생 명단을 먼저 등록해 주세요.')
+
+    const body = await readJson(req)
+    const order = Array.isArray(body.order) ? body.order.filter((v): v is string => typeof v === 'string') : null
+    if (!order) return fail('바뀐 순서를 받지 못했습니다.')
+
+    const known = new Set(students.map((s) => s.id))
+    const seen = new Set<string>()
+    const clean: string[] = []
+    for (const id of order) {
+      if (!known.has(id) || seen.has(id)) continue
+      seen.add(id)
+      clean.push(id)
+    }
+    // 빠진 학생은 원래 순서대로 뒤에 붙인다 — 아무도 사라지지 않게
+    for (const student of students) {
+      if (!seen.has(student.id)) clean.push(student.id)
+    }
+
+    const byId = new Map(students.map((s) => [s.id, s]))
+    await repo.saveProgram(
+      params.id,
+      clean.map((id, index) => ({
+        id,
+        order_no: index + 1,
+        mc_script: byId.get(id)?.mc_script ?? null,
+      })),
+    )
+
+    return ok({ order: clean })
+  })
+}

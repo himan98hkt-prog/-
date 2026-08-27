@@ -1,14 +1,15 @@
 'use client'
 
-import { AlertTriangle, Printer, Sparkles } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, ChevronDown, ChevronUp, Printer, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PlanSummary, PlanTable } from '@/components/event/plan-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHint, Input, Label } from '@/components/ui/field'
+import { formatWallClock } from '@/lib/format'
 import { applyOrder, buildProgram } from '@/lib/program/order'
 import { DEFAULT_PROGRAM_OPTIONS, type EventRecord, type EventStudent, type ProgramPlan } from '@/lib/types'
 
@@ -160,6 +161,12 @@ export function ProgramPanel({ event, students }: { event: EventRecord; students
             </CardHeader>
             <CardContent className="grid gap-5">
               <PlanSummary plan={plan} startISO={event.event_at} />
+              <OrderEditor
+                eventId={event.id}
+                plan={plan}
+                startISO={event.event_at}
+                onSaved={() => router.refresh()}
+              />
               <PlanTable plan={plan} startISO={event.event_at} showScript scripts={scripts} />
             </CardContent>
           </Card>
@@ -182,6 +189,158 @@ export function ProgramPanel({ event, students }: { event: EventRecord; students
             </Card>
           )}
         </>
+      )}
+    </div>
+  )
+}
+
+
+/**
+ * 순서 직접 조정.
+ *
+ * 자동 배치는 출발점이다. "이 아이는 앞쪽에 두고 싶다", "형제는 붙여야 한다" 같은
+ * 원장만 아는 사정을 손으로 반영할 수 없으면 자동 배치는 신뢰를 얻지 못한다.
+ * 위·아래 한 칸씩 옮기는 방식이라 마우스를 끌 줄 몰라도 쓸 수 있다.
+ */
+function OrderEditor({
+  eventId,
+  plan,
+  startISO,
+  onSaved,
+}: {
+  eventId: string
+  plan: ProgramPlan
+  startISO: string
+  onSaved: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [order, setOrder] = useState<string[]>(() => plan.items.map((i) => i.student.id))
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const byId = useMemo(() => new Map(plan.items.map((i) => [i.student.id, i])), [plan])
+  const current = plan.items.map((i) => i.student.id)
+  const dirty = order.join(',') !== current.join(',')
+
+  // 순서표가 다시 생성되면 편집 중이던 순서도 새것으로 맞춘다
+  useEffect(() => {
+    setOrder(plan.items.map((i) => i.student.id))
+    setSaved(false)
+  }, [plan])
+
+  function move(index: number, by: -1 | 1) {
+    const next = [...order]
+    const to = index + by
+    if (to < 0 || to >= next.length) return
+    ;[next[index], next[to]] = [next[to], next[index]]
+    setOrder(next)
+    setSaved(false)
+  }
+
+  async function save() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/events/${eventId}/program`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? '저장하지 못했습니다.')
+      setSaved(true)
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (plan.items.length < 2) return null
+
+  return (
+    <div className="rounded-md border border-border">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-secondary"
+      >
+        <span className="flex items-center gap-2 font-medium">
+          <ArrowUpDown className="h-4 w-4 text-accent" aria-hidden />
+          순서 직접 바꾸기
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {open ? '접기' : '자동 배치가 마음에 안 드는 곳만 옮기세요'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-border p-3">
+          <ul className="grid gap-1">
+            {order.map((id, index) => {
+              const item = byId.get(id)
+              if (!item) return null
+              return (
+                <li
+                  key={id}
+                  className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm"
+                >
+                  <span className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-accent">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    <b className="font-medium">{item.student.student_name}</b>
+                    <span className="ml-2 text-xs text-muted-foreground">{item.student.piece_title}</span>
+                  </span>
+                  <span className="flex shrink-0 gap-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={index === 0}
+                      aria-label={`${item.student.student_name} 위로`}
+                      onClick={() => move(index, -1)}
+                    >
+                      <ChevronUp className="h-4 w-4" aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={index === order.length - 1}
+                      aria-label={`${item.student.student_name} 아래로`}
+                      onClick={() => move(index, 1)}
+                    >
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                    </Button>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" disabled={!dirty || saving} onClick={save}>
+              {saving ? '저장 중…' : '이 순서로 저장'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!dirty || saving}
+              onClick={() => setOrder(current)}
+            >
+              되돌리기
+            </Button>
+            {saved && !dirty && <span className="text-xs text-accent">저장했습니다. 시각이 다시 계산됩니다.</span>}
+            {dirty && (
+              <span className="text-xs text-muted-foreground">
+                저장하면 연주 시각과 인쇄물 32종이 함께 바뀝니다.
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            사회자 멘트는 그대로 남습니다. 순서만 바뀝니다. — 시각은 {formatWallClock(startISO, 0)} 개회 기준
+          </p>
+        </div>
       )}
     </div>
   )
