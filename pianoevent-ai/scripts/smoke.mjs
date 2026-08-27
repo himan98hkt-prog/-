@@ -129,13 +129,32 @@ async function run() {
     stageHtml.includes('size: 1280px 720px') || stageHtml.includes('size: 1280px 720px; margin: 0'),
   )
 
-  const stagePlain = await call(`/events/${event.id}/stage?commentary=0&sections=0&agenda=0`)
-  const plainHtml = await stagePlain.text()
-  check('곡 해설·부 전환·순서 화면 끄기', stagePlain.ok && !plainHtml.includes('오늘의 순서'))
-  check('꺼도 연주자는 그대로', plainHtml.includes('김서연'))
-
   const stageThemed = await call(`/events/${event.id}/stage?theme=blush-romance`)
   check('무대 화면도 테마를 따른다', stageThemed.ok && (await stageThemed.text()).includes('--d-accent'))
+  check('무대 화면에서 테마를 바꿀 수 있음', stageHtml.includes('테마 바꾸기'))
+  check('테마 100종을 쓴다고 안내', stageHtml.includes('테마 100종'))
+  check('화면에 넣을 것을 고를 수 있음', stageHtml.includes('곡 해설') && stageHtml.includes('오늘의 순서'))
+
+  const pptx = await call(`/api/events/${event.id}/pptx?theme=ivory-gold`)
+  const pptxBody = new Uint8Array(await pptx.arrayBuffer())
+  check('파워포인트 파일 내려받기', pptx.ok, String(pptx.status))
+  check(
+    '파워포인트 형식으로 내려옴',
+    (pptx.headers.get('content-type') ?? '').includes('presentationml.presentation'),
+  )
+  check('ZIP(=pptx) 로 시작한다', pptxBody[0] === 0x50 && pptxBody[1] === 0x4b)
+  check('파일 이름이 붙어 있다', (pptx.headers.get('content-disposition') ?? '').includes('.pptx'))
+  const pptxText = new TextDecoder('utf-8').decode(pptxBody)
+  check('슬라이드에 학생 이름이 글자로 들어감', pptxText.includes('김서연'))
+  check('슬라이드가 글상자다 (그림 아님)', pptxText.includes('txBox="1"'))
+  check('고른 테마가 파일에 들어감', pptxText.includes('ppt/theme/theme1.xml'))
+
+  const pptxBare = await call(`/api/events/${event.id}/pptx?agenda=0&sections=0&commentary=0`)
+  const bareBody = new Uint8Array(await pptxBare.arrayBuffer())
+  const bareText = new TextDecoder('utf-8').decode(bareBody)
+  check('항목을 끄면 파일도 작아진다', bareBody.length < pptxBody.length, `${bareBody.length} < ${pptxBody.length}`)
+  check('순서 화면을 끄면 파일에서도 빠진다', !bareText.includes('오늘의 순서'))
+  check('꺼도 연주자는 그대로', bareText.includes('김서연'))
 
   console.log('\n▸ 인쇄물 디자인')
 

@@ -1,60 +1,99 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Maximize2, Moon, Printer, Sun } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Download, Maximize2, Moon, Palette, Printer, Sun } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ThemePicker } from '@/components/design/theme-picker'
 import { StageSlideView } from '@/components/stage/slide'
-import { Button } from '@/components/ui/button'
-import type { DesignTheme } from '@/lib/design/themes'
-import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { getTheme } from '@/lib/design/themes'
+import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W, type StageDeckOptions } from '@/lib/stage/deck'
+import type { EventRecord, ProgramPlan } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 /**
  * 연주회 당일 스크린.
  *
  * 노트북을 빔프로젝터에 연결하고 [전체화면] 을 누르면 끝이다.
  * 넘기기는 화살표·스페이스·클릭 — 리모컨(프레젠터)도 화살표 키를 보내므로 그대로 쓸 수 있다.
- * 인터넷이 끊겨도 동작한다. 이미 받아 온 화면이고, 서버에 다시 묻지 않는다.
+ *
+ * 슬라이드는 이 화면에서 만든다. 그래서 테마를 바꾸거나 곡 해설을 끄면
+ * 서버에 다시 묻지 않고 그 자리에서 바뀐다. 인터넷이 끊겨도 그대로 동작한다.
  */
 export function StageScreen({
-  slides,
-  theme,
+  event,
+  plan,
   academyName,
+  initialThemeId,
   logoUrl,
 }: {
-  slides: StageSlide[]
-  theme: DesignTheme
+  event: EventRecord
+  plan: ProgramPlan
   academyName: string
+  initialThemeId: string
   logoUrl: string | null
 }) {
+  const [themeId, setThemeId] = useState(initialThemeId)
+  const [options, setOptions] = useState<StageDeckOptions>({
+    show_commentary: true,
+    show_sections: true,
+    show_agenda: true,
+  })
   const [index, setIndex] = useState(0)
   const [dark, setDark] = useState(true)
   const [full, setFull] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const shellRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
+  const theme = useMemo(() => getTheme(themeId), [themeId])
+  const slides = useMemo(
+    () => buildStageDeck(event, plan, academyName, options),
+    [event, plan, academyName, options],
+  )
   const last = slides.length - 1
+
+  // 화면을 끄면 보고 있던 장이 사라질 수 있다
+  useEffect(() => {
+    setIndex((prev) => Math.min(prev, slides.length - 1))
+  }, [slides.length])
+
   const go = useCallback((next: number) => setIndex(Math.min(last, Math.max(0, next))), [last])
 
+  const toggleFull = useCallback(async () => {
+    const shell = shellRef.current
+    if (!shell) return
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await shell.requestFullscreen()
+    } catch {
+      /* 브라우저가 막으면 그냥 창 모드로 쓴다 */
+    }
+  }, [])
+
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ' || event.key === 'Enter') {
-        event.preventDefault()
+    const onKey = (native: KeyboardEvent) => {
+      // 테마 검색칸에 글자를 치는 중이면 화면을 넘기지 않는다
+      const target = native.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+
+      if (native.key === 'ArrowRight' || native.key === 'PageDown' || native.key === ' ' || native.key === 'Enter') {
+        native.preventDefault()
         setIndex((prev) => Math.min(last, prev + 1))
-      } else if (event.key === 'ArrowLeft' || event.key === 'PageUp' || event.key === 'Backspace') {
-        event.preventDefault()
+      } else if (native.key === 'ArrowLeft' || native.key === 'PageUp' || native.key === 'Backspace') {
+        native.preventDefault()
         setIndex((prev) => Math.max(0, prev - 1))
-      } else if (event.key === 'Home') {
+      } else if (native.key === 'Home') {
         setIndex(0)
-      } else if (event.key === 'End') {
+      } else if (native.key === 'End') {
         setIndex(last)
-      } else if (event.key === 'f' || event.key === 'F') {
+      } else if (native.key === 'f' || native.key === 'F') {
         void toggleFull()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [last])
+  }, [last, toggleFull])
 
   useEffect(() => {
     const onChange = () => setFull(Boolean(document.fullscreenElement))
@@ -81,18 +120,14 @@ export function StageScreen({
     }
   }, [])
 
-  async function toggleFull() {
-    const shell = shellRef.current
-    if (!shell) return
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen()
-      else await shell.requestFullscreen()
-    } catch {
-      /* 브라우저가 막으면 그냥 창 모드로 쓴다 */
-    }
-  }
+  const query = new URLSearchParams({ theme: themeId })
+  if (!options.show_commentary) query.set('commentary', '0')
+  if (!options.show_sections) query.set('sections', '0')
+  if (!options.show_agenda) query.set('agenda', '0')
+  if (dark) query.set('dark', '1')
+  const pptxUrl = `/api/events/${event.id}/pptx?${query.toString()}`
 
-  const slide = slides[index]
+  const slide = slides[Math.min(index, last)]
 
   return (
     <div className="grid gap-3">
@@ -109,8 +144,8 @@ export function StageScreen({
           role="button"
           tabIndex={0}
           aria-label="다음 화면"
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') setIndex((prev) => Math.min(last, prev + 1))
+          onKeyDown={(pressed) => {
+            if (pressed.key === 'Enter') setIndex((prev) => Math.min(last, prev + 1))
           }}
         >
           <div
@@ -153,7 +188,7 @@ export function StageScreen({
           <ChevronLeft className="mr-1 h-4 w-4" />
           이전
         </Button>
-        <Button size="sm" onClick={() => go(index + 1)} disabled={index === last}>
+        <Button size="sm" onClick={() => go(index + 1)} disabled={index >= last}>
           다음
           <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
@@ -169,10 +204,6 @@ export function StageScreen({
             <Maximize2 className="mr-1 h-4 w-4" />
             전체화면
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="mr-1 h-4 w-4" />
-            PDF로 저장
-          </Button>
         </div>
       </div>
 
@@ -180,6 +211,64 @@ export function StageScreen({
         다음 화면 — <strong className="text-foreground">{slide.next || '없음 (마지막)'}</strong>
         {slide.at ? ` · 예정 ${slide.at}` : ''}
       </p>
+
+      {/* 테마 · 내용 · 내려받기 */}
+      <div className="no-print grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr]">
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPickerOpen((prev) => !prev)} aria-expanded={pickerOpen}>
+              <Palette className="mr-1 h-4 w-4" />
+              테마 바꾸기
+            </Button>
+            <span className="text-sm">
+              <strong>{theme.name}</strong>
+              <span className="ml-1.5 text-xs text-muted-foreground">{theme.tagline}</span>
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            인쇄물과 같은 테마 100종입니다. 여기서 바꾸면 이 화면과 내려받는 파워포인트가 함께 바뀝니다.
+          </p>
+          {pickerOpen && (
+            <div className="mt-1">
+              <ThemePicker value={themeId} onChange={setThemeId} eventAt={event.event_at} compact />
+            </div>
+          )}
+        </div>
+
+        <div className="grid content-start gap-2">
+          <p className="text-sm font-medium">화면에 넣을 것</p>
+          <div className="grid gap-1.5">
+            <Toggle
+              label="곡 해설"
+              hint="연주자 화면 아래 한 줄"
+              checked={options.show_commentary}
+              onChange={(v) => setOptions((prev) => ({ ...prev, show_commentary: v }))}
+            />
+            <Toggle
+              label="오늘의 순서"
+              hint="전원의 번호 · 이름 · 곡"
+              checked={options.show_agenda}
+              onChange={(v) => setOptions((prev) => ({ ...prev, show_agenda: v }))}
+            />
+            <Toggle
+              label="부 전환 화면"
+              hint="첫 무대 · 한 뼘 더 · 마지막 무대"
+              checked={options.show_sections}
+              onChange={(v) => setOptions((prev) => ({ ...prev, show_sections: v }))}
+            />
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <a href={pptxUrl} download className={cn(buttonVariants({ size: 'sm' }))}>
+              <Download className="mr-1 h-4 w-4" />
+              파워포인트로 받기
+            </a>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="mr-1 h-4 w-4" />
+              PDF로 저장
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* 인쇄(=PDF 저장)용 — 화면에는 보이지 않고 종이에만 전부 깔린다 */}
       <div className="stage-print-deck" aria-hidden>
@@ -190,5 +279,37 @@ export function StageScreen({
         ))}
       </div>
     </div>
+  )
+}
+
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint: string
+  checked: boolean
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <label
+      className={cn(
+        'flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
+        checked ? 'border-accent bg-accent/8' : 'border-border',
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(pressed) => onChange(pressed.target.checked)}
+        className="h-4 w-4 accent-current"
+      />
+      <span className="min-w-0">
+        {label}
+        <span className="ml-1.5 text-xs text-muted-foreground">{hint}</span>
+      </span>
+    </label>
   )
 }

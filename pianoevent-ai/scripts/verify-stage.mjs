@@ -8,8 +8,8 @@
  * 객석 전체가 그걸 본다. 그래서 슬라이드를 한 장씩 실제로 띄워 보고,
  * 1280×720 밖으로 삐져나온 요소가 하나라도 있으면 실패로 처리한다.
  */
-import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
@@ -130,6 +130,35 @@ try {
   await page.waitForTimeout(150)
   check('Home 키로 처음으로', (await page.getByTestId('stage-counter').textContent()).trim().startsWith('1'))
 
+  // 테마를 바꾸면 화면이 그 자리에서 바뀌는가
+  const slideBefore = await slide.evaluate((node) => getComputedStyle(node).backgroundColor)
+  await page.getByRole('button', { name: '테마 바꾸기' }).click()
+  await page.waitForTimeout(250)
+  check('테마 고르는 목록이 열린다', (await page.getByPlaceholder('테마 찾기 — 봄, 금색, 아이, 격식…').count()) === 1)
+  await page.getByPlaceholder('테마 찾기 — 봄, 금색, 아이, 격식…').fill('크리스마스')
+  await page.waitForTimeout(300)
+  const found = await page.locator('button[aria-pressed]').filter({ hasText: '크리스마스' }).count()
+  check('이름으로 테마를 찾을 수 있다', found > 0, `${found}종`)
+  await page.locator('button[aria-pressed]').filter({ hasText: '크리스마스' }).first().click()
+  await page.waitForTimeout(350)
+  const slideAfter = await slide.evaluate((node) => getComputedStyle(node).backgroundColor)
+  check('테마를 바꾸면 화면 색이 그 자리에서 바뀐다', slideAfter !== slideBefore, `${slideBefore} → ${slideAfter}`)
+  const pptxHref = await page.getByRole('link', { name: '파워포인트로 받기' }).getAttribute('href')
+  check('내려받기 주소가 고른 테마를 따라간다', (pptxHref ?? '').includes('theme='), pptxHref ?? '')
+
+  // 화면에 넣을 것 끄기
+  const beforeToggle = Number((await page.getByTestId('stage-counter').textContent()).split('/')[1].trim())
+  await page.getByText('오늘의 순서').first().click()
+  await page.waitForTimeout(300)
+  const afterToggle = Number((await page.getByTestId('stage-counter').textContent()).split('/')[1].trim())
+  check('항목을 끄면 슬라이드가 줄어든다', afterToggle < beforeToggle, `${beforeToggle} → ${afterToggle}`)
+  await page.getByText('오늘의 순서').first().click()
+  await page.waitForTimeout(300)
+  check(
+    '다시 켜면 되돌아온다',
+    Number((await page.getByTestId('stage-counter').textContent()).split('/')[1].trim()) === beforeToggle,
+  )
+
   // 인쇄(=PDF 저장) 묶음이 슬라이드 수만큼 들어 있는가
   const printed = await page.locator('.stage-print-page').count()
   check('PDF 저장용 슬라이드 수가 같다', printed === total, `${printed} / ${total}`)
@@ -157,6 +186,88 @@ try {
   } else {
     console.log('  · PDF 용지 정보를 읽지 못했습니다 (압축된 PDF) — 건너뜁니다')
   }
+
+  // 진짜 파워포인트 파일이 나오는가 — 원장님이 [파워포인트로 받기] 를 눌렀을 때 받는 그 파일이다
+  const pptxRes = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?theme=${THEME}`)
+  check('파워포인트 내려받기 응답', pptxRes.ok(), String(pptxRes.status()))
+  check(
+    '파워포인트 파일 형식으로 내려옴',
+    (pptxRes.headers()['content-type'] ?? '').includes('presentationml.presentation'),
+    pptxRes.headers()['content-type'] ?? '',
+  )
+  const pptxPath = join(OUT, 'stage.pptx')
+  writeFileSync(pptxPath, Buffer.from(await pptxRes.body()))
+  const listed = spawnSync('unzip', ['-Z1', pptxPath], { encoding: 'utf8' })
+  const names = listed.status === 0 ? listed.stdout.trim().split('\n') : []
+  check('ZIP 으로 열린다', names.length > 0, listed.stderr.trim().slice(0, 120))
+  for (const required of [
+    '[Content_Types].xml',
+    '_rels/.rels',
+    'ppt/presentation.xml',
+    'ppt/_rels/presentation.xml.rels',
+    'ppt/slideMasters/slideMaster1.xml',
+    'ppt/slideLayouts/slideLayout1.xml',
+    'ppt/theme/theme1.xml',
+  ]) {
+    check(`pptx 안에 ${required}`, names.includes(required))
+  }
+  const slideParts = names.filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+  check('pptx 슬라이드 수 = 화면 슬라이드 수', slideParts.length === total, `${slideParts.length} / ${total}`)
+
+  const firstSlide = spawnSync('unzip', ['-p', pptxPath, 'ppt/slides/slide1.xml'], { encoding: 'utf8' }).stdout
+  check('첫 장에 행사 제목이 글자로 들어감', firstSlide.includes('<a:t>제12회 정기 연주회</a:t>'))
+  check('글상자로 들어감 (그림이 아님)', firstSlide.includes('txBox="1"'))
+  const anySlide = slideParts
+    .map((name) => spawnSync('unzip', ['-p', pptxPath, name], { encoding: 'utf8' }).stdout)
+    .join('')
+  check('연주자 이름이 글자로 들어감', anySlide.includes('<a:t>윤채원</a:t>'))
+  check('XML 이 깨지지 않음', !/&(?!amp;|lt;|gt;|quot;|apos;|#)/.test(anySlide))
+
+  // 테마를 바꾸면 파일 색도 바뀌는가
+  const other = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?theme=blush-romance`)
+  const otherPath = join(OUT, 'stage-other.pptx')
+  writeFileSync(otherPath, Buffer.from(await other.body()))
+  const otherTheme = spawnSync('unzip', ['-p', otherPath, 'ppt/theme/theme1.xml'], { encoding: 'utf8' }).stdout
+  const baseTheme = spawnSync('unzip', ['-p', pptxPath, 'ppt/theme/theme1.xml'], { encoding: 'utf8' }).stdout
+  check('테마를 바꾸면 파워포인트 색·서체도 바뀐다', otherTheme !== baseTheme && otherTheme.length > 200)
+
+  // 글자가 실제로 그려지는가 — XML 이 맞아도 파워포인트가 안 보여 줄 수 있다.
+  // 리브레오피스가 깔려 있을 때만 돌린다 (판매용 프로그램에는 필요 없다).
+  const soffice = spawnSync('which', ['soffice'], { encoding: 'utf8' }).stdout.trim()
+  if (soffice) {
+    const renderDir = join(OUT, 'pptx-render')
+    rmSync(renderDir, { recursive: true, force: true })
+    mkdirSync(renderDir, { recursive: true })
+    const converted = spawnSync(
+      soffice,
+      ['--headless', '--norestore', '--convert-to', 'pdf', '--outdir', renderDir, pptxPath],
+      { encoding: 'utf8', timeout: 300_000 },
+    )
+    const rendered = join(renderDir, 'stage.pdf')
+    check('파워포인트 파일이 실제로 열린다', existsSync(rendered), (converted.stderr ?? '').trim().slice(0, 160))
+    if (existsSync(rendered)) {
+      const text = spawnSync('pdftotext', [rendered, '-'], { encoding: 'utf8' }).stdout ?? ''
+      if (text) {
+        check('열어 보면 행사 제목이 보인다', text.includes('정기 연주회'))
+        check('열어 보면 연주자 이름이 보인다', text.includes('윤채원'))
+        // 줄 간격 단위를 틀리면 본문이 통째로 사라진다 — 그걸 잡는 검사다
+        check('열어 보면 안내 문구가 보인다', text.includes('휴대전화'))
+        check('열어 보면 곡 해설이 보인다', text.includes('선율') || text.includes('곡입니다'))
+      }
+    }
+  } else {
+    console.log('  · 리브레오피스가 없어 실제 열림 검사는 건너뜁니다')
+  }
+
+  // 항목을 끄면 슬라이드도 줄어드는가
+  const bare = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?agenda=0&sections=0&commentary=0`)
+  const barePath = join(OUT, 'stage-bare.pptx')
+  writeFileSync(barePath, Buffer.from(await bare.body()))
+  const bareSlides = spawnSync('unzip', ['-Z1', barePath], { encoding: 'utf8' })
+    .stdout.trim()
+    .split('\n')
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+  check('항목을 끄면 파워포인트도 줄어든다', bareSlides.length < slideParts.length, `${bareSlides.length}장`)
 
   await context.close()
 } catch (error) {

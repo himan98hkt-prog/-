@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildProgram } from '@/lib/program/order'
+import { getTheme } from '@/lib/design/themes'
 import { buildStageDeck, DEFAULT_STAGE_OPTIONS } from '@/lib/stage/deck'
+import { buildPptx, pptFont } from '@/lib/stage/pptx'
 import type { EventRecord } from '@/lib/types'
 import { student } from './helpers'
 
@@ -118,5 +120,107 @@ describe('무대 화면 슬라이드', () => {
   it('슬라이드 id 가 겹치지 않는다', () => {
     const slides = deck()
     expect(new Set(slides.map((slide) => slide.id)).size).toBe(slides.length)
+  })
+})
+
+describe('파워포인트 파일 만들기', () => {
+  const themed = getTheme('classic-navy')
+  const file = () => buildPptx({ slides: deck(), theme: themed, academyName: '하모니 피아노학원', title: '제12회 정기 연주회' })
+
+  it('ZIP 으로 시작한다 — 파워포인트가 여는 그 형식', () => {
+    const bytes = file()
+    expect(bytes[0]).toBe(0x50)
+    expect(bytes[1]).toBe(0x4b)
+    expect(bytes.length).toBeGreaterThan(5_000)
+  })
+
+  it('파워포인트가 요구하는 부품이 모두 들어 있다', () => {
+    const text = new TextDecoder('utf-8').decode(file())
+    for (const part of [
+      '[Content_Types].xml',
+      '_rels/.rels',
+      'ppt/presentation.xml',
+      'ppt/slideMasters/slideMaster1.xml',
+      'ppt/slideLayouts/slideLayout1.xml',
+      'ppt/theme/theme1.xml',
+      'ppt/slides/slide1.xml',
+    ]) {
+      expect(text).toContain(part)
+    }
+  })
+
+  it('슬라이드 수가 화면과 같다', () => {
+    const slides = deck()
+    const text = new TextDecoder('utf-8').decode(
+      buildPptx({ slides, theme: themed, academyName: '하모니', title: '연주회' }),
+    )
+    const parts = text.match(/ppt\/slides\/slide\d+\.xml(?!\.rels)/g) ?? []
+    // 각 슬라이드는 Content_Types · 관계 · 파일 자체로 여러 번 등장한다 — 번호의 최댓값을 본다
+    const max = Math.max(...parts.map((name) => Number(name.match(/slide(\d+)/)![1])))
+    expect(max).toBe(slides.length)
+  })
+
+  it('학생 이름과 곡이 글자로 들어간다 — 그림이 아니라서 고칠 수 있다', () => {
+    const text = new TextDecoder('utf-8').decode(file())
+    expect(text).toContain('<a:t>윤채원</a:t>')
+    expect(text).toContain('녹턴 op.9 no.2')
+    expect(text).toContain('txBox="1"')
+  })
+
+  it('16:9 용지로 만든다', () => {
+    const text = new TextDecoder('utf-8').decode(file())
+    expect(text).toContain('<p:sldSz cx="12192000" cy="6858000"/>')
+  })
+
+  it('테마를 바꾸면 파일 내용도 바뀐다', () => {
+    const navy = new TextDecoder('utf-8').decode(file())
+    const blush = new TextDecoder('utf-8').decode(
+      buildPptx({ slides: deck(), theme: getTheme('blush-romance'), academyName: '하모니', title: '연주회' }),
+    )
+    expect(blush).not.toBe(navy)
+    expect(navy).toContain(getTheme('classic-navy').palette.accent.replace('#', '').toUpperCase())
+    expect(blush).toContain(getTheme('blush-romance').palette.accent.replace('#', '').toUpperCase())
+  })
+
+  it('어두운 화면으로 뽑으면 바탕이 잉크색이 된다', () => {
+    const dark = new TextDecoder('utf-8').decode(
+      buildPptx({ slides: deck(), theme: themed, academyName: '하모니', title: '연주회', dark: true }),
+    )
+    expect(dark).toContain(themed.palette.ink.replace('#', '').toUpperCase())
+  })
+
+  it('줄 간격은 10만분율로 적는다 — 단위를 틀리면 본문이 사라진다', () => {
+    const text = new TextDecoder('utf-8').decode(file())
+    for (const value of text.match(/<a:spcPct val="(\d+)"\/>/g) ?? []) {
+      expect(Number(value.match(/\d+/)![0])).toBeGreaterThanOrEqual(100_000)
+    }
+  })
+
+  it('이름에 &, <, " 가 있어도 파일이 깨지지 않는다', () => {
+    const tricky = [student('김<서>연 & "박"', 'beginner', 100, { piece_title: 'A & B <C>' })]
+    const text = new TextDecoder('utf-8').decode(
+      buildPptx({
+        slides: buildStageDeck(event, buildProgram(tricky), '하모니 & 피아노 <학원>'),
+        theme: themed,
+        academyName: '하모니 & 피아노 <학원>',
+        title: '연주회 & 발표회',
+      }),
+    )
+    // 글자 부분만 떼어 본다 — ZIP 안에는 압축 표식 같은 이진 바이트도 섞여 있다
+    const runs = text.match(/<a:t>[^<]*<\/a:t>/g) ?? []
+    expect(runs.length).toBeGreaterThan(3)
+    expect(runs.join('')).toContain('김&lt;서&gt;연 &amp; &quot;박&quot;')
+    expect(runs.join('')).toContain('하모니 &amp; 피아노 &lt;학원&gt;')
+    for (const run of runs) expect(run).not.toMatch(/&(?!amp;|lt;|gt;|quot;|apos;|#)/)
+  })
+
+  it('같은 입력이면 같은 파일이 나온다 — 시각을 기록하지 않는다', () => {
+    expect(Array.from(file())).toEqual(Array.from(file()))
+  })
+
+  it('웹폰트 이름 대신 컴퓨터에 있는 글꼴 이름을 쓴다', () => {
+    expect(pptFont("'Nanum Myeongjo', Batang, serif")).toBe('바탕')
+    expect(pptFont("'Gaegu', Gungsuh, cursive")).toBe('궁서')
+    expect(pptFont("'Noto Sans KR', 'Malgun Gothic', sans-serif")).toBe('맑은 고딕')
   })
 })

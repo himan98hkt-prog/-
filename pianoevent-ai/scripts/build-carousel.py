@@ -381,25 +381,24 @@ S.append(slide(9, TOTAL,
 
 # 10 무대 화면 ─────────────────────────────────────────────
 S.append(slide(10, TOTAL, dark=True,
-    eyebrow='기능 07 · 연주회 당일 스크린',
-    title='해마다 만들던 파워포인트,<br><span class="hi" style="color:#D9B95C">이제 안 만드셔도</span> 됩니다',
+    eyebrow='기능 07 · 연주회 PPT',
+    title='명단만 넣으면<br><span class="hi" style="color:#D9B95C">연주회 PPT</span>가 나옵니다',
     body='''
     <div class="chain">
-      <span class="seed">순서표 하나</span>
+      <span class="seed">학생 명단 12명</span>
       <p class="arrow">▼</p>
       <div class="chips">
         <span class="chip">입장 대기 화면</span><span class="chip">오늘의 순서</span>
-        <span class="chip">부 전환</span><span class="chip on">연주자별 화면</span>
+        <span class="chip">부 전환</span><span class="chip on">연주자별 12장</span>
         <span class="chip">휴식 안내</span><span class="chip">폐회 인사</span>
       </div>
-      <p class="chain-note">순서를 바꾸면 스크린도 함께 바뀝니다 — 슬라이드를 손으로 옮길 일이 없습니다</p>
+      <p class="chain-note">16:9 슬라이드 20장 — 순서를 바꾸면 20장이 함께 바뀝니다</p>
     </div>
-    <div class="list" style="margin-top:34px">
-      <div class="item"><span class="mk">✓</span><span>노트북을 빔프로젝터·TV에 꽂고 <b>[전체화면]</b> 한 번</span></div>
-      <div class="item"><span class="mk">✓</span><span><b>→ ← 화살표 · 스페이스 · 클릭</b>으로 넘기고, <b>프레젠터(리모컨)</b>도 그대로</span></div>
-      <div class="item"><span class="mk">✓</span><span>어두운 공연장을 위한 <b>검은 화면</b> 전환</span></div>
-      <div class="item"><span class="mk">✓</span><span><b>PDF로 저장</b>하면 USB에 담아 공연장 노트북에서 그대로</span></div>
-      <div class="item"><span class="mk">✓</span><span>인쇄물과 <b>같은 테마</b> — 포스터·순서지·스크린의 색이 어긋나지 않습니다</span></div>
+    <div class="list" style="margin-top:30px">
+      <div class="item"><span class="mk">✓</span><span><b>테마 100종</b>을 그 자리에서 바꿉니다 — 인쇄물과 같은 색·서체</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>진짜 .pptx 파일</b>로 받습니다 — 글상자라 파워포인트에서 바로 수정</span></div>
+      <div class="item"><span class="mk">✓</span><span>빔프로젝터·TV에 꽂고 <b>[전체화면]</b>, <b>화살표·리모컨</b>으로 넘기기</span></div>
+      <div class="item"><span class="mk">✓</span><span>어두운 공연장용 <b>검은 화면</b> · PDF 저장 · <b>인터넷 없이</b></span></div>
     </div>'''))
 
 # 11 운영 계산 ───────────────────────────────────────────────
@@ -497,8 +496,8 @@ S.append(slide(15, TOTAL,
         <tr><th>순서가 바뀌면</th><td>전부 재계산</td><td>모든 장 수정</td><td>다시 연락 · 추가비</td><td class="ours">40종 즉시 변경</td></tr>
         <tr><th>곡 정보</th><td>직접 검색</td><td>직접 검색</td><td>직접 전달</td><td class="ours">곡 사전 자동</td></tr>
         <tr><th>리허설 · 좌석</th><td>손 계산</td><td>없음</td><td>없음</td><td class="ours">자동</td></tr>
-        <tr><th>연주회장 스크린</th><td>PPT 해마다 재제작</td><td>한 장씩 직접</td><td>영상 별도 견적</td>
-          <td class="ours">순서표에서 16:9 자동</td></tr>
+        <tr><th>연주회 PPT</th><td>해마다 한 장씩 재제작</td><td>한 장씩 직접</td><td>영상 별도 견적</td>
+          <td class="ours">명단 넣으면 자동 · .pptx 수정</td></tr>
         <tr><th>비용</th><td>시간 15~25h</td><td>월 구독</td><td>1장 5~15만원</td><td class="ours">연 1회 · 무제한</td></tr>
       </tbody>
     </table>

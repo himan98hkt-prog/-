@@ -16,9 +16,9 @@ npm run reset    # 데모 데이터를 처음 상태로 되돌리기
 npm run mobile   # 같은 와이파이의 휴대폰에서 열기 (주소 + QR 코드 표시)
 npm run pack     # 배포용 ZIP 만들기 (실행기가 맨 위에 오도록 구성)
 npm run carousel # 상품 캐러셀 15장 (1080×1080 PNG)
-npm test         # 순수 로직 단위 테스트 180건
-npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 123건 검증
-npm run verify:stage             # 무대 화면 슬라이드를 한 장씩 띄워 넘침·PDF 검사
+npm test         # 순수 로직 단위 테스트 191건
+npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 134건 검증
+npm run verify:stage             # 무대 화면 넘침 · 테마 전환 · PDF · 파워포인트 파일 검사
 ```
 
 > **인터넷도 AI 키도 없이 전부 동작합니다.** 인터넷이 필요한 건 학부모가 초대장 링크를 여는 것 하나뿐입니다.
@@ -83,10 +83,16 @@ npm run verify:stage             # 무대 화면 슬라이드를 한 장씩 띄�
 - 순서표에서 슬라이드를 **계산**합니다 — 대기 화면 · 오늘의 순서 · 부 전환 · 연주자별 · 휴식 · 폐회
 - 순서를 바꾸면 슬라이드도 함께 바뀝니다. 손으로 옮길 것이 없습니다
 - 인쇄물과 **같은 테마**를 씁니다. 포스터 · 순서지 · 스크린의 색과 서체가 어긋나지 않습니다
+- 화면에서 **테마 100종**을 바로 바꾸고, 곡 해설·오늘의 순서·부 전환을 켜고 끕니다 (`components/design/theme-picker.tsx` 를 인쇄물 화면과 공유)
 - 화살표 · 스페이스 · 클릭으로 넘기고 프레젠터(리모컨)도 그대로. **어두운 화면** 전환 지원
+- **파워포인트(.pptx)로 받기** — `lib/stage/pptx.ts` 가 OOXML 을 짜고 `lib/stage/zip.ts` 가 묶습니다.
+  **외부 라이브러리 없이** 서버에서 만들며, 슬라이드가 그림이 아니라 **글상자**라 파워포인트에서 바로 고칠 수 있습니다.
+  글꼴은 윈도우에 늘 있는 바탕·맑은 고딕·궁서로 치환해 깨지지 않게 합니다
 - **PDF로 저장**하면 16:9 슬라이드가 한 파일로 나옵니다 (`@page size: 1280px 720px`)
 - `scripts/verify-stage.mjs` 가 슬라이드를 한 장씩 띄워 **화면 밖으로 넘친 요소가 없는지**,
-  뽑은 PDF의 용지 비율과 쪽수가 맞는지 실제 브라우저에서 확인합니다
+  테마를 바꾸면 색이 실제로 바뀌는지, 뽑은 PDF 의 용지 비율·쪽수가 맞는지 확인하고,
+  만들어진 `.pptx` 를 **리브레오피스로 실제로 열어** 글자가 그려지는지까지 봅니다
+  (리브레오피스가 없으면 그 검사만 건너뜁니다)
 
 ### 원장이 손으로 하던 계산 (`lib/ops/`, `lib/program/diagnose.ts`)
 
@@ -110,6 +116,7 @@ app/
   events/[id]/design/             인쇄물 디자인 스튜디오 (양식·테마·문구 선택 + 미리보기)
   events/[id]/design/print/       고른 양식을 실제 용지 크기로 인쇄
   events/[id]/stage/              무대 화면 — 연주회장 스크린용 16:9 슬라이드
+    api/events/[id]/pptx/         무대 화면을 파워포인트(.pptx) 파일로 내려받기
   events/[id]/invite/             초대장 공유 + 참석 집계 + 미리보기
   e/[id]/                         공개 모바일 초대장 (로그인 불필요)
   seasons/                        시즌 특강 팩 (계획서 + 활동지 인쇄)
@@ -130,6 +137,8 @@ lib/
   design/themes.ts    인쇄물 테마 100종 (색·서체·장식·프레임)
   design/templates.ts 인쇄 양식 40종 (용지 크기·장수 계산)
   stage/deck.ts       무대 화면 슬라이드 생성 (순수 함수)
+  stage/pptx.ts       슬라이드 → 파워포인트 OOXML (외부 라이브러리 없음)
+  stage/zip.ts        압축 없는 ZIP 묶기 (pptx 는 ZIP 이다)
   program/ai.ts       Gemini 프롬프트·응답 검증·폴백 결정
   season/             테마별 커리큘럼 템플릿 + AI 생성
   ai/gemini.ts        서버 전용 Gemini 래퍼 (타임아웃·JSON 추출)

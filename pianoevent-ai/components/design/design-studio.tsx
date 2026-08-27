@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Printer, Save, Sparkles } from 'lucide-react'
+import { Check, Printer, Save } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ImagePicker } from '@/components/design/image-picker'
 import { renderTemplate } from '@/components/design/render'
@@ -23,35 +23,15 @@ import {
 } from '@/lib/design/templates'
 import {
   DESIGN_THEMES,
-  FAMILY_LABEL,
-  FAMILY_ORDER,
   getTheme,
-  searchThemes,
-  seasonalThemeIds,
-  themesByFamily,
   type ThemeFamily,
 } from '@/lib/design/themes'
-import { eventMonth } from '@/lib/format'
 import type { Academy, EventRecord, ProgramPlan, Rsvp } from '@/lib/types'
+import { ThemePicker } from '@/components/design/theme-picker'
 import { cn } from '@/lib/utils'
 
 const PREVIEW_WIDTH = 520
 const DESIGN_TEMPLATE_COUNT = DESIGN_TEMPLATES.length
-
-function ThemeSwatch({ id }: { id: string }) {
-  const theme = getTheme(id)
-  return (
-    <span className="flex gap-1" aria-hidden>
-      {[theme.palette.paper, theme.palette.band, theme.palette.accent].map((color, index) => (
-        <span
-          key={index}
-          className="h-4 w-4 rounded-full border border-black/10"
-          style={{ background: color }}
-        />
-      ))}
-    </span>
-  )
-}
 
 export function DesignStudio({
   academy,
@@ -83,11 +63,6 @@ export function DesignStudio({
   )
 
   // 행사 달에 맞는 계절 테마 — 40종을 다 훑지 않아도 되게
-  const suggested = useMemo(() => {
-    const ids = seasonalThemeIds(eventMonth(event.event_at))
-    return ids.map((id) => DESIGN_THEMES.find((t) => t.id === id)).filter(Boolean) as typeof DESIGN_THEMES
-  }, [event.event_at])
-
   const template = getTemplate(templateId)
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const ctx = useMemo(
@@ -208,135 +183,7 @@ export function DesignStudio({
             <CardDescription>{getTheme(themeId).tagline}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium">
-                <Sparkles className="h-3.5 w-3.5 text-accent" aria-hidden />이 시기에 어울리는 테마
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {suggested.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setThemeId(item.id)
-                      setFamily(item.family)
-                    }}
-                    aria-pressed={item.id === themeId}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
-                      item.id === themeId
-                        ? 'border-accent bg-accent/10 font-medium'
-                        : 'border-border bg-background hover:bg-secondary',
-                    )}
-                  >
-                    <span
-                      className="h-3 w-3 rounded-full border border-black/10"
-                      style={{ background: item.palette.accent }}
-                      aria-hidden
-                    />
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {FAMILY_ORDER.map((id) => {
-                const count = DESIGN_THEMES.filter((t) => t.family === id).length
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setFamily(id)}
-                    aria-pressed={id === family}
-                    className={cn(
-                      'rounded-full border px-3 py-1 text-xs transition-colors',
-                      id === family
-                        ? 'border-accent bg-accent/10 font-medium text-foreground'
-                        : 'border-border text-muted-foreground hover:bg-secondary',
-                    )}
-                  >
-                    {FAMILY_LABEL[id]} {count}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div>
-              <input
-                type="search"
-                value={themeQuery}
-                onChange={(e) => setThemeQuery(e.target.value)}
-                placeholder="테마 찾기 — 봄, 금색, 아이, 격식…"
-                aria-label="테마 찾기"
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-              />
-            </div>
-
-            {themeQuery.trim() ? (
-              <div className="grid gap-1.5">
-                <p className="text-[11px] text-muted-foreground">
-                  &ldquo;{themeQuery.trim()}&rdquo; — {searchThemes(themeQuery).length}종
-                </p>
-                {searchThemes(themeQuery).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setThemeId(item.id)
-                      setFamily(item.family)
-                    }}
-                    aria-pressed={item.id === themeId}
-                    className={cn(
-                      'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                      item.id === themeId ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate">{item.name}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{item.tagline}</span>
-                    </span>
-                    <ThemeSwatch id={item.id} />
-                  </button>
-                ))}
-                {searchThemes(themeQuery).length === 0 && (
-                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-                    맞는 테마가 없습니다. 다른 말로 찾아 보세요.
-                  </p>
-                )}
-              </div>
-            ) : (
-              themesByFamily()
-              .filter((group) => group.family === family)
-              .map((group) => (
-                <div key={group.family} className="grid gap-1.5">
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">{group.hint}</p>
-                  {group.items.map((item) => {
-                    const active = item.id === themeId
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setThemeId(item.id)}
-                        aria-pressed={active}
-                        className={cn(
-                          'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                          active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-                        )}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate">{item.name}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {item.mood.join(' · ')}
-                          </span>
-                        </span>
-                        <ThemeSwatch id={item.id} />
-                      </button>
-                    )
-                  })}
-                </div>
-              ))
-            )}
+            <ThemePicker value={themeId} onChange={setThemeId} eventAt={event.event_at} />
             <FieldHint>테마마다 색과 서체가 한 벌로 맞춰져 있습니다. 학원 기본 테마는 설정 화면에서 정합니다.</FieldHint>
           </CardContent>
         </Card>
