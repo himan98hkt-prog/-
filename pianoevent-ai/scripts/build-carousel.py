@@ -419,7 +419,7 @@ S.append(slide(11, TOTAL,
     <div class="list" style="margin-top:28px">
       <div class="item"><span class="mk">✓</span><span>30명이라도 <b>파일 이름으로 한꺼번에</b> 짝지어 줍니다 — <b>김서연.jpg</b></span></div>
       <div class="item"><span class="mk">✓</span><span><b>감동영상</b> — 연습 사진·동영상·음악을 고르면 한 편이 만들어집니다</span></div>
-      <div class="item"><span class="mk">✓</span><span>장면 순서와 이름 자막은 <b>명단에서 이미 알고</b> 짜 드립니다</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>만들기 전에 장면 전부가 그림으로</b> 뜹니다 — 기다린 뒤 후회할 일이 없습니다</span></div>
       <div class="item"><span class="mk">✓</span><span>사진은 <b>컴퓨터 밖으로 나가지 않습니다</b> — 영상도 브라우저 안에서</span></div>
     </div>'''))
 

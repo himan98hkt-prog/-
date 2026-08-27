@@ -15,11 +15,14 @@ import {
   renderFrame,
   type FrameSource,
 } from '@/lib/video/render'
+import type { DesignTheme } from '@/lib/design/themes'
 import {
   buildStoryboard,
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
   formatLength,
+  isTextOnly,
+  sceneLabel,
   totalSeconds,
   type ExtraMedia,
   type StoryboardOptions,
@@ -69,7 +72,9 @@ export function VideoStudio({
   const [ready, setReady] = useState(false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const sourcesRef = useRef<FrameSource>({ images: new Map(), videos: new Map() })
+  // 그리는 루프는 ref 로 읽고(매 프레임 새로 만들지 않으려고), 콘티는 state 로 다시 그린다
+  const [sources, setSources] = useState<FrameSource>({ images: new Map(), videos: new Map() })
+  const sourcesRef = useRef<FrameSource>(sources)
   const rafRef = useRef<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -82,6 +87,14 @@ export function VideoStudio({
   )
   const timeline = useMemo(() => buildTimeline(scenes), [scenes])
   const withPhoto = Object.keys(photos).length
+  /** 지금 화면에 보이는 장면 — 콘티에서 표시해 준다 */
+  const activeIndex = useMemo(() => {
+    let found = 0
+    for (let i = 0; i < timeline.starts.length; i += 1) {
+      if (clock >= timeline.starts[i]) found = i
+    }
+    return found
+  }, [timeline, clock])
   // 서버에서는 브라우저가 무엇을 뽑을 수 있는지 알 수 없다.
   // 첫 그림을 서버와 똑같이 그린 뒤, 화면에 붙고 나서 알아본다 (그래야 화면이 어긋나지 않는다)
   const [recordType, setRecordType] = useState<string | null>(null)
@@ -94,7 +107,7 @@ export function VideoStudio({
   /** 사진·동영상을 미리 다 읽어 둔다 — 그리는 도중에 읽으면 화면이 끊긴다 */
   useEffect(() => {
     let alive = true
-    const sources: FrameSource = { images: new Map(), videos: new Map() }
+    const loaded: FrameSource = { images: new Map(), videos: new Map() }
     const urls = new Set<string>()
     for (const scene of scenes) {
       if (scene.image) urls.add(scene.image)
@@ -106,7 +119,7 @@ export function VideoStudio({
           const img = new Image()
           img.crossOrigin = 'anonymous'
           img.onload = () => {
-            sources.images.set(url, img)
+            loaded.images.set(url, img)
             resolve()
           }
           img.onerror = () => resolve()
@@ -121,7 +134,7 @@ export function VideoStudio({
       el.muted = false
       el.playsInline = true
       el.preload = 'auto'
-      sources.videos.set(scene.clip, el)
+      loaded.videos.set(scene.clip, el)
       jobs.push(new Promise<void>((resolve) => {
         el.onloadeddata = () => resolve()
         el.onerror = () => resolve()
@@ -130,7 +143,8 @@ export function VideoStudio({
     setReady(false)
     void Promise.all(jobs).then(() => {
       if (!alive) return
-      sourcesRef.current = sources
+      sourcesRef.current = loaded
+      setSources(loaded)
       setReady(true)
       draw(0)
     })
@@ -162,8 +176,8 @@ export function VideoStudio({
 
   /** 재생·녹화 공통 진행 루프 */
   const runLoop = useCallback(
-    (onDone: () => void) => {
-      const started = performance.now()
+    (onDone: () => void, from = 0) => {
+      const started = performance.now() - from * 1000
       const playedClips = new Set<string>()
       const step = () => {
         const seconds = (performance.now() - started) / 1000
@@ -204,24 +218,38 @@ export function VideoStudio({
     audioRef.current?.pause()
   }
 
-  function preview() {
+  function preview(from = 0) {
     if (playing) {
       stopLoop()
       setPlaying(false)
       return
     }
     setPlaying(true)
-    setClock(0)
+    setClock(from)
     if (music && audioRef.current) {
-      audioRef.current.currentTime = 0
+      audioRef.current.currentTime = from
       void audioRef.current.play().catch(() => undefined)
     }
-    runLoop(() => {
+    runLoop(
+      () => {
+        stopLoop()
+        setPlaying(false)
+        setClock(0)
+        draw(0)
+      },
+      from,
+    )
+  }
+
+  /** 콘티에서 장면을 누르면 그 자리를 보여 준다 */
+  function jumpTo(seconds: number) {
+    if (recording) return
+    if (playing) {
       stopLoop()
       setPlaying(false)
-      setClock(0)
-      draw(0)
-    })
+    }
+    setClock(seconds)
+    draw(seconds)
   }
 
   async function record() {
@@ -352,7 +380,7 @@ export function VideoStudio({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={preview} disabled={recording || !ready}>
+          <Button size="sm" onClick={() => preview(playing ? 0 : clock)} disabled={recording || !ready}>
             {playing ? <Pause className="mr-1 h-4 w-4" /> : <Play className="mr-1 h-4 w-4" />}
             {playing ? '멈추기' : '미리보기'}
           </Button>
@@ -368,6 +396,11 @@ export function VideoStudio({
           <span className="text-sm tabular-nums text-muted-foreground" data-testid="video-length">
             {formatLength(clock)} / {formatLength(length)} · 장면 {scenes.length}개
           </span>
+          {!recording && !playing && ready && (
+            <span className="text-xs text-muted-foreground">
+              만드는 데 <strong className="text-foreground">약 {formatLength(length)}</strong> 걸립니다
+            </span>
+          )}
           {!ready && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="사진 읽는 중" />}
         </div>
 
@@ -412,6 +445,15 @@ export function VideoStudio({
             (미리보기는 그대로 됩니다)
           </p>
         )}
+
+        <StoryboardStrip
+          timeline={timeline}
+          sources={sources}
+          theme={theme}
+          academyName={academyName}
+          onJump={jumpTo}
+          activeIndex={activeIndex}
+        />
       </div>
 
       <div className="grid content-start gap-4">
@@ -576,5 +618,94 @@ export function VideoStudio({
         </section>
       </div>
     </div>
+  )
+}
+
+/**
+ * 만들어질 모습 미리보기 — 콘티.
+ *
+ * "만들기"를 누르면 몇 분을 기다려야 한다. 그 전에 **전체가 어떻게 나올지**
+ * 눈으로 볼 수 있어야 마음 놓고 누른다. 장면마다 실제 화면을 그려서 보여 준다 —
+ * 설명이 아니라 진짜 그 그림이다.
+ */
+function StoryboardStrip({
+  timeline,
+  sources,
+  theme,
+  academyName,
+  onJump,
+  activeIndex,
+}: {
+  timeline: ReturnType<typeof buildTimeline>
+  sources: FrameSource
+  theme: DesignTheme
+  academyName: string
+  onJump: (seconds: number) => void
+  activeIndex: number
+}) {
+  const [shots, setShots] = useState<string[]>([])
+
+  useEffect(() => {
+    // 장면마다 한 장씩 실제로 그려서 그림으로 굽는다
+    const canvas = document.createElement('canvas')
+    canvas.width = 480
+    canvas.height = 270
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const made: string[] = []
+    for (let i = 0; i < timeline.scenes.length; i += 1) {
+      // 장면 한가운데를 뽑는다 — 겹쳐 넘어가는 구간을 피한다
+      const at = timeline.starts[i] + timeline.scenes[i].seconds / 2
+      renderFrame(ctx, timeline, at, sources, {
+        width: canvas.width,
+        height: canvas.height,
+        theme,
+        academyName,
+      })
+      made.push(canvas.toDataURL('image/jpeg', 0.72))
+    }
+    setShots(made)
+  }, [timeline, sources, theme, academyName])
+
+  return (
+    <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="storyboard">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium">만들어질 모습 · 장면 {timeline.scenes.length}개</p>
+        <p className="text-xs text-muted-foreground">
+          전체 {formatLength(timeline.total)} · 아래 그림이 <strong>실제로 나올 화면 그대로</strong>입니다 ·
+          누르면 그 장면을 보여 줍니다
+        </p>
+      </div>
+      <div className="grid max-h-[440px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+        {timeline.scenes.map((scene, index) => (
+          <button
+            key={scene.id}
+            type="button"
+            onClick={() => onJump(timeline.starts[index])}
+            className={cn(
+              'group grid gap-1 rounded-md border p-1 text-left transition-colors',
+              index === activeIndex ? 'border-accent bg-accent/8' : 'border-border hover:bg-secondary',
+            )}
+            aria-label={`${sceneLabel(scene)} 장면 보기`}
+          >
+            <span className="relative block overflow-hidden rounded bg-black" style={{ aspectRatio: '16 / 9' }}>
+              {shots[index] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={shots[index]} alt="" className="h-full w-full object-cover" />
+              ) : null}
+              <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] tabular-nums text-white">
+                {scene.seconds}초
+              </span>
+              {isTextOnly(scene) && (
+                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] text-white">사진 없음</span>
+              )}
+            </span>
+            <span className="truncate px-0.5 text-xs leading-tight text-muted-foreground">
+              <span className="tabular-nums">{index + 1}.</span> {sceneLabel(scene)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }

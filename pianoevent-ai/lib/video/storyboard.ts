@@ -200,3 +200,24 @@ export function formatLength(seconds: number): string {
   const s = total % 60
   return m > 0 ? `${m}분 ${String(s).padStart(2, '0')}초` : `${s}초`
 }
+
+/** 장면 이름 — 미리보기 창에서 원장님이 알아볼 말로 */
+export function sceneLabel(scene: VideoScene): string {
+  switch (scene.kind) {
+    case 'title':
+      return scene.headline ?? '표지'
+    case 'gallery':
+      return scene.sub ? `연습 사진 · ${scene.sub}` : '연습 사진'
+    case 'clip':
+      return scene.sub ? `동영상 · ${scene.sub}` : '동영상'
+    case 'student':
+      return [scene.eyebrow, scene.headline].filter(Boolean).join(' · ')
+    case 'closing':
+      return '마무리'
+  }
+}
+
+/** 이 장면에 사진이 없어 이름만 나오는가 — 미리보기에서 표시해 준다 */
+export function isTextOnly(scene: VideoScene): boolean {
+  return scene.kind === 'student' && !scene.image
+}

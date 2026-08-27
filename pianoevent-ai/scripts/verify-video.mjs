@@ -119,6 +119,26 @@ try {
   const sceneCount = Number(lengthText.match(/장면 (\d+)개/)[1])
   check('명단에서 장면이 만들어졌다', sceneCount >= 12 + 3, `${sceneCount}개`)
 
+  // 만들기 전에 전체 모습이 보이는가 — 원장님이 마음 놓고 누를 수 있어야 한다
+  const board = page.getByTestId('storyboard')
+  check('만들어질 모습 창이 있다', (await board.count()) === 1)
+  await page.waitForTimeout(1200)
+  const thumbs = board.locator('img')
+  const thumbCount = await thumbs.count()
+  check('장면마다 그림이 나온다', thumbCount === sceneCount, `${thumbCount} / ${sceneCount}`)
+  const firstThumb = await thumbs.first().getAttribute('src')
+  check('그림이 진짜로 그려진 것이다', (firstThumb ?? '').startsWith('data:image/jpeg'), (firstThumb ?? '').slice(0, 24))
+  const boardText = await board.textContent()
+  check('장면 이름과 길이를 적어 준다', /\d+초/.test(boardText) && boardText.includes('제12회'), boardText.slice(0, 60))
+  check('사진이 없는 장면을 알려 준다', boardText.includes('사진 없음'))
+  await board.screenshot({ path: join(OUT, 'storyboard.jpg'), type: 'jpeg', quality: 80 })
+
+  // 콘티를 누르면 그 장면이 보인다
+  await board.locator('button').nth(4).click()
+  await page.waitForTimeout(400)
+  const jumped = await page.getByTestId('video-length').textContent()
+  check('장면을 누르면 그 자리로 간다', !jumped.trim().startsWith('0초'), jumped.trim())
+
   // 이 브라우저가 뽑을 수 있는 형식이 있는가
   const recordType = await page.evaluate(() => {
     const list = [

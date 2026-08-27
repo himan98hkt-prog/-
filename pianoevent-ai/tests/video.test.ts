@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildProgram } from '@/lib/program/order'
-import { buildTimeline, describeRecordType, scenesAt, CROSSFADE_SEC } from '@/lib/video/render'
+import { buildTimeline, describeRecordType, fadeFor, scenesAt, CAPTION_FADE_SEC, CROSSFADE_SEC } from '@/lib/video/render'
 import {
   buildStoryboard,
   DEFAULT_STORYBOARD_OPTIONS,
@@ -168,7 +168,7 @@ describe('시간표', () => {
   })
 
   it('넘어가는 동안에는 두 장면이 겹친다 — 화면이 껌뻑이지 않는다', () => {
-    const at = timeline.starts[1] + CROSSFADE_SEC / 2
+    const at = timeline.starts[1] + fadeFor(timeline.scenes[1].seconds) / 2
     const visible = scenesAt(timeline, at)
     expect(visible.length).toBe(2)
     // 앞 장면은 아래에 그대로, 뒤 장면이 그 위로 서서히 진해진다
@@ -180,9 +180,31 @@ describe('시간표', () => {
   })
 
   it('겹치는 시간이 끝나면 앞 장면은 사라진다', () => {
-    const at = timeline.starts[1] + CROSSFADE_SEC + 0.05
+    const at = timeline.starts[1] + fadeFor(timeline.scenes[1].seconds) + 0.05
     const visible = scenesAt(timeline, at)
     expect(visible.map((entry) => entry.index)).toEqual([1])
+  })
+
+  it('넘어가는 동안 두 자막이 함께 읽히지 않는다 — 이름이 겹쳐 찍힌 것처럼 보인다', () => {
+    const fade = fadeFor(timeline.scenes[1].seconds)
+    for (let t = timeline.starts[1]; t < timeline.starts[1] + fade; t += 0.05) {
+      const visible = scenesAt(timeline, t)
+      const readable = visible.filter((entry) => entry.textAlpha > 0.15)
+      expect(readable.length).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('자막은 넘어가기가 끝난 뒤에 떠오른다', () => {
+    const fade = fadeFor(timeline.scenes[1].seconds)
+    expect(scenesAt(timeline, timeline.starts[1] + fade * 0.5).find((e) => e.index === 1).textAlpha).toBe(0)
+    const settled = scenesAt(timeline, timeline.starts[1] + fade + CAPTION_FADE_SEC + 0.01).find((e) => e.index === 1)
+    expect(settled.textAlpha).toBe(1)
+  })
+
+  it('장면이 짧으면 겹치는 시간도 짧아진다 — 겹침이 장면을 다 먹지 않게', () => {
+    expect(fadeFor(6)).toBe(CROSSFADE_SEC)
+    expect(fadeFor(1.5)).toBeCloseTo(0.375, 3)
+    expect(fadeFor(0.4)).toBe(0.15)
   })
 
   it('첫 장면은 흐리게 시작하지 않는다', () => {
