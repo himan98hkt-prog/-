@@ -19,7 +19,8 @@
     "mobile": "node scripts/mobile.mjs",
     "pack": "node scripts/pack.mjs",
     "demo:build": "vite build --config demo/vite.config.ts && node scripts/build-artifact.mjs",
-    "demo:verify": "node scripts/verify-demo.mjs"
+    "demo:verify": "node scripts/verify-demo.mjs",
+    "carousel": "python3 scripts/build-carousel.py && node scripts/carousel-shot.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

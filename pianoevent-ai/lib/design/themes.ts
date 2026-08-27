@@ -138,13 +138,25 @@ export const PHOTO_FILTER: Record<PhotoTreatment, string> = {
   mono: 'grayscale(1) contrast(1.05)',
 }
 
-const SERIF_CLASSIC = "'Nanum Myeongjo', 'Apple SD Gothic Neo', serif"
-const SERIF_SOFT = "'Gowun Batang', 'Nanum Myeongjo', serif"
-const SERIF_THIN = "'Song Myung', 'Nanum Myeongjo', serif"
-const SERIF_NOTO = "'Noto Serif KR', 'Nanum Myeongjo', serif"
-const SANS = "'Noto Sans KR', Pretendard, 'Apple SD Gothic Neo', sans-serif"
-const ROUND = "'Jua', 'Noto Sans KR', sans-serif"
-const HAND = "'Gaegu', 'Noto Sans KR', cursive"
+/**
+ * 서체 스택.
+ *
+ * 웹폰트는 인터넷이 있을 때만 내려온다. 없으면 윈도우·맥에 이미 깔린 글꼴로 떨어지는데,
+ * 그 폴백까지 손으로 지정해 둬야 인터넷 없는 학원에서도 인쇄물이 제 모양으로 나온다.
+ * 윈도우: 바탕(Batang) · 궁서(Gungsuh) · 맑은 고딕(Malgun Gothic)
+ * 맥: Apple SD Gothic Neo · AppleMyungjo
+ */
+const SERIF_CLASSIC =
+  "'Nanum Myeongjo', 'Apple SD Gothic Neo', AppleMyungjo, Batang, '바탕', serif"
+const SERIF_SOFT = "'Gowun Batang', 'Nanum Myeongjo', AppleMyungjo, Batang, '바탕', serif"
+const SERIF_THIN = "'Song Myung', 'Nanum Myeongjo', AppleMyungjo, Batang, '바탕', serif"
+const SERIF_NOTO = "'Noto Serif KR', 'Nanum Myeongjo', AppleMyungjo, Batang, '바탕', serif"
+const SANS =
+  "'Noto Sans KR', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif"
+// 둥근 글꼴이 없으면 고딕으로 — 각진 명조보다 아이들 인쇄물에 가깝다
+const ROUND = "'Jua', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif"
+// 손글씨가 없으면 궁서로 — 붓 느낌이 남는다
+const HAND = "'Gaegu', 'Noto Sans KR', Gungsuh, '궁서', 'Malgun Gothic', cursive"
 
 export const DESIGN_THEMES: DesignTheme[] = [
   {

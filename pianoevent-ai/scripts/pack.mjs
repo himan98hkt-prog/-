@@ -17,7 +17,7 @@ const ZIP = path.join(OUT, `${BUNDLE}.zip`)
 const SKIP = new Set([
   'node_modules', '.next', '.git', '.data', '.pack', '배포',
   '.env', '.env.local', 'test-results', 'playwright-report',
-  'promo', 'detail', 'shots', 'screenshots', 'tsconfig.tsbuildinfo',
+  'promo', 'detail', 'shots', 'screenshots', 'carousel', 'tsconfig.tsbuildinfo',
 ])
 
 function copy(src, dst) {

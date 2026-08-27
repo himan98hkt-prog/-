@@ -15,10 +15,14 @@ npm run dev      # http://localhost:3000  (환경변수 없이 바로 전 기능
 npm run reset    # 데모 데이터를 처음 상태로 되돌리기
 npm run mobile   # 같은 와이파이의 휴대폰에서 열기 (주소 + QR 코드 표시)
 npm run pack     # 배포용 ZIP 만들기 (실행기가 맨 위에 오도록 구성)
+npm run carousel # 상품 캐러셀 14장 (1080×1080 PNG)
 npm test         # 순수 로직 단위 테스트 62건
 npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 26건 검증
 ```
 
+> **인터넷도 AI 키도 없이 전부 동작합니다.** 인터넷이 필요한 건 학부모가 초대장 링크를 여는 것 하나뿐입니다.
+> → [docs/OFFLINE.md](docs/OFFLINE.md)
+>
 > 환경변수를 하나도 설정하지 않아도 됩니다. Supabase 가 없으면 로컬 데모 저장소로, Gemini 키가 없으면
 > 내장 규칙 엔진으로 자동 전환되어 **모든 화면이 그대로 동작**합니다.
 

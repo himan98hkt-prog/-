@@ -337,6 +337,9 @@ async function run() {
   check('설정에 이미지 보관함 노출', settingsHtml.includes('이미지 보관함'))
   check('로고·사진 주소 입력칸은 사라짐', !settingsHtml.includes('로고 이미지 주소'))
   check('보관함에서 학원 기본으로 지정 가능', settingsHtml.includes('학원 기본으로 지정'))
+  check('자가 진단 노출', settingsHtml.includes('이 컴퓨터에서 지금 되는 것'))
+  check('AI 키 없이도 된다고 명시', settingsHtml.includes('AI 키 없이도 전부 만들어집니다'))
+  check('인터넷 필요한 항목이 셋뿐임을 명시', settingsHtml.includes('이 셋뿐입니다'))
 
   const defaulted = await json('/api/academy', { logo_url: PNG }, 'PATCH')
   check('학원 기본 로고 지정', defaulted.ok && (await defaulted.json()).academy?.logo_url === PNG)

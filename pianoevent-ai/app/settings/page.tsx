@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { AcademyForm } from '@/components/settings/academy-form'
 import { AssetLibrary } from '@/components/settings/asset-library'
+import { SystemCheck } from '@/components/settings/system-check'
 import { DeleteAccount } from '@/components/settings/delete-account'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,28 +30,7 @@ export default async function SettingsPage() {
 
         <AssetLibrary academy={academy} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>연결 상태</CardTitle>
-            <CardDescription>환경변수 설정에 따라 자동으로 전환됩니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span>데이터 저장소</span>
-              <Badge variant={driver === 'supabase' ? 'accent' : 'outline'}>
-                {driver === 'supabase' ? 'Supabase PostgreSQL' : '로컬 데모 저장소'}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>AI 생성</span>
-              <Badge variant={ai ? 'accent' : 'outline'}>{ai ? `Gemini · ${PRO_MODEL}` : '내장 규칙 엔진'}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              AI 키가 없어도 순서 배치와 사회자 대본은 내장 규칙 엔진으로 항상 생성됩니다. Gemini 키는 서버에만
-              저장되며 브라우저로 전달되지 않습니다.
-            </p>
-          </CardContent>
-        </Card>
+        <SystemCheck driver={driver} ai={ai} />
 
         <Card>
           <CardHeader>
