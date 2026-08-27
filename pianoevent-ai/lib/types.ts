@@ -1,3 +1,5 @@
+import type { AcademyAsset, ImageMap } from '@/lib/assets'
+
 /** 연주 난이도 — 순서 배치 단계(stage)를 결정하는 1차 기준 */
 export type Level = 'beginner' | 'intermediate' | 'advanced' | 'ensemble'
 
@@ -18,6 +20,8 @@ export interface Academy {
   design_theme: string | null
   /** 학원 대표 사진 — 행사 사진이 없을 때 인쇄물에 쓰인다 */
   photo_url: string | null
+  /** 로고·상징·사진 보관함. 한 번 올려 두면 모든 행사에서 골라 쓴다 */
+  assets: AcademyAsset[]
   created_at: string
 }
 
@@ -48,6 +52,8 @@ export interface EventRecord {
   design_copy: Record<string, string> | null
   /** 이 행사의 대표 사진 (작년 연주회·단체 사진 등). 없으면 학원 대표 사진을 쓴다 */
   photo_url: string | null
+  /** 인쇄물 갈래별로 어떤 보관함 이미지를 쓸지. 비우면 기본값을 따른다 */
+  image_map: ImageMap | null
   created_at: string
 }
 

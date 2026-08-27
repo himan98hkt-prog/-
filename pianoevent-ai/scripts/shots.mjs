@@ -85,6 +85,8 @@ const SHOTS = [
   ['54-cover-ribbon.png', print_('program-cover', 'ribbon-cream'), 900, true],
   ['55-social-bonbon.png', print_('social-card', 'bonbon-mint'), 1000, true],
   ['56-design-studio-family.png', `/events/${EVENT_ID}/design`, 1440, true],
+  ['57-asset-library.png', '/settings', 1280, true],
+  ['58-roster-import.png', `/events/${EVENT_ID}?tab=roster`, 1280, true],
 ]
 
 const post = (path, body) =>

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { getTheme, themesByTone } from '@/lib/design/themes'
+import { DESIGN_THEMES, FAMILY_LABEL, FAMILY_ORDER, getTheme, themesByFamily, type ThemeFamily } from '@/lib/design/themes'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,8 +14,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [designTheme, setDesignTheme] = useState(academy.design_theme ?? 'classic-navy')
-  const [logoUrl, setLogoUrl] = useState(academy.logo_url ?? '')
-  const [photoUrl, setPhotoUrl] = useState(academy.photo_url ?? '')
+  const [family, setFamily] = useState<ThemeFamily>(getTheme(academy.design_theme ?? 'classic-navy').family)
 
   async function save(formData: FormData) {
     setPending(true)
@@ -28,8 +27,6 @@ export function AcademyForm({ academy }: { academy: Academy }) {
           name: formData.get('name'),
           director_name: formData.get('director_name'),
           theme_color: formData.get('theme_color'),
-          logo_url: formData.get('logo_url'),
-          photo_url: photoUrl,
           design_theme: designTheme,
         }),
       })
@@ -74,56 +71,6 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                 className="h-10 w-24 p-1"
               />
             </div>
-            <div>
-              <Label htmlFor="logo_url">로고 이미지 주소 (선택)</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="logo_url"
-                  name="logo_url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://..."
-                />
-                {logoUrl.trim() && (
-                  // 외부 URL 이라 next/image 대신 img 로 그린다
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logoUrl}
-                    alt="로고 미리보기"
-                    className="h-10 w-10 shrink-0 rounded-full border border-border object-contain"
-                  />
-                )}
-              </div>
-              <FieldHint>
-                정사각형에 가까운 이미지(투명 배경 PNG·SVG)가 가장 잘 맞습니다. 포스터·순서지·입장권·상장의 로고
-                자리에 테마가 정한 모양으로 들어갑니다.
-              </FieldHint>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="photo_url">학원 대표 사진 (선택)</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                id="photo_url"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                placeholder="https://..."
-              />
-              {photoUrl.trim() && (
-                // 외부 URL 이라 next/image 대신 img 로 그린다
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={photoUrl}
-                  alt="학원 사진 미리보기"
-                  className="h-12 w-16 shrink-0 rounded border border-border object-cover"
-                />
-              )}
-            </div>
-            <FieldHint>
-              학원 전경·연습실 사진을 넣으면 사진 포스터와 프로그램 표지에 쓰입니다. 행사마다 다른 사진을 쓰려면
-              행사 화면의 인쇄물 디자인에서 따로 지정하세요.
-            </FieldHint>
           </div>
 
           <div>
@@ -131,12 +78,30 @@ export function AcademyForm({ academy }: { academy: Academy }) {
             <FieldHint className="mb-2 mt-0">
               포스터·순서지·입장권·상장에 공통으로 쓰입니다. 행사마다 다르게 고를 수도 있습니다.
             </FieldHint>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {FAMILY_ORDER.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFamily(id)}
+                  aria-pressed={id === family}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs transition-colors',
+                    id === family
+                      ? 'border-accent bg-accent/10 font-medium text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-secondary',
+                  )}
+                >
+                  {FAMILY_LABEL[id]} {DESIGN_THEMES.filter((t) => t.family === id).length}
+                </button>
+              ))}
+            </div>
             <div className="grid gap-4">
-              {themesByTone().map((group) => (
-                <div key={group.tone}>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {group.label} · {group.items.length}종
-                  </p>
+              {themesByFamily()
+                .filter((group) => group.family === family)
+                .map((group) => (
+                <div key={group.family}>
+                  <p className="mb-1.5 text-[11px] leading-relaxed text-muted-foreground">{group.hint}</p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
                     {group.items.map((theme) => {
                       const active = theme.id === designTheme

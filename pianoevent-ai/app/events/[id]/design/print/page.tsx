@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { renderTemplate } from '@/components/design/render'
 import { PrintButton } from '@/components/print-button'
+import { resolveLogo, resolvePhoto } from '@/lib/assets'
 import { defaultCopy, type DesignCopy } from '@/lib/design/context'
 import { PAGE_PX, getPack, getTemplate, packTemplates, sheetCount } from '@/lib/design/templates'
 import { getTheme } from '@/lib/design/themes'
@@ -44,9 +45,12 @@ export default async function DesignPrintPage({
     plan,
     copy,
     inviteUrl: `/e/${event.id}`,
-    logoUrl: academy.logo_url,
-    // 행사 사진이 없으면 학원 대표 사진으로 내려간다
-    photoUrl: event.photo_url ?? academy.photo_url,
+    logoUrl: resolveLogo(academy.assets ?? [], event.image_map, academy.logo_url),
+    // 갈래 지정 → 기본 지정 → 행사 사진 → 학원 대표 사진 순으로 내려간다
+    photoUrl: resolvePhoto(academy.assets ?? [], event.image_map, template.category, [
+      event.photo_url,
+      academy.photo_url,
+    ]),
     // 인쇄물에는 빈 로고·사진 상자를 찍지 않는다
     placeholder: false,
     // 좌석 배치도·접수 확인표가 실제 회신을 쓴다
@@ -80,7 +84,14 @@ export default async function DesignPrintPage({
       <div className="flex flex-col items-center gap-6 print:gap-0">
         {templates.map((item) => (
           <div key={item.id} className="contents">
-            {renderTemplate(item.id, ctx)}
+            {renderTemplate(item.id, {
+              ...ctx,
+              // 한 벌 안에서도 포스터와 순서지가 서로 다른 사진을 쓸 수 있다
+              photoUrl: resolvePhoto(academy.assets ?? [], event.image_map, item.category, [
+                event.photo_url,
+                academy.photo_url,
+              ]),
+            })}
           </div>
         ))}
       </div>

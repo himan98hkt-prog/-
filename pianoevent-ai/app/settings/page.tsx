@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { AcademyForm } from '@/components/settings/academy-form'
+import { AssetLibrary } from '@/components/settings/asset-library'
 import { DeleteAccount } from '@/components/settings/delete-account'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,8 @@ export default async function SettingsPage() {
         </div>
 
         <AcademyForm academy={academy} />
+
+        <AssetLibrary academy={academy} />
 
         <Card>
           <CardHeader>

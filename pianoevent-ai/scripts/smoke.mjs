@@ -236,6 +236,75 @@ async function run() {
   const bigProgram = await call(`/events/${bigId}/design/print?template=program-inner&theme=classic-navy`)
   check('34명 순서지에서 마지막 연주자까지 나옴', (await bigProgram.text()).includes('학생34'))
 
+  console.log('\n▸ 이미지 보관함')
+
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const addLogo = await json('/api/academy/assets', { kind: 'logo', label: '스모크 로고', url: PNG })
+  const addedLogo = await addLogo.json()
+  check('보관함에 로고 추가', addLogo.status === 201 && Boolean(addedLogo.asset?.id), addedLogo.error ?? '')
+
+  const addPhoto = await json('/api/academy/assets', { kind: 'photo', label: '스모크 사진', url: PNG })
+  const addedPhoto = await addPhoto.json()
+  check('보관함에 사진 추가', addPhoto.status === 201 && addedPhoto.academy?.assets?.length === 2)
+
+  const badAsset = await json('/api/academy/assets', { kind: 'photo', label: 'x', url: 'ftp://nope' })
+  check('이미지가 아닌 주소는 거부', badAsset.status === 400)
+
+  const mapped = await json(
+    `/api/events/${event.id}`,
+    { image_map: { logo: addedLogo.asset.id, poster: addedPhoto.asset.id } },
+    'PATCH',
+  )
+  const mappedBody = await mapped.json()
+  check('인쇄물 갈래별 이미지 지정 저장', mapped.ok && mappedBody.event?.image_map?.poster === addedPhoto.asset.id)
+
+  const withImage = await call(`/events/${event.id}/design/print?template=poster-photo&theme=classic-navy`)
+  check('지정한 사진이 인쇄물에 들어감', (await withImage.text()).includes('iVBORw0KGgo'))
+
+  // image_map 은 통째로 갈아 끼운다. 없는 이미지는 걸러지고 나머지도 함께 지워진다
+  const ghost = await json(`/api/events/${event.id}`, { image_map: { poster: 'no-such-asset' } }, 'PATCH')
+  check('보관함에 없는 이미지는 저장하지 않음', (await ghost.json()).event?.image_map?.poster === undefined)
+
+  const removed = await fetch(`${BASE}/api/academy/assets/${addedPhoto.asset.id}`, { method: 'DELETE' })
+  check('보관함에서 이미지 삭제', removed.ok)
+
+  console.log('\n▸ 지난 행사에서 명단 가져오기')
+
+  const nextYear = await json('/api/events', {
+    title: '제13회 정기 연주회',
+    type: 'recital',
+    event_at: '2027-09-16T15:00',
+    venue: '구민회관',
+  })
+  const nextId = (await nextYear.json())?.event?.id
+  const carried = await json(`/api/events/${nextId}/students/import`, { from_event_id: event.id })
+  const carriedRows = await carried.json()
+  check('지난 행사에서 명단 가져오기', carried.status === 201 && carriedRows.students?.length === 6,
+    carriedRows.error ?? '')
+  check('이름은 그대로 오고 곡은 비워진다',
+    carriedRows.students?.[0]?.student_name?.length > 0 && carriedRows.students?.[0]?.piece_title === '')
+
+  const withPieces = await json(`/api/events/${nextId}/students/import`, {
+    from_event_id: event.id,
+    keep_pieces: true,
+  })
+  check('곡까지 가져오기', (await withPieces.json()).students?.[0]?.piece_title?.length > 0)
+
+  const selfImport = await json(`/api/events/${nextId}/students/import`, { from_event_id: nextId })
+  check('같은 행사에서는 가져오지 않음', selfImport.status === 400)
+
+  const rosterTab = await call(`/events/${nextId}?tab=roster`)
+  check('명단 화면에 지난 행사 불러오기 노출', (await rosterTab.text()).includes('지난 행사에서 명단 가져오기'))
+
+  const settings = await call('/settings')
+  const settingsHtml = await settings.text()
+  check('설정에 이미지 보관함 노출', settingsHtml.includes('이미지 보관함'))
+  check('로고·사진 주소 입력칸은 사라짐', !settingsHtml.includes('로고 이미지 주소'))
+  check('보관함에서 학원 기본으로 지정 가능', settingsHtml.includes('학원 기본으로 지정'))
+
+  const defaulted = await json('/api/academy', { logo_url: PNG }, 'PATCH')
+  check('학원 기본 로고 지정', defaulted.ok && (await defaulted.json()).academy?.logo_url === PNG)
+
   const planTab = await call(`/events/${event.id}?tab=plan`)
   const planHtml = await planTab.text()
   check('리허설·예산·좌석 탭 렌더', planTab.ok && planHtml.includes('리허설 시간표'))

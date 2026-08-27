@@ -21,6 +21,55 @@ IMG = {k: b64(v) for k, v in {
 }.items()}
 
 EXTRA_CSS = """
+  /* ── 체험 버튼 ───────────────────────────────────── */
+  .try-btn{
+    display:inline-flex;align-items:center;gap:.55em;
+    padding:.85em 1.9em;border-radius:999px;
+    border:2px solid var(--gold,#B3892F);
+    background:transparent;color:var(--gold,#B3892F);
+    font-weight:700;text-decoration:none;
+    transition:background .2s,color .2s,transform .2s;
+  }
+  .try-btn:hover{background:var(--gold,#B3892F);color:#fff;transform:translateY(-2px);}
+  .cta .try-btn{border-color:#F0D9A0;color:#F0D9A0;}
+  .cta .try-btn:hover{background:#F0D9A0;color:#2A1F12;}
+  .btn-row{display:flex;flex-wrap:wrap;gap:.9rem;align-items:center;margin-top:1.4rem;}
+  .btn-note{font-size:.86rem;opacity:.75;flex-basis:100%;}
+
+  /* ── 제공/미제공 두 칸 ───────────────────────────── */
+  .scope-grid{display:grid;gap:1.2rem;margin-top:1.8rem;}
+  @media (min-width:760px){.scope-grid{grid-template-columns:1fr 1fr;}}
+  .scope-col{border:1px solid rgba(120,100,70,.22);border-radius:12px;padding:1.4rem;background:#fff;}
+  .scope-col.no{background:#FBF7F1;}
+  .scope-col h3{font-size:1.05rem;margin:0 0 .9em;}
+  .scope-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.7em;}
+  .scope-col li{display:flex;gap:.6em;align-items:flex-start;font-size:.94rem;line-height:1.65;}
+  .scope-col li b{font-weight:700;}
+  .scope-mark{flex-shrink:0;width:1.4em;height:1.4em;border-radius:50%;display:grid;place-items:center;
+    font-size:.72em;font-weight:700;margin-top:.18em;}
+  .scope-col.yes .scope-mark{background:#E6F0E8;color:#2F6B45;}
+  .scope-col.no .scope-mark{background:#F1E3E3;color:#96413E;}
+  .scope-why{margin-top:1.2rem;padding-top:1rem;border-top:1px dashed rgba(120,100,70,.28);
+    font-size:.88rem;line-height:1.8;opacity:.85;}
+
+  /* ── 비교표 ─────────────────────────────────────── */
+  .cmp-wrap{overflow-x:auto;margin-top:1.6rem;}
+  .cmp{width:100%;border-collapse:collapse;font-size:.92rem;min-width:640px;background:#fff;}
+  .cmp th,.cmp td{padding:.85em .9em;border-bottom:1px solid rgba(120,100,70,.18);text-align:left;vertical-align:top;}
+  .cmp thead th{font-size:.8rem;letter-spacing:.06em;background:#F6F1E7;border-bottom:2px solid rgba(120,100,70,.3);}
+  .cmp tbody th{font-weight:700;width:9.5em;}
+  .cmp .ours{background:#FBF6EA;font-weight:600;}
+  .cmp thead .ours{background:#B3892F;color:#fff;}
+
+  /* ── 3단 흐름 ───────────────────────────────────── */
+  .flow{display:grid;gap:1rem;margin-top:1.6rem;}
+  @media (min-width:720px){.flow{grid-template-columns:repeat(3,1fr);}}
+  .flow-step{border:1px solid rgba(120,100,70,.22);border-radius:12px;padding:1.2rem;background:#fff;}
+  .flow-step .t{font-size:.74rem;letter-spacing:.18em;color:var(--gold,#B3892F);font-weight:700;}
+  .flow-step h4{margin:.6em 0 .4em;font-size:1rem;}
+  .flow-step p{font-size:.89rem;line-height:1.7;opacity:.85;margin:0;}
+  .flow-step .time{margin-top:.8em;display:inline-block;padding:.2em .7em;border-radius:999px;
+    background:#F6F1E7;font-size:.78rem;font-weight:700;}
   /* ── 기기 목업 (노트북·태블릿·모바일) ───────────── */
   .device{margin:0 auto;width:100%;}
   .device img{display:block;width:100%;height:auto;}
@@ -132,9 +181,13 @@ BODY = """
       인쇄해서 손에 쥐는 것까지 <strong>한 자리에서</strong> 끝납니다.</p>
       <div class="stat-row">
         <div class="stat"><p class="v">30초</p><p class="k">순서표 · 러닝타임<br>자동 계산</p></div>
-        <div class="stat"><p class="v">20종</p><p class="k">인쇄물 양식</p></div>
-        <div class="stat"><p class="v">20종</p><p class="k">디자인 테마</p></div>
+        <div class="stat"><p class="v">32종</p><p class="k">인쇄물 양식</p></div>
+        <div class="stat"><p class="v">40종</p><p class="k">디자인 테마</p></div>
         <div class="stat"><p class="v">0원</p><p class="k">디자인 외주비</p></div>
+      </div>
+      <div class="btn-row">
+        <a class="try-btn" href="https://claude.ai/code/artifact/f2def9cb-d28e-4cb0-beee-a315c02828bb" target="_blank" rel="noopener">직접 눌러 보기 &nbsp;&rarr;</a>
+        <span class="btn-note">설치도 회원가입도 없습니다. 예시 명단이 들어 있어 바로 만져 보실 수 있습니다.</span>
       </div>
     </div>
   </div>
@@ -299,10 +352,166 @@ BODY = """
   </div>
 </section>
 
+
+<!-- ── 서비스 범위 ──────────────────────────────────── -->
+<section class="usp">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">06 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
+    <h2 class="reveal" style="--d:0.1s">사시기 전에<br><span class="accent">이것부터</span> 확인해 주세요</h2>
+    <div class="scope-grid">
+      <div class="scope-col yes reveal">
+        <h3>드리는 것</h3>
+        <ul>
+          <li><span class="scope-mark">&#10003;</span><span><b>연주 순서 배치</b> &middot; 오프닝부터 피날레까지 흐름, 곡 사이 전환 시간, 중간 휴식, 종료 시각 계산</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>사회자 대본</b> &middot; 곡과 작곡가, 학생 메모를 엮은 곡별 멘트</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>인쇄물 32종 &times; 테마 40종</b> &middot; 포스터부터 좌석 배치도, 진행 문서까지</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>리허설 소집 &middot; 참가비 &middot; 좌석</b> 계산과 안내 문자</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>시즌 특강 기획</b> &middot; 할로윈 &middot; 크리스마스 &middot; 방학 4주 커리큘럼과 활동지</span></li>
+        </ul>
+      </div>
+      <div class="scope-col no reveal" style="--d:0.15s">
+        <h3>드리지 않는 것</h3>
+        <ul>
+          <li><span class="scope-mark">&#10005;</span><span><b>악보</b> &middot; 교재와 편곡본은 저작권이 있습니다. <b>학원에서 쓰시던 악보를 그대로</b> 쓰십니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>음원 &middot; 반주</b> &middot; 같은 이유입니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>곡 선정</b> &middot; 어떤 아이가 어떤 곡을 칠지는 원장님이 정하십니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>대관 &middot; 인쇄 대행</b> &middot; 지역마다 다르고 직접 하시는 편이 쌉니다. 대신 <b>예산표에 통상 단가</b>를 넣어 두었습니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>원비 &middot; 출결 관리</b> &middot; 쓰시던 학원 프로그램과 겹치지 않습니다</span></li>
+        </ul>
+        <p class="scope-why">이 프로그램은 <b>정해진 곡을 받아서</b> 순서 &middot; 시간 &middot; 멘트 &middot; 인쇄물을 만드는 도구입니다.
+        곡 제목과 작곡가만 글자로 넣으시면, 곡 해설은 알아서 붙습니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 명단은 어떻게 넣는가 ─────────────────────────── -->
+<section class="guide">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">07 /</span> 학생 명단은 어떻게 넣나요</p>
+    <h2 class="reveal" style="--d:0.1s">이미 가지고 계신 것을<br>그대로 씁니다</h2>
+    <div class="flow">
+      <div class="flow-step reveal">
+        <p class="t">CASE 1</p>
+        <h4>엑셀에 명단이 있다</h4>
+        <p>표를 통째로 복사해 붙여넣습니다. 열 순서가 달라도, 시간이 <b>3:30</b>이든 <b>3분 30초</b>든 알아서 읽습니다.</p>
+        <span class="time">30초</span>
+      </div>
+      <div class="flow-step reveal" style="--d:0.12s">
+        <p class="t">CASE 2</p>
+        <h4>작년에도 이걸로 했다</h4>
+        <p><b>[지난 행사에서 명단 가져오기]</b> 한 번이면 이름과 난이도가 그대로 옵니다. 곡만 채우시면 됩니다.</p>
+        <span class="time">1분</span>
+      </div>
+      <div class="flow-step reveal" style="--d:0.24s">
+        <p class="t">CASE 3</p>
+        <h4>종이에만 있다</h4>
+        <p>화면에서 한 명씩 추가합니다. 소요시간이나 작곡가를 비워도 됩니다 &mdash; 난이도로 추정합니다.</p>
+        <span class="time">12명 5분</span>
+      </div>
+    </div>
+    <div class="notice reveal" style="--d:0.36s">
+      <p class="n-title">&#128247; 학원 사진과 로고는 끌어다 놓기만 하면 됩니다</p>
+      <p>설정 화면의 <strong>이미지 보관함</strong>에 로고 &middot; 학원 상징 &middot; 사진을 한 번만 올려 두시면,
+      포스터 &middot; 순서지 &middot; 초대장 &middot; 홍보물 &middot; 행사 당일 인쇄물 &middot; 진행 문서 <strong>어디에서든 클릭 한 번으로</strong> 들어갑니다.
+      휴대폰으로 찍은 큰 사진도 인쇄에 맞는 크기로 자동으로 줄여 줍니다.
+      테마마다 로고가 동그랗게 잘리거나 금테가 붙고, 사진이 아치형으로 잘리는 등 <strong>모양은 알아서 맞춰집니다.</strong>
+      사진 주소를 다시 찾을 일이 없습니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 다른 방법과 비교 ─────────────────────────────── -->
+<section class="usp">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">08 /</span> 지금 쓰시는 방법과 비교하면</p>
+    <h2 class="reveal" style="--d:0.1s">디자인 도구도, 관리 프로그램도<br><span class="accent">연주회를 알지는 못합니다</span></h2>
+    <div class="cmp-wrap reveal" style="--d:0.2s">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th></th>
+            <th>한글 &middot; 엑셀</th>
+            <th>캔바 &middot; 미리캔버스</th>
+            <th>디자인 외주</th>
+            <th class="ours">피아노 이벤트</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>순서 배치</th>
+            <td>손으로 끌어 옮기며 고민</td>
+            <td>기능 없음</td>
+            <td>원장님이 정해서 전달</td>
+            <td class="ours">난이도 기준 자동 배치</td>
+          </tr>
+          <tr>
+            <th>러닝타임</th>
+            <td>계산기로 더하기</td>
+            <td>기능 없음</td>
+            <td>기능 없음</td>
+            <td class="ours">전환 &middot; 휴식 포함 자동</td>
+          </tr>
+          <tr>
+            <th>순서가 바뀌면</th>
+            <td>시각을 전부 다시 계산</td>
+            <td>모든 장을 다시 수정</td>
+            <td>다시 연락 &middot; 추가 비용</td>
+            <td class="ours">32종이 함께 즉시 변경</td>
+          </tr>
+          <tr>
+            <th>학생 이름 입력</th>
+            <td>양식마다 반복</td>
+            <td>양식마다 반복 타이핑</td>
+            <td>파일로 전달</td>
+            <td class="ours">한 번 &rarr; 32종에 자동</td>
+          </tr>
+          <tr>
+            <th>사회자 대본</th>
+            <td>밤새 타이핑</td>
+            <td>기능 없음</td>
+            <td>별도</td>
+            <td class="ours">곡별 자동 생성</td>
+          </tr>
+          <tr>
+            <th>참석 집계</th>
+            <td>단톡방 답장 세기</td>
+            <td>기능 없음</td>
+            <td>기능 없음</td>
+            <td class="ours">링크 회신으로 자동</td>
+          </tr>
+          <tr>
+            <th>리허설 &middot; 좌석</th>
+            <td>손으로 계산</td>
+            <td>기능 없음</td>
+            <td>기능 없음</td>
+            <td class="ours">조별 시각 &middot; 좌석 자동</td>
+          </tr>
+          <tr>
+            <th>비용</th>
+            <td>무료 (시간 15~25시간)</td>
+            <td>월 구독</td>
+            <td>포스터 1장 5~15만원</td>
+            <td class="ours">연 1회 결제 &middot; 행사 무제한</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notice reveal" style="--d:0.3s">
+      <p class="n-title">&#127911; 진짜 차이는 한 가지입니다</p>
+      <p>다른 도구들은 <strong>디자인 도구</strong>이거나 <strong>관리 도구</strong>입니다.
+      이것은 <strong>연주회 하나를 처음부터 끝까지 아는 도구</strong>입니다.
+      명단 하나가 순서 &rarr; 시각 &rarr; 멘트 &rarr; 인쇄물 &rarr; 리허설 &rarr; 좌석 &rarr; 참가비로 전부 흘러가고,
+      <strong>한 곳을 고치면 전부 따라 바뀝니다.</strong></p>
+    </div>
+  </div>
+</section>
+
 <!-- ── 06 이런 원장님께 ─────────────────────────────── -->
 <section class="recommend">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">06 /</span> 이런 원장님께 추천합니다</p>
+    <p class="eyebrow reveal"><span class="num">09 /</span> 이런 원장님께 추천합니다</p>
     <h2 class="reveal" style="--d:0.1s">올해 연주회는<br><span class="accent">준비가 아니라 무대</span>에 집중하세요</h2>
     <div class="pill-list">
       <div class="pill reveal"><span class="icon check">&#10003;</span><span>연주회 시즌마다 순서표와 대본 때문에 밤을 새우는 원장님</span></div>
@@ -323,6 +532,9 @@ BODY = """
     <p class="sub reveal" style="--d:0.2s">순서표 &middot; 사회자 대본 &middot; 인쇄물 &middot; 초대장 &middot; 참석 집계 &middot; 당일 진행표까지 한 자리에서.</p>
     <div class="reveal" style="--d:0.3s">
       <a class="cta-btn" href="https://accelssam.com/cart/?add-to-cart=2089" target="_top">피아노 이벤트 솔루션 시작하기</a>
+      <div class="btn-row" style="justify-content:center">
+        <a class="try-btn" href="https://claude.ai/code/artifact/f2def9cb-d28e-4cb0-beee-a315c02828bb" target="_blank" rel="noopener">먼저 눌러 보고 결정하기 &nbsp;&rarr;</a>
+      </div>
     </div>
     <p class="period reveal" style="--d:0.4s">이용 기간: 결제 후 1년간 &middot; 행사 수 제한 없음</p>
   </div>

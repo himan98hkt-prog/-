@@ -175,6 +175,20 @@ p {
   color: var(--stage-muted);
 }
 
+.masthead__scope {
+  margin-top: 1.6em;
+  padding-top: 1.2em;
+  border-top: 1px solid rgba(215, 171, 90, 0.28);
+  max-width: 44em;
+  font-size: 0.88rem;
+  color: var(--stage-muted);
+}
+
+.masthead__scope strong {
+  color: #d7ab5a;
+  font-weight: 600;
+}
+
 .masthead__meta span::before {
   content: '— ';
   color: #d7ab5a;

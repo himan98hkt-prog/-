@@ -7,6 +7,9 @@ import type { EventStatus } from '@/lib/types'
 
 const STATUSES: EventStatus[] = ['draft', 'ready', 'published', 'done']
 
+/** 인쇄물 갈래별 이미지 지정에 쓸 수 있는 키 */
+const IMAGE_MAP_KEYS = ['default', 'logo', 'poster', 'program', 'invite', 'stage', 'ops']
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   return guard(async () => {
     const repo = getRepository()
@@ -49,6 +52,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         if (typeof source[key] === 'string') copy[key] = (source[key] as string).trim().slice(0, 200)
       }
       patch.design_copy = copy
+    }
+
+    if (body.image_map && typeof body.image_map === 'object' && !Array.isArray(body.image_map)) {
+      // 보관함에 실제로 있는 이미지만 받는다 — 지운 이미지를 가리키면 인쇄물이 비어 버린다
+      const academy = await repo.getAcademy(event.academy_id)
+      const known = new Set((academy?.assets ?? []).map((a) => a.id))
+      const source = body.image_map as Record<string, unknown>
+      const map: Record<string, string> = {}
+      for (const key of IMAGE_MAP_KEYS) {
+        const value = source[key]
+        if (typeof value === 'string' && known.has(value)) map[key] = value
+      }
+      patch.image_map = map
     }
 
     if (Object.keys(patch).length === 0) return fail('변경할 내용이 없습니다.')

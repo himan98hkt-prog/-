@@ -51,6 +51,11 @@ export default async function HomePage() {
         <p className="mt-3 max-w-xl text-muted-foreground">
           학생 명단 하나로 연주 순서표·사회자 대본·모바일 초대장·참석 집계까지. 엑셀과 메모장을 오갈 필요가 없습니다.
         </p>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          곡 선정과 악보는 원장님이 하시던 그대로입니다. 이 프로그램은{' '}
+          <strong className="font-medium text-foreground">정해진 곡을 받아</strong> 순서·시간·멘트·인쇄물을
+          만듭니다.
+        </p>
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href="/events/new">
             <Button size="lg">연주회 만들기</Button>

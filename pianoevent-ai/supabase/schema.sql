@@ -19,12 +19,15 @@ create table if not exists public.academies (
   design_theme  text,
   -- 학원 대표 사진 (Storage 공개 URL 등)
   photo_url     text,
+  assets        jsonb not null default '[]'::jsonb,
   created_at    timestamptz not null default now()
 );
 
 -- 기존 설치본 업그레이드용
 alter table public.academies add column if not exists design_theme text;
 alter table public.academies add column if not exists photo_url    text;
+-- 로고·상징·사진 보관함. [{id,kind,label,url,created_at}]
+alter table public.academies add column if not exists assets       jsonb not null default '[]'::jsonb;
 
 create index if not exists academies_owner_idx on public.academies(owner_id);
 
@@ -62,6 +65,7 @@ create table if not exists public.events (
   design_template      text,
   design_copy          jsonb,
   photo_url            text,
+  image_map            jsonb,
   created_at           timestamptz not null default now()
 );
 
@@ -70,6 +74,8 @@ alter table public.events add column if not exists design_theme    text;
 alter table public.events add column if not exists design_template text;
 alter table public.events add column if not exists design_copy     jsonb;
 alter table public.events add column if not exists photo_url       text;
+-- 인쇄물 갈래별 이미지 지정 {poster:assetId, program:assetId, default:assetId, logo:assetId}
+alter table public.events add column if not exists image_map       jsonb;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 

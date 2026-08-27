@@ -1,6 +1,6 @@
 'use client'
 
-import { ClipboardPaste, Plus, Trash2 } from 'lucide-react'
+import { ClipboardPaste, History, Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +17,16 @@ const SAMPLE = `이름\t연주곡\t작곡가\t소요시간\t난이도\t비고
 김서연\t엘리제를 위하여\t베토벤\t3:30\t중급\t세 번째 무대입니다
 박지호\t즐거운 나의 집\t비숍\t1:10\t초급\t시작한 지 다섯 달`
 
-export function RosterEditor({ eventId, students }: { eventId: string; students: EventStudent[] }) {
+export function RosterEditor({
+  eventId,
+  students,
+  pastEvents = [],
+}: {
+  eventId: string
+  students: EventStudent[]
+  /** 명단을 그대로 가져올 수 있는 지난 행사들 */
+  pastEvents?: { id: string; title: string; count: number }[]
+}) {
   const router = useRouter()
   const [paste, setPaste] = useState('')
   const [pending, setPending] = useState(false)
@@ -25,6 +34,41 @@ export function RosterEditor({ eventId, students }: { eventId: string; students:
   const [warnings, setWarnings] = useState<string[]>([])
 
   const preview = paste.trim() ? parseRoster(paste) : null
+  const [source, setSource] = useState('')
+  const [keepPieces, setKeepPieces] = useState(false)
+
+  /** 지난 행사에서 명단을 그대로 가져온다 — 학원은 학생이 그대로다 */
+  async function importFromEvent() {
+    if (!source) return
+    const found = pastEvents.find((e) => e.id === source)
+    if (
+      students.length > 0 &&
+      !window.confirm(`지금 명단 ${students.length}명을 지우고 "${found?.title}" 의 명단으로 바꿉니다. 계속할까요?`)
+    ) {
+      return
+    }
+    setPending(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`/api/events/${eventId}/students/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_event_id: source, keep_pieces: keepPieces }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '가져오지 못했습니다.')
+      setMessage(
+        keepPieces
+          ? `${data.students.length}명을 곡까지 그대로 가져왔습니다.`
+          : `${data.students.length}명을 가져왔습니다. 이제 곡만 채우시면 됩니다.`,
+      )
+      router.refresh()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '가져오지 못했습니다.')
+    } finally {
+      setPending(false)
+    }
+  }
 
   async function importRoster(mode: 'append' | 'replace') {
     if (!paste.trim()) return
@@ -95,6 +139,53 @@ export function RosterEditor({ eventId, students }: { eventId: string; students:
 
   return (
     <div className="grid gap-5">
+      {pastEvents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-4 w-4 text-accent" aria-hidden />
+              지난 행사에서 명단 가져오기
+            </CardTitle>
+            <CardDescription>
+              학원 학생은 그대로입니다. 매번 다시 치지 마시고 지난 행사에서 이름을 그대로 가져온 다음, 곡만
+              바꾸세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[220px] flex-1">
+                <Label htmlFor="import-source">어느 행사에서</Label>
+                <Select id="import-source" value={source} onChange={(e) => setSource(e.target.value)}>
+                  <option value="">행사를 고르세요</option>
+                  {pastEvents.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.title} · {e.count}명
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <Button type="button" onClick={importFromEvent} disabled={pending || !source}>
+                가져오기
+              </Button>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={keepPieces}
+                onChange={(e) => setKeepPieces(e.target.checked)}
+                className="h-4 w-4"
+              />
+              연주곡까지 그대로 가져오기
+              <span className="text-xs text-muted-foreground">(같은 곡으로 다시 하는 경우)</span>
+            </label>
+            <FieldHint>
+              체크하지 않으면 <strong>이름과 난이도만</strong> 가져오고 곡은 비워 둡니다. 아래 표에서 곡만
+              채우시면 됩니다.
+            </FieldHint>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -103,7 +194,7 @@ export function RosterEditor({ eventId, students }: { eventId: string; students:
           </CardTitle>
           <CardDescription>
             엑셀·구글시트에서 표를 복사해 그대로 붙여넣으세요. 헤더(이름·연주곡·작곡가·시간·난이도·비고)를 자동으로
-            인식합니다.
+            인식합니다. 곡은 원장님이 정하신 것을 그대로 적으시면 됩니다 — 악보는 학원에서 쓰시던 것을 씁니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">

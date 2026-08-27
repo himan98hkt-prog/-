@@ -2,11 +2,13 @@
 
 import { Check, Printer, Save, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ImagePicker } from '@/components/design/image-picker'
 import { renderTemplate } from '@/components/design/render'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHint, Input, Label } from '@/components/ui/field'
+import { resolveLogo, resolvePhoto, type ImageMap } from '@/lib/assets'
 import type { DesignCopy } from '@/lib/design/context'
 import {
   CATEGORY_LABEL,
@@ -69,6 +71,7 @@ export function DesignStudio({
   const [themeId, setThemeId] = useState(event.design_theme ?? academy.design_theme ?? 'classic-navy')
   const [copy, setCopy] = useState<DesignCopy>(initialCopy)
   const [photoUrl, setPhotoUrl] = useState(event.photo_url ?? '')
+  const [imageMap, setImageMap] = useState<ImageMap>(event.image_map ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   // 양식 32종·테마 40종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
@@ -94,12 +97,16 @@ export function DesignStudio({
       plan,
       copy,
       inviteUrl,
-      logoUrl: academy.logo_url,
-      photoUrl: photoUrl.trim() || academy.photo_url,
+      logoUrl: resolveLogo(academy.assets ?? [], imageMap, academy.logo_url),
+      photoUrl: resolvePhoto(academy.assets ?? [], imageMap, template.category, [
+        photoUrl,
+        event.photo_url,
+        academy.photo_url,
+      ]),
       placeholder: true,
       rsvps,
     }),
-    [theme, academy, event, plan, copy, inviteUrl, photoUrl, rsvps],
+    [theme, academy, event, plan, copy, inviteUrl, photoUrl, rsvps, imageMap, template.category],
   )
 
   const page = PAGE_PX[template.page]
@@ -119,6 +126,7 @@ export function DesignStudio({
           design_template: templateId,
           design_copy: copy,
           photo_url: photoUrl.trim(),
+          image_map: imageMap,
         }),
       })
       setSaved(true)
@@ -285,6 +293,8 @@ export function DesignStudio({
             <FieldHint>테마마다 색과 서체가 한 벌로 맞춰져 있습니다. 학원 기본 테마는 설정 화면에서 정합니다.</FieldHint>
           </CardContent>
         </Card>
+
+        <ImagePicker assets={academy.assets ?? []} value={imageMap} onChange={setImageMap} />
 
         <Card>
           <CardHeader>

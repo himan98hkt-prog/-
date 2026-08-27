@@ -109,7 +109,20 @@ export default async function EventPage({
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const [students, rsvps] = await Promise.all([repo.listStudents(event.id), repo.listRsvps(event.id)])
+  const [students, rsvps, siblings] = await Promise.all([
+    repo.listStudents(event.id),
+    repo.listRsvps(event.id),
+    repo.listEvents(event.academy_id),
+  ])
+  // 명단을 그대로 가져올 수 있는 지난 행사 — 학생이 실제로 있는 것만
+  const pastEvents = (
+    await Promise.all(
+      siblings
+        .filter((e) => e.id !== event.id)
+        .slice(0, 12)
+        .map(async (e) => ({ id: e.id, title: e.title, count: (await repo.listStudents(e.id)).length })),
+    )
+  ).filter((e) => e.count > 0)
   const { plan } = resolvePlan(students)
   const tab = (['roster', 'program', 'plan', 'prep'] as const).includes(searchParams.tab as never)
     ? (searchParams.tab as 'roster' | 'program' | 'plan' | 'prep')
@@ -192,7 +205,9 @@ export default async function EventPage({
         hasPrint={event.status === 'published' || event.design_template !== null}
       />
 
-      {tab === 'roster' && <RosterEditor eventId={event.id} students={students} />}
+      {tab === 'roster' && (
+        <RosterEditor eventId={event.id} students={students} pastEvents={pastEvents} />
+      )}
       {tab === 'program' && <ProgramPanel event={event} students={students} />}
       {tab === 'plan' && <PlanPanel academy={academy} event={event} plan={plan} rsvps={rsvps} />}
       {tab === 'prep' && <PrepPanel academy={academy} event={event} plan={plan} />}

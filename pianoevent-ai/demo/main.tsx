@@ -39,6 +39,7 @@ const ACADEMY: Academy = {
   theme_color: '#1f2a44',
   design_theme: null,
   photo_url: null,
+  assets: [],
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -60,6 +61,7 @@ const EVENT: EventRecord = {
   design_template: null,
   design_copy: null,
   photo_url: null,
+  image_map: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -215,6 +217,10 @@ function App() {
             <span>회원가입 없음</span>
             <span>이 페이지 안에서 그대로 동작</span>
           </div>
+          <p className="masthead__scope">
+            악보는 드리지 않습니다. 곡 선정과 악보는 원장님이 하시던 그대로이고, 이 프로그램은{' '}
+            <strong>정해진 곡을 받아</strong> 순서 · 시간 · 멘트 · 인쇄물을 만듭니다.
+          </p>
         </div>
       </header>
 
@@ -222,7 +228,7 @@ function App() {
         <Stage
           n="1"
           title="학생 명단 붙여넣기"
-          lead="엑셀에서 표를 그대로 복사해 붙여넣습니다. 시간 표기가 3:30이든 3분 30초든 읽습니다. 한 줄만 고쳐 보세요 — 아래가 전부 다시 계산됩니다."
+          lead="원장님이 이미 가지고 계신 명단을 그대로 씁니다. 엑셀에서 복사해 붙여넣거나, 지난 행사에서 그대로 가져오거나, 한 명씩 추가합니다. 한 줄만 고쳐 보세요 — 아래가 전부 다시 계산됩니다."
         >
           <textarea
             className="roster"
@@ -504,12 +510,18 @@ function App() {
               <p>지금 보신 종이를 A4 그대로 뽑거나 PDF로 저장합니다. 한 벌 인쇄로 여러 장을 한 번에.</p>
             </div>
             <div>
-              <b>학원 로고와 사진</b>
-              <p>테마마다 로고 자리와 사진 자리가 있습니다. 한 번 넣으면 모든 인쇄물에 들어갑니다.</p>
+              <b>이미지 보관함</b>
+              <p>
+                로고·학원 상징·사진을 끌어다 놓으면 크기까지 알아서 줄입니다. 포스터엔 단체사진, 표지엔 학원
+                전경처럼 인쇄물마다 다르게 쓸 수도 있습니다.
+              </p>
             </div>
             <div>
-              <b>행사가 저장됩니다</b>
-              <p>학원에서 만든 것을 집에서 이어 고칩니다. 작년 행사를 그대로 복사해 올해로 씁니다.</p>
+              <b>지난 행사에서 명단 가져오기</b>
+              <p>
+                학원은 학생이 그대로입니다. 이름과 난이도를 그대로 가져오고 곡만 채우면 됩니다. 12명 명단을
+                다시 칠 일이 없습니다.
+              </p>
             </div>
           </div>
           <a className="cta" href={BUY_URL}>

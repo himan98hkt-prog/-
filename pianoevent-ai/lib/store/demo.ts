@@ -60,6 +60,7 @@ function seed(): Db {
         theme_color: '#1f2a44',
         design_theme: 'classic-navy',
         photo_url: DEMO_PHOTO,
+        assets: [],
         created_at: created,
       },
     ],
@@ -83,6 +84,7 @@ function seed(): Db {
         design_template: null,
         design_copy: null,
         photo_url: null,
+        image_map: null,
         created_at: created,
       },
     ],
@@ -149,6 +151,7 @@ export class DemoRepository implements Repository {
       theme_color: '#1f2a44',
       design_theme: null,
       photo_url: null,
+      assets: [],
       created_at: nowIso(),
     }
     db.academies.push(academy)
@@ -207,6 +210,7 @@ export class DemoRepository implements Repository {
       design_template: null,
       design_copy: null,
       photo_url: null,
+      image_map: null,
       created_at: nowIso(),
     }
     db.events.push(event)
