@@ -58,7 +58,7 @@ check('인증: 안내와 함께 학원명 칸이 열린다', await page.isVisibl
 const nameField = page.locator('.cover.activation input').nth(1)
 await nameField.fill('아첼음악학원')
 await page.click('.cover.activation .btn.primary')
-await page.waitForSelector('.cover .panel h2')
+await page.waitForSelector('.cover.activation', { state: 'detached' })
 check('인증: 피아노 학원명 키 + 학원명으로 앱이 열린다', !(await page.$('.cover.activation')))
 const prefilled = await page.inputValue('.cover .panel input[type=text]')
 check('인증: 키에 담긴 학원명이 마법사에 미리 채워진다', prefilled === '아첼음악학원')
@@ -75,8 +75,13 @@ await page.waitForSelector('.cover.activation')
 const pianoKey = generatePianoKey()
 await page.fill('.cover.activation input', pianoKey)
 await page.click('.cover.activation .btn.primary')
-await page.waitForSelector('.cover .panel h2')
+await page.waitForSelector('.cover.activation', { state: 'detached' })
 check('인증: 피아노 자기검증 키는 학원명 없이 바로 열린다', !(await page.$('.cover.activation')))
+const pianoPlan = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  return repo.getSetting('license')?.plan
+})
+check('인증: 피아노 키는 Pro 로 열린다', pianoPlan === 'pro')
 await page.evaluate(async () => {
   const { db } = await import('/src/data/db.js')
   await db.settings.delete('license')
@@ -88,7 +93,7 @@ const { generateKey } = await import('../src/core/license.js')
 const proKey = generateKey('pro', 'A')   // 통합키(A) — 학원 관리노트 방식
 await page.fill('.cover.activation input', proKey)
 await page.click('.cover.activation .btn.primary')
-await page.waitForSelector('.cover .panel h2')
+await page.waitForSelector('.cover.activation', { state: 'detached' })
 check('인증: 발급한 통합키를 넣으면 앱이 열린다', !(await page.$('.cover.activation')))
 
 // 인증 직후에는 시작 마법사가 이어진다 (학원명 → 컬러 → 과목 → PIN)

@@ -28,7 +28,8 @@
     <p class="muted">앱과 같은 모듈(<code>src/core/license.js</code>)을 그대로 import 하므로 발급한 키는 항상 앱에서 열립니다.</p>
     <p class="muted"><b>공용키(피아노 방식)</b> 를 고르면 <b>피아노학원 관리노트와 학원 관리노트 양쪽에서 그대로 열립니다.</b>
       피아노 앱을 고칠 필요가 없습니다(그쪽 발급기와 같은 규칙으로 만들기 때문입니다). 새로 파는 키는 이걸 쓰세요.<br>
-      학원 관리노트 전용 키가 필요할 때만 A/M/K 방식을 고르면 됩니다.</p>
+      학원 관리노트 전용 키가 필요할 때만 A/M/K 방식을 고르면 됩니다.
+      공용키는 <b>Pro(여러 기기·실시간 동기화)</b> 로 열립니다.</p>
 
     <div class="card">
       <div class="row">
@@ -91,7 +92,7 @@
       const piano = $('product').value === 'PIANO'
       $('plan').disabled = piano
       $('planHint').textContent = piano
-        ? '공용키에는 플랜 구분이 없습니다 (Lite 로 동작). Pro 로 팔 때는 A 방식을 쓰세요.'
+        ? '공용키는 두 제품 모두에서 Pro(여러 기기·실시간 동기화)로 열립니다.'
         : ''
     }
 
@@ -124,7 +125,7 @@
       const product = $('product').value
       const today = new Date().toISOString().slice(0, 10)
       const csv = ['key,product,plan,issued_at,memo',
-        ...keys.map((k) => `${k},${product === 'PIANO' ? '공용(피아노방식)' : product},${product === 'PIANO' ? 'lite' : plan},${today},"${memo}"`)].join('\n')
+        ...keys.map((k) => `${k},${product === 'PIANO' ? '공용(피아노방식)' : product},${product === 'PIANO' ? 'pro' : plan},${today},"${memo}"`)].join('\n')
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)

@@ -173,8 +173,12 @@ describe('피아노 관리노트 키를 이 앱에서 쓰기', () => {
     const res = verifyKey('79AK-3MCU-ADYC')
     expect(res.ok).toBe(true)
     expect(res.scheme).toBe('piano')
-    expect(res.plan).toBe('lite')
     expect(res.source).toContain('피아노')
+  })
+
+  it('피아노 키는 Pro 로 인정한다 (여러 기기·실시간 동기화)', () => {
+    expect(verifyKey('79AK-3MCU-ADYC').plan).toBe('pro')
+    expect(verifyKey('XVXA-FGGN-97KU', { academyName: '아첼음악학원' }).plan).toBe('pro')
   })
 
   it('피아노 학원명 키는 학원명을 함께 넣으면 열린다', () => {
@@ -194,8 +198,8 @@ describe('피아노 관리노트 키를 이 앱에서 쓰기', () => {
     expect(verifyKey('UTVE-JUVP-7WQ3', { academyName: '아라 잉글리시' }).ok).toBe(true)
   })
 
-  it('필요하면 피아노 키를 Pro 로 인정할 수도 있다', () => {
-    expect(verifyKey('79AK-3MCU-ADYC', { pianoPlan: 'pro' }).plan).toBe('pro')
+  it('필요하면 피아노 키를 Lite 로 낮출 수도 있다', () => {
+    expect(verifyKey('79AK-3MCU-ADYC', { pianoPlan: 'lite' }).plan).toBe('lite')
   })
 
   it('우리 형식 키는 여전히 우리 규칙으로 판정된다', () => {

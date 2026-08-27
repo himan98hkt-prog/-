@@ -17,6 +17,7 @@ export const LICENSE_SALT = 'ACADEMY-NOTE::2026::a7f3-kQ9v-Zt2m::v1'
 
 // 피아노학원 관리노트가 이미 팔아 온 키는 그 제품의 규칙 그대로 인정한다.
 // (그쪽 앱을 고치지 않아도 두 제품이 같은 키를 쓰게 만드는 길이다 — license-piano.js 참고)
+// 플랜은 Pro 로 연다 — 피아노 관리노트 고객도 여러 기기·실시간 동기화를 그대로 쓸 수 있게.
 import { verifyPianoKey, PIANO_CHARS } from './license-piano.js'
 
 /** 이 빌드가 어떤 제품인지. 피아노 관리노트에 이식할 때만 'K' 로 바꾼다. */
@@ -103,7 +104,7 @@ export function verifyKey(input, {
   productCode = PRODUCT_CODE,
   legacySources = LEGACY_KEY_SOURCES,
   academyName = null,
-  pianoPlan = 'lite'
+  pianoPlan = 'pro'   // 피아노 관리노트에서 발급된 키는 Pro 로 인정한다
 } = {}) {
   const key = normalizeKey(input)
   if (!key) return { ok: false, reason: '인증키를 입력해 주세요' }
@@ -120,7 +121,7 @@ export function verifyKey(input, {
   if (piano.ok) {
     return {
       ok: true,
-      plan: pianoPlan === 'pro' ? 'pro' : 'lite',
+      plan: pianoPlan === 'lite' ? 'lite' : 'pro',
       product: 'K',
       key: piano.key,
       version: 0,
