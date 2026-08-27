@@ -113,6 +113,30 @@ async function run() {
   const scriptPage = await call(`/events/${event.id}/script`)
   check('사회자 대본 페이지 렌더', scriptPage.ok && (await scriptPage.text()).includes('사회자 대본'))
 
+  console.log('\n▸ 무대 화면 (연주회장 스크린)')
+
+  const stagePage = await call(`/events/${event.id}/stage`)
+  const stageHtml = await stagePage.text()
+  check('무대 화면 렌더', stagePage.ok && stageHtml.includes('무대 화면'))
+  check('16:9 슬라이드 크기 고정', stageHtml.includes('1280') && stageHtml.includes('720'))
+  check('대기 화면에 행사 제목', stageHtml.includes('스모크 정기 연주회'))
+  check('연주자가 슬라이드에 오름', stageHtml.includes('김서연') && stageHtml.includes('윤채원'))
+  check('연주곡·작곡가 노출', stageHtml.includes('녹턴 op.9 no.2'))
+  check('전체화면·PDF 안내', stageHtml.includes('전체화면') && stageHtml.includes('PDF로 저장'))
+  check('인쇄용 슬라이드 묶음 포함', stageHtml.includes('stage-print-deck') && stageHtml.includes('stage-print-page'))
+  check(
+    '인쇄 용지가 16:9 로 지정됨',
+    stageHtml.includes('size: 1280px 720px') || stageHtml.includes('size: 1280px 720px; margin: 0'),
+  )
+
+  const stagePlain = await call(`/events/${event.id}/stage?commentary=0&sections=0&agenda=0`)
+  const plainHtml = await stagePlain.text()
+  check('곡 해설·부 전환·순서 화면 끄기', stagePlain.ok && !plainHtml.includes('오늘의 순서'))
+  check('꺼도 연주자는 그대로', plainHtml.includes('김서연'))
+
+  const stageThemed = await call(`/events/${event.id}/stage?theme=blush-romance`)
+  check('무대 화면도 테마를 따른다', stageThemed.ok && (await stageThemed.text()).includes('--d-accent'))
+
   console.log('\n▸ 인쇄물 디자인')
 
   const studio = await call(`/events/${event.id}/design`)

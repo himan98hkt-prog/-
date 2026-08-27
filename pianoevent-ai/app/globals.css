@@ -47,6 +47,11 @@
 }
 
 /* 인쇄용 순서표 / 활동지 — A4 세로, 화면 전용 요소는 숨김 */
+/* 무대 화면 — 인쇄(PDF 저장)용 슬라이드 묶음은 화면에 보이지 않는다 */
+.stage-print-deck {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4;
@@ -60,6 +65,29 @@
 
   .no-print {
     display: none !important;
+  }
+
+  .stage-print-deck {
+    display: block !important;
+  }
+
+  .stage-print-page {
+    break-after: page;
+    page-break-after: always;
+    overflow: hidden;
+  }
+
+  /* 무대 화면·인쇄물은 색이 전부다. "배경 그래픽" 체크를 잊어도 색이 나오게 강제한다 */
+  .stage-print-page,
+  .stage-slide,
+  .d-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .stage-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   .print-page {

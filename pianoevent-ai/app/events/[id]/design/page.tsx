@@ -31,6 +31,12 @@ export default async function DesignPage({ params }: { params: { id: string } })
         <p className="mt-1 text-sm text-muted-foreground">
           포스터·순서지·입장권·상장까지 한 테마로 맞춥니다. {formatEventDate(event.event_at)}
         </p>
+        <p className="mt-3 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
+          연주회장 스크린에 띄울 화면도 여기서 만든 테마 그대로 나옵니다 —{' '}
+          <Link href={`/events/${event.id}/stage`} className="font-medium underline underline-offset-4">
+            무대 화면 열기
+          </Link>
+        </p>
       </div>
 
       <DesignStudio

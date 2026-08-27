@@ -25,9 +25,12 @@ for (let i = 0; i < count; i += 1) {
   // 슬라이드는 높이가 1080 으로 고정이다. 넘친 내용은 잘려서 사라지므로 슬라이드 자체를 잰다.
   const overflow = await el.evaluate((node) => {
     let worst = Math.max(0, node.scrollHeight - node.clientHeight)
-    const bottom = node.getBoundingClientRect().bottom
+    // 잘려 나가는 경계는 슬라이드 바닥이 아니라 아래쪽 고정 줄(로고·쪽번호)이다.
+    // 거기까지만 내용이 와야 글자가 겹치지 않는다.
+    const foot = node.querySelector('.foot')
+    const limit = foot ? foot.getBoundingClientRect().top - 8 : node.getBoundingClientRect().bottom
     for (const child of node.querySelectorAll('.body *')) {
-      const over = child.getBoundingClientRect().bottom - bottom
+      const over = child.getBoundingClientRect().bottom - limit
       if (over > worst) worst = Math.round(over)
     }
     return worst

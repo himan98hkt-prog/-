@@ -26,6 +26,8 @@ import { buildProgram } from '@/lib/program/order'
 import { CATALOG_SIZE } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
 import { buildMcScript } from '@/lib/program/script'
+import { StageSlideView } from '@/components/stage/slide'
+import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W } from '@/lib/stage/deck'
 import type { Academy, EventRecord, EventStudent, Rsvp } from '@/lib/types'
 import { DEMO_ROSTER, DEMO_RSVPS } from './roster'
 import './style.css'
@@ -182,6 +184,27 @@ function App() {
     [plan, script],
   )
   const issues = useMemo(() => diagnoseProgram(planned), [planned])
+
+  // 무대 화면 — 순서표에서 바로 만들어진다. 명단을 고치면 슬라이드도 따라 바뀐다.
+  const deck = useMemo(() => buildStageDeck(EVENT, planned, ACADEMY.name), [planned])
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [deckDark, setDeckDark] = useState(true)
+  const deckRef = useRef<HTMLDivElement>(null)
+  const [deckColumn, setDeckColumn] = useState(720)
+  useEffect(() => {
+    const el = deckRef.current
+    if (!el) return
+    const measure = () => setDeckColumn(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  // 명단을 고쳐 슬라이드 수가 줄면 보고 있던 장이 사라질 수 있다
+  useEffect(() => {
+    setSlideIndex((i) => Math.min(i, deck.length - 1))
+  }, [deck.length])
+  const deckScale = Math.min(1, deckColumn / STAGE_SLIDE_W)
 
   const ctx = {
     theme,
@@ -438,6 +461,51 @@ function App() {
       <main className="shell">
         <Stage
           n="6"
+          title="무대 화면 — 연주회장 스크린"
+          lead="해마다 파워포인트로 다시 만들던 화면입니다. 순서표에서 16:9 슬라이드가 통째로 만들어집니다. 실제 프로그램에서는 전체화면으로 띄우고 화살표 키로 넘깁니다."
+          wide
+        >
+          <div className="deck">
+            <div className="deck__screen" ref={deckRef}>
+              <div
+                className="deck__scale"
+                style={{ transform: `scale(${deckScale})`, width: STAGE_SLIDE_W, height: STAGE_SLIDE_H }}
+              >
+                <StageSlideView
+                  slide={deck[slideIndex]}
+                  theme={getTheme(themeId)}
+                  academyName={ACADEMY.name}
+                  dark={deckDark}
+                />
+              </div>
+            </div>
+            <div className="deck__bar">
+              <button type="button" onClick={() => setSlideIndex((i) => Math.max(0, i - 1))} disabled={slideIndex === 0}>
+                ← 이전
+              </button>
+              <button
+                type="button"
+                onClick={() => setSlideIndex((i) => Math.min(deck.length - 1, i + 1))}
+                disabled={slideIndex === deck.length - 1}
+              >
+                다음 →
+              </button>
+              <span className="num">
+                {slideIndex + 1} / {deck.length}
+              </span>
+              <button type="button" className="ghost" onClick={() => setDeckDark((v) => !v)}>
+                {deckDark ? '밝은 화면' : '어두운 화면'}
+              </button>
+            </div>
+            <p className="deck__note">
+              다음 화면 — <b>{deck[slideIndex].next || '없음 (마지막)'}</b>
+              {' · '}순서를 바꾸면 이 화면도 같이 바뀝니다. 위에서 고른 테마를 그대로 씁니다.
+            </p>
+          </div>
+        </Stage>
+
+        <Stage
+          n="7"
           title="원장님이 손으로 하던 계산"
           lead="순서표가 나온 뒤에도 일은 남습니다. 리허설 시각, 참가비, 좌석 — 매번 다시 하던 계산입니다."
         >

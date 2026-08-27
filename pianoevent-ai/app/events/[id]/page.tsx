@@ -1,4 +1,4 @@
-import { CalendarDays, Check, MapPin, Mic2, Palette, Send } from 'lucide-react'
+import { CalendarDays, Check, MapPin, Mic2, MonitorPlay, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
@@ -166,6 +166,12 @@ export default async function EventPage({
               <Button variant="outline" size="sm">
                 <Palette className="h-4 w-4" aria-hidden />
                 인쇄물 디자인
+              </Button>
+            </Link>
+            <Link href={`/events/${event.id}/stage`}>
+              <Button variant="outline" size="sm">
+                <MonitorPlay className="h-4 w-4" aria-hidden />
+                무대 화면
               </Button>
             </Link>
             <Link href={`/events/${event.id}/invite`}>

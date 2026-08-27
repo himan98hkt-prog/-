@@ -189,7 +189,7 @@ def slide(n, total, body, dark=False, eyebrow='', title='', lead=''):
 </section>'''
 
 
-TOTAL = 14
+TOTAL = 15
 S = []
 
 # 01 표지 ────────────────────────────────────────────────────
@@ -310,12 +310,12 @@ S.append(slide(7, TOTAL,
     eyebrow=f'기능 04 · 인쇄물 {TEMPLATE_COUNT}종',
     title='포스터 한 장으로<br>끝나지 않습니다',
     body=f'''
-    <div class="stats" style="grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:34px">
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['poster']}</p><p class="k" style="font-size:18px">포스터</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['program']}</p><p class="k" style="font-size:18px">프로그램</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['invite']}</p><p class="k" style="font-size:18px">초대 · 홍보</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['stage']}</p><p class="k" style="font-size:18px">행사 당일</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['ops']}</p><p class="k" style="font-size:18px">진행 문서</p></div>
+    <div class="stats" style="grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
+      <div class="stat" style="padding:16px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['poster']}</p><p class="k" style="font-size:18px">포스터</p></div>
+      <div class="stat" style="padding:16px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['program']}</p><p class="k" style="font-size:18px">프로그램</p></div>
+      <div class="stat" style="padding:16px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['invite']}</p><p class="k" style="font-size:18px">초대 · 홍보</p></div>
+      <div class="stat" style="padding:16px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['stage']}</p><p class="k" style="font-size:18px">행사 당일</p></div>
+      <div class="stat" style="padding:16px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['ops']}</p><p class="k" style="font-size:18px">진행 문서</p></div>
     </div>
     <div class="chips">
       <span class="chip">클래식 포스터</span><span class="chip">전면 사진 포스터</span><span class="chip">타이포 포스터</span>
@@ -330,7 +330,7 @@ S.append(slide(7, TOTAL,
       <span class="chip">연습 기록표</span><span class="chip">연주자 소개 카드</span><span class="chip">응원 메시지 카드</span>
       <span class="chip">감사장</span><span class="chip">종료 후 안내문</span>
     </div>
-    <p class="lead" style="margin-top:24px;max-width:none">인쇄 · PDF 저장 모두 원장님 손에서.</p>'''))
+    <p class="lead" style="margin-top:14px;max-width:none">인쇄 · PDF 저장 모두 원장님 손에서.</p>'''))
 
 # 08 테마 ───────────────────────────────────────────────────
 sw_html = []
@@ -379,9 +379,32 @@ S.append(slide(9, TOTAL,
       <div class="item"><span class="mk">✓</span><span>모인 인원이 그대로 <b>좌석 배치도와 프로그램 부수</b>로 넘어갑니다</span></div>
     </div>'''))
 
-# 10 운영 계산 ───────────────────────────────────────────────
+# 10 무대 화면 ─────────────────────────────────────────────
 S.append(slide(10, TOTAL, dark=True,
-    eyebrow='기능 07 · 원장님이 손으로 하던 계산',
+    eyebrow='기능 07 · 연주회 당일 스크린',
+    title='해마다 만들던 파워포인트,<br><span class="hi" style="color:#D9B95C">이제 안 만드셔도</span> 됩니다',
+    body='''
+    <div class="chain">
+      <span class="seed">순서표 하나</span>
+      <p class="arrow">▼</p>
+      <div class="chips">
+        <span class="chip">입장 대기 화면</span><span class="chip">오늘의 순서</span>
+        <span class="chip">부 전환</span><span class="chip on">연주자별 화면</span>
+        <span class="chip">휴식 안내</span><span class="chip">폐회 인사</span>
+      </div>
+      <p class="chain-note">순서를 바꾸면 스크린도 함께 바뀝니다 — 슬라이드를 손으로 옮길 일이 없습니다</p>
+    </div>
+    <div class="list" style="margin-top:34px">
+      <div class="item"><span class="mk">✓</span><span>노트북을 빔프로젝터·TV에 꽂고 <b>[전체화면]</b> 한 번</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>→ ← 화살표 · 스페이스 · 클릭</b>으로 넘기고, <b>프레젠터(리모컨)</b>도 그대로</span></div>
+      <div class="item"><span class="mk">✓</span><span>어두운 공연장을 위한 <b>검은 화면</b> 전환</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>PDF로 저장</b>하면 USB에 담아 공연장 노트북에서 그대로</span></div>
+      <div class="item"><span class="mk">✓</span><span>인쇄물과 <b>같은 테마</b> — 포스터·순서지·스크린의 색이 어긋나지 않습니다</span></div>
+    </div>'''))
+
+# 11 운영 계산 ───────────────────────────────────────────────
+S.append(slide(11, TOTAL, dark=True,
+    eyebrow='기능 08 · 원장님이 손으로 하던 계산',
     title='순서표가 나온 뒤에도<br>일은 남습니다',
     body='''
     <div class="card">
@@ -400,9 +423,9 @@ S.append(slide(10, TOTAL, dark=True,
       <b>&ldquo;3열 4~6번&rdquo;</b>처럼 그대로 보낼 수 있는 표기로 나옵니다.</p>
     </div>'''))
 
-# 11 점검 ───────────────────────────────────────────────────
-S.append(slide(11, TOTAL,
-    eyebrow='기능 08 · 순서표 정밀 점검',
+# 12 점검 ───────────────────────────────────────────────────
+S.append(slide(12, TOTAL,
+    eyebrow='기능 09 · 순서표 정밀 점검',
     title='당일 전화를 부르는 것들을<br><span class="hi">미리 잡습니다</span>',
     body='''
     <div class="list">
@@ -417,9 +440,9 @@ S.append(slide(11, TOTAL,
       <b>반드시 확인 / 확인 권장 / 참고</b> 세 등급으로, <b>고치는 법 한 줄</b>과 함께 나옵니다.
     </p>'''))
 
-# 12 이미지 보관함 ───────────────────────────────────────────
-S.append(slide(12, TOTAL,
-    eyebrow='기능 09 · 이미지 보관함',
+# 13 이미지 보관함 ───────────────────────────────────────────
+S.append(slide(13, TOTAL,
+    eyebrow='기능 10 · 이미지 보관함',
     title='사진을 끌어다 놓으면<br>전부에 들어갑니다',
     body='''
     <div class="chain">
@@ -440,8 +463,8 @@ S.append(slide(12, TOTAL,
       사진 주소를 다시 찾을 일이 없습니다.
     </p>'''))
 
-# 13 인터넷·AI 없이도 ────────────────────────────────────────
-S.append(slide(13, TOTAL, dark=True,
+# 14 인터넷·AI 없이도 ────────────────────────────────────────
+S.append(slide(14, TOTAL, dark=True,
     eyebrow='가장 많이 받는 질문',
     title='AI 키도 인터넷도<br><span class="hi" style="color:#D9B95C">필요 없습니다</span>',
     body='''
@@ -460,8 +483,8 @@ S.append(slide(13, TOTAL, dark=True,
       설정 화면에 <b style="color:#fff">지금 이 컴퓨터에서 되는 것</b>이 그대로 표시됩니다.
     </p>'''))
 
-# 14 비교 + CTA ──────────────────────────────────────────────
-S.append(slide(14, TOTAL,
+# 15 비교 + CTA ──────────────────────────────────────────────
+S.append(slide(15, TOTAL,
     eyebrow='왜 이것이어야 하는가',
     title='디자인 도구도 관리 프로그램도<br>연주회를 알지는 못합니다',
     body='''
@@ -474,6 +497,8 @@ S.append(slide(14, TOTAL,
         <tr><th>순서가 바뀌면</th><td>전부 재계산</td><td>모든 장 수정</td><td>다시 연락 · 추가비</td><td class="ours">40종 즉시 변경</td></tr>
         <tr><th>곡 정보</th><td>직접 검색</td><td>직접 검색</td><td>직접 전달</td><td class="ours">곡 사전 자동</td></tr>
         <tr><th>리허설 · 좌석</th><td>손 계산</td><td>없음</td><td>없음</td><td class="ours">자동</td></tr>
+        <tr><th>연주회장 스크린</th><td>PPT 해마다 재제작</td><td>한 장씩 직접</td><td>영상 별도 견적</td>
+          <td class="ours">순서표에서 16:9 자동</td></tr>
         <tr><th>비용</th><td>시간 15~25h</td><td>월 구독</td><td>1장 5~15만원</td><td class="ours">연 1회 · 무제한</td></tr>
       </tbody>
     </table>

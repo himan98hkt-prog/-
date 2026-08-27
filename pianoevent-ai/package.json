@@ -16,6 +16,7 @@
     "reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('데모 데이터를 처음 상태로 되돌렸습니다.')\"",
     "promo": "node scripts/promo-shots.mjs",
     "verify:detail": "node scripts/verify-detail.mjs",
+    "verify:stage": "node scripts/verify-stage.mjs",
     "mobile": "node scripts/mobile.mjs",
     "pack": "node scripts/pack.mjs",
     "demo:build": "vite build --config demo/vite.config.ts && node scripts/build-artifact.mjs",

@@ -24,6 +24,10 @@ await probe('리허설 조 계산', async () => (await page.locator('.calc__list
 await probe('좌석 표기 생성', async () => (await page.locator('.calc article').nth(2).locator('li').count()) >= 4)
 await probe('구매 링크', async () => (await page.locator('a.cta').getAttribute('href')).includes('add-to-cart=2089'))
 
+// 명단 12명일 때의 무대 화면 장수 — 나중에 명단을 줄였을 때와 견준다
+const deckAt12 = Number((await page.locator('.deck__bar .num').innerText()).split('/')[1].trim())
+await probe('무대 화면이 명단만큼 만들어짐', async () => deckAt12 >= 12 + 3, `${deckAt12}장`)
+
 // 곡 사전이 실제로 빈칸을 채우는가
 await page.locator('.roster').fill('이름\t연주곡\n김서연\t엘리제를 위하여\n박지호\t징글벨')
 await page.waitForTimeout(400)
@@ -31,11 +35,32 @@ await probe('곡 사전이 빈칸을 채움', async () => (await page.locator('.
 await probe('채워진 시간이 러닝타임에 반영', async () =>
   (await page.locator('.summary').innerText()).includes('분'))
 
+// 무대 화면 — 연주회장 스크린
+await probe('무대 화면 슬라이드 렌더', async () => (await page.locator('.deck__screen .stage-slide').count()) === 1)
+await probe('첫 화면은 대기 화면', async () => (await page.locator('.deck__screen').innerText()).includes('제12회'))
+await probe('슬라이드가 여러 장', async () =>
+  Number((await page.locator('.deck__bar .num').innerText()).split('/')[1].trim()) > 3)
+await page.locator('.deck__bar button', { hasText: '다음' }).click()
+await page.waitForTimeout(250)
+await probe('다음 화면으로 넘어감', async () =>
+  (await page.locator('.deck__bar .num').innerText()).trim().startsWith('2'))
+await page.locator('.deck__bar .ghost').click()
+await page.waitForTimeout(250)
+await probe('밝은 화면·어두운 화면 전환', async () => (await page.locator('.deck__bar .ghost').innerText()).includes('어두운'))
+await probe('무대 화면이 16:9', async () => {
+  const box = await page.locator('.deck__screen').boundingBox()
+  return Math.abs(box.width / box.height - 16 / 9) < 0.02
+})
+
 // 명단을 고치면 전부 다시 계산되는가
 await page.locator('.roster').fill('홍길동\t캐논 변주곡\t파헬벨\t4:00\t중급\n김철수\t젓가락 행진곡\t전래\t1:30\t초급')
 await page.waitForTimeout(500)
 await probe('명단 수정 후 재계산', async () => (await page.locator('.grid tbody tr').count()) === 2)
 await probe('수정된 이름이 종이에 반영', async () => (await page.locator('.paper__frame').innerText()).length > 0)
+await probe('명단을 줄이면 무대 화면도 줄어듦', async () => {
+  const now = Number((await page.locator('.deck__bar .num').innerText()).split('/')[1].trim())
+  return now < deckAt12 && now > 1
+})
 
 // 테마·양식 전환
 await page.evaluate(() => { document.querySelectorAll('.chip')[6]?.click() })

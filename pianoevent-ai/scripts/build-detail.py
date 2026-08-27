@@ -18,6 +18,8 @@ IMG = {k: b64(v) for k, v in {
     'PRINT_POSTER': 'print-poster.jpg',
     'PRINT_PROGRAM': 'print-program.jpg',
     'PRINT_CUE': 'print-cue.jpg',
+    'STAGE_SCREEN': 'stage-screen.jpg',
+    'STAGE_PERFORMANCE': 'stage-performance.jpg',
 }.items()}
 
 EXTRA_CSS = """
@@ -142,6 +144,8 @@ EXTRA_CSS = """
     grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));
     gap:clamp(1.2rem,3vw,2rem);
     margin-top:clamp(2rem,4vw,3rem);
+    /* 진행표처럼 한 장을 넘치는 문서는 그림이 더 길다 — 위쪽 기준으로 맞춘다 */
+    align-items:start;
   }
   .sheet-item img{
     display:block;width:100%;height:auto;border-radius:6px;
@@ -155,6 +159,34 @@ EXTRA_CSS = """
     color:var(--ink-soft);
   }
   .sheet-item p b{display:block;color:var(--ink);font-weight:700;margin-bottom:0.15em;}
+
+  /* ── 무대 화면 ─────────────────────────── */
+  .stage-shots{
+    display:grid;gap:clamp(1rem,2.5vw,1.6rem);
+    margin-top:clamp(1.8rem,4vw,2.6rem);
+  }
+  @media (min-width:760px){.stage-shots{grid-template-columns:1fr 1fr;}}
+  .stage-shot img{
+    display:block;width:100%;height:auto;border-radius:8px;
+    border:1px solid rgba(160,124,44,0.28);
+    box-shadow:0 14px 34px rgba(30,20,8,0.28);
+    background:#2A2118;
+  }
+  .stage-shot p{
+    margin-top:0.75em;text-align:center;
+    font-size:clamp(0.94rem,0.9rem + 0.2vw,1.04rem);
+    color:var(--ink-soft);
+  }
+  .stage-shot p b{display:block;color:var(--ink);font-weight:700;margin-bottom:0.15em;}
+  .stage-keys{
+    display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;
+    margin-top:1.4rem;
+  }
+  .stage-keys span{
+    padding:.45em 1em;border-radius:999px;
+    border:1px solid rgba(120,100,70,.3);background:#FBF6EA;
+    font-size:.86rem;
+  }
 
   /* 히어로 우측 목업 */
   .hero-visual{flex:1 1 380px;min-width:min(100%,280px);align-self:center;}
@@ -347,7 +379,7 @@ BODY = """
         테마 하나를 고르면 <b>전부 같은 색과 서체</b>를 입습니다. 한 벌 인쇄로 여러 장을 한 번에.</p>
         <p class="only">외주비 0원</p>
       </div>
-      <div class="feat reveal" style="--d:0.4s">
+      <div class="feat reveal" style="--d:0.40s">
         <p class="n">06 &nbsp;모바일 초대장</p>
         <h4>링크 하나로 참석 인원이 쌓입니다</h4>
         <p>단톡방에 올리면 학부모가 눌러 회신하고, <b>가정 수 &middot; 총원 &middot; 응원 메시지</b>가 저절로
@@ -355,46 +387,69 @@ BODY = """
         <p class="only">답장 세지 않아도 됨</p>
       </div>
       <div class="feat reveal" style="--d:0.48s">
-        <p class="n">07 &nbsp;리허설 시간표</p>
+        <p class="n">07 &nbsp;무대 화면</p>
+        <h4>연주회장 스크린에 띄울 화면까지 나옵니다</h4>
+        <p>해마다 파워포인트로 다시 만들던 그 화면입니다. 순서표에서 <b>16:9 슬라이드가 통째로</b> 만들어져
+        대기 화면 &middot; 오늘의 순서 &middot; 연주자별 화면 &middot; 폐회 인사까지 이어집니다.
+        노트북을 빔프로젝터에 꽂고 <b>화살표 키로 넘기면</b> 끝. <b>PDF로 저장</b>하면 USB에 담아 갈 수 있습니다.</p>
+        <p class="only">순서를 바꾸면 스크린도 바뀜</p>
+      </div>
+      <div class="feat reveal" style="--d:0.56s">
+        <p class="n">08 &nbsp;리허설 시간표</p>
         <h4>조 단위 소집 시각과 문자까지</h4>
         <p>전원을 한 번에 부르면 대기실이 터집니다. 5명씩 묶어 <b>조별 도착 시각</b>을 계산하고
         조마다 보낼 <b>문자를 만들어</b> 둡니다. 문자 30통이 6통이 됩니다.</p>
         <p class="only">당일 아침의 계산</p>
       </div>
-      <div class="feat reveal" style="--d:0.56s">
-        <p class="n">08 &nbsp;참가비 계산</p>
+      <div class="feat reveal" style="--d:0.64s">
+        <p class="n">09 &nbsp;참가비 계산</p>
         <h4>대관료 확정 전에도 안내가 나갑니다</h4>
         <p>항목 10가지 예산에서 <b>1인당 원가와 권장 참가비</b>를 역산합니다. 선택 항목을 끄면 즉시
         다시 계산되고, <b>안내 문구</b>까지 복사해 보냅니다.</p>
         <p class="only">감으로 정하지 않음</p>
       </div>
-      <div class="feat reveal" style="--d:0.64s">
-        <p class="n">09 &nbsp;좌석 배치</p>
+      <div class="feat reveal" style="--d:0.72s">
+        <p class="n">10 &nbsp;좌석 배치</p>
         <h4>가족은 붙여 앉히고 앞줄은 비웁니다</h4>
         <p>참석 회신을 <b>가정 단위</b>로 앉히고 앞 두 줄은 연주자석으로 둡니다.
         <b>&ldquo;3열 4~6번&rdquo;</b>처럼 학부모에게 그대로 보낼 수 있는 표기로 나옵니다.</p>
         <p class="only">접수처에 붙이면 끝</p>
       </div>
-      <div class="feat reveal" style="--d:0.72s">
-        <p class="n">10 &nbsp;이미지 보관함</p>
+      <div class="feat reveal" style="--d:0.80s">
+        <p class="n">11 &nbsp;이미지 보관함</p>
         <h4>사진을 끌어다 놓으면 전부에 들어갑니다</h4>
         <p>로고 &middot; 학원 상징 &middot; 사진을 한 번만 올리면 됩니다. 휴대폰 사진도 <b>인쇄 크기로 자동 축소</b>,
         테마마다 <b>모양은 알아서</b> 맞춰집니다. 포스터엔 단체사진, 표지엔 학원 전경처럼 따로 지정도 됩니다.</p>
         <p class="only">주소 다시 찾을 일 없음</p>
       </div>
-      <div class="feat reveal" style="--d:0.8s">
-        <p class="n">11 &nbsp;준비 체크리스트</p>
+      <div class="feat reveal" style="--d:0.88s">
+        <p class="n">12 &nbsp;준비 체크리스트</p>
         <h4>D-30부터 종료 후까지</h4>
         <p>30가지 할 일이 <b>행사 날짜에 맞춰</b> 날짜와 함께 나옵니다. 학부모 안내 문자 4종도
         시기별로 준비돼 있습니다.</p>
         <p class="only">빠뜨릴 수가 없음</p>
       </div>
-      <div class="feat reveal" style="--d:0.88s">
-        <p class="n">12 &nbsp;시즌 특강</p>
+      <div class="feat reveal" style="--d:0.96s">
+        <p class="n">13 &nbsp;시즌 특강</p>
         <h4>할로윈 &middot; 크리스마스 &middot; 방학</h4>
         <p>테마를 고르면 <b>4주 커리큘럼과 인쇄용 활동지</b>가 나옵니다. 연주회가 없는 달에도
         학원이 돌아갑니다.</p>
         <p class="only">자료 사서 짜깁기 안 함</p>
+      </div>
+      <div class="feat reveal" style="--d:1.04s">
+        <p class="n">14 &nbsp;지난 행사에서 가져오기</p>
+        <h4>작년 명단을 1분 만에 되살립니다</h4>
+        <p>학원은 학생이 그대로입니다. <b>이름과 난이도는 그대로</b> 가져오고 곡만 비워 줍니다.
+        해마다 20~30명을 다시 치던 일이 클릭 한 번이 됩니다.</p>
+        <p class="only">두 번째 연주회부터가 진짜</p>
+      </div>
+      <div class="feat reveal" style="--d:1.12s">
+        <p class="n">15 &nbsp;인터넷 &middot; AI 키 없이</p>
+        <h4>이 컴퓨터 안에서 전부 만들어집니다</h4>
+        <p>AI 키를 넣지 않아도 순서표 &middot; 대본 &middot; 인쇄물 &middot; 무대 화면이 전부 나옵니다.
+        학생 이름과 사진은 <b>학원 컴퓨터 밖으로 나가지 않습니다.</b>
+        인터넷이 필요한 것은 <b>학부모가 초대장 링크를 여는 것</b>뿐입니다.</p>
+        <p class="only">설정 화면에서 지금 상태를 보여 줌</p>
       </div>
     </div>
   </div>
@@ -421,7 +476,7 @@ BODY = """
       <p class="arrow">&#9660;</p>
       <div class="chain-row">
         <span>리허설 소집 시각</span><span>조별 문자</span><span>좌석 배치도</span><span>접수 확인표</span>
-        <span>당일 진행표</span><span>참가비</span><span>예산표</span><span>학부모 안내문</span>
+        <span>당일 진행표</span><span>무대 화면</span><span>참가비</span><span>예산표</span><span>학부모 안내문</span>
       </div>
       <p class="last">순서 하나를 바꾸면 &mdash; 위의 <b>40종이 동시에</b> 다시 만들어집니다</p>
     </div>
@@ -478,7 +533,7 @@ BODY = """
       </div>
       <div class="sheet-item reveal" style="--d:0.24s">
         <img src="__PRINT_CUE__" alt="당일 진행표 인쇄 견본">
-        <p><b>당일 진행표</b>사회자 &middot; 스태프용 큐시트</p>
+        <p><b>당일 진행표</b>도착 &middot; 리허설 &middot; 객석 개방 &middot; 연주 &middot; 시상까지 분 단위로. 내용이 길면 다음 장으로 이어집니다</p>
       </div>
     </div>
 
@@ -489,10 +544,53 @@ BODY = """
   </div>
 </section>
 
+<!-- ── 07 무대 화면 ─────────────────────────────────── -->
+<section class="guide">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">07 /</span> 연주회 당일 스크린</p>
+    <h2 class="reveal" style="--d:0.1s">해마다 만들던 파워포인트,<br><span class="accent">이제 안 만드셔도 됩니다</span></h2>
+    <p class="sub reveal" style="--d:0.18s">순서표에서 <strong>16:9 슬라이드</strong>가 통째로 만들어집니다.
+    노트북을 빔프로젝터나 TV에 연결하고 [전체화면]을 누르면 끝입니다.</p>
+
+    <div class="stage-shots">
+      <div class="stage-shot reveal">
+        <img src="__STAGE_SCREEN__" alt="연주회장 스크린 대기 화면 - 학원 로고와 행사 제목">
+        <p><b>입장 대기 화면</b>개회 전까지 띄워 두는 화면. 학원 로고와 안내 문구가 들어갑니다</p>
+      </div>
+      <div class="stage-shot reveal" style="--d:0.12s">
+        <img src="__STAGE_PERFORMANCE__" alt="연주자 소개 화면 - 이름, 곡, 작곡가, 곡 해설">
+        <p><b>연주자 화면</b>이름 &middot; 곡 &middot; 작곡가 &middot; 곡 해설이 뒷줄에서도 읽히는 크기로</p>
+      </div>
+    </div>
+
+    <div class="stage-keys reveal" style="--d:0.2s">
+      <span>&rarr; &larr; 화살표로 넘기기</span>
+      <span>스페이스 &middot; 화면 클릭</span>
+      <span>프레젠터(리모컨) 그대로</span>
+      <span>F 전체화면</span>
+      <span>어두운 공연장용 검은 화면</span>
+    </div>
+
+    <div class="notice reveal" style="--d:0.28s">
+      <p class="n-title">&#9989; 순서를 바꾸면 스크린도 함께 바뀝니다</p>
+      <p>파워포인트는 순서가 바뀌면 슬라이드를 손으로 옮겨야 합니다. 여기서는 순서표를 고치는 순간
+      대기 화면 &middot; 오늘의 순서 &middot; 연주자별 화면 &middot; 휴식 안내 &middot; 폐회 인사가 <strong>전부 다시 만들어집니다.</strong>
+      인쇄물과 <strong>같은 테마</strong>를 쓰므로 포스터 &middot; 순서지 &middot; 스크린의 색과 서체가 어긋나지 않습니다.</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.34s">
+      <p class="n-title">&#128190; 공연장 노트북을 써야 한다면</p>
+      <p>[PDF로 저장]을 누르면 <strong>16:9 슬라이드가 한 파일</strong>로 나옵니다. USB에 담아 가면
+      어느 노트북에서나 그대로 넘길 수 있고, 파워포인트에 그림으로 넣어도 됩니다.
+      <strong>인터넷이 끊겨도</strong> 화면은 그대로 넘어갑니다.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ── 05 이용 안내 ─────────────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">07 /</span> 이용 안내</p>
+    <p class="eyebrow reveal"><span class="num">08 /</span> 이용 안내</p>
     <h2 class="reveal" style="--d:0.1s">피아노 이벤트 솔루션 이용 안내</h2>
     <div class="info-cards">
       <div class="info-card red reveal">
@@ -502,8 +600,8 @@ BODY = """
       </div>
       <div class="info-card blue reveal" style="--d:0.15s">
         <p class="label">제공 범위</p>
-        <p class="big">인쇄물 20종</p>
-        <p class="desc">디자인 테마 20종 &middot; 사회자 대본<br>모바일 초대장 &middot; 참석 집계</p>
+        <p class="big">인쇄물 40종</p>
+        <p class="desc">디자인 테마 100종 &middot; 사회자 대본<br>무대 화면 &middot; 모바일 초대장 &middot; 참석 집계</p>
       </div>
     </div>
     <div class="notice reveal">
@@ -517,7 +615,7 @@ BODY = """
 <!-- ── 서비스 범위 ──────────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">08 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
+    <p class="eyebrow reveal"><span class="num">09 /</span> 무엇을 드리고, 무엇은 드리지 않는가</p>
     <h2 class="reveal" style="--d:0.1s">사시기 전에<br><span class="accent">이것부터</span> 확인해 주세요</h2>
     <div class="scope-grid">
       <div class="scope-col yes reveal">
@@ -526,6 +624,7 @@ BODY = """
           <li><span class="scope-mark">&#10003;</span><span><b>연주 순서 배치</b> &middot; 오프닝부터 피날레까지 흐름, 곡 사이 전환 시간, 중간 휴식, 종료 시각 계산</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>사회자 대본</b> &middot; 곡과 작곡가, 학생 메모를 엮은 곡별 멘트</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>인쇄물 40종 &times; 테마 100종</b> &middot; 포스터부터 좌석 배치도, 진행 문서까지</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>연주회장 무대 화면</b> &middot; 순서표에서 만들어지는 16:9 슬라이드. 전체화면으로 띄우거나 PDF로 저장</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>리허설 소집 &middot; 참가비 &middot; 좌석</b> 계산과 안내 문자</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>시즌 특강 기획</b> &middot; 할로윈 &middot; 크리스마스 &middot; 방학 4주 커리큘럼과 활동지</span></li>
@@ -535,7 +634,7 @@ BODY = """
         <h3>드리지 않는 것</h3>
         <ul>
           <li><span class="scope-mark">&#10005;</span><span><b>악보</b> &middot; 교재와 편곡본은 저작권이 있습니다. <b>학원에서 쓰시던 악보를 그대로</b> 쓰십니다</span></li>
-          <li><span class="scope-mark">&#10005;</span><span><b>음원 &middot; 반주</b> &middot; 같은 이유입니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>음원 &middot; 반주 &middot; 영상 편집</b> &middot; 같은 이유(저작권)입니다. 무대 화면은 <b>글자와 디자인</b>이지 영상이 아닙니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>곡 선정</b> &middot; 어떤 아이가 어떤 곡을 칠지는 원장님이 정하십니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>대관 &middot; 인쇄 대행</b> &middot; 지역마다 다르고 직접 하시는 편이 쌉니다. 대신 <b>예산표에 통상 단가</b>를 넣어 두었습니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>원비 &middot; 출결 관리</b> &middot; 쓰시던 학원 프로그램과 겹치지 않습니다</span></li>
@@ -550,7 +649,7 @@ BODY = """
 <!-- ── 명단은 어떻게 넣는가 ─────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">09 /</span> 학생 명단은 어떻게 넣나요</p>
+    <p class="eyebrow reveal"><span class="num">10 /</span> 학생 명단은 어떻게 넣나요</p>
     <h2 class="reveal" style="--d:0.1s">이미 가지고 계신 것을<br>그대로 씁니다</h2>
     <div class="flow">
       <div class="flow-step reveal">
@@ -586,7 +685,7 @@ BODY = """
 <!-- ── 다른 방법과 비교 ─────────────────────────────── -->
 <section class="usp">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">10 /</span> 지금 쓰시는 방법과 비교하면</p>
+    <p class="eyebrow reveal"><span class="num">11 /</span> 지금 쓰시는 방법과 비교하면</p>
     <h2 class="reveal" style="--d:0.1s">디자인 도구도, 관리 프로그램도<br><span class="accent">연주회를 알지는 못합니다</span></h2>
     <div class="cmp-wrap reveal" style="--d:0.2s">
       <table class="cmp">
@@ -650,6 +749,13 @@ BODY = """
             <td class="ours">조별 시각 &middot; 좌석 자동</td>
           </tr>
           <tr>
+            <th>연주회장 스크린</th>
+            <td>파워포인트를 해마다 다시 제작</td>
+            <td>슬라이드를 한 장씩 직접 제작</td>
+            <td>영상 제작 별도 견적</td>
+            <td class="ours">순서표에서 16:9 자동 생성</td>
+          </tr>
+          <tr>
             <th>비용</th>
             <td>무료 (시간 15~25시간)</td>
             <td>월 구독</td>
@@ -663,7 +769,7 @@ BODY = """
       <p class="n-title">&#127911; 진짜 차이는 한 가지입니다</p>
       <p>다른 도구들은 <strong>디자인 도구</strong>이거나 <strong>관리 도구</strong>입니다.
       이것은 <strong>연주회 하나를 처음부터 끝까지 아는 도구</strong>입니다.
-      명단 하나가 순서 &rarr; 시각 &rarr; 멘트 &rarr; 인쇄물 &rarr; 리허설 &rarr; 좌석 &rarr; 참가비로 전부 흘러가고,
+      명단 하나가 순서 &rarr; 시각 &rarr; 멘트 &rarr; 인쇄물 &rarr; 무대 화면 &rarr; 리허설 &rarr; 좌석 &rarr; 참가비로 전부 흘러가고,
       <strong>한 곳을 고치면 전부 따라 바뀝니다.</strong></p>
     </div>
   </div>
@@ -672,7 +778,7 @@ BODY = """
 <!-- ── 06 이런 원장님께 ─────────────────────────────── -->
 <section class="recommend">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">11 /</span> 이런 원장님께 추천합니다</p>
+    <p class="eyebrow reveal"><span class="num">12 /</span> 이런 원장님께 추천합니다</p>
     <h2 class="reveal" style="--d:0.1s">올해 연주회는<br><span class="accent">준비가 아니라 무대</span>에 집중하세요</h2>
     <div class="pill-list">
       <div class="pill reveal"><span class="icon check">&#10003;</span><span>연주회 시즌마다 순서표와 대본 때문에 밤을 새우는 원장님</span></div>
@@ -690,7 +796,7 @@ BODY = """
   <div class="inner">
     <p class="eyebrow reveal">ACCELSSAM &nbsp;&middot;&nbsp; 피아노 이벤트 솔루션</p>
     <h2 class="reveal" style="--d:0.1s">사흘 걸리던 준비를<br><span class="gold">30분</span>으로 끝내세요</h2>
-    <p class="sub reveal" style="--d:0.2s">순서표 &middot; 사회자 대본 &middot; 인쇄물 &middot; 초대장 &middot; 참석 집계 &middot; 당일 진행표까지 한 자리에서.</p>
+    <p class="sub reveal" style="--d:0.2s">순서표 &middot; 사회자 대본 &middot; 인쇄물 &middot; 초대장 &middot; 참석 집계 &middot; 당일 진행표 &middot; 무대 화면까지 한 자리에서.</p>
     <div class="reveal" style="--d:0.3s">
       <a class="cta-btn" href="https://accelssam.com/cart/?add-to-cart=2089" target="_top">피아노 이벤트 솔루션 시작하기</a>
       <div class="btn-row" style="justify-content:center">
@@ -753,7 +859,7 @@ html = (
     '<meta charset="UTF-8">\n'
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
     '<title>피아노 이벤트 솔루션 | 연주회 준비 30분 컷 · 아첼쌤</title>\n'
-    '<meta name="description" content="학생 명단만 넣으면 연주 순서표·사회자 대본·포스터·초대장·참석 집계·당일 진행표까지. 피아노학원 연주회 올인원 솔루션.">\n'
+    '<meta name="description" content="학생 명단만 넣으면 연주 순서표·사회자 대본·포스터·초대장·참석 집계·당일 진행표·연주회장 스크린 화면까지. 피아노학원 연주회 올인원 솔루션.">\n'
     '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
     '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
     '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700;900&display=swap" rel="stylesheet">\n'
