@@ -17,7 +17,9 @@
     "promo": "node scripts/promo-shots.mjs",
     "verify:detail": "node scripts/verify-detail.mjs",
     "mobile": "node scripts/mobile.mjs",
-    "pack": "node scripts/pack.mjs"
+    "pack": "node scripts/pack.mjs",
+    "demo:build": "vite build --config demo/vite.config.ts && node scripts/build-artifact.mjs",
+    "demo:verify": "node scripts/verify-demo.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -34,6 +36,7 @@
     "@types/node": "^26.3.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "autoprefixer": "^10.5.4",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
@@ -42,6 +45,7 @@
     "qrcode-terminal": "^0.12.0",
     "tailwindcss": "^3.4.19",
     "typescript": "^6.0.3",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.11"
   }
 }
