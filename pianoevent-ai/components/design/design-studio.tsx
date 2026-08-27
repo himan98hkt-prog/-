@@ -26,6 +26,7 @@ import {
   FAMILY_LABEL,
   FAMILY_ORDER,
   getTheme,
+  searchThemes,
   seasonalThemeIds,
   themesByFamily,
   type ThemeFamily,
@@ -74,8 +75,9 @@ export function DesignStudio({
   const [imageMap, setImageMap] = useState<ImageMap>(event.image_map ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  // 양식 32종·테마 40종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
+  // 양식 40종·테마 100종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
   const [category, setCategory] = useState<TemplateCategory>(getTemplate(event.design_template ?? 'poster-classic').category)
+  const [themeQuery, setThemeQuery] = useState('')
   const [family, setFamily] = useState<ThemeFamily>(
     getTheme(event.design_theme ?? academy.design_theme ?? 'classic-navy').family,
   )
@@ -260,7 +262,51 @@ export function DesignStudio({
               })}
             </div>
 
-            {themesByFamily()
+            <div>
+              <input
+                type="search"
+                value={themeQuery}
+                onChange={(e) => setThemeQuery(e.target.value)}
+                placeholder="테마 찾기 — 봄, 금색, 아이, 격식…"
+                aria-label="테마 찾기"
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+              />
+            </div>
+
+            {themeQuery.trim() ? (
+              <div className="grid gap-1.5">
+                <p className="text-[11px] text-muted-foreground">
+                  &ldquo;{themeQuery.trim()}&rdquo; — {searchThemes(themeQuery).length}종
+                </p>
+                {searchThemes(themeQuery).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setThemeId(item.id)
+                      setFamily(item.family)
+                    }}
+                    aria-pressed={item.id === themeId}
+                    className={cn(
+                      'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                      item.id === themeId ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.name}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{item.tagline}</span>
+                    </span>
+                    <ThemeSwatch id={item.id} />
+                  </button>
+                ))}
+                {searchThemes(themeQuery).length === 0 && (
+                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+                    맞는 테마가 없습니다. 다른 말로 찾아 보세요.
+                  </p>
+                )}
+              </div>
+            ) : (
+              themesByFamily()
               .filter((group) => group.family === family)
               .map((group) => (
                 <div key={group.family} className="grid gap-1.5">
@@ -289,7 +335,8 @@ export function DesignStudio({
                     )
                   })}
                 </div>
-              ))}
+              ))
+            )}
             <FieldHint>테마마다 색과 서체가 한 벌로 맞춰져 있습니다. 학원 기본 테마는 설정 화면에서 정합니다.</FieldHint>
           </CardContent>
         </Card>

@@ -21,6 +21,11 @@ THEME_COUNT = len(re.findall(r"^    family: '", themes_src, re.M))
 TEMPLATE_COUNT = len(re.findall(r"^    category: '", templates_src, re.M))
 CATALOG_COUNT = len(re.findall(r"^  E\('", catalog_src, re.M))
 
+CATEGORY_COUNT = {
+    key: len(re.findall(rf"^    category: '{key}',$", templates_src, re.M))
+    for key in ['poster', 'program', 'invite', 'stage', 'ops']
+}
+
 # 테마 견본 — id, 이름, paper/band/accent
 theme_blocks = themes_src.split('\n  {\n')[1:]
 THEMES = []
@@ -191,7 +196,7 @@ S = []
 S.append(slide(1, TOTAL, dark=True,
     eyebrow='PIANOEVENT · 피아노학원 연주회 올인원',
     title='연주회 준비에 쓰던 사흘,<br>이제 <span class="hi" style="color:#D9B95C">30분</span>이면 끝납니다',
-    lead='학생 명단 하나만 넣으면 순서표부터 인쇄물 32종까지 한 자리에서 만들어집니다.',
+    lead=f'학생 명단 하나만 넣으면 순서표부터 인쇄물 {TEMPLATE_COUNT}종까지 한 자리에서 만들어집니다.',
     body=f'''
     <div class="stats">
       <div class="stat"><p class="v">{CATALOG_COUNT}곡</p><p class="k">곡 사전<br>작곡가 · 시간 · 해설 자동</p></div>
@@ -237,7 +242,7 @@ S.append(slide(3, TOTAL, dark=True,
         <span class="chip">리허설 소집</span><span class="chip">조별 문자</span><span class="chip">좌석 배치도</span>
         <span class="chip">진행표</span><span class="chip">참가비</span><span class="chip">안내문</span>
       </div>
-      <p class="chain-note" style="color:#D9B95C">순서 하나를 바꾸면 — 위의 32종이 동시에 다시 만들어집니다</p>
+      <p class="chain-note" style="color:#D9B95C">순서 하나를 바꾸면 — 위의 40종이 동시에 다시 만들어집니다</p>
     </div>'''))
 
 # 04 곡 사전 ─────────────────────────────────────────────────
@@ -278,7 +283,7 @@ S.append(slide(5, TOTAL,
     <div class="list">
       <div class="item"><span class="mk">✓</span><span>곡 사이 <b>전환 시간</b>과 중간 휴식까지 넣어 <b>몇 시에 끝나는지</b> 알려 줍니다</span></div>
       <div class="item"><span class="mk">✓</span><span>마음에 안 드는 곳은 <b>▲▼ 버튼</b>으로 직접 옮깁니다 — 마우스로 끌 줄 몰라도 됩니다</span></div>
-      <div class="item"><span class="mk">✓</span><span>옮기면 <b>연주 시각과 인쇄물 32종이 함께</b> 바뀝니다. 멘트는 그대로 남습니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>옮기면 <b>연주 시각과 인쇄물 40종이 함께</b> 바뀝니다. 멘트는 그대로 남습니다</span></div>
     </div>'''))
 
 # 06 사회자 대본 ─────────────────────────────────────────────
@@ -304,13 +309,13 @@ S.append(slide(6, TOTAL, dark=True,
 S.append(slide(7, TOTAL,
     eyebrow=f'기능 04 · 인쇄물 {TEMPLATE_COUNT}종',
     title='포스터 한 장으로<br>끝나지 않습니다',
-    body='''
+    body=f'''
     <div class="stats" style="grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:34px">
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">7</p><p class="k" style="font-size:18px">포스터</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">5</p><p class="k" style="font-size:18px">프로그램</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">5</p><p class="k" style="font-size:18px">초대 · 홍보</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">7</p><p class="k" style="font-size:18px">행사 당일</p></div>
-      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">8</p><p class="k" style="font-size:18px">진행 문서</p></div>
+      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['poster']}</p><p class="k" style="font-size:18px">포스터</p></div>
+      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['program']}</p><p class="k" style="font-size:18px">프로그램</p></div>
+      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['invite']}</p><p class="k" style="font-size:18px">초대 · 홍보</p></div>
+      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['stage']}</p><p class="k" style="font-size:18px">행사 당일</p></div>
+      <div class="stat" style="padding:22px 14px;text-align:center"><p class="v" style="font-size:44px">{CATEGORY_COUNT['ops']}</p><p class="k" style="font-size:18px">진행 문서</p></div>
     </div>
     <div class="chips">
       <span class="chip">클래식 포스터</span><span class="chip">전면 사진 포스터</span><span class="chip">타이포 포스터</span>
@@ -321,6 +326,9 @@ S.append(slide(7, TOTAL,
       <span class="chip">시상 명단</span><span class="chip">사회자 대본</span><span class="chip">리허설 시간표</span>
       <span class="chip">접수 확인표</span><span class="chip">예산 · 정산표</span><span class="chip">학부모 안내문</span>
       <span class="chip">학생 준비 안내문</span><span class="chip">당일 진행표</span><span class="chip">체크리스트</span>
+      <span class="chip">무대 배치도</span><span class="chip">가로 현수막</span><span class="chip">안내 표지판</span>
+      <span class="chip">연습 기록표</span><span class="chip">연주자 소개 카드</span><span class="chip">응원 메시지 카드</span>
+      <span class="chip">감사장</span><span class="chip">종료 후 안내문</span>
     </div>
     <p class="lead" style="margin-top:24px;max-width:none">인쇄 · PDF 저장 모두 원장님 손에서.</p>'''))
 
@@ -439,7 +447,7 @@ S.append(slide(13, TOTAL, dark=True,
     body='''
     <div class="card">
       <p class="t">이 컴퓨터 안에서 전부 만들어집니다</p>
-      <p class="d">순서 배치 · 러닝타임 · 곡 사전 · 사회자 대본 · 순서표 점검 · 인쇄물 32종 ·
+      <p class="d">순서 배치 · 러닝타임 · 곡 사전 · 사회자 대본 · 순서표 점검 · 인쇄물 40종 ·
       리허설 · 참가비 · 좌석 · 안내 문자 — <b>전부 프로그램에 내장</b>돼 있습니다.
       별도 가입도, 월 구독도, API 키도 없습니다.</p>
     </div>
@@ -462,8 +470,8 @@ S.append(slide(14, TOTAL,
         <tr><th></th><th>한글 · 엑셀</th><th>캔바</th><th>외주</th><th class="ours">피아노 이벤트</th></tr>
       </thead>
       <tbody>
-        <tr><th>학생 이름 입력</th><td>양식마다 반복</td><td>양식마다 반복</td><td>파일 전달</td><td class="ours">한 번 → 32종</td></tr>
-        <tr><th>순서가 바뀌면</th><td>전부 재계산</td><td>모든 장 수정</td><td>다시 연락 · 추가비</td><td class="ours">32종 즉시 변경</td></tr>
+        <tr><th>학생 이름 입력</th><td>양식마다 반복</td><td>양식마다 반복</td><td>파일 전달</td><td class="ours">한 번 → 40종</td></tr>
+        <tr><th>순서가 바뀌면</th><td>전부 재계산</td><td>모든 장 수정</td><td>다시 연락 · 추가비</td><td class="ours">40종 즉시 변경</td></tr>
         <tr><th>곡 정보</th><td>직접 검색</td><td>직접 검색</td><td>직접 전달</td><td class="ours">곡 사전 자동</td></tr>
         <tr><th>리허설 · 좌석</th><td>손 계산</td><td>없음</td><td>없음</td><td class="ours">자동</td></tr>
         <tr><th>비용</th><td>시간 15~25h</td><td>월 구독</td><td>1장 5~15만원</td><td class="ours">연 1회 · 무제한</td></tr>

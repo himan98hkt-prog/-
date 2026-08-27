@@ -272,6 +272,34 @@ async function run() {
   const programTab = await call(`/events/${catId}?tab=program`)
   check('순서 직접 바꾸기 노출', (await programTab.text()).includes('순서 직접 바꾸기'))
 
+  console.log('\n▸ 새 양식 8종 · 테마 100종')
+
+  for (const [id, needle] of [
+    ['stage-map', '무대 배치도'],
+    ['banner-horizontal', '가로 현수막'],
+    ['signage', '접 수 처'],
+    ['practice-log', '연습 기록표'],
+    ['performer-cards', '연주자'],
+    ['guestbook', 'From.'],
+    ['thanks-letter', '감 사 장'],
+    ['after-notice', '마치며'],
+  ]) {
+    const res = await call(`/events/${event.id}/design/print?template=${id}&theme=classic-navy`)
+    check(`${needle} 렌더`, res.ok && (await res.text()).includes(needle))
+  }
+
+  const venuePack = await call(`/events/${event.id}/design/print?pack=venue&theme=sunlit-ivory`)
+  check('현장 안내 한 벌 인쇄', venuePack.ok && (await venuePack.text()).includes('현장 안내 한 벌'))
+
+  // 새로 만든 테마도 실제로 인쇄면에 적용되는지
+  for (const theme of ['onyx-pearl', 'plum-blossom', 'marshmallow', 'blueprint', 'rainbow-play']) {
+    const res = await call(`/events/${event.id}/design/print?template=poster-classic&theme=${theme}`)
+    check(`테마 ${theme} 적용`, res.ok && (await res.text()).includes('스모크 정기 연주회'))
+  }
+
+  const studioSearch = await call(`/events/${event.id}/design`)
+  check('테마 찾기 상자 노출', (await studioSearch.text()).includes('테마 찾기'))
+
   console.log('\n▸ 이미지 보관함')
 
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='

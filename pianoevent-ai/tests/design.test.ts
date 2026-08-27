@@ -13,6 +13,7 @@ import {
 import {
   DESIGN_THEMES,
   getTheme,
+  searchThemes,
   seasonalThemeIds,
   themeVars,
   themesByFamily,
@@ -157,9 +158,22 @@ describe('기본 문구', () => {
 })
 
 describe('디자인 확장 — 테마 40종 · 양식 32종', () => {
-  it('테마가 40종이고 id 가 겹치지 않는다', () => {
-    expect(DESIGN_THEMES).toHaveLength(40)
-    expect(new Set(DESIGN_THEMES.map((t) => t.id)).size).toBe(40)
+  it('테마가 100종이고 id 가 겹치지 않는다', () => {
+    expect(DESIGN_THEMES).toHaveLength(100)
+    expect(new Set(DESIGN_THEMES.map((t) => t.id)).size).toBe(100)
+  })
+
+  it('이름도 겹치지 않는다 — 고를 때 헷갈리지 않게', () => {
+    const names = DESIGN_THEMES.map((t) => t.name)
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('테마 찾기가 이름·분위기·설명 어디에 걸려도 나온다', () => {
+    expect(searchThemes('벚꽃').length).toBeGreaterThan(0)
+    expect(searchThemes('격식').length).toBeGreaterThan(3)
+    expect(searchThemes('겨울').length).toBeGreaterThan(2)
+    expect(searchThemes('')).toHaveLength(DESIGN_THEMES.length)
+    expect(searchThemes('존재하지않는말zzz')).toHaveLength(0)
   })
 
   it('모든 테마가 성격 묶음에 하나씩만 들어간다', () => {
@@ -174,7 +188,7 @@ describe('디자인 확장 — 테마 40종 · 양식 32종', () => {
     expect(families).toContain('lovely')
     expect(families).toContain('season')
     for (const group of themesByFamily()) {
-      expect(group.items.length).toBeGreaterThanOrEqual(3)
+      expect(group.items.length).toBeGreaterThanOrEqual(8)
     }
   })
 
@@ -202,9 +216,14 @@ describe('디자인 확장 — 테마 40종 · 양식 32종', () => {
     }
   })
 
-  it('양식이 32종이고 id 가 겹치지 않는다', () => {
-    expect(DESIGN_TEMPLATES).toHaveLength(32)
-    expect(new Set(DESIGN_TEMPLATES.map((t) => t.id)).size).toBe(32)
+  it('양식이 40종이고 id 가 겹치지 않는다', () => {
+    expect(DESIGN_TEMPLATES).toHaveLength(40)
+    expect(new Set(DESIGN_TEMPLATES.map((t) => t.id)).size).toBe(40)
+  })
+
+  it('양식 이름도 겹치지 않는다', () => {
+    const names = DESIGN_TEMPLATES.map((t) => t.name)
+    expect(new Set(names).size).toBe(names.length)
   })
 
   it('모든 양식이 분류에 들어가고 용지 규격이 정의돼 있다', () => {

@@ -87,6 +87,20 @@ const SHOTS = [
   ['56-design-studio-family.png', `/events/${EVENT_ID}/design`, 1440, true],
   ['57-asset-library.png', '/settings', 1280, true],
   ['58-roster-import.png', `/events/${EVENT_ID}?tab=roster`, 1280, true],
+
+  // ── 새 양식 8종 · 새 테마 ──────────────────────────────────
+  ['59-stage-map.png', print_('stage-map', 'blueprint'), 1240, true],
+  ['60-banner-horizontal.png', print_('banner-horizontal', 'cathedral-navy'), 1560, true],
+  ['61-signage.png', print_('signage', 'poster-red'), 900, true],
+  ['62-practice-log.png', print_('practice-log', 'apricot-cream'), 900, true],
+  ['63-performer-cards.png', print_('performer-cards', 'rosewood-cream'), 900, true],
+  ['64-guestbook.png', print_('guestbook', 'marshmallow'), 900, true],
+  ['65-thanks-letter.png', print_('thanks-letter', 'champagne-gold'), 1240, true],
+  ['66-after-notice.png', print_('after-notice', 'harvest-gold'), 900, true],
+  ['67-poster-onyx.png', print_('poster-classic', 'onyx-pearl'), 900, true],
+  ['68-poster-plum.png', print_('poster-classic', 'plum-blossom'), 900, true],
+  ['69-cover-oxford.png', print_('program-cover', 'oxford-green'), 900, true],
+  ['70-theme-search.png', `/events/${EVENT_ID}/design`, 1440, true],
 ]
 
 const post = (path, body) =>

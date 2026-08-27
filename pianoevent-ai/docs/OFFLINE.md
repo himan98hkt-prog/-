@@ -22,7 +22,7 @@
 | 연주 순서 자동 배치·직접 조정·러닝타임 | `lib/program/order.ts` |
 | 사회자 대본 곡별 생성 | `lib/program/script.ts` |
 | 순서표 정밀 점검 8가지 | `lib/program/diagnose.ts` |
-| 인쇄물 32종 × 테마 40종 · 인쇄 · PDF 저장 | `components/design/` |
+| 인쇄물 40종 × 테마 100종 · 인쇄 · PDF 저장 | `components/design/` |
 | 리허설 조별 소집 시각·문자 | `lib/ops/rehearsal.ts` |
 | 참가비 역산·예산표 | `lib/ops/budget.ts` |
 | 좌석 배치 | `lib/ops/seating.ts` |

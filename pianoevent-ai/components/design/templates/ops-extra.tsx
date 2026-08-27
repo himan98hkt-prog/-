@@ -454,3 +454,167 @@ export function StudentNotice({ ctx }: { ctx: DesignContext }) {
     </Sheet>
   )
 }
+
+/**
+ * 연습 기록표.
+ *
+ * 연주회 4주 전부터 아이가 매일 체크한다. 원장이 "연습했니" 를 스무 번 묻지 않아도 되고,
+ * 학부모는 아이가 얼마나 준비했는지 눈으로 본다.
+ */
+export function PracticeLog({ ctx }: { ctx: DesignContext }) {
+  const { theme, academy, event } = ctx
+  const d = dateParts(event.event_at)
+  const WEEKS = 4
+  const DAYS = ['월', '화', '수', '목', '금', '토', '일']
+
+  return (
+    <Sheet theme={theme} page="a4-portrait" flow>
+      <div style={{ flex: 1, padding: '54px 58px 42px', display: 'flex', flexDirection: 'column' }}>
+        <header style={{ textAlign: 'center', paddingBottom: 14, borderBottom: '2px solid var(--d-accent)' }}>
+          <p style={{ ...T.label(10) }}>{academy.name}</p>
+          <h1 style={{ ...T.display(30), marginTop: 8 }}>연습 기록표</h1>
+          <p style={{ marginTop: 8, fontSize: 13, color: 'var(--d-accent)', fontWeight: 700 }}>
+            {event.title} · {d.month}월 {d.day}일 ({d.weekday})
+          </p>
+        </header>
+
+        <div style={{ marginTop: 18, display: 'flex', gap: 14, fontSize: 13 }}>
+          <span>
+            이름 <span style={{ display: 'inline-block', width: 120, borderBottom: '1px solid var(--d-line)' }} />
+          </span>
+          <span>
+            곡 <span style={{ display: 'inline-block', width: 200, borderBottom: '1px solid var(--d-line)' }} />
+          </span>
+        </div>
+
+        <table style={{ width: '100%', marginTop: 18, borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--d-line)', color: 'var(--d-muted)' }}>
+              <th style={{ width: 60, padding: '7px 0', fontWeight: 500, textAlign: 'left' }}>주차</th>
+              {DAYS.map((day) => (
+                <th key={day} style={{ padding: '7px 0', fontWeight: 500 }}>
+                  {day}
+                </th>
+              ))}
+              <th style={{ width: 90, padding: '7px 0', fontWeight: 500 }}>원장 확인</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: WEEKS }, (_, week) => (
+              <tr key={week} className="print-avoid-break" style={{ borderBottom: '0.5px solid var(--d-line)' }}>
+                <td style={{ padding: '15px 0', fontWeight: 700, color: 'var(--d-accent)' }}>
+                  D-{(WEEKS - week) * 7}
+                </td>
+                {DAYS.map((day) => (
+                  <td key={day} style={{ padding: '15px 0', textAlign: 'center' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        border: '1px solid var(--d-line)',
+                      }}
+                    />
+                  </td>
+                ))}
+                <td style={{ padding: '15px 0' }} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div
+          style={{
+            marginTop: 22,
+            padding: '14px 16px',
+            border: '1px solid var(--d-line)',
+            background: 'var(--d-paper-alt)',
+          }}
+        >
+          <p style={{ fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--d-display)', color: 'var(--d-accent)' }}>
+            하루 연습은 이렇게
+          </p>
+          <div style={{ marginTop: 7, fontSize: 11.5, lineHeight: 1.95 }}>
+            <p>· 처음부터 끝까지 한 번 — 틀려도 멈추지 않고</p>
+            <p>· 어려운 곳만 천천히 다섯 번</p>
+            <p>· 마지막에 다시 처음부터 한 번</p>
+            <p>· 무대 인사까지 붙여서 한 번 (일주일에 두 번은)</p>
+          </div>
+        </div>
+
+        <footer style={{ marginTop: 'auto', paddingTop: 14, textAlign: 'center', ...T.body(11) }}>
+          매일 조금씩이 몰아서 하는 것보다 훨씬 낫습니다. 동그라미가 쌓이는 걸 아이가 봅니다.
+        </footer>
+      </div>
+    </Sheet>
+  )
+}
+
+/** 종료 후 안내문 — 사진 전달과 다음 행사 */
+export function AfterNotice({ ctx }: { ctx: DesignContext }) {
+  const { theme, academy, event, copy, plan } = ctx
+  const d = dateParts(event.event_at)
+
+  return (
+    <Sheet theme={theme} page="a4-portrait">
+      <div style={{ flex: 1, padding: '62px 62px 48px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ ...T.label(10) }}>{academy.name}</p>
+          <h1 style={{ ...T.display(28), marginTop: 8 }}>{event.title}을 마치며</h1>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+            <OrnamentDivider id={theme.ornament} width={190} />
+          </div>
+        </div>
+
+        <p style={{ marginTop: 24, ...T.body(12.5), whiteSpace: 'pre-line' }}>
+          {d.year}년 {d.month}월 {d.day}일, {plan.items.length}명의 아이들이 무대에 섰습니다.
+          {'\n'}긴장한 손끝으로 끝까지 연주해 낸 아이들에게, 그리고 자리를 채워 주신 부모님께
+          {'\n'}깊이 감사드립니다.
+        </p>
+
+        {[
+          {
+            title: '사진과 영상은 이렇게 받으십니다',
+            lines: [
+              '정리되는 대로 단톡방에 링크를 올려 드립니다 (보통 일주일 안).',
+              '개별 사진이 필요하시면 아이 이름을 말씀해 주세요.',
+              '다른 아이가 함께 나온 사진은 그 가정의 동의를 받고 전달합니다.',
+            ],
+          },
+          {
+            title: '오늘 아이에게 해 주실 말',
+            lines: [
+              '"끝까지 친 게 제일 멋있었어" — 결과보다 마친 것을 먼저 말해 주세요.',
+              '잘한 점 하나를 구체적으로 짚어 주시면 다음 무대가 쉬워집니다.',
+              '아쉬웠던 부분은 오늘 말고, 며칠 뒤에.',
+            ],
+          },
+          {
+            title: '다음 일정',
+            lines: [
+              '다음 주 수업은 예정대로 진행합니다.',
+              '다음 무대와 시즌 특강 일정은 정해지는 대로 알려 드리겠습니다.',
+            ],
+          },
+        ].map((section) => (
+          <section key={section.title} style={{ marginTop: 18 }} className="print-avoid-break">
+            <p style={{ ...T.label(9.5), color: 'var(--d-accent)' }}>{section.title}</p>
+            <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.95 }}>
+              {section.lines.map((line) => (
+                <p key={line}>· {line}</p>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <footer style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--d-line)', textAlign: 'center' }}>
+          <p style={{ ...T.display(14) }}>아이들이 오늘 하루를 오래 기억하기를 바랍니다.</p>
+          <p style={{ marginTop: 6, ...T.body(11) }}>
+            {academy.director_name} 원장 드림{copy.contact ? ` · ${copy.contact}` : ''}
+          </p>
+        </footer>
+      </div>
+    </Sheet>
+  )
+}

@@ -211,8 +211,8 @@ BODY = """
       인쇄해서 손에 쥐는 것까지 <strong>한 자리에서</strong> 끝납니다.</p>
       <div class="stat-row">
         <div class="stat"><p class="v">30초</p><p class="k">순서표 · 러닝타임<br>자동 계산</p></div>
-        <div class="stat"><p class="v">32종</p><p class="k">인쇄물 양식</p></div>
-        <div class="stat"><p class="v">40종</p><p class="k">디자인 테마</p></div>
+        <div class="stat"><p class="v">40종</p><p class="k">인쇄물 양식</p></div>
+        <div class="stat"><p class="v">100종</p><p class="k">디자인 테마</p></div>
         <div class="stat"><p class="v">0원</p><p class="k">디자인 외주비</p></div>
       </div>
       <div class="btn-row">
@@ -306,8 +306,8 @@ BODY = """
 
     <div class="numbers reveal" style="--d:0.15s">
       <div><p class="v">78곡</p><p class="k">곡 사전<br>작곡가 · 시간 · 해설</p></div>
-      <div><p class="v">32종</p><p class="k">인쇄물 양식</p></div>
-      <div><p class="v">40종</p><p class="k">디자인 테마</p></div>
+      <div><p class="v">40종</p><p class="k">인쇄물 양식</p></div>
+      <div><p class="v">100종</p><p class="k">디자인 테마</p></div>
       <div><p class="v">8가지</p><p class="k">순서표 자동 점검</p></div>
     </div>
 
@@ -324,7 +324,7 @@ BODY = """
         <h4>흐름과 시각을 동시에 계산합니다</h4>
         <p>오프닝 &rarr; 초급 &rarr; 중급 &rarr; 앙상블 &rarr; 피날레. 곡 사이 전환 시간과 중간 휴식까지 넣어
         <b>몇 시에 끝나는지</b>를 알려 줍니다. 마음에 안 드는 곳은 <b>위·아래 버튼으로 직접</b> 옮깁니다.</p>
-        <p class="only">바꾸면 32종이 함께 바뀜</p>
+        <p class="only">바꾸면 40종이 함께 바뀜</p>
       </div>
       <div class="feat reveal" style="--d:0.16s">
         <p class="n">03 &nbsp;사회자 대본</p>
@@ -342,8 +342,8 @@ BODY = """
       </div>
       <div class="feat reveal" style="--d:0.32s">
         <p class="n">05 &nbsp;인쇄물</p>
-        <h4>양식 32종 &times; 테마 40종</h4>
-        <p>포스터 7 &middot; 프로그램 5 &middot; 초대·홍보 5 &middot; 행사 당일 7 &middot; 진행 문서 8.
+        <h4>양식 40종 &times; 테마 100종</h4>
+        <p>포스터 7 &middot; 프로그램 5 &middot; 초대·홍보 6 &middot; 행사 당일 12 &middot; 진행 문서 10.
         테마 하나를 고르면 <b>전부 같은 색과 서체</b>를 입습니다. 한 벌 인쇄로 여러 장을 한 번에.</p>
         <p class="only">외주비 0원</p>
       </div>
@@ -423,7 +423,7 @@ BODY = """
         <span>리허설 소집 시각</span><span>조별 문자</span><span>좌석 배치도</span><span>접수 확인표</span>
         <span>당일 진행표</span><span>참가비</span><span>예산표</span><span>학부모 안내문</span>
       </div>
-      <p class="last">순서 하나를 바꾸면 &mdash; 위의 <b>32종이 동시에</b> 다시 만들어집니다</p>
+      <p class="last">순서 하나를 바꾸면 &mdash; 위의 <b>40종이 동시에</b> 다시 만들어집니다</p>
     </div>
   </div>
 </section>
@@ -525,7 +525,7 @@ BODY = """
         <ul>
           <li><span class="scope-mark">&#10003;</span><span><b>연주 순서 배치</b> &middot; 오프닝부터 피날레까지 흐름, 곡 사이 전환 시간, 중간 휴식, 종료 시각 계산</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>사회자 대본</b> &middot; 곡과 작곡가, 학생 메모를 엮은 곡별 멘트</span></li>
-          <li><span class="scope-mark">&#10003;</span><span><b>인쇄물 32종 &times; 테마 40종</b> &middot; 포스터부터 좌석 배치도, 진행 문서까지</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>인쇄물 40종 &times; 테마 100종</b> &middot; 포스터부터 좌석 배치도, 진행 문서까지</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>리허설 소집 &middot; 참가비 &middot; 좌석</b> 계산과 안내 문자</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>시즌 특강 기획</b> &middot; 할로윈 &middot; 크리스마스 &middot; 방학 4주 커리큘럼과 활동지</span></li>
@@ -619,14 +619,14 @@ BODY = """
             <td>시각을 전부 다시 계산</td>
             <td>모든 장을 다시 수정</td>
             <td>다시 연락 &middot; 추가 비용</td>
-            <td class="ours">32종이 함께 즉시 변경</td>
+            <td class="ours">40종이 함께 즉시 변경</td>
           </tr>
           <tr>
             <th>학생 이름 입력</th>
             <td>양식마다 반복</td>
             <td>양식마다 반복 타이핑</td>
             <td>파일로 전달</td>
-            <td class="ours">한 번 &rarr; 32종에 자동</td>
+            <td class="ours">한 번 &rarr; 40종에 자동</td>
           </tr>
           <tr>
             <th>사회자 대본</th>

@@ -10,13 +10,23 @@ import {
 } from '@/components/design/templates/posters'
 import { InvitationCards, StoryCard, BannerStand } from '@/components/design/templates/invites'
 import {
+  AfterNotice,
   AttendanceSheet,
   BudgetSheet,
   McScriptSheet,
   ParentNotice,
+  PracticeLog,
   RehearsalSheet,
   StudentNotice,
 } from '@/components/design/templates/ops-extra'
+import {
+  BannerHorizontal,
+  GuestBook,
+  PerformerCards,
+  Signage,
+  StageMap,
+  ThanksLetter,
+} from '@/components/design/templates/venue'
 import { PosterDuo, PosterTypographic } from '@/components/design/templates/posters-extra'
 import { ProgramNotes, ProgramTrifold } from '@/components/design/templates/program-extra'
 import { AwardSheet, BackstageBoard, PhotoZone, SeatingChart } from '@/components/design/templates/stage'
@@ -90,6 +100,22 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <ParentNotice ctx={ctx} />
     case 'student-notice':
       return <StudentNotice ctx={ctx} />
+    case 'stage-map':
+      return <StageMap ctx={ctx} />
+    case 'banner-horizontal':
+      return <BannerHorizontal ctx={ctx} />
+    case 'signage':
+      return <Signage ctx={ctx} />
+    case 'practice-log':
+      return <PracticeLog ctx={ctx} />
+    case 'performer-cards':
+      return <PerformerCards ctx={ctx} limitSheets={preview ? 1 : undefined} />
+    case 'guestbook':
+      return <GuestBook ctx={ctx} />
+    case 'thanks-letter':
+      return <ThanksLetter ctx={ctx} />
+    case 'after-notice':
+      return <AfterNotice ctx={ctx} />
     default:
       return <PosterClassic ctx={ctx} />
   }

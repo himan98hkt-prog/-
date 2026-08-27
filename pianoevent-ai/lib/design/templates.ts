@@ -1,4 +1,4 @@
-export type PageSize = 'a4-portrait' | 'a4-landscape' | 'square' | 'story' | 'banner'
+export type PageSize = 'a4-portrait' | 'a4-landscape' | 'square' | 'story' | 'banner' | 'banner-wide'
 
 export type TemplateCategory = 'poster' | 'program' | 'invite' | 'stage' | 'ops'
 
@@ -23,6 +23,7 @@ export const PAGE_PX: Record<PageSize, { w: number; h: number; label: string; cs
   square: { w: 900, h: 900, label: '정사각 (SNS)', css: '900px 900px' },
   story: { w: 720, h: 1280, label: '세로 스토리 (9:16)', css: '720px 1280px' },
   banner: { w: 500, h: 1500, label: 'X배너 시안 (1:3)', css: '500px 1500px' },
+  'banner-wide': { w: 1500, h: 500, label: '가로 현수막 시안 (3:1)', css: '1500px 500px' },
 }
 
 export const DESIGN_TEMPLATES: TemplateDef[] = [
@@ -319,6 +320,82 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     needsProgram: false,
     perStudent: false,
   },
+
+  {
+    id: 'stage-map',
+    name: '무대 배치도',
+    description: '피아노·의자·사회자 자리·조명을 그린 배치도. 대관처와 스태프에게 그대로 보냅니다.',
+    category: 'stage',
+    page: 'a4-landscape',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'banner-horizontal',
+    name: '가로 현수막 시안',
+    description: '무대 뒤에 거는 가로 현수막. 인쇄소에 그대로 넘길 수 있는 3:1 비율입니다.',
+    category: 'invite',
+    page: 'banner-wide',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'signage',
+    name: '안내 표지판 4매',
+    description: '“대기실 →”, “객석 입구”, “접수처”, “화장실”. 당일 길을 묻는 일이 사라집니다.',
+    category: 'stage',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+    perSheet: 4,
+  },
+  {
+    id: 'practice-log',
+    name: '연습 기록표',
+    description: '행사 4주 전부터 날짜가 찍힌 연습 체크표. 학생이 들고 가서 냉장고에 붙입니다.',
+    category: 'ops',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'performer-cards',
+    name: '연주자 소개 카드',
+    description: '이름·곡·한 줄 소개가 담긴 카드. 로비 게시판이나 포토존 옆에 붙입니다.',
+    category: 'stage',
+    page: 'a4-portrait',
+    needsProgram: true,
+    perStudent: true,
+    perSheet: 4,
+  },
+  {
+    id: 'guestbook',
+    name: '응원 메시지 카드',
+    description: '학부모가 아이에게 한 줄 남기는 카드. 연주가 끝나면 아이가 가져갑니다.',
+    category: 'stage',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+    perSheet: 4,
+  },
+  {
+    id: 'thanks-letter',
+    name: '감사장',
+    description: '대관처·반주자·도움 주신 분께 드리는 감사장. 이름만 채우면 됩니다.',
+    category: 'stage',
+    page: 'a4-landscape',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'after-notice',
+    name: '종료 후 안내문',
+    description: '사진·영상 전달 방법과 다음 행사 안내. 연주회가 끝나고 하루 안에 보냅니다.',
+    category: 'ops',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
 ]
 
 export const DEFAULT_TEMPLATE_ID = 'poster-classic'
@@ -389,8 +466,14 @@ export const PRINT_PACKS: PrintPack[] = [
   {
     id: 'reception',
     name: '접수처 한 벌',
-    description: '좌석 배치도 · 포토존 보드를 한 번에 인쇄합니다. (A4 가로)',
-    templates: ['seating-chart', 'photo-zone'],
+    description: '좌석 배치도 · 포토존 보드 · 무대 배치도를 한 번에 인쇄합니다. (A4 가로)',
+    templates: ['seating-chart', 'photo-zone', 'stage-map'],
+  },
+  {
+    id: 'venue',
+    name: '현장 안내 한 벌',
+    description: '안내 표지판 · 연주자 소개 카드 · 응원 메시지 카드를 한 번에 인쇄합니다.',
+    templates: ['signage', 'performer-cards', 'guestbook'],
   },
 ]
 
