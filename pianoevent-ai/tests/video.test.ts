@@ -6,6 +6,9 @@ import {
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
   formatLength,
+  leadingNumber,
+  moveScene,
+  sortByFileName,
   MAX_TOTAL_SEC,
   SCENE_MIN_SEC,
   totalSeconds,
@@ -196,9 +199,9 @@ describe('시간표', () => {
 
   it('자막은 넘어가기가 끝난 뒤에 떠오른다', () => {
     const fade = fadeFor(timeline.scenes[1].seconds)
-    expect(scenesAt(timeline, timeline.starts[1] + fade * 0.5).find((e) => e.index === 1).textAlpha).toBe(0)
+    expect(scenesAt(timeline, timeline.starts[1] + fade * 0.5).find((e) => e.index === 1)?.textAlpha).toBe(0)
     const settled = scenesAt(timeline, timeline.starts[1] + fade + CAPTION_FADE_SEC + 0.01).find((e) => e.index === 1)
-    expect(settled.textAlpha).toBe(1)
+    expect(settled?.textAlpha).toBe(1)
   })
 
   it('장면이 짧으면 겹치는 시간도 짧아진다 — 겹침이 장면을 다 먹지 않게', () => {
@@ -230,5 +233,71 @@ describe('내려받는 파일 형식', () => {
     const info = describeRecordType('video/webm;codecs="vp9,opus"')
     expect(info.ext).toBe('webm')
     expect(info.note).toContain('길이가 안 뜰 수 있')
+  })
+})
+
+describe('원장님이 직접 고치기', () => {
+  it('파일 이름 앞 번호대로 늘어놓는다', () => {
+    const picked = [
+      { label: '03 리허설' },
+      { label: '01 입장' },
+      { label: '10 무대 뒤' },
+      { label: '02 대기실' },
+    ]
+    expect(sortByFileName(picked).map((item) => item.label)).toEqual([
+      '01 입장',
+      '02 대기실',
+      '03 리허설',
+      '10 무대 뒤',
+    ])
+  })
+
+  it('번호가 붙은 것이 먼저, 나머지는 이름 순', () => {
+    const picked = [{ label: '연습실' }, { label: '02 둘째날' }, { label: '가나다' }, { label: '01 첫날' }]
+    expect(sortByFileName(picked).map((item) => item.label)).toEqual(['01 첫날', '02 둘째날', '가나다', '연습실'])
+  })
+
+  it('여러 표기의 앞 번호를 읽는다', () => {
+    expect(leadingNumber('01 입장.jpg')).toBe(1)
+    expect(leadingNumber('2. 리허설.png')).toBe(2)
+    expect(leadingNumber('003-무대.jpg')).toBe(3)
+    expect(leadingNumber('12_합주.mp4')).toBe(12)
+    expect(leadingNumber('7.jpg')).toBe(7)
+    expect(leadingNumber('연습실.jpg')).toBeNull()
+    expect(leadingNumber('2026 봄.jpg')).toBe(2026)
+  })
+
+  it('장면을 앞뒤로 옮긴다', () => {
+    const scenes = board()
+    const moved = moveScene(scenes, 2, -1)
+    expect(moved[1].id).toBe(scenes[2].id)
+    expect(moved[2].id).toBe(scenes[1].id)
+    expect(moved).toHaveLength(scenes.length)
+  })
+
+  it('끝에서 더 옮기려 하면 그대로 둔다', () => {
+    const scenes = board()
+    expect(moveScene(scenes, 0, -1)).toBe(scenes)
+    expect(moveScene(scenes, scenes.length - 1, 1)).toBe(scenes)
+  })
+
+  it('옮겨도 장면이 사라지거나 늘지 않는다', () => {
+    const scenes = board()
+    const ids = new Set(scenes.map((scene) => scene.id))
+    const moved = moveScene(moveScene(scenes, 3, -2), 0, 4)
+    expect(new Set(moved.map((scene) => scene.id))).toEqual(ids)
+  })
+})
+
+describe('글자 자리', () => {
+  it('자리를 정하지 않으면 아래쪽', () => {
+    const scenes = board()
+    expect(scenes.every((scene) => scene.caption === undefined)).toBe(true)
+  })
+
+  it('글자 없이도 장면은 남는다', () => {
+    const scene = { ...board()[2], caption: 'none' as const }
+    expect(scene.caption).toBe('none')
+    expect(scene.seconds).toBeGreaterThan(0)
   })
 })

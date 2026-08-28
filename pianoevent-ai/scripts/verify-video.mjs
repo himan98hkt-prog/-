@@ -133,11 +133,48 @@ try {
   check('사진이 없는 장면을 알려 준다', boardText.includes('사진 없음'))
   await board.screenshot({ path: join(OUT, 'storyboard.jpg'), type: 'jpeg', quality: 80 })
 
-  // 콘티를 누르면 그 장면이 보인다
-  await board.locator('button').nth(4).click()
+  // 콘티를 누르면 그 장면이 보이고, 고칠 수 있다
+  await board.locator('button[aria-label$="장면 고치기"]').nth(4).click()
   await page.waitForTimeout(400)
   const jumped = await page.getByTestId('video-length').textContent()
   check('장면을 누르면 그 자리로 간다', !jumped.trim().startsWith('0초'), jumped.trim())
+
+  const editor = page.getByTestId('scene-editor')
+  check('장면 고치는 칸이 열린다', (await editor.count()) === 1)
+  await page.getByLabel('큰 글씨').fill('우리 아이들의 1년')
+  await page.getByLabel('작은 글씨', { exact: true }).fill('고맙습니다')
+  await page.waitForTimeout(700)
+  const editedThumb = await board.locator('img').nth(4).getAttribute('src')
+  check('고친 문구가 콘티 그림에 바로 반영된다', (editedThumb ?? '').startsWith('data:image/jpeg'))
+  const boardAfter = await board.textContent()
+  check('고친 이름이 장면 목록에 보인다', boardAfter.includes('우리 아이들의 1년'), boardAfter.slice(0, 80))
+
+  // 머무는 시간을 늘리면 전체 길이가 늘어난다
+  const beforeLen = (await page.getByTestId('video-length').textContent()).split('/')[1]
+  await page.getByLabel('머무는 시간 (초)').fill('8')
+  await page.waitForTimeout(600)
+  const afterLen = (await page.getByTestId('video-length').textContent()).split('/')[1]
+  check('머무는 시간을 늘리면 전체 길이도 늘어난다', afterLen !== beforeLen, `${beforeLen.trim()} → ${afterLen.trim()}`)
+
+  // 글자 자리 바꾸기
+  await page.getByRole('button', { name: '가운데 크게' }).click()
+  await page.waitForTimeout(500)
+  check('글자 자리를 고를 수 있다', (await page.getByRole('button', { name: '가운데 크게' }).getAttribute('aria-pressed')) === 'true')
+
+  // 순서 옮기기
+  const labelsBefore = await board.locator('span.truncate').allTextContents()
+  await editor.getByRole('button', { name: '← 앞으로' }).click()
+  await page.waitForTimeout(500)
+  const labelsAfter = await board.locator('span.truncate').allTextContents()
+  check('장면 순서를 앞뒤로 옮긴다', labelsBefore[4] !== labelsAfter[4], `${labelsBefore[4]} → ${labelsAfter[4]}`)
+  check('옮겨도 장면 수는 그대로', labelsBefore.length === labelsAfter.length)
+
+  // 되돌리기
+  await page.getByRole('button', { name: '고친 것 되돌리기' }).click()
+  await page.waitForTimeout(600)
+  const restored = await board.textContent()
+  check('고친 것을 한 번에 되돌린다', !restored.includes('우리 아이들의 1년'))
+  await page.getByTestId('scene-editor').isVisible().catch(() => undefined)
 
   // 이 브라우저가 뽑을 수 있는 형식이 있는가
   const recordType = await page.evaluate(() => {

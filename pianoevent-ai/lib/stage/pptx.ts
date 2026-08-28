@@ -1,5 +1,11 @@
 import type { DesignTheme } from '@/lib/design/themes'
 import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
+import {
+  DEFAULT_STAGE_LAYOUT,
+  fallbackLayout,
+  PIANO_SAFE_BOTTOM,
+  type StageLayout,
+} from '@/lib/stage/layouts'
 import { zipStore, type ZipEntry } from '@/lib/stage/zip'
 
 /**
@@ -34,6 +40,34 @@ export function decodeDataUri(uri: string): { bytes: Uint8Array; ext: 'png' | 'j
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
   return { bytes, ext }
+}
+
+/**
+ * 사진 바이트에서 가로·세로를 읽는다.
+ * 자리에 맞춰 잘라 넣으려면 원본 비율을 알아야 한다 — 모르면 늘어나거나 여백이 남는다.
+ */
+export function imageSize(bytes: Uint8Array, ext: string): { width: number; height: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (ext === 'png' && bytes.length > 24) {
+    return { width: view.getUint32(16), height: view.getUint32(20) }
+  }
+  if (ext === 'jpeg') {
+    let i = 2
+    while (i + 9 < bytes.length) {
+      if (bytes[i] !== 0xff) {
+        i += 1
+        continue
+      }
+      const marker = bytes[i + 1]
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { height: view.getUint16(i + 5), width: view.getUint16(i + 7) }
+      }
+      const length = view.getUint16(i + 2)
+      if (length < 2) return null
+      i += 2 + length
+    }
+  }
+  return null
 }
 
 function esc(text: string): string {
@@ -117,16 +151,74 @@ function textBox(
   )
 }
 
-/** 사진 한 장. 정사각으로 잘라 넣는다 (srcRect 로 가운데를 남긴다) */
-function picture(x: number, y: number, w: number, h: number, relId: string, name = '사진'): string {
+/**
+ * 사진 한 장. 자리를 **꽉 채우고** 넘치는 부분은 잘라 낸다.
+ *
+ * 파워포인트는 `srcRect` 로 원본에서 쓸 영역을 정한다. 사진 비율과 자리 비율이
+ * 다르면 긴 쪽을 잘라 내야 여백이 남지 않는다 — 여백이 남으면 스크린이 허전해진다.
+ */
+function picture(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  relId: string,
+  source: { width: number; height: number } | null,
+  name = '사진',
+): string {
   shapeId += 1
+  // 잘라 낼 비율을 1/1000 % 로 적는다
+  let crop = '<a:srcRect/>'
+  if (source && source.width > 0 && source.height > 0) {
+    const boxRatio = w / h
+    const imageRatio = source.width / source.height
+    if (imageRatio > boxRatio) {
+      // 원본이 더 넓다 — 좌우를 잘라 낸다
+      const keep = boxRatio / imageRatio
+      const side = Math.round(((1 - keep) / 2) * 100_000)
+      crop = `<a:srcRect l="${side}" r="${side}"/>`
+    } else if (imageRatio < boxRatio) {
+      // 원본이 더 길다 — 위아래를 잘라 낸다. 얼굴이 위쪽에 있으므로 아래를 더 자른다
+      const keep = imageRatio / boxRatio
+      const total = (1 - keep) * 100_000
+      const top = Math.round(total * 0.35)
+      crop = `<a:srcRect t="${top}" b="${Math.round(total - top)}"/>`
+    }
+  }
   return (
     `<p:pic><p:nvPicPr><p:cNvPr id="${shapeId}" name="${esc(name)}"/><p:cNvPicPr>` +
     `<a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
-    `<p:blipFill><a:blip r:embed="${relId}"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+    `<p:blipFill>` +
+    `<a:blip r:embed="${relId}"/>${crop}<a:stretch><a:fillRect/></a:stretch>` +
+    `</p:blipFill>` +
     `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
-    `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 8000"/></a:avLst></a:prstGeom>` +
-    `<a:ln w="38100"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></p:spPr></p:pic>`
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
+  )
+}
+
+/** 테두리를 두른 카드 */
+function frame(x: number, y: number, w: number, h: number, fill: string, border: string, name = '카드'): string {
+  shapeId += 1
+  return (
+    `<p:sp><p:nvSpPr><p:cNvPr id="${shapeId}" name="${esc(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>` +
+    `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+    `<a:solidFill><a:srgbClr val="${hex(fill)}"/></a:solidFill>` +
+    `<a:ln w="28575"><a:solidFill><a:srgbClr val="${hex(border)}"/></a:solidFill></a:ln></p:spPr>` +
+    `<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
+  )
+}
+
+/** 사진 위에 까는 반투명 판 — 그 위 글자가 읽히게 */
+function shade(x: number, y: number, w: number, h: number, alpha: number, name = '그늘'): string {
+  shapeId += 1
+  return (
+    `<p:sp><p:nvSpPr><p:cNvPr id="${shapeId}" name="${esc(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>` +
+    `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+    `<a:solidFill><a:srgbClr val="000000"><a:alpha val="${Math.round(alpha * 100_000)}"/></a:srgbClr></a:solidFill>` +
+    `<a:ln><a:noFill/></a:ln></p:spPr>` +
+    `<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
   )
 }
 
@@ -143,6 +235,7 @@ function rect(x: number, y: number, w: number, h: number, color: string, name = 
 
 interface Palette {
   paper: string
+  paperAlt: string
   ink: string
   muted: string
   accent: string
@@ -153,8 +246,24 @@ interface Palette {
 function palette(theme: DesignTheme, dark: boolean): Palette {
   const p = theme.palette
   return dark
-    ? { paper: p.ink, ink: p.paper, muted: p.paperAlt, accent: p.accent, accentSoft: p.accentSoft, line: p.accentSoft }
-    : { paper: p.paper, ink: p.ink, muted: p.muted, accent: p.accent, accentSoft: p.accentSoft, line: p.line }
+    ? {
+        paper: p.ink,
+        paperAlt: p.ink,
+        ink: p.paper,
+        muted: p.paperAlt,
+        accent: p.accent,
+        accentSoft: p.accentSoft,
+        line: p.accentSoft,
+      }
+    : {
+        paper: p.paper,
+        paperAlt: p.paperAlt,
+        ink: p.ink,
+        muted: p.muted,
+        accent: p.accent,
+        accentSoft: p.accentSoft,
+        line: p.line,
+      }
 }
 
 function slideXml(
@@ -163,6 +272,8 @@ function slideXml(
   academyName: string,
   dark: boolean,
   photoRelId: string | null,
+  layout: StageLayout,
+  photoSize: { width: number; height: number } | null,
 ): string {
   const c = palette(theme, dark)
   const display = pptFont(theme.fonts.display)
@@ -212,60 +323,212 @@ function slideXml(
       )
     })
   } else if (slide.kind === 'performance' && photoRelId) {
-    // 사진이 있으면 왼쪽에 얼굴, 오른쪽에 이름 — 화면과 같은 자리
-    const photoSize = px(440)
-    shapes.push(picture(px(80), px(140), photoSize, photoSize, photoRelId, `${slide.title} 사진`))
-    const textX = px(80) + photoSize + px(56)
-    const textW = SLIDE_W - textX - px(80)
-    shapes.push(
-      textBox(textX, px(190), textW, px(30), [
-        { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
-      ]),
-    )
-    shapes.push(
-      textBox(textX, px(226), textW, px(110), [
-        {
-          align: 'l',
-          runs: [{ text: slide.title, size: slide.title.length > 8 ? 76 : 94, color: c.ink, bold: true, font: display }],
-        },
-      ]),
-    )
-    shapes.push(rect(textX, px(348), px(280), px(2), c.accentSoft, '가름선'))
-    shapes.push(
-      textBox(textX, px(368), textW, px(48), [
-        { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 34, color: c.ink, bold: true, font: body }] },
-      ]),
-    )
-    if (slide.body) {
+    const order = slide.counter?.split('/')[0]?.trim() ?? ''
+    const white = '#FFFFFF'
+    const safeH = SLIDE_H * (1 - PIANO_SAFE_BOTTOM)
+
+    if (layout === 'photo-side') {
+      const photoW = Math.round(SLIDE_W * 0.54)
+      shapes.push(picture(0, 0, photoW, SLIDE_H, photoRelId, photoSize, `${slide.title} 사진`))
+      const tx = photoW + px(44)
+      const tw = SLIDE_W - tx - px(56)
       shapes.push(
-        textBox(textX, px(430), textW, px(130), [
-          { align: 'l', runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
-        ], 't', '곡 해설'),
+        textBox(tx, px(180), tw, px(28), [
+          { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 20, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
       )
+      shapes.push(
+        textBox(tx, px(214), tw, px(100), [
+          { align: 'l', runs: [{ text: slide.title, size: slide.title.length > 7 ? 74 : 88, color: c.ink, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(tx, px(324), px(220), px(3), c.accent, '가름선'))
+      shapes.push(
+        textBox(tx, px(346), tw, px(46), [
+          { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 32, color: c.ink, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(tx, px(404), tw, px(120), [
+            { align: 'l', runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
+          ], 't', '곡 해설'),
+        )
+      }
+    } else if (layout === 'photo-band') {
+      shapes.push(picture(0, 0, SLIDE_W, SLIDE_H, photoRelId, photoSize, `${slide.title} 사진`))
+      shapes.push(shade(0, 0, SLIDE_W, px(280), 0.72, '위쪽 그늘'))
+      shapes.push(
+        textBox(px(72), px(38), SLIDE_W - px(144), px(30), [
+          { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(px(72), px(74), SLIDE_W - px(144), px(100), [
+          {
+            align: 'l',
+            runs: [
+              { text: `${slide.title}   `, size: slide.title.length > 7 ? 74 : 88, color: white, bold: true, font: display },
+              { text: slide.subtitle ?? '', size: 34, color: white, bold: true, font: body },
+            ],
+          },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(px(72), px(186), SLIDE_W - px(200), px(70), [
+            { align: 'l', runs: [{ text: slide.body, size: 22, color: white, font: body }], lineHeight: 1.5 },
+          ], 't', '곡 해설'),
+        )
+      }
+    } else if (layout === 'photo-corner') {
+      shapes.push(picture(0, 0, SLIDE_W, SLIDE_H, photoRelId, photoSize, `${slide.title} 사진`))
+      shapes.push(shade(0, 0, SLIDE_W, px(300), 0.68, '위쪽 그늘'))
+      shapes.push(
+        textBox(px(60), px(30), px(300), px(150), [
+          { align: 'l', runs: [{ text: order, size: 132, color: c.accent, bold: true, font: display }] },
+        ], 't', '순서 번호'),
+      )
+      const tw = px(820)
+      shapes.push(
+        textBox(SLIDE_W - px(60) - tw, px(40), tw, px(28), [
+          { align: 'r', runs: [{ text: slide.eyebrow ?? '', size: 19, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(SLIDE_W - px(60) - tw, px(74), tw, px(96), [
+          { align: 'r', runs: [{ text: slide.title, size: slide.title.length > 7 ? 72 : 84, color: white, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(
+        textBox(SLIDE_W - px(60) - tw, px(178), tw, px(44), [
+          { align: 'r', runs: [{ text: slide.subtitle ?? '', size: 32, color: white, bold: true, font: body }] },
+        ]),
+      )
+    } else {
+      // photo-panel — 사진 전체 + 오른쪽 판
+      shapes.push(picture(0, 0, SLIDE_W, SLIDE_H, photoRelId, photoSize, `${slide.title} 사진`))
+      const panelW = px(500)
+      shapes.push(shade(SLIDE_W - panelW - px(120), 0, panelW + px(120), SLIDE_H, 0.5, '오른쪽 그늘'))
+      shapes.push(shade(SLIDE_W - panelW, 0, panelW, SLIDE_H, 0.42, '오른쪽 판'))
+      const tx = SLIDE_W - panelW + px(48)
+      const tw = panelW - px(96)
+      const mid = safeH / 2
+      shapes.push(
+        textBox(tx, mid - px(150), tw, px(28), [
+          { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 20, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(tx, mid - px(114), tw, px(104), [
+          { align: 'l', runs: [{ text: slide.title, size: slide.title.length > 7 ? 76 : 92, color: white, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(tx, mid + px(2), px(200), px(3), c.accent, '가름선'))
+      shapes.push(
+        textBox(tx, mid + px(24), tw, px(48), [
+          { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 33, color: white, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(tx, mid + px(84), tw, px(130), [
+            { align: 'l', runs: [{ text: slide.body, size: 21, color: white, font: body }], lineHeight: 1.55 },
+          ], 't', '곡 해설'),
+        )
+      }
     }
   } else if (slide.kind === 'performance') {
-    shapes.push(
-      textBox(pad, px(196), width, px(30), [
-        { runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
-      ]),
-    )
-    shapes.push(
-      textBox(pad, px(232), width, px(120), [
-        { runs: [{ text: slide.title, size: slide.title.length > 8 ? 84 : 104, color: c.ink, bold: true, font: display }] },
-      ]),
-    )
-    shapes.push(rect(SLIDE_W / 2 - px(60), px(372), px(120), px(2), c.accentSoft, '가름선'))
-    shapes.push(
-      textBox(pad, px(392), width, px(52), [
-        { runs: [{ text: slide.subtitle ?? '', size: 38, color: c.ink, bold: true, font: body }] },
-      ]),
-    )
-    if (slide.body) {
+    const order = slide.counter?.split('/')[0]?.trim() ?? ''
+    if (layout === 'text-number') {
+      const bandW = px(340)
+      // 강조색 블록 — 어두운 화면에서도 배경에 묻히지 않는다
+      shapes.push(rect(0, 0, bandW, SLIDE_H, c.accent, '번호 띠'))
       shapes.push(
-        textBox(px(200), px(460), SLIDE_W - px(400), px(120), [
-          { runs: [{ text: slide.body, size: 23, color: c.muted, font: body }], lineHeight: 1.6 },
-        ], 't', '곡 해설'),
+        textBox(0, SLIDE_H / 2 - px(120), bandW, px(220), [
+          { runs: [{ text: order, size: 200, color: c.paper, bold: true, font: display }] },
+        ]),
       )
+      const tx = bandW + px(72)
+      const tw = SLIDE_W - tx - px(72)
+      shapes.push(
+        textBox(tx, px(190), tw, px(30), [
+          { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(tx, px(228), tw, px(116), [
+          { align: 'l', runs: [{ text: slide.title, size: slide.title.length > 8 ? 88 : 104, color: c.ink, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(tx, px(354), px(280), px(3), c.accent, '가름선'))
+      shapes.push(
+        textBox(tx, px(378), tw, px(52), [
+          { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 38, color: c.ink, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(tx, px(444), tw, px(110), [
+            { align: 'l', runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
+          ], 't', '곡 해설'),
+        )
+      }
+    } else if (layout === 'text-card') {
+      const cardX = px(90)
+      const cardY = px(56)
+      const cardW = SLIDE_W - cardX * 2
+      const cardH = SLIDE_H * (1 - PIANO_SAFE_BOTTOM) - cardY
+      shapes.push(frame(cardX, cardY, cardW, cardH, c.paperAlt, c.accent, '카드'))
+      shapes.push(
+        textBox(cardX, cardY + px(46), cardW, px(30), [
+          { runs: [{ text: slide.eyebrow ?? '', size: 21, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(cardX, cardY + px(84), cardW, px(108), [
+          { runs: [{ text: slide.title, size: slide.title.length > 8 ? 80 : 96, color: c.ink, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(SLIDE_W / 2 - px(160), cardY + px(200), px(320), px(3), c.accent, '가름선'))
+      shapes.push(
+        textBox(cardX, cardY + px(222), cardW, px(50), [
+          { runs: [{ text: slide.subtitle ?? '', size: 36, color: c.ink, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(cardX + px(60), cardY + px(288), cardW - px(120), px(110), [
+            { runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
+          ], 't', '곡 해설'),
+        )
+      }
+    } else {
+      // text-hero — 이름만 크게. 아래쪽(피아노에 가리는 자리)은 비워 둔다
+      const mid = (SLIDE_H * (1 - PIANO_SAFE_BOTTOM)) / 2
+      shapes.push(
+        textBox(pad, mid - px(180), width, px(32), [
+          { runs: [{ text: slide.eyebrow ?? '', size: 22, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(pad, mid - px(140), width, px(126), [
+          { runs: [{ text: slide.title, size: slide.title.length > 8 ? 96 : 116, color: c.ink, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(SLIDE_W / 2 - px(180), mid + px(6), px(360), px(3), c.accentSoft, '가름선'))
+      shapes.push(
+        textBox(pad, mid + px(30), width, px(56), [
+          { runs: [{ text: slide.subtitle ?? '', size: 40, color: c.ink, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(px(200), mid + px(104), SLIDE_W - px(400), px(120), [
+            { runs: [{ text: slide.body, size: 23, color: c.muted, font: body }], lineHeight: 1.6 },
+          ], 't', '곡 해설'),
+        )
+      }
     }
   } else if (slide.kind === 'section') {
     shapes.push(
@@ -320,17 +583,20 @@ function slideXml(
     }
   }
 
-  shapes.push(
-    textBox(pad, SLIDE_H - px(48), px(400), px(26), [
-      { align: 'l', runs: [{ text: academyName, size: 17, color: c.muted, font: body }] },
-    ], 'ctr', '학원 이름'),
-  )
-  if (slide.counter) {
+  // 연주자 화면에는 아래 줄을 두지 않는다 — 그랜드피아노 뚜껑이 가리는 자리다
+  if (slide.kind !== 'performance') {
     shapes.push(
-      textBox(SLIDE_W - pad - px(400), SLIDE_H - px(48), px(400), px(26), [
-        { align: 'r', runs: [{ text: slide.counter, size: 17, color: c.muted, font: body }] },
-      ], 'ctr', '순서 번호'),
+      textBox(pad, SLIDE_H - px(48), px(400), px(26), [
+        { align: 'l', runs: [{ text: academyName, size: 17, color: c.muted, font: body }] },
+      ], 'ctr', '학원 이름'),
     )
+    if (slide.counter) {
+      shapes.push(
+        textBox(SLIDE_W - pad - px(400), SLIDE_H - px(48), px(400), px(26), [
+          { align: 'r', runs: [{ text: slide.counter, size: 17, color: c.muted, font: body }] },
+        ], 'ctr', '순서 번호'),
+      )
+    }
   }
 
   return (
@@ -413,12 +679,15 @@ export function buildPptx({
   academyName,
   title,
   dark = false,
+  layout = DEFAULT_STAGE_LAYOUT,
 }: {
   slides: StageSlide[]
   theme: DesignTheme
   academyName: string
   title: string
   dark?: boolean
+  /** 연주자 화면 모양 */
+  layout?: StageLayout
 }): Uint8Array {
   shapeId = 1
   const count = slides.length
@@ -518,26 +787,29 @@ export function buildPptx({
     { name: 'ppt/theme/theme1.xml', data: bytes(themeXml(theme)) },
   ]
   // 사진은 ppt/media/ 에 실제 파일로 넣는다. 같은 사진을 두 번 담지 않게 모아 둔다
-  const media = new Map<string, { file: string; ext: string }>()
-  const photoOf = (slide: StageSlide): string | null => {
+  const media = new Map<string, { file: string; ext: string; size: { width: number; height: number } | null }>()
+  const photoOf = (slide: StageSlide) => {
     if (!slide.photo) return null
     const known = media.get(slide.photo)
-    if (known) return known.file
+    if (known) return known
     const decoded = decodeDataUri(slide.photo)
     if (!decoded) return null // http 주소는 파일에 넣을 수 없다 — 사진 없이 그린다
     const file = `image${media.size + 1}.${decoded.ext === 'jpeg' ? 'jpg' : decoded.ext}`
-    media.set(slide.photo, { file, ext: decoded.ext })
+    const entry = { file, ext: decoded.ext, size: imageSize(decoded.bytes, decoded.ext) }
+    media.set(slide.photo, entry)
     entries.push({ name: `ppt/media/${file}`, data: decoded.bytes })
-    return file
+    return entry
   }
 
   slides.forEach((slide, index) => {
-    const photoFile = photoOf(slide)
+    const photo = photoOf(slide)
+    // 사진이 없으면 사진용 모양 대신 글자 모양으로 내려간다 — 빈 상자를 찍지 않는다
+    const used = photo ? layout : fallbackLayout(layout)
     entries.push({
       name: `ppt/slides/slide${index + 1}.xml`,
-      data: bytes(slideXml(slide, theme, academyName, dark, photoFile ? 'rId2' : null)),
+      data: bytes(slideXml(slide, theme, academyName, dark, photo ? 'rId2' : null, used, photo?.size ?? null)),
     })
-    entries.push({ name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: bytes(slideRels(photoFile)) })
+    entries.push({ name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: bytes(slideRels(photo?.file ?? null)) })
   })
 
   // 그림 확장자는 [Content_Types].xml 에 선언해야 파워포인트가 연다

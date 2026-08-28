@@ -16,6 +16,12 @@ import type { EventRecord, ProgramPlan } from '@/lib/types'
 
 export type SceneKind = 'title' | 'student' | 'gallery' | 'clip' | 'closing'
 
+/**
+ * 화면에 글자를 어디에 놓을지.
+ * 사진 위에 글자를 얹을 때 얼굴을 가리지 않도록 원장님이 고른다.
+ */
+export type CaptionPlace = 'bottom' | 'top' | 'center' | 'none'
+
 export interface VideoScene {
   id: string
   kind: SceneKind
@@ -31,6 +37,10 @@ export interface VideoScene {
   image?: string
   /** 동영상 주소 (blob URL) */
   clip?: string
+  /** 글자 자리 */
+  caption?: CaptionPlace
+  /** 원장님이 직접 고친 장면인가 — 명단이 바뀌어도 덮어쓰지 않는다 */
+  edited?: boolean
 }
 
 export interface StoryboardOptions {
@@ -220,4 +230,38 @@ export function sceneLabel(scene: VideoScene): string {
 /** 이 장면에 사진이 없어 이름만 나오는가 — 미리보기에서 표시해 준다 */
 export function isTextOnly(scene: VideoScene): boolean {
   return scene.kind === 'student' && !scene.image
+}
+
+/**
+ * 파일 이름 앞에 붙은 번호로 차례를 정한다.
+ *
+ * 원장님이 `01 입장.jpg` `02 리허설.jpg` 처럼 이름을 붙여 한꺼번에 고르면
+ * 그 번호대로 늘어놓는다. 번호가 없으면 고른 차례를 그대로 쓴다.
+ * (브라우저가 파일을 넘겨주는 차례는 들쭉날쭉해서 믿을 수 없다)
+ */
+export function leadingNumber(name: string): number | null {
+  const match = /^\s*(\d{1,4})\s*[._\-)\s]/.exec(name) || /^\s*(\d{1,4})\s*$/.exec(name.replace(/\.[^.]+$/, ''))
+  return match ? Number(match[1]) : null
+}
+
+export function sortByFileName<T extends { label: string }>(items: T[]): T[] {
+  return [...items]
+    .map((item, index) => ({ item, index, no: leadingNumber(item.label) }))
+    .sort((a, b) => {
+      if (a.no !== null && b.no !== null) return a.no - b.no || a.index - b.index
+      if (a.no !== null) return -1
+      if (b.no !== null) return 1
+      return a.item.label.localeCompare(b.item.label, 'ko') || a.index - b.index
+    })
+    .map((entry) => entry.item)
+}
+
+/** 장면 하나를 위·아래로 옮긴다 */
+export function moveScene(scenes: VideoScene[], index: number, delta: number): VideoScene[] {
+  const target = index + delta
+  if (index < 0 || index >= scenes.length || target < 0 || target >= scenes.length) return scenes
+  const next = [...scenes]
+  const [moved] = next.splice(index, 1)
+  next.splice(target, 0, moved)
+  return next
 }

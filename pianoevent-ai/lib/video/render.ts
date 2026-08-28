@@ -164,12 +164,24 @@ function drawScene(
   if (media && width && height) {
     // 켄 번스 — 1.0 에서 1.08 까지 아주 천천히
     cover(ctx, media, width, height, w, h, 1 + progress * 0.08, progress - 0.5)
-    // 자막이 읽히도록 아래쪽에 어둠을 깐다
-    const scrim = ctx.createLinearGradient(0, h * 0.45, 0, h)
-    scrim.addColorStop(0, 'rgba(0,0,0,0)')
-    scrim.addColorStop(1, 'rgba(0,0,0,0.72)')
-    ctx.fillStyle = scrim
-    ctx.fillRect(0, h * 0.45, w, h * 0.55)
+    // 자막이 읽히도록 그 자리에 어둠을 깐다
+    const place = scene.caption ?? 'bottom'
+    if (place === 'bottom') {
+      const shade = ctx.createLinearGradient(0, h * 0.45, 0, h)
+      shade.addColorStop(0, 'rgba(0,0,0,0)')
+      shade.addColorStop(1, 'rgba(0,0,0,0.72)')
+      ctx.fillStyle = shade
+      ctx.fillRect(0, h * 0.45, w, h * 0.55)
+    } else if (place === 'top') {
+      const shade = ctx.createLinearGradient(0, 0, 0, h * 0.5)
+      shade.addColorStop(0, 'rgba(0,0,0,0.78)')
+      shade.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = shade
+      ctx.fillRect(0, 0, w, h * 0.5)
+    } else if (place === 'center') {
+      ctx.fillStyle = 'rgba(0,0,0,0.42)'
+      ctx.fillRect(0, 0, w, h)
+    }
   } else {
     // 사진이 없으면 테마 색으로 — 빈 화면이 뜨지 않는다
     const bg = ctx.createLinearGradient(0, 0, w, h)
@@ -236,24 +248,83 @@ function drawScene(
     return
   }
 
-  // 사진 위 — 아래쪽 자막
+  // 사진 위 자막 — 자리는 장면마다 고른다 (얼굴을 가리지 않게)
+  const place = scene.caption ?? 'bottom'
+  if (place === 'none') {
+    ctx.globalAlpha = sceneAlpha
+    return
+  }
+
+  const headlineSize = Math.round(96 * unit)
+  const subSize = Math.round(42 * unit)
+  const eyebrowSize = Math.round(30 * unit)
+
+  if (place === 'center') {
+    // 가운데 — 감동 문구를 화면 한가운데 크게
+    ctx.textAlign = 'center'
+    const cx = w / 2
+    const lines = (() => {
+      ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
+      return wrap(ctx, scene.headline ?? '', w - pad * 2)
+    })()
+    const step = headlineSize * 1.2
+    const blockH = lines.length * step + (scene.sub ? subSize * 2 : 0)
+    let top = h / 2 - blockH / 2
+    ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
+    ctx.fillStyle = '#ffffff'
+    lines.forEach((line, index) => ctx.fillText(line, cx, top + headlineSize * 0.86 + index * step))
+    top += lines.length * step
+    if (scene.sub) {
+      ctx.font = `500 ${subSize}px ${theme.fonts.body}`
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'
+      ctx.fillText(scene.sub, cx, top + subSize)
+    }
+    ctx.globalAlpha = sceneAlpha
+    return
+  }
+
+  if (place === 'top') {
+    let top = pad * 0.7
+    if (scene.eyebrow) {
+      ctx.font = `600 ${eyebrowSize}px ${theme.fonts.body}`
+      ctx.fillStyle = p.accent
+      ctx.fillText(scene.eyebrow, x, top + eyebrowSize)
+      top += eyebrowSize + 18 * unit
+    }
+    if (scene.headline) {
+      ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText(scene.headline, x, top + headlineSize * 0.86)
+      top += headlineSize + 10 * unit
+    }
+    if (scene.sub) {
+      ctx.font = `500 ${subSize}px ${theme.fonts.body}`
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'
+      ctx.fillText(scene.sub, x, top + subSize * 0.9)
+    }
+    ctx.globalAlpha = sceneAlpha
+    return
+  }
+
+  // bottom — 아래에서 위로 쌓는다
   if (scene.sub) {
-    ctx.font = `500 ${Math.round(42 * unit)}px ${theme.fonts.body}`
+    ctx.font = `500 ${subSize}px ${theme.fonts.body}`
     ctx.fillStyle = 'rgba(255,255,255,0.92)'
     ctx.fillText(scene.sub, x, y)
     y -= 66 * unit
   }
   if (scene.headline) {
-    ctx.font = `700 ${Math.round(96 * unit)}px ${theme.fonts.display}`
+    ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
     ctx.fillStyle = '#ffffff'
     ctx.fillText(scene.headline, x, y)
     y -= 96 * unit
   }
   if (scene.eyebrow) {
-    ctx.font = `600 ${Math.round(30 * unit)}px ${theme.fonts.body}`
+    ctx.font = `600 ${eyebrowSize}px ${theme.fonts.body}`
     ctx.fillStyle = p.accent
     ctx.fillText(scene.eyebrow, x, y)
   }
+  ctx.globalAlpha = sceneAlpha
 }
 
 /** 지금 시각의 화면을 통째로 그린다 */

@@ -7,6 +7,12 @@ import { StageSlideView } from '@/components/stage/slide'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { getTheme } from '@/lib/design/themes'
 import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W, type StageDeckOptions } from '@/lib/stage/deck'
+import {
+  DEFAULT_STAGE_LAYOUT,
+  STAGE_LAYOUTS,
+  stageLayoutInfo,
+  type StageLayout,
+} from '@/lib/stage/layouts'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +42,7 @@ export function StageScreen({
   photos?: Record<string, string>
 }) {
   const [themeId, setThemeId] = useState(initialThemeId)
+  const [layout, setLayout] = useState<StageLayout>(DEFAULT_STAGE_LAYOUT)
   const [options, setOptions] = useState<StageDeckOptions>({
     show_commentary: true,
     show_sections: true,
@@ -131,6 +138,7 @@ export function StageScreen({
   if (!options.show_agenda) query.set('agenda', '0')
   if (!options.show_photos) query.set('photos', '0')
   if (dark) query.set('dark', '1')
+  query.set('layout', layout)
   const pptxUrl = `/api/events/${event.id}/pptx?${query.toString()}`
 
   const slide = slides[Math.min(index, last)]
@@ -163,7 +171,14 @@ export function StageScreen({
               flexShrink: 0,
             }}
           >
-            <StageSlideView slide={slide} theme={theme} academyName={academyName} dark={dark} logoUrl={logoUrl} />
+            <StageSlideView
+              slide={slide}
+              theme={theme}
+              academyName={academyName}
+              dark={dark}
+              logoUrl={logoUrl}
+              layout={layout}
+            />
           </div>
         </div>
 
@@ -242,7 +257,35 @@ export function StageScreen({
         </div>
 
         <div className="grid content-start gap-2">
-          <p className="text-sm font-medium">화면에 넣을 것</p>
+          <p className="text-sm font-medium">
+            연주자 화면 모양 · {STAGE_LAYOUTS.length}종
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              이름은 위·오른쪽에만 — 아래는 피아노에 가립니다
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {STAGE_LAYOUTS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setLayout(item.id)}
+                aria-pressed={item.id === layout}
+                title={item.hint}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  item.id === layout
+                    ? 'border-accent bg-accent/10 font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {item.name}
+                {item.needsPhoto && photoCount === 0 ? ' · 사진 필요' : ''}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{stageLayoutInfo(layout).hint}</p>
+
+          <p className="mt-1 text-sm font-medium">화면에 넣을 것</p>
           <div className="grid gap-1.5">
             <Toggle
               label="곡 해설"
@@ -286,7 +329,14 @@ export function StageScreen({
       <div className="stage-print-deck" aria-hidden>
         {slides.map((item) => (
           <div key={item.id} className="stage-print-page">
-            <StageSlideView slide={item} theme={theme} academyName={academyName} dark={false} logoUrl={logoUrl} />
+            <StageSlideView
+              slide={item}
+              theme={theme}
+              academyName={academyName}
+              dark={false}
+              logoUrl={logoUrl}
+              layout={layout}
+            />
           </div>
         ))}
       </div>

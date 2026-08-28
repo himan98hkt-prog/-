@@ -22,10 +22,14 @@ import {
   fitToLimit,
   formatLength,
   isTextOnly,
+  moveScene,
   sceneLabel,
+  sortByFileName,
   totalSeconds,
+  type CaptionPlace,
   type ExtraMedia,
   type StoryboardOptions,
+  type VideoScene,
 } from '@/lib/video/storyboard'
 
 /** 뽑는 크기 — 1080p 는 예쁘지만 느린 노트북에서 끊긴다 */
@@ -69,6 +73,7 @@ export function VideoStudio({
   const [clock, setClock] = useState(0)
   const [result, setResult] = useState<{ url: string; label: string; note: string; name: string; bytes: number } | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -81,10 +86,38 @@ export function VideoStudio({
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const size = SIZES.find((item) => item.id === sizeId) ?? SIZES[0]
 
-  const scenes = useMemo(
+  const auto = useMemo(
     () => fitToLimit(buildStoryboard({ event, plan, academyName, photos, extras, options, closing })),
     [event, plan, academyName, photos, extras, options, closing],
   )
+  /**
+   * 원장님이 손댄 장면 목록.
+   * 자동으로 짠 것을 시작점으로 두고, 순서·문구·시간을 직접 고칠 수 있다.
+   * 자동 쪽이 바뀌면(사진을 더 넣거나 시간을 바꾸면) 고치지 않은 장면만 따라 바뀐다.
+   */
+  const [edits, setEdits] = useState<Record<string, VideoScene>>({})
+  const [order, setOrder] = useState<string[] | null>(null)
+
+  const scenes = useMemo(() => {
+    const merged = auto.map((scene) => (edits[scene.id] ? { ...scene, ...edits[scene.id] } : scene))
+    if (!order) return merged
+    const byId = new Map(merged.map((scene) => [scene.id, scene]))
+    const sorted = order.map((id) => byId.get(id)).filter(Boolean) as VideoScene[]
+    // 새로 생긴 장면(사진을 더 넣었을 때)은 뒤에 붙인다 — 사라지지 않게
+    for (const scene of merged) if (!order.includes(scene.id)) sorted.push(scene)
+    return sorted
+  }, [auto, edits, order])
+
+  const patchScene = (id: string, patch: Partial<VideoScene>) =>
+    setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] ?? ({} as VideoScene)), ...patch, edited: true } }))
+
+  const shiftScene = (index: number, delta: number) =>
+    setOrder(moveScene(scenes, index, delta).map((scene) => scene.id))
+
+  const resetScenes = () => {
+    setEdits({})
+    setOrder(null)
+  }
   const timeline = useMemo(() => buildTimeline(scenes), [scenes])
   const withPhoto = Object.keys(photos).length
   /** 지금 화면에 보이는 장면 — 콘티에서 표시해 준다 */
@@ -348,7 +381,8 @@ export function VideoStudio({
         label: file.name.replace(/\.[^.]+$/, ''),
       })
     }
-    setExtras((prev) => [...prev, ...added])
+    // `01 입장.jpg` 처럼 앞에 번호를 붙여 두면 그 차례대로 늘어놓는다
+    setExtras((prev) => sortByFileName([...prev, ...added]))
     if (kind === 'video') {
       // 동영상 길이를 읽어 장면 시간에 반영한다
       for (const item of added) {
@@ -365,6 +399,7 @@ export function VideoStudio({
   }
 
   const length = totalSeconds(scenes)
+  const editingScene = scenes.find((scene) => scene.id === editing) ?? null
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -400,6 +435,11 @@ export function VideoStudio({
             <span className="text-xs text-muted-foreground">
               만드는 데 <strong className="text-foreground">약 {formatLength(length)}</strong> 걸립니다
             </span>
+          )}
+          {(Object.keys(edits).length > 0 || order) && !recording && (
+            <Button variant="ghost" size="sm" onClick={resetScenes}>
+              고친 것 되돌리기
+            </Button>
           )}
           {!ready && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="사진 읽는 중" />}
         </div>
@@ -453,7 +493,21 @@ export function VideoStudio({
           academyName={academyName}
           onJump={jumpTo}
           activeIndex={activeIndex}
+          onPick={setEditing}
+          editingId={editing}
+          onMove={shiftScene}
         />
+
+        {editingScene && (
+          <SceneEditor
+            scene={editingScene}
+            index={scenes.findIndex((item) => item.id === editingScene.id)}
+            total={scenes.length}
+            onChange={(patch) => patchScene(editingScene.id, patch)}
+            onMove={(delta) => shiftScene(scenes.findIndex((item) => item.id === editingScene.id), delta)}
+            onClose={() => setEditing(null)}
+          />
+        )}
       </div>
 
       <div className="grid content-start gap-4">
@@ -467,6 +521,10 @@ export function VideoStudio({
 
         <section className="grid gap-2 rounded-lg border border-border p-3">
           <p className="text-sm font-medium">2 · 연습 사진 · 동영상 더하기</p>
+          <p className="text-xs text-muted-foreground">
+            파일 이름 앞에 <code>01</code> <code>02</code> 처럼 번호를 붙여 두면{' '}
+            <strong>그 차례대로</strong> 들어갑니다.
+          </p>
           <div className="flex flex-wrap gap-2">
             <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input px-3 text-sm hover:bg-secondary">
               <ImagePlus className="mr-1 h-4 w-4" />
@@ -635,6 +693,9 @@ function StoryboardStrip({
   academyName,
   onJump,
   activeIndex,
+  onPick,
+  editingId,
+  onMove,
 }: {
   timeline: ReturnType<typeof buildTimeline>
   sources: FrameSource
@@ -642,6 +703,9 @@ function StoryboardStrip({
   academyName: string
   onJump: (seconds: number) => void
   activeIndex: number
+  onPick: (id: string | null) => void
+  editingId: string | null
+  onMove: (index: number, delta: number) => void
 }) {
   const [shots, setShots] = useState<string[]>([])
 
@@ -673,21 +737,31 @@ function StoryboardStrip({
         <p className="text-sm font-medium">만들어질 모습 · 장면 {timeline.scenes.length}개</p>
         <p className="text-xs text-muted-foreground">
           전체 {formatLength(timeline.total)} · 아래 그림이 <strong>실제로 나올 화면 그대로</strong>입니다 ·
-          누르면 그 장면을 보여 줍니다
+          누르면 그 장면을 고칠 수 있습니다
         </p>
       </div>
       <div className="grid max-h-[440px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {timeline.scenes.map((scene, index) => (
-          <button
+          <div
             key={scene.id}
-            type="button"
-            onClick={() => onJump(timeline.starts[index])}
             className={cn(
-              'group grid gap-1 rounded-md border p-1 text-left transition-colors',
-              index === activeIndex ? 'border-accent bg-accent/8' : 'border-border hover:bg-secondary',
+              'group relative grid gap-1 rounded-md border p-1 text-left transition-colors',
+              scene.id === editingId
+                ? 'border-accent bg-accent/12'
+                : index === activeIndex
+                  ? 'border-accent bg-accent/8'
+                  : 'border-border hover:bg-secondary',
             )}
-            aria-label={`${sceneLabel(scene)} 장면 보기`}
           >
+            <button
+              type="button"
+              onClick={() => {
+                onJump(timeline.starts[index])
+                onPick(scene.id)
+              }}
+              className="grid gap-1 text-left"
+              aria-label={`${sceneLabel(scene)} 장면 고치기`}
+            >
             <span className="relative block overflow-hidden rounded bg-black" style={{ aspectRatio: '16 / 9' }}>
               {shots[index] ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -700,11 +774,154 @@ function StoryboardStrip({
                 <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] text-white">사진 없음</span>
               )}
             </span>
-            <span className="truncate px-0.5 text-xs leading-tight text-muted-foreground">
-              <span className="tabular-nums">{index + 1}.</span> {sceneLabel(scene)}
-            </span>
-          </button>
+              <span className="truncate px-0.5 text-xs leading-tight text-muted-foreground">
+                <span className="tabular-nums">{index + 1}.</span> {sceneLabel(scene)}
+              </span>
+            </button>
+            <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              <button
+                type="button"
+                onClick={() => onMove(index, -1)}
+                disabled={index === 0}
+                aria-label={`${sceneLabel(scene)} 앞으로`}
+                className="rounded bg-black/70 px-1 text-[11px] text-white disabled:opacity-30"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(index, 1)}
+                disabled={index === timeline.scenes.length - 1}
+                aria-label={`${sceneLabel(scene)} 뒤로`}
+                className="rounded bg-black/70 px-1 text-[11px] text-white disabled:opacity-30"
+              >
+                →
+              </button>
+            </div>
+          </div>
         ))}
+      </div>
+    </section>
+  )
+}
+
+const CAPTION_PLACES: { id: CaptionPlace; label: string; hint: string }[] = [
+  { id: 'bottom', label: '아래', hint: '사진 아래쪽에 이름' },
+  { id: 'top', label: '위', hint: '얼굴이 아래쪽에 있을 때' },
+  { id: 'center', label: '가운데 크게', hint: '감동 문구를 한가운데' },
+  { id: 'none', label: '글자 없이', hint: '사진만 보여 줍니다' },
+]
+
+/**
+ * 장면 하나 고치기.
+ *
+ * 자동으로 짜 준 것을 그대로 쓰셔도 되지만, 연주회는 원장님의 것이다.
+ * 문구를 바꾸고, 순서를 옮기고, 머무는 시간을 늘리는 일은 손에 있어야 한다.
+ */
+function SceneEditor({
+  scene,
+  index,
+  total,
+  onChange,
+  onMove,
+  onClose,
+}: {
+  scene: VideoScene
+  index: number
+  total: number
+  onChange: (patch: Partial<VideoScene>) => void
+  onMove: (delta: number) => void
+  onClose: () => void
+}) {
+  return (
+    <section className="grid gap-3 rounded-lg border border-accent/50 bg-accent/5 p-3" data-testid="scene-editor">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium">
+          {index + 1}번째 장면 고치기
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">{sceneLabel(scene)}</span>
+        </p>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onMove(-1)} disabled={index === 0}>
+            ← 앞으로
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onMove(1)} disabled={index === total - 1}>
+            뒤로 →
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            닫기
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="sc-head">큰 글씨</Label>
+          <Input
+            id="sc-head"
+            value={scene.headline ?? ''}
+            placeholder="아이 이름 · 감동 문구"
+            onChange={(native) => onChange({ headline: native.target.value })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="sc-sub">작은 글씨</Label>
+          <Input
+            id="sc-sub"
+            value={scene.sub ?? ''}
+            placeholder="연주곡 · 한 줄 설명"
+            onChange={(native) => onChange({ sub: native.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="sc-eyebrow">맨 위 작은 글씨</Label>
+          <Input
+            id="sc-eyebrow"
+            value={scene.eyebrow ?? ''}
+            placeholder="1번째 무대"
+            onChange={(native) => onChange({ eyebrow: native.target.value })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="sc-sec">머무는 시간 (초)</Label>
+          <Input
+            id="sc-sec"
+            type="number"
+            min={1.5}
+            max={20}
+            step={0.5}
+            value={scene.seconds}
+            onChange={(native) => onChange({ seconds: Math.max(1.5, Number(native.target.value) || scene.seconds) })}
+          />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-sm">글자 자리</p>
+        <div className="flex flex-wrap gap-1.5">
+          {CAPTION_PLACES.map((place) => (
+            <button
+              key={place.id}
+              type="button"
+              onClick={() => onChange({ caption: place.id })}
+              aria-pressed={(scene.caption ?? 'bottom') === place.id}
+              title={place.hint}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs transition-colors',
+                (scene.caption ?? 'bottom') === place.id
+                  ? 'border-accent bg-accent/15 font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {place.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          아이 얼굴이 가려지면 자리를 옮기세요. <strong>가운데 크게</strong>는 감동 문구를 넣을 때 씁니다.
+        </p>
       </div>
     </section>
   )

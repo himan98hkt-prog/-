@@ -162,6 +162,111 @@ try {
     Number((await page.getByTestId('stage-counter').textContent()).split('/')[1].trim()) === beforeToggle,
   )
 
+  // ── 아이 사진 ────────────────────────────────────────────────
+  // 실제로 사진을 올려 아이에게 붙이고, 화면과 파워포인트 파일에 얼굴이 들어가는지 본다
+  const madePhoto = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 400
+    canvas.height = 400
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#C86A4A'
+    ctx.fillRect(0, 0, 400, 400)
+    ctx.fillStyle = '#fff'
+    ctx.beginPath()
+    ctx.arc(200, 170, 70, 0, Math.PI * 2)
+    ctx.fill()
+    return canvas.toDataURL('image/jpeg', 0.8)
+  })
+  const uploaded = await page.request.post(`${BASE}/api/academy/assets`, {
+    data: { kind: 'photo', label: '검사용 아이 사진', url: madePhoto },
+  })
+  const uploadedBody = await uploaded.json()
+  check('아이 사진 올리기', uploaded.ok(), String(uploaded.status()))
+  const roster = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
+  const firstStudent = roster.students?.[0]
+  const assigned = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
+    data: { photo_asset_id: uploadedBody.asset?.id },
+  })
+  check('아이에게 사진 붙이기', assigned.ok(), String(assigned.status()))
+  // 화면 모양 검사를 위해 나머지 아이에게도 붙여 둔다 (연주 순서가 바뀌어도 사진이 있는 화면이 나오게)
+  for (const student of (roster.students ?? []).slice(1)) {
+    await page.request.patch(`${BASE}/api/students/${student.id}`, { data: { photo_asset_id: uploadedBody.asset?.id } })
+  }
+  const rejected = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
+    data: { photo_asset_id: 'no-such-asset' },
+  })
+  check('보관함에 없는 사진은 거절한다', rejected.status() === 400, String(rejected.status()))
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(500)
+  const photoSlides = await page.evaluate(async () => {
+    const res = await fetch(location.href)
+    const html = await res.text()
+    return html.includes('data:image/jpeg')
+  })
+  check('무대 화면에 아이 사진이 실린다', photoSlides)
+
+  const pptxPhoto = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?theme=${THEME}`)
+  const pptxPhotoPath = join(OUT, 'stage-photo.pptx')
+  writeFileSync(pptxPhotoPath, Buffer.from(await pptxPhoto.body()))
+  const photoNames = spawnSync('unzip', ['-Z1', pptxPhotoPath], { encoding: 'utf8' }).stdout.trim().split('\n')
+  check('파워포인트 파일 안에 사진이 들어감', photoNames.some((name) => name.startsWith('ppt/media/')), photoNames.filter((n) => n.startsWith('ppt/media/')).join(', '))
+  if (soffice) {
+    const photoDir = join(OUT, 'pptx-photo')
+    rmSync(photoDir, { recursive: true, force: true })
+    mkdirSync(photoDir, { recursive: true })
+    spawnSync(soffice, ['--headless', '--norestore', '--convert-to', 'pdf', '--outdir', photoDir, pptxPhotoPath], {
+      encoding: 'utf8',
+      timeout: 300_000,
+    })
+    check('사진이 든 파워포인트도 실제로 열린다', existsSync(join(photoDir, 'stage-photo.pdf')))
+  }
+
+  // ── 연주자 화면 모양 ──────────────────────────────────────
+  // 이름이 아래쪽(피아노가 가리는 자리)에 놓이지 않는지, 사진 둘레에 빈 자리가 없는지
+  const LAYOUT_NAMES = ['사진 반쪽', '사진 전체 · 오른쪽 판', '사진 전체 · 위쪽 띠', '사진 전체 · 큰 번호', '이름만 크게', '큰 번호 · 이름', '이름 · 곡 · 해설 카드']
+  check('연주자 화면 모양이 여러 종이다', LAYOUT_NAMES.length === 7)
+
+  // 사진이 붙은 연주자 화면으로 간다.
+  // 테마 검색칸에 focus 가 남아 있으면 화살표·Home 이 화면을 넘기지 않는다(글자를 치는 중으로 본다)
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined))
+  await page.keyboard.press('Home')
+  await page.waitForTimeout(200)
+  for (let i = 0; i < 12; i += 1) {
+    const text = await slide.textContent()
+    if (text && text.includes('번째 무대')) break
+    await page.keyboard.press('ArrowRight')
+    await page.waitForTimeout(150)
+  }
+
+  for (const name of LAYOUT_NAMES) {
+    await page.getByRole('button', { name: new RegExp('^' + name) }).first().click()
+    await page.waitForTimeout(300)
+    const report = await slide.evaluate((node) => {
+      const rect = node.getBoundingClientRect()
+      let lowest = 0
+      let photoArea = 0
+      for (const child of node.querySelectorAll('*')) {
+        const box = child.getBoundingClientRect()
+        if (box.width === 0 || box.height === 0) continue
+        const text = (child.textContent ?? '').trim()
+        const isLeaf = child.children.length === 0
+        if (isLeaf && text) lowest = Math.max(lowest, box.bottom - rect.top)
+        if (child.tagName === 'IMG') photoArea = Math.max(photoArea, (box.width * box.height) / (rect.width * rect.height))
+      }
+      return { lowest, height: rect.height, photoArea }
+    })
+    // 아래 24% 는 그랜드피아노 뚜껑이 가린다 — 글자가 거기 내려가면 안 된다
+    const limit = report.height * 0.78
+    check(`${name} — 글자가 피아노에 가리지 않는다`, report.lowest <= limit, `${Math.round(report.lowest)} / ${Math.round(limit)}`)
+    if (name.startsWith('사진')) {
+      check(`${name} — 사진이 화면을 채운다`, report.photoArea >= 0.45, `${Math.round(report.photoArea * 100)}%`)
+    }
+    await slide.screenshot({ path: join(OUT, `layout-${name.replace(/[^가-힣]/g, '')}.jpg`), type: 'jpeg', quality: 78 })
+  }
+  await page.getByRole('button', { name: /^사진 전체 · 오른쪽 판/ }).first().click()
+  await page.waitForTimeout(250)
+
   // 인쇄(=PDF 저장) 묶음이 슬라이드 수만큼 들어 있는가
   const printed = await page.locator('.stage-print-page').count()
   check('PDF 저장용 슬라이드 수가 같다', printed === total, `${printed} / ${total}`)
@@ -261,62 +366,6 @@ try {
     console.log('  · 리브레오피스가 없어 실제 열림 검사는 건너뜁니다')
   }
 
-
-  // ── 아이 사진 ────────────────────────────────────────────────
-  // 실제로 사진을 올려 아이에게 붙이고, 화면과 파워포인트 파일에 얼굴이 들어가는지 본다
-  const madePhoto = await page.evaluate(async () => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 400
-    canvas.height = 400
-    const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#C86A4A'
-    ctx.fillRect(0, 0, 400, 400)
-    ctx.fillStyle = '#fff'
-    ctx.beginPath()
-    ctx.arc(200, 170, 70, 0, Math.PI * 2)
-    ctx.fill()
-    return canvas.toDataURL('image/jpeg', 0.8)
-  })
-  const uploaded = await page.request.post(`${BASE}/api/academy/assets`, {
-    data: { kind: 'photo', label: '검사용 아이 사진', url: madePhoto },
-  })
-  const uploadedBody = await uploaded.json()
-  check('아이 사진 올리기', uploaded.ok(), String(uploaded.status()))
-  const roster = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
-  const firstStudent = roster.students?.[0]
-  const assigned = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
-    data: { photo_asset_id: uploadedBody.asset?.id },
-  })
-  check('아이에게 사진 붙이기', assigned.ok(), String(assigned.status()))
-  const rejected = await page.request.patch(`${BASE}/api/students/${firstStudent?.id}`, {
-    data: { photo_asset_id: 'no-such-asset' },
-  })
-  check('보관함에 없는 사진은 거절한다', rejected.status() === 400, String(rejected.status()))
-
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.waitForTimeout(500)
-  const photoSlides = await page.evaluate(async () => {
-    const res = await fetch(location.href)
-    const html = await res.text()
-    return html.includes('data:image/jpeg')
-  })
-  check('무대 화면에 아이 사진이 실린다', photoSlides)
-
-  const pptxPhoto = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?theme=${THEME}`)
-  const pptxPhotoPath = join(OUT, 'stage-photo.pptx')
-  writeFileSync(pptxPhotoPath, Buffer.from(await pptxPhoto.body()))
-  const photoNames = spawnSync('unzip', ['-Z1', pptxPhotoPath], { encoding: 'utf8' }).stdout.trim().split('\n')
-  check('파워포인트 파일 안에 사진이 들어감', photoNames.some((name) => name.startsWith('ppt/media/')), photoNames.filter((n) => n.startsWith('ppt/media/')).join(', '))
-  if (soffice) {
-    const photoDir = join(OUT, 'pptx-photo')
-    rmSync(photoDir, { recursive: true, force: true })
-    mkdirSync(photoDir, { recursive: true })
-    spawnSync(soffice, ['--headless', '--norestore', '--convert-to', 'pdf', '--outdir', photoDir, pptxPhotoPath], {
-      encoding: 'utf8',
-      timeout: 300_000,
-    })
-    check('사진이 든 파워포인트도 실제로 열린다', existsSync(join(photoDir, 'stage-photo.pdf')))
-  }
 
   // 항목을 끄면 슬라이드도 줄어드는가
   const bare = await page.request.get(`${BASE}/api/events/${EVENT_ID}/pptx?agenda=0&sections=0&commentary=0`)
