@@ -264,6 +264,83 @@ try {
     }
     await slide.screenshot({ path: join(OUT, `layout-${name.replace(/[^가-힣]/g, '')}.jpg`), type: 'jpeg', quality: 78 })
   }
+  // 사진 창 모양 · 무대 배경
+  await page.getByRole('button', { name: /^배경 위 사진 액자/ }).first().click()
+  await page.waitForTimeout(300)
+  const SHAPES = ['원형', '둥근 사각', '사각', '아치', '타원', '육각', '나뭇잎', '마름모']
+  check('사진 창 모양이 여러 종이다', SHAPES.length === 8)
+  const shapeLooks = new Set()
+  for (const name of SHAPES) {
+    await page.getByRole('button', { name: new RegExp('^' + name + '$') }).first().click()
+    await page.waitForTimeout(220)
+    const look = await slide.evaluate((node) => {
+      const box = node.querySelector('img')?.parentElement
+      if (!box) return ''
+      const style = getComputedStyle(box)
+      return `${style.borderRadius}|${style.clipPath}`
+    })
+    shapeLooks.add(look)
+  }
+  check('모양마다 실제로 다르게 잘린다', shapeLooks.size === SHAPES.length, `${shapeLooks.size} / ${SHAPES.length}`)
+
+  const BACKDROPS = ['단색', '건반', '무대 커튼', '무대 조명', '악보', '조명 방울', '그랜드피아노', '별밤', '리본 띠', '아치 무대']
+  check('무대 배경이 여러 종이다', BACKDROPS.length === 10)
+  const drawn = []
+  for (const name of BACKDROPS) {
+    await page.getByRole('button', { name: new RegExp('^' + name + '$') }).first().click()
+    await page.waitForTimeout(250)
+    const marks = await slide.evaluate((node) => {
+      const svg = node.querySelector('svg.stage-backdrop')
+      return svg ? svg.querySelectorAll('rect, circle, path, ellipse, line').length : 0
+    })
+    drawn.push([name, marks])
+    await slide.screenshot({ path: join(OUT, `backdrop-${name.replace(/[^가-힣]/g, '')}.jpg`), type: 'jpeg', quality: 76 })
+  }
+  check('단색은 아무것도 그리지 않는다', drawn[0][1] === 0, String(drawn[0][1]))
+  check(
+    '나머지 배경은 실제로 그려진다',
+    drawn.slice(1).every(([, marks]) => marks > 0),
+    drawn.slice(1).map(([name, marks]) => `${name}:${marks}`).join(' '),
+  )
+
+  // 글자가 배경에 묻히지 않는지 — 배경을 켠 채 다시 잰다
+  const withBackdrop = await slide.evaluate((node) => {
+    const rect = node.getBoundingClientRect()
+    let lowest = 0
+    for (const child of node.querySelectorAll('*')) {
+      const box = child.getBoundingClientRect()
+      const text = (child.textContent ?? '').trim()
+      if (child.children.length === 0 && text && box.height > 0) lowest = Math.max(lowest, box.bottom - rect.top)
+    }
+    return { lowest, height: rect.height }
+  })
+  check(
+    '배경을 켜도 글자는 피아노 자리에 내려가지 않는다',
+    withBackdrop.lowest <= withBackdrop.height * 0.78,
+    `${Math.round(withBackdrop.lowest)} / ${Math.round(withBackdrop.height * 0.78)}`,
+  )
+
+  // 파워포인트에도 같은 배경·모양이 들어가는가
+  const decorated = await page.request.get(
+    `${BASE}/api/events/${EVENT_ID}/pptx?layout=photo-frame&shape=hexagon&backdrop=keys`,
+  )
+  const decoratedPath = join(OUT, 'stage-decorated.pptx')
+  writeFileSync(decoratedPath, Buffer.from(await decorated.body()))
+  const decoratedXml = spawnSync('unzip', ['-p', decoratedPath, 'ppt/slides/slide4.xml'], { encoding: 'utf8' }).stdout
+  check('파워포인트에 사진 창 모양이 들어감', decoratedXml.includes('prst="hexagon"'))
+  check('파워포인트에 무대 배경이 들어감', decoratedXml.includes('검은건반') && decoratedXml.includes('흰건반'))
+  if (soffice) {
+    const decDir = join(OUT, 'pptx-decorated')
+    rmSync(decDir, { recursive: true, force: true })
+    mkdirSync(decDir, { recursive: true })
+    spawnSync(soffice, ['--headless', '--norestore', '--convert-to', 'pdf', '--outdir', decDir, decoratedPath], {
+      encoding: 'utf8',
+      timeout: 300_000,
+    })
+    check('배경·모양이 든 파워포인트도 실제로 열린다', existsSync(join(decDir, 'stage-decorated.pdf')))
+  }
+
+  await page.getByRole('button', { name: /^단색$/ }).first().click()
   await page.getByRole('button', { name: /^사진 전체 · 오른쪽 판/ }).first().click()
   await page.waitForTimeout(250)
 

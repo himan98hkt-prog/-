@@ -133,6 +133,9 @@ async function run() {
   check('무대 화면도 테마를 따른다', stageThemed.ok && (await stageThemed.text()).includes('--d-accent'))
   check('무대 화면에서 테마를 바꿀 수 있음', stageHtml.includes('테마 바꾸기'))
   check('테마 100종을 쓴다고 안내', stageHtml.includes('테마 100종'))
+  check('연주자 화면 모양을 고를 수 있음', stageHtml.includes('연주자 화면 모양'))
+  check('무대 배경을 고를 수 있음', stageHtml.includes('무대 배경') && stageHtml.includes('건반'))
+
   check('화면에 넣을 것을 고를 수 있음', stageHtml.includes('곡 해설') && stageHtml.includes('오늘의 순서'))
 
   const pptx = await call(`/api/events/${event.id}/pptx?theme=ivory-gold`)
@@ -177,6 +180,12 @@ async function run() {
   const pptxPhotoText = new TextDecoder('utf-8').decode(new Uint8Array(await pptxWithPhoto.arrayBuffer()))
   check('파워포인트 파일에 사진이 실제 그림으로 들어감', pptxPhotoText.includes('ppt/media/image1.png'))
   check('사진 확장자가 선언됨', pptxPhotoText.includes('<Default Extension="png"'))
+
+  // 사진 창 모양·무대 배경이 파워포인트에도 그대로 (사진을 붙인 뒤라야 액자 모양이 나온다)
+  const decorated = await call(`/api/events/${event.id}/pptx?layout=photo-frame&shape=hexagon&backdrop=keys`)
+  const decoratedText = new TextDecoder('utf-8').decode(new Uint8Array(await decorated.arrayBuffer()))
+  check('파워포인트에 사진 창 모양이 들어감', decoratedText.includes('prst="hexagon"'))
+  check('파워포인트에 무대 배경이 들어감', decoratedText.includes('흰건반'))
 
   const videoPage = await call(`/events/${event.id}/video`)
   const videoHtml = await videoPage.text()

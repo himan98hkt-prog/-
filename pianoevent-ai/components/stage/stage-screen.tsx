@@ -8,9 +8,18 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { getTheme } from '@/lib/design/themes'
 import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W, type StageDeckOptions } from '@/lib/stage/deck'
 import {
+  DEFAULT_STAGE_BACKDROP,
+  STAGE_BACKDROPS,
+  stageBackdropInfo,
+  type StageBackdrop,
+} from '@/lib/stage/backdrops'
+import {
+  DEFAULT_PHOTO_SHAPE,
   DEFAULT_STAGE_LAYOUT,
+  PHOTO_SHAPES,
   STAGE_LAYOUTS,
   stageLayoutInfo,
+  type PhotoShape,
   type StageLayout,
 } from '@/lib/stage/layouts'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
@@ -43,6 +52,8 @@ export function StageScreen({
 }) {
   const [themeId, setThemeId] = useState(initialThemeId)
   const [layout, setLayout] = useState<StageLayout>(DEFAULT_STAGE_LAYOUT)
+  const [shape, setShape] = useState<PhotoShape>(DEFAULT_PHOTO_SHAPE)
+  const [backdrop, setBackdrop] = useState<StageBackdrop>(DEFAULT_STAGE_BACKDROP)
   const [options, setOptions] = useState<StageDeckOptions>({
     show_commentary: true,
     show_sections: true,
@@ -139,6 +150,8 @@ export function StageScreen({
   if (!options.show_photos) query.set('photos', '0')
   if (dark) query.set('dark', '1')
   query.set('layout', layout)
+  query.set('shape', shape)
+  query.set('backdrop', backdrop)
   const pptxUrl = `/api/events/${event.id}/pptx?${query.toString()}`
 
   const slide = slides[Math.min(index, last)]
@@ -178,6 +191,8 @@ export function StageScreen({
               dark={dark}
               logoUrl={logoUrl}
               layout={layout}
+              shape={shape}
+              backdrop={backdrop}
             />
           </div>
         </div>
@@ -285,6 +300,64 @@ export function StageScreen({
           </div>
           <p className="text-xs text-muted-foreground">{stageLayoutInfo(layout).hint}</p>
 
+          {layout === 'photo-frame' && (
+            <div className="mt-1">
+              <p className="mb-1 text-sm font-medium">
+                사진 창 모양 · {PHOTO_SHAPES.length}종
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {PHOTO_SHAPES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setShape(item.id)}
+                    aria-pressed={item.id === shape}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                      item.id === shape
+                        ? 'border-accent bg-accent/10 font-medium text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary',
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="h-3.5 w-3.5 bg-accent"
+                      style={item.css as React.CSSProperties}
+                    />
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="mt-2 text-sm font-medium">
+            무대 배경 · {STAGE_BACKDROPS.length}종
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              단색 말고도 건반 · 커튼 · 조명
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {STAGE_BACKDROPS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setBackdrop(item.id)}
+                aria-pressed={item.id === backdrop}
+                title={item.hint}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  item.id === backdrop
+                    ? 'border-accent bg-accent/10 font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{stageBackdropInfo(backdrop).hint}</p>
+
           <p className="mt-1 text-sm font-medium">화면에 넣을 것</p>
           <div className="grid gap-1.5">
             <Toggle
@@ -336,6 +409,8 @@ export function StageScreen({
               dark={false}
               logoUrl={logoUrl}
               layout={layout}
+              shape={shape}
+              backdrop={backdrop}
             />
           </div>
         ))}

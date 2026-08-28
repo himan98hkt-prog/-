@@ -597,7 +597,9 @@ BODY = """
       <span>어두운 공연장용 검은 화면</span>
       <span>테마 100종 즉시 변경</span>
       <span>.pptx 내려받기</span>
-      <span>연주자 화면 모양 7종</span>
+      <span>연주자 화면 모양 8종</span>
+      <span>사진 창 모양 8종</span>
+      <span>무대 배경 10종</span>
     </div>
 
     <div class="notice reveal" style="--d:0.24s">
@@ -606,10 +608,22 @@ BODY = """
       <strong>아이 이름을 화면 아래에 두면 그랜드피아노 뚜껑에 가려</strong> 객석에서 읽히지 않습니다.
       그래서 모든 화면이 글자를 <strong>위쪽이나 오른쪽에만</strong> 놓습니다.
       그리고 <strong>사진은 화면을 꽉 채웁니다</strong> &mdash; 둘레에 빈 자리를 남기지 않습니다.</p>
-      <p style="margin-top:.7em">모양은 <strong>7종</strong>입니다 &mdash;
+      <p style="margin-top:.7em">모양은 <strong>8종</strong>입니다 &mdash;
+      배경 위 사진 액자 &middot;
       사진 반쪽 &middot; 사진 전체+오른쪽 판 &middot; 사진 전체+위쪽 띠 &middot; 사진 전체+큰 번호 &middot;
       <strong>사진 없이</strong> 이름만 크게 &middot; 큰 번호+이름 &middot; 이름·곡·해설 카드.
       <strong>사진을 넣지 않은 아이는 글자 모양으로 알아서 내려갑니다</strong> &mdash; 빈 상자가 뜨지 않습니다.</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.26s">
+      <p class="n-title">&#127900; 단색 배경만 있는 게 아닙니다</p>
+      <p>아이 사진을 담는 창을 <strong>8가지 모양</strong>에서 고릅니다 &mdash;
+      원형 &middot; 둥근 사각 &middot; 사각 &middot; 아치 &middot; 타원 &middot; 육각 &middot; 나뭇잎 &middot; 마름모.</p>
+      <p style="margin-top:.7em">배경도 <strong>10가지</strong>입니다 &mdash; 단색 &middot; <strong>피아노 건반</strong> &middot;
+      <strong>무대 커튼</strong> &middot; 무대 조명 &middot; 악보 &middot; 조명 방울 &middot;
+      <strong>그랜드피아노</strong> &middot; 별밤 &middot; 리본 띠 &middot; 아치 무대.
+      배경은 사진이 아니라 <strong>그려 넣는 그림</strong>이라 인터넷 없이 뜨고, 크게 띄워도 흐려지지 않으며,
+      <strong>고른 테마의 색을 그대로</strong> 입습니다. 파워포인트로 받아도 배경이 함께 갑니다.</p>
     </div>
 
     <div class="notice reveal" style="--d:0.28s">

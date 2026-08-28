@@ -11,6 +11,7 @@
  */
 
 export type StageLayout =
+  | 'photo-frame'
   | 'photo-side'
   | 'photo-panel'
   | 'photo-band'
@@ -28,6 +29,12 @@ export interface StageLayoutInfo {
 }
 
 export const STAGE_LAYOUTS: StageLayoutInfo[] = [
+  {
+    id: 'photo-frame',
+    name: '배경 위 사진 액자',
+    hint: '연주회 느낌 배경 위에 아이 사진을 액자로 얹습니다. 사진 모양을 고를 수 있습니다.',
+    needsPhoto: true,
+  },
   {
     id: 'photo-side',
     name: '사진 반쪽 · 글 오른쪽',
@@ -74,6 +81,44 @@ export const STAGE_LAYOUTS: StageLayoutInfo[] = [
 
 export const DEFAULT_STAGE_LAYOUT: StageLayout = 'photo-panel'
 
+/**
+ * 아이 사진을 담는 창 모양.
+ * 동그라미만 있으면 학원마다 다 똑같아 보인다.
+ */
+export type PhotoShape = 'circle' | 'rounded' | 'square' | 'arch' | 'oval' | 'hexagon' | 'leaf' | 'diamond'
+
+export interface PhotoShapeInfo {
+  id: PhotoShape
+  name: string
+  /** CSS clip-path / border-radius 로 그릴 값 */
+  css: { borderRadius?: string; clipPath?: string }
+}
+
+export const PHOTO_SHAPES: PhotoShapeInfo[] = [
+  { id: 'circle', name: '원형', css: { borderRadius: '50%' } },
+  { id: 'rounded', name: '둥근 사각', css: { borderRadius: '36px' } },
+  { id: 'square', name: '사각', css: { borderRadius: '0' } },
+  { id: 'arch', name: '아치', css: { borderRadius: '50% 50% 14px 14px / 42% 42% 8px 8px' } },
+  { id: 'oval', name: '타원', css: { borderRadius: '50% / 42%' } },
+  {
+    id: 'hexagon',
+    name: '육각',
+    css: { clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)' },
+  },
+  { id: 'leaf', name: '나뭇잎', css: { borderRadius: '48% 6px 48% 6px' } },
+  { id: 'diamond', name: '마름모', css: { clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' } },
+]
+
+export const DEFAULT_PHOTO_SHAPE: PhotoShape = 'rounded'
+
+export function getPhotoShape(id: string | null | undefined): PhotoShape {
+  return PHOTO_SHAPES.some((item) => item.id === id) ? (id as PhotoShape) : DEFAULT_PHOTO_SHAPE
+}
+
+export function photoShapeInfo(id: PhotoShape): PhotoShapeInfo {
+  return PHOTO_SHAPES.find((item) => item.id === id) ?? PHOTO_SHAPES[0]
+}
+
 export function getStageLayout(id: string | null | undefined): StageLayout {
   return STAGE_LAYOUTS.some((item) => item.id === id) ? (id as StageLayout) : DEFAULT_STAGE_LAYOUT
 }
@@ -93,6 +138,7 @@ export function fallbackLayout(id: StageLayout): StageLayout {
     case 'photo-band':
     case 'photo-panel':
     case 'photo-side':
+    case 'photo-frame':
       return 'text-hero'
     default:
       return id

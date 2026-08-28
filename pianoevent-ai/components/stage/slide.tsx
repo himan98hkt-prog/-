@@ -2,10 +2,15 @@ import { OrnamentBackdrop, OrnamentDivider } from '@/components/design/ornaments
 import type { DesignTheme } from '@/lib/design/themes'
 import { themeVars } from '@/lib/design/themes'
 import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
+import { StageBackdropView } from '@/components/stage/backdrops'
+import { DEFAULT_STAGE_BACKDROP, type StageBackdrop } from '@/lib/stage/backdrops'
 import {
+  DEFAULT_PHOTO_SHAPE,
   DEFAULT_STAGE_LAYOUT,
   fallbackLayout,
+  photoShapeInfo,
   PIANO_SAFE_BOTTOM,
+  type PhotoShape,
   type StageLayout,
 } from '@/lib/stage/layouts'
 
@@ -25,6 +30,8 @@ export function StageSlideView({
   dark = false,
   logoUrl = null,
   layout = DEFAULT_STAGE_LAYOUT,
+  shape = DEFAULT_PHOTO_SHAPE,
+  backdrop = DEFAULT_STAGE_BACKDROP,
 }: {
   slide: StageSlide
   theme: DesignTheme
@@ -34,6 +41,10 @@ export function StageSlideView({
   logoUrl?: string | null
   /** 연주자 화면 모양 */
   layout?: StageLayout
+  /** 아이 사진을 담는 창 모양 */
+  shape?: PhotoShape
+  /** 무대 배경 그림 */
+  backdrop?: StageBackdrop
 }) {
   const vars = themeVars(theme)
   // 어두운 화면은 종이색과 잉크색을 맞바꾼다 — 테마의 강조색은 그대로 살린다
@@ -67,6 +78,7 @@ export function StageSlideView({
       <div aria-hidden style={{ opacity: dark ? 0.35 : 1 }}>
         <OrnamentBackdrop id={theme.ornament} />
       </div>
+      <StageBackdropView id={backdrop} theme={theme} dark={dark} />
 
       {/* 위·아래 얇은 띠 — 어느 슬라이드든 학원 것임을 알아보게 한다 */}
       <div aria-hidden style={{ position: 'absolute', insetInline: 0, top: 0, height: 8, background: 'var(--d-accent)' }} />
@@ -75,7 +87,7 @@ export function StageSlideView({
         style={{ position: 'absolute', insetInline: 0, bottom: 0, height: 3, background: 'var(--d-accent-soft)' }}
       />
 
-      <Body slide={slide} theme={theme} dark={dark} logoUrl={logoUrl} layout={layout} />
+      <Body slide={slide} theme={theme} dark={dark} logoUrl={logoUrl} layout={layout} shape={shape} />
 
       {/*
         연주자 화면에는 아래 줄을 두지 않는다 — 그랜드피아노 뚜껑이 가리는 자리라
@@ -110,12 +122,14 @@ function Body({
   dark,
   logoUrl,
   layout,
+  shape,
 }: {
   slide: StageSlide
   theme: DesignTheme
   dark: boolean
   logoUrl: string | null
   layout: StageLayout
+  shape: PhotoShape
 }) {
   const center: React.CSSProperties = {
     position: 'relative',
@@ -192,7 +206,7 @@ function Body({
 
   if (slide.kind === 'performance') {
     const chosen = slide.photo ? layout : fallbackLayout(layout)
-    return <Performance slide={slide} theme={theme} layout={chosen} dark={dark} />
+    return <Performance slide={slide} theme={theme} layout={chosen} dark={dark} shape={shape} />
   }
 
   if (slide.kind === 'section') {
@@ -281,11 +295,13 @@ function Performance({
   theme,
   layout,
   dark,
+  shape,
 }: {
   slide: StageSlide
   theme: DesignTheme
   layout: StageLayout
   dark: boolean
+  shape: PhotoShape
 }) {
   const eyebrow = slide.eyebrow ?? ''
   const name = slide.title
@@ -293,6 +309,71 @@ function Performance({
   const note = slide.body
   const order = slide.counter?.split('/')[0]?.trim() ?? ''
   const safeBottom = STAGE_SLIDE_H * PIANO_SAFE_BOTTOM
+
+  if (layout === 'photo-frame' && slide.photo) {
+    const frame = photoShapeInfo(shape).css
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'grid',
+          gridTemplateColumns: '480px 1fr',
+          alignItems: 'center',
+          gap: 52,
+          padding: `40px 64px ${safeBottom * 0.8}px 64px`,
+        }}
+      >
+        <div style={{ position: 'relative', width: 420, height: 420, justifySelf: 'center' }}>
+          {/*
+            액자는 테두리(border)가 아니라 **뒤에 깔린 같은 모양**이다.
+            육각·마름모처럼 잘라 낸 모양은 테두리까지 잘려 나가 사라진다.
+          */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: -16,
+              background: 'var(--d-accent)',
+              opacity: 0.85,
+              ...frame,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: -8,
+              background: 'var(--d-paper)',
+              ...frame,
+            }}
+          />
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 20px 48px rgba(0,0,0,0.35)',
+              background: 'var(--d-paper-alt)',
+              ...frame,
+            }}
+          >
+            <Photo src={slide.photo} />
+          </div>
+        </div>
+        <div style={{ textAlign: 'left', minWidth: 0 }}>
+          <p style={{ ...label(20), color: 'var(--d-accent)' }}>{eyebrow}</p>
+          <h1 style={{ ...display(name.length > 7 ? 76 : 92), marginTop: 10 }}>{name}</h1>
+          <div style={{ marginTop: 14 }}>
+            <OrnamentDivider id={theme.ornament} width={260} />
+          </div>
+          <p style={{ marginTop: 14, fontSize: 34, fontWeight: 600, lineHeight: 1.3 }}>{piece}</p>
+          {note ? <p style={{ ...noteStyle, marginTop: 14 }}>{note}</p> : null}
+        </div>
+      </div>
+    )
+  }
 
   if (layout === 'photo-side' && slide.photo) {
     return (

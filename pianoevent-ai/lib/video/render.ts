@@ -334,15 +334,27 @@ export function renderFrame(
   seconds: number,
   sources: FrameSource,
   options: RenderOptions,
+  /**
+   * 멈춰 있는 화면인가.
+   *
+   * 재생 중에는 자막이 서서히 떠오르지만, 멈춰서 보고 있을 때는 그 순간이
+   * "글자가 아직 0" 인 지점일 수 있다 — 그러면 원장님 눈에는 빈 화면이 뜬다.
+   * 미리보기와 콘티 그림은 이 값을 켜서 글자를 또렷하게 그린다.
+   */
+  still = false,
 ) {
   const { width: w, height: h } = options
   ctx.save()
   ctx.globalAlpha = 1
   ctx.fillStyle = options.theme.palette.ink
   ctx.fillRect(0, 0, w, h)
-  for (const { index, local, alpha, textAlpha } of scenesAt(timeline, seconds)) {
+  const visible = scenesAt(timeline, seconds)
+  const top = visible.length > 0 ? visible[visible.length - 1].index : -1
+  for (const { index, local, alpha, textAlpha } of visible) {
     ctx.globalAlpha = alpha
-    drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
+    // 멈춘 화면에서는 맨 위 장면의 글자를 또렷하게 (아래 장면은 그대로 두어 겹쳐 보이지 않게)
+    const text = still ? (index === top ? 1 : 0) : textAlpha
+    drawScene(ctx, timeline.scenes[index], local, sources, options, text)
   }
   ctx.restore()
 }

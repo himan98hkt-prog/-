@@ -1,6 +1,7 @@
 import { studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
-import { getStageLayout } from '@/lib/stage/layouts'
+import { getStageBackdrop } from '@/lib/stage/backdrops'
+import { getPhotoShape, getStageLayout } from '@/lib/stage/layouts'
 import { resolvePlan } from '@/lib/program/resolve'
 import { buildStageDeck, DEFAULT_STAGE_OPTIONS } from '@/lib/stage/deck'
 import { buildPptx } from '@/lib/stage/pptx'
@@ -47,6 +48,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     title: `${event.title} · 무대 화면`,
     dark: url.searchParams.get('dark') === '1',
     layout: getStageLayout(url.searchParams.get('layout')),
+    shape: getPhotoShape(url.searchParams.get('shape')),
+    backdrop: getStageBackdrop(url.searchParams.get('backdrop')),
   })
 
   // 한글 파일명은 브라우저마다 다루는 법이 달라 RFC 5987 형식을 함께 보낸다

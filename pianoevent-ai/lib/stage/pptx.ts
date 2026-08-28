@@ -1,9 +1,12 @@
 import type { DesignTheme } from '@/lib/design/themes'
 import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
+import { DEFAULT_STAGE_BACKDROP, type StageBackdrop } from '@/lib/stage/backdrops'
 import {
+  DEFAULT_PHOTO_SHAPE,
   DEFAULT_STAGE_LAYOUT,
   fallbackLayout,
   PIANO_SAFE_BOTTOM,
+  type PhotoShape,
   type StageLayout,
 } from '@/lib/stage/layouts'
 import { zipStore, type ZipEntry } from '@/lib/stage/zip'
@@ -165,6 +168,7 @@ function picture(
   relId: string,
   source: { width: number; height: number } | null,
   name = '사진',
+  geom = 'rect',
 ): string {
   shapeId += 1
   // 잘라 낼 비율을 1/1000 % 로 적는다
@@ -192,7 +196,40 @@ function picture(
     `<a:blip r:embed="${relId}"/>${crop}<a:stretch><a:fillRect/></a:stretch>` +
     `</p:blipFill>` +
     `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
-    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
+    `<a:prstGeom prst="${geom}"><a:avLst/></a:prstGeom></p:spPr></p:pic>`
+  )
+}
+
+/** 사진 창 모양 → 파워포인트가 아는 도형 이름 */
+function shapeGeom(shape: PhotoShape): string {
+  switch (shape) {
+    case 'circle':
+    case 'oval':
+      return 'ellipse'
+    case 'rounded':
+      return 'roundRect'
+    case 'square':
+      return 'rect'
+    case 'arch':
+      return 'round2SameRect'
+    case 'hexagon':
+      return 'hexagon'
+    case 'leaf':
+      return 'round2DiagRect'
+    case 'diamond':
+      return 'diamond'
+  }
+}
+
+/** 도형 하나를 색으로 채운다 (액자 테두리를 뒤에 까는 용도) */
+function geomFill(x: number, y: number, w: number, h: number, geom: string, color: string, name: string): string {
+  shapeId += 1
+  return (
+    `<p:sp><p:nvSpPr><p:cNvPr id="${shapeId}" name="${esc(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>` +
+    `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm>` +
+    `<a:prstGeom prst="${geom}"><a:avLst/></a:prstGeom>` +
+    `<a:solidFill><a:srgbClr val="${hex(color)}"/></a:solidFill><a:ln><a:noFill/></a:ln></p:spPr>` +
+    `<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`
   )
 }
 
@@ -266,6 +303,105 @@ function palette(theme: DesignTheme, dark: boolean): Palette {
       }
 }
 
+/**
+ * 무대 배경 — 화면과 같은 그림을 파워포인트 도형으로 그린다.
+ * SVG 를 그대로 넣을 수 없으므로 사각형·타원·선으로 같은 인상을 만든다.
+ */
+function backdropShapes(id: StageBackdrop, theme: DesignTheme, dark: boolean): string[] {
+  if (id === 'plain') return []
+  const p = theme.palette
+  const accent = p.accent
+  const deep = p.ink
+  const light = p.paper
+  const ink = dark ? p.paper : p.ink
+  const out: string[] = []
+
+  if (id === 'keys') {
+    const whites = 26
+    const step = SLIDE_W / whites
+    const top = SLIDE_H - px(150)
+    out.push(rect(0, top, SLIDE_W, px(150), dark ? deep : light, '건반 바탕'))
+    for (let i = 0; i < whites; i += 1) {
+      out.push(rect(Math.round(i * step) + px(1), top + px(8), Math.round(step) - px(2), px(142), light, '흰건반'))
+    }
+    for (let i = 0; i < whites; i += 1) {
+      if (![1, 2, 4, 5, 6].includes(i % 7)) continue
+      out.push(
+        rect(Math.round(i * step + step * 0.62), top + px(8), Math.round(step * 0.62), px(88), deep, '검은건반'),
+      )
+    }
+    out.push(rect(0, top, SLIDE_W, px(7), accent, '건반 띠'))
+    return out
+  }
+
+  if (id === 'curtain') {
+    out.push(shade(0, 0, px(250), SLIDE_H, dark ? 0.28 : 0.14, '왼쪽 커튼'))
+    out.push(shade(SLIDE_W - px(250), 0, px(250), SLIDE_H, dark ? 0.28 : 0.14, '오른쪽 커튼'))
+    for (let i = 0; i < 6; i += 1) {
+      out.push(rect(px(10 + i * 34), 0, px(2), SLIDE_H, accent, '주름'))
+      out.push(rect(SLIDE_W - px(12 + i * 34), 0, px(2), SLIDE_H, accent, '주름'))
+    }
+    out.push(rect(0, 0, SLIDE_W, px(48), accent, '커튼 봉'))
+    return out
+  }
+
+  if (id === 'spotlight') {
+    out.push(geomFill(SLIDE_W / 2 - px(330), 0, px(660), SLIDE_H, 'triangle', accent, '조명 빛'))
+    out.push(geomFill(SLIDE_W / 2 - px(340), SLIDE_H - px(94), px(680), px(108), 'ellipse', accent, '무대 바닥'))
+    return out
+  }
+
+  if (id === 'score') {
+    for (const base of [px(110), px(470)]) {
+      for (let i = 0; i < 5; i += 1) {
+        out.push(rect(0, base + px(i * 17), SLIDE_W, px(2), ink, '오선'))
+      }
+    }
+    for (const [x, y] of [[180, 144], [330, 178], [520, 127], [700, 161], [880, 144], [1060, 178], [250, 504], [470, 538], [760, 487], [1010, 521]]) {
+      out.push(geomFill(px(x - 13), px(y - 9), px(26), px(18), 'ellipse', accent, '음표'))
+      out.push(rect(px(x + 10), px(y - 56), px(3), px(56), accent, '음표 대'))
+    }
+    return out
+  }
+
+  if (id === 'bokeh') {
+    for (const [cx, cy, r] of [[140, 120, 70], [1120, 180, 96], [300, 560, 54], [980, 600, 74], [640, 90, 44], [1210, 460, 60], [60, 420, 48], [820, 300, 36]]) {
+      out.push(geomFill(px(cx - r), px(cy - r), px(r * 2), px(r * 2), 'ellipse', accent, '조명 방울'))
+    }
+    return out
+  }
+
+  if (id === 'grand') {
+    out.push(geomFill(SLIDE_W - px(640), SLIDE_H - px(140), px(610), px(140), 'round2SameRect', accent, '피아노 몸통'))
+    out.push(geomFill(SLIDE_W - px(600), SLIDE_H - px(212), px(520), px(80), 'round2DiagRect', accent, '피아노 뚜껑'))
+    out.push(rect(0, SLIDE_H - px(8), SLIDE_W, px(8), accent, '무대 선'))
+    return out
+  }
+
+  if (id === 'starry') {
+    for (let i = 0; i < 40; i += 1) {
+      const x = Math.round((((i * 137) % 127) / 127) * STAGE_SLIDE_W)
+      const y = Math.round((((i * 61) % 89) / 89) * STAGE_SLIDE_H * 0.72)
+      const r = (i % 3) + 1
+      out.push(geomFill(px(x), px(y), px(r * 2), px(r * 2), 'ellipse', accent, '별'))
+    }
+    return out
+  }
+
+  if (id === 'ribbon') {
+    out.push(rect(0, px(70), SLIDE_W, px(5), accent, '위 띠'))
+    out.push(rect(0, px(92), SLIDE_W, px(2), p.accentSoft, '위 가는 띠'))
+    out.push(rect(0, SLIDE_H - px(75), SLIDE_W, px(5), accent, '아래 띠'))
+    out.push(rect(0, SLIDE_H - px(94), SLIDE_W, px(2), p.accentSoft, '아래 가는 띠'))
+    return out
+  }
+
+  // arc
+  out.push(geomFill(SLIDE_W / 2 - px(430), px(320), px(860), px(640), 'arc', accent, '아치'))
+  out.push(rect(0, SLIDE_H - px(10), SLIDE_W, px(10), accent, '무대 선'))
+  return out
+}
+
 function slideXml(
   slide: StageSlide,
   theme: DesignTheme,
@@ -274,11 +410,14 @@ function slideXml(
   photoRelId: string | null,
   layout: StageLayout,
   photoSize: { width: number; height: number } | null,
+  shape: PhotoShape,
+  backdrop: StageBackdrop,
 ): string {
   const c = palette(theme, dark)
   const display = pptFont(theme.fonts.display)
   const body = pptFont(theme.fonts.body)
   const shapes: string[] = [
+    ...backdropShapes(backdrop, theme, dark),
     rect(0, 0, SLIDE_W, px(8), c.accent, '윗띠'),
     rect(0, SLIDE_H - px(3), SLIDE_W, px(3), c.accentSoft, '아랫띠'),
   ]
@@ -327,7 +466,43 @@ function slideXml(
     const white = '#FFFFFF'
     const safeH = SLIDE_H * (1 - PIANO_SAFE_BOTTOM)
 
-    if (layout === 'photo-side') {
+    if (layout === 'photo-frame') {
+      const geom = shapeGeom(shape)
+      const size = px(420)
+      const fx = px(64) + (px(480) - size) / 2
+      const fy = (SLIDE_H * (1 - PIANO_SAFE_BOTTOM)) / 2 - size / 2 + px(20)
+      // 액자는 테두리가 아니라 뒤에 깔린 같은 모양이다 — 잘라 낸 모양은 테두리가 사라진다
+      shapes.push(geomFill(fx - px(16), fy - px(16), size + px(32), size + px(32), geom, c.accent, '액자'))
+      shapes.push(geomFill(fx - px(8), fy - px(8), size + px(16), size + px(16), geom, c.paper, '액자 안'))
+      shapes.push(picture(fx, fy, size, size, photoRelId, photoSize, `${slide.title} 사진`, geom))
+
+      const tx = px(64) + px(480) + px(52)
+      const tw = SLIDE_W - tx - px(64)
+      const mid = (SLIDE_H * (1 - PIANO_SAFE_BOTTOM)) / 2 + px(20)
+      shapes.push(
+        textBox(tx, mid - px(150), tw, px(28), [
+          { align: 'l', runs: [{ text: slide.eyebrow ?? '', size: 20, color: c.accent, bold: true, font: body, spacing: 2 }] },
+        ]),
+      )
+      shapes.push(
+        textBox(tx, mid - px(114), tw, px(104), [
+          { align: 'l', runs: [{ text: slide.title, size: slide.title.length > 7 ? 76 : 92, color: c.ink, bold: true, font: display }] },
+        ]),
+      )
+      shapes.push(rect(tx, mid + px(4), px(260), px(3), c.accent, '가름선'))
+      shapes.push(
+        textBox(tx, mid + px(26), tw, px(48), [
+          { align: 'l', runs: [{ text: slide.subtitle ?? '', size: 34, color: c.ink, bold: true, font: body }] },
+        ]),
+      )
+      if (slide.body) {
+        shapes.push(
+          textBox(tx, mid + px(88), tw, px(120), [
+            { align: 'l', runs: [{ text: slide.body, size: 22, color: c.muted, font: body }], lineHeight: 1.6 },
+          ], 't', '곡 해설'),
+        )
+      }
+    } else if (layout === 'photo-side') {
       const photoW = Math.round(SLIDE_W * 0.54)
       shapes.push(picture(0, 0, photoW, SLIDE_H, photoRelId, photoSize, `${slide.title} 사진`))
       const tx = photoW + px(44)
@@ -680,6 +855,8 @@ export function buildPptx({
   title,
   dark = false,
   layout = DEFAULT_STAGE_LAYOUT,
+  shape = DEFAULT_PHOTO_SHAPE,
+  backdrop = DEFAULT_STAGE_BACKDROP,
 }: {
   slides: StageSlide[]
   theme: DesignTheme
@@ -688,6 +865,10 @@ export function buildPptx({
   dark?: boolean
   /** 연주자 화면 모양 */
   layout?: StageLayout
+  /** 아이 사진을 담는 창 모양 */
+  shape?: PhotoShape
+  /** 무대 배경 그림 */
+  backdrop?: StageBackdrop
 }): Uint8Array {
   shapeId = 1
   const count = slides.length
@@ -807,7 +988,9 @@ export function buildPptx({
     const used = photo ? layout : fallbackLayout(layout)
     entries.push({
       name: `ppt/slides/slide${index + 1}.xml`,
-      data: bytes(slideXml(slide, theme, academyName, dark, photo ? 'rId2' : null, used, photo?.size ?? null)),
+      data: bytes(
+        slideXml(slide, theme, academyName, dark, photo ? 'rId2' : null, used, photo?.size ?? null, shape, backdrop),
+      ),
     })
     entries.push({ name: `ppt/slides/_rels/slide${index + 1}.xml.rels`, data: bytes(slideRels(photo?.file ?? null)) })
   })

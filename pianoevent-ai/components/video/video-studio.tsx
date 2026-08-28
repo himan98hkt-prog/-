@@ -80,6 +80,8 @@ export function VideoStudio({
   // 그리는 루프는 ref 로 읽고(매 프레임 새로 만들지 않으려고), 콘티는 state 로 다시 그린다
   const [sources, setSources] = useState<FrameSource>({ images: new Map(), videos: new Map() })
   const sourcesRef = useRef<FrameSource>(sources)
+  /** 그리는 쪽에서 지금 시각을 읽을 수 있게 — state 는 저 안쪽 콜백에서 낡아 있다 */
+  const clockRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -179,7 +181,8 @@ export function VideoStudio({
       sourcesRef.current = loaded
       setSources(loaded)
       setReady(true)
-      draw(0)
+      // 보고 있던 자리를 지킨다 — 장면을 고칠 때마다 처음으로 튀지 않게
+      draw(clockRef.current, true)
     })
     return () => {
       alive = false
@@ -188,23 +191,25 @@ export function VideoStudio({
   }, [scenes])
 
   const draw = useCallback(
-    (seconds: number) => {
+    (seconds: number, still = false) => {
       const canvas = canvasRef.current
       if (!canvas) return
       const ctx = canvas.getContext('2d')
       if (!ctx) return
-      renderFrame(ctx, timeline, seconds, sourcesRef.current, {
-        width: canvas.width,
-        height: canvas.height,
-        theme,
-        academyName,
-      })
+      renderFrame(
+        ctx,
+        timeline,
+        seconds,
+        sourcesRef.current,
+        { width: canvas.width, height: canvas.height, theme, academyName },
+        still,
+      )
     },
     [timeline, theme, academyName],
   )
 
   useEffect(() => {
-    if (!playing && !recording) draw(clock)
+    if (!playing && !recording) draw(clock, true)
   }, [draw, clock, playing, recording])
 
   /** 재생·녹화 공통 진행 루프 */
@@ -400,6 +405,7 @@ export function VideoStudio({
 
   const length = totalSeconds(scenes)
   const editingScene = scenes.find((scene) => scene.id === editing) ?? null
+  clockRef.current = clock
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -720,12 +726,14 @@ function StoryboardStrip({
     for (let i = 0; i < timeline.scenes.length; i += 1) {
       // 장면 한가운데를 뽑는다 — 겹쳐 넘어가는 구간을 피한다
       const at = timeline.starts[i] + timeline.scenes[i].seconds / 2
-      renderFrame(ctx, timeline, at, sources, {
-        width: canvas.width,
-        height: canvas.height,
-        theme,
-        academyName,
-      })
+      renderFrame(
+        ctx,
+        timeline,
+        at,
+        sources,
+        { width: canvas.width, height: canvas.height, theme, academyName },
+        true,
+      )
       made.push(canvas.toDataURL('image/jpeg', 0.72))
     }
     setShots(made)
