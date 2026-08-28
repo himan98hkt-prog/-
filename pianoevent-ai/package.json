@@ -24,7 +24,8 @@
     "demo:verify": "node scripts/verify-demo.mjs",
     "carousel": "python3 scripts/build-carousel.py && node scripts/carousel-shot.mjs",
     "verify:live": "node scripts/verify-live.mjs",
-    "verify:easy": "node scripts/verify-easy.mjs"
+    "verify:easy": "node scripts/verify-easy.mjs",
+    "manual:shots": "node scripts/manual-shots.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

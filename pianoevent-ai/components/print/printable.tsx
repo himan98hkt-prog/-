@@ -1,9 +1,18 @@
 'use client'
 
-import { ChevronDown, Eye, Printer } from 'lucide-react'
+import { ChevronDown, Eye, FileCheck2, Printer } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { PRINT_CHECKLIST, fitScale, getPaper, pageBreakOffsets, sheetsNeeded, totalSheets } from '@/lib/print/paper'
+import { printNow } from '@/components/print/print-now'
+import {
+  PRINT_CHECKLIST,
+  firstPageClipPx,
+  fitScale,
+  getPaper,
+  pageBreakOffsets,
+  sheetsNeeded,
+  totalSheets,
+} from '@/lib/print/paper'
 import { cn } from '@/lib/utils'
 
 /**
@@ -61,7 +70,7 @@ export function Printable({
   const cuts = pageBreakOffsets(height, paper, marginPx)
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4" style={{ ['--first-page-h' as string]: `${firstPageClipPx(paper, marginPx)}px` }}>
       <div
         className="rounded-lg border border-border bg-card p-3 no-print"
         data-testid="print-bar"
@@ -100,7 +109,13 @@ export function Printable({
             {preview ? '화면으로 보기' : '종이로 보기'}
           </Button>
 
-          <Button size="sm" onClick={() => window.print()} data-testid="print-now">
+        {/* 설정이 맞는지는 결국 한 장 뽑아 봐야 아신다. 종이 한 장이 100장을 살린다 */}
+          <Button variant="outline" size="sm" onClick={() => printNow(true)} data-testid="print-first">
+            <FileCheck2 className="h-4 w-4" aria-hidden />
+            첫 장만 뽑아 보기
+          </Button>
+
+          <Button size="sm" onClick={() => printNow()} data-testid="print-now">
             <Printer className="h-4 w-4" aria-hidden />
             인쇄 · PDF 저장
           </Button>
@@ -147,7 +162,9 @@ export function Printable({
                 style={{ padding: marginPx }}
                 className="bg-white text-black shadow-[0_1px_12px_rgba(20,20,43,.14)]"
               >
-                <div ref={bodyRef}>{children}</div>
+                <div ref={bodyRef} className="print-first-clip">
+                  {children}
+                </div>
               </div>
 
               {/* 잘리는 자리 — 여기서 다음 장으로 넘어갑니다 */}
@@ -166,7 +183,9 @@ export function Printable({
             </div>
           </div>
         ) : (
-          <div ref={bodyRef}>{children}</div>
+          <div ref={bodyRef} className="print-first-clip">
+            {children}
+          </div>
         )}
       </div>
     </div>

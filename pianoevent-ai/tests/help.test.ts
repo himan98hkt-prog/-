@@ -1,5 +1,7 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, inline, renderManual, slug } from '@/lib/help/markdown'
+import { escapeHtml, inline, manualImage, renderManual, slug } from '@/lib/help/markdown'
 
 describe('설명서를 화면에 그리기', () => {
   it('HTML 을 먼저 막는다', () => {
@@ -98,5 +100,74 @@ describe('한 항목이 여러 줄로 넘어갈 때', () => {
   it('점 목록도 같다', () => {
     const { sections } = renderManual('## 차례\n\n- 하나\n  이어짐\n- 둘\n')
     expect(sections[0].html).toBe('<ul><li>하나 이어짐</li><li>둘</li></ul>')
+  })
+})
+
+describe('설명서 그림', () => {
+  it('파일 자리 기준 주소를 화면 주소로 바꾼다 — GitHub 과 프로그램 양쪽에서 보이게', () => {
+    expect(manualImage('../public/manual/roster.jpg')).toBe('/manual/roster.jpg')
+  })
+
+  it('이미 화면 주소면 그대로 둔다', () => {
+    expect(manualImage('/manual/roster.jpg')).toBe('/manual/roster.jpg')
+  })
+
+  it('바깥 주소의 그림은 싣지 않는다 — 인터넷 없이 도는 프로그램이다', () => {
+    expect(manualImage('https://example.com/x.jpg')).toBeNull()
+    expect(manualImage('//example.com/x.jpg')).toBeNull()
+  })
+
+  it('그림을 <img> 로 그린다', () => {
+    expect(inline('![명단 화면](../public/manual/roster.jpg)')).toBe(
+      '<img src="/manual/roster.jpg" alt="명단 화면" loading="lazy" class="help-shot" />',
+    )
+  })
+
+  it('그림을 링크로 잘못 읽지 않는다', () => {
+    expect(inline('![그림](../public/manual/a.jpg)')).not.toContain('<a ')
+  })
+
+  it('설명 없는 그림도 그린다', () => {
+    expect(inline('![](../public/manual/a.jpg)')).toContain('alt=""')
+  })
+
+  it('링크는 그대로 링크다', () => {
+    expect(inline('[사용설명서](/help)')).toBe('<a href="/help">사용설명서</a>')
+  })
+})
+
+describe('진짜 설명서 파일', () => {
+  const manual = readFileSync(join(process.cwd(), 'docs', 'MANUAL.md'), 'utf8')
+  const rendered = renderManual(manual)
+
+  it('절마다 나뉜다', () => {
+    expect(rendered.sections.length).toBeGreaterThan(10)
+  })
+
+  it('적어 둔 그림이 하나도 빠짐없이 <img> 로 그려진다', () => {
+    // 대괄호가 섞인 설명글 하나면 그림이 통째로 글자로 나온다. 눈으로는 못 잡는다.
+    const written = [...manual.matchAll(/!\[[^\]]*\]\([^)\s]+\)/g)].length
+    const drawn = rendered.sections.reduce(
+      (sum, s) => sum + [...s.html.matchAll(/<img\b/g)].length,
+      0,
+    )
+    expect(written).toBeGreaterThan(5)
+    expect(drawn).toBe(written)
+  })
+
+  it('그림 주소가 전부 프로그램 안 주소로 바뀐다', () => {
+    for (const section of rendered.sections) {
+      for (const m of section.html.matchAll(/<img[^>]*src="([^"]+)"/g)) {
+        expect(m[1].startsWith('/manual/')).toBe(true)
+      }
+    }
+  })
+
+  it('그림 파일이 실제로 있다 — 설명서에 깨진 그림이 뜨면 안 된다', () => {
+    for (const m of manual.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)) {
+      const app = manualImage(m[1])
+      expect(app).not.toBeNull()
+      expect(existsSync(join(process.cwd(), 'public', app!.replace(/^\//, '')))).toBe(true)
+    }
   })
 })

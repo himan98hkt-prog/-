@@ -1,7 +1,16 @@
 import { deflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { zipStore } from '@/lib/stage/zip'
-import { columnIndex, excelTimeToText, sharedStrings, sheetRows, unzip, xlsxRows, xlsxToText } from '@/lib/program/xlsx'
+import {
+  columnIndex,
+  excelTimeToText,
+  sharedStrings,
+  sheetRows,
+  unzip,
+  xlsxRows,
+  xlsxSheetNames,
+  xlsxToText,
+} from '@/lib/program/xlsx'
 import { parseRoster } from '@/lib/program/roster'
 
 const enc = (s: string) => new TextEncoder().encode(s)
@@ -206,5 +215,79 @@ describe('엑셀 파일 한 개를 통째로', () => {
     expect(() => xlsxRows(Buffer.from(zipStore([{ name: 'hello.txt', data: enc('x') }])))).toThrow(
       '표를 찾지 못했습니다',
     )
+  })
+})
+
+describe('장(시트)이 여러 개일 때', () => {
+  const sheetXml = (name: string) => `<worksheet><sheetData><row><c r="A1" t="inlineStr"><is><t>${name}</t></is></c></row></sheetData></worksheet>`
+
+  /** 엑셀이 실제로 쓰는 모양 — 장 차례는 workbook.xml, 파일 자리는 rels 에 적혀 있다 */
+  function multi(order: { name: string; file: string }[]) {
+    const entries = [
+      {
+        name: 'xl/workbook.xml',
+        data: enc(
+          `<workbook><sheets>${order
+            .map((s, i) => `<sheet name="${s.name}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`)
+            .join('')}</sheets></workbook>`,
+        ),
+      },
+      {
+        name: 'xl/_rels/workbook.xml.rels',
+        data: enc(
+          `<Relationships>${order
+            .map((s, i) => `<Relationship Id="rId${i + 1}" Target="worksheets/${s.file}"/>`)
+            .join('')}</Relationships>`,
+        ),
+      },
+      ...order.map((s) => ({ name: `xl/worksheets/${s.file}`, data: enc(sheetXml(s.name)) })),
+    ]
+    return Buffer.from(zipStore(entries))
+  }
+
+  it('엑셀 아래쪽 탭에 보이는 이름을 그대로 읽는다', () => {
+    const buf = multi([
+      { name: '1학년', file: 'sheet1.xml' },
+      { name: '2학년', file: 'sheet2.xml' },
+    ])
+    expect(xlsxSheetNames(buf)).toEqual(['1학년', '2학년'])
+  })
+
+  it('장 차례는 파일 번호가 아니라 워크북에 적힌 차례를 따른다 — 지웠다 만들면 번호가 뒤섞인다', () => {
+    const buf = multi([
+      { name: '2학기', file: 'sheet3.xml' },
+      { name: '1학기', file: 'sheet1.xml' },
+    ])
+    expect(xlsxSheetNames(buf)).toEqual(['2학기', '1학기'])
+    expect(xlsxRows(buf, 0)[0]).toEqual(['2학기'])
+    expect(xlsxRows(buf, 1)[0]).toEqual(['1학기'])
+  })
+
+  it('고르지 않으시면 맨 앞 장을 읽는다', () => {
+    const buf = multi([
+      { name: '1학년', file: 'sheet1.xml' },
+      { name: '2학년', file: 'sheet2.xml' },
+    ])
+    expect(xlsxToText(buf)).toBe('1학년')
+  })
+
+  it('없는 장을 고르면 맨 앞 장으로 되돌아간다 — 빈 화면보다 낫다', () => {
+    const buf = multi([{ name: '1학년', file: 'sheet1.xml' }])
+    expect(xlsxRows(buf, 9)[0]).toEqual(['1학년'])
+  })
+
+  it('한글 이름에 &amp; 가 섞여도 되돌린다', () => {
+    const buf = multi([{ name: '초등 &amp; 중등', file: 'sheet1.xml' }])
+    expect(xlsxSheetNames(buf)).toEqual(['초등 & 중등'])
+  })
+
+  it('워크북 표가 없는 옛날 파일도 장 이름을 지어 준다', () => {
+    const buf = Buffer.from(
+      zipStore([
+        { name: 'xl/worksheets/sheet1.xml', data: enc(sheetXml('가')) },
+        { name: 'xl/worksheets/sheet2.xml', data: enc(sheetXml('나')) },
+      ]),
+    )
+    expect(xlsxSheetNames(buf)).toEqual(['1번째 장', '2번째 장'])
   })
 })

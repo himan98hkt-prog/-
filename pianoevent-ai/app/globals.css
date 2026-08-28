@@ -108,6 +108,21 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  /* ── 첫 장만 뽑아 보기 ──────────────────────────────────────
+     인쇄 설정(배율·여백·배경 그래픽)을 맞게 하셨는지는 결국 한 장 뽑아 봐야 안다.
+     100부를 걸기 전에 한 장만 나오게 잘라 둔다. 종이 한 장이 100장을 살린다. */
+  .print-first-only .print-first-clip {
+    max-height: var(--first-page-h, 1000px);
+    overflow: hidden;
+  }
+
+  /* 여러 장이 이어지는 인쇄물은 첫 장만 남긴다 */
+  .print-first-only .stage-print-page:not(:first-of-type),
+  .print-first-only .print-page ~ .print-page,
+  .print-first-only .help-prose section:not(:first-child) {
+    display: none !important;
+  }
 }
 
 /* ── 사용설명서 본문 ──────────────────────────────────────────
@@ -204,10 +219,27 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* 설명서 그림 — "이 화면 맞나?" 에서 멈추지 않으시게 절마다 한 장씩 */
+.help-prose .help-shot {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--muted));
+}
 @media print {
   .help-prose {
     max-width: none;
     font-size: 10.5pt;
+  }
+  /* 종이에서는 그림이 글을 밀어내지 않게 반쯤으로 */
+  .help-prose .help-shot {
+    max-width: 60%;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .help-prose h2 {
     page-break-before: always;

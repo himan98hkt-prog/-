@@ -1,8 +1,9 @@
 'use client'
 
-import { ChevronDown, Printer } from 'lucide-react'
+import { ChevronDown, FileCheck2, Printer } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { printNow } from '@/components/print/print-now'
 import { PRINT_CHECKLIST, totalSheets } from '@/lib/print/paper'
 import { cn } from '@/lib/utils'
 
@@ -53,7 +54,13 @@ export function PrintTips({
           />
         </label>
 
-        <Button size="sm" onClick={() => window.print()} data-testid="print-now">
+        {/* 설정이 맞는지는 결국 한 장 뽑아 봐야 아신다. 종이 한 장이 100장을 살린다 */}
+        <Button variant="outline" size="sm" onClick={() => printNow(true)} data-testid="print-first">
+          <FileCheck2 className="h-4 w-4" aria-hidden />
+          첫 장만 뽑아 보기
+        </Button>
+
+        <Button size="sm" onClick={() => printNow()} data-testid="print-now">
           <Printer className="h-4 w-4" aria-hidden />
           인쇄 · PDF 저장
         </Button>

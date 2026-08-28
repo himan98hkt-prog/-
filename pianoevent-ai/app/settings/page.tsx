@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
+import { BackupList } from '@/components/backup/backup-list'
 import { AcademyForm } from '@/components/settings/academy-form'
 import { AssetLibrary } from '@/components/settings/asset-library'
 import { SystemCheck } from '@/components/settings/system-check'
@@ -31,6 +32,9 @@ export default async function SettingsPage() {
         <AssetLibrary academy={academy} />
 
         <SystemCheck driver={driver} ai={ai} />
+
+        {/* 원장님이 잃으시는 경우는 사고가 아니라 평범한 하루다 */}
+        <BackupList />
 
         <Card>
           <CardHeader>

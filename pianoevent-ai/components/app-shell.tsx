@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AutoBackup } from '@/components/backup/auto-backup'
 import { ErrorLog } from '@/components/support/error-log'
 import { FirstRun } from '@/components/tour/first-run'
 import { cn } from '@/lib/utils'
@@ -70,6 +71,9 @@ export function AppShell({
 
       {/* 화면에서 난 오류를 이 브라우저 안에만 모아 둔다 — [막히면 여기] 에서 쓰인다 */}
       <ErrorLog />
+
+      {/* 하루에 한 번, 묻지 않고 조용히 떠 둔다 */}
+      <AutoBackup />
 
       {/* 처음 켜신 분께만 뜨는 안내. 화면을 가리지 않는다 */}
       <FirstRun />

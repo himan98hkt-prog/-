@@ -18,6 +18,8 @@ const SKIP = new Set([
   'node_modules', '.next', '.git', '.data', '.pack', '배포',
   '.env', '.env.local', 'test-results', 'playwright-report',
   'promo', 'detail', 'shots', 'screenshots', 'carousel', 'tsconfig.tsbuildinfo',
+  // 자동 저장 폴더에는 아이 이름과 사진이 들어 있다. 묶음에 딸려 나가면 안 된다.
+  '백업',
 ])
 
 function copy(src, dst) {

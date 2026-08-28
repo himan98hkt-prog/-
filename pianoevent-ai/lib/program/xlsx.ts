@@ -135,19 +135,60 @@ export function sheetRows(xml: string, strings: string[]): string[][] {
   return rows
 }
 
-/** 첫 장의 이름 — 워크북에 적힌 순서를 따른다. 없으면 sheet1 */
-function firstSheetPath(files: Map<string, Buffer>): string {
-  const names = [...files.keys()].filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
-  if (names.length === 0) return 'xl/worksheets/sheet1.xml'
-  // sheet10 이 sheet2 앞에 오지 않게 숫자로 센다
-  names.sort((a, b) => Number(a.match(/(\d+)/)![1]) - Number(b.match(/(\d+)/)![1]))
-  return names[0]
+/** 파일 안의 장(시트) 하나 */
+export interface SheetRef {
+  /** 원장님이 엑셀 아래쪽 탭에서 보시는 이름 — "1학년", "Sheet1" */
+  name: string
+  path: string
 }
 
-/** .xlsx 바이트 → 줄별 칸 값 */
-export function xlsxRows(buf: Buffer): string[][] {
+/**
+ * 파일에 든 장을 **엑셀에서 보이는 차례 그대로** 읽는다.
+ *
+ * 학년별로 장을 나눠 두신 원장님이 계신다. 첫 장만 읽고 마는 것은
+ * "왜 우리 아이들이 없죠?" 로 돌아온다. 그래서 이름을 뽑아 화면에서 고르시게 한다.
+ *
+ * 장의 차례는 workbook.xml 에 적혀 있고, 그 장이 어느 파일인지는 rels 에 적혀 있다.
+ * (sheet1.xml 이 첫 장이라는 보장은 없다 — 지웠다 만들면 번호가 뒤섞인다.)
+ */
+export function sheetRefs(files: Map<string, Buffer>): SheetRef[] {
+  const byNumber = [...files.keys()]
+    .filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
+    .sort((a, b) => Number(a.match(/(\d+)/)![1]) - Number(b.match(/(\d+)/)![1]))
+
+  const workbook = files.get('xl/workbook.xml')?.toString('utf8')
+  if (!workbook) return byNumber.map((path, i) => ({ name: `${i + 1}번째 장`, path }))
+
+  const rels = files.get('xl/_rels/workbook.xml.rels')?.toString('utf8') ?? ''
+  const target = new Map<string, string>()
+  for (const m of rels.matchAll(/<Relationship\b[^>]*\/>/g)) {
+    const id = m[0].match(/\sId="([^"]+)"/)?.[1]
+    const to = m[0].match(/\sTarget="([^"]+)"/)?.[1]
+    if (id && to) target.set(id, `xl/${to.replace(/^\/?xl\//, '').replace(/^\.\//, '')}`)
+  }
+
+  const out: SheetRef[] = []
+  for (const m of workbook.matchAll(/<sheet\b[^>]*\/>/g)) {
+    const name = m[0].match(/\sname="([^"]*)"/)?.[1]
+    const rid = m[0].match(/r:id="([^"]+)"/)?.[1]
+    const path = rid ? target.get(rid) : undefined
+    const resolved = path && files.has(path) ? path : byNumber[out.length]
+    if (resolved) out.push({ name: unescapeXml(name ?? `${out.length + 1}번째 장`), path: resolved })
+  }
+  return out.length > 0 ? out : byNumber.map((path, i) => ({ name: `${i + 1}번째 장`, path }))
+}
+
+/** .xlsx 안에 든 장 이름들 */
+export function xlsxSheetNames(buf: Buffer): string[] {
+  return sheetRefs(unzip(buf)).map((s) => s.name)
+}
+
+/** .xlsx 바이트 → 줄별 칸 값. 장을 고르지 않으시면 맨 앞 장을 읽는다 */
+export function xlsxRows(buf: Buffer, sheetIndex = 0): string[][] {
   const files = unzip(buf)
-  const sheet = files.get(firstSheetPath(files))
+  const refs = sheetRefs(files)
+  const ref = refs[sheetIndex] ?? refs[0]
+  const sheet = ref ? files.get(ref.path) : undefined
   if (!sheet) throw new Error('엑셀 안에서 표를 찾지 못했습니다.')
   const strings = files.has('xl/sharedStrings.xml')
     ? sharedStrings(files.get('xl/sharedStrings.xml')!.toString('utf8'))
@@ -161,8 +202,8 @@ export function xlsxRows(buf: Buffer): string[][] {
  * 일부러 TSV(탭으로 나눈 표) 로 돌려준다. 엑셀에서 복사해 붙여넣으신 것과
  * **똑같은 모양**이라, 읽는 길이 하나로 남는다. 길이 둘이면 언젠가 갈라진다.
  */
-export function xlsxToText(buf: Buffer): string {
-  return xlsxRows(buf)
+export function xlsxToText(buf: Buffer, sheetIndex = 0): string {
+  return xlsxRows(buf, sheetIndex)
     .map((cells) => cells.join('\t').replace(/\t+$/, ''))
     .filter((line) => line.trim().length > 0)
     .join('\n')

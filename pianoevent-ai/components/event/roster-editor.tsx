@@ -13,6 +13,14 @@ import { formatDuration } from '@/lib/format'
 import { averageTiming, timingHint, type TimingLog } from '@/lib/ops/timing'
 import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
+import {
+  describeChange,
+  describeEdit,
+  popEdit,
+  pushEdit,
+  restorePatch,
+  type RosterEdit,
+} from '@/lib/program/edit-log'
 import { buildReceipt } from '@/lib/program/receipt'
 import { parseRoster } from '@/lib/program/roster'
 import { rosterSampleText } from '@/lib/program/template'
@@ -25,6 +33,12 @@ import { cn } from '@/lib/utils'
 const LEVELS = Object.keys(LEVEL_LABEL) as Level[]
 
 const SAMPLE = rosterSampleText()
+
+/** 값이 그대로인지 — 칸을 눌렀다 그냥 빠져나오신 것도 저장으로 들어온다 */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => v === b[i])
+  return (a ?? null) === (b ?? null)
+}
 
 export function RosterEditor({
   eventId,
@@ -87,6 +101,10 @@ export function RosterEditor({
   const [undoTo, setUndoTo] = useState<EventStudent[] | null>(null)
   const [dropping, setDropping] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  /** 표에서 고치신 것 — 열 번까지 되돌린다 */
+  const [edits, setEdits] = useState<RosterEdit[]>([])
+  /** 방금 읽은 엑셀 파일과 그 안의 장들 — 장이 여럿일 때만 화면에 나온다 */
+  const [excel, setExcel] = useState<{ file: File; sheets: string[]; sheet: number } | null>(null)
   const [keepPieces, setKeepPieces] = useState(false)
   // 곡 사전 자동완성 — 곡을 고르면 나머지 칸이 함께 채워진다
   const [draft, setDraft] = useState({ piece: '', composer: '', level: 'beginner', minutes: 0, seconds: 0 })
@@ -141,18 +159,26 @@ export function RosterEditor({
     }
   }
 
-  /** 엑셀 파일을 그대로 받아 붙여넣기 칸을 채운다 — 복사·붙여넣기 다섯 걸음이 한 걸음이 된다 */
-  async function readFile(file: File) {
+  /**
+   * 엑셀 파일을 그대로 받아 붙여넣기 칸을 채운다 — 복사·붙여넣기 다섯 걸음이 한 걸음이 된다.
+   *
+   * 파일을 손에 들고 있어야 장(시트)을 바꿔 다시 읽을 수 있어서 그대로 담아 둔다.
+   * 담아 두는 곳은 이 화면 안이고, 어디로도 보내지 않는다.
+   */
+  async function readFile(file: File, sheet = 0) {
     setPending(true)
     setMessage(null)
     try {
       const form = new FormData()
       form.append('file', file)
+      form.append('sheet', String(sheet))
       const res = await fetch('/api/roster/xlsx', { method: 'POST', body: form })
       const data = await res.json()
+      setExcel({ file, sheets: data.sheets ?? [], sheet: data.sheet ?? sheet })
       if (!res.ok) throw new Error(data.error ?? '엑셀 파일을 읽지 못했습니다.')
       setPaste(data.text)
-      setMessage(`${file.name} 에서 ${data.rows}줄을 읽었습니다. 아래에서 확인하시고 넣으세요.`)
+      const which = (data.sheets?.length ?? 0) > 1 ? ` "${data.sheets[data.sheet]}" 장에서` : ''
+      setMessage(`${file.name}${which} ${data.rows}줄을 읽었습니다. 아래에서 확인하시고 넣으세요.`)
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '엑셀 파일을 읽지 못했습니다.')
     } finally {
@@ -249,13 +275,50 @@ export function RosterEditor({
     }
   }
 
-  async function patchStudent(id: string, patch: Record<string, unknown>) {
+  /**
+   * 표의 칸 하나를 고친다.
+   *
+   * 고치기 전 값을 함께 쌓아 둔다. 표에서 엉뚱한 줄을 고치셨을 때 화면에는
+   * 아무 표시도 안 나므로, 어디를 고치셨는지조차 잊으신다. 열 번까지 되돌린다.
+   * `remember: false` 는 되돌리기가 스스로를 다시 쌓지 않게 하는 것이다.
+   */
+  async function patchStudent(id: string, patch: Record<string, unknown>, remember = true) {
+    const student = students.find((s) => s.id === id)
+    if (remember && student) {
+      const keys = Object.keys(patch)
+      const field = keys.find((k) => !sameValue((student as never)[k], patch[k])) ?? keys[0]
+      if (field) {
+        setEdits((log) =>
+          pushEdit(log, {
+            student_id: id,
+            student_name: student.student_name,
+            field,
+            before: (student as never)[field] ?? null,
+            after: patch[field] ?? null,
+            // 두 칸이 함께 바뀌는 곳(사진)은 함께 되돌린다
+            restore:
+              keys.length > 1
+                ? Object.fromEntries(keys.map((k) => [k, (student as never)[k] ?? null]))
+                : undefined,
+          }),
+        )
+      }
+    }
     await fetch(`/api/students/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     })
     router.refresh()
+  }
+
+  /** 방금 고치신 것을 되돌린다 */
+  async function undoEdit() {
+    const { edit, rest } = popEdit(edits)
+    if (!edit) return
+    setEdits(rest)
+    setMessage(`${describeEdit(edit)} 을(를) 되돌렸습니다. (${describeChange(edit)})`)
+    await patchStudent(edit.student_id, restorePatch(edit), false)
   }
 
   async function removeStudent(id: string) {
@@ -423,6 +486,30 @@ export function RosterEditor({
                 파일 고르기
               </Button>
             </div>
+
+            {/* 학년별로 장을 나눠 두신 원장님이 계신다. 장이 하나면 이 칸은 뜨지 않는다 */}
+            {excel && excel.sheets.length > 1 && (
+              <div className="mt-1 grid gap-1.5" data-testid="sheet-picker">
+                <p className="text-xs text-muted-foreground">
+                  이 파일에는 장이 <strong>{excel.sheets.length}개</strong> 있습니다. 지금은{' '}
+                  <strong>{excel.sheets[excel.sheet]}</strong> 을(를) 읽었습니다.
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {excel.sheets.map((name, index) => (
+                    <Button
+                      key={`${name}-${index}`}
+                      variant={index === excel.sheet ? 'default' : 'outline'}
+                      size="sm"
+                      aria-pressed={index === excel.sheet}
+                      disabled={pending}
+                      onClick={() => readFile(excel.file, index)}
+                    >
+                      {name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-sm font-medium">여기에 붙여넣으세요</p>
@@ -519,6 +606,25 @@ export function RosterEditor({
             이름과 사진은 그대로 두고 곡만 한 줄 더 생깁니다.
           </CardDescription>
         </CardHeader>
+        {edits.length > 0 && (
+          <div className="px-5 pb-3">
+            <div
+              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
+              data-testid="edit-undo"
+            >
+              <p className="mr-auto text-sm">
+                방금 고치신 것 — <strong>{describeEdit(edits[0])}</strong>{' '}
+                <span className="text-muted-foreground">({describeChange(edits[0])})</span>
+              </p>
+              <Button variant="outline" size="sm" onClick={undoEdit} disabled={pending}>
+                <RotateCcw className="h-4 w-4" aria-hidden />
+                되돌리기
+                {edits.length > 1 && <span className="ml-1 text-xs text-muted-foreground">{edits.length}</span>}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {students.length > 0 && (
           <div className="px-5 pb-3">
             <BulkPhotoUpload
@@ -568,6 +674,7 @@ export function RosterEditor({
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
+                          key={`${s.id}-student_name-${s.student_name ?? ''}`}
                           defaultValue={s.student_name}
                           onBlur={(e) =>
                             e.target.value.trim() !== s.student_name &&
@@ -588,6 +695,7 @@ export function RosterEditor({
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
+                          key={`${s.id}-piece_title-${s.piece_title ?? ''}`}
                           defaultValue={s.piece_title}
                           onBlur={(e) =>
                             e.target.value.trim() !== s.piece_title && patchStudent(s.id, { piece_title: e.target.value })
@@ -598,6 +706,7 @@ export function RosterEditor({
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
+                          key={`${s.id}-composer-${s.composer ?? ''}`}
                           defaultValue={s.composer}
                           onBlur={(e) =>
                             e.target.value.trim() !== s.composer && patchStudent(s.id, { composer: e.target.value })
@@ -608,6 +717,7 @@ export function RosterEditor({
                       </td>
                       <td className="px-2 py-1.5">
                         <Select
+                          key={`${s.id}-level-${s.level ?? ''}`}
                           defaultValue={s.level}
                           onChange={(e) => patchStudent(s.id, { level: e.target.value })}
                           className="h-9 w-28 border-transparent bg-transparent hover:border-input"
@@ -626,6 +736,7 @@ export function RosterEditor({
                           min={10}
                           max={1800}
                           step={5}
+                          key={`${s.id}-duration_sec-${s.duration_sec ?? ''}`}
                           defaultValue={s.duration_sec}
                           onBlur={(e) =>
                             Number(e.target.value) !== s.duration_sec &&
@@ -655,6 +766,7 @@ export function RosterEditor({
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
+                          key={`${s.id}-note-${s.note ?? ''}`}
                           defaultValue={s.note ?? ''}
                           onBlur={(e) => e.target.value.trim() !== (s.note ?? '') && patchStudent(s.id, { note: e.target.value })}
                           className="h-9 border-transparent bg-transparent hover:border-input"

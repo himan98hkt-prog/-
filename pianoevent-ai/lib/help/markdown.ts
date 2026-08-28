@@ -51,6 +51,20 @@ export function slug(title: string): string {
 const CODE_SLOT = (index: number) => `@@code-${index}@@`
 
 /** 한 줄 안의 꾸밈 — 굵게 · 코드 · 링크. 반드시 HTML 을 막은 뒤에 붙인다 */
+/**
+ * 설명서 그림의 주소를 정한다.
+ *
+ * 같은 파일이 두 곳에서 읽힌다 — GitHub 과 프로그램 안. 그래서 파일에는
+ * `../public/manual/x.jpg` 처럼 **파일 자리 기준**으로 적어 두고(그래야 GitHub 에서 보인다),
+ * 화면에 그릴 때 `/manual/x.jpg` 로 바꾼다. 한 벌만 두려면 이 수밖에 없다.
+ *
+ * 바깥 주소의 그림은 싣지 않는다 — 인터넷 없이 도는 프로그램이다.
+ */
+export function manualImage(src: string): string | null {
+  const app = src.replace(/^(?:\.\.\/)+public\//, '/').replace(/^public\//, '/')
+  return /^\/[^/]/.test(app) ? app : null
+}
+
 export function inline(text: string): string {
   let out = escapeHtml(text)
   // 코드부터 빼 둔다 — 그 안의 별표는 굵게가 아니다
@@ -61,6 +75,13 @@ export function inline(text: string): string {
   })
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+  // 그림 — 링크보다 먼저 본다. ![설명](주소) 안에 [설명](주소) 가 들어 있다.
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (all, alt: string, src: string) => {
+    const resolved = manualImage(src)
+    if (!resolved) return all
+    // 설명서 그림은 화면 폭을 넘지 않게, 그리고 늦게 와도 글이 밀리지 않게 미리 자리를 잡는다
+    return `<img src="${escapeHtml(resolved)}" alt="${escapeHtml(alt)}" loading="lazy" class="help-shot" />`
+  })
   // 링크 — 우리가 쓴 파일이지만 주소는 http(s) 와 앱 안 경로만 받는다
   out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, label: string, href: string) => {
     if (!/^(https?:\/\/|\/|#)/.test(href)) return all

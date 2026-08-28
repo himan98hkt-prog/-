@@ -15,7 +15,11 @@ import { join } from 'node:path'
 const PORT = Number(process.env.SMOKE_PORT ?? 3987)
 const BASE = `http://127.0.0.1:${PORT}`
 const DATA = join(process.cwd(), '.data')
-const BACKUP = join(mkdtempSync(join(tmpdir(), 'pianoevent-smoke-')), 'data')
+const SPARE = mkdtempSync(join(tmpdir(), 'pianoevent-smoke-'))
+const BACKUP = join(SPARE, 'data')
+// 검사가 진짜 자동 저장을 뜬다. 개발자(또는 원장님)의 것을 건드리지 않게 잠시 치워 둔다.
+const AUTO = join(process.cwd(), '백업')
+const AUTO_SPARE = join(SPARE, 'auto')
 
 let passed = 0
 const failures = []
@@ -543,6 +547,12 @@ async function run() {
 
   console.log('\n▸ 계정·데이터 삭제 (Google Play 요건)')
 
+  // 자동 저장 폴더에는 아이 이름과 사진이 그대로 들어 있다.
+  // 화면에 "백업본도 남기지 않습니다" 라고 적어 두었으니 실제로 그런지 본다.
+  const autoDir = join(process.cwd(), '백업')
+  const backedUp = await call('/api/backup', { method: 'POST' })
+  check('자동 저장이 실제로 파일을 만든다', backedUp.ok && existsSync(autoDir))
+
   const wrongConfirm = await json('/api/account/delete', { confirm: 'ㅇㅇ' })
   check('확인 문구가 틀리면 삭제하지 않음', wrongConfirm.status === 400)
 
@@ -552,11 +562,13 @@ async function run() {
   const afterDelete = await call(`/api/events/${event.id}/students`)
   const afterBody = await afterDelete.json()
   check('삭제 후 학생 데이터가 남지 않음', (afterBody.students?.length ?? 0) === 0)
+  check('삭제 후 자동 저장 폴더도 남지 않음', !existsSync(autoDir))
 }
 
 let server
 try {
   if (existsSync(DATA)) renameSync(DATA, BACKUP)
+  if (existsSync(AUTO)) renameSync(AUTO, AUTO_SPARE)
 
   // next 바이너리를 직접 띄운다. npx 를 거치면 중간 프로세스가 남아 종료가 지저분해진다.
   server = spawn(process.execPath, [join('node_modules', 'next', 'dist', 'bin', 'next'), 'start', '-p', String(PORT)], {
@@ -585,6 +597,8 @@ try {
   }
   rmSync(DATA, { recursive: true, force: true })
   if (existsSync(BACKUP)) renameSync(BACKUP, DATA)
+  rmSync(AUTO, { recursive: true, force: true })
+  if (existsSync(AUTO_SPARE)) renameSync(AUTO_SPARE, AUTO)
 }
 
 console.log(`\n${passed}건 통과 · ${failures.length}건 실패`)

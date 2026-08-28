@@ -93,3 +93,48 @@ export function totalSheets(sheetsPerCopy: number, copies: number): number {
   const n = Math.max(1, Math.round(copies))
   return perCopy * n
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   인쇄소에 맡기실 때 — 재단선과 물림 여백
+   ───────────────────────────────────────────────────────────────── */
+
+/**
+ * 인쇄소는 종이를 크게 뽑아 **잘라 냅니다.** 자르는 자리가 종이마다 1~2mm 씩
+ * 어긋나기 때문에, 가장자리까지 색이 차 있는 디자인은 사방 3mm 를 더 그려 둡니다
+ * (이것을 물림 여백·bleed 라고 합니다). 그 여백은 잘려 나가고, 잘릴 자리를
+ * 알려 주는 것이 재단선(crop mark)입니다.
+ *
+ * 원장님이 이 낱말들을 아셔야 할 이유는 없습니다. **[인쇄소용]** 한 번이면 됩니다.
+ */
+export const BLEED_MM = 3
+
+/** 재단선 길이 — 인쇄소가 보는 표준값 */
+export const CROP_MM = 4
+
+/** 96dpi 픽셀 → mm (인쇄 CSS 는 mm 로 적어야 실물 크기가 맞는다) */
+export function pxToMm(px: number): number {
+  return Math.round((px / 96) * 25.4 * 10) / 10
+}
+
+export function mmToPx(mm: number): number {
+  return Math.round((mm / 25.4) * 96)
+}
+
+/** 물림 여백을 더한 인쇄면 크기 — `@page size` 에 그대로 넣는다 */
+export function bleedPageCss(widthPx: number, heightPx: number, bleedMm = BLEED_MM): string {
+  return `${pxToMm(widthPx) + bleedMm * 2}mm ${pxToMm(heightPx) + bleedMm * 2}mm`
+}
+
+/**
+ * 첫 장만 뽑아 보기.
+ *
+ * 인쇄 설정을 네 줄로 적어 두어도, 맞게 하셨는지는 뽑아 봐야 아신다.
+ * 100부를 걸기 전에 **한 장만** 뽑아 보시게 한다. 종이 한 장이 100장을 살린다.
+ */
+export const FIRST_ONLY_CLASS = 'print-first-only'
+
+/** 첫 장에 담기는 높이 — 여기서 잘라 두면 둘째 장이 딸려 나오지 않는다 */
+export function firstPageClipPx(paper: Paper, marginPx = 0): number {
+  // 브라우저마다 반올림이 조금씩 달라 딱 맞추면 빈 둘째 장이 붙는다. 조금 덜 잡는다.
+  return Math.max(1, paper.h - marginPx * 2 - 8)
+}

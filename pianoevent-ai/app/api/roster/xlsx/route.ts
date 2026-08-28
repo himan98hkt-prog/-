@@ -1,6 +1,6 @@
 import { fail, guard, ok } from '@/lib/http'
 import { parseRoster } from '@/lib/program/roster'
-import { xlsxToText } from '@/lib/program/xlsx'
+import { xlsxSheetNames, xlsxToText } from '@/lib/program/xlsx'
 
 /** 원장님 명단 엑셀은 아무리 커도 이 안이다. 그 위는 다른 파일을 잘못 끌어다 놓으신 것이다 */
 const MAX_BYTES = 8 * 1024 * 1024
@@ -26,17 +26,32 @@ export async function POST(req: Request) {
     if (/\.csv$/i.test(file.name)) {
       // CSV 는 그냥 글이다. 굳이 되돌려 보내지 말고 여기서 읽어 준다.
       const text = await file.text()
-      return ok({ text: text.replace(/^﻿/, ''), rows: parseRoster(text).rows.length })
+      return ok({ text: text.replace(/^﻿/, ''), rows: parseRoster(text).rows.length, sheets: [], sheet: 0 })
     }
 
+    // 학년별로 장을 나눠 두신 원장님이 계신다. 고르지 않으시면 맨 앞 장이다.
+    const wanted = Number(form?.get('sheet') ?? 0)
+    const sheet = Number.isFinite(wanted) && wanted >= 0 ? Math.floor(wanted) : 0
+
+    const bytes = Buffer.from(await file.arrayBuffer())
     let text: string
+    let sheets: string[]
     try {
-      text = xlsxToText(Buffer.from(await file.arrayBuffer()))
+      sheets = xlsxSheetNames(bytes)
+      text = xlsxToText(bytes, sheet)
     } catch (error) {
       return fail(error instanceof Error ? error.message : '엑셀 파일을 읽지 못했습니다.')
     }
 
-    if (!text.trim()) return fail('엑셀 첫 장이 비어 있습니다. 명단이 있는 장을 맨 앞으로 옮겨 주세요.')
-    return ok({ text, rows: parseRoster(text).rows.length })
+    if (!text.trim()) {
+      return fail(
+        sheets.length > 1
+          ? `"${sheets[sheet] ?? sheets[0]}" 장이 비어 있습니다. 아래에서 다른 장을 골라 보세요.`
+          : '엑셀 첫 장이 비어 있습니다. 명단이 있는 장을 맨 앞으로 옮겨 주세요.',
+        400,
+        { sheets, sheet },
+      )
+    }
+    return ok({ text, rows: parseRoster(text).rows.length, sheets, sheet })
   })
 }

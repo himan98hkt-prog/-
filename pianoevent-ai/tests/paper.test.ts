@@ -3,9 +3,13 @@ import {
   PAPERS,
   PAPER_LIST,
   PRINT_CHECKLIST,
+  bleedPageCss,
+  firstPageClipPx,
   fitScale,
   getPaper,
+  mmToPx,
   pageBreakOffsets,
+  pxToMm,
   sheetsNeeded,
   totalSheets,
 } from '@/lib/print/paper'
@@ -93,5 +97,44 @@ describe('부수까지 곱한 종이', () => {
 
   it('0부는 없다', () => {
     expect(totalSheets(2, 0)).toBe(2)
+  })
+})
+
+describe('인쇄소에 맡기실 때', () => {
+  it('픽셀을 mm 로 바꾼다 — 인쇄 CSS 는 mm 여야 실물 크기가 맞는다', () => {
+    expect(pxToMm(794)).toBeCloseTo(210.1, 1)
+    expect(pxToMm(1123)).toBeCloseTo(297.1, 1)
+  })
+
+  it('mm 를 픽셀로 되돌린다', () => {
+    expect(mmToPx(3)).toBe(11)
+  })
+
+  it('사방 3mm 를 더한 크기를 인쇄면에 적는다', () => {
+    expect(bleedPageCss(794, 1123)).toBe('216.1mm 303.1mm')
+  })
+
+  it('물림 여백을 바꾸면 크기도 따라 바뀐다', () => {
+    expect(bleedPageCss(794, 1123, 5)).toBe('220.1mm 307.1mm')
+  })
+
+  it('가로 인쇄물도 가로 그대로 커진다', () => {
+    expect(bleedPageCss(1123, 794)).toBe('303.1mm 216.1mm')
+  })
+})
+
+describe('첫 장만 뽑아 보기', () => {
+  it('첫 장에 담기는 높이는 종이에서 여백을 뺀 만큼이다', () => {
+    const a4 = PAPERS['a4-portrait']
+    expect(firstPageClipPx(a4, 53)).toBe(1123 - 106 - 8)
+  })
+
+  it('딱 맞추지 않고 조금 덜 잡는다 — 빈 둘째 장이 붙지 않게', () => {
+    const a4 = PAPERS['a4-portrait']
+    expect(firstPageClipPx(a4, 0)).toBeLessThan(a4.h)
+  })
+
+  it('여백이 종이보다 커도 0 이하로 내려가지 않는다', () => {
+    expect(firstPageClipPx(PAPERS['a5-portrait'], 999)).toBeGreaterThan(0)
   })
 })

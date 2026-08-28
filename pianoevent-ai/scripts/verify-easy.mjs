@@ -17,7 +17,11 @@ import { chromium } from 'playwright'
 const PORT = Number(process.env.EASY_PORT ?? 3997)
 const BASE = `http://127.0.0.1:${PORT}`
 const DATA = join(process.cwd(), '.data')
-const BACKUP = join(mkdtempSync(join(tmpdir(), 'pianoevent-easy-')), 'data')
+const SPARE = mkdtempSync(join(tmpdir(), 'pianoevent-easy-'))
+const BACKUP = join(SPARE, 'data')
+// 검사가 진짜 백업을 뜬다. 원장님(또는 개발자)의 것을 건드리지 않게 잠시 치워 둔다.
+const AUTO = join(process.cwd(), '백업')
+const AUTO_SPARE = join(SPARE, 'auto')
 const OUT = join(process.cwd(), 'shots', 'easy')
 const EVENT_ID = 'demo-event'
 
@@ -145,10 +149,40 @@ function rosterXlsx() {
   ])
 }
 
+/** 학년별로 장을 나눠 두신 파일 흉내 */
+function multiSheetXlsx() {
+  const sheet = (name, who, piece) =>
+    `<worksheet><sheetData>` +
+    `<row r="1"><c r="A1" t="inlineStr"><is><t>이름</t></is></c><c r="B1" t="inlineStr"><is><t>연주곡</t></is></c></row>` +
+    `<row r="2"><c r="A2" t="inlineStr"><is><t>${who}</t></is></c><c r="B2" t="inlineStr"><is><t>${piece}</t></is></c></row>` +
+    `</sheetData></worksheet>`
+  return zipStore([
+    {
+      name: 'xl/workbook.xml',
+      data:
+        '<workbook><sheets>' +
+        '<sheet name="1학년" sheetId="1" r:id="rId1"/>' +
+        '<sheet name="2학년" sheetId="2" r:id="rId2"/>' +
+        '</sheets></workbook>',
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      data:
+        '<Relationships>' +
+        '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Target="worksheets/sheet2.xml"/>' +
+        '</Relationships>',
+    },
+    { name: 'xl/worksheets/sheet1.xml', data: sheet('1학년', '유하람', '작은 별 변주곡') },
+    { name: 'xl/worksheets/sheet2.xml', data: sheet('2학년', '차온유', '인형의 꿈') },
+  ])
+}
+
 let server
 let browser
 try {
   if (existsSync(DATA)) renameSync(DATA, BACKUP)
+  if (existsSync(AUTO)) renameSync(AUTO, AUTO_SPARE)
   mkdirSync(OUT, { recursive: true })
 
   server = spawn(
@@ -216,6 +250,36 @@ try {
   const pasted = await page.getByLabel('학생 명단 붙여넣기').inputValue()
   check('엑셀에서 읽은 표가 칸에 들어온다', pasted.includes('한여울'), pasted.split('\n')[1] ?? '')
   check('엑셀이 시간으로 바꿔 둔 소요시간을 되돌린다', pasted.includes('3:30'), pasted.split('\n')[1] ?? '')
+  check('장이 하나뿐이면 고르는 칸이 나오지 않는다', (await page.getByTestId('sheet-picker').count()) === 0)
+
+  // ── 학년별로 장을 나눠 두신 파일 ────────────────────────────────
+  console.log('\n[엑셀 장이 여러 개일 때]')
+  await page.getByLabel('엑셀 파일 고르기').setInputFiles({
+    name: '학년별명단.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: multiSheetXlsx(),
+  })
+  await page.waitForTimeout(1500)
+  const picker = page.getByTestId('sheet-picker')
+  check('장이 여럿이면 고르는 칸이 나온다', (await picker.count()) === 1)
+  const pickerText = await picker.textContent()
+  check('엑셀 아래쪽 탭 이름을 그대로 보여 준다', pickerText.includes('1학년') && pickerText.includes('2학년'))
+  check('맨 앞 장을 먼저 읽는다', (await page.getByLabel('학생 명단 붙여넣기').inputValue()).includes('유하람'))
+
+  await picker.getByRole('button', { name: '2학년' }).click()
+  await page.waitForTimeout(1500)
+  const second = await page.getByLabel('학생 명단 붙여넣기').inputValue()
+  check('다른 장을 고르면 그 장으로 다시 읽는다', second.includes('차온유'), second.split('\n')[1] ?? '')
+  check('앞 장의 아이는 남지 않는다', !second.includes('유하람'))
+  await page.screenshot({ path: join(OUT, 'sheets.jpg'), type: 'jpeg', quality: 82 })
+
+  // 다시 원래 파일로 돌려 놓는다 (뒤 검사가 이 명단을 쓴다)
+  await page.getByLabel('엑셀 파일 고르기').setInputFiles({
+    name: '학생명단.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: rosterXlsx(),
+  })
+  await page.waitForTimeout(1500)
 
   // ── 이렇게 읽었습니다 ────────────────────────────────────────────
   console.log('\n[이렇게 읽었습니다]')
@@ -248,6 +312,32 @@ try {
   const undone = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students
   check('붙여넣기 전으로 그대로 돌아간다', undone.length === before, `${added} → ${undone.length}`)
   check('되돌린 명단에 방금 넣은 아이가 없다', !undone.some((s) => s.student_name === '한여울'))
+
+  // ── 표에서 고친 것 되돌리기 ─────────────────────────────────────
+  console.log('\n[표에서 고친 것 되돌리기]')
+  await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  check('아무것도 안 고쳤으면 되돌리기 띠가 없다', (await page.getByTestId('edit-undo').count()) === 0)
+
+  const firstRow = page.getByTestId('roster-table').locator('tbody tr').first()
+  const pieceCell = firstRow.locator('input[aria-label="연주곡"]')
+  const wasPiece = await pieceCell.inputValue()
+  await pieceCell.fill('잘못 친 곡')
+  await pieceCell.blur()
+  await page.waitForTimeout(1600)
+
+  const undoBar = page.getByTestId('edit-undo')
+  check('고치면 되돌리기 띠가 뜬다', (await undoBar.count()) === 1)
+  const undoText = await undoBar.textContent()
+  check('무엇을 무엇으로 되돌리는지 미리 보여 준다', undoText.includes(wasPiece), undoText.slice(0, 80))
+  check('누구의 어느 칸인지 적어 준다', undoText.includes('연주곡'))
+  await page.screenshot({ path: join(OUT, 'edit-undo.jpg'), type: 'jpeg', quality: 82 })
+
+  await undoBar.getByRole('button', { name: '되돌리기' }).click()
+  await page.waitForTimeout(1800)
+  const backTo = await page.getByTestId('roster-table').locator('tbody tr').first().locator('input[aria-label="연주곡"]').inputValue()
+  check('고치기 전 값으로 돌아간다', backTo === wasPiece, `${backTo} / ${wasPiece}`)
+  check('되돌린 것이 다시 쌓이지 않는다', (await page.getByTestId('edit-undo').count()) === 0)
 
   // ── 인쇄 · 종이 미리보기 ─────────────────────────────────────────
   console.log('\n[인쇄 · 종이 미리보기]')
@@ -285,10 +375,64 @@ try {
   await page.waitForTimeout(800)
   check('사회자 대본도 종이로 볼 수 있다', (await page.getByTestId('paper-toggle').count()) === 1)
 
+  // 첫 장만 뽑아 보기 — 표시를 붙였다 떼는지까지 본다
+  check('첫 장만 뽑아 보는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
+  await page.evaluate(() => {
+    // 인쇄 대화상자는 검사에서 열 수 없다. 창을 여는 자리만 막아 두고 표시를 확인한다.
+    window.__printed = 0
+    window.print = () => {
+      window.__printedWith = document.documentElement.className
+      window.__printed += 1
+    }
+  })
+  await page.getByTestId('print-first').click()
+  await page.waitForTimeout(300)
+  check('첫 장만 뽑을 때 표시가 붙는다', await page.evaluate(() => String(window.__printedWith ?? '').includes('print-first-only')))
+  await page.waitForTimeout(3400)
+  check(
+    '뽑고 나면 표시를 뗀다 — 남으면 다음 인쇄가 통째로 첫 장만 나온다',
+    !(await page.evaluate(() => document.documentElement.className.includes('print-first-only'))),
+  )
+  await page.getByTestId('print-now').click()
+  await page.waitForTimeout(300)
+  check(
+    '보통 인쇄에는 표시가 붙지 않는다',
+    !(await page.evaluate(() => String(window.__printedWith ?? '').includes('print-first-only'))),
+  )
+
   await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=poster-classic`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(800)
   check('인쇄물도 종이 장수를 알려 준다', (await page.getByTestId('print-sheets').count()) === 1)
   check('인쇄물에도 인쇄 설정 안내가 있다', (await page.getByTestId('print-howto-toggle').count()) === 1)
+  check('인쇄물에도 첫 장만 뽑는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
+
+  // ── 인쇄소용 (재단선 · 물림 여백) ────────────────────────────────
+  console.log('\n[인쇄소에 맡기실 때]')
+  const bleedBar = page.getByTestId('bleed-bar')
+  check('인쇄소용으로 가는 길이 있다', (await bleedBar.count()) === 1)
+  check('집 프린터에서는 안 눌러도 된다고 적혀 있다', (await bleedBar.textContent()).includes('인쇄소'))
+  const plainSheet = await page.locator('.d-sheet').first().boundingBox()
+
+  await page.getByTestId('bleed-on').click()
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(900)
+  check('인쇄소용으로 바뀐다', (await page.locator('.d-bleed').count()) >= 1)
+  const bledSheet = await page.locator('.d-sheet').first().boundingBox()
+  check(
+    '인쇄물 자체는 그대로 — 커지는 것은 그 둘레다',
+    Math.abs(bledSheet.width - plainSheet.width) < 2,
+    `${Math.round(plainSheet.width)} → ${Math.round(bledSheet.width)}`,
+  )
+  const frame = await page.locator('.d-bleed').first().boundingBox()
+  check(
+    '사방 3mm 만큼 넓어진다',
+    frame.width > bledSheet.width + 15 && frame.width < bledSheet.width + 30,
+    `${Math.round(bledSheet.width)} → ${Math.round(frame.width)}`,
+  )
+  const marks = await page.locator('.d-bleed .d-crop').count()
+  check('네 모서리에 재단선을 찍는다 (여덟 줄)', marks === 8, `${marks}줄`)
+  check('집 프린터용으로 되돌아갈 수 있다', (await page.getByRole('link', { name: '집 프린터용으로' }).count()) === 1)
+  await page.screenshot({ path: join(OUT, 'bleed.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 행사 파일 옮기기 ─────────────────────────────────────────────
   console.log('\n[행사 통째로 옮기기]')
@@ -334,6 +478,69 @@ try {
     (await page.getByTestId('event-import').textContent()).includes('내보내기로 받은'),
   )
 
+  // ── 자동 저장 ────────────────────────────────────────────────────
+  console.log('\n[자동 저장]')
+  const backupRes = await page.request.post(`${BASE}/api/backup`)
+  const backup = await backupRes.json()
+  check('하루치를 떠 둔다', backupRes.ok() && backup.saved > 0, `행사 ${backup.saved}개`)
+  check('날짜 폴더에 넣는다', /^\d{4}-\d{2}-\d{2}$/.test(backup.day), backup.day)
+  check('프로그램 폴더 안이다 — 인터넷으로 나가지 않는다', String(backup.folder).startsWith('백업'), backup.folder)
+  check('떠 둔 파일이 실제로 있다', existsSync(join(process.cwd(), '백업', backup.day)), backup.day)
+
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1500)
+  const backupBox = page.getByTestId('backup-list')
+  check('설정에서 떠 둔 것을 볼 수 있다', (await backupBox.count()) === 1)
+  const backupText = await backupBox.textContent()
+  check('묻지 않고 알아서 뜬다고 적어 준다', backupText.includes('원장님이 하실 일은 없습니다'))
+  check('어디에 두는지 적어 준다', backupText.includes('폴더'))
+  check('떠 둔 날짜가 보인다', /\d+월 \d+일/.test(backupText), (backupText.match(/\d+월 \d+일[^·]*·[^되]*/) ?? [''])[0])
+
+  const eventsBeforeRestore = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students.length
+  await backupBox.getByRole('button', { name: '되살리기' }).first().click()
+  await page.waitForTimeout(2500)
+  check('되살렸다고 알려 준다', (await backupBox.textContent()).includes('되살렸습니다'))
+  const stillThere = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students.length
+  check('되살려도 지금 행사를 덮어쓰지 않는다', stillThere === eventsBeforeRestore, `${eventsBeforeRestore} → ${stillThere}`)
+  await page.screenshot({ path: join(OUT, 'backup.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 설명서 그림 ──────────────────────────────────────────────────
+  console.log('\n[설명서 그림]')
+  await page.goto(`${BASE}/help`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  // 그림이 들어 있는 절로 곧장 간다 (그림 설명글은 그 절에만 있다)
+  await page.getByPlaceholder('찾기 — 예: 명단, 인쇄, 영상').fill('엑셀 파일 놓는 자리')
+  await page.waitForTimeout(500)
+  await page.locator('[data-testid="help-toc"] button').first().click()
+  await page.waitForTimeout(900)
+  // 화면에 실제로 보이는 쪽만 본다 (인쇄용 사본은 화면에서 숨겨져 있다)
+  const shots = page.locator('[data-testid="help-body"] .help-prose:not(.hidden) img.help-shot')
+  check('설명서 절에 화면 그림이 들어 있다', (await shots.count()) >= 1, `${await shots.count()}장`)
+  // 늦게 불러오는 그림이라 눈에 들어와야 뜬다 — 원장님이 내려 보시는 것과 같다
+  await shots.first().scrollIntoViewIfNeeded()
+  await page
+    .waitForFunction(
+      () => {
+        const img = document.querySelector('[data-testid="help-body"] .help-prose:not(.hidden) img.help-shot')
+        return img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
+      },
+      undefined,
+      { timeout: 10_000 },
+    )
+    .catch(() => {})
+  const broken = await shots.evaluateAll((nodes) =>
+    nodes.filter((n) => n instanceof HTMLImageElement && n.complete && n.naturalWidth === 0).length,
+  )
+  check('그림이 실제로 뜬다 — 깨진 그림이 아니다', broken === 0, `${broken}장 깨짐`)
+  const shotBox = await shots.first().boundingBox()
+  const bodyBox = await page.getByTestId('help-body').boundingBox()
+  check(
+    '그림이 화면 밖으로 넘치지 않는다',
+    shotBox && bodyBox && shotBox.width <= bodyBox.width + 1,
+    shotBox ? `${Math.round(shotBox.width)} / ${Math.round(bodyBox.width)}` : '자리를 못 찾음',
+  )
+  await page.screenshot({ path: join(OUT, 'manual-shot.jpg'), type: 'jpeg', quality: 82 })
+
   // ── 막히면 여기 ──────────────────────────────────────────────────
   console.log('\n[막히면 여기]')
   await page.goto(`${BASE}/help`, { waitUntil: 'networkidle' })
@@ -372,6 +579,8 @@ try {
   }
   rmSync(DATA, { recursive: true, force: true })
   if (existsSync(BACKUP)) renameSync(BACKUP, DATA)
+  rmSync(AUTO, { recursive: true, force: true })
+  if (existsSync(AUTO_SPARE)) renameSync(AUTO_SPARE, AUTO)
 }
 
 console.log(`\n${passed}건 통과 · ${failures.length}건 실패`)
