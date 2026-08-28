@@ -2,8 +2,8 @@
 //   node scripts/pack.mjs
 // 결과: 배포/피아노이벤트-프로그램.zip
 //   ZIP 을 풀면 맨 위에 "시작하기.bat" 이 보이도록 구성합니다.
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
+import { zipFolder } from './zip-utf8.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -57,7 +57,7 @@ if (fs.existsSync(preview)) fs.copyFileSync(preview, path.join(root, '피아노�
 
 // 4) 연습용 엑셀 — 처음 켜시면 "그래서 뭘 올려요?" 에서 멈추신다.
 //    끌어다 놓아 보실 파일이 손에 있어야 한다.
-const samples = path.join(root, '연습용 명단')
+const samples = path.join(root, '연습용-명단')
 fs.mkdirSync(samples, { recursive: true })
 for (const name of ['학생명단-예시.xlsx', '학생명단-학년별-예시.xlsx']) {
   const src = path.join(OUT, name)
@@ -67,12 +67,12 @@ for (const name of ['학생명단-예시.xlsx', '학생명단-학년별-예시.x
 // 5) 압축
 fs.mkdirSync(OUT, { recursive: true })
 fs.rmSync(ZIP, { force: true })
-const r = spawnSync('zip', ['-r', '-q', ZIP, BUNDLE], { cwd: STAGE, stdio: 'inherit' })
-if (r.status !== 0) {
-  console.error('zip 명령이 실패했습니다.')
-  process.exit(1)
-}
+// 리눅스의 zip 명령은 "이름이 UTF-8 이다" 라는 표시를 켜 주지 않는다.
+// 그러면 윈도우에서 한글 이름이 깨지고, 원장님 화면에는 "풀었는데 아무것도 없다" 로 나타난다.
+// 이름이 전부 한글인 묶음이라 그 표시 하나가 묶음 전체를 못 쓰게 만든다. 그래서 직접 쓴다.
+// STAGE 안에는 묶음 폴더 하나뿐이므로, STAGE 를 묶으면 맨 위가 그 폴더가 된다
+const files = await zipFolder(STAGE, ZIP)
 fs.rmSync(STAGE, { recursive: true, force: true })
 
 const kb = Math.round(fs.statSync(ZIP).size / 1024)
-console.log(`묶음 완료 · ${path.relative(APP, ZIP)} · ${kb} KB`)
+console.log(`묶음 완료 · ${path.relative(APP, ZIP)} · ${kb} KB · 파일 ${files}개 (이름 UTF-8 표시 켬)`)
