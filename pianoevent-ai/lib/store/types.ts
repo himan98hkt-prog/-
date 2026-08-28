@@ -17,6 +17,8 @@ export interface NewStudent {
   level: EventStudent['level']
   note?: string | null
   photo_asset_id?: string | null
+  /** 이 아이의 사진 여러 장 (대표 사진 포함) */
+  photo_asset_ids?: string[] | null
 }
 
 export interface ProgramAssignment {

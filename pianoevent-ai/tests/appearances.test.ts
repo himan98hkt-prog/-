@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { carryPhotoIds, STUDENT_PHOTO_MAX, studentPhotoList, studentPhotos } from '@/lib/assets'
 import { groupByPerformer, groupProgram, performerCount, performerKey, pieceIndex, sharePhotosByName } from '@/lib/program/appearances'
 import { buildProgram } from '@/lib/program/order'
 import { student } from './helpers'
@@ -56,5 +57,79 @@ describe('한 아이가 여러 곡을 맡을 때', () => {
 
   it('사진이 하나도 없으면 아무것도 지어내지 않는다', () => {
     expect(sharePhotosByName({}, roster)).toEqual({})
+  })
+})
+
+describe('아이 사진 여러 장 고르기', () => {
+  const assets = [
+    { id: 'a1', kind: 'photo' as const, label: '서연 1', url: 'u1', created_at: '' },
+    { id: 'a2', kind: 'photo' as const, label: '서연 2', url: 'u2', created_at: '' },
+    { id: 'gone', kind: 'photo' as const, label: '지운 것', url: 'u3', created_at: '' },
+  ]
+  const rows = [
+    { id: 's1', photo_asset_id: 'a1', photo_asset_ids: ['a1', 'a2'] },
+    { id: 's2', photo_asset_id: 'a2', photo_asset_ids: null },
+    { id: 's3', photo_asset_id: null, photo_asset_ids: null },
+  ]
+
+  it('대표 사진이 늘 맨 앞이다 — 무대 화면과 파워포인트는 한 장만 쓴다', () => {
+    expect(studentPhotoList(assets, rows).s1).toEqual(['u1', 'u2'])
+  })
+
+  it('한 장만 있으면 한 장짜리 목록', () => {
+    expect(studentPhotoList(assets, rows).s2).toEqual(['u2'])
+  })
+
+  it('사진이 없는 아이는 아예 담지 않는다', () => {
+    expect(studentPhotoList(assets, rows).s3).toBeUndefined()
+  })
+
+  it('보관함에서 지운 사진은 건너뛴다 — 빈 상자가 뜨지 않게', () => {
+    const withDeleted = [{ id: 's4', photo_asset_id: 'a1', photo_asset_ids: ['a1', '없는것'] }]
+    expect(studentPhotoList(assets, withDeleted).s4).toEqual(['u1'])
+  })
+
+  it('같은 사진을 두 번 넣어 두셨어도 한 번만 나온다', () => {
+    const dupe = [{ id: 's5', photo_asset_id: 'a1', photo_asset_ids: ['a1', 'a1', 'a2'] }]
+    expect(studentPhotoList(assets, dupe).s5).toEqual(['u1', 'u2'])
+  })
+
+  it('한 아이당 정해진 장수까지만', () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      id: `x${i}`,
+      kind: 'photo' as const,
+      label: `${i}`,
+      url: `u${i}`,
+      created_at: '',
+    }))
+    const row = [{ id: 's6', photo_asset_id: 'x0', photo_asset_ids: many.map((a) => a.id) }]
+    expect(studentPhotoList(many, row).s6).toHaveLength(STUDENT_PHOTO_MAX)
+  })
+
+  it('대표 사진만 쓰는 화면은 예전 그대로 한 장을 본다', () => {
+    expect(studentPhotos(assets, rows)).toEqual({ s1: 'u1', s2: 'u2' })
+  })
+})
+
+describe('지난 행사에서 명단을 가져올 때 사진', () => {
+  const assets = [
+    { id: 'a1', kind: 'photo' as const, label: '1', url: 'u1', created_at: '' },
+    { id: 'a2', kind: 'photo' as const, label: '2', url: 'u2', created_at: '' },
+  ]
+
+  it('대표 사진이 맨 앞인 채로 그대로 물려준다', () => {
+    expect(carryPhotoIds(assets, { photo_asset_id: 'a1', photo_asset_ids: ['a1', 'a2'] })).toEqual(['a1', 'a2'])
+  })
+
+  it('그 사이 보관함에서 지운 사진은 뺀다', () => {
+    expect(carryPhotoIds(assets, { photo_asset_id: 'gone', photo_asset_ids: ['a2', 'gone'] })).toEqual(['a2'])
+  })
+
+  it('사진이 하나도 안 남았으면 빈 목록', () => {
+    expect(carryPhotoIds([], { photo_asset_id: 'a1', photo_asset_ids: ['a2'] })).toEqual([])
+  })
+
+  it('사진이 없던 아이는 그대로 없다', () => {
+    expect(carryPhotoIds(assets, { photo_asset_id: null, photo_asset_ids: null })).toEqual([])
   })
 })

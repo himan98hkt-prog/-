@@ -1,4 +1,5 @@
 import type { AcademyAsset, ImageMap } from '@/lib/assets'
+import type { LiveState } from '@/lib/ops/live'
 import type { Prefs } from '@/lib/prefs'
 
 /** 연주 난이도 — 순서 배치 단계(stage)를 결정하는 1차 기준 */
@@ -61,6 +62,12 @@ export interface EventRecord {
   video_prefs: Prefs | null
   /** 초대장에 붙일 감동영상 주소 (유튜브 일부공개·구글 드라이브 등) */
   video_url: string | null
+  /**
+   * 당일 진행 상태 — 지금 몇 번째인지, 언제 개회했는지.
+   * 스태프 여러 명이 같은 화면을 보게 하려고 서버에 둔다.
+   * 인터넷이 끊기면 각자 휴대폰 안에서 그대로 돈다.
+   */
+  live_state: LiveState | null
   created_at: string
 }
 
@@ -79,8 +86,14 @@ export interface EventStudent {
   mc_script: string | null
   /** 원장이 남긴 학생 특징 메모 — 멘트 생성의 재료 */
   note: string | null
-  /** 이미지 보관함에 있는 이 아이의 사진. 무대 화면·영상에 들어간다 */
+  /** 이미지 보관함에 있는 이 아이의 대표 사진. 무대 화면·PPT·영상에 들어간다 */
   photo_asset_id: string | null
+  /**
+   * 이 아이의 사진 여러 장 (대표 사진 포함, 보여 줄 차례대로).
+   * 감동영상에서 한 아이가 머무는 몇 초 동안 넘겨 가며 보여 준다.
+   * 비어 있으면 대표 사진 한 장만 있는 것으로 본다.
+   */
+  photo_asset_ids: string[] | null
   created_at: string
 }
 

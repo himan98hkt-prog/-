@@ -15,7 +15,7 @@ import type { EventRecord, ProgramPlan } from '@/lib/types'
  * 이 파일은 순수 계산만 한다 — 그려 내는 일은 `components/video/video-studio.tsx`.
  */
 
-export type SceneKind = 'title' | 'student' | 'gallery' | 'clip' | 'closing'
+export type SceneKind = 'title' | 'student' | 'gallery' | 'clip' | 'message' | 'closing'
 
 /**
  * 화면에 글자를 어디에 놓을지.
@@ -36,6 +36,11 @@ export interface VideoScene {
   eyebrow?: string
   /** 사진 주소 (data URI · blob URL) */
   image?: string
+  /**
+   * 이 장면에서 넘겨 가며 보여 줄 사진들 (`image` 가 첫 장).
+   * 한 아이가 3~4초 머무는데 사진이 한 장이면 정지 화면에 가깝다.
+   */
+  images?: string[]
   /** 동영상 주소 (blob URL) */
   clip?: string
   /** 글자 자리 */
@@ -53,6 +58,8 @@ export interface StoryboardOptions {
   gallery_seconds: number
   /** 자막(이름·곡)을 넣을지 */
   captions: boolean
+  /** 학부모가 초대장에 남긴 응원 메시지를 마지막에 넣을지 */
+  messages: boolean
 }
 
 export const DEFAULT_STORYBOARD_OPTIONS: StoryboardOptions = {
@@ -60,6 +67,7 @@ export const DEFAULT_STORYBOARD_OPTIONS: StoryboardOptions = {
   title_seconds: 4,
   gallery_seconds: 3,
   captions: true,
+  messages: true,
 }
 
 /** 영상에 덧붙이는 자료 — 그 자리에서 고른 파일들 */
@@ -72,12 +80,25 @@ export interface ExtraMedia {
   duration?: number
 }
 
+/** 학부모가 초대장에서 남긴 응원 한 줄 */
+export interface CheerMessage {
+  name: string
+  message: string
+}
+
+/** 영상에 넣는 응원 메시지 수 — 다 넣으면 영상이 문자 낭독이 된다 */
+export const MAX_MESSAGE_SCENES = 12
+
 export interface StoryboardInput {
   event: EventRecord
   plan: ProgramPlan
   academyName: string
-  /** 학생 id → 사진 주소 */
+  /** 학생 id → 사진 주소 (대표 한 장) */
   photos: Record<string, string>
+  /** 학생 id → 사진 여러 장. 있으면 이쪽이 먼저다 */
+  photoSets?: Record<string, string[]>
+  /** 학부모 응원 메시지 (초대장 회신에서 온다) */
+  messages?: CheerMessage[]
   /** 연습 장면 사진·동영상 */
   extras?: ExtraMedia[]
   options?: StoryboardOptions
@@ -96,6 +117,8 @@ export function buildStoryboard({
   plan,
   academyName,
   photos,
+  photoSets = {},
+  messages = [],
   extras = [],
   options = DEFAULT_STORYBOARD_OPTIONS,
   closing,
@@ -163,16 +186,24 @@ export function buildStoryboard({
     for (const performer of performers) {
       const first = performer.rows[0]
       const student = first.student
-      // 사진은 그 아이 줄 어디에든 한 장만 있으면 된다
-      const image = performer.rows.map((row) => photos[row.student.id]).find(Boolean)
+      // 사진은 그 아이 줄 어디에든 붙어 있으면 된다. 여러 장이면 넘겨 가며 보여 준다
+      const shots: string[] = []
+      for (const row of performer.rows) {
+        for (const url of photoSets[row.student.id] ?? (photos[row.student.id] ? [photos[row.student.id]] : [])) {
+          if (!shots.includes(url)) shots.push(url)
+        }
+      }
       const pieces = performer.rows
         .map((row) => [row.student.piece_title, row.student.composer].filter(Boolean).join(' · '))
         .filter(Boolean)
+      // 사진이 여러 장이면 한 장에 최소 1.4초는 머물게 늘린다 — 스치면 얼굴이 안 남는다
+      const base = options.student_seconds * (performer.rows.length > 1 ? 1.25 : 1)
       scenes.push({
         id: `student-${student.id}`,
         kind: 'student',
-        seconds: clamp(options.student_seconds * (performer.rows.length > 1 ? 1.25 : 1)),
-        image,
+        seconds: clamp(Math.max(base, shots.length > 1 ? shots.length * 1.4 : 0)),
+        image: shots[0],
+        images: shots.length > 1 ? shots : undefined,
         eyebrow:
           performer.rows.length > 1
             ? `${performer.rows.map((row) => row.order_no).join(' · ')}번째 무대`
@@ -181,6 +212,30 @@ export function buildStoryboard({
         sub: options.captions ? pieces.join('  /  ') || undefined : undefined,
       })
     }
+  }
+
+  // 학부모가 초대장에 남긴 응원 — 이미 모여 있는 것을 영상 끝에 흘린다.
+  // 시상식 전에 이 대목에서 객석이 조용해진다.
+  const cheers = options.messages ? cleanMessages(messages) : []
+  if (cheers.length > 0) {
+    scenes.push({
+      id: 'cheer-intro',
+      kind: 'title',
+      seconds: clamp(options.title_seconds * 0.75),
+      headline: '부모님이 보내 주신 말',
+      sub: `초대장에 남겨 주신 ${cheers.length}통`,
+    })
+    cheers.forEach((cheer, index) => {
+      scenes.push({
+        id: `cheer-${index}`,
+        kind: 'message',
+        // 읽을 시간을 준다 — 글자 수에 따라 조금 늘린다
+        seconds: clamp(3 + Math.min(3, cheer.message.length / 24)),
+        headline: cheer.message,
+        sub: `— ${cheer.name}`,
+        caption: 'center',
+      })
+    })
   }
 
   scenes.push({
@@ -192,6 +247,25 @@ export function buildStoryboard({
   })
 
   return scenes
+}
+
+/**
+ * 영상에 넣을 만한 응원만 고른다.
+ * 너무 긴 글은 화면에 다 들어가지 않고, 빈 글은 검은 화면이 된다.
+ */
+export function cleanMessages(messages: CheerMessage[], limit = MAX_MESSAGE_SCENES): CheerMessage[] {
+  const seen = new Set<string>()
+  const out: CheerMessage[] = []
+  for (const item of messages) {
+    const message = (item.message ?? '').trim().replace(/\s+/g, ' ')
+    const name = (item.name ?? '').trim()
+    if (!message || message.length > 90) continue
+    if (seen.has(message)) continue
+    seen.add(message)
+    out.push({ name: name || '학부모님', message })
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 export function totalSeconds(scenes: VideoScene[]): number {
@@ -236,6 +310,8 @@ export function sceneLabel(scene: VideoScene): string {
       return scene.sub ? `동영상 · ${scene.sub}` : '동영상'
     case 'student':
       return [scene.eyebrow, scene.headline].filter(Boolean).join(' · ')
+    case 'message':
+      return scene.sub ? `응원 ${scene.sub}` : '응원 메시지'
     case 'closing':
       return '마무리'
   }

@@ -38,7 +38,15 @@ export function RosterEditor({
 }) {
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
 
-  async function uploadPhoto(student: EventStudent, file: File) {
+  /** 이 아이의 사진들을 통째로 정한다 — 맨 앞이 대표 사진이다 */
+  function pickPhotos(student: EventStudent, ids: string[]) {
+    return patchStudent(student.id, {
+      photo_asset_id: ids[0] ?? null,
+      photo_asset_ids: ids.length > 1 ? ids : null,
+    })
+  }
+
+  async function uploadPhoto(student: EventStudent, file: File, append: boolean) {
     setPhotoBusy(student.id)
     try {
       const url = await shrinkImage(file, FACE_SHRINK)
@@ -49,7 +57,11 @@ export function RosterEditor({
       })
       const body = await created.json()
       if (!created.ok) throw new Error(body.error ?? '사진을 올리지 못했습니다.')
-      await patchStudent(student.id, { photo_asset_id: body.asset.id })
+      // 이미 있는 사진 뒤에 붙일지, 대표 사진으로 앉힐지
+      const before = append
+        ? [student.photo_asset_id, ...(student.photo_asset_ids ?? [])].filter((id): id is string => !!id)
+        : []
+      await pickPhotos(student, [...new Set([...before, body.asset.id as string])])
     } catch (e) {
       setMessage(e instanceof Error ? e.message : '사진을 올리지 못했습니다.')
     } finally {
@@ -98,10 +110,11 @@ export function RosterEditor({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '가져오지 못했습니다.')
+      const photoNote = data.with_photo > 0 ? ` 아이 사진 ${data.with_photo}명 분도 그대로 따라왔습니다.` : ''
       setMessage(
-        keepPieces
+        (keepPieces
           ? `${data.students.length}명을 곡까지 그대로 가져왔습니다.`
-          : `${data.students.length}명을 가져왔습니다. 이제 곡만 채우시면 됩니다.`,
+          : `${data.students.length}명을 가져왔습니다. 이제 곡만 채우시면 됩니다.`) + photoNote,
       )
       router.refresh()
     } catch (e) {
@@ -274,7 +287,8 @@ export function RosterEditor({
             </label>
             <FieldHint>
               체크하지 않으면 <strong>이름과 난이도만</strong> 가져오고 곡은 비워 둡니다. 아래 표에서 곡만
-              채우시면 됩니다.
+              채우시면 됩니다. <strong>아이 사진은 늘 따라옵니다</strong> — 보관함은 학원 것이고 아이도 그
+              아이니까요.
             </FieldHint>
           </CardContent>
         </Card>
@@ -354,7 +368,8 @@ export function RosterEditor({
           <CardDescription>
             칸을 눌러 바로 고칠 수 있습니다. 소요시간을 비우면 난이도로 추정합니다.
             <br />
-            <strong>아이 사진</strong>을 넣으면 무대 화면과 감동영상에 그 얼굴이 함께 올라갑니다.
+            <strong>아이 사진</strong>을 넣으면 무대 화면과 감동영상에 그 얼굴이 함께 올라갑니다. 사진 칸을 눌러{' '}
+            <strong>여러 장</strong>을 고르시면 감동영상에서 넘겨 가며 나옵니다.
             <br />한 아이가 <strong>독주와 듀엣</strong>을 함께 맡으면 오른쪽 <strong>곡 추가</strong>를 누르세요 —
             이름과 사진은 그대로 두고 곡만 한 줄 더 생깁니다.
           </CardDescription>
@@ -402,8 +417,8 @@ export function RosterEditor({
                           student={s}
                           assets={assets}
                           busy={photoBusy === s.id}
-                          onPick={(assetId) => patchStudent(s.id, { photo_asset_id: assetId })}
-                          onUpload={(file) => void uploadPhoto(s, file)}
+                          onPick={(ids) => pickPhotos(s, ids)}
+                          onUpload={(file, append) => void uploadPhoto(s, file, append)}
                         />
                       </td>
                       <td className="px-2 py-1.5">

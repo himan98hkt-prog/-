@@ -110,3 +110,53 @@ export function studentPhotos(
   }
   return out
 }
+
+/** 아이마다 사진 몇 장까지 붙일 수 있는가 — 영상에서 한 명이 머무는 시간은 몇 초뿐이다 */
+export const STUDENT_PHOTO_MAX = 6
+
+/**
+ * 학생 id → 사진 주소 **여러 장** (보여 줄 차례대로).
+ *
+ * 감동영상에서 한 아이가 3~4초 머무는데 사진이 한 장이면 정지 화면에 가깝다.
+ * 두세 장이 넘어가면 그 몇 초가 살아난다.
+ *
+ * 대표 사진(`photo_asset_id`)은 늘 맨 앞이다 — 무대 화면과 파워포인트는
+ * 한 장만 쓰므로, 원장님이 고르신 그 사진이 거기에 들어가야 한다.
+ */
+export function studentPhotoList(
+  assets: AcademyAsset[],
+  students: { id: string; photo_asset_id: string | null; photo_asset_ids?: string[] | null }[],
+): Record<string, string[]> {
+  const byId = new Map(assets.map((asset) => [asset.id, asset.url]))
+  const out: Record<string, string[]> = {}
+  for (const student of students) {
+    const ids = [student.photo_asset_id, ...(student.photo_asset_ids ?? [])]
+    const urls: string[] = []
+    for (const id of ids) {
+      if (!id) continue
+      const url = byId.get(id)
+      // 보관함에서 지운 사진은 건너뛴다. 같은 사진을 두 번 넣어 두셨어도 한 번만
+      if (url && !urls.includes(url)) urls.push(url)
+    }
+    if (urls.length > 0) out[student.id] = urls.slice(0, STUDENT_PHOTO_MAX)
+  }
+  return out
+}
+
+/**
+ * 이 아이의 사진들을 다음 행사로 물려준다.
+ *
+ * 학원은 학생이 그대로다. 30명 얼굴을 해마다 다시 짝지을 이유가 없다.
+ * 그 사이 보관함에서 지운 사진만 빼고 차례 그대로 넘긴다.
+ */
+export function carryPhotoIds(
+  assets: AcademyAsset[],
+  student: { photo_asset_id: string | null; photo_asset_ids?: string[] | null },
+): string[] {
+  const known = new Set(assets.map((asset) => asset.id))
+  const out: string[] = []
+  for (const id of [student.photo_asset_id, ...(student.photo_asset_ids ?? [])]) {
+    if (id && known.has(id) && !out.includes(id)) out.push(id)
+  }
+  return out.slice(0, STUDENT_PHOTO_MAX)
+}

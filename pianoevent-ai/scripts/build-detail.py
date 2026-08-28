@@ -477,7 +477,23 @@ BODY = """
         <p class="only">그때 멘트를 줄이면 됨</p>
       </div>
       <div class="feat reveal" style="--d:1.19s">
-        <p class="n">18 &nbsp;인터넷 &middot; AI 키 없이</p>
+        <p class="n">18 &nbsp;스태프와 함께 보기</p>
+        <h4>무대 옆에서 넘기면 대기실 화면도 넘어갑니다</h4>
+        <p>무전기로 &ldquo;지금 몇 번째냐&rdquo; 묻지 않아도 됩니다. 넘기시는 분이 <b>[함께 보기]</b>를 켜면
+        대기실 &middot; 접수처 스태프는 <b>로그인 없이</b> 링크 하나로 같은 화면을 봅니다. 넘기는 사람은 한 명이고,
+        연결이 끊겨도 넘기시는 분 화면은 그대로 돌아갑니다.</p>
+        <p class="only">인터넷 끊겨도 진행은 계속</p>
+      </div>
+      <div class="feat reveal" style="--d:1.26s">
+        <p class="n">19 &nbsp;실제 시간 되먹임</p>
+        <h4>다음 해 종료 시각이 정확해집니다</h4>
+        <p>예상 연주 시간은 책에 적힌 평균입니다. 그런데 그 학원 아이들은 그보다 빠르거나 느립니다.
+        당일에 넘기신 시각이 쌓여 <b>곡마다 실제로 몇 분 걸렸는지</b>가 남고, 단추 하나로 명단에 반영됩니다.
+        <b>리허설에서 한 번 돌려 두시면</b> 당일 전에 이미 정확해집니다.</p>
+        <p class="only">두 번째 해부터 진짜</p>
+      </div>
+      <div class="feat reveal" style="--d:1.33s">
+        <p class="n">20 &nbsp;인터넷 &middot; AI 키 없이</p>
         <h4>이 컴퓨터 안에서 전부 만들어집니다</h4>
         <p>AI 키를 넣지 않아도 순서표 &middot; 대본 &middot; 인쇄물 &middot; 무대 화면이 전부 나옵니다.
         학생 이름과 사진은 <b>학원 컴퓨터 밖으로 나가지 않습니다.</b>
@@ -747,6 +763,25 @@ BODY = """
       <strong>초대장 안에서 바로 재생</strong>됩니다. 단톡방에 링크 하나면 순서표도 영상도 함께 봅니다</p>
     </div>
 
+    <div class="notice reveal" style="--d:0.27s">
+      <p class="n-title">&#128248; 아이당 사진 여러 장 &middot; 학부모 응원 메시지</p>
+      <p>한 아이가 3~4초 머무는데 사진이 한 장이면 정지 화면에 가깝습니다.
+      명단에서 <strong>여러 장을 고르면</strong> 그 몇 초 동안 넘겨 가며 나옵니다 &mdash;
+      한 장에 최소 1.4초는 머물도록 장면이 저절로 길어집니다.
+      맨 앞 &#9312; 이 대표 사진이라 무대 화면과 파워포인트에는 그 한 장이 들어갑니다.</p>
+      <p style="margin-top:.7em">초대장으로 참석 회신을 받으실 때 학부모님들이 남기신 <strong>응원 한 줄</strong>이
+      회신함에만 쌓여 있었습니다. 이제 <strong>영상 마지막, 끝인사 앞에</strong> 흘러갑니다.
+      시상식 전에 이 대목에서 객석이 조용해집니다.</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.29s">
+      <p class="n-title">&#9986; 끊겨도 처음부터 다시 만들지 않습니다</p>
+      <p>8분짜리를 7분째에 창을 잘못 누르면 예전에는 다시 8분이었습니다.
+      이제 <strong>[여기까지 만들고 멈추기]</strong>를 누르면 <strong>담긴 데까지 파일로</strong> 나옵니다.
+      긴 영상은 <strong>몇 번째 장면부터 몇 번째까지</strong>를 골라 두세 토막으로 만들고
+      나중에 이어 붙이시면 됩니다 &mdash; 한 토막이 짧으니 다시 만들기도 쉽습니다.</p>
+    </div>
+
     <div class="notice reveal" style="--d:0.28s">
       <p class="n-title">&#128274; 아이들 사진은 컴퓨터 밖으로 나가지 않습니다</p>
       <p>사진을 어디에 올리는 것이 아닙니다. <strong>이 컴퓨터 안에서</strong> 크기를 줄여 보관하고,
@@ -808,7 +843,8 @@ BODY = """
           <li><span class="scope-mark">&#10003;</span><span><b>연주회장 무대 화면(PPT)</b> &middot; 명단에서 만들어지는 16:9 슬라이드. 테마 100종 적용, 전체화면 진행, <b>.pptx</b> 또는 PDF로 저장</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>감동영상 편집기</b> &middot; 사진 &middot; 동영상 &middot; 음악을 얹어 한 편으로. 템플릿 10종, 장면마다 문구 &middot; 순서 &middot; 시간을 직접 고침. 이 컴퓨터 안에서 MP4 로 나옵니다</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다. 감동영상 주소를 붙이면 초대장 안에서 재생됩니다</span></li>
-          <li><span class="scope-mark">&#10003;</span><span><b>당일 진행 화면</b> &middot; 무대 옆에서 휴대폰으로 보는 &ldquo;지금 &middot; 다음 &middot; 그다음&rdquo; 과 밀린 시간</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>당일 진행 화면</b> &middot; 무대 옆에서 휴대폰으로 보는 &ldquo;지금 &middot; 다음 &middot; 그다음&rdquo; 과 밀린 시간. <b>함께 보기</b>로 대기실 &middot; 접수처 화면도 함께 넘어감</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>실제 시간 되먹임</b> &middot; 당일에 넘긴 시각에서 곡마다 실제로 걸린 시간을 뽑아 명단에 반영 &mdash; 다음 해 종료 시각이 정확해집니다</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>리허설 소집 &middot; 참가비 &middot; 좌석</b> 계산과 안내 문자</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>시즌 특강 기획</b> &middot; 할로윈 &middot; 크리스마스 &middot; 방학 4주 커리큘럼과 활동지</span></li>
         </ul>

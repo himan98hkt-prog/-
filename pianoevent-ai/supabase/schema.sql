@@ -71,6 +71,8 @@ create table if not exists public.events (
   video_prefs          jsonb,
   -- 초대장에 붙일 감동영상 주소 (유튜브 일부공개·구글 드라이브 등)
   video_url            text,
+  -- 당일 진행 상태 {index, started_at, marks:[], updated_at} — 스태프 여러 명이 같은 화면을 본다
+  live_state           jsonb,
   created_at           timestamptz not null default now()
 );
 
@@ -85,6 +87,8 @@ alter table public.events add column if not exists image_map       jsonb;
 alter table public.events add column if not exists stage_prefs     jsonb;
 alter table public.events add column if not exists video_prefs     jsonb;
 alter table public.events add column if not exists video_url       text;
+-- 당일 진행 상태 {index, started_at, marks, updated_at}
+alter table public.events add column if not exists live_state      jsonb;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 
@@ -108,10 +112,13 @@ create table if not exists public.event_students (
   note         text,
   -- 이미지 보관함(academies.assets)의 사진 id. 무대 화면과 감동영상에 쓴다
   photo_asset_id text,
+  -- 이 아이의 사진 여러 장 (대표 사진 포함, 보여 줄 차례대로). 감동영상에서 넘겨 가며 나온다
+  photo_asset_ids jsonb,
   created_at   timestamptz not null default now()
 );
 
 alter table public.event_students add column if not exists photo_asset_id text;
+alter table public.event_students add column if not exists photo_asset_ids jsonb;
 
 create index if not exists event_students_event_idx on public.event_students(event_id, order_no nulls last, created_at);
 

@@ -2,14 +2,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { VideoStudio } from '@/components/video/video-studio'
-import { resolveLogo, studentPhotos } from '@/lib/assets'
+import { resolveLogo, studentPhotoList, studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
 import { sharePhotosByName } from '@/lib/program/appearances'
 import { resolvePlan } from '@/lib/program/resolve'
 import { pastPrefs } from '@/lib/prefs-server'
 import { currentAcademy } from '@/lib/session'
-import { getRepository } from '@/lib/store'
+import { getRepository, summarizeRsvps } from '@/lib/store'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: '감동영상' }
@@ -29,11 +29,14 @@ export default async function VideoPage({
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const students = await repo.listStudents(event.id)
+  const [students, rsvps] = await Promise.all([repo.listStudents(event.id), repo.listRsvps(event.id)])
   const { plan } = resolvePlan(students)
   const theme = getTheme(searchParams.theme ?? event.design_theme ?? academy.design_theme)
   // 한 아이가 여러 곡을 맡으면 사진은 한 줄에만 붙어 있다 — 같은 이름끼리 나눠 쓴다
   const photos = sharePhotosByName(studentPhotos(academy.assets ?? [], students), students)
+  const photoSets = studentPhotoList(academy.assets ?? [], students)
+  // 학부모가 초대장에 남긴 응원 — 영상 끝에 흘린다
+  const cheers = summarizeRsvps(rsvps).messages.map((row) => ({ name: row.name, message: row.message }))
   const past = await pastPrefs(repo, event, 'video_prefs')
   // 주소에 테마를 직접 적어 여셨다면 그쪽이 이깁니다 — 저장해 둔 값보다 방금 고른 것이 앞섭니다
   const savedPrefs = searchParams.theme
@@ -64,6 +67,8 @@ export default async function VideoPage({
         academyName={academy.name}
         initialThemeId={theme.id}
         photos={photos}
+        photoSets={photoSets}
+        messages={cheers}
         logoUrl={resolveLogo(academy.assets ?? [], event.image_map, academy.logo_url)}
         savedPrefs={savedPrefs}
         pastPrefs={past}

@@ -8,10 +8,12 @@ import {
   fadeFor,
   getLogoPlace,
   LOGO_PLACES,
+  photoSlot,
   renderFrame,
   scenesAt,
   CAPTION_FADE_SEC,
   CROSSFADE_SEC,
+  PHOTO_BLEND_SEC,
   type LogoMark,
 } from '@/lib/video/render'
 import {
@@ -21,12 +23,14 @@ import {
 } from '@/lib/video/templates'
 import {
   buildStoryboard,
+  cleanMessages,
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
   formatLength,
   leadingNumber,
   moveScene,
   sortByFileName,
+  MAX_MESSAGE_SCENES,
   MAX_TOTAL_SEC,
   SCENE_MIN_SEC,
   totalSeconds,
@@ -584,5 +588,190 @@ describe('한 아이가 여러 곡을 맡을 때의 영상', () => {
   it('머릿말에 사람 수와 곡 수를 함께 적는다', () => {
     const intro = scenes.find((scene) => scene.id === 'roster-intro')
     expect(intro?.sub).toBe('3명 · 4곡')
+  })
+})
+
+describe('아이 사진 여러 장', () => {
+  const withShots = [
+    student('오수아', 'beginner', 90, { id: 'p1', piece_title: '나비야' }),
+    student('박지호', 'beginner', 100, { id: 'p2', piece_title: '즐거운 나의 집' }),
+  ]
+  const shotPlan = buildProgram(withShots)
+  const sets = { p1: ['a.jpg', 'b.jpg', 'c.jpg'] }
+  const board = buildStoryboard({
+    event,
+    plan: shotPlan,
+    academyName: '하모니',
+    photos: { p2: 'z.jpg' },
+    photoSets: sets,
+  })
+  const suah = board.find((scene) => scene.headline === '오수아')
+
+  it('사진이 여러 장이면 장면에 모두 담긴다', () => {
+    expect(suah?.images).toEqual(['a.jpg', 'b.jpg', 'c.jpg'])
+    expect(suah?.image).toBe('a.jpg')
+  })
+
+  it('사진 수만큼 장면이 길어진다 — 스치면 얼굴이 안 남는다', () => {
+    const jiho = board.find((scene) => scene.headline === '박지호')
+    expect(suah!.seconds).toBeGreaterThan(jiho!.seconds)
+    expect(suah!.seconds / 3).toBeCloseTo(1.4, 5)
+  })
+
+  it('한 장뿐이면 예전 그대로 — 넘길 것이 없다', () => {
+    const jiho = board.find((scene) => scene.headline === '박지호')
+    expect(jiho?.images).toBeUndefined()
+    expect(jiho?.image).toBe('z.jpg')
+  })
+
+  it('장면 안에서 사진이 차례대로 넘어간다', () => {
+    // 3장이 6초를 나눠 가지면 한 장에 2초
+    expect(photoSlot(3, 6, 0.5).index).toBe(0)
+    expect(photoSlot(3, 6, 2.5).index).toBe(1)
+    expect(photoSlot(3, 6, 4.5).index).toBe(2)
+    // 끝을 넘어가도 마지막 장에 머문다
+    expect(photoSlot(3, 6, 99).index).toBe(2)
+  })
+
+  it('넘어가는 순간에는 앞 사진 위로 다음 사진이 진해진다', () => {
+    const at = photoSlot(3, 6, 2)
+    expect(at.index).toBe(1)
+    expect(at.alpha).toBe(0)
+    expect(photoSlot(3, 6, 2 + PHOTO_BLEND_SEC / 2).alpha).toBeCloseTo(0.5, 5)
+    expect(photoSlot(3, 6, 2 + PHOTO_BLEND_SEC).alpha).toBeCloseTo(1, 5)
+    expect(photoSlot(3, 6, 3).alpha).toBe(1)
+  })
+
+  it('첫 장은 장면이 시작할 때 이미 또렷하다 — 장면 넘김과 겹쳐 두 번 흐려지지 않게', () => {
+    expect(photoSlot(3, 6, 0).alpha).toBe(1)
+    expect(photoSlot(1, 3, 0).alpha).toBe(1)
+    expect(photoSlot(0, 3, 0)).toEqual({ index: 0, alpha: 1 })
+  })
+
+  it('아주 짧은 장면이면 겹치는 시간도 함께 줄어든다', () => {
+    // 한 장에 0.5초뿐이면 0.4초를 겹칠 수 없다 — 절반까지만
+    expect(photoSlot(4, 2, 0.5 + 0.25).alpha).toBe(1)
+  })
+
+  it('여러 장이 실제로 화면에 그려진다', () => {
+    const scene: VideoScene = {
+      id: 'm',
+      kind: 'student',
+      seconds: 4.5,
+      headline: '오수아',
+      image: 'a',
+      images: ['a', 'b', 'c'],
+    }
+    const line = buildTimeline([scene])
+    const images = new Map<string, HTMLImageElement>()
+    for (const key of ['a', 'b', 'c']) {
+      images.set(key, { naturalWidth: 100, naturalHeight: 100 } as HTMLImageElement)
+    }
+    const seen: unknown[] = []
+    const ctx = {
+      canvas: { width: 1280, height: 720 },
+      globalAlpha: 1,
+      fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '',
+      shadowColor: '', shadowBlur: 0, shadowOffsetY: 0,
+      save() {}, restore() {}, beginPath() {}, closePath() {}, clip() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, arcTo() {}, ellipse() {}, rect() {},
+      fillRect() {}, translate() {}, rotate() {}, scale() {}, fillText() {},
+      drawImage(source: unknown) {
+        seen.push(source)
+      },
+      measureText(text: string) {
+        return { width: text.length * 20 }
+      },
+      createLinearGradient() {
+        return { addColorStop() {} }
+      },
+      createRadialGradient() {
+        return { addColorStop() {} }
+      },
+    } as unknown as CanvasRenderingContext2D
+    const opts = { width: 1280, height: 720, theme: getTheme('classic-navy'), academyName: '하모니' }
+
+    renderFrame(ctx, line, 0.2, { images, videos: new Map() }, opts, true)
+    expect(seen).toEqual([images.get('a')])
+
+    seen.length = 0
+    renderFrame(ctx, line, 4.0, { images, videos: new Map() }, opts, true)
+    expect(seen).toEqual([images.get('c')])
+
+    // 넘어가는 순간에는 앞 사진과 다음 사진이 함께 그려진다
+    seen.length = 0
+    renderFrame(ctx, line, 3.1, { images, videos: new Map() }, opts, true)
+    expect(seen).toEqual([images.get('b'), images.get('c')])
+  })
+})
+
+describe('학부모 응원 메시지', () => {
+  const cheers = [
+    { name: '김서연 어머니', message: '일 년 동안 정말 수고 많았어요.' },
+    { name: '박지호 아버지', message: '무대에서 즐겁게 치고 오렴!' },
+  ]
+  const withCheers = buildStoryboard({ event, plan, academyName: '하모니', photos, messages: cheers })
+
+  it('마무리 앞에 응원이 들어간다', () => {
+    const kinds = withCheers.map((scene) => scene.kind)
+    const lastMessage = kinds.lastIndexOf('message')
+    expect(lastMessage).toBeGreaterThan(-1)
+    expect(kinds.indexOf('closing')).toBeGreaterThan(lastMessage)
+  })
+
+  it('보내 주신 분 이름이 함께 나온다', () => {
+    const first = withCheers.find((scene) => scene.kind === 'message')
+    expect(first?.headline).toBe('일 년 동안 정말 수고 많았어요.')
+    expect(first?.sub).toBe('— 김서연 어머니')
+    expect(first?.caption).toBe('center')
+  })
+
+  it('끄면 한 장면도 들어가지 않는다', () => {
+    const off = buildStoryboard({
+      event,
+      plan,
+      academyName: '하모니',
+      photos,
+      messages: cheers,
+      options: { ...DEFAULT_STORYBOARD_OPTIONS, messages: false },
+    })
+    expect(off.some((scene) => scene.kind === 'message')).toBe(false)
+  })
+
+  it('메시지가 없으면 머릿말도 뜨지 않는다', () => {
+    expect(board().some((scene) => scene.id === 'cheer-intro')).toBe(false)
+  })
+
+  it('화면에 안 들어갈 만큼 긴 글과 빈 글은 뺀다', () => {
+    const messy = cleanMessages([
+      { name: 'ㄱ', message: '  ' },
+      { name: 'ㄴ', message: '가'.repeat(200) },
+      { name: 'ㄷ', message: '좋았어요' },
+      { name: 'ㄹ', message: '좋았어요' },
+      { name: '', message: '고맙습니다' },
+    ])
+    expect(messy).toEqual([
+      { name: 'ㄷ', message: '좋았어요' },
+      { name: '학부모님', message: '고맙습니다' },
+    ])
+  })
+
+  it('아무리 많이 와도 열두 통까지만 — 영상이 문자 낭독이 되면 안 된다', () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ name: `학부모${i}`, message: `응원 ${i}` }))
+    expect(cleanMessages(many)).toHaveLength(MAX_MESSAGE_SCENES)
+  })
+
+  it('긴 글은 읽을 시간을 조금 더 준다', () => {
+    const scenes = buildStoryboard({
+      event,
+      plan,
+      academyName: '하모니',
+      photos,
+      messages: [
+        { name: 'ㄱ', message: '짧게' },
+        { name: 'ㄴ', message: '오늘 이 무대에 서기까지 아이가 흘린 시간을 모두 기억합니다 고맙습니다' },
+      ],
+    }).filter((scene) => scene.kind === 'message')
+    expect(scenes[1].seconds).toBeGreaterThan(scenes[0].seconds)
   })
 })

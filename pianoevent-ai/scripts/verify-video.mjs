@@ -356,6 +356,30 @@ try {
   await page.getByRole('button', { name: '멈추기' }).click().catch(() => undefined)
   await page.waitForTimeout(400)
 
+  // 만들다 끊겨도 담긴 데까지는 파일로 나오는가 — 8분짜리를 7분째에 잃지 않게
+  console.log('  · 중간에 멈춰 봅니다')
+  await page.getByRole('button', { name: '영상 만들기' }).click()
+  await page.waitForTimeout(4000)
+  await page.getByRole('button', { name: '여기까지 만들고 멈추기' }).click()
+  await page.waitForSelector('text=내려받기', { timeout: 30_000 })
+  const partial = await page.evaluate(async () => {
+    const link = document.querySelector('a[download]')
+    if (!link) return null
+    const res = await fetch(link.href)
+    const buf = new Uint8Array(await res.arrayBuffer())
+    return { name: link.getAttribute('download'), bytes: buf.length, head: Array.from(buf.slice(0, 12)) }
+  })
+  check('멈춰도 담긴 데까지 파일이 나온다', partial && partial.bytes > 5_000, partial ? `${Math.round(partial.bytes / 1024)}KB` : '없음')
+  check('중간까지라는 것을 이름에 적어 준다', (partial?.name ?? '').includes('중간까지'), partial?.name ?? '')
+  if (partial) {
+    const bytes = Buffer.from(partial.head)
+    const isMp4 = bytes.slice(4, 8).toString('latin1') === 'ftyp'
+    const isWebm = bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3
+    check('멈춰서 받은 것도 진짜 영상 파일이다', isMp4 || isWebm, bytes.toString('hex'))
+  }
+  const partialNote = await page.textContent('body')
+  check('왜 짧은지 화면에 적어 준다', partialNote.includes('만들다 멈춰'))
+
   // 진짜로 만들어 본다
   const total = Number((await page.getByTestId('video-length').textContent()).match(/\/ (?:(\d+)분 )?(\d+)초/)?.slice(1).reduce((a, b) => Number(a || 0) * 60 + Number(b || 0), 0) ?? 40)
   console.log(`  · 영상 ${total}초 분량을 실제로 만듭니다 (실시간이라 그만큼 걸립니다)`)

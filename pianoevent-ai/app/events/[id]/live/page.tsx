@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { LiveBoard } from '@/components/ops/live-board'
 import { formatEventDate } from '@/lib/format'
+import { normalizeLiveState } from '@/lib/ops/live'
 import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
 import { getRepository } from '@/lib/store'
@@ -39,7 +40,12 @@ export default async function LivePage({ params }: { params: { id: string } }) {
         </p>
       </div>
 
-      <LiveBoard event={event} plan={plan} />
+      <LiveBoard
+        event={event}
+        plan={plan}
+        students={students}
+        initialState={normalizeLiveState(event.live_state, plan.items.length + plan.breaks.length)}
+      />
 
       <div className="mt-5 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
         <p className="rounded-md border border-border px-3 py-2.5">
@@ -48,7 +54,17 @@ export default async function LivePage({ params }: { params: { id: string } }) {
         </p>
         <p className="rounded-md border border-border px-3 py-2.5">
           <strong className="text-foreground">인터넷이 끊겨도</strong> 넘기기는 그대로 됩니다. 진행 상태는 그
-          휴대폰에만 담기므로 학생 정보가 밖으로 나가지 않습니다.
+          휴대폰에 담기므로 학생 정보가 밖으로 나가지 않습니다.
+        </p>
+        <p className="rounded-md border border-border px-3 py-2.5">
+          <strong className="text-foreground">스태프와 함께 보기</strong> — 아래 <strong>함께 보기</strong> 를 켜고
+          대기실·접수처에는 <code>/e/{event.id}/live</code> 를 열어 두시면, 무대 옆에서 넘길 때마다 그 화면들도
+          따라 넘어갑니다.
+        </p>
+        <p className="rounded-md border border-border px-3 py-2.5">
+          <strong className="text-foreground">한 번 돌려 보면 다음이 정확해집니다</strong> — 넘긴 시각이 쌓여
+          곡마다 <strong>실제로 몇 분 걸렸는지</strong> 남습니다. 리허설에서 한 번 돌려 두고 명단에 반영하시면
+          다음 연주회 종료 시각이 이 학원 아이들에 맞게 나옵니다.
         </p>
       </div>
     </AppShell>

@@ -1,3 +1,4 @@
+import { carryPhotoIds } from '@/lib/assets'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
 import { getRepository } from '@/lib/store'
 
@@ -28,19 +29,30 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // 곡까지 그대로 가져올지, 이름만 가져올지 — 기본은 이름만
     const keepPieces = body.keep_pieces === true
+    // 사진은 기본으로 따라온다. 보관함은 학원 것이고 아이도 그 아이다 —
+    // 30명 얼굴을 해마다 다시 짝지을 이유가 없다. (그 사이 지운 사진은 뺀다)
+    const keepPhotos = body.keep_photos !== false
+    const academy = keepPhotos ? await repo.getAcademy(target.academy_id) : null
+    const assets = academy?.assets ?? []
 
     const imported = await repo.replaceStudents(
       params.id,
-      rows.map((row) => ({
-        student_name: row.student_name,
-        piece_title: keepPieces ? row.piece_title : '',
-        composer: keepPieces ? row.composer : '',
-        duration_sec: keepPieces ? row.duration_sec : null,
-        level: row.level,
-        note: row.note,
-      })),
+      rows.map((row) => {
+        const photos = keepPhotos ? carryPhotoIds(assets, row) : []
+        return {
+          student_name: row.student_name,
+          piece_title: keepPieces ? row.piece_title : '',
+          composer: keepPieces ? row.composer : '',
+          duration_sec: keepPieces ? row.duration_sec : null,
+          level: row.level,
+          note: row.note,
+          photo_asset_id: photos[0] ?? null,
+          photo_asset_ids: photos.length > 1 ? photos : null,
+        }
+      }),
     )
 
-    return ok({ students: imported, from: source.title, keep_pieces: keepPieces }, 201)
+    const withPhoto = imported.filter((row) => row.photo_asset_id).length
+    return ok({ students: imported, from: source.title, keep_pieces: keepPieces, with_photo: withPhoto }, 201)
   })
 }

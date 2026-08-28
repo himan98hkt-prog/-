@@ -21,6 +21,7 @@ export function student(
     mc_script: null,
     note: null,
     photo_asset_id: null,
+    photo_asset_ids: null,
     created_at: '2026-01-01T00:00:00.000Z',
     ...extra,
   }

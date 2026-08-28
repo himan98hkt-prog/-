@@ -88,6 +88,7 @@ function seed(): Db {
         stage_prefs: null,
         video_prefs: null,
         video_url: null,
+        live_state: null,
         created_at: created,
       },
     ],
@@ -102,6 +103,7 @@ function seed(): Db {
       order_no: null,
       mc_script: null,
       photo_asset_id: null,
+      photo_asset_ids: null,
       note,
       created_at: created,
     })),
@@ -218,6 +220,7 @@ export class DemoRepository implements Repository {
       stage_prefs: null,
       video_prefs: null,
       video_url: null,
+      live_state: null,
       created_at: nowIso(),
     }
     db.events.push(event)
@@ -353,6 +356,7 @@ function toStudent(eventId: string, row: NewStudent): EventStudent {
     mc_script: null,
     note: row.note ?? null,
     photo_asset_id: row.photo_asset_id ?? null,
+    photo_asset_ids: row.photo_asset_ids ?? null,
     created_at: nowIso(),
   }
 }

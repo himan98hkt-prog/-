@@ -69,6 +69,7 @@ const EVENT: EventRecord = {
   stage_prefs: null,
   video_prefs: null,
   video_url: null,
+  live_state: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -99,6 +100,7 @@ function toStudents(text: string) {
       order_no: null,
       mc_script: null,
       photo_asset_id: null,
+      photo_asset_ids: null,
       note: row.note,
       created_at: '2026-01-01T00:00:00.000Z',
     })),

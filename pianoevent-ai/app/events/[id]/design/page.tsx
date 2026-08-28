@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { DesignImport, type PastDesign } from '@/components/design/design-import'
 import { DesignStudio } from '@/components/design/design-studio'
 import { defaultCopy, type DesignCopy } from '@/lib/design/context'
+import { getTemplate } from '@/lib/design/templates'
+import { getTheme } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
 import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
@@ -16,10 +19,29 @@ export default async function DesignPage({ params }: { params: { id: string } })
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const [students, rsvps] = await Promise.all([repo.listStudents(event.id), repo.listRsvps(event.id)])
+  const [students, rsvps, siblings] = await Promise.all([
+    repo.listStudents(event.id),
+    repo.listRsvps(event.id),
+    repo.listEvents(event.academy_id),
+  ])
   const { plan } = resolvePlan(students)
   const base = defaultCopy(academy, event)
   const copy: DesignCopy = { ...base, ...(event.design_copy ?? {}) }
+
+  // 디자인을 손봐 둔 지난 행사만 — 손대지 않은 행사를 가져와 봐야 기본값이다
+  const past: PastDesign[] = siblings
+    .filter((item) => item.id !== event.id && (item.design_theme || item.design_template))
+    .slice(0, 12)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      summary: [
+        item.design_theme ? getTheme(item.design_theme).name : null,
+        item.design_template ? getTemplate(item.design_template).name : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    }))
 
   return (
     <AppShell academyName={academy.name}>
@@ -38,6 +60,12 @@ export default async function DesignPage({ params }: { params: { id: string } })
           </Link>
         </p>
       </div>
+
+      {past.length > 0 && (
+        <div className="mb-5">
+          <DesignImport eventId={event.id} past={past} />
+        </div>
+      )}
 
       <DesignStudio
         academy={academy}

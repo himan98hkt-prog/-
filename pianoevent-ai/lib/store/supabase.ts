@@ -186,5 +186,6 @@ function toRow(eventId: string, row: NewStudent) {
     level: row.level,
     note: row.note ?? null,
     photo_asset_id: row.photo_asset_id ?? null,
+    photo_asset_ids: row.photo_asset_ids ?? null,
   }
 }

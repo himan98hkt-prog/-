@@ -291,6 +291,31 @@ function motionOf(motion: PhotoMotion, progress: number): { zoom: number; drift:
   }
 }
 
+/** 한 장면 안에서 사진이 넘어갈 때 겹치는 시간(초) */
+export const PHOTO_BLEND_SEC = 0.4
+
+/** 이 장면에서 보여 줄 사진들 (한 장뿐이면 한 장짜리 목록) */
+export function sceneShots(scene: VideoScene): string[] {
+  if (scene.images && scene.images.length > 0) return scene.images
+  return scene.image ? [scene.image] : []
+}
+
+/**
+ * 한 장면에 사진이 여러 장이면 시간을 똑같이 나눠 갖는다.
+ *
+ * 넘어갈 때는 앞 사진 위로 다음 사진이 진해진다 — 딱 끊기면 사진이
+ * "바뀐" 게 아니라 화면이 "튄" 것처럼 보인다.
+ */
+export function photoSlot(count: number, seconds: number, local: number): { index: number; alpha: number } {
+  if (count <= 1) return { index: 0, alpha: 1 }
+  const span = seconds / count
+  const index = Math.min(count - 1, Math.max(0, Math.floor(local / Math.max(0.001, span))))
+  if (index === 0) return { index, alpha: 1 }
+  const into = local - index * span
+  const blend = Math.min(PHOTO_BLEND_SEC, span * 0.5)
+  return { index, alpha: blend > 0 ? Math.min(1, into / blend) : 1 }
+}
+
 /** 한 장면을 그린다 (alpha 는 호출하는 쪽에서 이미 걸어 둔다) */
 function drawScene(
   ctx: CanvasRenderingContext2D,
@@ -309,12 +334,44 @@ function drawScene(
   ctx.fillStyle = p.ink
   ctx.fillRect(0, 0, w, h)
 
-  const media = scene.clip ? sources.videos.get(scene.clip) : scene.image ? sources.images.get(scene.image) : null
+  const shots = scene.clip ? [] : sceneShots(scene)
+  const slot = photoSlot(shots.length, scene.seconds, local)
+  const media = scene.clip
+    ? sources.videos.get(scene.clip)
+    : shots[slot.index]
+      ? sources.images.get(shots[slot.index])
+      : null
+  // 넘어가는 중이면 앞 사진이 아래에 남는다
+  const under = slot.alpha < 1 && shots[slot.index - 1] ? sources.images.get(shots[slot.index - 1]) : null
   const width = media ? ('videoWidth' in media ? media.videoWidth : media.naturalWidth || media.width) : 0
   const height = media ? ('videoHeight' in media ? media.videoHeight : media.naturalHeight || media.height) : 0
   // 동영상은 늘 꽉 채운다 — 액자에 담으면 원장님이 찍은 영상이 작아진다
   const fit = scene.clip ? 'full' : template.fit
   const { zoom, drift } = motionOf(template.motion, progress)
+
+  /**
+   * 사진 한 장을 그린다. 장면 안에서 사진이 넘어가는 중이면 두 번 불린다 —
+   * 앞 사진을 그대로 깔고 그 위에 다음 사진을 진하게.
+   */
+  const paint = (target: CanvasImageSource, tw: number, th: number, ox = 0, oy = 0, alpha = 1) => {
+    if (alpha >= 1) {
+      cover(ctx, target, width, height, tw, th, zoom, drift, ox, oy)
+      return
+    }
+    ctx.save()
+    ctx.globalAlpha *= alpha
+    cover(ctx, target, width, height, tw, th, zoom, drift, ox, oy)
+    ctx.restore()
+  }
+  const paintPair = (tw: number, th: number, ox = 0, oy = 0) => {
+    if (!media) return
+    if (under) {
+      const uw = 'naturalWidth' in under ? under.naturalWidth || under.width : width
+      const uh = 'naturalHeight' in under ? under.naturalHeight || under.height : height
+      cover(ctx, under, uw, uh, tw, th, zoom, drift, ox, oy)
+    }
+    paint(media, tw, th, ox, oy, under ? slot.alpha : 1)
+  }
 
   if (media && width && height && fit !== 'full') {
     // 배경을 먼저 깔고 그 위에 사진을 액자로 얹는다
@@ -331,7 +388,7 @@ function drawScene(
       ctx.beginPath()
       ctx.rect(0, 0, halfW, h)
       ctx.clip()
-      cover(ctx, media, width, height, halfW, h, zoom, drift)
+      paintPair(halfW, h)
       ctx.restore()
     } else {
       // frame · polaroid — 가운데 왼쪽에 정사각 액자
@@ -354,7 +411,7 @@ function drawScene(
         ctx.beginPath()
         ctx.rect(bx, by, box, box)
         ctx.clip()
-        cover(ctx, media, width, height, box, box, zoom, drift, bx, by)
+        paintPair(box, box, bx, by)
         ctx.restore()
         ctx.restore()
       } else {
@@ -370,7 +427,7 @@ function drawScene(
         ctx.save()
         shapePath(ctx, template.shape, bx, by, box, box)
         ctx.clip()
-        cover(ctx, media, width, height, box, box, zoom, drift, bx, by)
+        paintPair(box, box, bx, by)
         ctx.restore()
       }
     }
@@ -379,7 +436,7 @@ function drawScene(
       ctx.fillRect(0, 0, w, h)
     }
   } else if (media && width && height) {
-    cover(ctx, media, width, height, w, h, zoom, drift)
+    paintPair(w, h)
     // 사진 위에 무대 배경을 얹는다 (조명·별밤처럼 겹쳐 쓰는 배경)
     drawBackdrop(ctx, template.backdrop, theme, w, h)
     if (template.dim > 0) {

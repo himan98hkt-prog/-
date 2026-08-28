@@ -3,7 +3,7 @@
 import { ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { AcademyAsset } from '@/lib/assets'
+import { STUDENT_PHOTO_MAX, type AcademyAsset } from '@/lib/assets'
 import { FACE_SHRINK, shrinkImage } from '@/lib/image'
 import type { EventStudent } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -25,22 +25,48 @@ export function StudentPhotoCell({
 }: {
   student: EventStudent
   assets: AcademyAsset[]
-  onPick: (assetId: string | null) => void
-  onUpload: (file: File) => void
+  /** 고른 사진들 — 맨 앞이 대표 사진(무대 화면·파워포인트에 쓰인다) */
+  onPick: (assetIds: string[]) => void
+  /** append 면 이미 있는 사진 뒤에 붙인다 */
+  onUpload: (file: File, append: boolean) => void
   busy: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const appendRef = useRef(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const current = assets.find((asset) => asset.id === student.photo_asset_id) ?? null
+  const byId = new Map(assets.map((asset) => [asset.id, asset]))
+  /** 이 아이의 사진들 — 대표 사진이 늘 맨 앞 */
+  const picked = [student.photo_asset_id, ...(student.photo_asset_ids ?? [])].filter(
+    (id, at, all): id is string => !!id && byId.has(id) && all.indexOf(id) === at,
+  )
+  const current = picked[0] ? byId.get(picked[0]) ?? null : null
   const photos = assets.filter((asset) => asset.kind === 'photo')
+  const full = picked.length >= STUDENT_PHOTO_MAX
+
+  /** 누르면 넣고, 이미 있으면 뺀다. 맨 앞은 대표 사진이므로 차례가 곧 뜻이다 */
+  function toggle(assetId: string) {
+    if (picked.includes(assetId)) {
+      onPick(picked.filter((id) => id !== assetId))
+      return
+    }
+    if (full) return
+    onPick([...picked, assetId])
+  }
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => (current ? setOpen((prev) => !prev) : fileRef.current?.click())}
+        onClick={() => {
+          if (current) {
+            setOpen((prev) => !prev)
+          } else {
+            appendRef.current = false
+            fileRef.current?.click()
+          }
+        }}
         className={cn(
-          'flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border transition-colors',
+          'relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border transition-colors',
           current ? 'border-accent' : 'border-dashed border-input hover:bg-secondary',
         )}
         aria-label={current ? `${student.student_name} 사진 바꾸기` : `${student.student_name} 사진 넣기`}
@@ -54,6 +80,14 @@ export function StudentPhotoCell({
           <ImagePlus className="h-4 w-4 text-muted-foreground" aria-hidden />
         )}
       </button>
+      {picked.length > 1 && (
+        <span
+          className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[10px] font-medium tabular-nums text-accent-foreground"
+          aria-hidden
+        >
+          {picked.length}
+        </span>
+      )}
 
       <input
         ref={fileRef}
@@ -62,53 +96,79 @@ export function StudentPhotoCell({
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0]
-          if (file) onUpload(file)
+          if (file) onUpload(file, appendRef.current)
           event.target.value = ''
         }}
       />
 
       {open && (
         <div className="absolute left-0 top-12 z-20 w-64 rounded-md border border-border bg-background p-2 shadow-lg">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-medium">{student.student_name} 사진</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs font-medium">
+              {student.student_name} 사진 {picked.length > 0 ? `${picked.length}장` : ''}
+            </p>
             <button type="button" onClick={() => setOpen(false)} aria-label="닫기" className="text-muted-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
+          <p className="mb-2 text-[11px] leading-snug text-muted-foreground">
+            여러 장 고르시면 <strong>감동영상</strong>에서 넘겨 가며 나옵니다. 맨 앞 <strong>①</strong> 이 대표
+            사진이라 무대 화면과 파워포인트에 들어갑니다.
+          </p>
           <div className="grid max-h-44 grid-cols-4 gap-1.5 overflow-y-auto">
-            {photos.map((asset) => (
-              <button
-                key={asset.id}
-                type="button"
-                onClick={() => {
-                  onPick(asset.id)
-                  setOpen(false)
-                }}
-                aria-pressed={asset.id === student.photo_asset_id}
-                title={asset.label}
-                className={cn(
-                  'aspect-square overflow-hidden rounded border',
-                  asset.id === student.photo_asset_id ? 'border-accent ring-1 ring-accent' : 'border-border',
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
-              </button>
-            ))}
+            {photos.map((asset) => {
+              const at = picked.indexOf(asset.id)
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => toggle(asset.id)}
+                  aria-pressed={at >= 0}
+                  disabled={at < 0 && full}
+                  title={at >= 0 ? `${asset.label} — 누르면 뺍니다` : asset.label}
+                  className={cn(
+                    'relative aspect-square overflow-hidden rounded border disabled:opacity-40',
+                    at >= 0 ? 'border-accent ring-1 ring-accent' : 'border-border',
+                  )}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
+                  {at >= 0 && (
+                    <span className="absolute left-0 top-0 rounded-br bg-accent px-1 text-[10px] font-medium tabular-nums text-accent-foreground">
+                      {at + 1}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
+          {full && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              한 아이당 {STUDENT_PHOTO_MAX}장까지입니다. 빼시려면 고른 사진을 다시 누르세요.
+            </p>
+          )}
           <div className="mt-2 flex gap-1.5">
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => fileRef.current?.click()}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={full}
+              onClick={() => {
+                appendRef.current = picked.length > 0
+                fileRef.current?.click()
+              }}
+            >
               새 사진 올리기
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                onPick(null)
+                onPick([])
                 setOpen(false)
               }}
             >
-              빼기
+              모두 빼기
             </Button>
           </div>
         </div>

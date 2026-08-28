@@ -1,4 +1,4 @@
-import type { ProgramPlan } from '@/lib/types'
+import type { EventStudent, ProgramPlan } from '@/lib/types'
 
 /**
  * 당일 진행 화면 — 스태프 휴대폰에 드는 것.
@@ -9,6 +9,10 @@ import type { ProgramPlan } from '@/lib/types'
  *
  * 그래서 지금·다음·그다음만 크게 띄우고, 넘기는 단추 하나만 둔다.
  * 예정 시각과 견주어 몇 분 밀렸는지도 함께 — 그걸 알아야 사회자가 멘트를 줄인다.
+ *
+ * 넘긴 시각을 하나씩 적어 두면 두 가지가 더 된다.
+ *   · 스태프 여러 명이 **같은 화면**을 볼 수 있다 (한 사람이 넘기면 나머지가 따라간다)
+ *   · 곡이 **실제로 몇 분 걸렸는지** 남아, 다음 해 순서표가 그 학원 아이들에 맞게 된다
  *
  * 이 파일은 순수 계산만 한다.
  */
@@ -24,7 +28,9 @@ export interface LiveEntry {
   detail: string
   /** 개회 기준 예정 시각(초) */
   planned_offset_sec: number
-  duration_sec: number
+  planned_sec: number
+  /** 이 줄에 해당하는 학생 (휴식은 없다) — 실제 시간을 명단에 되돌릴 때 쓴다 */
+  student_id: string | null
 }
 
 /** 순서표를 그대로 한 줄씩 늘어놓는다 — 휴식도 한 자리를 차지한다 */
@@ -42,7 +48,8 @@ export function buildLiveList(plan: ProgramPlan): LiveEntry[] {
         title: brk.label,
         detail: `${Math.round(brk.duration_sec / 60)}분`,
         planned_offset_sec: brk.start_offset_sec,
-        duration_sec: brk.duration_sec,
+        planned_sec: brk.duration_sec,
+        student_id: null,
       })
     }
     out.push({
@@ -52,7 +59,8 @@ export function buildLiveList(plan: ProgramPlan): LiveEntry[] {
       title: item.student.student_name,
       detail: [item.student.piece_title, item.student.composer].filter(Boolean).join(' · '),
       planned_offset_sec: item.start_offset_sec,
-      duration_sec: item.duration_sec,
+      planned_sec: item.duration_sec,
+      student_id: item.student.id,
     })
   }
   return out
@@ -86,15 +94,24 @@ export function formatElapsed(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/** 진행 상태 — 새로고침해도 잃지 않도록 브라우저에 담아 둔다 */
+/**
+ * 진행 상태.
+ *
+ * 새로고침해도 잃지 않도록 휴대폰에 담고, 함께 보기를 켜면 서버에도 올린다.
+ * `marks[i]` 는 **i 번째 순서로 넘어간 시각**(epoch ms)이다. marks[0] 은 개회 시각.
+ */
 export interface LiveState {
   /** 지금 몇 번째 줄인가 */
   index: number
   /** 개회를 누른 시각 (epoch ms). 아직 시작 전이면 null */
   started_at: number | null
+  /** 각 순서로 넘어간 시각. 넘긴 만큼만 쌓인다 */
+  marks: number[]
+  /** 마지막으로 손댄 시각 — 함께 보기에서 어느 쪽이 최신인지 가른다 */
+  updated_at: number
 }
 
-export const EMPTY_LIVE_STATE: LiveState = { index: 0, started_at: null }
+export const EMPTY_LIVE_STATE: LiveState = { index: 0, started_at: null, marks: [], updated_at: 0 }
 
 export function liveStorageKey(eventId: string): string {
   return `pianoevent.live.${eventId}`
@@ -104,15 +121,167 @@ export function liveStorageKey(eventId: string): string {
 export function parseLiveState(raw: string | null, total: number): LiveState {
   if (!raw) return EMPTY_LIVE_STATE
   try {
-    const parsed = JSON.parse(raw) as Partial<LiveState>
-    const index =
-      typeof parsed.index === 'number' && Number.isFinite(parsed.index)
-        ? Math.min(Math.max(0, Math.floor(parsed.index)), Math.max(0, total - 1))
-        : 0
-    const started =
-      typeof parsed.started_at === 'number' && Number.isFinite(parsed.started_at) ? parsed.started_at : null
-    return { index, started_at: started }
+    return normalizeLiveState(JSON.parse(raw), total)
   } catch {
     return EMPTY_LIVE_STATE
   }
+}
+
+const stamp = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null
+
+/**
+ * 어디서 왔든(휴대폰 · 서버) 믿을 수 있는 모양으로 다듬는다.
+ * 순서표가 짧아졌으면 마지막 순서로 당겨 온다 — 빈 화면이 뜨지 않게.
+ *
+ * `total` 을 주지 않으면 길이는 건드리지 않는다. 서버가 그저 값을 넘겨 주기만 할 때는
+ * 순서표를 다시 계산할 이유가 없다 — 화면 쪽에서 제 목록 길이로 한 번 더 다듬는다.
+ */
+export function normalizeLiveState(input: unknown, total?: number): LiveState {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return EMPTY_LIVE_STATE
+  const source = input as Record<string, unknown>
+  const limit = total === undefined ? Number.MAX_SAFE_INTEGER : Math.max(0, total - 1)
+  const index =
+    typeof source.index === 'number' && Number.isFinite(source.index)
+      ? Math.min(Math.max(0, Math.floor(source.index)), limit)
+      : 0
+  const started = stamp(source.started_at)
+  // 넘긴 시각은 늘 앞에서 뒤로 흐른다. 거꾸로 간 값이 나오면 거기서 끊는다
+  const marks: number[] = []
+  if (Array.isArray(source.marks)) {
+    for (const raw of source.marks) {
+      const value = stamp(raw)
+      if (value === null) break
+      if (marks.length > 0 && value < marks[marks.length - 1]) break
+      marks.push(value)
+      if (total !== undefined && marks.length >= Math.max(0, total)) break
+    }
+  }
+  return {
+    index,
+    started_at: started,
+    marks: started === null ? [] : marks,
+    updated_at: stamp(source.updated_at) ?? 0,
+  }
+}
+
+/** 두 상태 중 나중 것 — 함께 보기에서 서버와 내 휴대폰을 견줄 때 */
+export function newerLiveState(a: LiveState, b: LiveState): LiveState {
+  return b.updated_at > a.updated_at ? b : a
+}
+
+/** 지금 이 순서가 시작된 시각 */
+export function startedAtIndex(state: LiveState, index: number): number | null {
+  return state.marks[index] ?? (index === 0 ? state.started_at : null)
+}
+
+/** 이 순서를 시작한 지 몇 초 지났는가 */
+export function elapsedAtIndex(state: LiveState, index: number, now: number): number {
+  const from = startedAtIndex(state, index)
+  return from === null ? 0 : Math.max(0, (now - from) / 1000)
+}
+
+/** 개회한 지 몇 초 지났는가 */
+export function elapsedTotal(state: LiveState, now: number): number {
+  return state.started_at === null ? 0 : Math.max(0, (now - state.started_at) / 1000)
+}
+
+/**
+ * 한 순서를 넘긴다. 넘긴 시각을 적어 두어야 실제로 몇 분 걸렸는지 남는다.
+ * 되돌아갈 때는 그 뒤에 적어 둔 시각을 지운다 — 잘못 눌렀다는 뜻이니까.
+ */
+export function moveLive(state: LiveState, next: number, now: number, total: number): LiveState {
+  const index = Math.min(Math.max(0, next), Math.max(0, total - 1))
+  if (state.started_at === null) return { ...state, index, updated_at: now }
+  // 되돌아가면 그 뒤에 적어 둔 시각만 지운다. **이미 지나온 순서의 시각은 그대로 둔다** —
+  // 잘못 눌러 되돌아갔다고 앞 곡이 실제로 더 오래 걸린 것이 되면 안 된다
+  const marks = state.marks.slice(0, index + 1)
+  // 아직 지나오지 않은 자리로 건너뛰면 그 사이는 지금 시각으로 메운다 (건너뛴 순서는 0초로 남아 걸러진다)
+  while (marks.length <= index) marks.push(now)
+  return { index, started_at: state.started_at, marks, updated_at: now }
+}
+
+/** 개회 — 시계를 켠다 */
+export function startLive(now: number): LiveState {
+  return { index: 0, started_at: now, marks: [now], updated_at: now }
+}
+
+/** 실제로 몇 초 걸렸는가 — 끝난 순서만 (지금 진행 중인 것은 아직 모른다) */
+export function actualSeconds(state: LiveState, index: number): number | null {
+  const from = state.marks[index]
+  const to = state.marks[index + 1]
+  if (from === undefined || to === undefined || to < from) return null
+  return (to - from) / 1000
+}
+
+export interface ActualRow {
+  entry: LiveEntry
+  actual_sec: number
+  planned_sec: number
+  /** 명단에 되돌릴 만한 값인가 — 너무 짧거나 긴 것은 잘못 누른 것으로 본다 */
+  usable: boolean
+}
+
+/** 실제로 걸린 시간이 말이 되는 범위인가 (20초 ~ 20분) */
+export const ACTUAL_MIN_SEC = 20
+export const ACTUAL_MAX_SEC = 20 * 60
+
+/**
+ * 끝난 순서들의 실제 시간.
+ *
+ * 리허설이나 연주회에서 한 번 돌려 두면, 다음 해 순서표의 예상 시간이
+ * **그 학원 아이들** 에 맞게 된다. 책에 적힌 평균이 아니라.
+ */
+export function actualRows(list: LiveEntry[], state: LiveState): ActualRow[] {
+  const out: ActualRow[] = []
+  for (let i = 0; i < list.length; i += 1) {
+    const seconds = actualSeconds(state, i)
+    if (seconds === null) continue
+    out.push({
+      entry: list[i],
+      actual_sec: Math.round(seconds),
+      planned_sec: list[i].planned_sec,
+      usable:
+        list[i].kind === 'item' &&
+        list[i].student_id !== null &&
+        seconds >= ACTUAL_MIN_SEC &&
+        seconds <= ACTUAL_MAX_SEC,
+    })
+  }
+  return out
+}
+
+/** 명단에 되돌릴 값만 추린다 — 예정과 10초 넘게 차이 나는 것만 (같으면 고칠 이유가 없다) */
+export function durationUpdates(rows: ActualRow[], gapSec = 10): { student_id: string; duration_sec: number }[] {
+  return rows
+    .filter((row) => row.usable && Math.abs(row.actual_sec - row.planned_sec) > gapSec)
+    .map((row) => ({ student_id: row.entry.student_id as string, duration_sec: row.actual_sec }))
+}
+
+/** "12곡 중 9곡을 마쳤습니다" 처럼 진행 상황 한 줄 */
+export function progressLabel(list: LiveEntry[], state: LiveState): string {
+  const done = list.filter((_, index) => actualSeconds(state, index) !== null).length
+  return `${list.length}개 중 ${done}개를 마쳤습니다`
+}
+
+/** 명단에 되돌릴 때 쓰는 이름 — 학생 id → 실제 초 */
+export function durationsByStudent(rows: ActualRow[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const row of rows) {
+    if (row.usable && row.entry.student_id) out[row.entry.student_id] = row.actual_sec
+  }
+  return out
+}
+
+/** 이 학생의 실제 시간을 명단에 되돌릴 수 있게 이름과 함께 (화면에 보여 줄 용) */
+export function namedDurations(
+  rows: ActualRow[],
+  students: Pick<EventStudent, 'id' | 'student_name' | 'duration_sec'>[],
+): { id: string; name: string; before: number; after: number }[] {
+  const byId = new Map(students.map((student) => [student.id, student]))
+  return durationUpdates(rows).flatMap((update) => {
+    const student = byId.get(update.student_id)
+    if (!student) return []
+    return [{ id: student.id, name: student.student_name, before: student.duration_sec, after: update.duration_sec }]
+  })
 }

@@ -1,3 +1,4 @@
+import { STUDENT_PHOTO_MAX } from '@/lib/assets'
 import { fail, guard, ok, readJson } from '@/lib/http'
 import { getRepository } from '@/lib/store'
 import type { Level } from '@/lib/types'
@@ -22,19 +23,41 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     // 이 아이의 사진 — 보관함에 실제로 있는 것만 받는다 (없는 id 를 넣어 두면 화면이 빈 상자가 된다)
-    if (body.photo_asset_id !== undefined) {
-      const value = body.photo_asset_id
-      if (value === null || value === '') {
-        patch.photo_asset_id = null
-      } else if (typeof value === 'string') {
-        const repo = getRepository()
-        const student = await repo.getStudent(params.id)
-        if (!student) return fail('학생을 찾을 수 없습니다.', 404)
-        const event = await repo.getEvent(student.event_id)
-        const academy = event ? await repo.getAcademy(event.academy_id) : null
-        const owned = (academy?.assets ?? []).some((asset) => asset.id === value)
-        if (!owned) return fail('보관함에 없는 사진입니다.')
-        patch.photo_asset_id = value
+    if (body.photo_asset_id !== undefined || body.photo_asset_ids !== undefined) {
+      const repo = getRepository()
+      const student = await repo.getStudent(params.id)
+      if (!student) return fail('학생을 찾을 수 없습니다.', 404)
+      const event = await repo.getEvent(student.event_id)
+      const academy = event ? await repo.getAcademy(event.academy_id) : null
+      const owned = new Set((academy?.assets ?? []).map((asset) => asset.id))
+
+      if (body.photo_asset_id !== undefined) {
+        const value = body.photo_asset_id
+        if (value === null || value === '') {
+          patch.photo_asset_id = null
+        } else if (typeof value === 'string') {
+          if (!owned.has(value)) return fail('보관함에 없는 사진입니다.')
+          patch.photo_asset_id = value
+        }
+      }
+
+      // 사진 여러 장 — 대표 사진은 늘 맨 앞이고, 나머지는 영상에서 넘겨 가며 보여 준다
+      if (body.photo_asset_ids !== undefined) {
+        const value = body.photo_asset_ids
+        if (value === null) {
+          patch.photo_asset_ids = null
+        } else if (Array.isArray(value)) {
+          const ids: string[] = []
+          for (const raw of value) {
+            if (typeof raw !== 'string' || !raw) continue
+            if (!owned.has(raw)) return fail('보관함에 없는 사진입니다.')
+            if (!ids.includes(raw)) ids.push(raw)
+          }
+          if (ids.length > STUDENT_PHOTO_MAX) {
+            return fail(`아이 한 명당 사진은 ${STUDENT_PHOTO_MAX}장까지 넣을 수 있습니다.`)
+          }
+          patch.photo_asset_ids = ids.length > 0 ? ids : null
+        }
       }
     }
 

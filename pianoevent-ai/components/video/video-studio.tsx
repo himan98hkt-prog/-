@@ -1,6 +1,20 @@
 'use client'
 
-import { Download, Film, Gauge, ImagePlus, Link2, Loader2, Music, Pause, Play, Square, Trash2 } from 'lucide-react'
+import {
+  Download,
+  Film,
+  Gauge,
+  ImagePlus,
+  Link2,
+  Loader2,
+  MessageSquareHeart,
+  Music,
+  Pause,
+  Play,
+  Scissors,
+  Square,
+  Trash2,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
@@ -27,6 +41,7 @@ import {
   type FrameSource,
   type LogoMark,
   type LogoPlace,
+  type Timeline,
 } from '@/lib/video/render'
 import type { DesignTheme } from '@/lib/design/themes'
 import {
@@ -40,6 +55,7 @@ import {
   sortByFileName,
   totalSeconds,
   type CaptionPlace,
+  type CheerMessage,
   type ExtraMedia,
   type StoryboardOptions,
   type VideoScene,
@@ -74,6 +90,8 @@ export function VideoStudio({
   academyName,
   initialThemeId,
   photos,
+  photoSets = {},
+  messages = [],
   logoUrl = null,
   savedPrefs = null,
   pastPrefs = [],
@@ -83,6 +101,10 @@ export function VideoStudio({
   academyName: string
   initialThemeId: string
   photos: Record<string, string>
+  /** 학생 id → 사진 여러 장 — 한 아이가 머무는 몇 초 동안 넘겨 가며 보여 준다 */
+  photoSets?: Record<string, string[]>
+  /** 학부모가 초대장에 남긴 응원 메시지 */
+  messages?: CheerMessage[]
   /** 학원 로고 — 영상 구석에 작게 넣을 수 있다 */
   logoUrl?: string | null
   /** 이 행사에 저장해 둔 설정 */
@@ -97,6 +119,7 @@ export function VideoStudio({
     title_seconds: prefNumber(savedPrefs, 'title_seconds', DEFAULT_STORYBOARD_OPTIONS.title_seconds),
     gallery_seconds: prefNumber(savedPrefs, 'gallery_seconds', DEFAULT_STORYBOARD_OPTIONS.gallery_seconds),
     captions: prefBool(savedPrefs, 'captions', DEFAULT_STORYBOARD_OPTIONS.captions),
+    messages: prefBool(savedPrefs, 'messages', DEFAULT_STORYBOARD_OPTIONS.messages),
   }))
   const [closing, setClosing] = useState<string>(() =>
     prefString(savedPrefs, 'closing', '오늘 이 무대에 선 모든 아이들에게'),
@@ -115,11 +138,28 @@ export function VideoStudio({
   )
   /** 미리보기 배속 — 녹화는 늘 1배다 */
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1)
+  /**
+   * 만들 구간 (장면 번호, 0부터).
+   *
+   * 8분짜리를 7분째에 끊어 먹으면 다시 8분이다. 두세 토막으로 나눠 만들면
+   * 한 토막이 짧아 다시 만들기도 쉽고, 나중에 이어 붙이시면 된다.
+   */
+  const [range, setRange] = useState<{ from: number; to: number } | null>(null)
+  /** 만들다 끊긴 것인가 — 그래도 담긴 데까지는 드린다 */
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const abortedRef = useRef(false)
 
   const [playing, setPlaying] = useState(false)
   const [recording, setRecording] = useState(false)
   const [clock, setClock] = useState(0)
-  const [result, setResult] = useState<{ url: string; label: string; note: string; name: string; bytes: number } | null>(null)
+  const [result, setResult] = useState<{
+    url: string
+    label: string
+    note: string
+    name: string
+    bytes: number
+    partial: boolean
+  } | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
@@ -166,8 +206,11 @@ export function VideoStudio({
   }, [logoImg, logoPlace])
 
   const auto = useMemo(
-    () => fitToLimit(buildStoryboard({ event, plan, academyName, photos, extras, options, closing })),
-    [event, plan, academyName, photos, extras, options, closing],
+    () =>
+      fitToLimit(
+        buildStoryboard({ event, plan, academyName, photos, photoSets, messages, extras, options, closing }),
+      ),
+    [event, plan, academyName, photos, photoSets, messages, extras, options, closing],
   )
   /**
    * 원장님이 손댄 장면 목록.
@@ -198,15 +241,28 @@ export function VideoStudio({
     setOrder(null)
   }
   const timeline = useMemo(() => buildTimeline(scenes), [scenes])
+  /** 이번에 실제로 담을 장면들 — 구간을 고르지 않으셨으면 전부 */
+  const recordScenes = useMemo(() => {
+    if (!range) return scenes
+    const from = Math.min(Math.max(0, range.from), scenes.length - 1)
+    const to = Math.min(Math.max(from, range.to), scenes.length - 1)
+    return scenes.slice(from, to + 1)
+  }, [scenes, range])
+  const recordTimeline = useMemo(() => buildTimeline(recordScenes), [recordScenes])
   const withPhoto = Object.keys(photos).length
-  /** 지금 화면에 보이는 장면 — 콘티에서 표시해 준다 */
+  /**
+   * 지금 화면에 보이는 장면 — 콘티에서 표시해 준다.
+   * 구간만 만드는 중에는 시계가 그 구간 기준이므로 시작 장면만큼 밀어 준다.
+   */
   const activeIndex = useMemo(() => {
+    const line = recording ? recordTimeline : timeline
+    const offset = recording && range ? range.from : 0
     let found = 0
-    for (let i = 0; i < timeline.starts.length; i += 1) {
-      if (clock >= timeline.starts[i]) found = i
+    for (let i = 0; i < line.starts.length; i += 1) {
+      if (clock >= line.starts[i]) found = i
     }
-    return found
-  }, [timeline, clock])
+    return found + offset
+  }, [timeline, recordTimeline, recording, range, clock])
   // 서버에서는 브라우저가 무엇을 뽑을 수 있는지 알 수 없다.
   // 첫 그림을 서버와 똑같이 그린 뒤, 화면에 붙고 나서 알아본다 (그래야 화면이 어긋나지 않는다)
   const [recordType, setRecordType] = useState<string | null>(null)
@@ -267,22 +323,27 @@ export function VideoStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenes])
 
-  const draw = useCallback(
-    (seconds: number, still = false) => {
+  const drawOn = useCallback(
+    (line: Timeline, seconds: number, still = false) => {
       const canvas = canvasRef.current
       if (!canvas) return
       const ctx = canvas.getContext('2d')
       if (!ctx) return
       renderFrame(
         ctx,
-        timeline,
+        line,
         seconds,
         sourcesRef.current,
         { width: canvas.width, height: canvas.height, theme, academyName, template, logo },
         still,
       )
     },
-    [timeline, theme, academyName, template, logo],
+    [theme, academyName, template, logo],
+  )
+
+  const draw = useCallback(
+    (seconds: number, still = false) => drawOn(timeline, seconds, still),
+    [drawOn, timeline],
   )
 
   useEffect(() => {
@@ -296,16 +357,16 @@ export function VideoStudio({
    * 빨리 돌리면 영상 자체가 빨라진다 — 그래서 record() 는 늘 1을 준다.
    */
   const runLoop = useCallback(
-    (onDone: () => void, from = 0, rate = 1) => {
+    (onDone: () => void, from = 0, rate = 1, line: Timeline = timeline) => {
       const started = performance.now() - (from * 1000) / rate
       const playedClips = new Set<string>()
       const step = () => {
         const seconds = ((performance.now() - started) * rate) / 1000
         // 이 시각에 보여야 할 동영상은 재생시켜 둔다
-        for (let i = 0; i < timeline.scenes.length; i += 1) {
-          const scene = timeline.scenes[i]
+        for (let i = 0; i < line.scenes.length; i += 1) {
+          const scene = line.scenes[i]
           if (!scene.clip) continue
-          const start = timeline.starts[i]
+          const start = line.starts[i]
           const el = sourcesRef.current.videos.get(scene.clip)
           if (!el) continue
           if (seconds >= start && seconds < start + scene.seconds) {
@@ -324,9 +385,9 @@ export function VideoStudio({
             el.pause()
           }
         }
-        draw(seconds)
+        drawOn(line, seconds)
         setClock(seconds)
-        if (seconds >= timeline.total) {
+        if (seconds >= line.total) {
           onDone()
           return
         }
@@ -334,7 +395,7 @@ export function VideoStudio({
       }
       rafRef.current = requestAnimationFrame(step)
     },
-    [draw, timeline],
+    [drawOn, timeline],
   )
 
   function stopLoop() {
@@ -406,6 +467,17 @@ export function VideoStudio({
     draw(seconds)
   }
 
+  /** 만드는 중에 멈추기 — 담긴 데까지는 파일로 드린다 */
+  function stopRecording() {
+    abortedRef.current = true
+    stopLoop()
+    try {
+      recorderRef.current?.stop()
+    } catch {
+      /* 이미 멈춰 있으면 그대로 */
+    }
+  }
+
   async function record() {
     const canvas = canvasRef.current
     if (!canvas || !recordType) return
@@ -413,6 +485,8 @@ export function VideoStudio({
     setResult(null)
     setRecording(true)
     setClock(0)
+    abortedRef.current = false
+    const line = recordTimeline
 
     const stream = canvas.captureStream(30)
     const audio = new AudioContext()
@@ -429,8 +503,8 @@ export function VideoStudio({
       const now = audio.currentTime
       gain.gain.setValueAtTime(0, now)
       gain.gain.linearRampToValueAtTime(0.9, now + 1.5)
-      gain.gain.setValueAtTime(0.9, now + Math.max(2, timeline.total - 2.5))
-      gain.gain.linearRampToValueAtTime(0, now + timeline.total)
+      gain.gain.setValueAtTime(0.9, now + Math.max(2, line.total - 2.5))
+      gain.gain.linearRampToValueAtTime(0, now + line.total)
       source.connect(gain)
       gain.connect(mixer)
       el.currentTime = 0
@@ -454,6 +528,8 @@ export function VideoStudio({
       mimeType: recordType,
       videoBitsPerSecond: size.h >= 1080 ? 8_000_000 : 4_500_000,
     })
+    recorderRef.current = recorder
+    // 500ms 마다 조각을 받아 둔다 — 중간에 끊겨도 여기까지는 남는다
     const chunks: BlobPart[] = []
     recorder.ondataavailable = (native) => {
       if (native.data.size > 0) chunks.push(native.data)
@@ -470,22 +546,39 @@ export function VideoStudio({
     }
     document.addEventListener('visibilitychange', onHidden)
 
-    runLoop(() => {
-      stopLoop()
-      recorder.stop()
-    })
+    runLoop(
+      () => {
+        stopLoop()
+        try {
+          recorder.stop()
+        } catch {
+          /* 이미 멈춰 있으면 그대로 */
+        }
+      },
+      0,
+      1,
+      line,
+    )
 
     await finished
     document.removeEventListener('visibilitychange', onHidden)
+    recorderRef.current = null
     void audio.close()
     const info = describeRecordType(recorder.mimeType || recordType)
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
+    const partial = abortedRef.current
+    const label = range
+      ? ` ${range.from + 1}-${Math.min(range.to, scenes.length - 1) + 1}장면`
+      : ''
     setResult({
       url: URL.createObjectURL(blob),
-      label: info.label,
-      note: info.note,
-      name: `${event.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '연주회'} 감동영상.${info.ext}`,
+      label: partial ? `${info.label} · 중간까지` : info.label,
+      note: partial
+        ? `만들다 멈춰 ${formatLength(clockRef.current)} 까지만 담겼습니다. 그래도 재생됩니다 — 이어서 만드시려면 아래 [만들 구간]에서 멈춘 장면부터 고르세요.`
+        : info.note,
+      name: `${event.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '연주회'} 감동영상${label}${partial ? ' (중간까지)' : ''}.${info.ext}`,
       bytes: blob.size,
+      partial,
     })
     setRecording(false)
     setClock(0)
@@ -530,6 +623,7 @@ export function VideoStudio({
     size: sizeId,
     logo_place: logoPlace,
     captions: options.captions,
+    messages: options.messages,
     student_seconds: options.student_seconds,
     title_seconds: options.title_seconds,
     gallery_seconds: options.gallery_seconds,
@@ -548,6 +642,7 @@ export function VideoStudio({
       title_seconds: prefNumber(prefs, 'title_seconds', prev.title_seconds),
       gallery_seconds: prefNumber(prefs, 'gallery_seconds', prev.gallery_seconds),
       captions: prefBool(prefs, 'captions', prev.captions),
+      messages: prefBool(prefs, 'messages', prev.messages),
     }))
   }
 
@@ -572,11 +667,11 @@ export function VideoStudio({
           <Button
             size="sm"
             variant={recording ? 'outline' : 'default'}
-            onClick={() => (recording ? stopLoop() : void record())}
+            onClick={() => (recording ? stopRecording() : void record())}
             disabled={!ready || !recordType || playing}
           >
             {recording ? <Square className="mr-1 h-4 w-4" /> : <Film className="mr-1 h-4 w-4" />}
-            {recording ? '만드는 중…' : '영상 만들기'}
+            {recording ? '여기까지 만들고 멈추기' : range ? '고른 구간 만들기' : '영상 만들기'}
           </Button>
           <div className="flex items-center gap-1" data-testid="preview-speed">
             <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -604,7 +699,7 @@ export function VideoStudio({
           </span>
           {!recording && !playing && ready && (
             <span className="text-xs text-muted-foreground">
-              만드는 데 <strong className="text-foreground">약 {formatLength(length)}</strong> 걸립니다
+              만드는 데 <strong className="text-foreground">약 {formatLength(recordTimeline.total)}</strong> 걸립니다
               {speed > 1 && (
                 <>
                   {' '}· 미리보기는 <strong className="text-foreground">{formatLength(length / speed)}</strong> 만에
@@ -633,14 +728,19 @@ export function VideoStudio({
         {recording && (
           <p className="rounded-md border border-accent/40 bg-accent/5 px-3 py-2.5 text-sm">
             <strong>이 창을 그대로 두세요.</strong> 영상은 화면을 그리면서 담기 때문에 실제 길이만큼
-            ({formatLength(length)}) 걸립니다. 다른 창으로 넘어가면 끊깁니다.
+            ({formatLength(recordTimeline.total)}) 걸립니다. 다른 창으로 넘어가면 끊깁니다.
+            <br />
+            급하시면 <strong>[여기까지 만들고 멈추기]</strong> 를 누르세요 — 담긴 데까지 파일로 드립니다.
           </p>
         )}
         {warning && <p className="text-sm text-destructive">{warning}</p>}
 
         {result && (
           <div className="grid gap-2 rounded-md border border-accent/40 bg-accent/5 p-3">
-            <p className="text-sm font-medium">영상이 만들어졌습니다 · {result.label} · {Math.round(result.bytes / 1024 / 1024)}MB</p>
+            <p className="text-sm font-medium">
+              {result.partial ? '여기까지 만들어졌습니다' : '영상이 만들어졌습니다'} · {result.label} ·{' '}
+              {Math.round(result.bytes / 1024 / 1024)}MB
+            </p>
             <video src={result.url} controls className="w-full rounded-md" />
             <div className="flex flex-wrap items-center gap-2">
               <a
@@ -882,6 +982,22 @@ export function VideoStudio({
             이름·곡 자막 넣기
           </label>
 
+          <label className={cn('flex cursor-pointer items-center gap-2 text-sm')}>
+            <input
+              type="checkbox"
+              checked={options.messages}
+              onChange={(native) => setOptions((prev) => ({ ...prev, messages: native.target.checked }))}
+              className="h-4 w-4"
+              disabled={messages.length === 0}
+              aria-label="학부모 응원 메시지 넣기"
+            />
+            <MessageSquareHeart className="h-4 w-4 text-accent" aria-hidden />
+            학부모 응원 메시지 넣기
+            <span className="text-xs text-muted-foreground">
+              {messages.length > 0 ? `초대장에 ${messages.length}통 와 있습니다` : '아직 온 메시지가 없습니다'}
+            </span>
+          </label>
+
           <div data-testid="logo-place">
             <p className="mb-1 text-sm">학원 로고</p>
             {logoUrl ? (
@@ -918,6 +1034,67 @@ export function VideoStudio({
               </p>
             )}
           </div>
+        </section>
+
+        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="record-range">
+          <p className="text-sm font-medium">
+            5 · 만들 구간
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">토막을 나눠 만들 수 있습니다</span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            긴 영상은 <strong>두세 토막</strong>으로 나눠 만드시는 편이 낫습니다. 한 토막이 짧아 다시 만들기도 쉽고,
+            중간에 끊겨도 잃는 시간이 적습니다. 받으신 파일은 이어 붙이시면 한 편이 됩니다.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={range ? range.from : 0}
+              onChange={(native) =>
+                setRange((prev) => {
+                  const from = Number(native.target.value)
+                  const to = Math.max(from, prev?.to ?? scenes.length - 1)
+                  return { from, to }
+                })
+              }
+              className="h-9 min-w-0 max-w-[46%] flex-1 rounded-md border border-border bg-background px-2 text-sm"
+              aria-label="시작 장면"
+            >
+              {scenes.map((scene, index) => (
+                <option key={scene.id} value={index}>
+                  {index + 1}. {sceneLabel(scene)}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-muted-foreground">부터</span>
+            <select
+              value={range ? Math.min(range.to, scenes.length - 1) : scenes.length - 1}
+              onChange={(native) =>
+                setRange((prev) => {
+                  const to = Number(native.target.value)
+                  const from = Math.min(to, prev?.from ?? 0)
+                  return { from, to }
+                })
+              }
+              className="h-9 min-w-0 max-w-[46%] flex-1 rounded-md border border-border bg-background px-2 text-sm"
+              aria-label="끝 장면"
+            >
+              {scenes.map((scene, index) => (
+                <option key={scene.id} value={index}>
+                  {index + 1}. {sceneLabel(scene)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="flex flex-wrap items-center gap-2 text-xs">
+            <Scissors className="h-3.5 w-3.5 text-accent" aria-hidden />
+            <span className="text-muted-foreground">
+              고른 구간 <strong className="text-foreground">{recordScenes.length}장면 · {formatLength(recordTimeline.total)}</strong>
+            </span>
+            {range && (
+              <Button variant="ghost" size="sm" onClick={() => setRange(null)}>
+                전체로 되돌리기
+              </Button>
+            )}
+          </p>
         </section>
 
         <PrefsBar
@@ -971,7 +1148,7 @@ function InviteVideoLink({ eventId, initialUrl }: { eventId: string; initialUrl:
   return (
     <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="invite-video">
       <p className="text-sm font-medium">
-        6 · 초대장에 영상 붙이기
+        7 · 초대장에 영상 붙이기
         <span className="ml-1.5 text-xs font-normal text-muted-foreground">단톡방에 링크 하나만</span>
       </p>
       <p className="text-xs text-muted-foreground">

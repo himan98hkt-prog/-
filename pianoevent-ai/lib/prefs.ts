@@ -51,6 +51,7 @@ export const VIDEO_PREF_SPEC: PrefSpec = {
   size: { type: 'enum', values: ['720', '1080'] },
   logo_place: { type: 'enum', values: ['none', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] },
   captions: { type: 'bool' },
+  messages: { type: 'bool' },
   student_seconds: { type: 'num', min: 1.5, max: 12 },
   title_seconds: { type: 'num', min: 1.5, max: 12 },
   gallery_seconds: { type: 'num', min: 1.5, max: 12 },
