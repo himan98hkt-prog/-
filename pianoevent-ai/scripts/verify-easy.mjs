@@ -222,7 +222,9 @@ try {
 
   await page.getByTestId('first-run-next').click()
   await page.waitForTimeout(250)
-  check('다음 걸음으로 넘어간다', (await tour.textContent()).includes('학생 명단 넣기'))
+  const step2 = await tour.textContent()
+  check('다음 걸음으로 넘어간다', step2.includes('카드 세 장'), step2.slice(0, 40))
+  check('안내가 지금 화면을 가리킨다 — 없어진 탭을 말하지 않는다', !step2.includes('탭에서'))
   await page.screenshot({ path: join(OUT, 'first-run.jpg'), type: 'jpeg', quality: 82 })
 
   await page.getByTestId('first-run-close').click()
@@ -599,6 +601,39 @@ try {
   check('인쇄물에도 인쇄 설정 안내가 있다', (await page.getByTestId('print-howto-toggle').count()) === 1)
   check('인쇄물에도 첫 장만 뽑는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
 
+  // ── 종이 위 글씨 크기 ───────────────────────────────────────────
+  console.log('\n[종이 글씨 크기]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/program/print`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1100)
+  const sizeBox = page.getByTestId('print-text-size')
+  check('종이 글씨 크기를 고를 수 있다', (await sizeBox.count()) === 1)
+  const sheetsNormal = Number((await page.getByTestId('print-bar').getAttribute('data-sheets')) ?? 0)
+  await sizeBox.getByRole('button', { name: '아주 크게' }).click()
+  await page.waitForTimeout(900)
+  const sheetsHuge = Number((await page.getByTestId('print-bar').getAttribute('data-sheets')) ?? 0)
+  check(
+    '키우면 장수를 다시 세어 준다 — 뽑고 나서 아시면 늦다',
+    sheetsHuge >= sheetsNormal,
+    `${sheetsNormal}장 → ${sheetsHuge}장`,
+  )
+  check('글씨를 키웠다고 적어 준다', (await page.getByTestId('print-bar').textContent()).includes('글씨를 키워'))
+  await page.screenshot({ path: join(OUT, 'print-text-size.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 책자 한 벌 · 양면 안내 ──────────────────────────────────────
+  console.log('\n[책자 한 벌]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?pack=booklet`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1100)
+  check('책자를 한 벌로 뽑을 수 있다', (await page.locator('.d-sheet').count()) >= 2)
+  const duplex = page.getByTestId('duplex-hint')
+  check('양면으로 뽑으라고 알려 준다', (await duplex.count()) === 1)
+  const duplexText = await duplex.textContent()
+  check('넘기는 방향까지 짚어 준다 — 긴 쪽이면 속장이 뒤집힌다', duplexText.includes('짧은 쪽'))
+  check('접으면 무엇이 되는지 적어 준다', duplexText.includes('반으로 접으면'))
+
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=poster-classic`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  check('보통 인쇄물에는 양면 안내를 띄우지 않는다', (await page.getByTestId('duplex-hint').count()) === 0)
+
   // ── 인쇄소용 (재단선 · 물림 여백) ────────────────────────────────
   console.log('\n[인쇄소에 맡기실 때]')
   const bleedBar = page.getByTestId('bleed-bar')
@@ -646,6 +681,32 @@ try {
   check('견적 요약도 종이로 볼 수 있다', (await page.getByTestId('paper-toggle').count()) === 1)
   await page.screenshot({ path: join(OUT, 'quote.jpg'), type: 'jpeg', quality: 82 })
 
+
+  // ── 무대 모양을 그림으로 고른다 ─────────────────────────────────
+  console.log('\n[무대 모양 고르기]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/stage`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1600)
+  const grid = page.getByTestId('layout-grid')
+  check('모양을 그림 격자로 보여 준다', (await grid.count()) === 1)
+  const tiles = await grid.locator('button').count()
+  check('열네 가지가 모두 있다', tiles === 14, `${tiles}개`)
+  const firstTile = await grid.locator('button').first().boundingBox()
+  check('그림이 눌러 볼 만한 크기다', firstTile.width >= 70 && firstTile.height >= 70, `${Math.round(firstTile.width)}×${Math.round(firstTile.height)}`)
+  await grid.locator('button').nth(9).click()
+  await page.waitForTimeout(600)
+  check('고르면 그 모양으로 바뀐다', (await grid.locator('button[aria-pressed="true"]').count()) === 1)
+  await page.screenshot({ path: join(OUT, 'layout-grid.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 행사 목록에도 어디까지 왔는지 ────────────────────────────────
+  console.log('\n[행사 목록]')
+  await page.goto(`${BASE}/events`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  const dots = page.getByTestId('progress-dots')
+  check('행사 목록에도 어디까지 왔는지 보인다', (await dots.count()) >= 1)
+  const dotsText = await dots.first().textContent()
+  check('몇 단계까지 왔는지 셈해 준다', /\d \/ \d|준비 끝/.test(dotsText), dotsText.trim())
+  const filled = await dots.first().locator('span[title]').count()
+  check('점이 세 개다 — 꼭 하셔야 하는 것이 셋이다', filled === 3, `${filled}개`)
 
   // ── 행사 파일 옮기기 ─────────────────────────────────────────────
   console.log('\n[행사 통째로 옮기기]')

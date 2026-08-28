@@ -264,3 +264,32 @@ describe('디자인 확장 — 테마 100종 · 양식 50종', () => {
     }
   })
 })
+
+describe('한 벌 인쇄', () => {
+  it('한 벌 안의 양식은 용지가 같다 — 인쇄 대화상자는 용지를 한 번만 정한다', () => {
+    for (const pack of PRINT_PACKS) {
+      const pages = new Set(pack.templates.map((id) => getTemplate(id).page))
+      expect(pages.size, pack.id).toBe(1)
+    }
+  })
+
+  it('한 벌에 담긴 양식이 모두 실제로 있는 것이다', () => {
+    const ids = new Set(DESIGN_TEMPLATES.map((t) => t.id))
+    for (const pack of PRINT_PACKS) {
+      for (const id of pack.templates) expect(ids.has(id), `${pack.id} · ${id}`).toBe(true)
+    }
+  })
+
+  it('한 벌이 실제로 두 장 이상을 묶는다 — 한 장짜리면 묶을 이유가 없다', () => {
+    for (const pack of PRINT_PACKS) {
+      expect(packTemplates(pack).length, pack.id).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('새로 넣은 양식도 한 벌로 뽑을 수 있다', () => {
+    const inPacks = new Set(PRINT_PACKS.flatMap((p) => p.templates))
+    for (const id of ['booklet-cover', 'booklet-inner', 'ticket-sheet', 'cue-cards', 'program-large']) {
+      expect(inPacks.has(id), id).toBe(true)
+    }
+  })
+})

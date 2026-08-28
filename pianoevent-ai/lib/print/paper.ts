@@ -138,3 +138,53 @@ export function firstPageClipPx(paper: Paper, marginPx = 0): number {
   // 브라우저마다 반올림이 조금씩 달라 딱 맞추면 빈 둘째 장이 붙는다. 조금 덜 잡는다.
   return Math.max(1, paper.h - marginPx * 2 - 8)
 }
+
+
+/* ─────────────────────────────────────────────────────────────────
+   양면 인쇄 · 인쇄물 글씨 크기
+   ───────────────────────────────────────────────────────────────── */
+
+/**
+ * 양면으로 뽑아야 뜻이 있는 인쇄물이 있다 — 반 접는 책자가 그렇다.
+ *
+ * 그런데 인쇄 대화상자의 양면 설정에는 **넘기는 방향**이 함께 있다.
+ * "긴 쪽 넘기기" 로 두면 뒷장이 거꾸로 찍혀 접었을 때 속장이 뒤집힌다.
+ * 원장님은 다 뽑고 접어 보신 뒤에야 아신다. 그래서 미리 적어 둔다.
+ */
+export const DUPLEX_HINT = {
+  what: '양면 인쇄',
+  how: '"양면 인쇄" 를 켜고 **"짧은 쪽 넘기기"** 를 고르세요. "긴 쪽" 으로 두면 뒷장이 거꾸로 찍힙니다.',
+} as const
+
+/** 이 양식이 양면으로 뽑아야 하는 것인가 */
+export function needsDuplex(templateIds: string[]): boolean {
+  return templateIds.some((id) => id.startsWith('booklet-'))
+}
+
+/**
+ * 인쇄물 글씨 크기.
+ *
+ * 화면 글씨는 머리띠에서 키우실 수 있는데, 정작 **종이**가 안 보이신다는 분이 계신다.
+ * 관객석은 어둡고, 순서지는 작다. 종이에서도 키울 수 있어야 한다.
+ *
+ * 다만 키우면 줄이 늘어 장수가 는다. 그래서 몇 장이 되는지 함께 보여 준다.
+ */
+export type PrintTextSize = 'normal' | 'big' | 'huge'
+
+export const PRINT_TEXT_SIZES: { id: PrintTextSize; label: string; scale: number }[] = [
+  { id: 'normal', label: '보통', scale: 1 },
+  { id: 'big', label: '크게', scale: 1.15 },
+  { id: 'huge', label: '아주 크게', scale: 1.3 },
+]
+
+export function getPrintTextSize(id: string | null | undefined): { id: PrintTextSize; label: string; scale: number } {
+  return PRINT_TEXT_SIZES.find((s) => s.id === id) ?? PRINT_TEXT_SIZES[0]
+}
+
+/**
+ * 글씨를 키우면 내용이 길어져 장수가 는다.
+ * 글씨가 1.15배면 줄 높이도 1.15배라, 세로로 차지하는 자리도 그만큼 는다.
+ */
+export function sheetsAtTextSize(contentHeightPx: number, paper: Paper, marginPx: number, id: PrintTextSize): number {
+  return sheetsNeeded(contentHeightPx * getPrintTextSize(id).scale, paper, marginPx)
+}

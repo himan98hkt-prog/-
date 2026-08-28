@@ -573,6 +573,33 @@ export const PRINT_PACKS: PrintPack[] = [
     description: '안내 표지판 · 연주자 소개 카드 · 응원 메시지 카드를 한 번에 인쇄합니다.',
     templates: ['signage', 'performer-cards', 'guestbook'],
   },
+  /* ── 새 양식으로 묶은 한 벌 ─────────────────────────────────────
+     한 벌 안의 양식은 **용지가 같아야** 한다 — 인쇄 대화상자는 용지를 한 번만 정한다.
+     그래서 A4 가로짜리(책자·부 표지)와 세로짜리를 섞지 않는다. */
+  {
+    id: 'booklet',
+    name: '책자 한 벌 (A4 가로 · 양면)',
+    description: '겉장과 속장을 한 번에. 양면으로 뽑아 반 접으면 A5 책자가 됩니다.',
+    templates: ['booklet-cover', 'booklet-inner'],
+  },
+  {
+    id: 'front-desk',
+    name: '접수·배부 한 벌',
+    description: '입장권 4매 · 좌석권 6매 · 감사 책갈피를 한 번에 인쇄합니다.',
+    templates: ['ticket-sheet', 'seat-ticket', 'thankyou-bookmark'],
+  },
+  {
+    id: 'backstage',
+    name: '무대 뒤 한 벌',
+    description: '무대 순서 카드 · 연주자 이름표를 한 번에. 스태프와 대기실에서 씁니다.',
+    templates: ['cue-cards', 'performer-tags'],
+  },
+  {
+    id: 'guest-friendly',
+    name: '손님 배려 한 벌',
+    description: '큰 글씨 순서지 · 메모 칸 순서지. 어르신 손님과 소감을 적어 가실 분께.',
+    templates: ['program-large', 'program-memo'],
+  },
 ]
 
 export function getPack(id: string | null | undefined): PrintPack | null {

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { renderTemplate } from '@/components/design/render'
 import { BleedFrame } from '@/components/print/crop-marks'
 import { PrintTips } from '@/components/print/print-tips'
-import { BLEED_MM, bleedPageCss } from '@/lib/print/paper'
+import { BLEED_MM, bleedPageCss, needsDuplex } from '@/lib/print/paper'
 import { resolveLogo, resolvePhoto } from '@/lib/assets'
 import { defaultCopy, type DesignCopy } from '@/lib/design/context'
 import { PAGE_PX, getPack, getTemplate, packTemplates, sheetCount } from '@/lib/design/templates'
@@ -93,6 +93,7 @@ export default async function DesignPrintPage({
           what={pack ? `${pack.name} (${templates.map((t) => t.name).join(' · ')})` : template.name}
           paperLabel={bleed ? `${page.label} + 물림 ${BLEED_MM}mm` : page.label}
           sheets={sheets}
+          duplex={needsDuplex(templates.map((t) => t.id))}
         />
 
         {/* 인쇄소에 맡기실 때만 필요한 것 — 평소에는 한 줄로 접어 둔다 */}

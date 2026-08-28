@@ -4,7 +4,7 @@ import { ChevronDown, FileCheck2, Printer } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { printNow } from '@/components/print/print-now'
-import { PRINT_CHECKLIST, totalSheets } from '@/lib/print/paper'
+import { DUPLEX_HINT, PRINT_CHECKLIST, totalSheets } from '@/lib/print/paper'
 import { cn } from '@/lib/utils'
 
 /**
@@ -18,12 +18,15 @@ export function PrintTips({
   paperLabel,
   sheets,
   approx = false,
+  duplex = false,
 }: {
   what: string
   paperLabel: string
   sheets: number
   /** 글 길이에 따라 한두 장 더 나올 수 있는 인쇄물이면 켠다 — 딱 떨어지는 척하지 않는다 */
   approx?: boolean
+  /** 양면으로 뽑아야 뜻이 있는 인쇄물인가 (반 접는 책자) */
+  duplex?: boolean
 }) {
   const [howto, setHowto] = useState(false)
   const [copies, setCopies] = useState(1)
@@ -65,6 +68,18 @@ export function PrintTips({
           인쇄 · PDF 저장
         </Button>
       </div>
+
+      {/* 책자는 양면으로 뽑아야 뜻이 있다. 넘기는 방향까지 틀리면 접었을 때 속장이 뒤집힌다 */}
+      {duplex && (
+        <p
+          className="mt-2 rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-xs"
+          data-testid="duplex-hint"
+        >
+          <strong>{DUPLEX_HINT.what}</strong> — 인쇄 창에서 <strong>&quot;양면 인쇄&quot;</strong> 를 켜고{' '}
+          <strong>&quot;짧은 쪽 넘기기&quot;</strong> 를 고르세요. &quot;긴 쪽&quot; 으로 두면 뒷장이 거꾸로 찍혀
+          접었을 때 속장이 뒤집힙니다. 뽑으신 뒤 <strong>반으로 접으면</strong> A5 책자가 됩니다.
+        </p>
+      )}
 
       <button
         type="button"

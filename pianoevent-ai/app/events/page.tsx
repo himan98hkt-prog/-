@@ -2,6 +2,7 @@ import { CalendarDays, MapPin, Plus, Users } from 'lucide-react'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { EventImport } from '@/components/event/event-transfer'
+import { ProgressDots } from '@/components/flow/progress-dots'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +19,12 @@ export default async function EventsPage() {
   const repo = getRepository()
   const events = await repo.listEvents(academy.id)
   const counts = await Promise.all(events.map(async (e) => (await repo.listStudents(e.id)).length))
+  // 목록에서 여러 행사를 함께 보실 때 어느 것이 급한지 아셔야 한다
+  const flows = events.map((event, index) => ({
+    hasStudents: counts[index] > 0,
+    hasProgram: event.program_source !== null,
+    hasPrint: event.status === 'published' || event.design_template !== null,
+  }))
 
   return (
     <AppShell academyName={academy.name}>
@@ -72,6 +79,7 @@ export default async function EventsPage() {
                           <Users className="h-3.5 w-3.5" aria-hidden />
                           연주자 {counts[index]}명
                         </span>
+                        <ProgressDots state={flows[index]} />
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground">열기 →</span>

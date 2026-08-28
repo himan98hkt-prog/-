@@ -24,6 +24,7 @@ import {
   PHOTO_SHAPES,
   STAGE_LAYOUTS,
   stageLayoutInfo,
+  type LayoutSketch,
   type PhotoShape,
   type StageLayout,
 } from '@/lib/stage/layouts'
@@ -323,25 +324,31 @@ export function StageScreen({
               이름은 위·오른쪽에만 — 아래는 피아노에 가립니다
             </span>
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {STAGE_LAYOUTS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setLayout(item.id)}
-                aria-pressed={item.id === layout}
-                title={item.hint}
-                className={cn(
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                  item.id === layout
-                    ? 'border-accent bg-accent/10 font-medium text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-secondary',
-                )}
-              >
-                {item.name}
-                {item.needsPhoto && photoCount === 0 ? ' · 사진 필요' : ''}
-              </button>
-            ))}
+          {/* 이름만 늘어놓으면 열네 가지를 못 고르신다 — 어디에 사진이 오고 글이 오는지 그려 준다 */}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" data-testid="layout-grid">
+            {STAGE_LAYOUTS.map((item) => {
+              const active = item.id === layout
+              const blocked = item.needsPhoto && photoCount === 0
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setLayout(item.id)}
+                  aria-pressed={active}
+                  title={item.hint}
+                  className={cn(
+                    'grid gap-1 rounded-lg border p-1.5 text-left transition-colors',
+                    active ? 'border-accent bg-accent/10' : 'border-border hover:bg-secondary',
+                  )}
+                >
+                  <LayoutThumb sketch={item.sketch} active={active} />
+                  <span className="px-0.5 text-[11px] leading-tight">
+                    <span className={cn('block truncate', active && 'font-medium')}>{item.name}</span>
+                    {blocked && <span className="block text-[10px] text-muted-foreground">사진 필요</span>}
+                  </span>
+                </button>
+              )
+            })}
           </div>
           <p className="text-xs text-muted-foreground">{stageLayoutInfo(layout).hint}</p>
 
@@ -505,5 +512,40 @@ function Toggle({
         <span className="ml-1.5 text-xs text-muted-foreground">{hint}</span>
       </span>
     </label>
+  )
+}
+
+/**
+ * 모양 고르는 자리에 뜨는 작은 그림.
+ *
+ * 실제 슬라이드를 열네 개 그리면 화면이 무거워지고, 무엇보다 아이 사진이 없으면
+ * 다 똑같아 보인다. **어디에 사진이 오고 어디에 글이 오는지**만 네모로 보여 주면
+ * 고르는 데는 그것으로 충분하다.
+ */
+function LayoutThumb({ sketch, active }: { sketch: LayoutSketch; active: boolean }) {
+  const pct = (box: { x: number; y: number; w: number; h: number }) => ({
+    left: `${box.x * 100}%`,
+    top: `${box.y * 100}%`,
+    width: `${box.w * 100}%`,
+    height: `${box.h * 100}%`,
+  })
+
+  return (
+    <span
+      className={cn(
+        'relative block w-full overflow-hidden rounded border',
+        active ? 'border-accent/50 bg-background' : 'border-border bg-muted/50',
+      )}
+      style={{ aspectRatio: '16 / 9' }}
+      aria-hidden
+    >
+      {sketch.photo && (
+        <span className="absolute rounded-[2px] bg-foreground/25" style={pct(sketch.photo)} />
+      )}
+      <span
+        className={cn('absolute rounded-[2px]', active ? 'bg-accent' : 'bg-foreground/55')}
+        style={pct(sketch.text)}
+      />
+    </span>
   )
 }

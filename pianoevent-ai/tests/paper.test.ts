@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   PAPERS,
   PAPER_LIST,
+  DUPLEX_HINT,
   PRINT_CHECKLIST,
+  PRINT_TEXT_SIZES,
   bleedPageCss,
   firstPageClipPx,
   fitScale,
   getPaper,
+  getPrintTextSize,
   mmToPx,
+  needsDuplex,
   pageBreakOffsets,
   pxToMm,
+  sheetsAtTextSize,
   sheetsNeeded,
   totalSheets,
 } from '@/lib/print/paper'
@@ -136,5 +141,43 @@ describe('첫 장만 뽑아 보기', () => {
 
   it('여백이 종이보다 커도 0 이하로 내려가지 않는다', () => {
     expect(firstPageClipPx(PAPERS['a5-portrait'], 999)).toBeGreaterThan(0)
+  })
+})
+
+describe('양면으로 뽑아야 하는 인쇄물', () => {
+  it('책자는 양면이다', () => {
+    expect(needsDuplex(['booklet-cover', 'booklet-inner'])).toBe(true)
+  })
+
+  it('보통 인쇄물은 아니다 — 안 해도 되는 것을 시키면 안 된다', () => {
+    expect(needsDuplex(['poster-classic', 'program-inner'])).toBe(false)
+  })
+
+  it('넘기는 방향까지 적어 준다 — 긴 쪽으로 두면 뒷장이 거꾸로 찍힌다', () => {
+    expect(DUPLEX_HINT.how).toContain('짧은 쪽')
+    expect(DUPLEX_HINT.how).toContain('긴 쪽')
+  })
+})
+
+describe('인쇄물 글씨 크기', () => {
+  const a4 = PAPERS['a4-portrait']
+
+  it('세 단계뿐이다 — 화면 글씨와 같은 셈법이라 헷갈리지 않는다', () => {
+    expect(PRINT_TEXT_SIZES).toHaveLength(3)
+    expect(PRINT_TEXT_SIZES.map((s) => s.label)).toEqual(['보통', '크게', '아주 크게'])
+  })
+
+  it('모르는 값은 보통으로 본다', () => {
+    expect(getPrintTextSize('없는것').id).toBe('normal')
+  })
+
+  it('키우면 장수가 는다 — 몇 장이 되는지 미리 아셔야 한다', () => {
+    const normal = sheetsAtTextSize(a4.h, a4, 53, 'normal')
+    const huge = sheetsAtTextSize(a4.h, a4, 53, 'huge')
+    expect(huge).toBeGreaterThanOrEqual(normal)
+  })
+
+  it('보통 크기는 원래 셈과 같다', () => {
+    expect(sheetsAtTextSize(2000, a4, 53, 'normal')).toBe(sheetsNeeded(2000, a4, 53))
   })
 })

@@ -15,11 +15,17 @@ describe('처음 켰을 때 안내', () => {
     }
   })
 
-  it('설명서에 적은 세 가지를 그대로 짚는다', () => {
-    const all = TOUR_STEPS.map((s) => s.title).join(' ')
-    expect(all).toContain('학생 명단')
-    expect(all).toContain('순서표')
-    expect(all).toContain('인쇄물')
+  it('지금 화면이 실제로 어떻게 생겼는지를 짚는다', () => {
+    const all = TOUR_STEPS.map((s) => `${s.title} ${s.body}`).join(' ')
+    // 카드 세 장 · 화면별 색 · 다음 단추 — 새 구조의 세 기둥이다
+    expect(all).toContain('카드 세 장')
+    expect(all).toContain('바탕색')
+    expect(all).toContain('다음')
+  })
+
+  it('없어진 화면을 가리키지 않는다 — 탭은 이제 없다', () => {
+    const all = TOUR_STEPS.map((s) => `${s.title} ${s.body} ${s.where}`).join(' ')
+    expect(all).not.toContain('탭에서')
   })
 
   it('마지막에서 다음을 누르면 닫는다', () => {

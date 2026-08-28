@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildProgram } from '@/lib/program/order'
 import { getTheme } from '@/lib/design/themes'
 import { buildStageDeck, DEFAULT_STAGE_OPTIONS } from '@/lib/stage/deck'
+import { STAGE_LAYOUTS } from '@/lib/stage/layouts'
 import { buildPptx, decodeDataUri, pptFont } from '@/lib/stage/pptx'
 import type { EventRecord } from '@/lib/types'
 import { student } from './helpers'
@@ -295,5 +296,43 @@ describe('아이 사진', () => {
     )
     expect(text).not.toContain('ppt/media/')
     expect(text).not.toContain('<Default Extension="png"')
+  })
+})
+
+describe('모양 고르는 작은 그림', () => {
+  it('모양마다 그림 자리가 있다 — 이름만으로는 열네 가지를 못 고르신다', () => {
+    for (const item of STAGE_LAYOUTS) {
+      expect(item.sketch, item.id).toBeTruthy()
+      expect(item.sketch.text, item.id).toBeTruthy()
+    }
+  })
+
+  it('네모가 화면 밖으로 나가지 않는다', () => {
+    for (const item of STAGE_LAYOUTS) {
+      const boxes = [item.sketch.text, ...(item.sketch.photo ? [item.sketch.photo] : [])]
+      for (const box of boxes) {
+        expect(box.x, item.id).toBeGreaterThanOrEqual(0)
+        expect(box.y, item.id).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.w, item.id).toBeLessThanOrEqual(1)
+        expect(box.y + box.h, item.id).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('사진이 있어야 하는 모양에만 사진 네모가 있다', () => {
+    for (const item of STAGE_LAYOUTS) {
+      expect(Boolean(item.sketch.photo), item.id).toBe(item.needsPhoto)
+    }
+  })
+
+  it('글은 아래 4분의 1에 두지 않는다 — 그랜드피아노 뚜껑에 가린다', () => {
+    for (const item of STAGE_LAYOUTS) {
+      expect(item.sketch.text.y + item.sketch.text.h, item.id).toBeLessThanOrEqual(0.76)
+    }
+  })
+
+  it('모양이 열네 가지다', () => {
+    expect(STAGE_LAYOUTS).toHaveLength(14)
+    expect(new Set(STAGE_LAYOUTS.map((s) => s.id)).size).toBe(14)
   })
 })
