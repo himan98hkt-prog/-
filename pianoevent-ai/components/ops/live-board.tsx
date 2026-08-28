@@ -228,7 +228,14 @@ export function LiveBoard({
   }
 
   return (
-    <div className="grid gap-3" data-testid="live-board">
+    /**
+     * 당일 진행 화면은 **기본으로 한 단계 크게** 그린다.
+     *
+     * 무대 옆에서 휴대폰을 들고 보시는 화면이다. 객석은 어둡고 원장님은 급하시다.
+     * 이 화면만은 머리띠에서 키우실 것을 기다리지 않고 처음부터 크게 둔다.
+     * (머리띠에서 더 키우시면 그 위에 얹혀 더 커진다.)
+     */
+    <div className="grid gap-3 text-[1.12em]" data-testid="live-board">
       {/* 지금 */}
       <section
         className={cn(

@@ -307,6 +307,28 @@ try {
   )
   await page.screenshot({ path: join(OUT, 'sticky-preview.jpg'), type: 'jpeg', quality: 82 })
 
+  // 고를 것이 있다는 사실 자체에서 멈추신다 — 하나를 미리 골라 두고 먼저 말해야 한다
+  const ready = page.getByTestId('design-ready')
+  check('무엇을 뽑을지 미리 골라 둔다', (await ready.count()) === 1)
+  const readyText = await ready.textContent()
+  check('이대로 뽑아도 된다고 말해 준다', readyText.includes('이대로 뽑으셔도 됩니다'), readyText.slice(0, 30))
+  check('왜 이걸 골랐는지 한마디 붙인다', /어울리는|그대로입니다/.test(readyText), readyText.slice(0, 120))
+  // 미리 골라 둔 것이 실제로 골라져 있어야 한다 — 말만 하고 안 골라 두면 소용없다
+  const chosen = await page.locator('[aria-pressed="true"]').count()
+  check('말한 대로 실제로 골라져 있다', chosen >= 1, `${chosen}개 선택됨`)
+
+  // 한 벌을 누르기 전에 종이가 몇 장 나오는지 아셔야 한다
+  const packButtons = page.locator('a[href*="pack="] button')
+  const packCount = await packButtons.count()
+  check('한 벌로 뽑는 자리가 있다', packCount >= 1, `${packCount}벌`)
+  const packText = await packButtons.first().textContent()
+  check('한 벌이 종이 몇 장인지 미리 적혀 있다', /종이 \d+장/.test(packText), packText.replace(/\s+/g, ' ').trim().slice(0, 60))
+  const allPacks = await packButtons.evaluateAll((nodes) => nodes.map((n) => n.textContent ?? ''))
+  const withSheets = allPacks.filter((t) => /종이 \d+장/.test(t)).length
+  check('모든 한 벌에 장수가 적혀 있다', withSheets === packCount, `${withSheets} / ${packCount}`)
+  const zeroSheets = allPacks.filter((t) => /종이 0장/.test(t)).length
+  check('장수가 0장으로 나오지 않는다', zeroSheets === 0, `${zeroSheets}벌`)
+
   // 좁은 화면에서도 가로로 넘치지 않아야 한다 (넘치면 단추가 화면 밖으로 나간다)
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const small = await phone.newPage()
@@ -823,6 +845,56 @@ try {
   const shown = await page.getByTestId('backup-path').textContent()
   check('폴더 경로를 보여 준다 — 창이 안 뜨는 컴퓨터도 있다', shown.includes('백업'), shown)
   check('경로를 복사할 수 있다', (await backupBox.getByRole('button', { name: '경로 복사' }).count()) === 1)
+
+  // ── 구경용 행사 ──────────────────────────────────────────────────
+  // 처음 켜시면 목록이 비어 있다. 볼 것이 없으면 이 프로그램이 무엇인지 모른 채 닫으신다.
+  console.log('\n[구경용 행사]')
+  await page.goto(`${BASE}/events`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(800)
+  const demoBox = page.getByTestId('demo-event').first()
+  check('구경용 행사를 만드는 자리가 있다', (await demoBox.count()) === 1)
+  const demoWords = await demoBox.textContent()
+  check('지워도 된다고 미리 말해 준다', demoWords.includes('지우시면'), demoWords.slice(0, 60))
+
+  await demoBox.getByRole('button', { name: '구경용 행사 만들기' }).click()
+  await page.waitForURL(/\/events\/[^/]+$/, { timeout: 30_000 }).catch(() => {})
+  await page.waitForTimeout(2500)
+  const demoId = (page.url().match(/\/events\/([^/?]+)/) ?? [])[1]
+  check('누르면 그 행사로 곧장 들어간다', Boolean(demoId) && demoId !== EVENT_ID, demoId ?? page.url())
+
+  const demoStudents = (await (await page.request.get(`${BASE}/api/events/${demoId}/students`)).json()).students
+  check('아이 명단이 채워져 있다', demoStudents.length >= 10, `${demoStudents.length}명`)
+  check('곡까지 다 적혀 있다', demoStudents.every((s) => (s.piece_title ?? '').length > 0))
+  check('사진까지 들어가 있다', demoStudents.filter((s) => s.photo_asset_id).length >= 10, `${demoStudents.filter((s) => s.photo_asset_id).length}장`)
+
+  const demoEvent = ((await (await page.request.get(`${BASE}/api/events`)).json()).events ?? []).find((e) => e.id === demoId)
+  check('연주 순서까지 이미 짜여 있다', Boolean(demoEvent?.program_source), String(demoEvent?.program_source))
+  check('구경용이라고 이름에 적혀 있다', (demoEvent?.title ?? '').includes('지우셔도'), demoEvent?.title)
+  await page.screenshot({ path: join(OUT, 'demo-event.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 무대 모양 그림에 진짜 사진이 들어간다 ────────────────────────
+  console.log('\n[무대 모양 — 내 아이 사진으로]')
+  await page.goto(`${BASE}/events/${demoId}/stage`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2000)
+  const faceTiles = page.locator('[data-testid="layout-grid"] img')
+  check('모양 그림에 실제 사진이 들어간다 — 회색 네모가 아니다', (await faceTiles.count()) >= 1, `${await faceTiles.count()}장`)
+  const facesOk = await faceTiles.evaluateAll((nodes) =>
+    nodes.filter((n) => n instanceof HTMLImageElement && n.complete && n.naturalWidth > 0).length,
+  )
+  check('그 사진이 실제로 뜬다', facesOk >= 1, `${facesOk}장`)
+  await page.screenshot({ path: join(OUT, 'layout-face.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 행사 당일 화면 글씨 ──────────────────────────────────────────
+  // 무대 옆 어두운 곳에서, 손에 든 화면을 흘깃 보시는 자리다. 글씨가 커야 한다
+  console.log('\n[행사 당일 화면]')
+  await page.goto(`${BASE}/events/${demoId}/live`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1500)
+  const board = page.getByTestId('live-board')
+  check('당일 진행 화면이 뜬다', (await board.count()) === 1)
+  const liveFont = await board.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  const baseFont = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize))
+  check('당일 화면 글씨가 보통보다 크다', liveFont > baseFont, `${liveFont.toFixed(1)}px / ${baseFont.toFixed(1)}px`)
+  await page.screenshot({ path: join(OUT, 'live-big.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 설명서 그림 ──────────────────────────────────────────────────
   console.log('\n[설명서 그림]')

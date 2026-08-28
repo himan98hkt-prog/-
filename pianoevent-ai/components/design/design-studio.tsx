@@ -16,6 +16,7 @@ import {
   PAGE_PX,
   PRINT_PACKS,
   getTemplate,
+  packTemplates,
   sheetCount,
   templatesByCategory,
   type TemplateCategory,
@@ -28,6 +29,7 @@ import {
 } from '@/lib/design/themes'
 import type { Academy, EventRecord, ProgramPlan, Rsvp } from '@/lib/types'
 import { ThemePicker } from '@/components/design/theme-picker'
+import { describePick, recommendDesign } from '@/lib/design/recommend'
 import { cn } from '@/lib/utils'
 
 const PREVIEW_WIDTH = 520
@@ -48,19 +50,31 @@ export function DesignStudio({
   inviteUrl: string
   initialCopy: DesignCopy
 }) {
-  const [templateId, setTemplateId] = useState(event.design_template ?? 'poster-classic')
-  const [themeId, setThemeId] = useState(event.design_theme ?? academy.design_theme ?? 'classic-navy')
+  /**
+   * 처음 열면 **이미 골라진 채로** 열린다.
+   * 고르신 것이 있으면 그것을, 없으면 행사 달에 어울리는 것을 미리 정해 둔다.
+   */
+  const pick = useMemo(
+    () =>
+      recommendDesign({
+        eventAt: event.event_at,
+        hasProgram: plan.items.length > 0,
+        themeId: event.design_theme ?? academy.design_theme ?? null,
+        templateId: event.design_template ?? null,
+      }),
+    [event.event_at, event.design_theme, event.design_template, academy.design_theme, plan.items.length],
+  )
+  const [templateId, setTemplateId] = useState(pick.templateId)
+  const [themeId, setThemeId] = useState(pick.themeId)
   const [copy, setCopy] = useState<DesignCopy>(initialCopy)
   const [photoUrl, setPhotoUrl] = useState(event.photo_url ?? '')
   const [imageMap, setImageMap] = useState<ImageMap>(event.image_map ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   // 양식 40종·테마 100종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
-  const [category, setCategory] = useState<TemplateCategory>(getTemplate(event.design_template ?? 'poster-classic').category)
+  const [category, setCategory] = useState<TemplateCategory>(getTemplate(pick.templateId).category)
   const [themeQuery, setThemeQuery] = useState('')
-  const [family, setFamily] = useState<ThemeFamily>(
-    getTheme(event.design_theme ?? academy.design_theme ?? 'classic-navy').family,
-  )
+  const [family, setFamily] = useState<ThemeFamily>(getTheme(pick.themeId).family)
 
   // 행사 달에 맞는 계절 테마 — 40종을 다 훑지 않아도 되게
   const template = getTemplate(templateId)
@@ -124,6 +138,9 @@ export function DesignStudio({
   const scale = Math.min(avail.w / page.w, avail.h > 0 ? avail.h / page.h : Number.POSITIVE_INFINITY)
 
   const sheets = sheetCount(templateId, plan.items.length)
+  /** 한 벌이 종이 몇 장인지 — 고르시는 자리에서 아셔야 한다 */
+  const packSheets = (pack: (typeof PRINT_PACKS)[number]) =>
+    packTemplates(pack).reduce((sum, item) => sum + sheetCount(item.id, plan.items.length), 0)
   const blocked = template.needsProgram && plan.items.length === 0
 
   async function save() {
@@ -153,6 +170,16 @@ export function DesignStudio({
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[340px_1fr]">
       <div className="order-2 grid min-w-0 gap-5 [&>*]:min-w-0 lg:order-1">
+        {/* 고를 것이 있다는 사실 자체에서 멈추신다. 하나를 미리 정해 두고 먼저 말한다 */}
+        <section className="grid gap-1.5 rounded-lg border border-accent/40 bg-accent/5 p-3" data-testid="design-ready">
+          <p className="text-sm font-medium">이대로 뽑으셔도 됩니다</p>
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-foreground">{describePick(pick)}</strong> 로 맞춰 두었습니다. {pick.why}{' '}
+            오른쪽 그림이 그대로 나옵니다 — 아래 <strong>[인쇄 · PDF]</strong> 만 누르시면 됩니다.
+          </p>
+          <p className="text-xs text-muted-foreground">바꾸고 싶은 것이 있을 때만 아래를 손보세요.</p>
+        </section>
+
         <Card>
           <CardHeader>
             <CardTitle>양식 · {DESIGN_TEMPLATE_COUNT}종</CardTitle>
@@ -272,7 +299,13 @@ export function DesignStudio({
                   className="h-auto w-full justify-start whitespace-normal py-2.5 text-left"
                 >
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">{pack.name}</span>
+                    <span className="block text-sm font-medium">
+                      {pack.name}
+                      {/* 몇 장이 나오는지는 고르시는 자리에서 아셔야 한다 — 눌러 들어가 보고 아시면 늦다 */}
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        종이 {packSheets(pack)}장
+                      </span>
+                    </span>
                     <span className="block text-xs font-normal text-muted-foreground">{pack.description}</span>
                   </span>
                 </Button>

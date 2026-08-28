@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Plus, Users } from 'lucide-react'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
+import { DemoEventButton } from '@/components/event/demo-event'
 import { EventImport } from '@/components/event/event-transfer'
 import { ProgressDots } from '@/components/flow/progress-dots'
 import { Badge } from '@/components/ui/badge'
@@ -42,11 +43,25 @@ export default async function EventsPage() {
 
       {events.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">등록된 행사가 없습니다.</p>
-            <Link href="/events/new" className="mt-4 inline-block">
-              <Button variant="outline">첫 행사 만들기</Button>
-            </Link>
+          <CardContent className="grid justify-items-center gap-5 py-14 text-center">
+            <div>
+              <p className="text-sm text-muted-foreground">아직 행사가 없습니다.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                무엇을 해 주는 프로그램인지 <strong className="text-foreground">먼저 구경해 보세요.</strong>
+              </p>
+            </div>
+
+            {/* 빈 화면에서 시작하면 무엇을 눌러도 볼 것이 없다 */}
+            <DemoEventButton empty />
+
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-xs text-muted-foreground">바로 시작하실 준비가 되셨으면</p>
+              <Link href="/events/new">
+                <Button variant="outline" size="sm">
+                  첫 행사 만들기
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -92,8 +107,13 @@ export default async function EventsPage() {
       )}
 
       {/* 다른 컴퓨터에서 하시던 행사를 그대로 여실 수 있게 */}
-      <div className="mt-6">
+      <div className="mt-6 grid gap-4">
         <EventImport />
+        {events.length > 0 && (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <DemoEventButton />
+          </div>
+        )}
       </div>
     </AppShell>
   )

@@ -64,6 +64,17 @@ for (const name of ['학생명단-예시.xlsx', '학생명단-학년별-예시.x
   if (fs.existsSync(src)) fs.copyFileSync(src, path.join(samples, name))
 }
 
+// 4-2) 연습용 사진 — 사진 넣기를 한 번 해 보셔야 무대 화면·감동영상이 무엇인지 아신다.
+//      학원 아이 사진을 쓰시기 전에 연습부터 하시라고 그린 얼굴 그림을 같이 넣는다.
+const faces = path.join(root, '연습용-사진')
+const faceSrc = path.join(OUT, '연습용-사진')
+if (fs.existsSync(faceSrc)) {
+  fs.mkdirSync(faces, { recursive: true })
+  for (const name of fs.readdirSync(faceSrc)) {
+    fs.copyFileSync(path.join(faceSrc, name), path.join(faces, name))
+  }
+}
+
 // 5) 압축
 fs.mkdirSync(OUT, { recursive: true })
 fs.rmSync(ZIP, { force: true })

@@ -88,6 +88,14 @@ export function StageScreen({
 
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const photoCount = Object.keys(photos).length
+  /**
+   * 모양 그림에 넣을 아이 사진 한 장.
+   *
+   * 회색 네모만 보여 드리면 "여기에 뭐가 들어가나" 를 머리로 그리셔야 한다.
+   * 실제로 넣어 두신 얼굴이 들어가면 고르는 일이 훨씬 쉬워진다.
+   * 사진이 아직 없으면 회색 네모 그대로 둔다 — 없는 것을 지어내지 않는다.
+   */
+  const sampleFace = Object.values(photos)[0] ?? null
   const slides = useMemo(
     () => buildStageDeck(event, plan, academyName, options, photos),
     [event, plan, academyName, options, photos],
@@ -341,7 +349,7 @@ export function StageScreen({
                     active ? 'border-accent bg-accent/10' : 'border-border hover:bg-secondary',
                   )}
                 >
-                  <LayoutThumb sketch={item.sketch} active={active} />
+                  <LayoutThumb sketch={item.sketch} active={active} face={sampleFace} />
                   <span className="px-0.5 text-[11px] leading-tight">
                     <span className={cn('block truncate', active && 'font-medium')}>{item.name}</span>
                     {blocked && <span className="block text-[10px] text-muted-foreground">사진 필요</span>}
@@ -522,7 +530,16 @@ function Toggle({
  * 다 똑같아 보인다. **어디에 사진이 오고 어디에 글이 오는지**만 네모로 보여 주면
  * 고르는 데는 그것으로 충분하다.
  */
-function LayoutThumb({ sketch, active }: { sketch: LayoutSketch; active: boolean }) {
+function LayoutThumb({
+  sketch,
+  active,
+  face,
+}: {
+  sketch: LayoutSketch
+  active: boolean
+  /** 실제로 넣어 두신 아이 사진 한 장. 없으면 회색 네모로 둔다 */
+  face?: string | null
+}) {
   const pct = (box: { x: number; y: number; w: number; h: number }) => ({
     left: `${box.x * 100}%`,
     top: `${box.y * 100}%`,
@@ -539,9 +556,18 @@ function LayoutThumb({ sketch, active }: { sketch: LayoutSketch; active: boolean
       style={{ aspectRatio: '16 / 9' }}
       aria-hidden
     >
-      {sketch.photo && (
-        <span className="absolute rounded-[2px] bg-foreground/25" style={pct(sketch.photo)} />
-      )}
+      {sketch.photo &&
+        (face ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={face}
+            alt=""
+            className="absolute rounded-[2px] object-cover"
+            style={pct(sketch.photo)}
+          />
+        ) : (
+          <span className="absolute rounded-[2px] bg-foreground/25" style={pct(sketch.photo)} />
+        ))}
       <span
         className={cn('absolute rounded-[2px]', active ? 'bg-accent' : 'bg-foreground/55')}
         style={pct(sketch.text)}

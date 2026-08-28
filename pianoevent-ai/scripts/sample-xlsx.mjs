@@ -219,6 +219,30 @@ const BY_GRADE = [
   },
 ]
 
+/**
+ * 연습용 아이 사진.
+ *
+ * 이름만 든 명단으로는 **사진이 들어간 결과물**(무대 화면 · 감동영상)을 연습해 보실 수가
+ * 없다. 그래서 아이 수만큼 작은 그림을 만들어 이름을 붙여 둔다 —
+ * 프로그램이 파일 이름으로 아이와 짝지으므로, 통째로 올리시면 그대로 붙는다.
+ *
+ * 진짜 아이 사진을 넣을 수는 없다(그럴 사진도 없고, 넣어서도 안 된다).
+ * 이름 첫 글자를 크게 적은 색 카드로 만든다 — 자리에 무엇이 들어가는지는 그것으로 보인다.
+ */
+function faceJpeg(label, hue) {
+  // 아주 작은 SVG 를 그대로 파일로 둔다. 브라우저도 프로그램도 그림으로 읽는다.
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="hsl(${hue} 62% 78%)"/><stop offset="1" stop-color="hsl(${hue} 54% 60%)"/>
+  </linearGradient></defs>
+  <rect width="480" height="480" fill="url(#g)"/>
+  <circle cx="240" cy="196" r="86" fill="rgba(255,255,255,.72)"/>
+  <path d="M104 420c0-78 61-128 136-128s136 50 136 128z" fill="rgba(255,255,255,.72)"/>
+  <text x="240" y="222" text-anchor="middle" font-family="system-ui, sans-serif" font-size="86"
+        font-weight="700" fill="hsl(${hue} 45% 32%)">${label}</text>
+</svg>`
+}
+
 mkdirSync(OUT, { recursive: true })
 
 const one = join(OUT, '학생명단-예시.xlsx')
@@ -229,4 +253,14 @@ const many = join(OUT, '학생명단-학년별-예시.xlsx')
 writeFileSync(many, workbook(BY_GRADE))
 console.log(`  ✓ ${many} — 장 ${BY_GRADE.length}개 (${BY_GRADE.map((s) => s.name).join(' · ')})`)
 
-console.log('\n연습용 엑셀 2개를 만들었습니다.')
+// ── 연습용 아이 사진 — 파일 이름으로 짝지어진다
+const faces = join(OUT, '연습용-사진')
+mkdirSync(faces, { recursive: true })
+const names = ONE.slice(1).map((row) => row[0])
+names.forEach((name, index) => {
+  const hue = Math.round((index * 360) / names.length)
+  writeFileSync(join(faces, `${name}.svg`), faceJpeg(name.slice(1, 2) || name.slice(0, 1), hue), 'utf8')
+})
+console.log(`  ✓ ${faces} — 아이 ${names.length}명 분 (파일 이름으로 짝지어집니다)`)
+
+console.log('\n연습용 엑셀 2개와 사진 한 벌을 만들었습니다.')
