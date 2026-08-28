@@ -4,7 +4,7 @@
     "slug": "petvoice-ai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "petvoice",
     "icon": "./assets/icon.png",
     "splash": {
@@ -40,7 +40,9 @@
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "SYSTEM_ALERT_WINDOW"
       ]
     },
     "plugins": [

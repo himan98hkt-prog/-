@@ -11,6 +11,22 @@
 
 ---
 
+## 실기기에서 테스트하기
+
+우리 개 짖는 소리를 실제로 넣어 보려면 폰에 설치해야 합니다.
+Expo Go 와 웹 미리보기로는 안 됩니다 — 녹음·저장·분석에 필요한 네이티브 모듈이 없습니다.
+
+```bash
+npm install -g eas-cli && eas login
+eas build --profile test --platform android    # QR 로 APK 받아 설치
+```
+
+설치 후 `설정 ▸ 테스트 모드` 에 [Google AI Studio](https://aistudio.google.com/apikey) 키를 넣으면
+Supabase 없이 바로 실제 분석이 됩니다. 키는 기기 보안 저장소에만 저장되고,
+이 화면은 `test` 프로필 빌드에만 나타납니다 (`production` 은 플래그를 끕니다).
+
+무엇을 어떤 순서로 확인해야 하는지는 → **[docs/MOBILE_TEST.md](docs/MOBILE_TEST.md)**
+
 ## 빠른 시작
 
 ```bash

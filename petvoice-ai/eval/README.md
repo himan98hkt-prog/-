@@ -114,6 +114,12 @@ node eval/make-controls.mjs      # 대조군 오디오 생성
 
 ---
 
+## 폰에서 바로 해 보려면
+
+파일로 모으기 전에 손으로 먼저 확인하는 편이 빠릅니다.
+APK 를 설치하고 무음·TV 소리·본인 목소리를 넣어 보는 절차는
+[`docs/MOBILE_TEST.md`](../docs/MOBILE_TEST.md) 에 정리해 뒀습니다.
+
 ## 데이터셋 만들기
 
 `dataset/manifest.json` 형식은 `manifest.example.json` 을 보세요.

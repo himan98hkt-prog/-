@@ -263,6 +263,16 @@ export const ja: Record<TranslationKey, string> = {
   'notify.weekly.body': '{name}の1週間の気持ちの流れを見てみましょう。',
   'notify.petFallback': 'うちの子',
 
+  'testMode.title': 'テストモード（開発者向け）',
+  'testMode.warning': 'リリース版は AI キーをサーバーにのみ置きます。この画面は精度を確認するテストビルドにだけ現れ、キーはこの端末の安全な保管領域にのみ保存されます。',
+  'testMode.placeholder': 'Google AI Studio で発行したキー',
+  'testMode.save': 'キーを保存',
+  'testMode.clear': 'キーを削除',
+  'testMode.saved': '保存済み · {masked}',
+  'testMode.empty': 'キーがないためデモ応答で動作します。',
+  'testMode.savedToast': 'キーを保存しました。実際の分析が有効になります。',
+  'testMode.clearedToast': 'キーを削除しました。',
+
   'settings.title': '設定',
   'settings.subscription': 'サブスクリプション',
   'settings.myPets': 'うちの子',

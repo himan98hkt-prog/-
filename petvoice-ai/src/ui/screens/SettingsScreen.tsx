@@ -13,6 +13,7 @@ import { useT } from '../../i18n/useT';
 import { cancelAllReminders, syncReminders } from '../../notifications';
 import { useActivePet, usePetStore, useIsPro, useQuota } from '../../store/usePetStore';
 import { Badge, Button, Card, Chip, SectionTitle, ToggleRow } from '../components/Basics';
+import { TestModeCard } from '../components/TestModeCard';
 import { LINKS } from '../links';
 import { useNavigation } from '../navigation';
 import { font, HIT_SIZE, radius, space } from '../theme';
@@ -268,6 +269,8 @@ export function SettingsScreen() {
           <Button label={t('settings.deleteAccount')} variant="danger" loading={deleting} onPress={confirmAccountDelete} />
         ) : null}
       </Card>
+
+      <TestModeCard />
 
       <Card style={{ gap: space.sm }}>
         <SectionTitle>{t('settings.appInfo')}</SectionTitle>

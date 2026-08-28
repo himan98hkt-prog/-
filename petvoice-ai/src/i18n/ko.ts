@@ -261,6 +261,16 @@ export const ko = {
   'notify.weekly.body': '{name}의 한 주 감정 흐름을 확인해 보세요.',
   'notify.petFallback': '우리 아이',
 
+  'testMode.title': '테스트 모드 (개발자용)',
+  'testMode.warning': '출시 앱은 AI 키를 서버에만 둡니다. 이 화면은 정확도를 직접 확인해 보려는 테스트 빌드에만 나타나고, 키는 이 기기의 보안 저장소에만 저장됩니다.',
+  'testMode.placeholder': 'Google AI Studio 에서 발급한 키',
+  'testMode.save': '키 저장',
+  'testMode.clear': '키 삭제',
+  'testMode.saved': '저장됨 · {masked}',
+  'testMode.empty': '키가 없어 데모 응답으로 동작합니다.',
+  'testMode.savedToast': '키를 저장했어요. 이제 실제 분석이 됩니다.',
+  'testMode.clearedToast': '키를 삭제했어요.',
+
   'settings.title': '설정',
   'settings.subscription': '구독',
   'settings.myPets': '내 반려동물',

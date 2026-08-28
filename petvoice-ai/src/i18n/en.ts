@@ -263,6 +263,17 @@ export const en: Record<TranslationKey, string> = {
   'notify.weekly.body': 'See how {name} felt over the week.',
   'notify.petFallback': 'your pet',
 
+  'testMode.title': 'Test mode (developers)',
+  'testMode.warning':
+    "The released app keeps the AI key on the server only. This screen appears only in test builds meant for checking accuracy, and the key is stored solely in this device's secure storage.",
+  'testMode.placeholder': 'Key issued in Google AI Studio',
+  'testMode.save': 'Save key',
+  'testMode.clear': 'Delete key',
+  'testMode.saved': 'Saved · {masked}',
+  'testMode.empty': 'No key — running on demo responses.',
+  'testMode.savedToast': 'Key saved. Real analysis is on now.',
+  'testMode.clearedToast': 'Key deleted.',
+
   'settings.title': 'Settings',
   'settings.subscription': 'Subscription',
   'settings.myPets': 'My pets',
