@@ -2,6 +2,7 @@ import { ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { ScreenHeader } from '@/components/flow/screen-header'
 import { RsvpDashboard } from '@/components/rsvp/rsvp-dashboard'
 import { SharePanel } from '@/components/rsvp/share-panel'
 import { PublishToggle } from '@/components/event/publish-toggle'
@@ -19,20 +20,20 @@ export default async function InviteAdminPage({ params }: { params: { id: string
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
 
-  const rsvps = await repo.listRsvps(event.id)
+  const [rsvps, students] = await Promise.all([repo.listRsvps(event.id), repo.listStudents(event.id)])
 
   return (
     <AppShell academyName={academy.name}>
-      <div className="mb-6">
-        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
-          ← {event.title}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">모바일 초대장</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {formatEventDate(event.event_at)}
-          {event.venue ? ` · ${event.venue}` : ''}
-        </p>
-      </div>
+      <ScreenHeader
+        step="invite"
+        eventId={event.id}
+        eventTitle={event.title}
+        state={{
+          hasStudents: students.length > 0,
+          hasProgram: event.program_source !== null,
+          hasPrint: event.status === 'published' || event.design_template !== null,
+        }}
+      />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-5">

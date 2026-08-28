@@ -37,6 +37,19 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'ss01', 'cv01';
+    /* 화면(단계)마다 바탕색이 다르다. 기본은 여느 화면과 같은 색 */
+    --screen-bg: hsl(var(--background));
+  }
+
+  /* 어느 화면인지 색으로 먼저 안다 — 글로 적어 두면 안 읽으신다 */
+  .app-shell {
+    background: var(--screen-bg);
+  }
+
+  @media print {
+    .app-shell {
+      background: #fff;
+    }
   }
 }
 

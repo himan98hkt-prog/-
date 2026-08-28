@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { ScreenHeader } from '@/components/flow/screen-header'
 import { StageScreen } from '@/components/stage/stage-screen'
 import { resolveLogo, studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
@@ -57,11 +58,18 @@ export default async function StagePage({
           `,
         }}
       />
+      <ScreenHeader
+        step="stage"
+        eventId={event.id}
+        eventTitle={event.title}
+        state={{
+          hasStudents: students.length > 0,
+          hasProgram: event.program_source !== null,
+          hasPrint: event.status === 'published' || event.design_template !== null,
+        }}
+      />
+
       <div className="mb-5 no-print">
-        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
-          ← {event.title}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">무대 화면</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {formatEventDate(event.event_at)} · 학생 {plan.items.length}명 · 슬라이드 {slideCount}장 — 명단과 순서표에서
           바로 만들어집니다. 순서를 바꾸면 이 화면도 함께 바뀝니다.

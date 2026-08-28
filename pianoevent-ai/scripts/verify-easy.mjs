@@ -232,6 +232,88 @@ try {
   await page.waitForTimeout(500)
   check('새로고침해도 다시 뜨지 않는다', (await page.getByTestId('first-run').count()) === 0)
 
+  // ── 화면 구조 · 어디까지 왔는지 ─────────────────────────────────
+  console.log('\n[구조 — 무엇을 먼저 하나]')
+  await page.goto(`${BASE}/events/${EVENT_ID}`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+
+  const hub = page.getByTestId('event-hub')
+  check('행사 화면이 차례 안내로 열린다', (await hub.count()) === 1)
+  const cards = await hub.locator('li').count()
+  check('꼭 하셔야 하는 것은 세 가지뿐이다', cards === 3, `${cards}개`)
+  const hubText = await hub.textContent()
+  check('세 가지만 하면 된다고 먼저 말해 준다', (await page.textContent('body')).includes('이 세 가지만 하시면 됩니다'))
+
+  // 지금 할 것 하나만 도드라져야 한다
+  const nowCards = await hub.locator('[data-now="yes"]').count()
+  check('지금 하실 것 하나만 도드라진다', nowCards === 1, `${nowCards}개`)
+  check('그 카드에 "지금 하실 차례" 라고 적어 준다', hubText.includes('지금 하실 차례입니다'))
+  check('끝난 것은 끝났다고 적어 준다', hubText.includes('끝났습니다'))
+
+  // 나머지는 접혀 있다 — 필수와 곁들이를 눈으로 가른다
+  const extras = page.getByTestId('event-extras')
+  check('나머지는 접혀 있다', (await extras.count()) === 1)
+  check('안 해도 된다고 적어 준다', (await extras.textContent()).includes('안 하셔도 연주회는 됩니다'))
+  const extraVisible = await extras.locator('[data-testid^="extra-"]').first().isVisible()
+  check('펴기 전에는 곁들이가 안 보인다', !extraVisible)
+  await extras.locator('summary').click()
+  await page.waitForTimeout(300)
+  check('펴면 곁들이가 나온다', await extras.locator('[data-testid^="extra-"]').first().isVisible())
+  await page.screenshot({ path: join(OUT, 'hub.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 화면마다 색이 다르고, 어디까지 왔는지 늘 보인다 ───────────────
+  console.log('\n[구조 — 여기가 어디인가]')
+  const tints = []
+  for (const [name, at] of [
+    ['roster', `/events/${EVENT_ID}?tab=roster`],
+    ['program', `/events/${EVENT_ID}?tab=program`],
+    ['print', `/events/${EVENT_ID}/design`],
+    ['video', `/events/${EVENT_ID}/video`],
+  ]) {
+    await page.goto(`${BASE}${at}`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(700)
+    const header = page.getByTestId('screen-header')
+    check(`${name} — 화면 맨 위에 단계 띠가 있다`, (await header.count()) === 1)
+    check(`${name} — 어디까지 왔는지 함께 보여 준다`, (await page.getByTestId('flow-progress').count()) === 1)
+    tints.push(await page.evaluate(() => getComputedStyle(document.querySelector('.app-shell')).backgroundColor))
+  }
+  check('화면마다 바탕색이 다르다 — 같으면 어디인지 알 수 없다', new Set(tints).size === tints.length, tints.join(' / '))
+
+  const optional = await page.getByTestId('screen-header').textContent()
+  check('곁들이 화면은 안 해도 된다고 적어 준다', optional.includes('안 하셔도 됩니다'))
+  check('다음에 갈 곳을 알려 준다', (await page.getByTestId('flow-next').count()) === 1)
+
+  await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  const must = await page.getByTestId('screen-header').textContent()
+  check('꼭 해야 하는 화면은 몇 번째인지 적어 준다', /꼭 하셔야 하는 \d번째/.test(must), must.slice(0, 40))
+
+  // ── 테마·색을 고르는 동안 미리보기가 사라지지 않는다 ──────────────
+  console.log('\n[구조 — 고르는 동안 보이는가]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/design`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1500)
+  const designPreview = page.getByTestId('design-preview')
+  check('인쇄물 미리보기가 있다', (await designPreview.count()) === 1)
+  const beforeScroll = await designPreview.boundingBox()
+  await page.evaluate(() => window.scrollTo(0, 900))
+  await page.waitForTimeout(600)
+  const afterScroll = await designPreview.boundingBox()
+  check(
+    '테마를 고르러 내려가도 미리보기가 화면에 남는다',
+    afterScroll !== null && afterScroll.y + afterScroll.height > 0 && afterScroll.y < 900,
+    `${Math.round(beforeScroll?.y ?? -1)} → ${Math.round(afterScroll?.y ?? -1)}`,
+  )
+  await page.screenshot({ path: join(OUT, 'sticky-preview.jpg'), type: 'jpeg', quality: 82 })
+
+  // 좁은 화면에서도 가로로 넘치지 않아야 한다 (넘치면 단추가 화면 밖으로 나간다)
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const small = await phone.newPage()
+  await small.goto(`${BASE}/events/${EVENT_ID}/design`, { waitUntil: 'networkidle' })
+  await small.waitForTimeout(1200)
+  const over = await small.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  check('휴대폰에서 가로로 넘치지 않는다', over <= 0, `${over}px`)
+  await phone.close()
+
   // ── 엑셀 파일 끌어다 놓기 ────────────────────────────────────────
   console.log('\n[엑셀 파일 그대로 넣기]')
   await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })

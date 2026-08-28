@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, Printer, Save } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ImagePicker } from '@/components/design/image-picker'
 import { renderTemplate } from '@/components/design/render'
 import { Badge } from '@/components/ui/badge'
@@ -87,7 +87,42 @@ export function DesignStudio({
   )
 
   const page = PAGE_PX[template.page]
-  const scale = PREVIEW_WIDTH / page.w
+
+  /**
+   * 미리보기가 **늘 보여야** 한다.
+   *
+   * 예전에는 테마·색을 고르러 아래로 내려가면 미리보기가 화면 위로 사라졌다.
+   * 색을 눌러도 무엇이 바뀌었는지 볼 수가 없으니, 고르는 일이 찍기가 된다.
+   *
+   * 그래서 미리보기를 화면에 붙여 두고(sticky), 남은 자리에 맞게 줄여 그린다.
+   * 좁은 화면에서는 위쪽에 붙고, 넓은 화면에서는 오른쪽에 붙는다.
+   */
+  /**
+   * 자리를 **창 크기에서** 잰다.
+   *
+   * 처음에는 미리보기 상자 자신을 쟀는데, 그 상자의 너비가 곧 칸의 너비였다.
+   * 상자가 넓어지면 칸이 넓어지고, 칸이 넓어지면 다시 상자가 넓어진다 —
+   * 서로를 밀어 좁은 화면에서 가로로 넘쳤다. 창은 아무것도 밀지 않으므로 창을 잰다.
+   */
+  const [avail, setAvail] = useState({ w: PREVIEW_WIDTH, h: 0 })
+
+  useEffect(() => {
+    const measure = () => {
+      const wide = window.innerWidth >= 1024
+      setAvail({
+        w: wide ? PREVIEW_WIDTH : Math.max(200, Math.min(window.innerWidth - 48, PREVIEW_WIDTH)),
+        // 좁은 화면에서는 미리보기가 화면을 다 먹으면 안 된다 — 아래 고르는 칸이 보여야 한다
+        h: wide ? 0 : Math.round(window.innerHeight * 0.32),
+      })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // 가로와 세로 **둘 다** 들어가게 줄인다. 한쪽만 맞추면 긴 인쇄물이 잘린다.
+  const scale = Math.min(avail.w / page.w, avail.h > 0 ? avail.h / page.h : Number.POSITIVE_INFINITY)
+
   const sheets = sheetCount(templateId, plan.items.length)
   const blocked = template.needsProgram && plan.items.length === 0
 
@@ -116,8 +151,8 @@ export function DesignStudio({
   const printUrl = `/events/${event.id}/design/print?template=${templateId}&theme=${themeId}`
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-      <div className="grid gap-5">
+    <div className="grid items-start gap-6 lg:grid-cols-[340px_1fr]">
+      <div className="order-2 grid min-w-0 gap-5 [&>*]:min-w-0 lg:order-1">
         <Card>
           <CardHeader>
             <CardTitle>양식 · {DESIGN_TEMPLATE_COUNT}종</CardTitle>
@@ -224,9 +259,19 @@ export function DesignStudio({
           </CardHeader>
           <CardContent className="grid gap-2">
             {PRINT_PACKS.map((pack) => (
-              <a key={pack.id} href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`} target="_blank" rel="noreferrer">
-                <Button variant="outline" className="h-auto w-full justify-start py-2.5 text-left">
-                  <span>
+              <a
+                key={pack.id}
+                href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="min-w-0"
+              >
+                {/* 단추는 본디 한 줄짜리다. 설명이 길어 좁은 화면에서 가로로 넘쳤다 — 줄바꿈을 열어 준다 */}
+                <Button
+                  variant="outline"
+                  className="h-auto w-full justify-start whitespace-normal py-2.5 text-left"
+                >
+                  <span className="min-w-0">
                     <span className="block text-sm font-medium">{pack.name}</span>
                     <span className="block text-xs font-normal text-muted-foreground">{pack.description}</span>
                   </span>
@@ -268,27 +313,36 @@ export function DesignStudio({
             </div>
           </CardContent>
         </Card>
+
+        {/* 다 고르셨으면 여기서 저장하거나 바로 뽑으세요 */}
+        <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3">
+          <Button variant="outline" size="sm" onClick={save} disabled={saving}>
+            {saved ? <Check className="h-4 w-4" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+            {saved ? '저장됨' : '이 행사에 저장'}
+          </Button>
+          <a href={printUrl} target="_blank" rel="noreferrer">
+            <Button size="sm" disabled={blocked}>
+              <Printer className="h-4 w-4" aria-hidden />
+              인쇄 · PDF
+            </Button>
+          </a>
+          <p className="w-full text-xs text-muted-foreground">
+            저장해 두시면 다음에 여실 때 이 모양 그대로 열립니다.
+          </p>
+        </div>
       </div>
 
-      <div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{template.name}</h2>
-            <Badge variant="outline">{PAGE_PX[template.page].label}</Badge>
-            {sheets > 1 && <Badge variant="default">{sheets}장 출력</Badge>}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={save} disabled={saving}>
-              {saved ? <Check className="h-4 w-4" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-              {saved ? '저장됨' : '이 행사에 저장'}
-            </Button>
-            <a href={printUrl} target="_blank" rel="noreferrer">
-              <Button size="sm" disabled={blocked}>
-                <Printer className="h-4 w-4" aria-hidden />
-                인쇄 · PDF
-              </Button>
-            </a>
-          </div>
+      {/* 미리보기는 화면에 붙어 따라다닌다 — 색을 고르는 동안에도 늘 보여야 한다.
+          붙어 있는 칸에는 미리보기만 둔다. 단추까지 넣으면 좁은 화면을 다 먹는다. */}
+      <div
+        className="order-1 sticky top-16 z-10 min-w-0 rounded-xl border border-border bg-background/95 p-2 backdrop-blur lg:order-2 lg:top-20 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+        data-testid="design-preview"
+      >
+        <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="truncate text-base font-semibold sm:text-lg">{template.name}</h2>
+          <Badge variant="outline">{PAGE_PX[template.page].label}</Badge>
+          {sheets > 1 && <Badge variant="default">{sheets}장 출력</Badge>}
+          <span className="ml-auto text-xs text-muted-foreground">고르시는 대로 여기서 바뀝니다</span>
         </div>
 
         {blocked ? (
@@ -298,9 +352,9 @@ export function DesignStudio({
             </CardContent>
           </Card>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-muted/40 p-5">
+          <div className="overflow-hidden rounded-lg border border-border bg-muted/40 p-3 sm:p-5">
             <div
-              style={{ width: PREVIEW_WIDTH, height: page.h * scale, margin: '0 auto' }}
+              style={{ width: page.w * scale, height: page.h * scale, margin: '0 auto' }}
               className="shadow-[0_8px_30px_rgba(20,20,43,.12)]"
             >
               <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
@@ -308,7 +362,7 @@ export function DesignStudio({
               </div>
             </div>
             {sheets > 1 && (
-              <p className="mt-4 text-center text-xs text-muted-foreground">
+              <p className="mt-3 text-center text-xs text-muted-foreground">
                 미리보기는 첫 장만 보여 줍니다. 인쇄하면 {sheets}장이 이어서 나옵니다.
               </p>
             )}

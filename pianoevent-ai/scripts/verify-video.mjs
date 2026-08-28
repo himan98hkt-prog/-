@@ -130,12 +130,12 @@ try {
   const sceneCount = Number(lengthText.match(/장면 (\d+)개/)[1])
   check('명단에서 장면이 만들어졌다', sceneCount >= 12 + 3, `${sceneCount}개`)
 
-  // 영상 템플릿 10종 — 배경과 사진 놓는 방식이 실제로 달라지는가
+  // 영상 템플릿 20종 — 배경과 사진 놓는 방식이 실제로 달라지는가
   const picker = page.getByTestId('video-templates')
   check('영상 템플릿 창이 있다', (await picker.count()) === 1)
   const chips = picker.locator('button')
   const chipCount = await chips.count()
-  check('템플릿이 10종이다', chipCount === 10, String(chipCount))
+  check('템플릿이 20종이다', chipCount === 20, String(chipCount))
 
   // 사진이 든 장면에 세워 놓고 견준다 — 표지 화면은 템플릿을 갈아도 거의 같아 보인다
   await page
@@ -165,7 +165,7 @@ try {
     if (!fingerprint.endsWith('|true')) failures.push(`템플릿 ${i + 1}번에 글자가 보이지 않습니다`)
   }
   check('템플릿마다 화면이 실제로 다르다', looks.size === chipCount, `${looks.size} / ${chipCount}`)
-  console.log('  ✓ 템플릿 10종 모두 글자가 보인다')
+  console.log('  ✓ 템플릿 20종 모두 글자가 보인다')
   passed += 1
   await chips.first().click()
   await page.waitForTimeout(350)

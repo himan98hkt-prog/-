@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { ScreenHeader } from '@/components/flow/screen-header'
 import { VideoStudio } from '@/components/video/video-studio'
 import { resolveLogo, studentPhotoList, studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
@@ -49,11 +50,18 @@ export default async function VideoPage({
 
   return (
     <AppShell academyName={academy.name}>
+      <ScreenHeader
+        step="video"
+        eventId={event.id}
+        eventTitle={event.title}
+        state={{
+          hasStudents: students.length > 0,
+          hasProgram: event.program_source !== null,
+          hasPrint: event.status === 'published' || event.design_template !== null,
+        }}
+      />
+
       <div className="mb-5">
-        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
-          ← {event.title}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">감동영상</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {formatEventDate(event.event_at)} · 학생 {plan.items.length}명 — 명단과 아이 사진에서 장면이 만들어집니다.
           연습 사진·동영상과 음악을 더하면 한 편이 됩니다.

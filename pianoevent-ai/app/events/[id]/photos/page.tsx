@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { ScreenHeader } from '@/components/flow/screen-header'
 import { PhotoCollect } from '@/components/event/photo-collect'
 import { formatEventDate } from '@/lib/format'
 import { currentAcademy } from '@/lib/session'
@@ -22,11 +23,18 @@ export default async function PhotosPage({ params }: { params: { id: string } })
 
   return (
     <AppShell academyName={academy.name}>
+      <ScreenHeader
+        step="photos"
+        eventId={event.id}
+        eventTitle={event.title}
+        state={{
+          hasStudents: students.length > 0,
+          hasProgram: event.program_source !== null,
+          hasPrint: event.status === 'published' || event.design_template !== null,
+        }}
+      />
+
       <div className="mb-5">
-        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
-          ← {event.title}
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">사진 모으기</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {formatEventDate(event.event_at)} — 이 화면을 휴대폰으로 여세요.
         </p>

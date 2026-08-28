@@ -24,7 +24,8 @@ export function AppShell({
   className?: string
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    // 바탕색은 화면(단계)마다 다르다 — ScreenHeader 가 --screen-bg 를 바꿔 준다
+    <div className="app-shell min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur no-print">
         <div className="container flex h-14 items-center justify-between gap-3">
           <Link

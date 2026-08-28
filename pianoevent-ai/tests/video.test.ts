@@ -327,9 +327,19 @@ describe('글자 자리', () => {
 })
 
 describe('영상 템플릿', () => {
-  it('열 가지가 준비돼 있다', () => {
-    expect(VIDEO_TEMPLATES).toHaveLength(10)
-    expect(new Set(VIDEO_TEMPLATES.map((t) => t.id)).size).toBe(10)
+  it('스무 가지가 준비돼 있다', () => {
+    expect(VIDEO_TEMPLATES).toHaveLength(20)
+    expect(new Set(VIDEO_TEMPLATES.map((t) => t.id)).size).toBe(20)
+  })
+
+  it('이름이 겹치지 않는다 — 목록에서 같은 말이 두 번 보이면 못 고르신다', () => {
+    expect(new Set(VIDEO_TEMPLATES.map((t) => t.name)).size).toBe(VIDEO_TEMPLATES.length)
+  })
+
+  it('네 가지 놓는 방식이 고르게 있다 — 한쪽만 잔뜩이면 고를 것이 없는 셈이다', () => {
+    for (const fit of ['full', 'frame', 'half', 'polaroid'] as const) {
+      expect(VIDEO_TEMPLATES.filter((t) => t.fit === fit).length).toBeGreaterThanOrEqual(3)
+    }
   })
 
   it('사진을 꽉 채우는 것과 배경 위에 얹는 것이 모두 있다', () => {

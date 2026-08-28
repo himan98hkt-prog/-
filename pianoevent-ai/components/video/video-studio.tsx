@@ -890,8 +890,10 @@ export function VideoStudio({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-      <div className="grid content-start gap-3">
-        <div className="overflow-hidden rounded-lg border border-border bg-black">
+      <div className="grid min-w-0 content-start gap-3">
+        {/* 미리보기는 화면에 붙여 둔다 — 아래에서 템플릿을 고르는 동안에도 늘 보여야 한다.
+            예전에는 고르러 내려가면 화면이 위로 사라져, 무엇이 바뀌었는지 볼 수가 없었다. */}
+        <div className="sticky top-16 z-10 overflow-hidden rounded-lg border border-border bg-black lg:top-20">
           <canvas
             ref={canvasRef}
             width={size.w}
@@ -1031,7 +1033,7 @@ export function VideoStudio({
         )}
       </div>
 
-      <div className="grid content-start gap-4">
+      <div className="grid min-w-0 content-start gap-4">
         <section className="grid gap-1.5 rounded-lg border border-accent/40 bg-accent/5 p-3" data-testid="video-ready">
           <p className="text-sm font-medium">이대로 만드셔도 됩니다</p>
           <p className="text-xs text-muted-foreground">

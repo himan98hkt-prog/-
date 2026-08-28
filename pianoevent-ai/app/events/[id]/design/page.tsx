@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { DesignImport, type PastDesign } from '@/components/design/design-import'
 import { DesignStudio } from '@/components/design/design-studio'
+import { ScreenHeader } from '@/components/flow/screen-header'
 import { defaultCopy, type DesignCopy } from '@/lib/design/context'
 import { getTemplate } from '@/lib/design/templates'
 import { getTheme } from '@/lib/design/themes'
-import { formatEventDate } from '@/lib/format'
 import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
 import { getRepository } from '@/lib/store'
@@ -45,21 +45,23 @@ export default async function DesignPage({ params }: { params: { id: string } })
 
   return (
     <AppShell academyName={academy.name}>
-      <div className="mb-6">
-        <Link href={`/events/${event.id}`} className="text-sm text-muted-foreground hover:text-foreground">
-          ← {event.title}
+      <ScreenHeader
+        step="print"
+        eventId={event.id}
+        eventTitle={event.title}
+        state={{
+          hasStudents: students.length > 0,
+          hasProgram: event.program_source !== null,
+          hasPrint: event.status === 'published' || event.design_template !== null,
+        }}
+      />
+
+      <p className="mb-5 rounded-md border border-border bg-secondary px-3 py-2 text-sm no-print">
+        여기서 고른 테마는 <strong>연주회장 스크린 화면</strong>에도 그대로 쓰입니다 —{' '}
+        <Link href={`/events/${event.id}/stage`} className="font-medium underline underline-offset-4">
+          무대 화면 열기
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">인쇄물 디자인</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          포스터·순서지·입장권·상장까지 한 테마로 맞춥니다. {formatEventDate(event.event_at)}
-        </p>
-        <p className="mt-3 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
-          연주회장 스크린에 띄울 화면도 여기서 만든 테마 그대로 나옵니다 —{' '}
-          <Link href={`/events/${event.id}/stage`} className="font-medium underline underline-offset-4">
-            무대 화면 열기
-          </Link>
-        </p>
-      </div>
+      </p>
 
       {past.length > 0 && (
         <div className="mb-5">
