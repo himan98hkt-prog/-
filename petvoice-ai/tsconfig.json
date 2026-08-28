@@ -4,8 +4,18 @@
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "skipLibCheck": true,
-    "types": ["react", "vitest/globals"]
+    "types": [
+      "react",
+      "vitest/globals"
+    ]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "supabase/functions"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions",
+    "eval/run.ts"
+  ]
 }

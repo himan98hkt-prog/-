@@ -5,3 +5,9 @@ web-build/
 *.log
 .env
 .env.local
+
+# 평가용 실제 녹음은 반려동물 개인 데이터라 저장소에 올리지 않는다
+eval/dataset/real/
+eval/dataset/manifest.json
+# 대조군 오디오는 스크립트로 다시 만들면 되므로 저장소에 두지 않는다 (npm run eval:controls)
+eval/dataset/controls/

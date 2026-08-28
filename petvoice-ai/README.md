@@ -100,6 +100,7 @@ petvoice-ai/
     functions/play-rtdn/        Play 실시간 알림 수신 → 해지·환불·결제실패 즉시 반영
     functions/delete-account/   계정 삭제 (Play 필수 요건)
   tests/                   vitest 91건
+  eval/                  분석 정확도 평가 도구 (앱 번들에 포함되지 않음)
   tools/make_placeholder_assets.py   아이콘/스플래시 자리표시 생성기
   docs/                    개인정보처리방침 초안 · 출시 체크리스트
 ```
@@ -184,6 +185,28 @@ supabase functions deploy play-rtdn --no-verify-jwt   # Pub/Sub 는 사용자 �
 > 그런 환경에서는 결제 버튼이 비활성화되고 이유를 화면에 그대로 알린다(앱은 죽지 않는다).
 > 실제 결제 테스트는 EAS 개발 빌드 + Play Console 내부 테스트 트랙에서 한다.
 
+## 분석이 실제로 맞는가
+
+**아직 검증되지 않았습니다.** 지금의 테스트는 전부 계약 검사입니다 —
+모델이 "playful 75%" 라고 하면 앱이 그걸 제대로 처리하는지를 보지,
+그 75% 가 맞는 숫자인지는 확인하지 않습니다.
+이상 징후 임계값도 데이터가 아니라 설계 시점의 판단에서 나온 값입니다.
+
+문헌이 말하는 한계도 분명합니다. 짖는 소리에 맥락 정보가 담겨 있는 것은 사실이지만
+([Molnár et al. 2008](https://link.springer.com/article/10.1007/s10071-007-0129-9): 상황 분류 43%),
+범용 멀티모달 모델이 강아지 감정을 읽는다는 주장은 통제된 데이터셋에서 우연 수준으로 떨어졌습니다
+([Scientific Reports 2025](https://www.nature.com/articles/s41598-025-25199-7)).
+
+그래서 재는 도구를 먼저 만들어 뒀습니다 → [`eval/README.md`](eval/README.md)
+
+```bash
+node eval/make-controls.mjs                              # 대조군 오디오 생성
+npx vite-node eval/run.ts -- --provider gemini --repeat 3
+```
+
+라벨 없이 오늘 잴 수 있는 것 두 가지(자기 일관성, 대조군에 지어내는지)와,
+실제 녹음·수의사 확인이 필요한 것 두 가지(상황 분류, 이상 징후 민감도/특이도)를 나눠 놨습니다.
+
 ## 검증 상태
 
 ```
@@ -193,6 +216,7 @@ supabase functions deploy play-rtdn --no-verify-jwt   # Pub/Sub 는 사용자 �
 ✅ 웹 빌드 스모크      온보딩→등록→홈→결과→다이어리→설정→페이월 렌더 확인 (결제 비활성 경로 포함)
 ⬜ 실기기 스모크      녹음·촬영·공유·실제 결제는 기기에서만 검증 가능
 ⬜ 결제 E2E          Play 내부 테스트 트랙에서 구매→검증→해지→복원 한 바퀴
+⬜ 분석 정확도        도구는 준비됐고, 실제 녹음과 API 키가 있어야 실행 가능 (eval/README.md)
 ```
 
 ## 다음 할 일

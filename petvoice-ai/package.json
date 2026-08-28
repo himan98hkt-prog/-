@@ -11,7 +11,9 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "vite-node eval/run.ts --",
+    "eval:controls": "node eval/make-controls.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
