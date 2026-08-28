@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { buildProgram } from '@/lib/program/order'
-import { buildTimeline, describeRecordType, fadeFor, scenesAt, CAPTION_FADE_SEC, CROSSFADE_SEC } from '@/lib/video/render'
+import { getTheme } from '@/lib/design/themes'
+import {
+  buildTimeline,
+  describeRecordType,
+  fadeFor,
+  renderFrame,
+  scenesAt,
+  CAPTION_FADE_SEC,
+  CROSSFADE_SEC,
+} from '@/lib/video/render'
+import {
+  DEFAULT_VIDEO_TEMPLATE,
+  getVideoTemplate,
+  VIDEO_TEMPLATES,
+} from '@/lib/video/templates'
 import {
   buildStoryboard,
   DEFAULT_STORYBOARD_OPTIONS,
@@ -13,6 +27,7 @@ import {
   SCENE_MIN_SEC,
   totalSeconds,
   type ExtraMedia,
+  type VideoScene,
 } from '@/lib/video/storyboard'
 import type { EventRecord } from '@/lib/types'
 import { student } from './helpers'
@@ -299,5 +314,119 @@ describe('글자 자리', () => {
     const scene = { ...board()[2], caption: 'none' as const }
     expect(scene.caption).toBe('none')
     expect(scene.seconds).toBeGreaterThan(0)
+  })
+})
+
+describe('영상 템플릿', () => {
+  it('열 가지가 준비돼 있다', () => {
+    expect(VIDEO_TEMPLATES).toHaveLength(10)
+    expect(new Set(VIDEO_TEMPLATES.map((t) => t.id)).size).toBe(10)
+  })
+
+  it('사진을 꽉 채우는 것과 배경 위에 얹는 것이 모두 있다', () => {
+    const fits = new Set(VIDEO_TEMPLATES.map((t) => t.fit))
+    expect(fits.has('full')).toBe(true)
+    expect(fits.has('frame')).toBe(true)
+    expect(fits.has('half')).toBe(true)
+    expect(fits.has('polaroid')).toBe(true)
+  })
+
+  it('배경도 여러 가지를 쓴다 — 단색만 있지 않다', () => {
+    const backdrops = new Set(VIDEO_TEMPLATES.map((t) => t.backdrop))
+    expect(backdrops.size).toBeGreaterThanOrEqual(6)
+    expect([...backdrops].some((id) => id !== 'plain')).toBe(true)
+  })
+
+  it('움직임이 서로 다르다 — 모두 같으면 지겹다', () => {
+    expect(new Set(VIDEO_TEMPLATES.map((t) => t.motion)).size).toBeGreaterThanOrEqual(4)
+  })
+
+  it('이름과 설명이 모두 있다', () => {
+    for (const item of VIDEO_TEMPLATES) {
+      expect(item.name.length).toBeGreaterThan(1)
+      expect(item.hint.length).toBeGreaterThan(10)
+    }
+  })
+
+  it('없는 이름을 주면 기본 템플릿으로', () => {
+    expect(getVideoTemplate('없는것').id).toBe(DEFAULT_VIDEO_TEMPLATE.id)
+    expect(getVideoTemplate(null).id).toBe(DEFAULT_VIDEO_TEMPLATE.id)
+    expect(getVideoTemplate('frame-keys').id).toBe('frame-keys')
+  })
+})
+
+describe('멈춘 화면 그리기', () => {
+  /** 캔버스가 없는 곳에서도 돌도록 그리기 명령만 받아 적는 가짜 붓 */
+  function stub() {
+    const texts: string[] = []
+    const alphas: number[] = []
+    const ctx = {
+      canvas: { width: 1280, height: 720 },
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      shadowColor: '',
+      shadowBlur: 0,
+      shadowOffsetY: 0,
+      save() {}, restore() {}, beginPath() {}, closePath() {}, clip() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, arcTo() {}, ellipse() {}, rect() {},
+      fillRect() {}, drawImage() {}, translate() {}, rotate() {}, scale() {},
+      fillText(text: string) {
+        texts.push(text)
+        alphas.push((ctx as unknown as { globalAlpha: number }).globalAlpha)
+      },
+      measureText(text: string) {
+        return { width: text.length * 20 }
+      },
+      createLinearGradient() {
+        return { addColorStop() {} }
+      },
+      createRadialGradient() {
+        return { addColorStop() {} }
+      },
+    }
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, texts, alphas }
+  }
+
+  const line: VideoScene[] = [
+    { id: 'a', kind: 'title', seconds: 4, eyebrow: '하모니', headline: '제12회 정기 연주회', sub: '2026' },
+    { id: 'b', kind: 'student', seconds: 3.5, eyebrow: '1번째 무대', headline: '오수아', sub: '인벤션 1번' },
+  ]
+  const timeline = buildTimeline(line)
+  const options = { width: 1280, height: 720, theme: getTheme('classic-navy'), academyName: '하모니' }
+  const empty = { images: new Map(), videos: new Map() }
+
+  it('장면이 시작하는 바로 그 순간에도 글자가 보인다', () => {
+    // 콘티에서 장면을 누르면 딱 이 지점이 된다.
+    // 겹쳐 넘어가는 중이라 들어오는 장면이 투명해, 예전에는 빈 화면이 떴다.
+    const { ctx, texts, alphas } = stub()
+    renderFrame(ctx, timeline, timeline.starts[1], empty, options, true)
+    expect(texts.join(' ')).toContain('오수아')
+    expect(Math.max(...alphas)).toBe(1)
+  })
+
+  it('멈춘 화면에는 앞 장면이 겹쳐 나오지 않는다', () => {
+    const { ctx, texts } = stub()
+    renderFrame(ctx, timeline, timeline.starts[1], empty, options, true)
+    expect(texts.join(' ')).not.toContain('제12회')
+  })
+
+  it('재생 중에는 겹치는 그대로 그린다', () => {
+    const { ctx, alphas } = stub()
+    renderFrame(ctx, timeline, timeline.starts[1] + 0.05, empty, options, false)
+    // 들어오는 장면은 아직 옅다
+    expect(Math.min(...alphas, 1)).toBeLessThanOrEqual(1)
+  })
+
+  it('템플릿을 바꾸면 그리는 내용도 바뀐다', () => {
+    const plain = stub()
+    renderFrame(plain.ctx, timeline, 1, empty, { ...options, template: getVideoTemplate('full-classic') }, true)
+    const keys = stub()
+    renderFrame(keys.ctx, timeline, 1, empty, { ...options, template: getVideoTemplate('frame-keys') }, true)
+    expect(plain.texts.join(' ')).toBe(keys.texts.join(' '))
   })
 })

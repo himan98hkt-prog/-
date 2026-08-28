@@ -193,6 +193,9 @@ async function run() {
   check('사진·동영상·음악을 고를 수 있음', videoHtml.includes('사진 고르기') && videoHtml.includes('음악 고르기'))
   check('걸리는 시간을 미리 알려 줌', videoHtml.includes('영상 길이만큼'))
   check('저장하지 않는다고 밝힘', videoHtml.includes('저장되지 않습니다'))
+  check('영상 템플릿을 고를 수 있음', videoHtml.includes('영상 템플릿'))
+  check('템플릿에 배경이 들어 있음', videoHtml.includes('건반 무대') && videoHtml.includes('무대 커튼'))
+  check('꽉 찬 사진 템플릿도 있음', videoHtml.includes('꽉 찬 사진'))
 
   const pptxBare = await call(`/api/events/${event.id}/pptx?agenda=0&sections=0&commentary=0`)
   const bareBody = new Uint8Array(await pptxBare.arrayBuffer())

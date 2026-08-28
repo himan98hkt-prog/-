@@ -7,6 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/field'
 import { getTheme } from '@/lib/design/themes'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
+import {
+  DEFAULT_VIDEO_TEMPLATE,
+  getVideoTemplate,
+  VIDEO_TEMPLATES,
+  type VideoTemplate,
+} from '@/lib/video/templates'
 import { cn } from '@/lib/utils'
 import {
   buildTimeline,
@@ -67,6 +73,7 @@ export function VideoStudio({
   const [extras, setExtras] = useState<ExtraMedia[]>([])
   const [music, setMusic] = useState<{ url: string; label: string } | null>(null)
   const [sizeId, setSizeId] = useState<(typeof SIZES)[number]['id']>('720')
+  const [templateId, setTemplateId] = useState(DEFAULT_VIDEO_TEMPLATE.id)
 
   const [playing, setPlaying] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -86,6 +93,7 @@ export function VideoStudio({
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const theme = useMemo(() => getTheme(themeId), [themeId])
+  const template = useMemo(() => getVideoTemplate(templateId), [templateId])
   const size = SIZES.find((item) => item.id === sizeId) ?? SIZES[0]
 
   const auto = useMemo(
@@ -201,11 +209,11 @@ export function VideoStudio({
         timeline,
         seconds,
         sourcesRef.current,
-        { width: canvas.width, height: canvas.height, theme, academyName },
+        { width: canvas.width, height: canvas.height, theme, academyName, template },
         still,
       )
     },
-    [timeline, theme, academyName],
+    [timeline, theme, academyName, template],
   )
 
   useEffect(() => {
@@ -497,6 +505,7 @@ export function VideoStudio({
           sources={sources}
           theme={theme}
           academyName={academyName}
+          template={template}
           onJump={jumpTo}
           activeIndex={activeIndex}
           onPick={setEditing}
@@ -517,6 +526,35 @@ export function VideoStudio({
       </div>
 
       <div className="grid content-start gap-4">
+        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="video-templates">
+          <p className="text-sm font-medium">
+            0 · 영상 템플릿 · {VIDEO_TEMPLATES.length}종
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              사진을 어떻게 놓고 어떤 배경을 깔지
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {VIDEO_TEMPLATES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTemplateId(item.id)}
+                aria-pressed={item.id === templateId}
+                title={item.hint}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  item.id === templateId
+                    ? 'border-accent bg-accent/10 font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{template.hint}</p>
+        </section>
+
         <section className="grid gap-2 rounded-lg border border-border p-3">
           <p className="text-sm font-medium">1 · 아이 사진</p>
           <p className="text-xs text-muted-foreground">
@@ -702,11 +740,13 @@ function StoryboardStrip({
   onPick,
   editingId,
   onMove,
+  template,
 }: {
   timeline: ReturnType<typeof buildTimeline>
   sources: FrameSource
   theme: DesignTheme
   academyName: string
+  template: VideoTemplate
   onJump: (seconds: number) => void
   activeIndex: number
   onPick: (id: string | null) => void
@@ -731,13 +771,13 @@ function StoryboardStrip({
         timeline,
         at,
         sources,
-        { width: canvas.width, height: canvas.height, theme, academyName },
+        { width: canvas.width, height: canvas.height, theme, academyName, template },
         true,
       )
       made.push(canvas.toDataURL('image/jpeg', 0.72))
     }
     setShots(made)
-  }, [timeline, sources, theme, academyName])
+  }, [timeline, sources, theme, academyName, template])
 
   return (
     <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="storyboard">

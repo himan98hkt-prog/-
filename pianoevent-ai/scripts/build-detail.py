@@ -680,8 +680,8 @@ BODY = """
       <div class="feat reveal" style="--d:0.16s">
         <p class="n">감동영상</p>
         <h4>무비메이커를 열지 않습니다</h4>
-        <p>사진과 동영상이 <b>화면을 꽉 채우고</b> 천천히 움직이며 서로 넘어갑니다.
-        제목 화면으로 시작해 아이들 얼굴이 이어지고, 마지막에 끝인사로 닫힙니다.
+        <p><b>템플릿 10종</b>에서 고릅니다 &mdash; 사진이 화면을 꽉 채우는 것, 건반 &middot; 커튼 &middot; 조명 배경 위에
+        액자로 얹는 것. 제목 화면으로 시작해 아이들 얼굴이 이어지고 끝인사로 닫힙니다.
         <b>문구 &middot; 순서 &middot; 시간 &middot; 글자 자리를 원장님이 직접 고칩니다.</b></p>
         <p class="only">사진 한 장씩 끌어다 놓지 않음</p>
       </div>
@@ -694,6 +694,16 @@ BODY = """
         <span>무대 화면 연주자 슬라이드</span><span>파워포인트 .pptx</span><span>감동영상 장면</span>
       </div>
       <p class="last">한 번 넣으면 세 곳에 함께 들어갑니다</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.2s">
+      <p class="n-title">&#127916; 영상 템플릿 10종</p>
+      <p><strong>사진을 꽉 채우는 것 5종</strong> &mdash; 꽉 찬 사진 &middot; 위 자막 &middot; 극장 조명 &middot; 별밤 &middot; 감동 문구<br>
+      <strong>배경 위에 액자로 얹는 것 5종</strong> &mdash; 건반 무대 &middot; 무대 커튼 &middot; 아치 무대 &middot;
+      악보 위 사진 &middot; 조명 방울 반쪽</p>
+      <p style="margin-top:.7em">무대 화면(스크린 &middot; PPT)에 쓰던 <strong>배경이 영상에도 그대로</strong> 나옵니다.
+      템플릿마다 사진이 움직이는 방향도 다릅니다 &mdash; 다가가기 &middot; 물러나기 &middot; 옆으로 흐르기 &middot; 가만히.
+      다만 원장님이 올린 <strong>동영상은 언제나 화면을 꽉</strong> 채웁니다 &mdash; 액자에 담으면 찍어 오신 영상이 작아지니까요.</p>
     </div>
 
     <div class="notice reveal" style="--d:0.22s">

@@ -1,5 +1,8 @@
 import type { DesignTheme } from '@/lib/design/themes'
+import type { PhotoShape } from '@/lib/stage/layouts'
+import { drawBackdrop, hexAlpha } from '@/lib/video/backdrop-canvas'
 import type { VideoScene } from '@/lib/video/storyboard'
+import { DEFAULT_VIDEO_TEMPLATE, type PhotoMotion, type VideoTemplate } from '@/lib/video/templates'
 
 /**
  * 한 프레임을 캔버스에 그린다.
@@ -105,6 +108,8 @@ function cover(
   h: number,
   zoom: number,
   drift: number,
+  originX = 0,
+  originY = 0,
 ) {
   if (!sw || !sh) return
   const scale = Math.max(w / sw, h / sh) * zoom
@@ -113,8 +118,8 @@ function cover(
   // 천천히 흐르게 — 가로가 남으면 좌우로, 세로가 남으면 위아래로
   const slackX = dw - w
   const slackY = dh - h
-  const dx = -slackX / 2 + slackX * 0.5 * drift
-  const dy = -slackY / 2 + slackY * 0.5 * drift * 0.6
+  const dx = originX - slackX / 2 + slackX * 0.5 * drift
+  const dy = originY - slackY / 2 + slackY * 0.5 * drift * 0.6
   ctx.drawImage(source, dx, dy, dw, dh)
 }
 
@@ -140,6 +145,96 @@ export interface RenderOptions {
   height: number
   theme: DesignTheme
   academyName: string
+  /** 영상 템플릿 — 사진을 어떻게 놓고 어떤 배경을 깔지 */
+  template?: VideoTemplate
+}
+
+/** 사진 창 모양대로 캔버스에 길을 낸다 (그 안에만 그려진다) */
+function shapePath(ctx: CanvasRenderingContext2D, shape: PhotoShape, x: number, y: number, w: number, h: number) {
+  const r = Math.min(w, h)
+  ctx.beginPath()
+  switch (shape) {
+    case 'circle':
+      ctx.arc(x + w / 2, y + h / 2, r / 2, 0, Math.PI * 2)
+      return
+    case 'oval':
+      ctx.ellipse(x + w / 2, y + h / 2, w / 2, h * 0.42, 0, 0, Math.PI * 2)
+      return
+    case 'hexagon': {
+      const pts: [number, number][] = [
+        [0.5, 0],
+        [0.95, 0.25],
+        [0.95, 0.75],
+        [0.5, 1],
+        [0.05, 0.75],
+        [0.05, 0.25],
+      ]
+      pts.forEach(([fx, fy], i) => {
+        const px = x + fx * w
+        const py = y + fy * h
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      })
+      ctx.closePath()
+      return
+    }
+    case 'diamond':
+      ctx.moveTo(x + w / 2, y)
+      ctx.lineTo(x + w, y + h / 2)
+      ctx.lineTo(x + w / 2, y + h)
+      ctx.lineTo(x, y + h / 2)
+      ctx.closePath()
+      return
+    case 'arch': {
+      const top = Math.min(w / 2, h * 0.42)
+      ctx.moveTo(x, y + h)
+      ctx.lineTo(x, y + top)
+      ctx.ellipse(x + w / 2, y + top, w / 2, top, 0, Math.PI, 0)
+      ctx.lineTo(x + w, y + h)
+      ctx.closePath()
+      return
+    }
+    case 'leaf': {
+      const c = r * 0.48
+      ctx.moveTo(x + c, y)
+      ctx.lineTo(x + w, y)
+      ctx.lineTo(x + w, y + h - c)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - c, y + h)
+      ctx.lineTo(x, y + h)
+      ctx.lineTo(x, y + c)
+      ctx.quadraticCurveTo(x, y, x + c, y)
+      ctx.closePath()
+      return
+    }
+    case 'rounded': {
+      const c = Math.min(36 * (h / 720), r / 2)
+      ctx.moveTo(x + c, y)
+      ctx.arcTo(x + w, y, x + w, y + h, c)
+      ctx.arcTo(x + w, y + h, x, y + h, c)
+      ctx.arcTo(x, y + h, x, y, c)
+      ctx.arcTo(x, y, x + w, y, c)
+      ctx.closePath()
+      return
+    }
+    default:
+      ctx.rect(x, y, w, h)
+  }
+}
+
+/** 템플릿이 정한 움직임 — 사진이 살아 있는 것처럼 보이게 하는 최소한의 장치 */
+function motionOf(motion: PhotoMotion, progress: number): { zoom: number; drift: number } {
+  switch (motion) {
+    case 'in':
+      return { zoom: 1 + progress * 0.08, drift: progress - 0.5 }
+    case 'out':
+      return { zoom: 1.08 - progress * 0.08, drift: 0.5 - progress }
+    case 'left':
+      return { zoom: 1.06, drift: 0.5 - progress }
+    case 'right':
+      return { zoom: 1.06, drift: progress - 0.5 }
+    case 'still':
+      return { zoom: 1.01, drift: 0 }
+  }
 }
 
 /** 한 장면을 그린다 (alpha 는 호출하는 쪽에서 이미 걸어 둔다) */
@@ -152,8 +247,10 @@ function drawScene(
   textAlpha: number,
 ) {
   const { width: w, height: h, theme } = options
+  const template = options.template ?? DEFAULT_VIDEO_TEMPLATE
   const p = theme.palette
   const progress = Math.min(1, local / Math.max(0.001, scene.seconds))
+  const unitScale = h / 720
 
   ctx.fillStyle = p.ink
   ctx.fillRect(0, 0, w, h)
@@ -161,11 +258,82 @@ function drawScene(
   const media = scene.clip ? sources.videos.get(scene.clip) : scene.image ? sources.images.get(scene.image) : null
   const width = media ? ('videoWidth' in media ? media.videoWidth : media.naturalWidth || media.width) : 0
   const height = media ? ('videoHeight' in media ? media.videoHeight : media.naturalHeight || media.height) : 0
-  if (media && width && height) {
-    // 켄 번스 — 1.0 에서 1.08 까지 아주 천천히
-    cover(ctx, media, width, height, w, h, 1 + progress * 0.08, progress - 0.5)
+  // 동영상은 늘 꽉 채운다 — 액자에 담으면 원장님이 찍은 영상이 작아진다
+  const fit = scene.clip ? 'full' : template.fit
+  const { zoom, drift } = motionOf(template.motion, progress)
+
+  if (media && width && height && fit !== 'full') {
+    // 배경을 먼저 깔고 그 위에 사진을 액자로 얹는다
+    const bg = ctx.createLinearGradient(0, 0, w, h)
+    bg.addColorStop(0, p.ink)
+    bg.addColorStop(1, p.band)
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, w, h)
+    drawBackdrop(ctx, template.backdrop, theme, w, h)
+
+    if (fit === 'half') {
+      const halfW = w * 0.52
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, halfW, h)
+      ctx.clip()
+      cover(ctx, media, width, height, halfW, h, zoom, drift)
+      ctx.restore()
+    } else {
+      // frame · polaroid — 가운데 왼쪽에 정사각 액자
+      const box = Math.min(h * 0.62, w * 0.42)
+      const bx = fit === 'polaroid' ? w * 0.5 - box / 2 : w * 0.28 - box / 2
+      const by = h * 0.42 - box / 2
+      if (fit === 'polaroid') {
+        // 인화지 — 하얀 테를 두르고 살짝 기울인다
+        ctx.save()
+        ctx.translate(bx + box / 2, by + box / 2)
+        ctx.rotate((-2.5 * Math.PI) / 180)
+        ctx.translate(-(bx + box / 2), -(by + box / 2))
+        ctx.fillStyle = p.paper
+        ctx.shadowColor = 'rgba(0,0,0,0.45)'
+        ctx.shadowBlur = 30 * unitScale
+        ctx.shadowOffsetY = 14 * unitScale
+        ctx.fillRect(bx - 18 * unitScale, by - 18 * unitScale, box + 36 * unitScale, box + 78 * unitScale)
+        ctx.shadowColor = 'transparent'
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(bx, by, box, box)
+        ctx.clip()
+        cover(ctx, media, width, height, box, box, zoom, drift, bx, by)
+        ctx.restore()
+        ctx.restore()
+      } else {
+        // 액자 테 — 사진과 같은 모양으로 한 겹
+        ctx.save()
+        ctx.fillStyle = p.accent
+        shapePath(ctx, template.shape, bx - 14 * unitScale, by - 14 * unitScale, box + 28 * unitScale, box + 28 * unitScale)
+        ctx.fill()
+        ctx.fillStyle = p.paper
+        shapePath(ctx, template.shape, bx - 7 * unitScale, by - 7 * unitScale, box + 14 * unitScale, box + 14 * unitScale)
+        ctx.fill()
+        ctx.restore()
+        ctx.save()
+        shapePath(ctx, template.shape, bx, by, box, box)
+        ctx.clip()
+        cover(ctx, media, width, height, box, box, zoom, drift, bx, by)
+        ctx.restore()
+      }
+    }
+    if (template.dim > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${template.dim})`
+      ctx.fillRect(0, 0, w, h)
+    }
+  } else if (media && width && height) {
+    cover(ctx, media, width, height, w, h, zoom, drift)
+    // 사진 위에 무대 배경을 얹는다 (조명·별밤처럼 겹쳐 쓰는 배경)
+    drawBackdrop(ctx, template.backdrop, theme, w, h)
+    if (template.dim > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${template.dim})`
+      ctx.fillRect(0, 0, w, h)
+    }
     // 자막이 읽히도록 그 자리에 어둠을 깐다
-    const place = scene.caption ?? 'bottom'
+    const place = scene.caption ?? template.caption
     if (place === 'bottom') {
       const shade = ctx.createLinearGradient(0, h * 0.45, 0, h)
       shade.addColorStop(0, 'rgba(0,0,0,0)')
@@ -183,21 +351,26 @@ function drawScene(
       ctx.fillRect(0, 0, w, h)
     }
   } else {
-    // 사진이 없으면 테마 색으로 — 빈 화면이 뜨지 않는다
+    // 사진이 없으면 테마 색과 무대 배경으로 — 빈 화면이 뜨지 않는다
     const bg = ctx.createLinearGradient(0, 0, w, h)
     bg.addColorStop(0, p.ink)
     bg.addColorStop(1, p.band)
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, w, h)
+    drawBackdrop(ctx, template.backdrop, theme, w, h)
   }
 
   const unit = h / 1080
   const pad = 96 * unit
+  // 액자·반쪽 템플릿은 사진이 화면을 다 덮지 않으므로 글자를 가운데 정렬하지 않는다
   const centered = !(media && width && height)
 
+  // 액자·반쪽 템플릿은 사진이 왼쪽에 있으므로 글자를 오른쪽 빈자리에 놓는다
+  const textLeft = fit === 'frame' ? w * 0.54 : fit === 'half' ? w * 0.57 : pad
+  const textWidth = (centered ? w : w - textLeft) - pad
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = centered ? 'center' : 'left'
-  const x = centered ? w / 2 : pad
+  const x = centered ? w / 2 : textLeft
   let y = h - pad
 
   // 위쪽 얇은 띠 — 어느 장면이든 학원 것임을 알아보게 (그림에 속하므로 자막과 함께 흐려지지 않는다)
@@ -249,7 +422,7 @@ function drawScene(
   }
 
   // 사진 위 자막 — 자리는 장면마다 고른다 (얼굴을 가리지 않게)
-  const place = scene.caption ?? 'bottom'
+  const place = scene.caption ?? template.caption
   if (place === 'none') {
     ctx.globalAlpha = sceneAlpha
     return
@@ -294,8 +467,9 @@ function drawScene(
     if (scene.headline) {
       ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
       ctx.fillStyle = '#ffffff'
-      ctx.fillText(scene.headline, x, top + headlineSize * 0.86)
-      top += headlineSize + 10 * unit
+      const lines = wrap(ctx, scene.headline, textWidth)
+      lines.forEach((line, index) => ctx.fillText(line, x, top + headlineSize * 0.86 + index * headlineSize * 1.14))
+      top += headlineSize * (1 + (lines.length - 1) * 1.14) + 10 * unit
     }
     if (scene.sub) {
       ctx.font = `500 ${subSize}px ${theme.fonts.body}`
@@ -337,9 +511,12 @@ export function renderFrame(
   /**
    * 멈춰 있는 화면인가.
    *
-   * 재생 중에는 자막이 서서히 떠오르지만, 멈춰서 보고 있을 때는 그 순간이
-   * "글자가 아직 0" 인 지점일 수 있다 — 그러면 원장님 눈에는 빈 화면이 뜬다.
-   * 미리보기와 콘티 그림은 이 값을 켜서 글자를 또렷하게 그린다.
+   * 재생 중에는 장면이 서로 겹치며 넘어가고 자막도 뒤늦게 떠오른다.
+   * 그런데 **멈춰서 보고 있을 때** 그 순간이 하필 넘어가는 중이면,
+   * 들어오는 장면은 아직 투명(0)이라 원장님 눈에는 **앞 장면 사진에 글자가 없는**
+   * 이상한 화면이 뜬다. 콘티에서 장면을 눌렀을 때가 딱 그 지점이다.
+   *
+   * 그래서 멈춘 화면에서는 겹침을 걷어내고 **그 장면 하나만 또렷하게** 그린다.
    */
   still = false,
 ) {
@@ -349,12 +526,20 @@ export function renderFrame(
   ctx.fillStyle = options.theme.palette.ink
   ctx.fillRect(0, 0, w, h)
   const visible = scenesAt(timeline, seconds)
-  const top = visible.length > 0 ? visible[visible.length - 1].index : -1
+
+  if (still) {
+    const front = visible[visible.length - 1]
+    if (front) {
+      ctx.globalAlpha = 1
+      drawScene(ctx, timeline.scenes[front.index], front.local, sources, options, 1)
+    }
+    ctx.restore()
+    return
+  }
+
   for (const { index, local, alpha, textAlpha } of visible) {
     ctx.globalAlpha = alpha
-    // 멈춘 화면에서는 맨 위 장면의 글자를 또렷하게 (아래 장면은 그대로 두어 겹쳐 보이지 않게)
-    const text = still ? (index === top ? 1 : 0) : textAlpha
-    drawScene(ctx, timeline.scenes[index], local, sources, options, text)
+    drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
   }
   ctx.restore()
 }
