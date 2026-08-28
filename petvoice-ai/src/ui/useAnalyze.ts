@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { analyze } from '../api';
+import { aggregateResults } from '../core/aggregate';
+import { assessHealth } from '../core/health';
 import { ApiError, userMessageKey } from '../api/errors';
 import type { ParseFallbacks } from '../core/analysis';
 import { judgeRecording } from '../core/audio';
@@ -111,7 +113,55 @@ export function useAnalyzeMedia() {
     [pet, analyzing, addEntry, enqueueAnalysis, nav, tr, fallbacks],
   );
 
-  return { analyzing, run };
+  /**
+   * 정밀 분석 — 연속으로 녹음한 여러 회차를 하나로 합친다.
+   * 회차가 하나라도 성공하면 결과를 낸다. 전부 실패하면 일반 분석과 같은 오류 처리.
+   */
+  const runPrecise = useCallback(
+    async (shots: { uri: string; levels?: number[] }[], context: AnalysisContext) => {
+      if (!pet || analyzing || shots.length === 0) return;
+      setAnalyzing(true);
+      try {
+        const results = [];
+        for (const shot of shots) {
+          const { result } = await analyze({
+            pet,
+            mediaBase64: await toBase64(shot.uri),
+            mediaType: 'audio/m4a',
+            context: context.text,
+            contextTags: context.tags,
+            locale: tr.locale,
+            fallbacks,
+          });
+          results.push(result);
+        }
+
+        const merged = aggregateResults(results);
+        const entry = addEntry({
+          petId: pet.id,
+          createdAt: Date.now(),
+          mediaKind: 'audio',
+          context: context.text,
+          contextKey: context.key,
+          contextTags: context.tags,
+          mediaUri: pet.photoUri,
+          audioUri: shots[0].uri,
+          levels: shots[0].levels,
+          shotCount: results.length,
+          result: merged,
+          health: assessHealth(merged, pet.type, context.tags),
+        });
+        nav.navigate('result', { entryId: entry.id });
+      } catch (error) {
+        Alert.alert(tr.t('errors.analyzeFailed'), tr.t(userMessageKey(error)));
+      } finally {
+        setAnalyzing(false);
+      }
+    },
+    [pet, analyzing, addEntry, nav, tr, fallbacks],
+  );
+
+  return { analyzing, run, runPrecise };
 }
 
 /**

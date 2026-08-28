@@ -56,8 +56,10 @@ export const lightColors: Colors = {
   textSoft: '#5E5147', // 7.3:1
   textFaint: '#7C6C5E', // 4.8:1
 
-  primary: '#C2540F', // 흰 글씨 4.6:1
-  onPrimary: '#FFFFFF',
+  // 브랜드 주황을 그대로 쓰되 글자는 어둡게 얹는다.
+  // 흰 글씨는 2.35:1 로 기준 미달이었고, 주황을 어둡게 낮추면 브랜드색이 탁해진다.
+  primary: '#FF8A3D', // 어두운 글씨 7.1:1
+  onPrimary: '#2B1A0C',
   primaryText: '#A34509', // 5.9:1
   primaryVivid: '#FF8A3D',
   primarySoft: '#FFE7D3',

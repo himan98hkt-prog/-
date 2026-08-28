@@ -114,6 +114,8 @@ export const ja: Record<TranslationKey, string> = {
   'home.stopA11y': '録音を停止',
   'home.photoCta': '📷 写真・しぐさで分析する',
   'home.preciseCta': '🎯 精密分析（連続{count}回）',
+  'home.preciseProgress': '{current}/{total}回 録音中…',
+  'home.preciseHint': '3秒ずつ3回続けて聞いてまとめます。',
   'home.contextTitle': 'いまの状況は？',
   'home.contextSub': '状況を教えてもらえると精度が上がります。（任意）',
   'home.contextSelected': '選択中',

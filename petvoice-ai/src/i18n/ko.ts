@@ -112,6 +112,8 @@ export const ko = {
   'home.stopA11y': '녹음 중지',
   'home.photoCta': '📷 사진·행동으로 분석하기',
   'home.preciseCta': '🎯 정밀 분석 ({count}회 연속)',
+  'home.preciseProgress': '{current}/{total}회 녹음 중…',
+  'home.preciseHint': '3초씩 세 번 연속으로 듣고 종합해요.',
   'home.contextTitle': '지금 상황은요?',
   'home.contextSub': '상황을 알려 주면 훨씬 정확해져요. (선택)',
   'home.contextSelected': '선택됨',

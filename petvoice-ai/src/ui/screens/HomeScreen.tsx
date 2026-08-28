@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PRECISE_SHOT_COUNT } from '../../core/aggregate';
 import { relativeTime } from '../../core/date';
 import { CONTEXT_PRESETS, PET_LABEL_KEY, emotionMeta, type ContextPreset } from '../../core/emotions';
 import { useT } from '../../i18n/useT';
-import { useActivePet, useEntriesForActivePet, usePetStore, useQuota } from '../../store/usePetStore';
+import { useActivePet, useEntriesForActivePet, useIsPro, usePetStore, useQuota } from '../../store/usePetStore';
 import { Badge, Button, Card, Chip, Empty, SectionTitle } from '../components/Basics';
 import { PulseRecordButton } from '../components/PulseRecordButton';
 import { RECORD_SECONDS, startRecording, type RecordingHandle } from '../media';
@@ -28,8 +29,10 @@ export function HomeScreen() {
   const [context, setContext] = useState<AnalysisContext>(EMPTY_CONTEXT);
   const [recording, setRecording] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RECORD_SECONDS);
-  const { analyzing, run } = useAnalyzeMedia();
+  const { analyzing, run, runPrecise } = useAnalyzeMedia();
   const queue = useQueueDrain();
+  const isPro = useIsPro();
+  const [preciseShot, setPreciseShot] = useState(0);
 
   const handleRef = useRef<RecordingHandle | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -82,6 +85,33 @@ export function HomeScreen() {
     }, 1000);
   }, [recording, quota.canAnalyze, nav, stopRecording, tr]);
 
+  /**
+   * 정밀 분석: 3초씩 세 번 연속으로 녹음한 뒤 한꺼번에 종합한다.
+   * 중간에 권한이 거부되면 그때까지 모은 회차로 진행한다.
+   */
+  const runPreciseFlow = useCallback(async () => {
+    if (!isPro) {
+      nav.navigate('paywall');
+      return;
+    }
+    const shots: { uri: string; levels?: number[] }[] = [];
+    try {
+      for (let index = 0; index < PRECISE_SHOT_COUNT; index += 1) {
+        setPreciseShot(index + 1);
+        const handle = await startRecording(tr);
+        if (!handle) break;
+        await new Promise((resolve) => setTimeout(resolve, RECORD_SECONDS * 1000));
+        const shot = await handle.stop();
+        if (shot.uri) shots.push({ uri: shot.uri, levels: shot.levels });
+        // 회차 사이에 숨 돌릴 틈을 준다
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    } finally {
+      setPreciseShot(0);
+    }
+    if (shots.length > 0) await runPrecise(shots, context);
+  }, [isPro, nav, tr, runPrecise, context]);
+
   const toggleContext = (preset: ContextPreset) => {
     setContext((prev) =>
       prev.key === preset.key ? EMPTY_CONTEXT : { text: t(preset.key), key: preset.key, tags: preset.tags },
@@ -131,12 +161,14 @@ export function HomeScreen() {
           {t(recording ? 'home.listening' : analyzing ? 'home.analyzing' : 'home.prompt')}
         </Text>
         <Text style={[font.small, { color: colors.textSoft, textAlign: 'center' }]}>
-          {t(recording ? 'home.recordingSub' : 'home.promptSub', { seconds: RECORD_SECONDS })}
+          {preciseShot > 0
+            ? t('home.preciseProgress', { current: preciseShot, total: PRECISE_SHOT_COUNT })
+            : t(recording ? 'home.recordingSub' : 'home.promptSub', { seconds: RECORD_SECONDS })}
         </Text>
 
         <PulseRecordButton
-          recording={recording}
-          disabled={analyzing}
+          recording={recording || preciseShot > 0}
+          disabled={analyzing || preciseShot > 0}
           secondsLeft={secondsLeft}
           idleLabel={t('home.recordLabel', { seconds: RECORD_SECONDS })}
           a11yLabel={recording ? t('home.stopA11y') : t('home.recordA11y', { seconds: RECORD_SECONDS })}
@@ -146,10 +178,19 @@ export function HomeScreen() {
         <Button
           label={t('home.photoCta')}
           variant="ghost"
-          disabled={recording || analyzing}
+          disabled={recording || analyzing || preciseShot > 0}
           onPress={() => (quota.canAnalyze ? nav.navigate('capture') : nav.navigate('paywall'))}
           style={{ alignSelf: 'stretch' }}
         />
+
+        <Button
+          label={isPro ? t('home.preciseCta', { count: PRECISE_SHOT_COUNT }) : `🔒 ${t('home.preciseCta', { count: PRECISE_SHOT_COUNT })}`}
+          variant="ghost"
+          disabled={recording || analyzing || preciseShot > 0}
+          onPress={() => void runPreciseFlow()}
+          style={{ alignSelf: 'stretch' }}
+        />
+        <Text style={[font.tiny, { color: colors.textFaint, textAlign: 'center' }]}>{t('home.preciseHint')}</Text>
       </Card>
 
       {queue.pending > 0 ? (

@@ -50,6 +50,7 @@ function Router() {
   const { t } = useT();
 
   const hydrated = usePetStore((s) => s.hydrated);
+  const entriesLoaded = usePetStore((s) => s.entriesLoaded);
   const onboarded = usePetStore((s) => s.onboarded);
   const petCount = usePetStore((s) => s.pets.length);
   const diagnostics = usePetStore((s) => s.diagnostics);
@@ -57,8 +58,9 @@ function Router() {
 
   useEffect(() => {
     if (!hydrated) return;
-    // 첫 실행이면 기기 언어를 따라간다. 이후에는 사용자의 선택을 존중한다.
     const state = usePetStore.getState();
+    // 첫 실행이면 기기 언어를 따라간다. 이후에는 사용자의 선택을 존중한다.
+    // (기록 불러오기는 스토어가 복원 직후에 스스로 처리한다)
     if (!state.onboarded) state.setLocale(detectDeviceLocale());
   }, [hydrated]);
 
@@ -78,15 +80,15 @@ function Router() {
 
   // 앱으로 돌아올 때마다 대기 중인 분석을 처리해 본다.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!entriesLoaded) return;
     void queue.drain();
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') void queue.drain();
     });
     return () => sub.remove();
-  }, [hydrated, queue]);
+  }, [entriesLoaded, queue]);
 
-  if (!hydrated) {
+  if (!hydrated || !entriesLoaded) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.primary} />

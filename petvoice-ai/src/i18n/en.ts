@@ -114,6 +114,8 @@ export const en: Record<TranslationKey, string> = {
   'home.stopA11y': 'Stop recording',
   'home.photoCta': '📷 Analyze a photo instead',
   'home.preciseCta': '🎯 Precise analysis ({count} in a row)',
+  'home.preciseProgress': 'Recording {current} of {total}…',
+  'home.preciseHint': 'Three 3-second takes, combined into one reading.',
   'home.contextTitle': "What's happening right now?",
   'home.contextSub': 'Telling us the situation makes it much more accurate. (optional)',
   'home.contextSelected': 'Selected',

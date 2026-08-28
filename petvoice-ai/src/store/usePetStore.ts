@@ -2,6 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  clearEntries,
+  deleteEntriesForPet,
+  deleteEntry as deleteEntryRow,
+  initEntryStore,
+  loadAllEntries,
+  migrateLegacyEntries,
+  saveEntries,
+  saveEntry,
+} from '../data/entries';
 import { createId } from '../core/id';
 import { DEFAULT_THEME_KEY } from '../core/photocard';
 import { canAddPet, isProActive, quotaState, type QuotaState } from '../core/quota';
@@ -45,6 +55,8 @@ interface PetState {
   cardThemeKey: string;
   onboarded: boolean;
   hydrated: boolean;
+  /** 기록을 저장소에서 다 읽어 왔는지 */
+  entriesLoaded: boolean;
 
   locale: Locale;
   themeMode: ThemeMode;
@@ -63,6 +75,8 @@ interface PetState {
 
   addEntry: (entry: Omit<AnalysisEntry, 'id'>) => AnalysisEntry;
   removeEntry: (id: string) => void;
+  /** 저장소에서 기록을 읽어 메모리에 올린다 (앱 시작 시 1회) */
+  loadEntries: () => Promise<void>;
   /** 결과가 맞았는지 표시 (프롬프트 개선의 근거가 된다) */
   setEntryFeedback: (id: string, feedback: 'up' | 'down') => void;
 
@@ -95,6 +109,7 @@ export const usePetStore = create<PetState>()(
       cardThemeKey: DEFAULT_THEME_KEY,
       onboarded: false,
       hydrated: false,
+      entriesLoaded: false,
 
       locale: DEFAULT_LOCALE,
       themeMode: 'system',
@@ -113,7 +128,7 @@ export const usePetStore = create<PetState>()(
       updatePet: (id, patch) =>
         set((state) => ({ pets: state.pets.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
 
-      removePet: (id) =>
+      removePet: (id) => {
         set((state) => {
           const pets = state.pets.filter((p) => p.id !== id);
           return {
@@ -121,20 +136,50 @@ export const usePetStore = create<PetState>()(
             entries: state.entries.filter((e) => e.petId !== id),
             activePetId: state.activePetId === id ? (pets[0]?.id ?? null) : state.activePetId,
           };
-        }),
+        });
+        void deleteEntriesForPet(id);
+      },
 
       setActivePet: (id) => set({ activePetId: id }),
 
+      // 기록은 AsyncStorage 가 아니라 별도 저장소(SQLite)에 쓴다.
+      // 메모리의 entries 는 화면이 바로 읽는 거울일 뿐이다.
       addEntry: (entry) => {
         const saved: AnalysisEntry = { ...entry, id: createId('an_') };
         set((state) => ({ entries: [saved, ...state.entries] }));
+        void saveEntry(saved);
         return saved;
       },
 
-      removeEntry: (id) => set((state) => ({ entries: state.entries.filter((e) => e.id !== id) })),
+      removeEntry: (id) => {
+        set((state) => ({ entries: state.entries.filter((e) => e.id !== id) }));
+        void deleteEntryRow(id);
+      },
 
-      setEntryFeedback: (id, feedback) =>
-        set((state) => ({ entries: state.entries.map((e) => (e.id === id ? { ...e, feedback } : e)) })),
+      setEntryFeedback: (id, feedback) => {
+        const updated = get().entries.find((e) => e.id === id);
+        set((state) => ({ entries: state.entries.map((e) => (e.id === id ? { ...e, feedback } : e)) }));
+        if (updated) void saveEntry({ ...updated, feedback });
+      },
+
+      loadEntries: async () => {
+        await initEntryStore();
+
+        // 복원된 메모리 값에 예전 버전의 기록이 들어 있을 수 있다.
+        // 스토리지를 다시 읽지 않고 이 값을 그대로 넘겨 옮긴다.
+        const legacy = get().entries;
+        const migration = await migrateLegacyEntries(legacy);
+
+        const stored = await loadAllEntries();
+        // 이전에 실패한 건이 있으면 메모리 값을 버리지 않는다
+        const known = new Set(stored.map((e) => e.id));
+        const kept = migration.ok ? [] : legacy.filter((e) => !known.has(e.id));
+
+        set({
+          entries: [...stored, ...kept].sort((a, b) => b.createdAt - a.createdAt),
+          entriesLoaded: true,
+        });
+      },
 
       setSubscription: (subscription) => set({ subscription }),
       setCardTheme: (cardThemeKey) => set({ cardThemeKey }),
@@ -159,10 +204,12 @@ export const usePetStore = create<PetState>()(
         const added = incoming.filter((e) => !known.has(e.id));
         if (added.length === 0) return 0;
         set({ entries: [...state.entries, ...added].sort((a, b) => b.createdAt - a.createdAt) });
+        void saveEntries(added);
         return added.length;
       },
 
-      resetAll: () =>
+      resetAll: () => {
+        void clearEntries();
         set({
           pets: [],
           activePetId: null,
@@ -172,16 +219,18 @@ export const usePetStore = create<PetState>()(
           onboarded: false,
           lastBackupAt: undefined,
           queue: [],
-        }),
+        });
+      },
     }),
     {
       name: 'petvoice-store-v1',
       storage: createJSONStorage(() => AsyncStorage),
       // 액션 함수까지 통째로 넘기면 직렬화 때 버려지며 잡음만 남는다. 데이터만 저장한다.
+      // entries 는 여기에 넣지 않는다 — 별도 저장소가 담당한다.
+      // (한 건 추가할 때마다 수백 건을 통째로 다시 직렬화하던 문제를 없앤 지점)
       partialize: (state) => ({
         pets: state.pets,
         activePetId: state.activePetId,
-        entries: state.entries,
         subscription: state.subscription,
         cardThemeKey: state.cardThemeKey,
         onboarded: state.onboarded,
@@ -196,10 +245,26 @@ export const usePetStore = create<PetState>()(
   ),
 );
 
-// AsyncStorage 복원이 끝나기 전에는 "반려동물 없음" 화면이 잠깐 스쳐 지나간다.
-// hydrated 플래그로 그 깜빡임을 막는다.
-usePetStore.persist.onFinishHydration(() => usePetStore.setState({ hydrated: true }));
-if (usePetStore.persist.hasHydrated()) usePetStore.setState({ hydrated: true });
+/**
+ * 복원이 끝나면 곧바로 기록 저장소로 넘긴다.
+ *
+ * `hydrated` 를 세우는 것 자체가 상태 저장을 한 번 일으키는데,
+ * 그 저장은 partialize 때문에 기록을 빼고 쓴다. 그래서 **옮기기가 끝난 뒤에** 세운다.
+ * (순서를 반대로 뒀다가 예전 기록을 통째로 잃을 뻔했다)
+ */
+async function bootstrapEntries(): Promise<void> {
+  try {
+    await usePetStore.getState().loadEntries();
+  } catch (error) {
+    console.warn('기록을 불러오지 못했습니다', error);
+    usePetStore.setState({ entriesLoaded: true });
+  } finally {
+    usePetStore.setState({ hydrated: true });
+  }
+}
+
+usePetStore.persist.onFinishHydration(() => void bootstrapEntries());
+if (usePetStore.persist.hasHydrated()) void bootstrapEntries();
 
 /* ---------- 파생 셀렉터 ---------- */
 
