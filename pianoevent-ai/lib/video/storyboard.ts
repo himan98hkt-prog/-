@@ -1,5 +1,5 @@
 import { formatEventDate } from '@/lib/format'
-import { groupProgram } from '@/lib/program/appearances'
+import { groupProgram, performerKey } from '@/lib/program/appearances'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
 
 /**
@@ -45,6 +45,11 @@ export interface VideoScene {
   clip?: string
   /** 글자 자리 */
   caption?: CaptionPlace
+  /**
+   * 글 위에 작게 얹는 동그란 사진 — 응원을 보낸 분의 아이 얼굴.
+   * 누구 부모님 말인지 객석이 알아본다.
+   */
+  badge?: string
   /** 원장님이 직접 고친 장면인가 — 명단이 바뀌어도 덮어쓰지 않는다 */
   edited?: boolean
 }
@@ -84,6 +89,8 @@ export interface ExtraMedia {
 export interface CheerMessage {
   name: string
   message: string
+  /** 회신에 적어 주신 아이 이름 — 그 아이 얼굴을 함께 띄운다 */
+  student?: string
 }
 
 /** 영상에 넣는 응원 메시지 수 — 다 넣으면 영상이 문자 낭독이 된다 */
@@ -225,6 +232,13 @@ export function buildStoryboard({
       headline: '부모님이 보내 주신 말',
       sub: `초대장에 남겨 주신 ${cheers.length}통`,
     })
+    // 회신에 적힌 아이 이름으로 그 아이 얼굴을 찾는다 — 누구 부모님 말인지 보이게
+    const faceByName = new Map<string, string>()
+    for (const item of plan.items) {
+      const key = performerKey(item.student.student_name)
+      const shot = (photoSets[item.student.id] ?? [])[0] ?? photos[item.student.id]
+      if (shot && !faceByName.has(key)) faceByName.set(key, shot)
+    }
     cheers.forEach((cheer, index) => {
       scenes.push({
         id: `cheer-${index}`,
@@ -234,6 +248,7 @@ export function buildStoryboard({
         headline: cheer.message,
         sub: `— ${cheer.name}`,
         caption: 'center',
+        badge: cheer.student ? faceByName.get(performerKey(cheer.student)) : undefined,
       })
     })
   }
@@ -262,7 +277,7 @@ export function cleanMessages(messages: CheerMessage[], limit = MAX_MESSAGE_SCEN
     if (!message || message.length > 90) continue
     if (seen.has(message)) continue
     seen.add(message)
-    out.push({ name: name || '학부모님', message })
+    out.push({ name: name || '학부모님', message, student: item.student?.trim() || undefined })
     if (out.length >= limit) break
   }
   return out

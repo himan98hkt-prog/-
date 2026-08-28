@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 import { LiveBoard } from '@/components/ops/live-board'
 import { getTheme, themeVars } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
-import { normalizeLiveState } from '@/lib/ops/live'
+import { FollowGate } from '@/components/ops/follow-gate'
+import { liveCodeAllows, normalizeLiveState } from '@/lib/ops/live'
 import { resolvePlan } from '@/lib/program/resolve'
 import { getRepository } from '@/lib/store'
 
@@ -19,7 +20,13 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
  * 무대 옆에서 넘기면 몇 초 안에 이 화면도 따라 넘어간다. 여기서는 넘길 수 없다 —
  * 두 사람이 서로 넘기면 순서가 엉킨다. 넘기는 사람은 한 명이어야 한다.
  */
-export default async function PublicLivePage({ params }: { params: { id: string } }) {
+export default async function PublicLivePage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { k?: string }
+}) {
   const repo = getRepository()
   const event = await repo.getEvent(params.id)
   if (!event) notFound()
@@ -29,6 +36,8 @@ export default async function PublicLivePage({ params }: { params: { id: string 
 
   const { plan } = resolvePlan(students)
   const theme = getTheme(event.design_theme ?? academy.design_theme)
+  // 코드를 걸어 두셨으면 코드를 아는 화면만 따라온다
+  const allowed = liveCodeAllows(event.live_code, searchParams.k)
 
   return (
     <main
@@ -46,25 +55,32 @@ export default async function PublicLivePage({ params }: { params: { id: string 
         <p style={{ marginTop: 4, fontSize: 13, color: 'var(--d-muted)' }}>
           {formatEventDate(event.event_at)} · 진행 상황
         </p>
-        <p
-          style={{
-            margin: '14px 0 18px',
-            padding: '10px 12px',
-            borderRadius: 10,
-            background: 'var(--d-paper-alt)',
-            fontSize: 13,
-            lineHeight: 1.7,
-          }}
-        >
-          무대 옆에서 순서를 넘기면 이 화면도 <strong>몇 초 안에</strong> 따라 바뀝니다. 이 창을 열어 두세요.
-        </p>
+        {allowed ? (
+          <>
+            <p
+              style={{
+                margin: '14px 0 18px',
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: 'var(--d-paper-alt)',
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            >
+              무대 옆에서 순서를 넘기면 이 화면도 <strong>몇 초 안에</strong> 따라 바뀝니다. 이 창을 열어 두세요.
+            </p>
 
-        <LiveBoard
-          event={event}
-          plan={plan}
-          initialState={normalizeLiveState(event.live_state, plan.items.length + plan.breaks.length)}
-          canLead={false}
-        />
+            <LiveBoard
+              event={event}
+              plan={plan}
+              initialState={normalizeLiveState(event.live_state, plan.items.length + plan.breaks.length)}
+              canLead={false}
+              followCode={event.live_code ? searchParams.k ?? null : null}
+            />
+          </>
+        ) : (
+          <FollowGate eventId={event.id} title={event.title} />
+        )}
       </div>
     </main>
   )

@@ -1,4 +1,5 @@
 import { carryPhotoIds } from '@/lib/assets'
+import { averageTiming, normalizeTimingLog } from '@/lib/ops/timing'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
 import { getRepository } from '@/lib/store'
 
@@ -32,8 +33,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // 사진은 기본으로 따라온다. 보관함은 학원 것이고 아이도 그 아이다 —
     // 30명 얼굴을 해마다 다시 짝지을 이유가 없다. (그 사이 지운 사진은 뺀다)
     const keepPhotos = body.keep_photos !== false
-    const academy = keepPhotos ? await repo.getAcademy(target.academy_id) : null
-    const assets = academy?.assets ?? []
+    const academy = await repo.getAcademy(target.academy_id)
+    const assets = keepPhotos ? (academy?.assets ?? []) : []
+    // 곡을 비우고 이름만 가져올 때는 난이도로 추정할 수밖에 없다.
+    // 그 아이가 지난 무대에서 실제로 걸린 시간이 있으면 그쪽이 낫다.
+    const timings = normalizeTimingLog(academy?.timing_log)
 
     const imported = await repo.replaceStudents(
       params.id,
@@ -43,7 +47,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           student_name: row.student_name,
           piece_title: keepPieces ? row.piece_title : '',
           composer: keepPieces ? row.composer : '',
-          duration_sec: keepPieces ? row.duration_sec : null,
+          duration_sec: keepPieces ? row.duration_sec : averageTiming(timings, row.student_name),
           level: row.level,
           note: row.note,
           photo_asset_id: photos[0] ?? null,
@@ -53,6 +57,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     )
 
     const withPhoto = imported.filter((row) => row.photo_asset_id).length
-    return ok({ students: imported, from: source.title, keep_pieces: keepPieces, with_photo: withPhoto }, 201)
+    const withTiming = keepPieces
+      ? 0
+      : rows.filter((row) => averageTiming(timings, row.student_name) !== null).length
+    return ok(
+      { students: imported, from: source.title, keep_pieces: keepPieces, with_photo: withPhoto, with_timing: withTiming },
+      201,
+    )
   })
 }

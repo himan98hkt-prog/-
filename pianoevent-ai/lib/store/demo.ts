@@ -61,6 +61,7 @@ function seed(): Db {
         design_theme: 'classic-navy',
         photo_url: DEMO_PHOTO,
         assets: [],
+        timing_log: null,
         created_at: created,
       },
     ],
@@ -89,6 +90,7 @@ function seed(): Db {
         video_prefs: null,
         video_url: null,
         live_state: null,
+        live_code: null,
         created_at: created,
       },
     ],
@@ -158,6 +160,7 @@ export class DemoRepository implements Repository {
       design_theme: null,
       photo_url: null,
       assets: [],
+      timing_log: null,
       created_at: nowIso(),
     }
     db.academies.push(academy)
@@ -221,6 +224,7 @@ export class DemoRepository implements Repository {
       video_prefs: null,
       video_url: null,
       live_state: null,
+      live_code: null,
       created_at: nowIso(),
     }
     db.events.push(event)

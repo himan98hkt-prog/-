@@ -2,6 +2,7 @@ import { DESIGN_THEMES } from '@/lib/design/themes'
 import { DESIGN_TEMPLATES } from '@/lib/design/templates'
 import { normalizeEventAt } from '@/lib/format'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
+import { makeLiveCode, normalizeLiveCode } from '@/lib/ops/live'
 import { sanitizePrefs, STAGE_PREF_SPEC, VIDEO_PREF_SPEC } from '@/lib/prefs'
 import { getRepository } from '@/lib/store'
 import { videoEmbed } from '@/lib/video/embed'
@@ -82,6 +83,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         const embed = videoEmbed(raw)
         if (!embed) return fail('영상 주소는 http(s) 로 시작하는 주소여야 합니다.')
         patch.video_url = embed.href.slice(0, 500)
+      }
+    }
+
+    // 따라보기 열쇠 — true 면 새로 만들어 주고, false·빈 값이면 걸어 두지 않는다
+    if (body.live_code !== undefined) {
+      if (body.live_code === true) patch.live_code = makeLiveCode()
+      else if (body.live_code === false || body.live_code === null || body.live_code === '') patch.live_code = null
+      else {
+        const code = normalizeLiveCode(body.live_code)
+        if (!code) return fail('코드는 4~12 글자여야 합니다.')
+        patch.live_code = code
       }
     }
 

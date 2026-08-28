@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronLeft, ChevronRight, Loader2, Play, RadioTower, RotateCcw, Users } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatDuration, formatWallClock } from '@/lib/format'
@@ -46,6 +46,7 @@ export function LiveBoard({
   students = [],
   initialState = null,
   canLead = true,
+  followCode = null,
 }: {
   event: EventRecord
   plan: ProgramPlan
@@ -53,8 +54,10 @@ export function LiveBoard({
   students?: EventStudent[]
   /** 서버에 올라와 있던 진행 상태 */
   initialState?: LiveState | null
-  /** 넘길 수 있는 화면인가 (학부모용 따라보기 화면은 false) */
+  /** 넘길 수 있는 화면인가 (따라보기 화면은 false) */
   canLead?: boolean
+  /** 따라보기 열쇠 — 서버에 물어볼 때 함께 보낸다 */
+  followCode?: string | null
 }) {
   const list = useMemo(() => buildLiveList(plan), [plan])
   const [state, setState] = useState<LiveState>(() => normalizeLiveState(initialState, list.length))
@@ -124,7 +127,10 @@ export function LiveBoard({
     let alive = true
     const pull = async () => {
       try {
-        const res = await fetch(`/api/events/${event.id}/live`, { cache: 'no-store' })
+        const res = await fetch(
+          `/api/events/${event.id}/live${followCode ? `?k=${encodeURIComponent(followCode)}` : ''}`,
+          { cache: 'no-store' },
+        )
         if (!res.ok) throw new Error('읽지 못했습니다.')
         const body = await res.json()
         if (!alive) return
@@ -150,7 +156,7 @@ export function LiveBoard({
       alive = false
       window.clearInterval(timer)
     }
-  }, [shared, event.id, list.length])
+  }, [shared, event.id, list.length, followCode])
 
   /** 함께 보기를 켠 순간, 내 화면이 더 나중이면 서버에 한 번 올려 둔다 */
   useEffect(() => {
@@ -348,14 +354,7 @@ export function LiveBoard({
               </span>
             </span>
           </label>
-          {shared && (
-            <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-3.5 w-3.5" aria-hidden />
-              대기실·접수처 스태프는 이 주소를 열어 두시면 됩니다 —{' '}
-              <code className="rounded bg-secondary px-1.5 py-0.5">/e/{event.id}/live</code>
-              <span>로그인 없이 보기만 하는 화면입니다.</span>
-            </p>
-          )}
+          {shared && <FollowLink event={event} />}
           {sharedError && <p className="mt-1 text-xs text-destructive">{sharedError}</p>}
         </section>
       )}
@@ -464,6 +463,99 @@ export function LiveBoard({
           ))}
         </ol>
       </section>
+    </div>
+  )
+}
+
+/**
+ * 대기실·접수처가 열 주소.
+ *
+ * 이 주소는 초대장과 같은 자리에 있다. 뜨는 것은 초대장에 이미 있는 이름과 곡뿐이지만,
+ * **누가 보는지는 원장님이 정하셔야 한다.** 코드를 켜 두면 그 코드를 아는 화면만 따라온다.
+ */
+function FollowLink({ event }: { event: EventRecord }) {
+  const [code, setCode] = useState<string | null>(event.live_code)
+  /**
+   * 켬·끔은 **누른 즉시** 움직인다. 서버를 기다리는 동안 멈춰 있으면
+   * 안 눌린 줄 알고 다시 누르시게 된다. 실패하면 되돌린다.
+   */
+  const [locked, setLocked] = useState(!!event.live_code)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const origin = typeof window === 'undefined' ? '' : window.location.origin
+  const url = `${origin}/e/${event.id}/live${code ? `?k=${code}` : ''}`
+
+  async function setLock(next: boolean) {
+    setLocked(next)
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/events/${event.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ live_code: next }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error ?? '바꾸지 못했습니다.')
+      setCode(body.event?.live_code ?? null)
+    } catch {
+      // 못 바꿨으면 되돌린다 — 잠긴 줄 아셨는데 안 잠겨 있으면 안 된다
+      setLocked(!next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 grid gap-1.5" data-testid="follow-link">
+      <p className="text-xs text-muted-foreground">
+        대기실·접수처 스태프는 이 주소를 열어 두시면 됩니다. 로그인이 필요 없습니다.
+      </p>
+      <div className="flex items-center gap-1.5">
+        <code className="min-w-0 flex-1 truncate rounded bg-secondary px-2 py-1.5 text-xs" data-testid="follow-url">
+          {url}
+        </code>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void navigator.clipboard
+              ?.writeText(url)
+              .then(() => {
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 2200)
+              })
+              .catch(() => undefined)
+          }}
+        >
+          {copied ? <Check className="h-4 w-4 text-accent" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
+      <label className="flex cursor-pointer items-start gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={locked}
+          disabled={busy}
+          onChange={(native) => void setLock(native.target.checked)}
+          className="mt-0.5 h-3.5 w-3.5"
+        />
+        <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
+        <span className="text-muted-foreground">
+          <strong className="text-foreground">코드를 아는 사람만 보게 하기</strong>
+          {locked && code ? (
+            <>
+              {' '}— 코드 <strong className="tabular-nums tracking-widest text-foreground">{code}</strong>. 위 주소에
+              이미 들어 있으니 그대로 보내시면 됩니다.
+            </>
+          ) : locked ? (
+            <> — 코드를 만드는 중입니다…</>
+          ) : (
+            <> — 지금은 이 주소를 아는 누구나 볼 수 있습니다.</>
+          )}
+          <br />
+          비밀번호가 아니라 문고리입니다. 여기 뜨는 것은 초대장에 이미 있는 이름과 곡뿐입니다.
+        </span>
+      </label>
     </div>
   )
 }

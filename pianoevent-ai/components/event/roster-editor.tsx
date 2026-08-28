@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PieceInput } from '@/components/event/piece-input'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
 import { formatDuration } from '@/lib/format'
+import { averageTiming, timingHint, type TimingLog } from '@/lib/ops/timing'
 import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
@@ -28,6 +29,7 @@ export function RosterEditor({
   students,
   pastEvents = [],
   assets = [],
+  timings = null,
 }: {
   eventId: string
   students: EventStudent[]
@@ -35,6 +37,8 @@ export function RosterEditor({
   pastEvents?: { id: string; title: string; count: number }[]
   /** 이미지 보관함 — 아이 사진을 여기서 고른다 */
   assets?: AcademyAsset[]
+  /** 아이별로 지난 무대에서 실제로 걸린 시간 */
+  timings?: TimingLog | null
 }) {
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
 
@@ -111,10 +115,16 @@ export function RosterEditor({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '가져오지 못했습니다.')
       const photoNote = data.with_photo > 0 ? ` 아이 사진 ${data.with_photo}명 분도 그대로 따라왔습니다.` : ''
+      const timingNote =
+        data.with_timing > 0
+          ? ` ${data.with_timing}명은 지난 무대에서 실제로 걸린 시간으로 채웠습니다.`
+          : ''
       setMessage(
         (keepPieces
           ? `${data.students.length}명을 곡까지 그대로 가져왔습니다.`
-          : `${data.students.length}명을 가져왔습니다. 이제 곡만 채우시면 됩니다.`) + photoNote,
+          : `${data.students.length}명을 가져왔습니다. 이제 곡만 채우시면 됩니다.`) +
+          photoNote +
+          timingNote,
       )
       router.refresh()
     } catch (e) {
@@ -382,7 +392,7 @@ export function RosterEditor({
                 setMessage(
                   skipped.length === 0
                     ? `사진 ${matched}장을 아이들과 짝지었습니다.`
-                    : `사진 ${matched}장을 짝지었습니다. 이름을 찾지 못한 파일 ${skipped.length}개는 건너뛰었습니다 — ${skipped.slice(0, 3).join(', ')}`,
+                    : `사진 ${matched}장을 짝지었습니다. 짝짓지 못한 파일 ${skipped.length}개는 건너뛰었습니다 — ${skipped.slice(0, 3).join(', ')}`,
                 )
                 router.refresh()
               }}
@@ -490,6 +500,23 @@ export function RosterEditor({
                           aria-label="소요시간(초)"
                         />
                         <span className="ml-1 text-xs text-muted-foreground">{formatDuration(s.duration_sec)}</span>
+                        {(() => {
+                          // 이 아이가 지난 무대에서 실제로 걸린 시간 — 책의 평균보다 이쪽이 낫다.
+                          // 지금 값과 같으면 굳이 보여 주지 않는다
+                          const known = averageTiming(timings, s.student_name)
+                          const hint = timingHint(timings, s.student_name)
+                          if (known === null || !hint || Math.abs(known - s.duration_sec) <= 5) return null
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => patchStudent(s.id, { duration_sec: known })}
+                              className="mt-0.5 block text-left text-[11px] text-accent underline underline-offset-2"
+                              title="당일 진행 화면에서 쌓인 실제 시간입니다. 누르면 이 값으로 바꿉니다"
+                            >
+                              {hint} · 이 값으로
+                            </button>
+                          )
+                        })()}
                       </td>
                       <td className="px-2 py-1.5">
                         <Input

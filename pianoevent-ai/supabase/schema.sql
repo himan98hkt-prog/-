@@ -20,6 +20,8 @@ create table if not exists public.academies (
   -- 학원 대표 사진 (Storage 공개 URL 등)
   photo_url     text,
   assets        jsonb not null default '[]'::jsonb,
+  -- 아이별로 무대에서 실제로 걸린 시간(초) 기록 {"김서연":[110,118]}
+  timing_log    jsonb,
   created_at    timestamptz not null default now()
 );
 
@@ -28,6 +30,8 @@ alter table public.academies add column if not exists design_theme text;
 alter table public.academies add column if not exists photo_url    text;
 -- 로고·상징·사진 보관함. [{id,kind,label,url,created_at}]
 alter table public.academies add column if not exists assets       jsonb not null default '[]'::jsonb;
+-- 아이별 실제 연주 시간 기록 (당일 진행 화면에서 쌓인다)
+alter table public.academies add column if not exists timing_log   jsonb;
 
 create index if not exists academies_owner_idx on public.academies(owner_id);
 
@@ -73,6 +77,8 @@ create table if not exists public.events (
   video_url            text,
   -- 당일 진행 상태 {index, started_at, marks:[], updated_at} — 스태프 여러 명이 같은 화면을 본다
   live_state           jsonb,
+  -- 따라보기 화면을 열 수 있는 코드. 비어 있으면 링크를 아는 누구나 볼 수 있다
+  live_code            text,
   created_at           timestamptz not null default now()
 );
 
@@ -89,6 +95,7 @@ alter table public.events add column if not exists video_prefs     jsonb;
 alter table public.events add column if not exists video_url       text;
 -- 당일 진행 상태 {index, started_at, marks, updated_at}
 alter table public.events add column if not exists live_state      jsonb;
+alter table public.events add column if not exists live_code       text;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 

@@ -44,6 +44,7 @@ const ACADEMY: Academy = {
   design_theme: null,
   photo_url: null,
   assets: [],
+  timing_log: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -70,6 +71,7 @@ const EVENT: EventRecord = {
   video_prefs: null,
   video_url: null,
   live_state: null,
+  live_code: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 

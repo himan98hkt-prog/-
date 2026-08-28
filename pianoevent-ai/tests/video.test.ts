@@ -775,3 +775,125 @@ describe('학부모 응원 메시지', () => {
     expect(scenes[1].seconds).toBeGreaterThan(scenes[0].seconds)
   })
 })
+
+describe('응원 메시지에 그 아이 얼굴', () => {
+  const kids = [
+    student('김서연', 'beginner', 100, { id: 'k1', piece_title: '나비야' }),
+    student('박지호', 'beginner', 110, { id: 'k2', piece_title: '즐거운 나의 집' }),
+  ]
+  const kidPlan = buildProgram(kids)
+  const scenes = buildStoryboard({
+    event,
+    plan: kidPlan,
+    academyName: '하모니',
+    photos: { k1: '서연.jpg', k2: '지호.jpg' },
+    messages: [
+      { name: '김서연 어머니', message: '수고 많았어요.', student: '김서연' },
+      { name: '이웃 주민', message: '응원합니다.', student: '모르는아이' },
+      { name: '누군가', message: '좋았어요.' },
+    ],
+  })
+  const cheers = scenes.filter((scene) => scene.kind === 'message')
+
+  it('회신에 적힌 아이 얼굴을 함께 띄운다', () => {
+    expect(cheers[0].badge).toBe('서연.jpg')
+  })
+
+  it('명단에 없는 아이 이름이면 얼굴 없이 글만', () => {
+    expect(cheers[1].badge).toBeUndefined()
+  })
+
+  it('아이 이름을 안 적어 주셨으면 글만', () => {
+    expect(cheers[2].badge).toBeUndefined()
+  })
+
+  it('얼굴이 실제로 그려지고, 글자와 겹치지 않는다', () => {
+    const line = buildTimeline([
+      { id: 'm', kind: 'message', seconds: 4, headline: '수고 많았어요.', sub: '— 어머니', badge: 'face' },
+    ])
+    const images = new Map<string, HTMLImageElement>([
+      ['face', { naturalWidth: 200, naturalHeight: 200 } as HTMLImageElement],
+    ])
+    const drawn: { y: number; h: number }[] = []
+    const texts: { text: string; y: number }[] = []
+    const ctx = {
+      canvas: { width: 1280, height: 720 },
+      globalAlpha: 1,
+      fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '',
+      shadowColor: '', shadowBlur: 0, shadowOffsetY: 0,
+      save() {}, restore() {}, beginPath() {}, closePath() {}, clip() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, arcTo() {}, ellipse() {}, rect() {},
+      fillRect() {}, translate() {}, rotate() {}, scale() {},
+      fillText(text: string, _x: number, y: number) {
+        texts.push({ text, y })
+      },
+      drawImage(_source: unknown, _x: number, y: number, _w: number, h: number) {
+        drawn.push({ y, h })
+      },
+      measureText(text: string) {
+        return { width: text.length * 20 }
+      },
+      createLinearGradient() {
+        return { addColorStop() {} }
+      },
+      createRadialGradient() {
+        return { addColorStop() {} }
+      },
+    } as unknown as CanvasRenderingContext2D
+
+    renderFrame(ctx, line, 2, { images, videos: new Map() }, {
+      width: 1280,
+      height: 720,
+      theme: getTheme('classic-navy'),
+      academyName: '하모니',
+    }, true)
+
+    expect(drawn).toHaveLength(1)
+    // 얼굴이 글자 위에 놓인다
+    const faceBottom = drawn[0].y + drawn[0].h
+    const firstText = Math.min(...texts.map((row) => row.y))
+    expect(firstText).toBeGreaterThan(faceBottom)
+    // 화면 안에 들어간다
+    expect(drawn[0].y).toBeGreaterThanOrEqual(0)
+    expect(faceBottom).toBeLessThanOrEqual(720)
+  })
+
+  it('얼굴이 있으면 글이 화면 밖으로 밀리지 않는다', () => {
+    // 얼굴 높이만큼 글 덩어리가 위로 올라가야 한다
+    const withFace = buildTimeline([
+      { id: 'm', kind: 'message', seconds: 4, headline: '수고 많았어요.', sub: '— 어머니', badge: 'face' },
+    ])
+    const images = new Map<string, HTMLImageElement>([
+      ['face', { naturalWidth: 200, naturalHeight: 200 } as HTMLImageElement],
+    ])
+    const seen: number[] = []
+    const ctx = {
+      canvas: { width: 1280, height: 720 },
+      globalAlpha: 1,
+      fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '',
+      shadowColor: '', shadowBlur: 0, shadowOffsetY: 0,
+      save() {}, restore() {}, beginPath() {}, closePath() {}, clip() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, arcTo() {}, ellipse() {}, rect() {},
+      fillRect() {}, drawImage() {}, translate() {}, rotate() {}, scale() {},
+      fillText(_text: string, _x: number, y: number) {
+        seen.push(y)
+      },
+      measureText(text: string) {
+        return { width: text.length * 20 }
+      },
+      createLinearGradient() {
+        return { addColorStop() {} }
+      },
+      createRadialGradient() {
+        return { addColorStop() {} }
+      },
+    } as unknown as CanvasRenderingContext2D
+    renderFrame(ctx, withFace, 2, { images, videos: new Map() }, {
+      width: 1280,
+      height: 720,
+      theme: getTheme('classic-navy'),
+      academyName: '하모니',
+    }, true)
+    expect(Math.max(...seen)).toBeLessThanOrEqual(720)
+  })
+})

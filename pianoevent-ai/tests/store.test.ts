@@ -37,8 +37,13 @@ describe('summarizeRsvps', () => {
       rsvp({ id: 'b', message: '잘하고 와!', parent_name: '이보호' }),
     ])
     expect(summary.messages).toEqual([
-      { name: '이보호', message: '잘하고 와!', created_at: '2026-01-01T00:00:00.000Z' },
+      { name: '이보호', student: '김학생', message: '잘하고 와!', created_at: '2026-01-01T00:00:00.000Z' },
     ])
+  })
+
+  it('누구 아이 것인지 함께 담는다 — 감동영상에서 그 아이 얼굴을 찾는다', () => {
+    const summary = summarizeRsvps([rsvp({ message: '고맙습니다', student_name: '윤채원' })])
+    expect(summary.messages[0].student).toBe('윤채원')
   })
 
   it('회신이 없으면 0 으로 채운다', () => {

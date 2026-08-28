@@ -10,8 +10,13 @@ import {
   elapsedTotal,
   EMPTY_LIVE_STATE,
   formatElapsed,
+  LIVE_CODE_ALPHABET,
+  LIVE_CODE_LENGTH,
+  liveCodeAllows,
   liveStorageKey,
+  makeLiveCode,
   moveLive,
+  normalizeLiveCode,
   namedDurations,
   newerLiveState,
   normalizeLiveState,
@@ -233,5 +238,47 @@ describe('당일 진행 — 넘긴 시각과 함께 보기', () => {
     state = moveLive(state, 1, T0 + 100_000, list.length)
     expect(elapsedTotal(state, T0 + 130_000)).toBe(130)
     expect(elapsedAtIndex(state, 1, T0 + 130_000)).toBe(30)
+  })
+})
+
+describe('따라보기 열쇠', () => {
+  it('헷갈리는 글자를 쓰지 않는다 — 무대 옆에서 손으로 옮겨 적을 수도 있다', () => {
+    for (const bad of ['O', '0', 'I', '1', 'L']) expect(LIVE_CODE_ALPHABET).not.toContain(bad)
+  })
+
+  it('코드는 정해진 길이로 나온다', () => {
+    const code = makeLiveCode()
+    expect(code).toHaveLength(LIVE_CODE_LENGTH)
+    expect(code.split('').every((ch) => LIVE_CODE_ALPHABET.includes(ch))).toBe(true)
+  })
+
+  it('만들 때마다 다르다', () => {
+    const seen = new Set(Array.from({ length: 50 }, () => makeLiveCode()))
+    expect(seen.size).toBeGreaterThan(40)
+  })
+
+  it('소문자로 적으셔도 알아본다', () => {
+    expect(normalizeLiveCode('ab23cd')).toBe('AB23CD')
+    expect(normalizeLiveCode(' AB 23 CD ')).toBe('AB23CD')
+  })
+
+  it('짧거나 아는 글자가 아니면 받지 않는다', () => {
+    expect(normalizeLiveCode('AB')).toBeNull()
+    expect(normalizeLiveCode('!!!!!!')).toBeNull()
+    expect(normalizeLiveCode(1234)).toBeNull()
+    expect(normalizeLiveCode(null)).toBeNull()
+  })
+
+  it('코드를 걸지 않으면 링크를 아는 누구나 본다', () => {
+    expect(liveCodeAllows(null, undefined)).toBe(true)
+    expect(liveCodeAllows('', 'AAAA')).toBe(true)
+  })
+
+  it('코드를 걸면 맞는 코드만 통과한다', () => {
+    expect(liveCodeAllows('AB23CD', 'AB23CD')).toBe(true)
+    expect(liveCodeAllows('AB23CD', 'ab23cd')).toBe(true)
+    expect(liveCodeAllows('AB23CD', 'AB23CE')).toBe(false)
+    expect(liveCodeAllows('AB23CD', undefined)).toBe(false)
+    expect(liveCodeAllows('AB23CD', '')).toBe(false)
   })
 })

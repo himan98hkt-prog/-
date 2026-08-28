@@ -4,6 +4,7 @@ import { ImagePlus, Loader2, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { STUDENT_PHOTO_MAX, type AcademyAsset } from '@/lib/assets'
+import { matchPhotoFiles } from '@/lib/ops/photo-match'
 import { FACE_SHRINK, shrinkImage } from '@/lib/image'
 import type { EventStudent } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -179,7 +180,9 @@ export function StudentPhotoCell({
 
 /**
  * 사진 한꺼번에 올리기.
+ *
  * 파일 이름에서 아이 이름을 찾아 짝지어 준다 — `김서연.jpg`, `2026 윤채원 연습.jpg` 둘 다 걸린다.
+ * 한 아이에 여러 장이면 이름 뒤 번호대로 넣는다 — `김서연-1.jpg` `김서연-2.jpg`.
  */
 export function BulkPhotoUpload({
   students,
@@ -194,45 +197,59 @@ export function BulkPhotoUpload({
 
   async function handle(files: FileList) {
     setBusy(true)
-    let matched = 0
-    const skipped: string[] = []
+    const list = Array.from(files)
+    const { matched, skipped } = matchPhotoFiles(
+      list.map((file) => file.name),
+      students,
+      STUDENT_PHOTO_MAX,
+    )
+    const byName = new Map(list.map((file) => [file.name, file]))
+    let done = 0
+    let step = 0
+    const total = matched.reduce((sum, row) => sum + row.files.length, 0)
+
     try {
-      const list = Array.from(files)
-      for (let index = 0; index < list.length; index += 1) {
-        const file = list[index]
-        setProgress(`${index + 1} / ${list.length}`)
-        const base = file.name.replace(/\.[^.]+$/, '')
-        // 파일 이름 안에 아이 이름이 들어 있으면 그 아이 것으로 본다. 긴 이름부터 맞춰 오해를 줄인다
-        const student = [...students]
-          .sort((a, b) => b.student_name.length - a.student_name.length)
-          .find((row) => row.student_name && base.includes(row.student_name))
-        if (!student) {
-          skipped.push(file.name)
-          continue
+      for (const row of matched) {
+        const ids: string[] = []
+        for (const fileName of row.files) {
+          const file = byName.get(fileName)
+          if (!file) continue
+          step += 1
+          setProgress(`${step} / ${total}`)
+          try {
+            const url = await shrinkImage(file, FACE_SHRINK)
+            const created = await fetch('/api/academy/assets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'photo', label: `${row.student.student_name} 사진`, url }),
+            })
+            const body = await created.json()
+            if (!created.ok) {
+              skipped.push(`${fileName} — ${body.error ?? '올리지 못했습니다'}`)
+              continue
+            }
+            ids.push(body.asset.id as string)
+          } catch {
+            skipped.push(fileName)
+          }
         }
-        const url = await shrinkImage(file, FACE_SHRINK)
-        const created = await fetch('/api/academy/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind: 'photo', label: `${student.student_name} 사진`, url }),
-        })
-        const body = await created.json()
-        if (!created.ok) {
-          skipped.push(`${file.name} — ${body.error ?? '올리지 못했습니다'}`)
-          continue
-        }
-        const assigned = await fetch(`/api/students/${student.id}`, {
+        if (ids.length === 0) continue
+        // 맨 앞이 대표 사진 — 무대 화면과 파워포인트는 한 장만 쓴다
+        const assigned = await fetch(`/api/students/${row.student.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ photo_asset_id: body.asset.id }),
+          body: JSON.stringify({
+            photo_asset_id: ids[0],
+            photo_asset_ids: ids.length > 1 ? ids : null,
+          }),
         })
-        if (assigned.ok) matched += 1
-        else skipped.push(file.name)
+        if (assigned.ok) done += ids.length
+        else skipped.push(...row.files)
       }
     } finally {
       setBusy(false)
       setProgress('')
-      onDone(matched, skipped)
+      onDone(done, skipped)
     }
   }
 
@@ -254,7 +271,9 @@ export function BulkPhotoUpload({
         사진 한꺼번에 올리기 {progress}
       </Button>
       <span className="text-xs text-muted-foreground">
-        파일 이름에 아이 이름이 들어 있으면 <strong>알아서 짝지어</strong> 줍니다 — <code>김서연.jpg</code>
+        파일 이름에 아이 이름이 들어 있으면 <strong>알아서 짝지어</strong> 줍니다 — <code>김서연.jpg</code>.
+        한 아이에 <strong>여러 장</strong>이면 이름 뒤에 번호를 붙이세요 — <code>김서연-1.jpg</code>{' '}
+        <code>김서연-2.jpg</code>
       </span>
     </div>
   )

@@ -285,3 +285,43 @@ export function namedDurations(
     return [{ id: student.id, name: student.student_name, before: student.duration_sec, after: update.duration_sec }]
   })
 }
+
+/**
+ * 따라보기 열쇠.
+ *
+ * 따라보기 화면(`/e/{id}/live`)은 초대장과 같은 자리에 있다. 거기에 뜨는 것은
+ * 초대장에 이미 있는 이름과 곡뿐이지만, **누가 보는지는 원장님이 정하셔야 한다.**
+ * 코드를 켜 두면 그 코드를 아는 화면만 따라온다.
+ *
+ * 비밀번호가 아니다. 스태프가 한 번 열고 마는 화면의 문고리다 —
+ * 화면에도 그렇게 적어 둔다.
+ */
+
+/** 헷갈리는 글자를 뺀다 — 무대 옆에서 손으로 옮겨 적을 수도 있다 (0/O, 1/I/L) */
+export const LIVE_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+export const LIVE_CODE_LENGTH = 6
+
+export function makeLiveCode(random: () => number = Math.random): string {
+  let out = ''
+  for (let i = 0; i < LIVE_CODE_LENGTH; i += 1) {
+    out += LIVE_CODE_ALPHABET[Math.floor(random() * LIVE_CODE_ALPHABET.length) % LIVE_CODE_ALPHABET.length]
+  }
+  return out
+}
+
+/** 받아 둘 만한 코드인가 — 대문자로 맞추고 아는 글자만 남긴다 */
+export function normalizeLiveCode(input: unknown): string | null {
+  if (typeof input !== 'string') return null
+  const cleaned = input
+    .toUpperCase()
+    .split('')
+    .filter((ch) => LIVE_CODE_ALPHABET.includes(ch))
+    .join('')
+  return cleaned.length >= 4 && cleaned.length <= 12 ? cleaned : null
+}
+
+/** 이 화면이 따라볼 수 있는가. 코드를 걸어 두지 않았으면 누구나 볼 수 있다 */
+export function liveCodeAllows(stored: string | null | undefined, given: unknown): boolean {
+  if (!stored) return true
+  return normalizeLiveCode(given) === stored
+}

@@ -1,5 +1,11 @@
 import { guard, fail, ok, readJson } from '@/lib/http'
-import { buildLiveList, normalizeLiveState, newerLiveState, EMPTY_LIVE_STATE } from '@/lib/ops/live'
+import {
+  buildLiveList,
+  EMPTY_LIVE_STATE,
+  liveCodeAllows,
+  newerLiveState,
+  normalizeLiveState,
+} from '@/lib/ops/live'
 import { resolvePlan } from '@/lib/program/resolve'
 import { getRepository } from '@/lib/store'
 
@@ -13,10 +19,14 @@ import { getRepository } from '@/lib/store'
  * 당일에 서버 때문에 순서를 놓치는 일은 없어야 한다.
  */
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   return guard(async () => {
     const event = await getRepository().getEvent(params.id)
     if (!event) return fail('행사를 찾을 수 없습니다.', 404)
+    // 코드를 걸어 두셨으면 코드를 아는 화면만 따라온다.
+    // 화면만 막고 이 자리를 열어 두면 문고리만 달아 둔 셈이 된다.
+    const given = new URL(req.url).searchParams.get('k')
+    if (!liveCodeAllows(event.live_code, given)) return fail('코드가 필요합니다.', 403)
     // 몇 초마다 들어오는 요청이다. 순서표까지 다시 세지 않는다 —
     // 길이에 맞춰 다듬는 일은 목록을 들고 있는 화면 쪽에서 한다
     return ok({ live: normalizeLiveState(event.live_state) })

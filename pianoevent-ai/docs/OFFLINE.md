@@ -32,6 +32,9 @@
 | 좌석 배치 | `lib/ops/seating.ts` |
 | 준비 체크리스트·당일 진행표·안내 문자 4종 | `lib/ops/` |
 | 당일 진행 화면 (지금·다음·밀린 시간, 실제 걸린 시간) | `lib/ops/live.ts` — 진행 상태는 그 휴대폰에 담긴다 |
+| 아이별 실제 연주 시간 쌓기·평균 | `lib/ops/timing.ts` |
+| 당일 사진 모으기 (휴대폰에서 찍어 바로 넣기) | `components/event/photo-collect.tsx` · `lib/image.ts` |
+| 만든 토막을 한 편으로 잇기 | `lib/video/join.ts` · 브라우저 MediaRecorder |
 | 시즌 특강 커리큘럼·활동지 | `lib/season/` |
 | 이미지 보관함 (사진 축소도 브라우저에서) | `lib/image.ts` |
 

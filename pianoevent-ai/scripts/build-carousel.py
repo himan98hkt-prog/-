@@ -421,7 +421,7 @@ S.append(slide(11, TOTAL,
       <div class="item"><span class="mk">✓</span><span><b>감동영상 템플릿 10종</b> — 꽉 찬 사진 · 배경 위 액자</span></div>
       <div class="item"><span class="mk">✓</span><span><b>만들기 전에 장면 전부가 그림으로</b> 뜹니다</span></div>
       <div class="item"><span class="mk">✓</span><span><b>2배 · 4배</b>로 확인하고 <b>학원 로고</b>를 구석에</span></div>
-      <div class="item"><span class="mk">✓</span><span>아이당 <b>사진 여러 장</b> · <b>학부모 응원 메시지</b>가 마지막에</span></div>
+      <div class="item"><span class="mk">✓</span><span>아이당 <b>사진 여러 장</b> · <b>응원 메시지에 그 아이 얼굴</b></span></div>
       <div class="item"><span class="mk">✓</span><span>영상 주소를 붙이면 <b>초대장 안에서 바로 재생</b></span></div>
     </div>'''))
 
@@ -443,8 +443,8 @@ S.append(slide(12, TOTAL, dark=True,
       <p class="d">가족은 붙여 앉히고 앞 두 줄은 비웁니다. <b>&ldquo;3열 4~6번&rdquo;</b> 표기로 나옵니다.</p>
     </div>
     <div class="card" style="margin-top:16px">
-      <p class="t">당일 진행 화면 — 휴대폰</p>
-      <p class="d">무대 옆에서 <b>&ldquo;지금 · 다음&rdquo;</b>이 크게. 대기실 화면도 함께 넘어갑니다.</p>
+      <p class="t">당일 진행 · 사진 모으기 — 휴대폰</p>
+      <p class="d">무대 옆에서 <b>&ldquo;지금 · 다음&rdquo;</b>이 크게. 리허설 사진은 찍는 즉시 영상에.</p>
     </div>'''))
 
 # 13 점검 ───────────────────────────────────────────────────

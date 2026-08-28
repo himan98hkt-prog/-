@@ -11,6 +11,7 @@ import {
   Music,
   Pause,
   Play,
+  Merge,
   Scissors,
   Square,
   Trash2,
@@ -23,6 +24,15 @@ import { Input, Label } from '@/components/ui/field'
 import { getTheme } from '@/lib/design/themes'
 import { prefBool, prefNumber, prefString, type Prefs } from '@/lib/prefs'
 import { embedHint, videoEmbed } from '@/lib/video/embed'
+import {
+  canJoin,
+  joinBlocker,
+  joinedName,
+  joinLabel,
+  movePart,
+  partsSeconds,
+  type VideoPart,
+} from '@/lib/video/join'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
 import {
   DEFAULT_VIDEO_TEMPLATE,
@@ -148,6 +158,9 @@ export function VideoStudio({
   /** 만들다 끊긴 것인가 — 그래도 담긴 데까지는 드린다 */
   const recorderRef = useRef<MediaRecorder | null>(null)
   const abortedRef = useRef(false)
+  /** 만들어 둔 토막들 — 나중에 한 편으로 잇는다 */
+  const [parts, setParts] = useState<VideoPart[]>([])
+  const [joining, setJoining] = useState<string | null>(null)
 
   const [playing, setPlaying] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -279,6 +292,9 @@ export function VideoStudio({
     const urls = new Set<string>()
     for (const scene of scenes) {
       if (scene.image) urls.add(scene.image)
+      // 한 장면 안에서 넘어가는 사진들과, 응원에 얹는 아이 얼굴도 미리 읽는다
+      for (const shot of scene.images ?? []) urls.add(shot)
+      if (scene.badge) urls.add(scene.badge)
     }
     const jobs: Promise<void>[] = []
     for (const url of urls) {
@@ -570,8 +586,20 @@ export function VideoStudio({
     const label = range
       ? ` ${range.from + 1}-${Math.min(range.to, scenes.length - 1) + 1}장면`
       : ''
+    const madeUrl = URL.createObjectURL(blob)
+    // 만든 것은 토막 목록에 남겨 둔다 — 나중에 한 편으로 이을 수 있게
+    setParts((prev) => [
+      ...prev,
+      {
+        id: `part-${Date.now()}`,
+        label: `${range ? `${range.from + 1}-${Math.min(range.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
+        url: madeUrl,
+        seconds: partial ? Math.round(clockRef.current) : Math.round(line.total),
+        made: true,
+      },
+    ])
     setResult({
-      url: URL.createObjectURL(blob),
+      url: madeUrl,
       label: partial ? `${info.label} · 중간까지` : info.label,
       note: partial
         ? `만들다 멈춰 ${formatLength(clockRef.current)} 까지만 담겼습니다. 그래도 재생됩니다 — 이어서 만드시려면 아래 [만들 구간]에서 멈춘 장면부터 고르세요.`
@@ -583,6 +611,156 @@ export function VideoStudio({
     setRecording(false)
     setClock(0)
     draw(0)
+  }
+
+  /**
+   * 토막들을 한 편으로 잇는다.
+   *
+   * 파일을 바이트로 붙일 수는 없다(lib/video/join.ts 에 적어 두었다).
+   * 토막을 차례로 틀면서 그 화면을 새로 담는다 — 토막 길이의 합만큼 걸리지만
+   * 나오는 것은 진짜 한 편이다.
+   */
+  async function joinParts() {
+    const canvas = canvasRef.current
+    if (!canvas || !recordType || !canJoin(parts)) return
+    setWarning(null)
+    setResult(null)
+    setJoining('준비 중…')
+    abortedRef.current = false
+
+    // 토막을 미리 다 읽어 둔다 — 트는 도중에 읽으면 사이가 끊긴다
+    const players: HTMLVideoElement[] = []
+    await Promise.all(
+      parts.map(
+        (part) =>
+          new Promise<void>((resolve) => {
+            const el = document.createElement('video')
+            el.src = part.url
+            el.preload = 'auto'
+            el.playsInline = true
+            players.push(el)
+            el.onloadeddata = () => resolve()
+            el.onerror = () => resolve()
+          }),
+      ),
+    )
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      setJoining(null)
+      return
+    }
+
+    const stream = canvas.captureStream(30)
+    const audio = new AudioContext()
+    const mixer = audio.createMediaStreamDestination()
+    let anyAudio = false
+    for (const el of players) {
+      try {
+        audio.createMediaElementSource(el).connect(mixer)
+        anyAudio = true
+      } catch {
+        /* 소리가 없는 토막은 그대로 둔다 */
+      }
+    }
+    if (anyAudio) for (const track of mixer.stream.getAudioTracks()) stream.addTrack(track)
+
+    const recorder = new MediaRecorder(stream, {
+      mimeType: recordType,
+      videoBitsPerSecond: size.h >= 1080 ? 8_000_000 : 4_500_000,
+    })
+    recorderRef.current = recorder
+    const chunks: BlobPart[] = []
+    recorder.ondataavailable = (native) => {
+      if (native.data.size > 0) chunks.push(native.data)
+    }
+    const finished = new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve()
+    })
+    recorder.start(500)
+
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') {
+        setWarning('다른 창으로 넘어가면 영상이 끊깁니다. 이 창을 그대로 두세요.')
+      }
+    }
+    document.addEventListener('visibilitychange', onHidden)
+
+    // 한 토막씩 틀면서 그대로 캔버스에 옮겨 그린다
+    for (let index = 0; index < players.length && !abortedRef.current; index += 1) {
+      const el = players[index]
+      setJoining(`${index + 1} / ${players.length} · ${parts[index].label}`)
+      el.currentTime = 0
+      await el.play().catch(() => undefined)
+      await new Promise<void>((resolve) => {
+        let raf = 0
+        const step = () => {
+          if (abortedRef.current || el.ended) {
+            cancelAnimationFrame(raf)
+            resolve()
+            return
+          }
+          // 토막마다 가로세로가 다를 수 있다 — 가운데에 맞춰 넣는다
+          const vw = el.videoWidth || canvas.width
+          const vh = el.videoHeight || canvas.height
+          const scale = Math.min(canvas.width / vw, canvas.height / vh)
+          const dw = vw * scale
+          const dh = vh * scale
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(el, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh)
+          raf = requestAnimationFrame(step)
+        }
+        el.onended = () => {
+          cancelAnimationFrame(raf)
+          resolve()
+        }
+        raf = requestAnimationFrame(step)
+      })
+      el.pause()
+    }
+
+    try {
+      recorder.stop()
+    } catch {
+      /* 이미 멈춰 있으면 그대로 */
+    }
+    await finished
+    document.removeEventListener('visibilitychange', onHidden)
+    recorderRef.current = null
+    void audio.close()
+
+    const info = describeRecordType(recorder.mimeType || recordType)
+    const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
+    setResult({
+      url: URL.createObjectURL(blob),
+      label: `${info.label} · ${parts.length}토막을 이음`,
+      note: info.note,
+      name: joinedName(event.title, info.ext),
+      bytes: blob.size,
+      partial: abortedRef.current,
+    })
+    setJoining(null)
+    draw(0)
+  }
+
+  function addParts(files: FileList) {
+    const added: VideoPart[] = []
+    for (const file of Array.from(files)) {
+      const url = URL.createObjectURL(file)
+      const id = `part-${Date.now()}-${added.length}`
+      added.push({ id, label: file.name.replace(/\.[^.]+$/, ''), url, seconds: 0, made: false })
+      // 길이를 읽어 둔다 — 잇는 데 얼마나 걸릴지 먼저 알려 드려야 한다
+      const probe = document.createElement('video')
+      probe.preload = 'metadata'
+      probe.onloadedmetadata = () => {
+        setParts((prev) =>
+          prev.map((row) => (row.id === id ? { ...row, seconds: Math.round(probe.duration) || 0 } : row)),
+        )
+      }
+      probe.src = url
+    }
+    setParts((prev) => [...prev, ...added])
   }
 
   function addFiles(files: FileList, kind: 'image' | 'video') {
@@ -1094,6 +1272,90 @@ export function VideoStudio({
                 전체로 되돌리기
               </Button>
             )}
+          </p>
+        </section>
+
+        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="join-parts">
+          <p className="text-sm font-medium">
+            6 · 토막을 한 편으로 잇기
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              {parts.length > 0 ? joinLabel(parts) : '아직 만든 토막이 없습니다'}
+            </span>
+          </p>
+          {parts.length > 0 && (
+            <ul className="grid gap-1">
+              {parts.map((part, index) => (
+                <li key={part.id} className="flex items-center gap-2 text-xs">
+                  <span className="w-4 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
+                  <span className="rounded bg-secondary px-1.5 py-0.5">{part.made ? '만든 것' : '파일'}</span>
+                  <span className="min-w-0 flex-1 truncate">{part.label}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {part.seconds > 0 ? formatLength(part.seconds) : '읽는 중…'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setParts((prev) => movePart(prev, index, -1))}
+                    disabled={index === 0 || !!joining}
+                    aria-label={`${part.label} 앞으로`}
+                    className="px-1 text-muted-foreground disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setParts((prev) => movePart(prev, index, 1))}
+                    disabled={index === parts.length - 1 || !!joining}
+                    aria-label={`${part.label} 뒤로`}
+                    className="px-1 text-muted-foreground disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setParts((prev) => prev.filter((row) => row.id !== part.id))}
+                    disabled={!!joining}
+                    aria-label={`${part.label} 빼기`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input px-3 text-sm hover:bg-secondary">
+              <Film className="mr-1 h-4 w-4" />
+              전에 만든 파일 더하기
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                className="sr-only"
+                onChange={(native) => {
+                  if (native.target.files?.length) addParts(native.target.files)
+                  native.target.value = ''
+                }}
+              />
+            </label>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => (joining ? stopRecording() : void joinParts())}
+              disabled={!recordType || recording || playing || (!joining && !canJoin(parts))}
+            >
+              {joining ? <Square className="mr-1 h-4 w-4" /> : <Merge className="mr-1 h-4 w-4" />}
+              {joining ? '멈추기' : '한 편으로 잇기'}
+            </Button>
+            {joining && <span className="text-xs tabular-nums text-muted-foreground">{joining}</span>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {joinBlocker(parts) ??
+              `잇는 데 ${formatLength(partsSeconds(parts))} 걸립니다 — 토막을 차례로 틀면서 다시 담기 때문입니다.`}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            영상 파일은 <strong>그냥 이어 붙일 수 없습니다.</strong> 앞머리에 전체 길이와 자리표가 들어 있어
+            바이트로 붙이면 재생기마다 다르게 굽니다. 그래서 <strong>다시 한 번 담습니다</strong> —
+            시간이 걸리는 대신 나오는 것은 진짜 한 편입니다.
           </p>
         </section>
 

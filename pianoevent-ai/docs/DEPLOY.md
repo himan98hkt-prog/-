@@ -29,7 +29,8 @@ vercel --prod
    - **이미 쓰고 계신 프로젝트라면 같은 파일을 다시 실행하십시오.** 새 칸은 전부
      `add column if not exists` 로 붙여 두어 여러 번 실행해도 안전합니다
      (최근 추가: `events.stage_prefs` · `events.video_prefs` · `events.video_url` ·
-     `events.live_state` · `event_students.photo_asset_ids`).
+     `events.live_state` · `events.live_code` · `event_students.photo_asset_ids` ·
+     `academies.timing_log`).
 2. 필요하면 Authentication > Providers 에서 이메일 또는 소셜 로그인 활성화
    - 현재 MVP 는 브라우저 쿠키(`pe_academy`)로 학원을 식별합니다.
    - Supabase Auth 를 붙일 때는 `academies.owner_id` 에 `auth.uid()` 를 저장하고

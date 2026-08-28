@@ -1,5 +1,6 @@
 import type { AcademyAsset, ImageMap } from '@/lib/assets'
 import type { LiveState } from '@/lib/ops/live'
+import type { TimingLog } from '@/lib/ops/timing'
 import type { Prefs } from '@/lib/prefs'
 
 /** 연주 난이도 — 순서 배치 단계(stage)를 결정하는 1차 기준 */
@@ -24,6 +25,11 @@ export interface Academy {
   photo_url: string | null
   /** 로고·상징·사진 보관함. 한 번 올려 두면 모든 행사에서 골라 쓴다 */
   assets: AcademyAsset[]
+  /**
+   * 아이별로 무대에서 실제로 걸린 시간(초) 기록.
+   * 학생 명단은 행사마다 새로 만들어지지만 아이는 그대로라 학원에 쌓는다.
+   */
+  timing_log: TimingLog | null
   created_at: string
 }
 
@@ -68,6 +74,8 @@ export interface EventRecord {
    * 인터넷이 끊기면 각자 휴대폰 안에서 그대로 돈다.
    */
   live_state: LiveState | null
+  /** 따라보기 화면을 열 수 있는 코드. 비어 있으면 링크를 아는 누구나 볼 수 있다 */
+  live_code: string | null
   created_at: string
 }
 

@@ -505,12 +505,37 @@ function drawScene(
     ctx.font = `700 ${titleSize}px ${theme.fonts.display}`
     const lines = wrap(ctx, scene.headline ?? '', w - pad * 2)
 
+    // 응원을 보내 주신 분의 아이 얼굴 — 글 위에 동그랗게 작게
+    const badgeImg = scene.badge ? sources.images.get(scene.badge) : null
+    const badgeSize = badgeImg ? h * 0.2 : 0
+    const gapAfterBadge = badgeImg ? 40 * unit : 0
+
     const blockHeight =
+      badgeSize +
+      gapAfterBadge +
       (scene.eyebrow ? eyebrowSize + gapAfterEyebrow : 0) +
       lines.length * lineStep +
       (scene.sub ? gapBeforeSub + subSize : 0)
 
     let top = h / 2 - blockHeight / 2
+
+    if (badgeImg && badgeSize > 0) {
+      const bw = badgeImg.naturalWidth || badgeImg.width
+      const bh = badgeImg.naturalHeight || badgeImg.height
+      const bx = w / 2 - badgeSize / 2
+      ctx.save()
+      // 테를 한 겹 둘러 어두운 바탕에서도 얼굴이 떠 보이게
+      ctx.fillStyle = p.accent
+      ctx.beginPath()
+      ctx.arc(w / 2, top + badgeSize / 2, badgeSize / 2 + 4 * unit, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(w / 2, top + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2)
+      ctx.clip()
+      cover(ctx, badgeImg, bw, bh, badgeSize, badgeSize, 1, 0, bx, top)
+      ctx.restore()
+      top += badgeSize + gapAfterBadge
+    }
 
     if (scene.eyebrow) {
       ctx.font = `600 ${Math.round(eyebrowSize)}px ${theme.fonts.body}`

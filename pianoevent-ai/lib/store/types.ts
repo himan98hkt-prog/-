@@ -40,7 +40,8 @@ export interface RsvpSummary {
   attending: number
   declined: number
   headcount: number
-  messages: { name: string; message: string; created_at: string }[]
+  /** 응원 한 줄 — 보내신 분과 그 아이 이름 (감동영상에서 아이 얼굴을 찾는 데 쓴다) */
+  messages: { name: string; student: string; message: string; created_at: string }[]
 }
 
 /** 화면·API 는 이 인터페이스만 본다. 드라이버(데모 파일 / Supabase)는 갈아 끼운다. */
@@ -81,6 +82,11 @@ export function summarizeRsvps(rsvps: Rsvp[]): RsvpSummary {
     headcount: attending.reduce((sum, r) => sum + (Number.isFinite(r.headcount) ? r.headcount : 0), 0),
     messages: rsvps
       .filter((r) => r.message && r.message.trim())
-      .map((r) => ({ name: r.parent_name, message: r.message!.trim(), created_at: r.created_at })),
+      .map((r) => ({
+        name: r.parent_name,
+        student: r.student_name,
+        message: r.message!.trim(),
+        created_at: r.created_at,
+      })),
   }
 }

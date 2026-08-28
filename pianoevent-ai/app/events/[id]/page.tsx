@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Film, ListChecks, MapPin, Mic2, MonitorPlay, Palette, Send } from 'lucide-react'
+import { Camera, CalendarDays, Check, Film, ListChecks, MapPin, Mic2, MonitorPlay, Palette, Send } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
@@ -9,6 +9,7 @@ import { RosterEditor } from '@/components/event/roster-editor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatEventDate } from '@/lib/format'
+import { normalizeTimingLog } from '@/lib/ops/timing'
 import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
 import { getRepository } from '@/lib/store'
@@ -180,6 +181,12 @@ export default async function EventPage({
                 감동영상
               </Button>
             </Link>
+            <Link href={`/events/${event.id}/photos`}>
+              <Button variant="outline" size="sm">
+                <Camera className="h-4 w-4" aria-hidden />
+                사진 모으기
+              </Button>
+            </Link>
             <Link href={`/events/${event.id}/live`}>
               <Button variant="outline" size="sm">
                 <ListChecks className="h-4 w-4" aria-hidden />
@@ -224,7 +231,13 @@ export default async function EventPage({
       />
 
       {tab === 'roster' && (
-        <RosterEditor eventId={event.id} students={students} pastEvents={pastEvents} assets={academy.assets ?? []} />
+        <RosterEditor
+          eventId={event.id}
+          students={students}
+          pastEvents={pastEvents}
+          assets={academy.assets ?? []}
+          timings={normalizeTimingLog(academy.timing_log)}
+        />
       )}
       {tab === 'program' && <ProgramPanel event={event} students={students} />}
       {tab === 'plan' && <PlanPanel academy={academy} event={event} plan={plan} rsvps={rsvps} />}

@@ -36,7 +36,11 @@ export default async function VideoPage({
   const photos = sharePhotosByName(studentPhotos(academy.assets ?? [], students), students)
   const photoSets = studentPhotoList(academy.assets ?? [], students)
   // 학부모가 초대장에 남긴 응원 — 영상 끝에 흘린다
-  const cheers = summarizeRsvps(rsvps).messages.map((row) => ({ name: row.name, message: row.message }))
+  const cheers = summarizeRsvps(rsvps).messages.map((row) => ({
+    name: row.name,
+    message: row.message,
+    student: row.student,
+  }))
   const past = await pastPrefs(repo, event, 'video_prefs')
   // 주소에 테마를 직접 적어 여셨다면 그쪽이 이깁니다 — 저장해 둔 값보다 방금 고른 것이 앞섭니다
   const savedPrefs = searchParams.theme

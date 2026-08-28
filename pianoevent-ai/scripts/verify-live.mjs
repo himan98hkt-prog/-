@@ -45,6 +45,17 @@ async function waitForServer(timeoutMs = 60_000) {
   return false
 }
 
+/**
+ * 검사용 작은 JPEG.
+ * 짝짓기는 **파일 이름**으로 하므로 그림 내용은 무엇이든 상관없다 — 8×8 한 장을 돌려 쓴다.
+ */
+const TINY_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+    'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAAIAAgBAREA/8QAFQABAQAAAAAA' +
+    'AAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAA/AJ//2Q==',
+  'base64',
+)
+
 let server
 let browser
 try {
@@ -205,6 +216,39 @@ try {
     `${followerFirst} → 무대 ${leaderNow} / 대기실 ${followerAfter}`,
   )
   await follower.screenshot({ path: join(OUT, 'live-follower.jpg'), type: 'jpeg', quality: 82 })
+
+  // 따라보기 열쇠 — 코드를 걸면 코드를 아는 화면만 따라온다
+  const linkBox = page.getByTestId('follow-link')
+  check('스태프가 열 주소를 알려 준다', (await linkBox.count()) === 1)
+  const openUrl = (await page.getByTestId('follow-url').textContent()).trim()
+  check('그 주소가 따라보기 화면이다', openUrl.includes(`/e/${EVENT_ID}/live`), openUrl)
+
+  await linkBox.locator('input[type="checkbox"]').check()
+  await page.waitForTimeout(1500)
+  const lockedUrl = (await page.getByTestId('follow-url').textContent()).trim()
+  const code = lockedUrl.split('k=')[1] ?? ''
+  check('코드를 걸면 주소에 코드가 붙는다', code.length >= 4, lockedUrl)
+
+  // 코드 없이 열면 막힌다
+  await follower.goto(`${BASE}/e/${EVENT_ID}/live`, { waitUntil: 'networkidle' })
+  await follower.waitForTimeout(600)
+  check('코드 없이 열면 진행 상황이 안 보인다', (await follower.getByTestId('live-board').count()) === 0)
+  check('코드를 적을 칸을 보여 준다', (await follower.getByLabel('따라보기 코드').count()) === 1)
+  const blocked = await follower.request.get(`${BASE}/api/events/${EVENT_ID}/live`)
+  check('코드 없이는 서버도 알려 주지 않는다', blocked.status() === 403, String(blocked.status()))
+
+  // 코드를 넣으면 열린다
+  await follower.getByLabel('따라보기 코드').fill(code)
+  await follower.getByRole('button', { name: '진행 상황 보기' }).click()
+  await follower.waitForTimeout(1200)
+  check('코드를 넣으면 열린다', (await follower.getByTestId('live-board').count()) === 1)
+
+  // 코드를 다시 풀면 누구나 본다
+  await linkBox.locator('input[type="checkbox"]').uncheck()
+  await page.waitForTimeout(1500)
+  await follower.goto(`${BASE}/e/${EVENT_ID}/live`, { waitUntil: 'networkidle' })
+  await follower.waitForTimeout(600)
+  check('코드를 풀면 링크만으로 다시 열린다', (await follower.getByTestId('live-board').count()) === 1)
   await followerCtx.close()
 
   // 되돌리기
@@ -233,6 +277,14 @@ try {
   const afterRoster = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
   const afterSec = afterRoster.students.find((row) => row.id === first.id).duration_sec
   check('명단의 연주 시간이 실제 시간으로 바뀐다', afterSec === 90, `${beforeSec}초 → ${afterSec}초`)
+
+  // 학원에 쌓여 다음 해로 이어지는가
+  const hinted = await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)
+  void hinted
+  await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  const rosterHint = await page.locator('table').textContent()
+  check('명단에 지난 무대 실제 시간이 뜬다', rosterHint.includes('지난 무대 실제'), rosterHint.slice(0, 60))
 
   // 이상한 시간은 받지 않는다
   const silly = await page.request.post(`${BASE}/api/events/${EVENT_ID}/durations`, {
@@ -295,8 +347,48 @@ try {
   )
   check('사진이 여러 장인 장면은 더 오래 머문다', lengths.some((text) => Number(String(text).replace('초', '')) >= 4.2), lengths.slice(0, 6).join(' '))
 
+  // ── 사진 한꺼번에 올리기 (한 아이에 여러 장) ─────────────────────
+  console.log('\n[사진 한꺼번에]')
+  await rosterPage.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  await rosterPage.waitForTimeout(500)
+  const secondName = (
+    await rosterPage.locator('table tbody tr').nth(1).locator('input[aria-label="이름"]').inputValue()
+  ).trim()
+  await rosterPage.locator('input[type="file"][multiple]').first().setInputFiles([
+    { name: `${secondName}-2.jpg`, mimeType: 'image/jpeg', buffer: TINY_JPEG },
+    { name: `${secondName}-1.jpg`, mimeType: 'image/jpeg', buffer: TINY_JPEG },
+    { name: '단체사진.jpg', mimeType: 'image/jpeg', buffer: TINY_JPEG },
+  ])
+  await rosterPage.waitForTimeout(4000)
+  const bulkNote = await rosterPage.textContent('body')
+  check('짝지은 장수를 알려 준다', /사진 \d+장을/.test(bulkNote), (bulkNote.match(/사진 \d+장을[^.]*\./) ?? [''])[0])
+  check('아이를 못 찾은 파일을 알려 준다', bulkNote.includes('단체사진.jpg'), '단체사진')
+  const bulkRows = await (await rosterPage.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
+  const bulkStudent = bulkRows.students.find((row) => row.student_name === secondName)
+  check('한 아이에 두 장이 붙는다', (bulkStudent?.photo_asset_ids ?? []).length === 2, `${(bulkStudent?.photo_asset_ids ?? []).length}장`)
+
+  // ── 당일 사진 모으기 (휴대폰) ────────────────────────────────────
+  console.log('\n[당일 사진 모으기]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/photos`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(600)
+  check('사진 모으기 화면이 열린다', (await page.getByTestId('photo-collect').count()) === 1)
+  const progressText = await page.getByTestId('photo-progress').textContent()
+  check('몇 명 넣었는지 알려 준다', /\d+명 중 \d+명/.test(progressText), progressText.trim())
+  const shootButton = page.getByRole('button', { name: `${secondName} 사진 찍기` }).first()
+  check('아이마다 사진기 단추가 있다', (await shootButton.count()) === 1)
+  const shootBox = await shootButton.boundingBox()
+  check('휴대폰에서 누를 만한 크기다', shootBox.height >= 40, `${Math.round(shootBox.height)}px`)
+  const photosOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
+  check('사진 모으기 화면이 가로로 넘치지 않는다', photosOverflow <= 1, `${photosOverflow}px`)
+  await page.screenshot({ path: join(OUT, 'photo-collect.jpg'), type: 'jpeg', quality: 82 })
+
   // ── 만들 구간 나누기 · 응원 메시지 ───────────────────────────────
   console.log('\n[구간 나누기 · 응원 메시지]')
+  // 앞선 검사에서 명단 화면으로 옮겨 두었다 — 영상 화면으로 돌아온다
+  await rosterPage.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
+  await rosterPage.waitForTimeout(1800)
   const rangeBox = rosterPage.getByTestId('record-range')
   check('만들 구간을 고르는 칸이 있다', (await rangeBox.count()) === 1)
   const wholeText = await rangeBox.textContent()
@@ -307,6 +399,17 @@ try {
   check('구간을 고르면 단추 이름도 바뀐다', (await rosterPage.getByRole('button', { name: '고른 구간 만들기' }).count()) === 1)
   await rangeBox.getByRole('button', { name: '전체로 되돌리기' }).click()
   await rosterPage.waitForTimeout(300)
+
+  // 토막 잇기 — 아직 토막이 없으면 왜 못 잇는지 말해 준다
+  const joinBox = rosterPage.getByTestId('join-parts')
+  check('토막 잇기 칸이 있다', (await joinBox.count()) === 1)
+  const joinText = await joinBox.textContent()
+  check('토막이 없으면 그렇게 말해 준다', joinText.includes('토막이 없습니다'), joinText.slice(0, 50))
+  check('그냥 붙일 수 없는 이유를 적어 준다', joinText.includes('그냥 이어 붙일 수 없습니다'))
+  check(
+    '토막이 없으면 잇기 단추가 눌리지 않는다',
+    await joinBox.getByRole('button', { name: '한 편으로 잇기' }).isDisabled(),
+  )
 
   // 응원 메시지 — 학부모 회신을 남기고 영상에 들어가는지 본다
   await rosterPage.request.post(`${BASE}/api/rsvp`, {
@@ -323,6 +426,14 @@ try {
   await rosterPage.waitForTimeout(2000)
   const withCheer = await rosterPage.getByTestId('storyboard').textContent()
   check('학부모 응원이 영상 장면으로 들어간다', withCheer.includes('응원'), withCheer.slice(-90))
+  // 그 아이 얼굴이 함께 뜨는가 — 콘티 그림에서 밝은 점을 세어 본다
+  const cheerShot = await rosterPage
+    .locator('[data-testid="storyboard"] button[aria-label*="응원"]')
+    .first()
+    .locator('img')
+    .getAttribute('src')
+    .catch(() => null)
+  check('응원 장면도 그림으로 그려진다', (cheerShot ?? '').startsWith('data:image/jpeg'))
   const cheerToggle = rosterPage.getByLabel('학부모 응원 메시지 넣기')
   check('응원 메시지 넣기 칸이 있다', (await cheerToggle.count()) === 1)
   await cheerToggle.uncheck()
