@@ -68,3 +68,42 @@ describe('이렇게 읽었습니다', () => {
     expect(r.needsLook).toBe(false)
   })
 })
+
+describe('같은 아이가 두 번 들어갔을 때', () => {
+  it('곡까지 똑같으면 짚어 준다 — 붙여넣기를 두 번 하신 것이다', () => {
+    const r = receipt('이름\t연주곡\n김서연\t엘리제를 위하여\n김서연\t엘리제를 위하여')
+    const line = r.lines.find((l) => l.text.includes('같은 곡으로 두 줄'))
+    expect(line?.tone).toBe('warn')
+    expect(line?.text).toContain('김서연')
+  })
+
+  it('곡이 다르면 잘못이 아니다 — 독주와 듀엣을 함께 맡는 아이는 흔하다', () => {
+    const r = receipt('이름\t연주곡\n김서연\t엘리제를 위하여\n김서연\t소나티네')
+    expect(r.lines.some((l) => l.text.includes('같은 곡으로 두 줄'))).toBe(false)
+  })
+
+  it('곡을 아직 안 채우신 두 줄도 잘못이 아니다', () => {
+    const r = receipt('이름\t연주곡\n김서연\t\n김서연\t')
+    expect(r.lines.some((l) => l.text.includes('같은 곡으로 두 줄'))).toBe(false)
+  })
+
+  it('세 번 넘게 오르면 알려 주되 맞으면 두셔도 된다고 말한다', () => {
+    const r = receipt(
+      '이름\t연주곡\n김서연\t곡1\n김서연\t곡2\n김서연\t곡3\n김서연\t곡4\n박지호\t즐거운 나의 집',
+    )
+    const line = r.lines.find((l) => l.text.includes('세 번 넘게'))
+    expect(line?.text).toContain('그대로 두셔도 됩니다')
+  })
+
+  it('세 번까지는 잔소리하지 않는다', () => {
+    const r = receipt('이름\t연주곡\n김서연\t곡1\n김서연\t곡2\n김서연\t곡3')
+    expect(r.lines.some((l) => l.text.includes('세 번 넘게'))).toBe(false)
+  })
+
+  it('겹치는 아이가 여럿이면 몇 명인지로 줄인다', () => {
+    const rows = ['이름\t연주곡']
+    for (const name of ['가', '나', '다', '라', '마']) rows.push(`${name}\t같은곡`, `${name}\t같은곡`)
+    const r = receipt(rows.join('\n'))
+    expect(r.lines.find((l) => l.text.includes('같은 곡으로 두 줄'))?.text).toContain('외 2명')
+  })
+})

@@ -213,3 +213,72 @@ export function bundleSummary(bundle: EventBundle): string {
   if (photos > 0) parts.push(`사진 ${photos}장`)
   return `${bundle.event.title} — ${parts.join(' · ')}`
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   작년 파일로 올해 만들기
+   ───────────────────────────────────────────────────────────────── */
+
+/**
+ * 행사 이름을 한 해 밀어 준다.
+ *
+ * "제12회 정기 연주회" → "제13회 정기 연주회"
+ * "2025 봄 발표회"     → "2026 봄 발표회"
+ * 규칙에 안 걸리면 **건드리지 않는다.** 지어내 바꾸면 원장님이 못 알아보신다.
+ */
+export function nextTitle(title: string): string {
+  const round = title.match(/제\s*(\d+)\s*회/)
+  if (round) return title.replace(round[0], `제${Number(round[1]) + 1}회`)
+
+  const year = title.match(/(19|20)\d{2}/)
+  if (year) return title.replace(year[0], String(Number(year[0]) + 1))
+
+  return title
+}
+
+/** 날짜를 한 해 뒤로. 2월 29일은 그해에 없을 수 있어 28일로 내린다 */
+export function nextYear(iso: string): string {
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return iso
+  const moved = new Date(at)
+  moved.setFullYear(at.getFullYear() + 1)
+  // 2월 29일 → 다음 해 3월 1일로 넘어가 버리는 것을 막는다
+  if (moved.getMonth() !== at.getMonth()) moved.setDate(0)
+  return moved.toISOString()
+}
+
+/**
+ * 작년 파일을 올해 것으로 손봐 준다.
+ *
+ * 무엇을 남기고 무엇을 비우는가가 전부다.
+ *  남긴다 — 아이 이름 · 난이도 · 사진 · 인쇄물 설정 (학원은 해마다 같은 얼굴이다)
+ *  비운다 — 연주곡 · 작곡가 · 시간 · 사회자 멘트 (올해 곡은 올해 정하신다)
+ *
+ * 작년 멘트를 남겨 두면 "작년에 처음 무대에 섰던" 아이 이야기가 올해 대본에 그대로
+ * 실린다. 그건 남기는 것이 아니라 사고다.
+ */
+export function freshenBundle(bundle: EventBundle, at?: { title?: string; event_at?: string }): EventBundle {
+  return {
+    ...bundle,
+    event: {
+      ...bundle.event,
+      title: at?.title?.trim() || nextTitle(bundle.event.title),
+      event_at: at?.event_at || nextYear(bundle.event.event_at),
+      mc_opening: null,
+      mc_closing: null,
+    },
+    students: bundle.students.map((s) => ({
+      ...s,
+      piece_title: '',
+      composer: '',
+      duration_sec: null,
+      mc_script: null,
+    })),
+  }
+}
+
+/** 가져오기 전에 무엇이 달라지는지 한 줄로 */
+export function freshenSummary(bundle: EventBundle): string {
+  const fresh = freshenBundle(bundle)
+  const people = new Set(fresh.students.map((s) => s.student_name)).size
+  return `${fresh.event.title} · ${fresh.event.event_at.slice(0, 10)} — 아이 ${people}명은 그대로, 곡은 비웁니다`
+}

@@ -5,6 +5,10 @@ import {
   buildBundle,
   bundleFilename,
   bundleSummary,
+  freshenBundle,
+  freshenSummary,
+  nextTitle,
+  nextYear,
   parseBundle,
   usedAssetIds,
 } from '@/lib/events/transfer'
@@ -182,5 +186,90 @@ describe('원장님이 알아보실 이름', () => {
       assets: [asset('p1')],
     })
     expect(bundleSummary(bundle)).toBe('제12회 정기 연주회 — 아이 2명 · 무대 3번 · 사진 1장')
+  })
+})
+
+describe('작년 파일로 올해 만들기', () => {
+  it('제12회를 제13회로 민다', () => {
+    expect(nextTitle('제12회 정기 연주회')).toBe('제13회 정기 연주회')
+  })
+
+  it('띄어 쓰셔도 알아본다', () => {
+    expect(nextTitle('제 9 회 발표회')).toBe('제10회 발표회')
+  })
+
+  it('연도가 적힌 이름은 연도를 민다', () => {
+    expect(nextTitle('2025 봄 발표회')).toBe('2026 봄 발표회')
+  })
+
+  it('규칙에 안 걸리면 건드리지 않는다 — 지어내 바꾸면 못 알아보신다', () => {
+    expect(nextTitle('봄 음악회')).toBe('봄 음악회')
+  })
+
+  it('날짜를 한 해 뒤로 민다', () => {
+    expect(nextYear('2026-09-18T06:00:00.000Z').slice(0, 10)).toBe('2027-09-18')
+  })
+
+  it('2월 29일은 다음 해 3월 1일로 넘어가지 않는다', () => {
+    expect(nextYear('2024-02-29T00:00:00.000Z').slice(0, 10)).toBe('2025-02-28')
+  })
+
+  it('망가진 날짜는 그대로 둔다 — 멈추는 것보다 낫다', () => {
+    expect(nextYear('날짜아님')).toBe('날짜아님')
+  })
+})
+
+describe('올해 것으로 손보기', () => {
+  const bundle = buildBundle({
+    academyName: '하모니',
+    event,
+    students: [
+      student({ mc_script: '올해 처음 무대에 섭니다', photo_asset_id: 'p1' }),
+      student({ id: 's2', student_name: '박지호', piece_title: '즐거운 나의 집' }),
+    ],
+    assets: [asset('p1')],
+  })
+  const fresh = freshenBundle(bundle)
+
+  it('이름과 난이도는 그대로 — 학원은 해마다 같은 얼굴이다', () => {
+    expect(fresh.students.map((s) => s.student_name)).toEqual(['김서연', '박지호'])
+    expect(fresh.students[0].level).toBe('intermediate')
+  })
+
+  it('아이 사진도 그대로 따라온다', () => {
+    expect(fresh.students[0].photo_asset_id).toBe('p1')
+    expect(fresh.assets).toHaveLength(1)
+  })
+
+  it('곡은 비운다 — 올해 곡은 올해 정하신다', () => {
+    expect(fresh.students.every((s) => s.piece_title === '')).toBe(true)
+    expect(fresh.students.every((s) => s.duration_sec === null)).toBe(true)
+  })
+
+  it('작년 멘트는 지운다 — 남기면 작년 이야기가 올해 대본에 실린다', () => {
+    expect(fresh.students[0].mc_script).toBeNull()
+    expect(fresh.event.mc_opening).toBeNull()
+    expect(fresh.event.mc_closing).toBeNull()
+  })
+
+  it('인쇄물 설정은 그대로 — 작년에 맞춰 두신 것을 다시 고르실 이유가 없다', () => {
+    expect(fresh.event.design_theme).toBe('ivory')
+    expect(fresh.event.design_template).toBe('poster-classic')
+  })
+
+  it('이름과 날짜를 한 해 민다', () => {
+    expect(fresh.event.title).toBe('제13회 정기 연주회')
+    expect(fresh.event.event_at.slice(0, 4)).toBe('2027')
+  })
+
+  it('직접 적으신 이름·날짜가 있으면 그것을 쓴다', () => {
+    const mine = freshenBundle(bundle, { title: '봄 발표회', event_at: '2027-03-01T00:00:00.000Z' })
+    expect(mine.event.title).toBe('봄 발표회')
+    expect(mine.event.event_at).toBe('2027-03-01T00:00:00.000Z')
+  })
+
+  it('무엇이 달라지는지 한 줄로 알려 준다', () => {
+    expect(freshenSummary(bundle)).toContain('곡은 비웁니다')
+    expect(freshenSummary(bundle)).toContain('제13회 정기 연주회')
   })
 })

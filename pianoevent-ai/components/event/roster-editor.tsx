@@ -1,6 +1,6 @@
 'use client'
 
-import { ClipboardPaste, CopyPlus, FileSpreadsheet, History, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { ClipboardPaste, CopyPlus, FileSpreadsheet, History, Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -8,19 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PieceInput } from '@/components/event/piece-input'
 import { RosterGuide } from '@/components/event/roster-guide'
+import { useUndo } from '@/components/undo/undo-bar'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
 import { formatDuration } from '@/lib/format'
 import { averageTiming, timingHint, type TimingLog } from '@/lib/ops/timing'
 import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
-import {
-  describeChange,
-  describeEdit,
-  popEdit,
-  pushEdit,
-  restorePatch,
-  type RosterEdit,
-} from '@/lib/program/edit-log'
+import { describeChange, describeEdit, restorePatch, type RosterEdit } from '@/lib/program/edit-log'
 import { buildReceipt } from '@/lib/program/receipt'
 import { parseRoster } from '@/lib/program/roster'
 import { rosterSampleText } from '@/lib/program/template'
@@ -89,6 +83,7 @@ export function RosterEditor({
     }
   }
   const router = useRouter()
+  const undo = useUndo()
   const [paste, setPaste] = useState('')
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -97,12 +92,8 @@ export function RosterEditor({
   const preview = paste.trim() ? parseRoster(paste) : null
   const receipt = preview ? buildReceipt(preview) : null
   const [source, setSource] = useState('')
-  /** 붙여넣기 직전의 명단 — [되돌리기] 를 누르시면 이대로 되돌린다 */
-  const [undoTo, setUndoTo] = useState<EventStudent[] | null>(null)
   const [dropping, setDropping] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  /** 표에서 고치신 것 — 열 번까지 되돌린다 */
-  const [edits, setEdits] = useState<RosterEdit[]>([])
   /** 방금 읽은 엑셀 파일과 그 안의 장들 — 장이 여럿일 때만 화면에 나온다 */
   const [excel, setExcel] = useState<{ file: File; sheets: string[]; sheet: number } | null>(null)
   const [keepPieces, setKeepPieces] = useState(false)
@@ -187,30 +178,21 @@ export function RosterEditor({
   }
 
   /** 붙여넣기를 통째로 되돌린다 — 사진까지 그대로 */
-  async function undo() {
-    if (!undoTo) return
-    setPending(true)
-    try {
-      const res = await fetch(`/api/events/${eventId}/students/restore`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ students: undoTo }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? '되돌리지 못했습니다.')
-      setMessage(
-        undoTo.length === 0
-          ? '되돌렸습니다. 명단이 붙여넣기 전으로 비었습니다.'
-          : `되돌렸습니다. 붙여넣기 전의 ${undoTo.length}줄로 돌아갔습니다.`,
-      )
-      setUndoTo(null)
-      setWarnings([])
-      router.refresh()
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : '되돌리지 못했습니다.')
-    } finally {
-      setPending(false)
-    }
+  async function restoreRoster(before: EventStudent[]) {
+    const res = await fetch(`/api/events/${eventId}/students/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: before }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error ?? '되돌리지 못했습니다.')
+    setMessage(
+      before.length === 0
+        ? '명단이 붙여넣기 전으로 비었습니다.'
+        : `붙여넣기 전의 ${before.length}줄로 돌아갔습니다.`,
+    )
+    setWarnings([])
+    router.refresh()
   }
 
   async function importRoster(mode: 'append' | 'replace') {
@@ -234,7 +216,12 @@ export function RosterEditor({
           ? `${data.students.length}명을 등록했습니다. 곡 사전이 ${filled.length}곡의 빈칸을 대신 채웠습니다.`
           : `${data.students.length}명을 등록했습니다.`,
       )
-      setUndoTo(before)
+      undo.remember({
+        id: 'roster:paste',
+        what: mode === 'replace' ? '명단 교체' : '명단 붙여넣기',
+        detail: before.length === 0 ? '넣기 전에는 비어 있었습니다' : `${before.length}줄로 돌아갑니다`,
+        run: () => restoreRoster(before),
+      })
       setPaste('')
       router.refresh()
     } catch (e) {
@@ -278,30 +265,33 @@ export function RosterEditor({
   /**
    * 표의 칸 하나를 고친다.
    *
-   * 고치기 전 값을 함께 쌓아 둔다. 표에서 엉뚱한 줄을 고치셨을 때 화면에는
-   * 아무 표시도 안 나므로, 어디를 고치셨는지조차 잊으신다. 열 번까지 되돌린다.
-   * `remember: false` 는 되돌리기가 스스로를 다시 쌓지 않게 하는 것이다.
+   * 고치기 전 값을 화면 위 되돌리기 띠에 담아 둔다. 표에서 엉뚱한 줄을 고치셨을 때
+   * 화면에는 아무 표시도 안 나므로, 어디를 고치셨는지조차 잊으신다.
+   * `remember: false` 는 되돌리기가 스스로를 다시 담지 않게 하는 것이다.
    */
   async function patchStudent(id: string, patch: Record<string, unknown>, remember = true) {
     const student = students.find((s) => s.id === id)
     if (remember && student) {
       const keys = Object.keys(patch)
       const field = keys.find((k) => !sameValue((student as never)[k], patch[k])) ?? keys[0]
-      if (field) {
-        setEdits((log) =>
-          pushEdit(log, {
-            student_id: id,
-            student_name: student.student_name,
-            field,
-            before: (student as never)[field] ?? null,
-            after: patch[field] ?? null,
-            // 두 칸이 함께 바뀌는 곳(사진)은 함께 되돌린다
-            restore:
-              keys.length > 1
-                ? Object.fromEntries(keys.map((k) => [k, (student as never)[k] ?? null]))
-                : undefined,
-          }),
-        )
+      if (field && !sameValue((student as never)[field], patch[field])) {
+        const edit: RosterEdit = {
+          student_id: id,
+          student_name: student.student_name,
+          field,
+          before: (student as never)[field] ?? null,
+          after: patch[field] ?? null,
+          // 두 칸이 함께 바뀌는 곳(사진)은 함께 되돌린다
+          restore:
+            keys.length > 1 ? Object.fromEntries(keys.map((k) => [k, (student as never)[k] ?? null])) : undefined,
+        }
+        undo.remember({
+          // 같은 칸을 이어서 고치시면 한 줄로 합쳐진다 — 목록이 같은 말로 차지 않게
+          id: `roster:edit:${id}:${field}`,
+          what: describeEdit(edit),
+          detail: describeChange(edit),
+          run: () => patchStudent(edit.student_id, restorePatch(edit), false),
+        })
       }
     }
     await fetch(`/api/students/${id}`, {
@@ -310,15 +300,6 @@ export function RosterEditor({
       body: JSON.stringify(patch),
     })
     router.refresh()
-  }
-
-  /** 방금 고치신 것을 되돌린다 */
-  async function undoEdit() {
-    const { edit, rest } = popEdit(edits)
-    if (!edit) return
-    setEdits(rest)
-    setMessage(`${describeEdit(edit)} 을(를) 되돌렸습니다. (${describeChange(edit)})`)
-    await patchStudent(edit.student_id, restorePatch(edit), false)
   }
 
   async function removeStudent(id: string) {
@@ -562,22 +543,6 @@ export function RosterEditor({
             </Button>
           </div>
 
-          {undoTo !== null && (
-            <div
-              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-3"
-              data-testid="roster-undo"
-            >
-              <p className="mr-auto text-sm">
-                방금 넣으신 것이 마음에 안 드시면 <strong>통째로</strong> 되돌릴 수 있습니다. 사진까지 그대로
-                돌아갑니다.
-              </p>
-              <Button variant="outline" size="sm" onClick={undo} disabled={pending}>
-                <RotateCcw className="h-4 w-4" aria-hidden />
-                되돌리기
-              </Button>
-            </div>
-          )}
-
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {warnings.length > 0 && (
             <ul className="list-disc pl-5 text-xs text-destructive">
@@ -606,25 +571,6 @@ export function RosterEditor({
             이름과 사진은 그대로 두고 곡만 한 줄 더 생깁니다.
           </CardDescription>
         </CardHeader>
-        {edits.length > 0 && (
-          <div className="px-5 pb-3">
-            <div
-              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
-              data-testid="edit-undo"
-            >
-              <p className="mr-auto text-sm">
-                방금 고치신 것 — <strong>{describeEdit(edits[0])}</strong>{' '}
-                <span className="text-muted-foreground">({describeChange(edits[0])})</span>
-              </p>
-              <Button variant="outline" size="sm" onClick={undoEdit} disabled={pending}>
-                <RotateCcw className="h-4 w-4" aria-hidden />
-                되돌리기
-                {edits.length > 1 && <span className="ml-1 text-xs text-muted-foreground">{edits.length}</span>}
-              </Button>
-            </div>
-          </div>
-        )}
-
         {students.length > 0 && (
           <div className="px-5 pb-3">
             <BulkPhotoUpload

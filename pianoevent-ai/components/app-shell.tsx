@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { AutoBackup } from '@/components/backup/auto-backup'
 import { ErrorLog } from '@/components/support/error-log'
+import { UndoProvider } from '@/components/undo/undo-bar'
 import { FirstRun } from '@/components/tour/first-run'
 import { cn } from '@/lib/utils'
 
@@ -50,7 +51,10 @@ export function AppShell({
         </div>
       </header>
 
-      <main className={cn('container py-8', className)}>{children}</main>
+      {/* 되돌리기는 화면 위 한 자리에만 둔다 — 자리마다 있으면 자리마다 배우셔야 한다 */}
+      <main className={cn('container py-8', className)}>
+        <UndoProvider>{children}</UndoProvider>
+      </main>
 
       <footer className="border-t border-border py-6 text-xs text-muted-foreground no-print">
         <div className="container flex flex-wrap items-center justify-between gap-2">

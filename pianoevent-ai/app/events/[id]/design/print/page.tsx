@@ -107,6 +107,13 @@ export default async function DesignPrintPage({
                 <strong>PDF로 저장</strong> 해서 인쇄소에 넘기세요.
               </span>
               <a
+                href={`/events/${event.id}/design/quote?${here.toString()}`}
+                className="rounded-md border border-border px-2.5 py-1 hover:bg-secondary"
+                data-testid="quote-link"
+              >
+                인쇄소 견적용 요약
+              </a>
+              <a
                 href={`?${here.toString()}`}
                 className="rounded-md border border-border px-2.5 py-1 hover:bg-secondary"
               >
@@ -124,6 +131,13 @@ export default async function DesignPrintPage({
                 data-testid="bleed-on"
               >
                 인쇄소용 (재단선 · 여백 {BLEED_MM}mm)
+              </a>
+              <a
+                href={`/events/${event.id}/design/quote?${here.toString()}`}
+                className="rounded-md border border-border px-2.5 py-1 hover:bg-secondary"
+                data-testid="quote-link"
+              >
+                견적용 요약
               </a>
             </>
           )}

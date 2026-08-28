@@ -296,6 +296,18 @@ try {
   const warned = await page.getByTestId('roster-receipt').textContent()
   check('이름과 곡이 한 칸에 붙으면 짚어 준다', warned.includes('한 칸에 붙어'), warned.slice(0, 80))
 
+  // 같은 아이가 두 번 — 곡까지 같으면 잘못, 곡이 다르면 잘못이 아니다
+  await page.getByLabel('학생 명단 붙여넣기').fill('이름\t연주곡\n한여울\t인형의 꿈\n한여울\t인형의 꿈')
+  await page.waitForTimeout(500)
+  const dup = await page.getByTestId('roster-receipt').textContent()
+  check('같은 곡으로 두 번 들어가면 짚어 준다', dup.includes('같은 곡으로 두 줄'), dup.slice(0, 90))
+
+  await page.getByLabel('학생 명단 붙여넣기').fill('이름\t연주곡\n한여울\t인형의 꿈\n한여울\t소나티네')
+  await page.waitForTimeout(500)
+  const twoPieces = await page.getByTestId('roster-receipt').textContent()
+  check('곡이 다르면 잘못이 아니다 — 독주와 듀엣은 흔하다', !twoPieces.includes('같은 곡으로 두 줄'))
+  check('사람 수와 무대 수를 따로 센다', twoPieces.includes('아이 1명') && twoPieces.includes('무대 2번'))
+
   // ── 되돌리기 ─────────────────────────────────────────────────────
   console.log('\n[되돌리기]')
   const before = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students.length
@@ -305,9 +317,11 @@ try {
   await page.waitForTimeout(1800)
   const added = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students.length
   check('명단이 늘었다', added === before + 3, `${before} → ${added}`)
-  check('되돌리기 단추가 뜬다', (await page.getByTestId('roster-undo').count()) === 1)
+  check('되돌리기가 화면 맨 위 한 자리에 뜬다', (await page.getByTestId('undo-bar').count()) === 1)
+  const pasteUndo = await page.getByTestId('undo-bar').textContent()
+  check('무엇을 하셨는지 적어 준다', pasteUndo.includes('명단 붙여넣기'), pasteUndo.slice(0, 60))
 
-  await page.getByRole('button', { name: '되돌리기' }).click()
+  await page.getByTestId('undo-now').click()
   await page.waitForTimeout(1800)
   const undone = (await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()).students
   check('붙여넣기 전으로 그대로 돌아간다', undone.length === before, `${added} → ${undone.length}`)
@@ -317,7 +331,7 @@ try {
   console.log('\n[표에서 고친 것 되돌리기]')
   await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(900)
-  check('아무것도 안 고쳤으면 되돌리기 띠가 없다', (await page.getByTestId('edit-undo').count()) === 0)
+  check('아무것도 안 하셨으면 되돌리기 띠가 없다', (await page.getByTestId('undo-bar').count()) === 0)
 
   const firstRow = page.getByTestId('roster-table').locator('tbody tr').first()
   const pieceCell = firstRow.locator('input[aria-label="연주곡"]')
@@ -326,18 +340,23 @@ try {
   await pieceCell.blur()
   await page.waitForTimeout(1600)
 
-  const undoBar = page.getByTestId('edit-undo')
-  check('고치면 되돌리기 띠가 뜬다', (await undoBar.count()) === 1)
+  const undoBar = page.getByTestId('undo-bar')
+  check('고치면 같은 자리에 뜬다 — 자리마다 배우실 것이 없게', (await undoBar.count()) === 1)
   const undoText = await undoBar.textContent()
   check('무엇을 무엇으로 되돌리는지 미리 보여 준다', undoText.includes(wasPiece), undoText.slice(0, 80))
   check('누구의 어느 칸인지 적어 준다', undoText.includes('연주곡'))
   await page.screenshot({ path: join(OUT, 'edit-undo.jpg'), type: 'jpeg', quality: 82 })
 
-  await undoBar.getByRole('button', { name: '되돌리기' }).click()
+  await page.getByTestId('undo-now').click()
   await page.waitForTimeout(1800)
   const backTo = await page.getByTestId('roster-table').locator('tbody tr').first().locator('input[aria-label="연주곡"]').inputValue()
   check('고치기 전 값으로 돌아간다', backTo === wasPiece, `${backTo} / ${wasPiece}`)
-  check('되돌린 것이 다시 쌓이지 않는다', (await page.getByTestId('edit-undo').count()) === 0)
+  check('되돌린 것이 다시 쌓이지 않는다', (await page.getByTestId('undo-now').count()) === 0)
+
+  // 화면을 옮기면 비워진다 — 다른 화면 일을 여기서 되돌리면 놀라신다
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(800)
+  check('화면을 옮기면 되돌리기 띠가 비워진다', (await page.getByTestId('undo-bar').count()) === 0)
 
   // ── 인쇄 · 종이 미리보기 ─────────────────────────────────────────
   console.log('\n[인쇄 · 종이 미리보기]')
@@ -434,6 +453,26 @@ try {
   check('집 프린터용으로 되돌아갈 수 있다', (await page.getByRole('link', { name: '집 프린터용으로' }).count()) === 1)
   await page.screenshot({ path: join(OUT, 'bleed.jpg'), type: 'jpeg', quality: 82 })
 
+  // ── 인쇄소 견적용 요약 ───────────────────────────────────────────
+  console.log('\n[인쇄소 견적용 요약]')
+  check('인쇄물 화면에서 견적 요약으로 갈 수 있다', (await page.getByTestId('quote-link').count()) >= 1)
+  await page.getByTestId('quote-link').first().click()
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(900)
+  const quote = page.getByTestId('quote-table')
+  check('견적 요약이 열린다', (await quote.count()) === 1)
+  const quoteText = await quote.textContent()
+  check('규격을 mm 로 적는다 — 인쇄소는 mm 로 말한다', /\d+ × \d+mm/.test(quoteText), (quoteText.match(/\d+ × \d+mm/) ?? [''])[0])
+  check('권하는 종이를 적는다', /\d+g/.test(quoteText), (quoteText.match(/[가-힣]+지 \d+g/) ?? [''])[0])
+  check('부수와 총 장수를 적는다', quoteText.includes('부') && quoteText.includes('장'))
+  check('합계를 낸다', (await page.getByTestId('quote-total').count()) === 1)
+  const body = await page.textContent('body')
+  check('인쇄소에 함께 말할 것을 적어 준다', body.includes('재단선') && body.includes('PDF'))
+  check('문자로 보낼 글을 복사할 수 있다', (await page.getByRole('button', { name: '문자로 보낼 글 복사' }).count()) === 1)
+  check('견적 요약도 종이로 볼 수 있다', (await page.getByTestId('paper-toggle').count()) === 1)
+  await page.screenshot({ path: join(OUT, 'quote.jpg'), type: 'jpeg', quality: 82 })
+
+
   // ── 행사 파일 옮기기 ─────────────────────────────────────────────
   console.log('\n[행사 통째로 옮기기]')
   await page.goto(`${BASE}/events/${EVENT_ID}?tab=prep`, { waitUntil: 'networkidle' })
@@ -461,11 +500,50 @@ try {
     mimeType: 'application/json',
     buffer: Buffer.from(bundleText, 'utf8'),
   })
-  await page.waitForTimeout(2000)
-  const importText = await page.getByTestId('event-import').textContent()
-  check('무엇이 들어왔는지 말해 준다', /아이 \d+명/.test(importText), importText.slice(-80))
+  await page.waitForTimeout(1800)
+  const choice = page.getByTestId('import-choice')
+  check('고르시기 전에 무엇이 들었는지 보여 준다', (await choice.count()) === 1)
+  const choiceText = await choice.textContent()
+  check('무엇이 들어왔는지 말해 준다', /아이 \d+명/.test(choiceText), choiceText.slice(0, 80))
+  check('두 갈래를 준다 — 그대로 / 올해 것으로', (await page.getByTestId('import-asis').count()) === 1)
+
+  // 작년 것으로 올해 만들기 — 이름과 날짜가 미리 채워져 있어야 한다
+  const suggested = await page.getByLabel('행사 이름').inputValue()
+  check('행사 이름을 한 해 밀어 준다', suggested.includes('제13회'), suggested)
+  const suggestedWhen = await page.getByLabel('날짜').inputValue()
+  check('날짜도 한 해 뒤로 채워 준다', suggestedWhen.startsWith('2027'), suggestedWhen)
+  check('곡을 비운다고 미리 말해 준다', choiceText.includes('연주곡과 사회자 멘트는 비웁니다'))
+  await page.screenshot({ path: join(OUT, 'import-choice.jpg'), type: 'jpeg', quality: 82 })
+
+  await page.getByTestId('import-freshen').click()
+  await page.waitForTimeout(2500)
+  const madeText = await page.getByTestId('event-import').textContent()
+  check('올해 것으로 만들었다고 알려 준다', madeText.includes('새로 만들었습니다'), madeText.slice(-90))
   const eventsAfter = await page.locator('main ul > li').count()
   check('새 행사로 들어온다 — 있는 것을 덮어쓰지 않는다', eventsAfter === eventsBefore + 1, `${eventsBefore} → ${eventsAfter}`)
+
+  // 만들어진 행사를 실제로 열어 본다
+  const madeEvents = await (await page.request.get(`${BASE}/api/events`)).json().catch(() => null)
+  const madeId = madeEvents?.events?.find((e) => String(e.title).includes('제13회'))?.id
+  if (madeId) {
+    const madeRoster = (await (await page.request.get(`${BASE}/api/events/${madeId}/students`)).json()).students
+    check('아이들은 그대로 온다', madeRoster.length > 0, `${madeRoster.length}명`)
+    check('연주곡은 비어 있다 — 올해 곡은 올해 정하신다', madeRoster.every((s) => !s.piece_title))
+    check('작년 멘트는 따라오지 않는다', madeRoster.every((s) => !s.mc_script))
+  } else {
+    check('만들어진 행사를 찾는다', false, '행사 목록에서 못 찾음')
+  }
+
+  // 그대로 가져오기도 그대로 있다
+  await page.getByLabel('행사 파일 고르기').setInputFiles({
+    name: '연주회.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(bundleText, 'utf8'),
+  })
+  await page.waitForTimeout(1500)
+  await page.getByTestId('import-asis').click()
+  await page.waitForTimeout(2500)
+  check('그대로 가져오기도 된다', (await page.getByTestId('event-import').textContent()).includes('들여왔습니다'))
 
   await page.getByLabel('행사 파일 고르기').setInputFiles({
     name: '엉뚱한파일.json',
@@ -504,12 +582,19 @@ try {
   check('되살려도 지금 행사를 덮어쓰지 않는다', stillThere === eventsBeforeRestore, `${eventsBeforeRestore} → ${stillThere}`)
   await page.screenshot({ path: join(OUT, 'backup.jpg'), type: 'jpeg', quality: 82 })
 
+  // 폴더 열기 — 못 여는 컴퓨터에서도 경로는 알려 드려야 한다
+  await backupBox.getByTestId('backup-open').click()
+  await page.waitForTimeout(1500)
+  const shown = await page.getByTestId('backup-path').textContent()
+  check('폴더 경로를 보여 준다 — 창이 안 뜨는 컴퓨터도 있다', shown.includes('백업'), shown)
+  check('경로를 복사할 수 있다', (await backupBox.getByRole('button', { name: '경로 복사' }).count()) === 1)
+
   // ── 설명서 그림 ──────────────────────────────────────────────────
   console.log('\n[설명서 그림]')
   await page.goto(`${BASE}/help`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1200)
   // 그림이 들어 있는 절로 곧장 간다 (그림 설명글은 그 절에만 있다)
-  await page.getByPlaceholder('찾기 — 예: 명단, 인쇄, 영상').fill('엑셀 파일 놓는 자리')
+  await page.getByPlaceholder('찾기 — 예: 명단, 인쇄, 영상').fill('여기로 끌어다 놓기')
   await page.waitForTimeout(500)
   await page.locator('[data-testid="help-toc"] button').first().click()
   await page.waitForTimeout(900)

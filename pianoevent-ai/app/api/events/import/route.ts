@@ -1,5 +1,5 @@
 import { ASSET_KIND_LABEL, ASSET_MAX_COUNT, isAssetUrl, type AcademyAsset, type AssetKind } from '@/lib/assets'
-import { BundleError, parseBundle, type EventBundle } from '@/lib/events/transfer'
+import { BundleError, freshenBundle, parseBundle, type EventBundle } from '@/lib/events/transfer'
 import { fail, guard, ok, readJson } from '@/lib/http'
 import { currentAcademyId } from '@/lib/session'
 import { getRepository, type NewStudent } from '@/lib/store'
@@ -25,6 +25,14 @@ export async function POST(req: Request) {
       bundle = parseBundle(typeof body.text === 'string' ? body.text : JSON.stringify(body.bundle ?? {}))
     } catch (error) {
       return fail(error instanceof BundleError ? error.message : '행사 파일을 읽지 못했습니다.')
+    }
+
+    // 작년 것으로 올해를 만드실 때 — 아이는 그대로, 곡과 멘트는 비운다
+    if (body.freshen === true) {
+      bundle = freshenBundle(bundle, {
+        title: typeof body.title === 'string' ? body.title : undefined,
+        event_at: typeof body.event_at === 'string' ? body.event_at : undefined,
+      })
     }
 
     // ── 사진 먼저. 명단이 사진 번호를 가리키므로 보관함에 있어야 붙는다

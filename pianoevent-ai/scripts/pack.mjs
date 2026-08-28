@@ -55,7 +55,16 @@ if (fs.existsSync(readme)) fs.copyFileSync(readme, path.join(root, '먼저-읽�
 const preview = path.join(OUT, '피아노이벤트-미리보기.html')
 if (fs.existsSync(preview)) fs.copyFileSync(preview, path.join(root, '피아노이벤트-미리보기.html'))
 
-// 4) 압축
+// 4) 연습용 엑셀 — 처음 켜시면 "그래서 뭘 올려요?" 에서 멈추신다.
+//    끌어다 놓아 보실 파일이 손에 있어야 한다.
+const samples = path.join(root, '연습용 명단')
+fs.mkdirSync(samples, { recursive: true })
+for (const name of ['학생명단-예시.xlsx', '학생명단-학년별-예시.xlsx']) {
+  const src = path.join(OUT, name)
+  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(samples, name))
+}
+
+// 5) 압축
 fs.mkdirSync(OUT, { recursive: true })
 fs.rmSync(ZIP, { force: true })
 const r = spawnSync('zip', ['-r', '-q', ZIP, BUNDLE], { cwd: STAGE, stdio: 'inherit' })

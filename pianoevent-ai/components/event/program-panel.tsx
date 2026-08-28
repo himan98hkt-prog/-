@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHint, Input, Label } from '@/components/ui/field'
 import { formatWallClock } from '@/lib/format'
+import { useUndo } from '@/components/undo/undo-bar'
 import { applyOrder, buildProgram } from '@/lib/program/order'
 import { DEFAULT_PROGRAM_OPTIONS, type EventRecord, type EventStudent, type ProgramPlan } from '@/lib/types'
 
@@ -213,6 +214,7 @@ function OrderEditor({
   startISO: string
   onSaved: () => void
 }) {
+  const undo = useUndo()
   const [open, setOpen] = useState(false)
   const [order, setOrder] = useState<string[]>(() => plan.items.map((i) => i.student.id))
   const [saving, setSaving] = useState(false)
@@ -237,17 +239,29 @@ function OrderEditor({
     setSaved(false)
   }
 
+  async function send(next: string[]) {
+    const res = await fetch(`/api/events/${eventId}/program`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: next }),
+    })
+    if (!res.ok) throw new Error((await res.json()).error ?? '저장하지 못했습니다.')
+    onSaved()
+  }
+
   async function save() {
     setSaving(true)
+    // 저장 **전**의 순서를 담아 둔다. 저장하고 나서 담으면 되돌릴 곳이 없다.
+    const before = current
     try {
-      const res = await fetch(`/api/events/${eventId}/program`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error ?? '저장하지 못했습니다.')
+      await send(order)
       setSaved(true)
-      onSaved()
+      undo.remember({
+        id: 'program:order',
+        what: '연주 순서 바꾸기',
+        detail: '저장 전 순서로 돌아갑니다',
+        run: () => send(before),
+      })
     } finally {
       setSaving(false)
     }
@@ -328,7 +342,7 @@ function OrderEditor({
               disabled={!dirty || saving}
               onClick={() => setOrder(current)}
             >
-              되돌리기
+              고치던 것 취소
             </Button>
             {saved && !dirty && <span className="text-xs text-accent">저장했습니다. 시각이 다시 계산됩니다.</span>}
             {dirty && (

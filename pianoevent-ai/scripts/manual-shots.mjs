@@ -27,17 +27,120 @@ const EVENT_ID = 'demo-event'
  * 설명서에 붙는 그림이라 **너무 크면 글을 밀어낸다** — 필요한 만큼만 잘라 둔다.
  */
 const SHOTS = [
-  { name: 'roster', at: `/events/${EVENT_ID}?tab=roster`, height: 1150, why: '학생 명단 넣기' },
-  { name: 'program', at: `/events/${EVENT_ID}?tab=program`, height: 1150, why: '순서표 · 사회자 대본' },
-  { name: 'design', at: `/events/${EVENT_ID}/design`, height: 1150, why: '인쇄물 디자인' },
-  { name: 'print', at: `/events/${EVENT_ID}/program/print`, height: 900, why: '인쇄 · 종이 미리보기', paper: true },
+  {
+    name: 'roster',
+    at: `/events/${EVENT_ID}?tab=roster`,
+    height: 1150,
+    why: '학생 명단 넣기',
+    // 누를 자리에 동그라미를 친다 — 글 세 줄이 동그라미 하나로 줄어든다
+    marks: [
+      { at: '[data-testid="roster-guide"] a[href="/api/roster-template"]', label: '①' },
+      { at: '[data-testid="roster-drop"]', label: '②' },
+    ],
+  },
+  {
+    name: 'program',
+    at: `/events/${EVENT_ID}?tab=program`,
+    height: 1150,
+    why: '순서표 · 사회자 대본',
+    marks: [{ at: 'button:has-text("AI 순서표 만들기")', label: '①' }],
+  },
+  {
+    name: 'design',
+    at: `/events/${EVENT_ID}/design`,
+    height: 1150,
+    why: '인쇄물 디자인',
+    marks: [{ at: 'a:has-text("인쇄 · PDF")', label: '①' }],
+  },
+  {
+    name: 'print',
+    at: `/events/${EVENT_ID}/program/print`,
+    height: 900,
+    why: '인쇄 · 종이 미리보기',
+    paper: true,
+    marks: [
+      { at: '[data-testid="paper-toggle"]', label: '①' },
+      { at: '[data-testid="print-first"]', label: '②' },
+      { at: '[data-testid="print-now"]', label: '③' },
+    ],
+  },
   { name: 'stage', at: `/events/${EVENT_ID}/stage`, height: 1000, why: '무대 화면' },
-  { name: 'video', at: `/events/${EVENT_ID}/video`, height: 1100, why: '감동영상' },
+  {
+    name: 'video',
+    at: `/events/${EVENT_ID}/video`,
+    height: 1100,
+    why: '감동영상',
+    marks: [{ at: '[data-testid="video-ready"]', label: '①' }],
+  },
   { name: 'live', at: `/events/${EVENT_ID}/live`, height: 900, why: '당일 진행', phone: true },
   { name: 'invite', at: `/events/${EVENT_ID}/invite`, height: 1000, why: '초대장 · 참석 집계' },
-  { name: 'settings', at: '/settings', height: 1100, why: '학원 정보 · 자동 저장' },
+  {
+    name: 'settings',
+    at: '/settings',
+    height: 1100,
+    why: '학원 정보 · 자동 저장',
+    marks: [{ at: '[data-testid="backup-open"]', label: '①' }],
+  },
   { name: 'seasons', at: '/seasons', height: 900, why: '시즌 특강' },
 ]
+
+/**
+ * 누를 자리에 동그라미와 번호를 얹는다.
+ *
+ * 그림만 넣어 두면 "이 화면에서 어디를 누르나요" 가 남는다. 그건 다시 글이 된다.
+ * 화면 위에 직접 표시해 두면 글 세 줄이 동그라미 하나로 줄어든다.
+ */
+async function drawMarks(page, marks) {
+  for (const [index, mark] of marks.entries()) {
+    const box = await page
+      .locator(mark.at)
+      .first()
+      .boundingBox()
+      .catch(() => null)
+    if (!box) {
+      console.log(`    · ${mark.label} 자리를 못 찾음 (${mark.at})`)
+      continue
+    }
+    await page.evaluate(
+      ({ box, label, index }) => {
+        const pad = 6
+        const ring = document.createElement('div')
+        Object.assign(ring.style, {
+          position: 'absolute',
+          left: `${box.x + window.scrollX - pad}px`,
+          top: `${box.y + window.scrollY - pad}px`,
+          width: `${box.width + pad * 2}px`,
+          height: `${box.height + pad * 2}px`,
+          border: '3px solid #d97706',
+          borderRadius: '12px',
+          boxShadow: '0 0 0 4px rgba(217,119,6,.18)',
+          pointerEvents: 'none',
+          zIndex: '9999',
+        })
+        const tag = document.createElement('div')
+        tag.textContent = label
+        Object.assign(tag.style, {
+          position: 'absolute',
+          left: `${box.x + window.scrollX - pad - 13}px`,
+          top: `${box.y + window.scrollY - pad - 13}px`,
+          width: '26px',
+          height: '26px',
+          lineHeight: '26px',
+          textAlign: 'center',
+          borderRadius: '999px',
+          background: '#d97706',
+          color: '#fff',
+          font: '700 15px/26px system-ui, sans-serif',
+          pointerEvents: 'none',
+          zIndex: '10000',
+        })
+        tag.dataset.manualMark = String(index)
+        document.body.append(ring, tag)
+      },
+      { box, label: mark.label, index },
+    )
+  }
+}
 
 async function waitForServer(timeoutMs = 60_000) {
   const started = Date.now()
@@ -106,6 +209,8 @@ try {
     }
 
     await page.waitForTimeout(400)
+    if (shot.marks) await drawMarks(page, shot.marks)
+    await page.waitForTimeout(200)
     await page.screenshot({ path: join(OUT, `${shot.name}.jpg`), type: 'jpeg', quality: 78 })
     await ctx.close()
     made += 1

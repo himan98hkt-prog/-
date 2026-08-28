@@ -1,6 +1,6 @@
 'use client'
 
-import { HardDriveDownload, RotateCcw } from 'lucide-react'
+import { Check, Copy, FolderOpen, HardDriveDownload, RotateCcw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,9 @@ export function BackupList() {
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  /** 탐색기가 안 뜨는 자리도 있다 — 그때 보여 드릴 실제 경로 */
+  const [fullPath, setFullPath] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   function load() {
     fetch('/api/backup')
@@ -82,6 +85,37 @@ export function BackupList() {
     }
   }
 
+  /** 폴더를 탐색기로 열어 드린다. 못 열면 경로를 보여 드린다 */
+  async function openFolder() {
+    setBusy('open')
+    setMessage(null)
+    try {
+      const res = await fetch('/api/backup/open', { method: 'POST' })
+      const data = await res.json()
+      setFullPath(data.folder ?? null)
+      setMessage(
+        data.opened
+          ? '폴더를 열었습니다. 창이 뒤에 떠 있을 수 있습니다.'
+          : '이 컴퓨터에서는 폴더를 바로 열 수 없습니다. 아래 경로로 찾아가세요.',
+      )
+    } catch {
+      setMessage('폴더를 열지 못했습니다.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function copyPath() {
+    if (!fullPath) return
+    try {
+      await navigator.clipboard.writeText(fullPath)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* 복사가 막힌 브라우저 — 아래 글을 직접 긁어 복사하시면 된다 */
+    }
+  }
+
   return (
     <section className="grid gap-3 rounded-lg border border-border bg-card p-4" data-testid="backup-list">
       <div>
@@ -96,11 +130,27 @@ export function BackupList() {
         </p>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={backupNow} disabled={busy !== null}>
           지금 한 번 떠 두기
         </Button>
+        <Button variant="outline" size="sm" onClick={openFolder} disabled={busy !== null} data-testid="backup-open">
+          <FolderOpen className="h-4 w-4" aria-hidden />
+          폴더 열기
+        </Button>
       </div>
+
+      {fullPath && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+          <code className="mr-auto break-all text-xs" data-testid="backup-path">
+            {fullPath}
+          </code>
+          <Button variant="ghost" size="sm" onClick={copyPath}>
+            {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+            {copied ? '복사했습니다' : '경로 복사'}
+          </Button>
+        </div>
+      )}
 
       {loaded && days.length === 0 && (
         <p className="text-sm text-muted-foreground">
