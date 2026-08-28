@@ -44,7 +44,7 @@ function StepGuide({
     {
       done: hasStudents,
       title: '① 학생 명단 넣기',
-      body: '엑셀에서 복사해 붙여넣으면 됩니다.',
+      body: '엑셀 파일을 끌어다 놓으면 됩니다.',
       href: `/events/${eventId}?tab=roster`,
     },
     {

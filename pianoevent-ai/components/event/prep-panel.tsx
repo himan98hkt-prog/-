@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EventExport } from '@/components/event/event-transfer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatWallClock } from '@/lib/format'
 import { buildChecklist, checklistTaskCount, currentGroup } from '@/lib/ops/checklist'
@@ -263,6 +264,9 @@ export function PrepPanel({
           )}
         </CardContent>
       </Card>
+
+      {/* 컴퓨터를 바꾸시거나 집에서 이어 하실 때 */}
+      <EventExport eventId={event.id} title={event.title} />
     </div>
   )
 }

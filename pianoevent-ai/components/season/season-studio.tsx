@@ -3,7 +3,7 @@
 import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
-import { PrintButton } from '@/components/print-button'
+import { PrintTips } from '@/components/print/print-tips'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -147,13 +147,21 @@ export function SeasonStudio({ initialPack }: { initialPack: SeasonPack }) {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 no-print">
-        <h2 className="text-lg font-semibold">{pack.title}</h2>
-        <div className="flex gap-2">
-          <CopyButton text={planText} label="계획서 복사" />
-          <CopyButton text={pack.parentNotice} label="학부모 안내 복사" />
-          <PrintButton label="계획서 · 활동지 인쇄" />
+      <div className="grid gap-2 no-print">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">{pack.title}</h2>
+          <div className="flex gap-2">
+            <CopyButton text={planText} label="계획서 복사" />
+            <CopyButton text={pack.parentNotice} label="학부모 안내 복사" />
+          </div>
         </div>
+        {/* 계획서 한 장 + 활동지들. 계획서가 길면 한 장 더 넘어가므로 "안팎" 으로 적는다 */}
+        <PrintTips
+          what="계획서 · 활동지"
+          paperLabel="A4 세로"
+          sheets={1 + pack.worksheets.length}
+          approx
+        />
       </div>
 
       <article className="print-page surface px-8 py-8">

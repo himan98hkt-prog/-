@@ -118,8 +118,12 @@ try {
   // 내려받은 양식을 그대로 붙여넣으면 읽히는가 — 시킨 대로 했는데 막히면 안 된다
   await start.getByLabel('학생 명단 붙여넣기').fill(templateText.replace(/^\ufeff/, ''))
   await start.waitForTimeout(500)
-  const previewText = await start.textContent('body')
-  check('나눠 준 양식을 그대로 붙여넣으면 읽힌다', /3명 인식됨/.test(previewText), (previewText.match(/\d+명 인식됨[^·]*/) ?? [''])[0])
+  const previewText = await start.getByTestId('roster-receipt').textContent()
+  check(
+    '나눠 준 양식을 그대로 붙여넣으면 읽힌다',
+    /아이 3명을 읽었습니다/.test(previewText),
+    (previewText.match(/아이 \d+명[^.]*/) ?? [''])[0],
+  )
   await start.getByLabel('학생 명단 붙여넣기').fill('')
 
   // 자세한 설명이 접혀 있다가 펴진다

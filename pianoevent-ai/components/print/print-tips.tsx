@@ -1,0 +1,87 @@
+'use client'
+
+import { ChevronDown, Printer } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { PRINT_CHECKLIST, totalSheets } from '@/lib/print/paper'
+import { cn } from '@/lib/utils'
+
+/**
+ * 인쇄물 화면처럼 **이미 종이 모양 그대로** 그려지는 곳에 붙이는 띠.
+ *
+ * 미리보기는 화면이 곧 미리보기라 필요 없다. 필요한 것은 나머지 둘 —
+ * 종이가 몇 장 나오는지, 인쇄 창에서 무엇을 만지는지.
+ */
+export function PrintTips({
+  what,
+  paperLabel,
+  sheets,
+  approx = false,
+}: {
+  what: string
+  paperLabel: string
+  sheets: number
+  /** 글 길이에 따라 한두 장 더 나올 수 있는 인쇄물이면 켠다 — 딱 떨어지는 척하지 않는다 */
+  approx?: boolean
+}) {
+  const [howto, setHowto] = useState(false)
+  const [copies, setCopies] = useState(1)
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 no-print" data-testid="print-bar" data-sheets={sheets}>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-sm">
+          <strong>{what}</strong> · {paperLabel} · <span data-testid="print-sheets">종이 {sheets}장{approx ? ' 안팎' : ''}</span>
+          {copies > 1 && (
+            <span className="text-muted-foreground">
+              {' '}
+              · {copies}부면 {totalSheets(sheets, copies)}장
+            </span>
+          )}
+        </p>
+
+        <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          부수
+          <input
+            type="number"
+            min={1}
+            max={500}
+            value={copies}
+            onChange={(e) => setCopies(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+            className="h-8 w-16 rounded-md border border-border bg-background px-2 text-sm"
+            aria-label="몇 부 뽑으실지"
+          />
+        </label>
+
+        <Button size="sm" onClick={() => window.print()} data-testid="print-now">
+          <Printer className="h-4 w-4" aria-hidden />
+          인쇄 · PDF 저장
+        </Button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setHowto((on) => !on)}
+        className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        aria-expanded={howto}
+        data-testid="print-howto-toggle"
+      >
+        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', howto && 'rotate-180')} aria-hidden />
+        인쇄 창이 뜨면 무엇을 만지나요?
+      </button>
+      {howto && (
+        <dl className="mt-2 grid gap-1.5 border-t border-border pt-2 text-xs" data-testid="print-howto">
+          {PRINT_CHECKLIST.map((item) => (
+            <div key={item.what} className="sm:flex sm:gap-2">
+              <dt className="shrink-0 font-medium sm:w-28">{item.what}</dt>
+              <dd className="text-muted-foreground">{item.how}</dd>
+            </div>
+          ))}
+          <p className="pt-1 text-muted-foreground">
+            브라우저마다 낱말이 조금씩 다릅니다. 없으면 <strong>더보기</strong> 안을 보세요.
+          </p>
+        </dl>
+      )}
+    </div>
+  )
+}

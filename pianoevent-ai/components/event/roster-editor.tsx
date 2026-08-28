@@ -1,8 +1,8 @@
 'use client'
 
-import { ClipboardPaste, CopyPlus, History, Plus, Trash2 } from 'lucide-react'
+import { ClipboardPaste, CopyPlus, FileSpreadsheet, History, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,12 +13,14 @@ import { formatDuration } from '@/lib/format'
 import { averageTiming, timingHint, type TimingLog } from '@/lib/ops/timing'
 import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
+import { buildReceipt } from '@/lib/program/receipt'
 import { parseRoster } from '@/lib/program/roster'
 import { rosterSampleText } from '@/lib/program/template'
 import { BulkPhotoUpload, StudentPhotoCell } from '@/components/event/student-photos'
 import type { AcademyAsset } from '@/lib/assets'
 import { FACE_SHRINK, shrinkImage } from '@/lib/image'
 import { LEVEL_LABEL, type EventStudent, type Level } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 const LEVELS = Object.keys(LEVEL_LABEL) as Level[]
 
@@ -79,7 +81,12 @@ export function RosterEditor({
   const [warnings, setWarnings] = useState<string[]>([])
 
   const preview = paste.trim() ? parseRoster(paste) : null
+  const receipt = preview ? buildReceipt(preview) : null
   const [source, setSource] = useState('')
+  /** 붙여넣기 직전의 명단 — [되돌리기] 를 누르시면 이대로 되돌린다 */
+  const [undoTo, setUndoTo] = useState<EventStudent[] | null>(null)
+  const [dropping, setDropping] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [keepPieces, setKeepPieces] = useState(false)
   // 곡 사전 자동완성 — 곡을 고르면 나머지 칸이 함께 채워진다
   const [draft, setDraft] = useState({ piece: '', composer: '', level: 'beginner', minutes: 0, seconds: 0 })
@@ -134,10 +141,58 @@ export function RosterEditor({
     }
   }
 
+  /** 엑셀 파일을 그대로 받아 붙여넣기 칸을 채운다 — 복사·붙여넣기 다섯 걸음이 한 걸음이 된다 */
+  async function readFile(file: File) {
+    setPending(true)
+    setMessage(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/roster/xlsx', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '엑셀 파일을 읽지 못했습니다.')
+      setPaste(data.text)
+      setMessage(`${file.name} 에서 ${data.rows}줄을 읽었습니다. 아래에서 확인하시고 넣으세요.`)
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '엑셀 파일을 읽지 못했습니다.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  /** 붙여넣기를 통째로 되돌린다 — 사진까지 그대로 */
+  async function undo() {
+    if (!undoTo) return
+    setPending(true)
+    try {
+      const res = await fetch(`/api/events/${eventId}/students/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: undoTo }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '되돌리지 못했습니다.')
+      setMessage(
+        undoTo.length === 0
+          ? '되돌렸습니다. 명단이 붙여넣기 전으로 비었습니다.'
+          : `되돌렸습니다. 붙여넣기 전의 ${undoTo.length}줄로 돌아갔습니다.`,
+      )
+      setUndoTo(null)
+      setWarnings([])
+      router.refresh()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '되돌리지 못했습니다.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   async function importRoster(mode: 'append' | 'replace') {
     if (!paste.trim()) return
     setPending(true)
     setMessage(null)
+    // 넣기 **전에** 지금 명단을 담아 둔다. 넣고 나서 담으면 되돌릴 곳이 없다.
+    const before = students.map((s) => ({ ...s }))
     try {
       const res = await fetch(`/api/events/${eventId}/students${mode === 'replace' ? '?mode=replace' : ''}`, {
         method: 'POST',
@@ -153,6 +208,7 @@ export function RosterEditor({
           ? `${data.students.length}명을 등록했습니다. 곡 사전이 ${filled.length}곡의 빈칸을 대신 채웠습니다.`
           : `${data.students.length}명을 등록했습니다.`,
       )
+      setUndoTo(before)
       setPaste('')
       router.refresh()
     } catch (e) {
@@ -308,10 +364,11 @@ export function RosterEditor({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardPaste className="h-4 w-4 text-accent" aria-hidden />
-            엑셀에서 붙여넣기
+            학생 명단 넣기
           </CardTitle>
           <CardDescription>
-            엑셀·구글시트에서 표를 복사해 그대로 붙여넣으세요. 머리글이 있어도 없어도 알아서 읽습니다.
+            엑셀 파일을 <strong className="text-foreground">그대로 끌어다 놓으시면</strong> 됩니다. 복사해
+            붙여넣으셔도 되고, 머리글이 있어도 없어도 알아서 읽습니다.
             <strong className="text-foreground">
               {' '}
               작곡가나 연주시간을 비워 두시면 곡 사전 {CATALOG_SIZE}곡에서 알아서 채웁니다.
@@ -321,6 +378,53 @@ export function RosterEditor({
         </CardHeader>
         <CardContent className="grid gap-3">
           <RosterGuide />
+
+          {/* 엑셀 파일을 그대로 끌어다 놓기 — 복사·붙여넣기를 못 하시는 분이 훨씬 많다 */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDropping(true)
+            }}
+            onDragLeave={() => setDropping(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDropping(false)
+              const file = e.dataTransfer.files?.[0]
+              if (file) readFile(file)
+            }}
+            className={cn(
+              'grid gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors',
+              dropping ? 'border-accent bg-accent/10' : 'border-border bg-muted/30',
+            )}
+            data-testid="roster-drop"
+          >
+            <p className="flex items-center justify-center gap-2 text-sm font-medium">
+              <FileSpreadsheet className="h-4 w-4 text-accent" aria-hidden />
+              엑셀 파일을 여기로 끌어다 놓으세요
+            </p>
+            <p className="text-xs text-muted-foreground">
+              복사·붙여넣기를 하지 않으셔도 됩니다. <strong>.xlsx</strong> 파일을 그대로 놓으시면 아래 칸이 저절로
+              채워집니다. 파일은 읽고 나서 버립니다 — 이 컴퓨터 밖으로 나가지 않습니다.
+            </p>
+            <div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) readFile(file)
+                  e.target.value = ''
+                }}
+                aria-label="엑셀 파일 고르기"
+              />
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={pending}>
+                파일 고르기
+              </Button>
+            </div>
+          </div>
+
           <p className="text-sm font-medium">여기에 붙여넣으세요</p>
           <Textarea
             value={paste}
@@ -330,18 +434,31 @@ export function RosterEditor({
             aria-label="학생 명단 붙여넣기"
           />
 
-          {preview && (
-            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-              <p className="font-medium">
-                {preview.rows.length}명 인식됨
-                {preview.headerDetected ? ' · 헤더 자동 인식' : ' · 열 순서로 읽음 (이름·곡·작곡가·시간·난이도·비고)'}
-              </p>
-              {preview.errors.length > 0 && (
-                <ul className="mt-2 list-disc pl-5 text-xs text-destructive">
-                  {preview.errors.slice(0, 5).map((err) => (
-                    <li key={err}>{err}</li>
-                  ))}
-                </ul>
+          {receipt && (
+            <div
+              className={cn(
+                'rounded-md border p-3 text-sm',
+                receipt.needsLook ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-muted/40',
+              )}
+              data-testid="roster-receipt"
+            >
+              <p className="font-medium">이렇게 읽었습니다 — 맞으면 아래 단추를 누르세요</p>
+              <ul className="mt-2 grid gap-1">
+                {receipt.lines.map((line) => (
+                  <li
+                    key={line.text}
+                    className={cn('text-xs', line.tone === 'warn' ? 'text-destructive' : 'text-muted-foreground')}
+                  >
+                    {line.tone === 'warn' ? '⚠ ' : '· '}
+                    {line.text}
+                  </li>
+                ))}
+              </ul>
+              {!receipt.needsLook && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  살펴보실 것은 없습니다. 넣으신 뒤에도 표에서 언제든 고치실 수 있고,{' '}
+                  <strong>[되돌리기]</strong> 로 통째로 되돌릴 수 있습니다.
+                </p>
               )}
             </div>
           )}
@@ -357,6 +474,22 @@ export function RosterEditor({
               예시 채우기
             </Button>
           </div>
+
+          {undoTo !== null && (
+            <div
+              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-3"
+              data-testid="roster-undo"
+            >
+              <p className="mr-auto text-sm">
+                방금 넣으신 것이 마음에 안 드시면 <strong>통째로</strong> 되돌릴 수 있습니다. 사진까지 그대로
+                돌아갑니다.
+              </p>
+              <Button variant="outline" size="sm" onClick={undo} disabled={pending}>
+                <RotateCcw className="h-4 w-4" aria-hidden />
+                되돌리기
+              </Button>
+            </div>
+          )}
 
           {message && <p className="text-sm text-muted-foreground">{message}</p>}
           {warnings.length > 0 && (

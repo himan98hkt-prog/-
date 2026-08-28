@@ -3,6 +3,7 @@ import path from 'node:path'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { HelpBook } from '@/components/help/help-book'
+import { HelpTicket } from '@/components/support/help-ticket'
 import { renderManual } from '@/lib/help/markdown'
 import { currentAcademy } from '@/lib/session'
 
@@ -43,7 +44,13 @@ export default async function HelpPage() {
       </div>
 
       {manual ? (
-        <HelpBook sections={manual.sections} />
+        <>
+          <HelpBook sections={manual.sections} />
+          {/* 설명서를 다 읽고도 막히시는 자리가 있다. 그때 여기서 쪽지를 만드신다 */}
+          <div className="mt-8 no-print" id="막히면">
+            <HelpTicket />
+          </div>
+        </>
       ) : (
         <p className="rounded-lg border border-border px-4 py-10 text-center text-sm text-muted-foreground">
           설명서 파일을 찾지 못했습니다. 프로그램 폴더의 <code>docs/MANUAL.md</code> 를 열어 보세요.{' '}

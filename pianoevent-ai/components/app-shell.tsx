@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { ErrorLog } from '@/components/support/error-log'
+import { FirstRun } from '@/components/tour/first-run'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -53,6 +55,9 @@ export function AppShell({
         <div className="container flex flex-wrap items-center justify-between gap-2">
           <span>{academyName} · PianoEvent AI</span>
           <div className="flex gap-4">
+            <Link href="/help#막히면" className="hover:text-foreground">
+              막히면 여기
+            </Link>
             <Link href="/privacy" className="hover:text-foreground">
               개인정보처리방침
             </Link>
@@ -62,6 +67,12 @@ export function AppShell({
           </div>
         </div>
       </footer>
+
+      {/* 화면에서 난 오류를 이 브라우저 안에만 모아 둔다 — [막히면 여기] 에서 쓰인다 */}
+      <ErrorLog />
+
+      {/* 처음 켜신 분께만 뜨는 안내. 화면을 가리지 않는다 */}
+      <FirstRun />
     </div>
   )
 }

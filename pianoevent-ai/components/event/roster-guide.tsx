@@ -35,7 +35,8 @@ export function RosterGuide() {
           <p className="text-sm font-medium">가장 쉬운 길 — 양식 파일에 이름만 바꿔 넣으세요</p>
           <p className="mt-1 text-sm text-muted-foreground">
             아래 단추를 누르면 <strong>예시가 채워진 엑셀 파일</strong>이 내려옵니다. 그 파일을 열어 예시 줄을
-            지우고 우리 아이들 이름으로 바꾸신 뒤, <strong>표를 통째로 복사</strong>해서 아래 칸에 붙여넣으세요.
+            지우고 우리 아이들 이름으로 바꾸신 뒤 <strong>저장</strong>하세요. 그 파일을 아래 상자에{' '}
+            <strong>끌어다 놓으시면</strong> 끝입니다 — 복사·붙여넣기를 하지 않으셔도 됩니다.
           </p>
         </div>
       </div>

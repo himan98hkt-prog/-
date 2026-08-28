@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { renderTemplate } from '@/components/design/render'
-import { PrintButton } from '@/components/print-button'
+import { PrintTips } from '@/components/print/print-tips'
 import { resolveLogo, resolvePhoto } from '@/lib/assets'
 import { defaultCopy, type DesignCopy } from '@/lib/design/context'
 import { PAGE_PX, getPack, getTemplate, packTemplates, sheetCount } from '@/lib/design/templates'
@@ -73,12 +73,12 @@ export default async function DesignPrintPage({
         }}
       />
 
-      <div className="mx-auto mb-5 flex max-w-[860px] flex-wrap items-center justify-between gap-3 px-4 no-print">
-        <p className="text-sm text-muted-foreground">
-          {pack ? `${pack.name} (${templates.map((t) => t.name).join(' · ')})` : template.name} · {page.label} ·{' '}
-          {sheets}장 — 인쇄 대화상자에서 <strong>배율 100%</strong>, 여백 없음으로 두면 그대로 나옵니다.
-        </p>
-        <PrintButton />
+      <div className="mx-auto mb-5 max-w-[860px] px-4">
+        <PrintTips
+          what={pack ? `${pack.name} (${templates.map((t) => t.name).join(' · ')})` : template.name}
+          paperLabel={page.label}
+          sheets={sheets}
+        />
       </div>
 
       <div className="flex flex-col items-center gap-6 print:gap-0">

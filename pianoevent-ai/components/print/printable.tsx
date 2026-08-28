@@ -1,0 +1,174 @@
+'use client'
+
+import { ChevronDown, Eye, Printer } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { PRINT_CHECKLIST, fitScale, getPaper, pageBreakOffsets, sheetsNeeded, totalSheets } from '@/lib/print/paper'
+import { cn } from '@/lib/utils'
+
+/**
+ * 인쇄할 것을 감싸는 상자.
+ *
+ * 하는 일은 셋이다.
+ *  1. 뽑기 전에 **종이 몇 장**이 나오는지 알려 준다
+ *  2. [종이로 보기] 를 누르면 종이 모양 그대로, 잘리는 자리에 점선을 그어 보여 준다
+ *  3. 인쇄 대화상자에서 만질 것 네 줄을 적어 둔다 (배율·여백·배경 그래픽)
+ *
+ * 이 셋이 없어서 원장님은 뽑고 나서야 아셨다. 100부를 뽑고 나서.
+ */
+export function Printable({
+  paperId = 'a4-portrait',
+  marginMm = 14,
+  what,
+  children,
+}: {
+  paperId?: string
+  /** 인쇄 여백(mm). 0 이면 디자인 안에서 여백을 잡는 인쇄물이다 */
+  marginMm?: number
+  /** "순서지" 처럼, 무엇을 뽑는지 */
+  what: string
+  children: React.ReactNode
+}) {
+  const paper = getPaper(paperId)
+  const marginPx = Math.round((marginMm / 25.4) * 96)
+
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
+  const [scale, setScale] = useState(1)
+  const [preview, setPreview] = useState(false)
+  const [howto, setHowto] = useState(false)
+  const [copies, setCopies] = useState(1)
+
+  // 내용 높이와 창 너비는 둘 다 변한다 — 글꼴이 늦게 오거나 창을 줄이시면.
+  useEffect(() => {
+    const measure = () => {
+      if (bodyRef.current) setHeight(bodyRef.current.scrollHeight)
+      if (frameRef.current) setScale(fitScale(frameRef.current.clientWidth, paper))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (bodyRef.current) observer.observe(bodyRef.current)
+    if (frameRef.current) observer.observe(frameRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [paper, preview])
+
+  const sheets = sheetsNeeded(height, paper, marginPx)
+  const cuts = pageBreakOffsets(height, paper, marginPx)
+
+  return (
+    <div className="grid gap-4">
+      <div
+        className="rounded-lg border border-border bg-card p-3 no-print"
+        data-testid="print-bar"
+        data-sheets={sheets}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="mr-auto text-sm">
+            <strong>{what}</strong> · {paper.label} ·{' '}
+            <span data-testid="print-sheets">종이 {sheets}장</span>
+            {copies > 1 && (
+              <span className="text-muted-foreground"> · {copies}부면 {totalSheets(sheets, copies)}장</span>
+            )}
+          </p>
+
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            부수
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={copies}
+              onChange={(e) => setCopies(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+              className="h-8 w-16 rounded-md border border-border bg-background px-2 text-sm"
+              aria-label="몇 부 뽑으실지"
+            />
+          </label>
+
+          <Button
+            variant={preview ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setPreview((on) => !on)}
+            aria-pressed={preview}
+            data-testid="paper-toggle"
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            {preview ? '화면으로 보기' : '종이로 보기'}
+          </Button>
+
+          <Button size="sm" onClick={() => window.print()} data-testid="print-now">
+            <Printer className="h-4 w-4" aria-hidden />
+            인쇄 · PDF 저장
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setHowto((on) => !on)}
+          className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          aria-expanded={howto}
+          data-testid="print-howto-toggle"
+        >
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', howto && 'rotate-180')} aria-hidden />
+          인쇄 창이 뜨면 무엇을 만지나요?
+        </button>
+        {howto && (
+          <dl className="mt-2 grid gap-1.5 border-t border-border pt-2 text-xs" data-testid="print-howto">
+            {PRINT_CHECKLIST.map((item) => (
+              <div key={item.what} className="sm:flex sm:gap-2">
+                <dt className="shrink-0 font-medium sm:w-28">{item.what}</dt>
+                <dd className="text-muted-foreground">{item.how}</dd>
+              </div>
+            ))}
+            <p className="pt-1 text-muted-foreground">
+              브라우저마다 낱말이 조금씩 다릅니다. 없으면 <strong>더보기</strong> 안을 보세요.
+            </p>
+          </dl>
+        )}
+      </div>
+
+      {/* 화면으로 볼 때는 그냥 넓게, 종이로 볼 때는 종이 크기에 맞춰 줄여 그린다 */}
+      <div ref={frameRef} className={cn(preview && 'flex justify-center')}>
+        {preview ? (
+          <div
+            style={{ width: paper.w * scale, height: ((height || paper.h) + marginPx * 2) * scale }}
+            className="relative"
+            data-testid="paper-preview"
+          >
+            <div
+              style={{ width: paper.w, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+              className="absolute left-0 top-0"
+            >
+              <div
+                style={{ padding: marginPx }}
+                className="bg-white text-black shadow-[0_1px_12px_rgba(20,20,43,.14)]"
+              >
+                <div ref={bodyRef}>{children}</div>
+              </div>
+
+              {/* 잘리는 자리 — 여기서 다음 장으로 넘어갑니다 */}
+              {cuts.map((top) => (
+                <div
+                  key={top}
+                  className="pointer-events-none absolute left-0 right-0 border-t-2 border-dashed border-destructive/70"
+                  style={{ top: top + marginPx }}
+                  data-testid="paper-cut"
+                >
+                  <span className="absolute right-1 top-1 rounded bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">
+                    여기서 다음 장
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div ref={bodyRef}>{children}</div>
+        )}
+      </div>
+    </div>
+  )
+}

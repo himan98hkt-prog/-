@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Plus, Users } from 'lucide-react'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
+import { EventImport } from '@/components/event/event-transfer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -81,6 +82,11 @@ export default async function EventsPage() {
           ))}
         </ul>
       )}
+
+      {/* 다른 컴퓨터에서 하시던 행사를 그대로 여실 수 있게 */}
+      <div className="mt-6">
+        <EventImport />
+      </div>
     </AppShell>
   )
 }
