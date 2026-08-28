@@ -100,16 +100,38 @@ export function EventHub({ eventId, state }: { eventId: string; state: FlowState
         <ul className="grid gap-2 border-t border-border p-3 sm:grid-cols-2">
           {EXTRA_STEPS.map((step) => {
             const tone = stepTone(step.key)
+            // 안 하셔도 되는 것이지만, 해 두신 것을 또 하러 들어가시는 일은 없어야 한다
+            const finished = isDone(step.key, state)
             return (
               <li key={step.key}>
                 <Link
                   href={stepHref(step.key, eventId)}
                   className="flex h-full flex-col rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-secondary"
                   data-testid={`extra-${step.key}`}
+                  data-done={finished ? 'yes' : 'no'}
                 >
                   <span className="flex items-center gap-2 text-sm font-medium">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: tone.band }} aria-hidden />
+                    {finished ? (
+                      <span
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-white"
+                        style={{ background: tone.band }}
+                        aria-hidden
+                      >
+                        <Check className="h-3 w-3" />
+                      </span>
+                    ) : (
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: tone.band }}
+                        aria-hidden
+                      />
+                    )}
                     {step.name}
+                    {finished && (
+                      <span className="ml-auto shrink-0 text-xs font-normal" style={{ color: tone.ink }}>
+                        해 두셨습니다
+                      </span>
+                    )}
                   </span>
                   <span className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{step.why}</span>
                 </Link>

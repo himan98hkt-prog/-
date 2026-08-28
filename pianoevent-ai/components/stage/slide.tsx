@@ -585,6 +585,222 @@ function Performance({
     )
   }
 
+  /* ── 사진이 있는 모양 세 가지 더 ─────────────────────────────────
+     어느 것이든 규칙은 같다: 사진은 화면을 꽉 채우거나 절반을 온전히 차지하고,
+     글자는 위쪽이나 오른쪽에만 둔다. 아래 4분의 1은 피아노 뚜껑에 가린다. */
+
+  if (layout === 'photo-split' && slide.photo) {
+    // 위 절반은 색 판에 글, 아래 절반은 사진. 글이 가장 크게 들어가는 모양이다
+    return (
+      <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateRows: '46% 54%' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '0 72px',
+            background: dark ? 'rgba(0,0,0,0.55)' : 'var(--d-paper-alt)',
+          }}
+        >
+          <p style={{ ...label(21), color: 'var(--d-accent)' }}>{eyebrow}</p>
+          <h1 style={{ ...display(name.length > 8 ? 84 : 100), marginTop: 8 }}>{name}</h1>
+          <p style={{ marginTop: 10, fontSize: 38, fontWeight: 600 }}>{piece}</p>
+        </div>
+        <div style={{ position: 'relative', overflow: 'hidden' }}>
+          <Photo src={slide.photo} />
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'photo-badge' && slide.photo) {
+    // 몇 번째인지가 객석에서 가장 먼저 읽혀야 할 때
+    return (
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Photo src={slide.photo} />
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            insetInline: 0,
+            top: 0,
+            height: 300,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0) 100%)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: 64,
+            top: 44,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 28,
+            color: '#fff',
+            maxWidth: 1500,
+          }}
+        >
+          {order ? (
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 132,
+                height: 132,
+                borderRadius: '50%',
+                background: 'var(--d-accent)',
+                color: 'var(--d-paper)',
+                fontFamily: 'var(--d-display)',
+                fontWeight: 700,
+                fontSize: 68,
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+                flexShrink: 0,
+              }}
+            >
+              {order}
+            </span>
+          ) : null}
+          <span style={{ minWidth: 0 }}>
+            <p style={{ ...label(19), color: theme.palette.accent }}>{eyebrow}</p>
+            <h1 style={{ ...display(name.length > 8 ? 76 : 88), marginTop: 6, color: '#fff' }}>{name}</h1>
+            <p style={{ marginTop: 8, fontSize: 34, fontWeight: 600, color: 'rgba(255,255,255,0.94)' }}>{piece}</p>
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'photo-card' && slide.photo) {
+    // 곡 해설이 길 때 — 사진 위에 반투명 카드를 얹어 글을 살린다
+    return (
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Photo src={slide.photo} />
+        <div
+          style={{
+            position: 'absolute',
+            right: 64,
+            top: 56,
+            width: 720,
+            maxWidth: '52%',
+            padding: '38px 44px',
+            borderRadius: 20,
+            background: 'rgba(0,0,0,0.62)',
+            border: '1px solid rgba(255,255,255,0.24)',
+            color: '#fff',
+          }}
+        >
+          <p style={{ ...label(19), color: theme.palette.accent }}>{eyebrow}</p>
+          <h1 style={{ ...display(name.length > 8 ? 66 : 78), marginTop: 8, color: '#fff' }}>{name}</h1>
+          <p style={{ marginTop: 10, fontSize: 32, fontWeight: 600, color: 'rgba(255,255,255,0.94)' }}>{piece}</p>
+          {note ? (
+            <p style={{ ...noteStyle, color: 'rgba(255,255,255,0.84)', marginTop: 12 }}>{note}</p>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
+  /* ── 사진 없이 글만 세 가지 더 ───────────────────────────────────
+     사진을 아직 못 넣으신 학원도 화면이 허전하지 않아야 한다. */
+
+  if (layout === 'text-two-line') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: `48px 96px ${safeBottom}px`,
+        }}
+      >
+        <p style={{ ...label(22), color: 'var(--d-accent)' }}>
+          {[order ? `${order}번째` : '', eyebrow].filter(Boolean).join(' · ')}
+        </p>
+        <h1 style={{ ...display(name.length > 9 ? 108 : 132), marginTop: 12 }}>{name}</h1>
+        <p style={{ marginTop: 18, fontSize: 56, fontWeight: 600, color: 'var(--d-muted)' }}>{piece}</p>
+      </div>
+    )
+  }
+
+  if (layout === 'text-frame') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: `52px 84px ${safeBottom}px`,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            border: '10px double var(--d-accent)',
+            padding: '40px 56px',
+          }}
+        >
+          <p style={{ ...label(20), color: 'var(--d-accent)' }}>{eyebrow}</p>
+          <h1 style={{ ...display(name.length > 8 ? 88 : 104), marginTop: 14 }}>{name}</h1>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+            <OrnamentDivider id={theme.ornament} width={340} />
+          </div>
+          <p style={{ marginTop: 18, fontSize: 40, fontWeight: 600 }}>{piece}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'text-marquee') {
+    return (
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <div
+          style={{
+            position: 'absolute',
+            insetInline: 0,
+            top: 0,
+            padding: '30px 72px',
+            background: 'var(--d-accent)',
+            color: 'var(--d-paper)',
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 22,
+          }}
+        >
+          {order ? (
+            <span style={{ fontSize: 40, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{order}</span>
+          ) : null}
+          <span style={{ ...label(24), color: 'var(--d-paper)' }}>{eyebrow}</span>
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: `120px 84px ${safeBottom}px`,
+          }}
+        >
+          <h1 style={{ ...display(name.length > 8 ? 100 : 118) }}>{name}</h1>
+          <p style={{ marginTop: 16, fontSize: 48, fontWeight: 600, color: 'var(--d-muted)' }}>{piece}</p>
+          {note ? <p style={{ ...noteStyle, marginTop: 16, maxWidth: 1200 }}>{note}</p> : null}
+        </div>
+      </div>
+    )
+  }
+
   // text-hero — 사진 없이 이름만 크게. 아래쪽은 비워 둔다
   return (
     <div

@@ -54,14 +54,25 @@ export default async function EventPage({
   const tab: Panel | 'hub' = PANELS.includes(searchParams.tab as Panel)
     ? (searchParams.tab as Panel)
     : 'hub'
+  /**
+   * 어디까지 하셨는지.
+   *
+   * 곁들이는 "설정을 저장하셨는가 · 회신이 왔는가 · 사진이 붙었는가" 처럼
+   * **실제로 남은 자국**으로만 본다. 열어만 보신 것을 했다고 하면 안 된다.
+   */
   const flow = {
     hasStudents: students.length > 0,
     hasProgram: event.program_source !== null,
     hasPrint: event.status === 'published' || event.design_template !== null,
+    hasInvite: rsvps.length > 0,
+    hasStage: event.stage_prefs !== null,
+    hasVideo: event.video_prefs !== null || event.video_url !== null,
+    hasPhotos: students.some((s) => s.photo_asset_id || (s.photo_asset_ids?.length ?? 0) > 0),
+    hasLive: event.live_state !== null,
   }
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <div className="mb-6">
         <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground">
           ← 행사 목록
@@ -103,9 +114,10 @@ export default async function EventPage({
               pastEvents={pastEvents}
               assets={academy.assets ?? []}
               timings={normalizeTimingLog(academy.timing_log)}
+              hasProgram={flow.hasProgram}
             />
           )}
-          {tab === 'program' && <ProgramPanel event={event} students={students} />}
+          {tab === 'program' && <ProgramPanel event={event} students={students} hasPrint={flow.hasPrint} />}
           {tab === 'plan' && <PlanPanel academy={academy} event={event} plan={plan} rsvps={rsvps} />}
           {tab === 'prep' && <PrepPanel academy={academy} event={event} plan={plan} />}
         </>

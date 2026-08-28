@@ -28,7 +28,7 @@ export default async function LivePage({ params }: { params: { id: string } }) {
   const photos = studentPhotos(academy.assets ?? [], students)
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <ScreenHeader
         step="live"
         eventId={event.id}

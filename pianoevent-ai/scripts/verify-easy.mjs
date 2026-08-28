@@ -314,6 +314,98 @@ try {
   check('휴대폰에서 가로로 넘치지 않는다', over <= 0, `${over}px`)
   await phone.close()
 
+  // ── 글씨 크게 · 곁들이 완료 표시 · 이어서 하기 ────────────────────
+  console.log('\n[구조 — 더 쉽게]')
+  await page.goto(`${BASE}/events/${EVENT_ID}`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(800)
+
+  const sizer = page.getByTestId('text-size')
+  check('글씨 크기 단추가 머리띠에 있다', (await sizer.count()) === 1)
+  const wasFont = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)
+  await sizer.click()
+  await page.waitForTimeout(400)
+  const bigFont = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)
+  check('누르면 글씨가 커진다', parseFloat(bigFont) > parseFloat(wasFont), `${wasFont} → ${bigFont}`)
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  const kept = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)
+  check('다시 열어도 그 크기로 열린다', kept === bigFont, `${kept} / ${bigFont}`)
+  // 세 번 누르면 처음으로 — 원장님이 되돌리실 수 있어야 한다
+  await page.getByTestId('text-size').click()
+  await page.waitForTimeout(250)
+  await page.getByTestId('text-size').click()
+  await page.waitForTimeout(400)
+  check(
+    '끝까지 누르면 처음 크기로 돌아온다',
+    (await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)) === wasFont,
+  )
+
+  // 곁들이에도 해 두신 것은 표시된다.
+  // 표시가 뜨려면 실제로 해 두신 자국이 있어야 하므로, 학부모 회신을 하나 만들어 둔다.
+  await page.request.post(`${BASE}/api/rsvp`, {
+    data: { event_id: EVENT_ID, parent_name: '김보호', student_name: '오수아', headcount: 2, attending: true },
+  })
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(800)
+  await page.getByTestId('event-extras').locator('summary').click()
+  await page.waitForTimeout(400)
+  const doneMarks = await page.locator('[data-testid^="extra-"][data-done="yes"]').count()
+  check('해 두신 곁들이에는 표가 붙는다', doneMarks >= 1, `${doneMarks}개`)
+  check(
+    '해 두셨다고 적어 준다',
+    (await page.getByTestId('event-extras').textContent()).includes('해 두셨습니다'),
+  )
+  await page.screenshot({ path: join(OUT, 'extras-done.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 화면을 옮겨도 되돌릴 수 있다 ─────────────────────────────────
+  console.log('\n[되돌리기 — 화면을 옮겨도]')
+  await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  const cell = page.getByTestId('roster-table').locator('tbody tr').first().locator('input[aria-label="연주곡"]')
+  const wasValue = await cell.inputValue()
+  await cell.fill('옮겨도 되돌아가야 함')
+  await cell.blur()
+  await page.waitForTimeout(1600)
+  check('고치면 되돌리기가 뜬다', (await page.getByTestId('undo-bar').count()) === 1)
+
+  // 다른 화면에 갔다 온다
+  await page.goto(`${BASE}/events/${EVENT_ID}/design`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  check('다른 화면에서도 되돌릴 것이 남아 있다', (await page.getByTestId('undo-bar').count()) === 1)
+  await page.getByTestId('undo-now').click()
+  await page.waitForTimeout(1800)
+  const restored = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
+  check(
+    '다른 화면에서 눌러도 제대로 되돌아간다',
+    restored.students[0].piece_title === wasValue,
+    `${restored.students[0].piece_title} / ${wasValue}`,
+  )
+
+  // ── 하시던 자리에서 다음 것까지 ──────────────────────────────────
+  console.log('\n[이어서 하기]')
+  const fresh = await (await page.request.post(`${BASE}/api/events`, {
+    data: { title: '이어서 하기 시험', type: 'recital', event_at: '2027-05-01T09:00:00.000Z', venue: '연습실' },
+  })).json()
+  const freshId = fresh.event.id
+  await page.request.post(`${BASE}/api/events/${freshId}/students`, {
+    data: { text: '이름\t연주곡\n한여울\t인형의 꿈\n서도윤\t작은 별 변주곡' },
+  })
+  await page.goto(`${BASE}/events/${freshId}?tab=roster`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1000)
+  const here = page.getByTestId('next-here')
+  check('명단이 들어오면 다음 것을 여기서 하자고 한다', (await here.count()) === 1)
+  const hereText = await here.textContent()
+  check('무엇이 다음인지 적어 준다', hereText.includes('순서표'), hereText.slice(0, 60))
+  check('화면을 안 옮겨도 된다고 적어 준다', hereText.includes('화면을 옮기지 않으셔도 됩니다'))
+
+  await page.getByTestId('next-here-go').click()
+  await page.waitForTimeout(4000)
+  const all = await (await page.request.get(`${BASE}/api/events`)).json().catch(() => null)
+  const made = all?.events?.find((e) => e.id === freshId)
+  check('여기서 눌러 순서표가 만들어진다', Boolean(made?.program_source), String(made?.program_source))
+  check('끝나면 그 화면으로 데려다 준다', page.url().includes('tab=program'), page.url())
+  await page.screenshot({ path: join(OUT, 'next-here.jpg'), type: 'jpeg', quality: 82 })
+
   // ── 엑셀 파일 끌어다 놓기 ────────────────────────────────────────
   console.log('\n[엑셀 파일 그대로 넣기]')
   await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })

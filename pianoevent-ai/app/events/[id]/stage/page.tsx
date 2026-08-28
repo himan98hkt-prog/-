@@ -46,7 +46,7 @@ export default async function StagePage({
     : event.stage_prefs
 
   return (
-    <AppShell academyName={academy.name} className="container py-8 print:max-w-none print:p-0">
+    <AppShell academyName={academy.name} eventId={event.id} className="container py-8 print:max-w-none print:p-0">
       {/* PDF 로 저장하면 16:9 슬라이드가 한 장에 한 화면씩 들어간다 */}
       <style
         dangerouslySetInnerHTML={{

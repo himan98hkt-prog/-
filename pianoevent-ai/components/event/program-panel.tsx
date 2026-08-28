@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHint, Input, Label } from '@/components/ui/field'
 import { formatWallClock } from '@/lib/format'
+import { NextHere } from '@/components/flow/next-here'
 import { useUndo } from '@/components/undo/undo-bar'
 import { applyOrder, buildProgram } from '@/lib/program/order'
 import { DEFAULT_PROGRAM_OPTIONS, type EventRecord, type EventStudent, type ProgramPlan } from '@/lib/types'
@@ -22,7 +23,16 @@ interface GenerateResult {
   script: { opening: string; closing: string; byStudentId: Record<string, string> }
 }
 
-export function ProgramPanel({ event, students }: { event: EventRecord; students: EventStudent[] }) {
+export function ProgramPanel({
+  event,
+  students,
+  hasPrint = false,
+}: {
+  event: EventRecord
+  students: EventStudent[]
+  /** 인쇄물을 이미 고르셨는가 */
+  hasPrint?: boolean
+}) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [result, setResult] = useState<GenerateResult | null>(null)
@@ -88,8 +98,23 @@ export function ProgramPanel({ event, students }: { event: EventRecord; students
 
   const source = result?.source ?? event.program_source
 
+  const madeProgram = event.program_source !== null || result !== null
+
   return (
     <div className="grid gap-5">
+      {/* 순서표가 나왔으면 다음은 인쇄물이다 — 여기서 바로 넘어가시게 한다 */}
+      {madeProgram && !hasPrint && (
+        <NextHere
+          step="print"
+          eventId={event.id}
+          label="인쇄물 만들러 가기"
+          hint="순서가 나왔습니다. 포스터와 순서지는 이 순서 그대로 이미 만들어져 있습니다 — 테마만 고르시면 됩니다."
+          run={async () => {
+            /* 인쇄물은 만들어 둘 것이 없다. 고르시는 화면으로 모셔다 드리기만 하면 된다 */
+          }}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

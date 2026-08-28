@@ -1,10 +1,10 @@
 'use client'
 
 import { RotateCcw } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { popUndo, pushUndo, undoLine, type UndoAction } from '@/lib/undo/stack'
+import { UNDO_KEY, keepable, popUndo, pushUndo, undoLine, usable, type UndoAction } from '@/lib/undo/stack'
 
 /**
  * 되돌리기 한 자리.
@@ -27,25 +27,73 @@ export function useUndo(): UndoBox {
   return useContext(Ctx)
 }
 
-export function UndoProvider({ children }: { children: React.ReactNode }) {
+export function UndoProvider({ children, eventId }: { children: React.ReactNode; eventId?: string }) {
   const [stack, setStack] = useState<UndoAction[]>([])
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<string | null>(null)
   const path = usePathname()
+  const router = useRouter()
 
-  // 화면을 옮기시면 비운다
+  /**
+   * 화면을 옮겨도 되돌릴 것이 살아남는다.
+   *
+   * 원장님은 명단을 고치고 인쇄물을 보러 가셨다가 "아까 그거 잘못 고쳤는데" 하고
+   * 돌아오신다. 그때 되돌릴 수 있어야 한다.
+   *
+   * 함수는 화면을 옮기면 사라지므로, **요청으로 적어 둔 것**만 브라우저에 남긴다.
+   * 남는 곳은 이 브라우저 안(sessionStorage)이고, 창을 닫으면 함께 사라진다.
+   */
   useEffect(() => {
-    setStack([])
+    try {
+      const raw = window.sessionStorage.getItem(UNDO_KEY)
+      const saved: UndoAction[] = raw ? JSON.parse(raw) : []
+      setStack(usable(Array.isArray(saved) ? saved : [], eventId ?? ''))
+    } catch {
+      /* 못 읽어도 이번 화면에서 하신 것은 그대로 쌓인다 */
+    }
+    setDone(null)
+    // 행사가 바뀌면 다시 읽는다. 화면만 옮긴 것으로는 지우지 않는다.
+  }, [eventId])
+
+  useEffect(() => {
     setDone(null)
   }, [path])
 
-  const remember = useCallback((action: UndoAction) => {
-    setDone(null)
-    setStack((prev) => pushUndo(prev, action))
-  }, [])
+  function keep(next: UndoAction[]) {
+    setStack(next)
+    try {
+      window.sessionStorage.setItem(UNDO_KEY, JSON.stringify(keepable(next)))
+    } catch {
+      /* 못 적어도 이 화면에서는 되돌릴 수 있다 */
+    }
+  }
+
+  const remember = useCallback(
+    (action: UndoAction) => {
+      setDone(null)
+      setStack((prev) => {
+        const next = pushUndo(prev, { ...action, eventId: action.eventId ?? eventId, at: Date.now() })
+        try {
+          window.sessionStorage.setItem(UNDO_KEY, JSON.stringify(keepable(next)))
+        } catch {
+          /* 위와 같다 */
+        }
+        return next
+      })
+    },
+    [eventId],
+  )
 
   const forget = useCallback((id: string) => {
-    setStack((prev) => prev.filter((a) => a.id !== id))
+    setStack((prev) => {
+      const next = prev.filter((a) => a.id !== id)
+      try {
+        window.sessionStorage.setItem(UNDO_KEY, JSON.stringify(keepable(next)))
+      } catch {
+        /* 위와 같다 */
+      }
+      return next
+    })
   }, [])
 
   const box = useMemo(() => ({ remember, forget }), [remember, forget])
@@ -56,9 +104,23 @@ export function UndoProvider({ children }: { children: React.ReactNode }) {
     if (!action) return
     setBusy(true)
     try {
-      await action.run()
-      setStack(rest)
+      if (action.run) {
+        // 이 화면에서 하신 것 — 그 화면이 아는 방법으로 되돌린다
+        await action.run()
+      } else if (action.request) {
+        // 화면을 옮긴 뒤 — 적어 둔 요청을 그대로 다시 보낸다
+        const res = await fetch(action.request.url, {
+          method: action.request.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: action.request.body === undefined ? undefined : JSON.stringify(action.request.body),
+        })
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? '되돌리지 못했습니다.')
+      } else {
+        throw new Error('되돌리는 방법을 잃었습니다.')
+      }
+      keep(rest)
       setDone(`${action.what} 을(를) 되돌렸습니다.`)
+      router.refresh()
     } catch (error) {
       setDone(error instanceof Error ? error.message : '되돌리지 못했습니다.')
     } finally {

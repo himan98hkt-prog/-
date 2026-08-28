@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PieceInput } from '@/components/event/piece-input'
+import { NextHere } from '@/components/flow/next-here'
 import { RosterGuide } from '@/components/event/roster-guide'
 import { useUndo } from '@/components/undo/undo-bar'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
@@ -40,6 +41,7 @@ export function RosterEditor({
   pastEvents = [],
   assets = [],
   timings = null,
+  hasProgram = false,
 }: {
   eventId: string
   students: EventStudent[]
@@ -49,6 +51,8 @@ export function RosterEditor({
   assets?: AcademyAsset[]
   /** 아이별로 지난 무대에서 실제로 걸린 시간 */
   timings?: TimingLog | null
+  /** 순서표를 이미 만드셨는가 — 만드셨으면 다음 안내를 띄우지 않는다 */
+  hasProgram?: boolean
 }) {
   const [photoBusy, setPhotoBusy] = useState<string | null>(null)
 
@@ -177,24 +181,6 @@ export function RosterEditor({
     }
   }
 
-  /** 붙여넣기를 통째로 되돌린다 — 사진까지 그대로 */
-  async function restoreRoster(before: EventStudent[]) {
-    const res = await fetch(`/api/events/${eventId}/students/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ students: before }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error ?? '되돌리지 못했습니다.')
-    setMessage(
-      before.length === 0
-        ? '명단이 붙여넣기 전으로 비었습니다.'
-        : `붙여넣기 전의 ${before.length}줄로 돌아갔습니다.`,
-    )
-    setWarnings([])
-    router.refresh()
-  }
-
   async function importRoster(mode: 'append' | 'replace') {
     if (!paste.trim()) return
     setPending(true)
@@ -220,7 +206,11 @@ export function RosterEditor({
         id: 'roster:paste',
         what: mode === 'replace' ? '명단 교체' : '명단 붙여넣기',
         detail: before.length === 0 ? '넣기 전에는 비어 있었습니다' : `${before.length}줄로 돌아갑니다`,
-        run: () => restoreRoster(before),
+        request: {
+          url: `/api/events/${eventId}/students/restore`,
+          method: 'POST',
+          body: { students: before },
+        },
       })
       setPaste('')
       router.refresh()
@@ -290,7 +280,8 @@ export function RosterEditor({
           id: `roster:edit:${id}:${field}`,
           what: describeEdit(edit),
           detail: describeChange(edit),
-          run: () => patchStudent(edit.student_id, restorePatch(edit), false),
+          // 요청으로 적어 두면 인쇄물 화면에 갔다 오셔도 되돌릴 수 있다
+          request: { url: `/api/students/${edit.student_id}`, method: 'PATCH', body: restorePatch(edit) },
         })
       }
     }
@@ -356,6 +347,24 @@ export function RosterEditor({
 
   return (
     <div className="grid gap-5">
+      {/* 명단이 들어오면 곧바로 다음 것을 여기서 끝내 드린다 — 화면을 옮기는 것 자체가 부담이다 */}
+      {students.length > 0 && !hasProgram && (
+        <NextHere
+          step="program"
+          eventId={eventId}
+          label="여기서 순서표 만들기"
+          hint={`${students.length}줄이 들어왔습니다. 연주 순서와 사회자 멘트를 지금 한 번에 만들어 드릴까요? 몇 초면 됩니다.`}
+          run={async () => {
+            const res = await fetch(`/api/events/${eventId}/program`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            })
+            if (!res.ok) throw new Error((await res.json()).error ?? '순서표를 만들지 못했습니다.')
+          }}
+        />
+      )}
+
       {pastEvents.length > 0 && (
         <Card>
           <CardHeader>

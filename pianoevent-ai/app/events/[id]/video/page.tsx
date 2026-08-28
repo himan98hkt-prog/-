@@ -49,7 +49,7 @@ export default async function VideoPage({
     : event.video_prefs
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <ScreenHeader
         step="video"
         eventId={event.id}

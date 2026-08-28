@@ -1,27 +1,38 @@
 import Link from 'next/link'
 import { AutoBackup } from '@/components/backup/auto-backup'
 import { ErrorLog } from '@/components/support/error-log'
+import { TextSizeToggle } from '@/components/ui/text-size-toggle'
 import { UndoProvider } from '@/components/undo/undo-bar'
 import { FirstRun } from '@/components/tour/first-run'
 import { cn } from '@/lib/utils'
 
+/**
+ * 머리띠.
+ *
+ * 좁은 화면에서는 짧은 이름으로 바꾼다. 글씨 크기 단추까지 들어가면 다섯 글자짜리
+ * 이름이 화면을 넘어가고, 넘어가면 **[설정]이 화면 밖으로 밀려나** 아예 못 누르신다.
+ * 줄여도 뜻이 통하는 말로만 줄인다.
+ */
 const NAV = [
-  { href: '/events', label: '행사' },
-  { href: '/seasons', label: '시즌 특강' },
-  { href: '/history', label: '기록' },
+  { href: '/events', label: '행사', short: '행사' },
+  { href: '/seasons', label: '시즌 특강', short: '특강' },
+  { href: '/history', label: '기록', short: '기록' },
   // 설명서는 늘 손 닿는 곳에 있어야 한다 — 막혔을 때 찾아 나서게 하면 안 된다
-  { href: '/help', label: '사용설명서' },
-  { href: '/settings', label: '설정' },
+  { href: '/help', label: '사용설명서', short: '설명서' },
+  { href: '/settings', label: '설정', short: '설정' },
 ]
 
 export function AppShell({
   children,
   academyName,
   className,
+  eventId,
 }: {
   children: React.ReactNode
   academyName: string
   className?: string
+  /** 이 화면이 어느 행사의 것인가 — 되돌리기가 행사를 넘어가지 않게 */
+  eventId?: string
 }) {
   return (
     // 바탕색은 화면(단계)마다 다르다 — ScreenHeader 가 --screen-bg 를 바꿔 준다
@@ -39,13 +50,16 @@ export function AppShell({
             <span className="hidden sm:inline">PianoEvent AI</span>
           </Link>
           <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
+            {/* 눈이 편치 않으신 분이 많다. 확대하는 법을 아셔야 할 이유는 없다 */}
+            <TextSizeToggle />
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:px-3"
+                className="whitespace-nowrap rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:px-3"
               >
-                {item.label}
+                <span className="sm:hidden">{item.short}</span>
+                <span className="hidden sm:inline">{item.label}</span>
               </Link>
             ))}
           </nav>
@@ -54,7 +68,7 @@ export function AppShell({
 
       {/* 되돌리기는 화면 위 한 자리에만 둔다 — 자리마다 있으면 자리마다 배우셔야 한다 */}
       <main className={cn('container py-8', className)}>
-        <UndoProvider>{children}</UndoProvider>
+        <UndoProvider eventId={eventId}>{children}</UndoProvider>
       </main>
 
       <footer className="border-t border-border py-6 text-xs text-muted-foreground no-print">

@@ -172,18 +172,51 @@ export function stepHref(key: StepKey, eventId: string): string {
   }
 }
 
-/** 어디까지 하셨는지 — 화면이 스스로 판단할 수 있게 사실만 받는다 */
+/**
+ * 어디까지 하셨는지 — 화면이 스스로 판단할 수 있게 사실만 받는다.
+ *
+ * 곁들이(초대장·무대 화면·영상…)도 하셨는지 표시한다. 안 해도 되는 것이지만
+ * **해 두신 것을 또 하러 들어가시는 일**은 없어야 한다. 모르는 것은 그냥 비워 둔다.
+ */
 export interface FlowState {
   hasStudents: boolean
   hasProgram: boolean
   hasPrint: boolean
+  /** 초대장 링크를 실제로 여신 적이 있는가 (회신이 있으면 보내신 것이다) */
+  hasInvite?: boolean
+  /** 무대 화면 설정을 저장해 두셨는가 */
+  hasStage?: boolean
+  /** 감동영상 설정을 저장해 두셨는가 */
+  hasVideo?: boolean
+  /** 아이 사진이 한 장이라도 붙어 있는가 */
+  hasPhotos?: boolean
+  /** 당일 진행을 실제로 돌리신 적이 있는가 */
+  hasLive?: boolean
 }
 
 export function isDone(key: StepKey, state: FlowState): boolean {
-  if (key === 'roster') return state.hasStudents
-  if (key === 'program') return state.hasProgram
-  if (key === 'print') return state.hasPrint
-  return false
+  switch (key) {
+    case 'roster':
+      return state.hasStudents
+    case 'program':
+      return state.hasProgram
+    case 'print':
+      return state.hasPrint
+    case 'invite':
+      return state.hasInvite === true
+    case 'stage':
+      return state.hasStage === true
+    case 'video':
+      return state.hasVideo === true
+    case 'photos':
+      return state.hasPhotos === true
+    case 'live':
+      return state.hasLive === true
+    // 대본·리허설·진행 준비는 "끝났다" 를 가릴 만한 자국이 남지 않는다.
+    // 억지로 판단해 ✓ 를 붙이면 안 한 것을 했다고 하는 셈이라 그냥 비워 둔다.
+    default:
+      return false
+  }
 }
 
 export interface Progress {

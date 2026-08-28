@@ -1,3 +1,15 @@
+import {
+  BookletCover,
+  BookletInner,
+  PerformerTags,
+  ProgramLarge,
+  ProgramMemo,
+  SeatTicketSheet,
+  StageCueCards,
+  StageDivider,
+  ThankYouBookmarks,
+  TicketSheet,
+} from '@/components/design/templates/program-book'
 import { Certificates, NameTags, SocialCard, ThankYouCards, TicketStrip } from '@/components/design/templates/cards'
 import { ChecklistSheet, CueSheet } from '@/components/design/templates/ops'
 import { ProgramBifold, ProgramCover, ProgramInner } from '@/components/design/templates/program'
@@ -116,6 +128,26 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <ThanksLetter ctx={ctx} />
     case 'after-notice':
       return <AfterNotice ctx={ctx} />
+    case 'booklet-cover':
+      return <BookletCover ctx={ctx} />
+    case 'booklet-inner':
+      return <BookletInner ctx={ctx} />
+    case 'program-large':
+      return <ProgramLarge ctx={ctx} />
+    case 'program-memo':
+      return <ProgramMemo ctx={ctx} />
+    case 'ticket-sheet':
+      return <TicketSheet ctx={ctx} />
+    case 'seat-ticket':
+      return <SeatTicketSheet ctx={ctx} />
+    case 'performer-tags':
+      return <PerformerTags ctx={ctx} />
+    case 'cue-cards':
+      return <StageCueCards ctx={ctx} />
+    case 'thankyou-bookmark':
+      return <ThankYouBookmarks ctx={ctx} />
+    case 'stage-divider':
+      return <StageDivider ctx={ctx} />
     default:
       return <PosterClassic ctx={ctx} />
   }

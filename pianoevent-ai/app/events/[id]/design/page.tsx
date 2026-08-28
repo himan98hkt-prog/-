@@ -44,7 +44,7 @@ export default async function DesignPage({ params }: { params: { id: string } })
     }))
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <ScreenHeader
         step="print"
         eventId={event.id}

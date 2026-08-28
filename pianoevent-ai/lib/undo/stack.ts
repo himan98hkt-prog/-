@@ -15,6 +15,22 @@
 /** 몇 번까지 거슬러 올라가나 */
 export const UNDO_KEEP = 10
 
+/**
+ * 되돌리는 방법을 **글로 적어 둔 것**.
+ *
+ * 화면을 옮기면 지금까지는 되돌릴 것이 사라졌다. 그런데 원장님은 명단을 고치고
+ * 인쇄물을 보러 가셨다가 "아까 그거 잘못 고쳤는데" 하고 돌아오신다.
+ * 그때 되돌릴 수 있어야 한다.
+ *
+ * 함수는 화면을 옮기면 사라지지만, **어디에 무엇을 보낼지**는 글로 남길 수 있다.
+ * 그래서 되돌리기를 요청 한 줄로 적어 두고, 나중에 그대로 다시 보낸다.
+ */
+export interface UndoRequest {
+  url: string
+  method: 'POST' | 'PATCH' | 'DELETE'
+  body?: unknown
+}
+
 export interface UndoAction {
   /** 같은 것을 두 번 쌓지 않게 하는 표. 없으면 매번 새것으로 본다 */
   id: string
@@ -22,8 +38,32 @@ export interface UndoAction {
   what: string
   /** "소나티네 → 엘리제를 위하여" — 되돌리면 어떻게 되는지 */
   detail?: string
-  /** 되돌릴 때 부를 것 */
-  run: () => Promise<void> | void
+  /** 어느 행사에서 하신 일인가 — 다른 행사에서 되돌릴 수 있으면 안 된다 */
+  eventId?: string
+  /** 언제 하셨는지 (밀리초). 오래된 것은 스스로 사라진다 */
+  at?: number
+  /** 되돌릴 때 보낼 요청. 이것이 있으면 화면을 옮겨도 살아남는다 */
+  request?: UndoRequest
+  /** 요청으로 적을 수 없는 것만 함수로 (그 화면을 벗어나면 사라진다) */
+  run?: () => Promise<void> | void
+}
+
+/** 되돌릴 것을 브라우저에 남겨 두는 자리 */
+export const UNDO_KEY = 'pianoevent.undo'
+
+/** 이만큼 지나면 스스로 사라진다 — 어제 하신 일을 오늘 되돌리면 놀라신다 */
+export const UNDO_TTL_MS = 30 * 60 * 1000
+
+/** 화면을 옮겨도 살아남을 수 있는 것만 (요청으로 적혀 있는 것) */
+export function keepable(stack: UndoAction[]): UndoAction[] {
+  return stack.filter((a) => a.request !== undefined)
+}
+
+/** 이 행사의 것이면서 아직 안 묵은 것만 */
+export function usable(stack: UndoAction[], eventId: string, now = Date.now()): UndoAction[] {
+  return stack.filter(
+    (a) => (!a.eventId || a.eventId === eventId) && (!a.at || now - a.at < UNDO_TTL_MS),
+  )
 }
 
 export function pushUndo(stack: UndoAction[], action: UndoAction): UndoAction[] {
@@ -35,7 +75,7 @@ export function popUndo(stack: UndoAction[]): { action: UndoAction | null; rest:
   return { action: stack[0], rest: stack.slice(1) }
 }
 
-/** 화면을 옮기시면 앞의 것은 지운다 — 다른 화면의 일을 여기서 되돌리면 놀라신다 */
+/** 한 화면 안에서만 볼 것을 고를 때 */
 export function forScreen(stack: UndoAction[], screen: string): UndoAction[] {
   return stack.filter((a) => a.id.startsWith(`${screen}:`))
 }

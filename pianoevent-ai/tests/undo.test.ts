@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
-import { UNDO_KEEP, forScreen, popUndo, pushUndo, undoLine, type UndoAction } from '@/lib/undo/stack'
+import {
+  UNDO_KEEP,
+  UNDO_TTL_MS,
+  forScreen,
+  keepable,
+  popUndo,
+  pushUndo,
+  undoLine,
+  usable,
+  type UndoAction,
+} from '@/lib/undo/stack'
 
 const action = (partial: Partial<UndoAction> = {}): UndoAction => ({
   id: 'roster:paste',
@@ -58,5 +68,35 @@ describe('띠에 적을 말', () => {
 
   it('되돌린 뒤 모습을 모르면 무엇을 하셨는지만 적는다', () => {
     expect(undoLine(action({ what: '명단 붙여넣기' }))).toBe('명단 붙여넣기')
+  })
+})
+
+describe('화면을 옮겨도 되돌릴 수 있게', () => {
+  const req = (id: string, extra: Partial<UndoAction> = {}): UndoAction => ({
+    id,
+    what: '명단 붙여넣기',
+    request: { url: '/api/x', method: 'POST', body: { a: 1 } },
+    ...extra,
+  })
+
+  it('요청으로 적어 둔 것만 남긴다 — 함수는 화면을 옮기면 사라진다', () => {
+    const stack = [req('a'), { id: 'b', what: '함수뿐', run: vi.fn() }]
+    expect(keepable(stack).map((a) => a.id)).toEqual(['a'])
+  })
+
+  it('이 행사에서 하신 것만 보여 준다 — 다른 행사 일을 여기서 되돌리면 안 된다', () => {
+    const stack = [req('a', { eventId: 'e1' }), req('b', { eventId: 'e2' })]
+    expect(usable(stack, 'e1').map((a) => a.id)).toEqual(['a'])
+  })
+
+  it('어느 행사인지 안 적힌 것은 그대로 둔다', () => {
+    expect(usable([req('a')], 'e1')).toHaveLength(1)
+  })
+
+  it('오래된 것은 스스로 사라진다 — 어제 일을 오늘 되돌리면 놀라신다', () => {
+    const now = Date.parse('2026-08-28T12:00:00Z')
+    const old = req('a', { at: now - UNDO_TTL_MS - 1 })
+    const fresh = req('b', { at: now - 1000 })
+    expect(usable([old, fresh], 'e1', now).map((a) => a.id)).toEqual(['b'])
   })
 })

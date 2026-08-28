@@ -16,9 +16,15 @@ export type StageLayout =
   | 'photo-panel'
   | 'photo-band'
   | 'photo-corner'
+  | 'photo-split'
+  | 'photo-badge'
+  | 'photo-card'
   | 'text-hero'
   | 'text-number'
   | 'text-card'
+  | 'text-two-line'
+  | 'text-frame'
+  | 'text-marquee'
 
 export interface StageLayoutInfo {
   id: StageLayout
@@ -60,6 +66,24 @@ export const STAGE_LAYOUTS: StageLayoutInfo[] = [
     needsPhoto: true,
   },
   {
+    id: 'photo-split',
+    name: '위 글 · 아래 사진',
+    hint: '위쪽 절반에 이름과 곡을 크게, 아래쪽에 사진. 뒷줄에서 글이 가장 잘 읽힙니다.',
+    needsPhoto: true,
+  },
+  {
+    id: 'photo-badge',
+    name: '사진 전체 · 번호 배지',
+    hint: '사진 위 왼쪽에 큰 동그라미 번호. 몇 번째인지 객석에서 바로 압니다.',
+    needsPhoto: true,
+  },
+  {
+    id: 'photo-card',
+    name: '사진 전체 · 오른쪽 카드',
+    hint: '사진 위 오른쪽에 반투명 카드. 곡 해설이 길 때 읽기 좋습니다.',
+    needsPhoto: true,
+  },
+  {
     id: 'text-hero',
     name: '이름만 크게',
     hint: '사진 없이 이름과 곡만. 맨 뒷줄에서도 읽힙니다.',
@@ -75,6 +99,24 @@ export const STAGE_LAYOUTS: StageLayoutInfo[] = [
     id: 'text-card',
     name: '이름 · 곡 · 해설 카드',
     hint: '테마 장식을 두른 카드 안에 이름·곡·해설. 곡 해설을 함께 띄울 때.',
+    needsPhoto: false,
+  },
+  {
+    id: 'text-two-line',
+    name: '이름 · 곡 두 줄',
+    hint: '이름과 곡을 위아래 두 줄로 아주 크게. 사진이 없어도 허전하지 않습니다.',
+    needsPhoto: false,
+  },
+  {
+    id: 'text-frame',
+    name: '액자 테두리',
+    hint: '테마 색 테두리 안에 이름과 곡. 격식 있는 정기 연주회에.',
+    needsPhoto: false,
+  },
+  {
+    id: 'text-marquee',
+    name: '띠 · 이름 크게',
+    hint: '위쪽에 색 띠를 깔고 그 아래 이름을 크게. 무대가 밝을 때 잘 보입니다.',
     needsPhoto: false,
   },
 ]

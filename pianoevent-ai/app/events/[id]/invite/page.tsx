@@ -23,7 +23,7 @@ export default async function InviteAdminPage({ params }: { params: { id: string
   const [rsvps, students] = await Promise.all([repo.listRsvps(event.id), repo.listStudents(event.id)])
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <ScreenHeader
         step="invite"
         eventId={event.id}

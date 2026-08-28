@@ -22,7 +22,7 @@ export default async function PhotosPage({ params }: { params: { id: string } })
   const students = await repo.listStudents(event.id)
 
   return (
-    <AppShell academyName={academy.name}>
+    <AppShell academyName={academy.name} eventId={event.id}>
       <ScreenHeader
         step="photos"
         eventId={event.id}
