@@ -5,7 +5,9 @@ import { StageScreen } from '@/components/stage/stage-screen'
 import { resolveLogo, studentPhotos } from '@/lib/assets'
 import { getTheme } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
+import { sharePhotosByName } from '@/lib/program/appearances'
 import { resolvePlan } from '@/lib/program/resolve'
+import { pastPrefs } from '@/lib/prefs-server'
 import { currentAcademy } from '@/lib/session'
 import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W } from '@/lib/stage/deck'
 import { getRepository } from '@/lib/store'
@@ -33,8 +35,14 @@ export default async function StagePage({
   const theme = getTheme(searchParams.theme ?? event.design_theme ?? academy.design_theme)
   // 장수는 화면에서 테마·항목을 바꿔도 바뀌므로 첫 화면에 보일 값만 계산한다
   const slideCount = buildStageDeck(event, plan, academy.name).length
-  const photos = studentPhotos(academy.assets ?? [], students)
+  // 한 아이가 여러 곡을 맡으면 사진은 한 줄에만 붙어 있다 — 같은 이름끼리 나눠 쓴다
+  const photos = sharePhotosByName(studentPhotos(academy.assets ?? [], students), students)
   const withPhoto = Object.keys(photos).length
+  const past = await pastPrefs(repo, event, 'stage_prefs')
+  // 주소에 테마를 직접 적어 여셨다면 그쪽이 이깁니다 — 저장해 둔 값보다 방금 고른 것이 앞섭니다
+  const savedPrefs = searchParams.theme
+    ? { ...(event.stage_prefs ?? {}), theme: theme.id }
+    : event.stage_prefs
 
   return (
     <AppShell academyName={academy.name} className="container py-8 print:max-w-none print:p-0">
@@ -92,6 +100,8 @@ export default async function StagePage({
         initialThemeId={theme.id}
         photos={photos}
         logoUrl={resolveLogo(academy.assets ?? [], event.image_map, academy.logo_url)}
+        savedPrefs={savedPrefs}
+        pastPrefs={past}
       />
 
       <div className="mt-4 grid gap-2 text-sm text-muted-foreground no-print sm:grid-cols-2">

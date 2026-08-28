@@ -66,6 +66,11 @@ create table if not exists public.events (
   design_copy          jsonb,
   photo_url            text,
   image_map            jsonb,
+  -- 무대 화면·감동영상에서 고른 설정 (테마·배치·배경·길이). 다음 해에 그대로 불러온다
+  stage_prefs          jsonb,
+  video_prefs          jsonb,
+  -- 초대장에 붙일 감동영상 주소 (유튜브 일부공개·구글 드라이브 등)
+  video_url            text,
   created_at           timestamptz not null default now()
 );
 
@@ -76,6 +81,10 @@ alter table public.events add column if not exists design_copy     jsonb;
 alter table public.events add column if not exists photo_url       text;
 -- 인쇄물 갈래별 이미지 지정 {poster:assetId, program:assetId, default:assetId, logo:assetId}
 alter table public.events add column if not exists image_map       jsonb;
+-- 무대 화면·감동영상 설정 {theme, layout, shape, backdrop, template, ...}
+alter table public.events add column if not exists stage_prefs     jsonb;
+alter table public.events add column if not exists video_prefs     jsonb;
+alter table public.events add column if not exists video_url       text;
 
 create index if not exists events_academy_idx on public.events(academy_id, event_at desc);
 

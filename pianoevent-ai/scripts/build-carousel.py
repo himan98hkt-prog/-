@@ -421,6 +421,8 @@ S.append(slide(11, TOTAL,
       <div class="item"><span class="mk">✓</span><span><b>감동영상 템플릿 10종</b> — 꽉 찬 사진 · 건반 · 커튼 · 조명 배경 위 액자</span></div>
       <div class="item"><span class="mk">✓</span><span><b>만들기 전에 장면 전부가 그림으로</b> 뜹니다 — 기다린 뒤 후회할 일이 없습니다</span></div>
       <div class="item"><span class="mk">✓</span><span>사진은 <b>컴퓨터 밖으로 나가지 않습니다</b> — 영상도 브라우저 안에서</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>2배 · 4배</b>로 빠르게 확인하고 <b>학원 로고</b>를 구석에 넣습니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>만든 영상 주소를 붙이면 <b>초대장 안에서 바로 재생</b>됩니다</span></div>
     </div>'''))
 
 # 12 운영 계산 ───────────────────────────────────────────────
@@ -430,18 +432,19 @@ S.append(slide(12, TOTAL, dark=True,
     body='''
     <div class="card">
       <p class="t">리허설 조별 소집</p>
-      <p class="d">5명씩 묶어 <b>조별 도착 시각</b>을 계산하고 조마다 보낼 <b>문자까지</b> 만듭니다.
-      문자 30통이 6통이 됩니다.</p>
+      <p class="d">5명씩 묶어 <b>조별 도착 시각</b>을 계산하고 <b>문자까지</b> 만듭니다.</p>
     </div>
-    <div class="card" style="margin-top:20px">
+    <div class="card" style="margin-top:16px">
       <p class="t">참가비 역산</p>
-      <p class="d">항목 10가지 예산에서 <b>1인당 원가와 권장 참가비</b>를 역산하고,
-      <b>안내 문구</b>까지 만듭니다.</p>
+      <p class="d">항목 10가지 예산에서 <b>1인당 원가와 권장 참가비</b>를 역산하고 <b>안내 문구</b>까지 만듭니다.</p>
     </div>
-    <div class="card" style="margin-top:20px">
+    <div class="card" style="margin-top:16px">
       <p class="t">좌석 배치</p>
-      <p class="d">가족은 붙여 앉히고 앞 두 줄은 연주자석으로 비웁니다.
-      <b>&ldquo;3열 4~6번&rdquo;</b>처럼 그대로 보낼 수 있는 표기로 나옵니다.</p>
+      <p class="d">가족은 붙여 앉히고 앞 두 줄은 연주자석으로 비웁니다. <b>&ldquo;3열 4~6번&rdquo;</b> 표기로 나옵니다.</p>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <p class="t">당일 진행 화면 — 휴대폰</p>
+      <p class="d">무대 옆에서 <b>&ldquo;지금 · 다음&rdquo;</b>이 크게. <b>몇 분 밀렸는지</b>도 함께.</p>
     </div>'''))
 
 # 13 점검 ───────────────────────────────────────────────────

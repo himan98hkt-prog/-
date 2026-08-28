@@ -216,6 +216,109 @@ try {
   check('고친 것을 한 번에 되돌린다', !restored.includes('우리 아이들의 1년'))
   await page.getByTestId('scene-editor').isVisible().catch(() => undefined)
 
+  // ── 빠른 미리보기 · 로고 · 설정 저장 ─────────────────────────────
+  const speeds = page.getByTestId('preview-speed')
+  check('미리보기 배속 단추가 있다', (await speeds.locator('button').count()) === 3)
+
+  // 로고를 학원에 붙여 두고 화면을 다시 연다 — 영상 구석에 들어가야 한다
+  const logo = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 240
+    canvas.height = 120
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#00FF66'
+    ctx.fillRect(0, 0, 240, 120)
+    return canvas.toDataURL('image/png')
+  })
+  await page.request.patch(`${BASE}/api/academy`, { data: { logo_url: logo } })
+  await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+
+  const logoBox = page.getByTestId('logo-place')
+  check('로고 자리를 고르는 칸이 있다', (await logoBox.count()) === 1)
+  check('로고 자리가 5가지다', (await logoBox.locator('button').count()) === 5)
+
+  // 초록 로고가 실제로 화면에 찍혔는지 픽셀로 센다
+  const greenAt = async () =>
+    page.locator('canvas').first().evaluate((node) => {
+      const ctx = node.getContext('2d')
+      const data = ctx.getImageData(0, 0, node.width, node.height).data
+      let green = 0
+      for (let p = 0; p < data.length; p += 4) {
+        if (data[p] < 120 && data[p + 1] > 180 && data[p + 2] < 150) green += 1
+      }
+      return green
+    })
+
+  await logoBox.getByRole('button', { name: '넣지 않기' }).click()
+  await page.waitForTimeout(500)
+  const withoutLogo = await greenAt()
+  await logoBox.getByRole('button', { name: '오른쪽 아래' }).click()
+  await page.waitForTimeout(500)
+  const withLogo = await greenAt()
+  check('로고가 실제로 화면에 그려진다', withLogo > withoutLogo + 500, `${withoutLogo} → ${withLogo}`)
+  check('로고가 화면을 가리지 않는다', withLogo < 1280 * 720 * 0.05, `${withLogo}점`)
+
+  // 설정 저장 → 다시 열면 그대로
+  await page.getByRole('button', { name: '테마 · ', exact: false }).first().click()
+  await page.waitForTimeout(300)
+  const templateChips = page.getByTestId('video-templates').locator('button')
+  const savedTemplate = await templateChips.nth(5).textContent()
+  await templateChips.nth(5).click()
+  await page.waitForTimeout(300)
+  await page.getByTestId('prefs-video_prefs').getByRole('button', { name: '이 설정 저장' }).click()
+  await page.waitForSelector('text=저장했습니다', { timeout: 8000 })
+  check('영상 설정을 저장한다', true)
+  passed += 1
+
+  await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1000)
+  const reopened = page.getByTestId('video-templates').locator('button[aria-pressed="true"]')
+  check('다시 열면 저장해 둔 템플릿으로 시작한다', (await reopened.textContent()) === savedTemplate, savedTemplate ?? '')
+  const reopenedLogo = await page
+    .getByTestId('logo-place')
+    .locator('button[aria-pressed="true"]')
+    .textContent()
+  check('로고 자리도 그대로 열린다', reopenedLogo === '오른쪽 아래', reopenedLogo ?? '')
+
+  // 초대장에 붙일 영상 주소
+  const inviteBox = page.getByTestId('invite-video')
+  check('초대장에 영상 붙이는 칸이 있다', (await inviteBox.count()) === 1)
+  await inviteBox.getByLabel('영상 주소').fill('https://youtu.be/dQw4w9WgXcQ')
+  await page.waitForTimeout(300)
+  check('붙여넣은 주소를 알아본다', (await inviteBox.textContent()).includes('바로 재생'))
+  await inviteBox.getByRole('button', { name: '붙이기' }).click()
+  await page.waitForTimeout(800)
+  const inviteRes = await page.request.get(`${BASE}/e/${EVENT_ID}`)
+  const inviteHtml = await inviteRes.text()
+  check('초대장에 영상이 실제로 붙는다', inviteHtml.includes('youtube-nocookie.com/embed/dQw4w9WgXcQ'))
+  check('초대장에 영상 제목이 함께 나온다', inviteHtml.includes('아이들이 걸어온 시간'))
+
+  // 미리보기를 2배로 돌리면 실제로 두 배 빨리 흐른다
+  await page.getByLabel('아이 한 명당').fill('3')
+  await page.waitForTimeout(500)
+  const readClock = async () => {
+    const text = await page.getByTestId('video-length').textContent()
+    const head = text.split('/')[0].trim()
+    const m = head.match(/(?:(\d+)분 )?(\d+)초/)
+    return m ? Number(m[1] ?? 0) * 60 + Number(m[2]) : 0
+  }
+  // 미리보기는 멈춘 자리에서 이어 재생하므로, 절대 시각이 아니라 **3초 동안 얼마나 흘렀는지**를 잰다
+  const playFor = async (label) => {
+    await page.getByTestId('preview-speed').getByRole('button', { name: label }).click()
+    const before = await readClock()
+    await page.getByRole('button', { name: '미리보기' }).click()
+    await page.waitForTimeout(3000)
+    const after = await readClock()
+    await page.getByRole('button', { name: '멈추기' }).click().catch(() => undefined)
+    await page.waitForTimeout(400)
+    return after - before
+  }
+  const slow = await playFor('1배 속도로 보기')
+  const fast = await playFor('4배 속도로 보기')
+  check('1배 미리보기는 실제 시간만큼 흐른다', slow >= 2 && slow <= 5, `3초에 ${slow}초`)
+  check('4배속 미리보기가 실제로 네 배 가까이 빠르다', fast >= slow * 3, `4배 ${fast}초 / 1배 ${slow}초`)
+
   // 이 브라우저가 뽑을 수 있는 형식이 있는가
   const recordType = await page.evaluate(() => {
     const list = [

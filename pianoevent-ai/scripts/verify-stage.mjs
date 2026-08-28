@@ -454,6 +454,33 @@ try {
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
   check('항목을 끄면 파워포인트도 줄어든다', bareSlides.length < slideParts.length, `${bareSlides.length}장`)
 
+  // ── 설정 저장 · 불러오기 ────────────────────────────────────────
+  await page.goto(`${BASE}/events/${EVENT_ID}/stage`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  const prefs = page.getByTestId('prefs-stage_prefs')
+  check('무대 화면 설정 저장 칸이 있다', (await prefs.count()) === 1)
+
+  // 배경과 배치를 바꾸고 저장한 뒤 다시 연다
+  const backdropChip = page.getByRole('button', { name: '무대 커튼', exact: true })
+  await backdropChip.click()
+  await page.getByRole('button', { name: '밝은 화면' }).click().catch(() => undefined)
+  await page.waitForTimeout(300)
+  await prefs.getByRole('button', { name: '이 설정 저장' }).click()
+  await page.waitForSelector('text=저장했습니다', { timeout: 8000 })
+  check('무대 화면 설정을 저장한다', true)
+  passed += 1
+
+  await page.goto(`${BASE}/events/${EVENT_ID}/stage`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  check(
+    '다시 열면 저장해 둔 배경으로 시작한다',
+    (await page.getByRole('button', { name: '무대 커튼', exact: true }).getAttribute('aria-pressed')) === 'true',
+  )
+  check(
+    '어두운/밝은 화면 선택도 그대로 열린다',
+    (await page.getByRole('button', { name: '어두운 화면' }).count()) === 1,
+  )
+
   await context.close()
 } catch (error) {
   failures.push(error instanceof Error ? error.message : String(error))

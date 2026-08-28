@@ -1,4 +1,5 @@
 import { formatEventDate } from '@/lib/format'
+import { groupProgram } from '@/lib/program/appearances'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
 
 /**
@@ -146,25 +147,38 @@ export function buildStoryboard({
   }
 
   if (plan.items.length > 0) {
+    // 한 아이가 독주도 하고 듀엣도 하면 순서표에는 두 줄이지만,
+    // 영상에서는 같은 얼굴이 두 번 지나가는 꼴이 된다. 사람 단위로 묶어 한 장면에 담는다.
+    const performers = groupProgram(plan.items)
     scenes.push({
       id: 'roster-intro',
       kind: 'title',
       seconds: clamp(options.title_seconds * 0.75),
       headline: '오늘 무대에 서는 아이들',
-      sub: `${plan.items.length}명`,
+      sub:
+        performers.length === plan.items.length
+          ? `${performers.length}명`
+          : `${performers.length}명 · ${plan.items.length}곡`,
     })
-    for (const item of plan.items) {
-      const student = item.student
+    for (const performer of performers) {
+      const first = performer.rows[0]
+      const student = first.student
+      // 사진은 그 아이 줄 어디에든 한 장만 있으면 된다
+      const image = performer.rows.map((row) => photos[row.student.id]).find(Boolean)
+      const pieces = performer.rows
+        .map((row) => [row.student.piece_title, row.student.composer].filter(Boolean).join(' · '))
+        .filter(Boolean)
       scenes.push({
         id: `student-${student.id}`,
         kind: 'student',
-        seconds: clamp(options.student_seconds),
-        image: photos[student.id],
-        eyebrow: `${item.order_no}번째 무대`,
+        seconds: clamp(options.student_seconds * (performer.rows.length > 1 ? 1.25 : 1)),
+        image,
+        eyebrow:
+          performer.rows.length > 1
+            ? `${performer.rows.map((row) => row.order_no).join(' · ')}번째 무대`
+            : `${first.order_no}번째 무대`,
         headline: student.student_name,
-        sub: options.captions
-          ? [student.piece_title, student.composer].filter(Boolean).join(' · ') || undefined
-          : undefined,
+        sub: options.captions ? pieces.join('  /  ') || undefined : undefined,
       })
     }
   }

@@ -1,11 +1,14 @@
 'use client'
 
-import { Download, Film, ImagePlus, Loader2, Music, Pause, Play, Square, Trash2 } from 'lucide-react'
+import { Download, Film, Gauge, ImagePlus, Link2, Loader2, Music, Pause, Play, Square, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
 import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/field'
 import { getTheme } from '@/lib/design/themes'
+import { prefBool, prefNumber, prefString, type Prefs } from '@/lib/prefs'
+import { embedHint, videoEmbed } from '@/lib/video/embed'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
 import {
   DEFAULT_VIDEO_TEMPLATE,
@@ -17,9 +20,13 @@ import { cn } from '@/lib/utils'
 import {
   buildTimeline,
   describeRecordType,
+  getLogoPlace,
+  LOGO_PLACES,
   pickRecordType,
   renderFrame,
   type FrameSource,
+  type LogoMark,
+  type LogoPlace,
 } from '@/lib/video/render'
 import type { DesignTheme } from '@/lib/design/themes'
 import {
@@ -45,6 +52,14 @@ const SIZES = [
 ] as const
 
 /**
+ * 미리보기 배속.
+ *
+ * 3분짜리 영상을 확인하려고 3분을 앉아 있는 건 말이 안 된다.
+ * 녹화는 화면을 실제로 그려 담는 방식이라 늘 1배지만, **확인만은** 빠르게 돌린다.
+ */
+const SPEEDS = [1, 2, 4] as const
+
+/**
  * 감동영상 만들기.
  *
  * 사진과 영상, 음악을 고르면 한 편이 만들어진다. 전부 이 컴퓨터 안에서 처리한다 —
@@ -59,21 +74,47 @@ export function VideoStudio({
   academyName,
   initialThemeId,
   photos,
+  logoUrl = null,
+  savedPrefs = null,
+  pastPrefs = [],
 }: {
   event: EventRecord
   plan: ProgramPlan
   academyName: string
   initialThemeId: string
   photos: Record<string, string>
+  /** 학원 로고 — 영상 구석에 작게 넣을 수 있다 */
+  logoUrl?: string | null
+  /** 이 행사에 저장해 둔 설정 */
+  savedPrefs?: Prefs | null
+  /** 설정을 저장해 둔 지난 행사들 — "작년 것 불러오기" */
+  pastPrefs?: PastPrefs[]
 }) {
-  const [themeId, setThemeId] = useState(initialThemeId)
+  const [themeId, setThemeId] = useState(() => prefString(savedPrefs, 'theme', initialThemeId))
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [options, setOptions] = useState<StoryboardOptions>(DEFAULT_STORYBOARD_OPTIONS)
-  const [closing, setClosing] = useState('오늘 이 무대에 선 모든 아이들에게')
+  const [options, setOptions] = useState<StoryboardOptions>(() => ({
+    student_seconds: prefNumber(savedPrefs, 'student_seconds', DEFAULT_STORYBOARD_OPTIONS.student_seconds),
+    title_seconds: prefNumber(savedPrefs, 'title_seconds', DEFAULT_STORYBOARD_OPTIONS.title_seconds),
+    gallery_seconds: prefNumber(savedPrefs, 'gallery_seconds', DEFAULT_STORYBOARD_OPTIONS.gallery_seconds),
+    captions: prefBool(savedPrefs, 'captions', DEFAULT_STORYBOARD_OPTIONS.captions),
+  }))
+  const [closing, setClosing] = useState<string>(() =>
+    prefString(savedPrefs, 'closing', '오늘 이 무대에 선 모든 아이들에게'),
+  )
   const [extras, setExtras] = useState<ExtraMedia[]>([])
   const [music, setMusic] = useState<{ url: string; label: string } | null>(null)
-  const [sizeId, setSizeId] = useState<(typeof SIZES)[number]['id']>('720')
-  const [templateId, setTemplateId] = useState(DEFAULT_VIDEO_TEMPLATE.id)
+  const [sizeId, setSizeId] = useState<(typeof SIZES)[number]['id']>(() =>
+    prefString<(typeof SIZES)[number]['id']>(savedPrefs, 'size', '720'),
+  )
+  const [templateId, setTemplateId] = useState(() =>
+    prefString(savedPrefs, 'template', DEFAULT_VIDEO_TEMPLATE.id),
+  )
+  // 로고가 있으면 오른쪽 아래가 기본이다 — 얼굴을 가장 덜 가리는 자리
+  const [logoPlace, setLogoPlace] = useState<LogoPlace>(() =>
+    getLogoPlace(prefString(savedPrefs, 'logo_place', logoUrl ? 'bottom-right' : 'none')),
+  )
+  /** 미리보기 배속 — 녹화는 늘 1배다 */
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1)
 
   const [playing, setPlaying] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -95,6 +136,34 @@ export function VideoStudio({
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const template = useMemo(() => getVideoTemplate(templateId), [templateId])
   const size = SIZES.find((item) => item.id === sizeId) ?? SIZES[0]
+
+  /** 로고 그림 — 그릴 때 읽으면 첫 프레임이 비어 나온다. 미리 읽어 둔다 */
+  const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null)
+  useEffect(() => {
+    if (!logoUrl) {
+      setLogoImg(null)
+      return
+    }
+    let alive = true
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => alive && setLogoImg(img)
+    img.onerror = () => alive && setLogoImg(null)
+    img.src = logoUrl
+    return () => {
+      alive = false
+    }
+  }, [logoUrl])
+
+  const logo: LogoMark | null = useMemo(() => {
+    if (!logoImg || logoPlace === 'none') return null
+    return {
+      image: logoImg,
+      width: logoImg.naturalWidth || logoImg.width,
+      height: logoImg.naturalHeight || logoImg.height,
+      place: logoPlace,
+    }
+  }, [logoImg, logoPlace])
 
   const auto = useMemo(
     () => fitToLimit(buildStoryboard({ event, plan, academyName, photos, extras, options, closing })),
@@ -209,24 +278,29 @@ export function VideoStudio({
         timeline,
         seconds,
         sourcesRef.current,
-        { width: canvas.width, height: canvas.height, theme, academyName, template },
+        { width: canvas.width, height: canvas.height, theme, academyName, template, logo },
         still,
       )
     },
-    [timeline, theme, academyName, template],
+    [timeline, theme, academyName, template, logo],
   )
 
   useEffect(() => {
     if (!playing && !recording) draw(clock, true)
   }, [draw, clock, playing, recording])
 
-  /** 재생·녹화 공통 진행 루프 */
+  /**
+   * 재생·녹화 공통 진행 루프.
+   *
+   * `rate` 는 **미리보기 전용**이다. 녹화는 화면에 그려지는 그대로 담기므로
+   * 빨리 돌리면 영상 자체가 빨라진다 — 그래서 record() 는 늘 1을 준다.
+   */
   const runLoop = useCallback(
-    (onDone: () => void, from = 0) => {
-      const started = performance.now() - from * 1000
+    (onDone: () => void, from = 0, rate = 1) => {
+      const started = performance.now() - (from * 1000) / rate
       const playedClips = new Set<string>()
       const step = () => {
-        const seconds = (performance.now() - started) / 1000
+        const seconds = ((performance.now() - started) * rate) / 1000
         // 이 시각에 보여야 할 동영상은 재생시켜 둔다
         for (let i = 0; i < timeline.scenes.length; i += 1) {
           const scene = timeline.scenes[i]
@@ -238,6 +312,12 @@ export function VideoStudio({
             if (!playedClips.has(scene.clip)) {
               playedClips.add(scene.clip)
               el.currentTime = 0
+              // 올린 동영상도 같은 배속으로 — 4배는 브라우저가 거절할 수 있어 받아 낸다
+              try {
+                el.playbackRate = rate
+              } catch {
+                /* 못 바꾸면 제 속도로 둔다 */
+              }
               void el.play().catch(() => undefined)
             }
           } else if (playedClips.has(scene.clip) && !el.paused) {
@@ -274,6 +354,7 @@ export function VideoStudio({
     setClock(from)
     if (music && audioRef.current) {
       audioRef.current.currentTime = from
+      audioRef.current.playbackRate = speed
       void audioRef.current.play().catch(() => undefined)
     }
     runLoop(
@@ -284,6 +365,33 @@ export function VideoStudio({
         draw(0)
       },
       from,
+      speed,
+    )
+  }
+
+  /**
+   * 재생 중에 속도를 바꾸면 그 자리에서 바로 바뀐다.
+   * 멈췄다 다시 누르게 하면 보던 자리를 놓친다.
+   */
+  function changeSpeed(next: (typeof SPEEDS)[number]) {
+    setSpeed(next)
+    if (!playing) return
+    const from = clockRef.current
+    stopLoop()
+    if (music && audioRef.current) {
+      audioRef.current.currentTime = from
+      audioRef.current.playbackRate = next
+      void audioRef.current.play().catch(() => undefined)
+    }
+    runLoop(
+      () => {
+        stopLoop()
+        setPlaying(false)
+        setClock(0)
+        draw(0)
+      },
+      from,
+      next,
     )
   }
 
@@ -415,6 +523,34 @@ export function VideoStudio({
   const editingScene = scenes.find((scene) => scene.id === editing) ?? null
   clockRef.current = clock
 
+  /** 지금 화면에서 고른 값 — 이대로 행사에 저장한다 */
+  const currentPrefs: Prefs = {
+    theme: themeId,
+    template: templateId,
+    size: sizeId,
+    logo_place: logoPlace,
+    captions: options.captions,
+    student_seconds: options.student_seconds,
+    title_seconds: options.title_seconds,
+    gallery_seconds: options.gallery_seconds,
+    closing,
+  }
+
+  /** 저장해 둔 설정을 화면에 얹는다. 없는 값은 지금 것을 그대로 둔다 */
+  function applyPrefs(prefs: Prefs) {
+    setThemeId((prev) => prefString(prefs, 'theme', prev))
+    setTemplateId((prev) => prefString(prefs, 'template', prev))
+    setSizeId((prev) => prefString<(typeof SIZES)[number]['id']>(prefs, 'size', prev))
+    setLogoPlace((prev) => getLogoPlace(prefString(prefs, 'logo_place', prev)))
+    setClosing((prev) => prefString(prefs, 'closing', prev))
+    setOptions((prev) => ({
+      student_seconds: prefNumber(prefs, 'student_seconds', prev.student_seconds),
+      title_seconds: prefNumber(prefs, 'title_seconds', prev.title_seconds),
+      gallery_seconds: prefNumber(prefs, 'gallery_seconds', prev.gallery_seconds),
+      captions: prefBool(prefs, 'captions', prev.captions),
+    }))
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
       <div className="grid content-start gap-3">
@@ -442,12 +578,39 @@ export function VideoStudio({
             {recording ? <Square className="mr-1 h-4 w-4" /> : <Film className="mr-1 h-4 w-4" />}
             {recording ? '만드는 중…' : '영상 만들기'}
           </Button>
+          <div className="flex items-center gap-1" data-testid="preview-speed">
+            <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden />
+            {SPEEDS.map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                onClick={() => changeSpeed(rate)}
+                aria-pressed={speed === rate}
+                aria-label={`${rate}배 속도로 보기`}
+                disabled={recording}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs tabular-nums transition-colors disabled:opacity-40',
+                  speed === rate
+                    ? 'border-accent bg-accent/10 font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {rate}배
+              </button>
+            ))}
+          </div>
           <span className="text-sm tabular-nums text-muted-foreground" data-testid="video-length">
             {formatLength(clock)} / {formatLength(length)} · 장면 {scenes.length}개
           </span>
           {!recording && !playing && ready && (
             <span className="text-xs text-muted-foreground">
               만드는 데 <strong className="text-foreground">약 {formatLength(length)}</strong> 걸립니다
+              {speed > 1 && (
+                <>
+                  {' '}· 미리보기는 <strong className="text-foreground">{formatLength(length / speed)}</strong> 만에
+                  끝납니다
+                </>
+              )}
             </span>
           )}
           {(Object.keys(edits).length > 0 || order) && !recording && (
@@ -506,6 +669,7 @@ export function VideoStudio({
           theme={theme}
           academyName={academyName}
           template={template}
+          logo={logo}
           onJump={jumpTo}
           activeIndex={activeIndex}
           onPick={setEditing}
@@ -717,9 +881,127 @@ export function VideoStudio({
             />
             이름·곡 자막 넣기
           </label>
+
+          <div data-testid="logo-place">
+            <p className="mb-1 text-sm">학원 로고</p>
+            {logoUrl ? (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {LOGO_PLACES.map((place) => (
+                    <button
+                      key={place.id}
+                      type="button"
+                      onClick={() => setLogoPlace(place.id)}
+                      aria-pressed={logoPlace === place.id}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs transition-colors',
+                        logoPlace === place.id
+                          ? 'border-accent bg-accent/15 font-medium'
+                          : 'border-border text-muted-foreground hover:bg-secondary',
+                      )}
+                    >
+                      {place.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  영상은 학부모 휴대폰을 돌아다닙니다. 구석에 작게 넣어 두면 어느 학원 것인지 남습니다.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                학원 로고를 올려 두시면 영상 구석에 넣을 수 있습니다 —{' '}
+                <a href="/settings" className="underline underline-offset-4">
+                  학원 설정
+                </a>
+                에서 올리세요.
+              </p>
+            )}
+          </div>
         </section>
+
+        <PrefsBar
+          eventId={event.id}
+          field="video_prefs"
+          label="영상 설정"
+          prefs={currentPrefs}
+          saved={savedPrefs}
+          past={pastPrefs}
+          onLoad={applyPrefs}
+        />
+
+        <InviteVideoLink eventId={event.id} initialUrl={event.video_url} />
       </div>
     </div>
+  )
+}
+
+/**
+ * 만든 영상을 초대장에 붙인다.
+ *
+ * 영상 파일은 원장님 컴퓨터에 있다 — 아이들 얼굴을 우리 서버로 올리지 않겠다는
+ * 약속이 그 뿌리다. 그래서 **원장님이 올려 두신 곳의 주소**만 받는다.
+ * 유튜브 일부공개면 검색에도 안 걸리고, 링크를 아는 학부모만 본다.
+ */
+function InviteVideoLink({ eventId, initialUrl }: { eventId: string; initialUrl: string | null }) {
+  const [url, setUrl] = useState(initialUrl ?? '')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const embed = videoEmbed(url)
+
+  async function save() {
+    setBusy(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_url: url }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '저장하지 못했습니다.')
+      setMessage(url.trim() ? '초대장에 영상이 붙었습니다.' : '초대장에서 영상을 뺐습니다.')
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '저장하지 못했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="invite-video">
+      <p className="text-sm font-medium">
+        6 · 초대장에 영상 붙이기
+        <span className="ml-1.5 text-xs font-normal text-muted-foreground">단톡방에 링크 하나만</span>
+      </p>
+      <p className="text-xs text-muted-foreground">
+        만든 영상을 <strong>유튜브 일부공개(미등록)</strong> 나 구글 드라이브에 올리고 그 주소를 붙여넣으세요.
+        초대장 안에서 바로 재생됩니다. 학부모는 순서표와 영상을 링크 하나로 봅니다.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          value={url}
+          onChange={(native) => setUrl(native.target.value)}
+          placeholder="https://youtu.be/…"
+          aria-label="영상 주소"
+          className="min-w-[200px] flex-1"
+        />
+        <Button size="sm" variant="outline" onClick={() => void save()} disabled={busy}>
+          <Link2 className="mr-1 h-4 w-4" />
+          붙이기
+        </Button>
+      </div>
+      {url.trim() && (
+        <p className="text-xs text-muted-foreground">
+          {embed ? embedHint(embed) : '주소를 알아볼 수 없습니다. http:// 또는 https:// 로 시작하는 주소인지 확인해 주세요.'}
+        </p>
+      )}
+      {message && <p className="text-xs text-muted-foreground">{message}</p>}
+      <p className="text-xs text-muted-foreground">
+        <strong>영상 파일은 이 프로그램이 보관하지 않습니다.</strong> 어디에 올릴지는 원장님이 정하십시오 —
+        아이들 얼굴이 우리 서버로 올라가지 않게 하려는 것입니다.
+      </p>
+    </section>
   )
 }
 
@@ -741,12 +1023,14 @@ function StoryboardStrip({
   editingId,
   onMove,
   template,
+  logo,
 }: {
   timeline: ReturnType<typeof buildTimeline>
   sources: FrameSource
   theme: DesignTheme
   academyName: string
   template: VideoTemplate
+  logo: LogoMark | null
   onJump: (seconds: number) => void
   activeIndex: number
   onPick: (id: string | null) => void
@@ -771,13 +1055,13 @@ function StoryboardStrip({
         timeline,
         at,
         sources,
-        { width: canvas.width, height: canvas.height, theme, academyName, template },
+        { width: canvas.width, height: canvas.height, theme, academyName, template, logo },
         true,
       )
       made.push(canvas.toDataURL('image/jpeg', 0.72))
     }
     setShots(made)
-  }, [timeline, sources, theme, academyName, template])
+  }, [timeline, sources, theme, academyName, template, logo])
 
   return (
     <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="storyboard">

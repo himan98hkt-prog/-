@@ -62,6 +62,19 @@ await probe('명단을 줄이면 무대 화면도 줄어듦', async () => {
   return now < deckAt12 && now > 1
 })
 
+// 당일 진행 화면 — 무대 옆에서 휴대폰으로 보는 것
+await probe('당일 진행 화면이 있음', async () => (await page.locator('.live__now').count()) === 1)
+const liveFirst = (await page.locator('.live__now .live__title').innerText()).trim()
+await probe('지금 순서를 크게 보여 줌', async () => liveFirst.length > 0, liveFirst)
+await probe('다음 순서도 함께 보여 줌', async () => {
+  const next = (await page.locator('.live__next .live__title').innerText()).trim()
+  return next.length > 0 && next !== liveFirst
+})
+await page.locator('.live__bar button', { hasText: '다음 순서로' }).click()
+await page.waitForTimeout(250)
+await probe('다음 순서로 넘어감', async () =>
+  (await page.locator('.live__now .live__title').innerText()).trim() !== liveFirst)
+
 // 테마·양식 전환
 await page.evaluate(() => { document.querySelectorAll('.chip')[6]?.click() })
 await page.waitForTimeout(300)

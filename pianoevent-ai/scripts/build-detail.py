@@ -469,7 +469,15 @@ BODY = """
         <p class="only">두 번째 연주회부터가 진짜</p>
       </div>
       <div class="feat reveal" style="--d:1.12s">
-        <p class="n">17 &nbsp;인터넷 &middot; AI 키 없이</p>
+        <p class="n">17 &nbsp;당일 진행 화면</p>
+        <h4>휴대폰에 &ldquo;지금 몇 번째, 다음은 누구&rdquo;</h4>
+        <p>무대 옆에 선 사람이 종이 순서표를 손가락으로 짚지 않아도 됩니다. <b>지금 &middot; 다음 &middot; 그다음</b>이
+        크게 뜨고, 한 곡이 끝나면 단추 하나로 넘깁니다. <b>예정보다 몇 분 밀렸는지</b>도 함께 —
+        많이 밀리면 화면이 붉어집니다. 새로고침해도 자리를 잃지 않습니다.</p>
+        <p class="only">그때 멘트를 줄이면 됨</p>
+      </div>
+      <div class="feat reveal" style="--d:1.19s">
+        <p class="n">18 &nbsp;인터넷 &middot; AI 키 없이</p>
         <h4>이 컴퓨터 안에서 전부 만들어집니다</h4>
         <p>AI 키를 넣지 않아도 순서표 &middot; 대본 &middot; 인쇄물 &middot; 무대 화면이 전부 나옵니다.
         학생 이름과 사진은 <b>학원 컴퓨터 밖으로 나가지 않습니다.</b>
@@ -727,12 +735,25 @@ BODY = """
       장면을 누르면 그 자리를 크게 보여 줍니다.</p>
     </div>
 
+    <div class="notice reveal" style="--d:0.26s">
+      <p class="n-title">&#9201; 확인은 빠르게, 영상은 학원 것으로</p>
+      <p><strong>&middot; 빠른 미리보기</strong> &mdash; 3분짜리를 확인하려고 3분을 기다리지 않으셔도 됩니다.
+      <strong>2배 &middot; 4배</strong> 로 돌려 전체를 훑고, 만들 때만 제 속도로 담습니다<br>
+      <strong>&middot; 학원 로고</strong> &mdash; 네 귀퉁이 중 한 곳에 작게 넣습니다. 영상은 학부모 휴대폰을 돌아다니니까요<br>
+      <strong>&middot; 설정 저장</strong> &mdash; 고른 템플릿 &middot; 테마 &middot; 길이 &middot; 문구를 행사에 저장해 두면
+      다음 해에 <strong>&ldquo;작년 것 불러오기&rdquo;</strong> 한 번으로 그 화면이 그대로 열립니다.
+      무대 화면(PPT)도 같습니다<br>
+      <strong>&middot; 초대장에 붙이기</strong> &mdash; 만든 영상을 유튜브 일부공개에 올리고 주소를 붙여넣으면
+      <strong>초대장 안에서 바로 재생</strong>됩니다. 단톡방에 링크 하나면 순서표도 영상도 함께 봅니다</p>
+    </div>
+
     <div class="notice reveal" style="--d:0.28s">
       <p class="n-title">&#128274; 아이들 사진은 컴퓨터 밖으로 나가지 않습니다</p>
       <p>사진을 어디에 올리는 것이 아닙니다. <strong>이 컴퓨터 안에서</strong> 크기를 줄여 보관하고,
       영상도 <strong>브라우저 안에서</strong> 만듭니다. 올리는 곳도, 기다리는 줄도, 계정도 없습니다.
       감동영상에 더한 연습 사진 &middot; 동영상 &middot; 음악은 <strong>아예 저장하지도 않습니다</strong> &mdash;
-      영상을 만들 때만 쓰입니다.</p>
+      영상을 만들 때만 쓰입니다. 그래서 <strong>만든 영상 파일도 저희가 보관하지 않습니다</strong> &mdash;
+      초대장에 붙이실 때 어디에 올릴지는 원장님이 정하십니다.</p>
     </div>
 
     <div class="notice reveal" style="--d:0.32s">
@@ -785,7 +806,9 @@ BODY = """
           <li><span class="scope-mark">&#10003;</span><span><b>사회자 대본</b> &middot; 곡과 작곡가, 학생 메모를 엮은 곡별 멘트</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>인쇄물 40종 &times; 테마 100종</b> &middot; 포스터부터 좌석 배치도, 진행 문서까지</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>연주회장 무대 화면(PPT)</b> &middot; 명단에서 만들어지는 16:9 슬라이드. 테마 100종 적용, 전체화면 진행, <b>.pptx</b> 또는 PDF로 저장</span></li>
-          <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>감동영상 편집기</b> &middot; 사진 &middot; 동영상 &middot; 음악을 얹어 한 편으로. 템플릿 10종, 장면마다 문구 &middot; 순서 &middot; 시간을 직접 고침. 이 컴퓨터 안에서 MP4 로 나옵니다</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>모바일 초대장과 참석 집계</b> &middot; 링크 하나로 인원이 저절로 쌓입니다. 감동영상 주소를 붙이면 초대장 안에서 재생됩니다</span></li>
+          <li><span class="scope-mark">&#10003;</span><span><b>당일 진행 화면</b> &middot; 무대 옆에서 휴대폰으로 보는 &ldquo;지금 &middot; 다음 &middot; 그다음&rdquo; 과 밀린 시간</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>리허설 소집 &middot; 참가비 &middot; 좌석</b> 계산과 안내 문자</span></li>
           <li><span class="scope-mark">&#10003;</span><span><b>시즌 특강 기획</b> &middot; 할로윈 &middot; 크리스마스 &middot; 방학 4주 커리큘럼과 활동지</span></li>
         </ul>
@@ -794,7 +817,8 @@ BODY = """
         <h3>드리지 않는 것</h3>
         <ul>
           <li><span class="scope-mark">&#10005;</span><span><b>악보</b> &middot; 교재와 편곡본은 저작권이 있습니다. <b>학원에서 쓰시던 악보를 그대로</b> 쓰십니다</span></li>
-          <li><span class="scope-mark">&#10005;</span><span><b>음원 &middot; 반주 &middot; 영상 편집</b> &middot; 같은 이유(저작권)입니다. 무대 화면은 <b>글자와 디자인</b>이지 영상이 아닙니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>음원 &middot; 반주 &middot; 영상 소재</b> &middot; 같은 이유(저작권)입니다. 감동영상을 <b>만드는 도구는 드리지만</b> 배경음악과 영상 소재는 원장님이 준비하십니다</span></li>
+          <li><span class="scope-mark">&#10005;</span><span><b>영상 보관 &middot; 배포</b> &middot; 만든 영상 파일은 저희가 보관하지 않습니다. 아이들 얼굴을 서버에 올리지 않으려는 것입니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>곡 선정</b> &middot; 어떤 아이가 어떤 곡을 칠지는 원장님이 정하십니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>대관 &middot; 인쇄 대행</b> &middot; 지역마다 다르고 직접 하시는 편이 쌉니다. 대신 <b>예산표에 통상 단가</b>를 넣어 두었습니다</span></li>
           <li><span class="scope-mark">&#10005;</span><span><b>원비 &middot; 출결 관리</b> &middot; 쓰시던 학원 프로그램과 겹치지 않습니다</span></li>

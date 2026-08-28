@@ -1,6 +1,6 @@
 'use client'
 
-import { ClipboardPaste, History, Plus, Trash2 } from 'lucide-react'
+import { ClipboardPaste, CopyPlus, History, Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PieceInput } from '@/components/event/piece-input'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
 import { formatDuration } from '@/lib/format'
+import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
 import { BulkPhotoUpload, StudentPhotoCell } from '@/components/event/student-photos'
@@ -183,6 +184,53 @@ export function RosterEditor({
     router.refresh()
   }
 
+  /**
+   * 이 아이에게 곡을 하나 더 준다.
+   *
+   * 독주도 하고 듀엣도 하는 아이는 흔하다. 순서표에서는 두 줄이 맞다 —
+   * 무대에 두 번 오르니까. 그런데 이름과 사진을 다시 치게 하는 건 말이 안 된다.
+   * 이름·난이도·사진을 그대로 물려주고 곡만 비워 둔다.
+   */
+  async function addPiece(student: EventStudent) {
+    setPending(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`/api/events/${eventId}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          students: [
+            {
+              student_name: student.student_name,
+              piece_title: '',
+              composer: '',
+              duration_sec: 0,
+              level: student.level,
+              note: student.note,
+            },
+          ],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '곡을 추가하지 못했습니다.')
+      // 사진은 보관함에 있는 것만 붙일 수 있으므로 검사를 거치는 쪽으로 따로 보낸다
+      const created = data.students?.[data.students.length - 1]
+      if (created && student.photo_asset_id) {
+        await fetch(`/api/students/${created.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo_asset_id: student.photo_asset_id }),
+        })
+      }
+      setMessage(`${student.student_name} 학생의 곡을 한 줄 더 넣었습니다. 곡명만 채우시면 됩니다.`)
+      router.refresh()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '곡을 추가하지 못했습니다.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div className="grid gap-5">
       {pastEvents.length > 0 && (
@@ -297,11 +345,18 @@ export function RosterEditor({
 
       <Card>
         <CardHeader>
-          <CardTitle>연주자 {students.length}명</CardTitle>
+          <CardTitle>
+            연주자 {performerCount(students)}명
+            {performerCount(students) !== students.length && (
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">· {students.length}곡</span>
+            )}
+          </CardTitle>
           <CardDescription>
             칸을 눌러 바로 고칠 수 있습니다. 소요시간을 비우면 난이도로 추정합니다.
             <br />
             <strong>아이 사진</strong>을 넣으면 무대 화면과 감동영상에 그 얼굴이 함께 올라갑니다.
+            <br />한 아이가 <strong>독주와 듀엣</strong>을 함께 맡으면 오른쪽 <strong>곡 추가</strong>를 누르세요 —
+            이름과 사진은 그대로 두고 곡만 한 줄 더 생깁니다.
           </CardDescription>
         </CardHeader>
         {students.length > 0 && (
@@ -361,6 +416,15 @@ export function RosterEditor({
                           className="h-9 border-transparent bg-transparent hover:border-input"
                           aria-label="이름"
                         />
+                        {(() => {
+                          // 같은 아이의 두 번째·세 번째 곡임을 표시한다 — 이름이 두 번 보이는 이유가 보이게
+                          const many = pieceIndex(students, s)
+                          return many ? (
+                            <Badge variant="outline" className="ml-1 mt-1 text-[11px]">
+                              {many.total}곡 중 {many.index}번째
+                            </Badge>
+                          ) : null
+                        })()}
                       </td>
                       <td className="px-2 py-1.5">
                         <Input
@@ -421,7 +485,17 @@ export function RosterEditor({
                           aria-label="특징 메모"
                         />
                       </td>
-                      <td className="px-2 py-1.5 text-right">
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => void addPiece(s)}
+                          disabled={pending}
+                          title="이 아이에게 곡을 하나 더"
+                          aria-label={`${s.student_name} 곡 추가`}
+                        >
+                          <CopyPlus className="h-4 w-4 text-accent" aria-hidden />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

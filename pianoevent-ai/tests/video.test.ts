@@ -4,11 +4,15 @@ import { getTheme } from '@/lib/design/themes'
 import {
   buildTimeline,
   describeRecordType,
+  drawLogo,
   fadeFor,
+  getLogoPlace,
+  LOGO_PLACES,
   renderFrame,
   scenesAt,
   CAPTION_FADE_SEC,
   CROSSFADE_SEC,
+  type LogoMark,
 } from '@/lib/video/render'
 import {
   DEFAULT_VIDEO_TEMPLATE,
@@ -428,5 +432,157 @@ describe('멈춘 화면 그리기', () => {
     const keys = stub()
     renderFrame(keys.ctx, timeline, 1, empty, { ...options, template: getVideoTemplate('frame-keys') }, true)
     expect(plain.texts.join(' ')).toBe(keys.texts.join(' '))
+  })
+})
+
+describe('영상에 학원 로고 넣기', () => {
+  function logoStub() {
+    const drawn: { source: unknown; x: number; y: number; w: number; h: number; alpha: number }[] = []
+    const ctx = {
+      canvas: { width: 1280, height: 720 },
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      shadowColor: '',
+      shadowBlur: 0,
+      shadowOffsetY: 0,
+      save() {}, restore() {}, beginPath() {}, closePath() {}, clip() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, arcTo() {}, ellipse() {}, rect() {},
+      fillRect() {}, translate() {}, rotate() {}, scale() {}, fillText() {},
+      drawImage(source: unknown, x: number, y: number, w: number, h: number) {
+        drawn.push({ source, x, y, w, h, alpha: (ctx as unknown as { globalAlpha: number }).globalAlpha })
+      },
+      measureText(text: string) {
+        return { width: text.length * 20 }
+      },
+      createLinearGradient() {
+        return { addColorStop() {} }
+      },
+      createRadialGradient() {
+        return { addColorStop() {} }
+      },
+    }
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, drawn }
+  }
+
+  const mark = (place: LogoMark['place']): LogoMark => ({
+    image: {} as CanvasImageSource,
+    width: 200,
+    height: 100,
+    place,
+  })
+
+  const line: VideoScene[] = [
+    { id: 'a', kind: 'title', seconds: 4, headline: '제12회 정기 연주회' },
+    { id: 'b', kind: 'student', seconds: 3.5, headline: '오수아' },
+  ]
+  const timeline = buildTimeline(line)
+  const base = { width: 1280, height: 720, theme: getTheme('classic-navy'), academyName: '하모니' }
+  const empty = { images: new Map(), videos: new Map() }
+
+  it('넣지 않기를 고르면 그리지 않는다', () => {
+    const { ctx, drawn } = logoStub()
+    renderFrame(ctx, timeline, 1, empty, { ...base, logo: mark('none') }, true)
+    expect(drawn).toHaveLength(0)
+  })
+
+  it('네 귀퉁이 모두 화면 안에 들어간다', () => {
+    for (const place of ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const) {
+      const { ctx, drawn } = logoStub()
+      renderFrame(ctx, timeline, 1, empty, { ...base, logo: mark(place) }, true)
+      expect(drawn, place).toHaveLength(1)
+      const box = drawn[0]
+      expect(box.x, place).toBeGreaterThanOrEqual(0)
+      expect(box.y, place).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.w, place).toBeLessThanOrEqual(1280)
+      expect(box.y + box.h, place).toBeLessThanOrEqual(720)
+    }
+  })
+
+  it('가로세로 비율이 찌그러지지 않는다', () => {
+    const { ctx, drawn } = logoStub()
+    renderFrame(ctx, timeline, 1, empty, { ...base, logo: mark('bottom-right') }, true)
+    expect(drawn[0].w / drawn[0].h).toBeCloseTo(200 / 100, 5)
+  })
+
+  it('화면을 가릴 만큼 크지 않다', () => {
+    const { ctx, drawn } = logoStub()
+    renderFrame(ctx, timeline, 1, empty, { ...base, logo: mark('top-left') }, true)
+    expect(drawn[0].h).toBeLessThan(720 * 0.1)
+  })
+
+  it('장면이 겹쳐 넘어가는 동안에도 로고는 한 번만, 같은 진하기로 그려진다', () => {
+    // 로고까지 함께 깜빡이면 눈에 거슬린다 — 장면의 진하기를 물려받지 않는다
+    const mid = logoStub()
+    renderFrame(mid.ctx, timeline, 1, empty, { ...base, logo: mark('bottom-right') }, false)
+    const fading = logoStub()
+    renderFrame(fading.ctx, timeline, timeline.starts[1] + 0.05, empty, { ...base, logo: mark('bottom-right') }, false)
+    expect(fading.drawn).toHaveLength(1)
+    expect(fading.drawn[0].alpha).toBe(mid.drawn[0].alpha)
+  })
+
+  it('크기를 모르는 로고는 그리지 않는다 — 0 으로 나눠 화면이 깨지지 않게', () => {
+    const { ctx, drawn } = logoStub()
+    drawLogo(ctx, { image: {} as CanvasImageSource, width: 0, height: 0, place: 'top-left' }, 1280, 720)
+    expect(drawn).toHaveLength(0)
+  })
+
+  it('저장된 자리 값이 이상하면 넣지 않는 쪽으로 돌아간다', () => {
+    expect(getLogoPlace('bottom-right')).toBe('bottom-right')
+    expect(getLogoPlace('가운데')).toBe('none')
+    expect(getLogoPlace(null)).toBe('none')
+    expect(LOGO_PLACES.map((item) => item.id)).toContain('none')
+  })
+})
+
+describe('한 아이가 여러 곡을 맡을 때의 영상', () => {
+  const twice = [
+    student('김서연', 'beginner', 90, { id: 'a1', piece_title: '나비야' }),
+    student('박지호', 'beginner', 100, { id: 'b1', piece_title: '즐거운 나의 집' }),
+    student('김서연', 'ensemble', 140, { id: 'a2', piece_title: '왕벌의 비행' }),
+    student('정예린', 'intermediate', 170, { id: 'c1', piece_title: '아라베스크' }),
+  ]
+  const twicePlan = buildProgram(twice)
+  const scenes = buildStoryboard({
+    event,
+    plan: twicePlan,
+    academyName: '하모니 피아노학원',
+    photos: { a2: 'data:image/png;base64,AA' },
+  })
+  const students = scenes.filter((scene) => scene.kind === 'student')
+
+  it('같은 얼굴이 두 번 지나가지 않는다', () => {
+    expect(students).toHaveLength(3)
+    expect(students.filter((scene) => scene.headline === '김서연')).toHaveLength(1)
+  })
+
+  it('맡은 곡을 한 장면에 함께 적는다', () => {
+    const seoyeon = students.find((scene) => scene.headline === '김서연')
+    expect(seoyeon?.sub).toContain('나비야')
+    expect(seoyeon?.sub).toContain('왕벌의 비행')
+  })
+
+  it('두 번 오르는 순번을 함께 적는다', () => {
+    const seoyeon = students.find((scene) => scene.headline === '김서연')
+    expect(seoyeon?.eyebrow).toMatch(/\d+ · \d+번째 무대/)
+  })
+
+  it('사진은 어느 줄에 붙어 있든 찾아 쓴다', () => {
+    expect(students.find((scene) => scene.headline === '김서연')?.image).toBe('data:image/png;base64,AA')
+  })
+
+  it('두 곡을 맡은 아이는 화면에 조금 더 머문다 — 읽을 것이 많다', () => {
+    const seoyeon = students.find((scene) => scene.headline === '김서연')
+    const jiho = students.find((scene) => scene.headline === '박지호')
+    expect(seoyeon!.seconds).toBeGreaterThan(jiho!.seconds)
+  })
+
+  it('머릿말에 사람 수와 곡 수를 함께 적는다', () => {
+    const intro = scenes.find((scene) => scene.id === 'roster-intro')
+    expect(intro?.sub).toBe('3명 · 4곡')
   })
 })

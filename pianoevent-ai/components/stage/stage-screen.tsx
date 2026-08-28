@@ -2,13 +2,16 @@
 
 import { ChevronLeft, ChevronRight, Download, Maximize2, Moon, Palette, Printer, Sun } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
 import { StageSlideView } from '@/components/stage/slide'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { getTheme } from '@/lib/design/themes'
+import { prefBool, prefString, type Prefs } from '@/lib/prefs'
 import { buildStageDeck, STAGE_SLIDE_H, STAGE_SLIDE_W, type StageDeckOptions } from '@/lib/stage/deck'
 import {
   DEFAULT_STAGE_BACKDROP,
+  getStageBackdrop,
   STAGE_BACKDROPS,
   stageBackdropInfo,
   type StageBackdrop,
@@ -16,6 +19,8 @@ import {
 import {
   DEFAULT_PHOTO_SHAPE,
   DEFAULT_STAGE_LAYOUT,
+  getPhotoShape,
+  getStageLayout,
   PHOTO_SHAPES,
   STAGE_LAYOUTS,
   stageLayoutInfo,
@@ -41,6 +46,8 @@ export function StageScreen({
   initialThemeId,
   logoUrl,
   photos = {},
+  savedPrefs = null,
+  pastPrefs = [],
 }: {
   event: EventRecord
   plan: ProgramPlan
@@ -49,19 +56,29 @@ export function StageScreen({
   logoUrl: string | null
   /** 학생 id → 사진 주소 */
   photos?: Record<string, string>
+  /** 이 행사에 저장해 둔 무대 화면 설정 */
+  savedPrefs?: Prefs | null
+  /** 설정을 저장해 둔 지난 행사들 */
+  pastPrefs?: PastPrefs[]
 }) {
-  const [themeId, setThemeId] = useState(initialThemeId)
-  const [layout, setLayout] = useState<StageLayout>(DEFAULT_STAGE_LAYOUT)
-  const [shape, setShape] = useState<PhotoShape>(DEFAULT_PHOTO_SHAPE)
-  const [backdrop, setBackdrop] = useState<StageBackdrop>(DEFAULT_STAGE_BACKDROP)
-  const [options, setOptions] = useState<StageDeckOptions>({
-    show_commentary: true,
-    show_sections: true,
-    show_agenda: true,
-    show_photos: true,
-  })
+  const [themeId, setThemeId] = useState(() => prefString(savedPrefs, 'theme', initialThemeId))
+  const [layout, setLayout] = useState<StageLayout>(() =>
+    getStageLayout(prefString(savedPrefs, 'layout', DEFAULT_STAGE_LAYOUT)),
+  )
+  const [shape, setShape] = useState<PhotoShape>(() =>
+    getPhotoShape(prefString(savedPrefs, 'shape', DEFAULT_PHOTO_SHAPE)),
+  )
+  const [backdrop, setBackdrop] = useState<StageBackdrop>(() =>
+    getStageBackdrop(prefString(savedPrefs, 'backdrop', DEFAULT_STAGE_BACKDROP)),
+  )
+  const [options, setOptions] = useState<StageDeckOptions>(() => ({
+    show_commentary: prefBool(savedPrefs, 'show_commentary', true),
+    show_sections: prefBool(savedPrefs, 'show_sections', true),
+    show_agenda: prefBool(savedPrefs, 'show_agenda', true),
+    show_photos: prefBool(savedPrefs, 'show_photos', true),
+  }))
   const [index, setIndex] = useState(0)
-  const [dark, setDark] = useState(true)
+  const [dark, setDark] = useState(() => prefBool(savedPrefs, 'dark', true))
   const [full, setFull] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const shellRef = useRef<HTMLDivElement>(null)
@@ -155,6 +172,34 @@ export function StageScreen({
   const pptxUrl = `/api/events/${event.id}/pptx?${query.toString()}`
 
   const slide = slides[Math.min(index, last)]
+
+  /** 지금 고른 값 — 이대로 행사에 저장한다 */
+  const currentPrefs: Prefs = {
+    theme: themeId,
+    layout,
+    shape,
+    backdrop,
+    dark,
+    show_commentary: options.show_commentary,
+    show_sections: options.show_sections,
+    show_agenda: options.show_agenda,
+    show_photos: options.show_photos,
+  }
+
+  /** 저장해 둔 설정을 화면에 얹는다. 빠진 값은 지금 것을 그대로 둔다 */
+  function applyPrefs(prefs: Prefs) {
+    setThemeId((prev) => prefString(prefs, 'theme', prev))
+    setLayout((prev) => getStageLayout(prefString(prefs, 'layout', prev)))
+    setShape((prev) => getPhotoShape(prefString(prefs, 'shape', prev)))
+    setBackdrop((prev) => getStageBackdrop(prefString(prefs, 'backdrop', prev)))
+    setDark((prev) => prefBool(prefs, 'dark', prev))
+    setOptions((prev) => ({
+      show_commentary: prefBool(prefs, 'show_commentary', prev.show_commentary),
+      show_sections: prefBool(prefs, 'show_sections', prev.show_sections),
+      show_agenda: prefBool(prefs, 'show_agenda', prev.show_agenda),
+      show_photos: prefBool(prefs, 'show_photos', prev.show_photos),
+    }))
+  }
 
   return (
     <div className="grid gap-3">
@@ -396,6 +441,18 @@ export function StageScreen({
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="no-print">
+        <PrefsBar
+          eventId={event.id}
+          field="stage_prefs"
+          label="무대 화면 설정"
+          prefs={currentPrefs}
+          saved={savedPrefs}
+          past={pastPrefs}
+          onLoad={applyPrefs}
+        />
       </div>
 
       {/* 인쇄(=PDF 저장)용 — 화면에는 보이지 않고 종이에만 전부 깔린다 */}

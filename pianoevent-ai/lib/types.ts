@@ -1,4 +1,5 @@
 import type { AcademyAsset, ImageMap } from '@/lib/assets'
+import type { Prefs } from '@/lib/prefs'
 
 /** 연주 난이도 — 순서 배치 단계(stage)를 결정하는 1차 기준 */
 export type Level = 'beginner' | 'intermediate' | 'advanced' | 'ensemble'
@@ -54,6 +55,12 @@ export interface EventRecord {
   photo_url: string | null
   /** 인쇄물 갈래별로 어떤 보관함 이미지를 쓸지. 비우면 기본값을 따른다 */
   image_map: ImageMap | null
+  /** 무대 화면에서 고른 테마·배치·배경. 저장해 두면 다음 해에 그대로 불러온다 */
+  stage_prefs: Prefs | null
+  /** 감동영상 편집기에서 고른 템플릿·길이·문구 */
+  video_prefs: Prefs | null
+  /** 초대장에 붙일 감동영상 주소 (유튜브 일부공개·구글 드라이브 등) */
+  video_url: string | null
   created_at: string
 }
 

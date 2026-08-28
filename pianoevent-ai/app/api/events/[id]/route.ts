@@ -2,7 +2,9 @@ import { DESIGN_THEMES } from '@/lib/design/themes'
 import { DESIGN_TEMPLATES } from '@/lib/design/templates'
 import { normalizeEventAt } from '@/lib/format'
 import { fail, guard, ok, readJson, str } from '@/lib/http'
+import { sanitizePrefs, STAGE_PREF_SPEC, VIDEO_PREF_SPEC } from '@/lib/prefs'
 import { getRepository } from '@/lib/store'
+import { videoEmbed } from '@/lib/video/embed'
 import type { EventStatus } from '@/lib/types'
 
 const STATUSES: EventStatus[] = ['draft', 'ready', 'published', 'done']
@@ -65,6 +67,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         if (typeof value === 'string' && known.has(value)) map[key] = value
       }
       patch.image_map = map
+    }
+
+    // 무대 화면·감동영상 설정 — 아는 키만, 아는 범위 안에서만 받는다 (lib/prefs.ts)
+    if ('stage_prefs' in body) patch.stage_prefs = sanitizePrefs(STAGE_PREF_SPEC, body.stage_prefs)
+    if ('video_prefs' in body) patch.video_prefs = sanitizePrefs(VIDEO_PREF_SPEC, body.video_prefs)
+
+    if (typeof body.video_url === 'string') {
+      const raw = body.video_url.trim()
+      if (!raw) {
+        patch.video_url = null
+      } else {
+        // 초대장은 학부모가 여는 공개 화면이다 — http(s) 가 아닌 주소는 붙이지 않는다
+        const embed = videoEmbed(raw)
+        if (!embed) return fail('영상 주소는 http(s) 로 시작하는 주소여야 합니다.')
+        patch.video_url = embed.href.slice(0, 500)
+      }
     }
 
     if (Object.keys(patch).length === 0) return fail('변경할 내용이 없습니다.')

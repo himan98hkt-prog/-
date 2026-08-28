@@ -85,6 +85,9 @@ function seed(): Db {
         design_copy: null,
         photo_url: null,
         image_map: null,
+        stage_prefs: null,
+        video_prefs: null,
+        video_url: null,
         created_at: created,
       },
     ],
@@ -212,6 +215,9 @@ export class DemoRepository implements Repository {
       design_copy: null,
       photo_url: null,
       image_map: null,
+      stage_prefs: null,
+      video_prefs: null,
+      video_url: null,
       created_at: nowIso(),
     }
     db.events.push(event)

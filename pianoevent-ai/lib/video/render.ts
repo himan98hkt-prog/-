@@ -140,6 +140,29 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines.slice(0, 3)
 }
 
+/** 학원 로고를 화면 어느 구석에 둘지 */
+export type LogoPlace = 'none' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+export const LOGO_PLACES: { id: LogoPlace; label: string }[] = [
+  { id: 'none', label: '넣지 않기' },
+  { id: 'top-left', label: '왼쪽 위' },
+  { id: 'top-right', label: '오른쪽 위' },
+  { id: 'bottom-left', label: '왼쪽 아래' },
+  { id: 'bottom-right', label: '오른쪽 아래' },
+]
+
+export function getLogoPlace(id: string | null | undefined): LogoPlace {
+  return LOGO_PLACES.some((item) => item.id === id) ? (id as LogoPlace) : 'none'
+}
+
+/** 화면에 얹는 학원 로고 — 이미 다 읽어 둔 것만 받는다 */
+export interface LogoMark {
+  image: CanvasImageSource
+  width: number
+  height: number
+  place: LogoPlace
+}
+
 export interface RenderOptions {
   width: number
   height: number
@@ -147,6 +170,37 @@ export interface RenderOptions {
   academyName: string
   /** 영상 템플릿 — 사진을 어떻게 놓고 어떤 배경을 깔지 */
   template?: VideoTemplate
+  /**
+   * 학원 로고.
+   *
+   * 무대 화면에는 학원 로고가 들어가는데 영상에는 빠져 있었다.
+   * 영상은 학부모 휴대폰으로 돌아다니는 물건이라, 구석에 작게라도 있어야
+   * 어느 학원 것인지 남는다. 장면 위에 **따로** 그린다 —
+   * 장면이 겹쳐 넘어갈 때 로고까지 깜빡이면 눈에 거슬린다.
+   */
+  logo?: LogoMark | null
+}
+
+/** 로고를 화면 구석에 그린다. 화면 높이의 7% 남짓 — 있는 줄은 알되 방해하지 않는 크기 */
+export function drawLogo(ctx: CanvasRenderingContext2D, logo: LogoMark, w: number, h: number) {
+  if (logo.place === 'none' || !logo.width || !logo.height) return
+  const boxH = h * 0.072
+  const scale = boxH / logo.height
+  const drawW = logo.width * scale
+  const drawH = boxH
+  const margin = h * 0.045
+  const top = logo.place === 'top-left' || logo.place === 'top-right'
+  const left = logo.place === 'top-left' || logo.place === 'bottom-left'
+  const x = left ? margin : w - margin - drawW
+  const y = top ? margin : h - margin - drawH
+
+  ctx.save()
+  ctx.globalAlpha = 0.9
+  // 밝은 사진 위에서도 로고가 보이도록 아주 옅은 그림자만 깐다
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'
+  ctx.shadowBlur = h * 0.02
+  ctx.drawImage(logo.image, x, y, drawW, drawH)
+  ctx.restore()
 }
 
 /** 사진 창 모양대로 캔버스에 길을 낸다 (그 안에만 그려진다) */
@@ -533,13 +587,17 @@ export function renderFrame(
       ctx.globalAlpha = 1
       drawScene(ctx, timeline.scenes[front.index], front.local, sources, options, 1)
     }
-    ctx.restore()
-    return
+  } else {
+    for (const { index, local, alpha, textAlpha } of visible) {
+      ctx.globalAlpha = alpha
+      drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
+    }
   }
 
-  for (const { index, local, alpha, textAlpha } of visible) {
-    ctx.globalAlpha = alpha
-    drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
+  // 로고는 장면 위에 한 번만 — 겹쳐 넘어가는 동안에도 그대로 붙어 있다
+  if (options.logo) {
+    ctx.globalAlpha = 1
+    drawLogo(ctx, options.logo, w, h)
   }
   ctx.restore()
 }

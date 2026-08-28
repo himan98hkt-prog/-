@@ -19,6 +19,7 @@ import {
 } from '@/lib/design/themes'
 import { formatDuration, formatWallClock, isoAtLocalTime } from '@/lib/format'
 import { buildBudget, DEFAULT_BUDGET_ITEMS, formatWon } from '@/lib/ops/budget'
+import { buildLiveList, driftLabel } from '@/lib/ops/live'
 import { buildRehearsal, rehearsalCallMessage } from '@/lib/ops/rehearsal'
 import { buildSeating, seatLabel } from '@/lib/ops/seating'
 import { diagnoseProgram, ISSUE_LEVEL_LABEL } from '@/lib/program/diagnose'
@@ -65,6 +66,9 @@ const EVENT: EventRecord = {
   design_copy: null,
   photo_url: null,
   image_map: null,
+  stage_prefs: null,
+  video_prefs: null,
+  video_url: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -206,6 +210,15 @@ function App() {
     setSlideIndex((i) => Math.min(i, deck.length - 1))
   }, [deck.length])
   const deckScale = Math.min(1, deckColumn / STAGE_SLIDE_W)
+
+  // 당일 진행 — 무대 옆에서 휴대폰으로 보는 화면
+  const liveList = useMemo(() => buildLiveList(planned), [planned])
+  const [liveIndex, setLiveIndex] = useState(0)
+  useEffect(() => {
+    setLiveIndex((i) => Math.min(i, Math.max(0, liveList.length - 1)))
+  }, [liveList.length])
+  const liveNow = liveList[liveIndex]
+  const liveNext = liveList[liveIndex + 1]
 
   const ctx = {
     theme,
@@ -508,6 +521,56 @@ function App() {
 
         <Stage
           n="7"
+          title="당일 진행 — 무대 옆 휴대폰 화면"
+          lead="종이 순서표를 손가락으로 짚지 않아도 됩니다. 지금 · 다음이 크게 뜨고, 한 곡이 끝나면 단추 하나로 넘깁니다. 예정보다 몇 분 밀렸는지도 함께 보여 줍니다."
+        >
+          <div className="live">
+            <div className="live__now">
+              <p className="live__label">지금</p>
+              <p className="live__title">
+                {liveNow?.order_no ? <b className="num">{liveNow.order_no}</b> : null} {liveNow?.title ?? '—'}
+              </p>
+              {liveNow?.detail && <p className="live__detail">{liveNow.detail}</p>}
+              <p className="live__meta">
+                <span className="num">예정 {formatWallClock(EVENT.event_at, liveNow?.planned_offset_sec ?? 0)}</span>
+                <span className="dim">
+                  {/* 체험판에서는 예정대로 진행한다고 보고 보여 드립니다 */}
+                  {driftLabel(liveNow?.planned_offset_sec ?? 0, liveNow?.planned_offset_sec ?? 0)}
+                </span>
+              </p>
+            </div>
+            <div className="live__next">
+              <p className="live__label">다음</p>
+              <p className="live__title small">
+                {liveNext ? `${liveNext.order_no ? `${liveNext.order_no}. ` : ''}${liveNext.title}` : '없음 (마지막)'}
+              </p>
+              {liveNext?.detail && <p className="live__detail">{liveNext.detail}</p>}
+            </div>
+            <div className="live__bar">
+              <button type="button" onClick={() => setLiveIndex((i) => Math.max(0, i - 1))} disabled={liveIndex === 0}>
+                ← 이전
+              </button>
+              <button
+                type="button"
+                onClick={() => setLiveIndex((i) => Math.min(liveList.length - 1, i + 1))}
+                disabled={liveIndex >= liveList.length - 1}
+              >
+                다음 순서로 →
+              </button>
+              <span className="num">
+                {liveIndex + 1} / {liveList.length}
+              </span>
+            </div>
+            <p className="live__note">
+              실제 프로그램에서는 <b>[개회 · 시작]</b> 을 누른 시각부터 시계가 흘러, 예정보다 몇 분 밀렸는지
+              분 단위로 알려 줍니다. 10분 넘게 밀리면 화면이 붉어집니다 — 그때 사회자 멘트를 줄이시면 됩니다.
+              새로고침해도 진행하던 자리를 잃지 않습니다.
+            </p>
+          </div>
+        </Stage>
+
+        <Stage
+          n="8"
           title="원장님이 손으로 하던 계산"
           lead="순서표가 나온 뒤에도 일은 남습니다. 리허설 시각, 참가비, 좌석 — 매번 다시 하던 계산입니다."
         >

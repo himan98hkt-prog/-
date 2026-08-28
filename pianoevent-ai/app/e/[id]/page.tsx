@@ -8,6 +8,7 @@ import { getTheme, themeVars } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
 import { resolvePlan } from '@/lib/program/resolve'
 import { getRepository, summarizeRsvps } from '@/lib/store'
+import { videoEmbed } from '@/lib/video/embed'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,8 @@ export default async function InvitePage({ params }: { params: { id: string } })
   const theme = getTheme(event.design_theme ?? academy.design_theme)
   const copy = { ...defaultCopy(academy, event), ...(event.design_copy ?? {}) }
   const photoUrl = event.photo_url ?? academy.photo_url
+  // 원장님이 유튜브·드라이브에 올려 두신 감동영상. 링크 하나로 순서표와 영상을 함께 본다
+  const embed = videoEmbed(event.video_url)
   const ctx = {
     theme,
     academy,
@@ -171,6 +174,74 @@ export default async function InvitePage({ params }: { params: { id: string } })
             >
               {event.greeting}
             </p>
+          </section>
+        )}
+
+        {/* 감동영상 */}
+        {embed && (
+          <section style={{ padding: '0 22px 40px' }}>
+            <h2
+              style={{
+                textAlign: 'center',
+                fontFamily: 'var(--d-display)',
+                fontSize: 17,
+                letterSpacing: '0.08em',
+              }}
+            >
+              아이들이 걸어온 시간
+            </h2>
+            <div style={{ marginTop: 14 }}>
+              {embed.kind === 'link' ? (
+                <a
+                  href={embed.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'block',
+                    padding: '14px 16px',
+                    borderRadius: 12,
+                    border: '1px solid var(--d-line)',
+                    background: 'var(--d-paper-alt)',
+                    textAlign: 'center',
+                    fontSize: 14.5,
+                    color: 'var(--d-ink)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  영상 보기 →
+                </a>
+              ) : (
+                <div
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: 12,
+                    background: '#000',
+                    aspectRatio: '16 / 9',
+                  }}
+                >
+                  {embed.kind === 'file' ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      src={embed.src}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      style={{ width: '100%', height: '100%', display: 'block' }}
+                    />
+                  ) : (
+                    <iframe
+                      src={embed.src}
+                      title={`${event.title} 영상`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </section>
         )}
 

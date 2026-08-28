@@ -19,19 +19,23 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur no-print">
-        <div className="container flex h-14 items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <div className="container flex h-14 items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-tight"
+          >
             <span aria-hidden className="text-lg">
               🎹
             </span>
-            <span>PianoEvent AI</span>
+            {/* 휴대폰에서는 이름이 두 줄로 접혀 머리띠가 무너진다 — 그림만 남긴다 */}
+            <span className="hidden sm:inline">PianoEvent AI</span>
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:px-3"
               >
                 {item.label}
               </Link>

@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, ClipboardList, MessageSquareText, Printer, Timer } from 'lucide-react'
+import { CheckCircle2, ClipboardList, MessageSquareText, Printer, Smartphone, Timer } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '@/components/copy-button'
@@ -220,12 +220,20 @@ export function PrepPanel({
               도착·리허설·객석 개방·연주·시상·정리까지 시각과 담당이 자동으로 계산됩니다.
             </CardDescription>
           </div>
-          <Link href={`/events/${event.id}/design/print?template=cue-sheet`} target="_blank">
-            <Button variant="outline" size="sm" disabled={plan.items.length === 0}>
-              <Printer className="h-4 w-4" aria-hidden />
-              인쇄
-            </Button>
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Link href={`/events/${event.id}/live`}>
+              <Button variant="outline" size="sm" disabled={plan.items.length === 0}>
+                <Smartphone className="h-4 w-4" aria-hidden />
+                휴대폰으로 진행
+              </Button>
+            </Link>
+            <Link href={`/events/${event.id}/design/print?template=cue-sheet`} target="_blank">
+              <Button variant="outline" size="sm" disabled={plan.items.length === 0}>
+                <Printer className="h-4 w-4" aria-hidden />
+                인쇄
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           {plan.items.length === 0 ? (

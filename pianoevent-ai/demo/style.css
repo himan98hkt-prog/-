@@ -878,13 +878,15 @@ main.shell {
   transform-origin: top left;
   flex-shrink: 0;
 }
-.deck__bar {
+.deck__bar,
+.live__bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
-.deck__bar button {
+.deck__bar button,
+.live__bar button {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
@@ -894,24 +896,83 @@ main.shell {
   font-size: 0.92rem;
   cursor: pointer;
 }
-.deck__bar button:hover:not(:disabled) {
+.deck__bar button:hover:not(:disabled),
+.live__bar button:hover:not(:disabled) {
   border-color: var(--brass);
 }
-.deck__bar button:disabled {
+.deck__bar button:disabled,
+.live__bar button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .deck__bar .ghost {
   margin-left: auto;
 }
-.deck__bar .num {
+.deck__bar .num,
+.live__bar .num {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   font-size: 0.92rem;
 }
-.deck__note {
+.deck__note,
+.live__note {
   margin: 0;
   font-size: 0.9rem;
   color: var(--muted);
   line-height: 1.7;
+}
+
+/* ── 당일 진행 화면 ─────────────────────────────── */
+.live {
+  display: grid;
+  gap: 12px;
+}
+.live__now,
+.live__next {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: var(--panel);
+}
+.live__now {
+  border-color: var(--brass);
+  background: var(--brass-soft);
+}
+.live__label {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--brass);
+  margin: 0;
+}
+.live__next .live__label {
+  color: var(--muted);
+}
+.live__title {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.live__title.small {
+  font-size: 21px;
+}
+.live__title b {
+  color: var(--brass);
+  margin-right: 6px;
+}
+.live__detail {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.live__meta {
+  margin: 12px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 14px;
+}
+.live__meta .dim {
+  color: var(--muted);
 }
