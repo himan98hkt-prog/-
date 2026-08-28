@@ -23,6 +23,7 @@ import {
 } from '@/lib/video/templates'
 import {
   buildStoryboard,
+  cheerRange,
   cleanMessages,
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
@@ -895,5 +896,30 @@ describe('응원 메시지에 그 아이 얼굴', () => {
       academyName: '하모니',
     }, true)
     expect(Math.max(...seen)).toBeLessThanOrEqual(720)
+  })
+})
+
+describe('응원 부분만 다시 만들기', () => {
+  it('응원 머릿말부터 마지막 응원까지를 한 구간으로 잡는다', () => {
+    const scenes = buildStoryboard({
+      event,
+      plan,
+      academyName: '하모니',
+      photos,
+      messages: [
+        { name: 'ㄱ', message: '수고했어요' },
+        { name: 'ㄴ', message: '고맙습니다' },
+      ],
+    })
+    const range = cheerRange(scenes)
+    expect(range).not.toBeNull()
+    expect(scenes[range!.from].id).toBe('cheer-intro')
+    expect(scenes[range!.to].kind).toBe('message')
+    // 마무리는 구간에 들어가지 않는다 — 응원만 다시 만드는 것이다
+    expect(scenes[range!.to + 1]?.kind).toBe('closing')
+  })
+
+  it('응원이 없으면 잡을 구간도 없다', () => {
+    expect(cheerRange(board())).toBeNull()
   })
 })

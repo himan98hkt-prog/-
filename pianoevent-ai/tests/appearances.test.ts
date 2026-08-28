@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { carryPhotoIds, STUDENT_PHOTO_MAX, studentPhotoList, studentPhotos } from '@/lib/assets'
+import {
+  carryPhotoIds,
+  STUDENT_PHOTO_MAX,
+  studentPhotoList,
+  studentPhotos,
+  unsortedPhotos,
+} from '@/lib/assets'
 import { groupByPerformer, groupProgram, performerCount, performerKey, pieceIndex, sharePhotosByName } from '@/lib/program/appearances'
 import { buildProgram } from '@/lib/program/order'
 import { student } from './helpers'
@@ -131,5 +137,32 @@ describe('지난 행사에서 명단을 가져올 때 사진', () => {
 
   it('사진이 없던 아이는 그대로 없다', () => {
     expect(carryPhotoIds(assets, { photo_asset_id: null, photo_asset_ids: null })).toEqual([])
+  })
+})
+
+describe('당일에 몰아 담은 사진', () => {
+  const assets = [
+    { id: 'a1', kind: 'photo' as const, label: '당일 사진 15:03:20', url: 'u1', created_at: '' },
+    { id: 'a2', kind: 'photo' as const, label: '당일 사진 15:04:11', url: 'u2', created_at: '' },
+    { id: 'b1', kind: 'photo' as const, label: '김서연 사진', url: 'u3', created_at: '' },
+    { id: 'c1', kind: 'logo' as const, label: '당일 사진 로고', url: 'u4', created_at: '' },
+  ]
+
+  it('아직 아무 아이에게도 안 붙은 당일 사진만 골라 낸다', () => {
+    const rows = [{ photo_asset_id: 'a1', photo_asset_ids: null }]
+    expect(unsortedPhotos(assets, rows).map((row) => row.id)).toEqual(['a2'])
+  })
+
+  it('아이에게 이미 붙은 사진은 빠진다 (여러 장 중 하나여도)', () => {
+    const rows = [{ photo_asset_id: 'b1', photo_asset_ids: ['b1', 'a2'] }]
+    expect(unsortedPhotos(assets, rows).map((row) => row.id)).toEqual(['a1'])
+  })
+
+  it('평소에 올린 사진은 나눌 것으로 보지 않는다 — 이름표가 다르다', () => {
+    expect(unsortedPhotos(assets, []).map((row) => row.id)).toEqual(['a1', 'a2'])
+  })
+
+  it('로고는 사진이 아니다', () => {
+    expect(unsortedPhotos(assets, []).some((row) => row.id === 'c1')).toBe(false)
   })
 })

@@ -160,3 +160,27 @@ export function carryPhotoIds(
   }
   return out.slice(0, STUDENT_PHOTO_MAX)
 }
+
+/**
+ * 당일에 몰아 찍은 사진에 붙이는 이름표.
+ *
+ * 리허설에서는 아이를 골라 가며 찍을 겨를이 없다. 일단 담아 두고 나중에 나눈다.
+ * 담아 둔 것을 잃지 않으려면 그 자리에서 보관함에 넣어야 하고,
+ * 그러면 "아직 아무 아이에게도 안 붙은 것" 을 가려낼 수 있어야 한다.
+ */
+export const UNSORTED_LABEL = '당일 사진'
+
+/** 아직 아이에게 붙지 않은 당일 사진들 — 나중에 나누는 화면에 뜬다 */
+export function unsortedPhotos(
+  assets: AcademyAsset[],
+  students: { photo_asset_id: string | null; photo_asset_ids?: string[] | null }[],
+): AcademyAsset[] {
+  const used = new Set<string>()
+  for (const student of students) {
+    if (student.photo_asset_id) used.add(student.photo_asset_id)
+    for (const id of student.photo_asset_ids ?? []) used.add(id)
+  }
+  return assets.filter(
+    (asset) => asset.kind === 'photo' && asset.label.startsWith(UNSORTED_LABEL) && !used.has(asset.id),
+  )
+}

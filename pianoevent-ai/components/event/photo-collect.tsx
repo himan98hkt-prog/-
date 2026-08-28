@@ -1,10 +1,10 @@
 'use client'
 
-import { Camera, Check, ImagePlus, Loader2 } from 'lucide-react'
+import { Camera, Check, ImagePlus, Images, Loader2, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { STUDENT_PHOTO_MAX, type AcademyAsset } from '@/lib/assets'
+import { STUDENT_PHOTO_MAX, UNSORTED_LABEL, unsortedPhotos, type AcademyAsset } from '@/lib/assets'
 import { FACE_SHRINK, shrinkImage } from '@/lib/image'
 import { groupByPerformer } from '@/lib/program/appearances'
 import type { EventStudent } from '@/lib/types'
@@ -38,6 +38,10 @@ export function PhotoCollect({
   const targetRef = useRef<EventStudent | null>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const albumRef = useRef<HTMLInputElement>(null)
+  /** 아이를 고르지 않고 몰아 담는 길 — 리허설에서는 고를 겨를이 없다 */
+  const trayRef = useRef<HTMLInputElement>(null)
+  const [sorting, setSorting] = useState<string | null>(null)
+  const waiting = unsortedPhotos(assets, students)
 
   function photosOf(student: EventStudent): string[] {
     return [student.photo_asset_id, ...(student.photo_asset_ids ?? [])].filter(
@@ -92,6 +96,56 @@ export function PhotoCollect({
     ;(from === 'camera' ? cameraRef : albumRef).current?.click()
   }
 
+  /** 아이를 고르지 않고 먼저 담아 둔다. 담기지 않으면 잃는다 — 그 자리에서 보관함에 넣는다 */
+  async function stash(files: FileList) {
+    setBusy('tray')
+    setNote(null)
+    let added = 0
+    try {
+      for (const file of Array.from(files)) {
+        const url = await shrinkImage(file, FACE_SHRINK)
+        const created = await fetch('/api/academy/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'photo', label: `${UNSORTED_LABEL} ${new Date().toLocaleTimeString('ko-KR')}`, url }),
+        })
+        if (created.ok) added += 1
+      }
+      setNote(added > 0 ? `사진 ${added}장을 담아 두었습니다. 아래에서 아이를 짚어 주세요.` : '담지 못했습니다.')
+      router.refresh()
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : '담지 못했습니다.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** 담아 둔 사진 한 장을 아이에게 붙인다 */
+  async function assign(assetId: string, student: EventStudent) {
+    setBusy(assetId)
+    try {
+      const before = photosOf(student)
+      if (before.length >= STUDENT_PHOTO_MAX) {
+        setNote(`${student.student_name} — 사진은 ${STUDENT_PHOTO_MAX}장까지입니다.`)
+        return
+      }
+      const ids = [...before, assetId]
+      const res = await fetch(`/api/students/${student.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo_asset_id: ids[0], photo_asset_ids: ids.length > 1 ? ids : null }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? '붙이지 못했습니다.')
+      setNote(`${student.student_name} 에게 넣었습니다.`)
+      setSorting(null)
+      router.refresh()
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : '붙이지 못했습니다.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const withPhoto = people.filter((person) => photosOf(person.rows[0]).length > 0).length
 
   return (
@@ -118,6 +172,83 @@ export function PhotoCollect({
           native.target.value = ''
         }}
       />
+
+      <input
+        ref={trayRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        onChange={(native) => {
+          if (native.target.files?.length) void stash(native.target.files)
+          native.target.value = ''
+        }}
+      />
+
+      <Button
+        variant="outline"
+        className="h-12"
+        disabled={busy !== null}
+        onClick={() => trayRef.current?.click()}
+        data-testid="photo-stash"
+      >
+        {busy === 'tray' ? <Loader2 className="mr-1 h-5 w-5 animate-spin" /> : <Images className="mr-1 h-5 w-5" />}
+        먼저 몰아 담기 — 아이는 나중에
+      </Button>
+
+      {waiting.length > 0 && (
+        <section className="grid gap-2 rounded-lg border border-accent/50 bg-accent/5 p-3" data-testid="photo-tray">
+          <p className="text-sm font-medium">
+            아직 안 나눈 사진 {waiting.length}장
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">사진을 누르고 아이를 고르세요</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {waiting.map((asset) => (
+              <button
+                key={asset.id}
+                type="button"
+                onClick={() => setSorting((prev) => (prev === asset.id ? null : asset.id))}
+                aria-pressed={sorting === asset.id}
+                aria-label="담아 둔 사진"
+                className={cn(
+                  'h-16 w-16 overflow-hidden rounded-md border-2',
+                  sorting === asset.id ? 'border-accent' : 'border-transparent',
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={asset.url} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+          {sorting && (
+            <div className="grid gap-1.5">
+              <p className="text-xs text-muted-foreground">이 사진은 누구인가요?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {people.map((person) => (
+                  <Button
+                    key={person.key}
+                    size="sm"
+                    variant="outline"
+                    className="h-10"
+                    disabled={busy !== null}
+                    onClick={() => void assign(sorting, person.rows[0])}
+                  >
+                    {person.name}
+                  </Button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSorting(null)}
+                className="flex w-fit items-center gap-1 text-xs text-muted-foreground"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                나중에 하기
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       <p className="text-sm text-muted-foreground" data-testid="photo-progress">
         <strong className="text-foreground">

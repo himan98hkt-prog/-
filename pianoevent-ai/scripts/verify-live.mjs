@@ -90,6 +90,68 @@ try {
   const page = await context.newPage()
   page.on('pageerror', (error) => failures.push(`화면 오류: ${error.message}`))
 
+  // ── 쉽게 시작하기 — 명단 안내와 사용설명서 ───────────────────────
+  console.log('\n[처음 쓰는 원장님]')
+  const starterCtx = await browser.newContext({ viewport: { width: 1400, height: 1000 } })
+  const start = await starterCtx.newPage()
+  start.on('pageerror', (error) => failures.push(`시작 화면 오류: ${error.message}`))
+
+  await start.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
+  const guide = start.getByTestId('roster-guide')
+  check('명단 넣는 법이 화면에 있다', (await guide.count()) === 1)
+  const guideText = await guide.textContent()
+  check('양식 파일부터 안내한다', guideText.includes('양식 파일'), guideText.slice(0, 40))
+  check('표 예시를 보여 준다', (await guide.locator('table').count()) === 1)
+  check('이름만 있으면 된다고 말해 준다', guideText.includes('이름 한 칸'))
+
+  // 양식 파일이 실제로 내려오는가
+  const template = await start.request.get(`${BASE}/api/roster-template`)
+  const templateText = await template.text()
+  check('명단 양식이 내려온다', template.ok(), String(template.status()))
+  check('엑셀에서 한글이 깨지지 않는다 (BOM)', templateText.charCodeAt(0) === 0xfeff)
+  check('양식에 머리글과 예시가 들어 있다', templateText.includes('이름') && templateText.includes('김서연'))
+  check(
+    '파일 이름이 한글로 붙는다',
+    (template.headers()['content-disposition'] ?? '').includes(encodeURIComponent('학생명단 양식.csv')),
+  )
+
+  // 내려받은 양식을 그대로 붙여넣으면 읽히는가 — 시킨 대로 했는데 막히면 안 된다
+  await start.getByLabel('학생 명단 붙여넣기').fill(templateText.replace(/^\ufeff/, ''))
+  await start.waitForTimeout(500)
+  const previewText = await start.textContent('body')
+  check('나눠 준 양식을 그대로 붙여넣으면 읽힌다', /3명 인식됨/.test(previewText), (previewText.match(/\d+명 인식됨[^·]*/) ?? [''])[0])
+  await start.getByLabel('학생 명단 붙여넣기').fill('')
+
+  // 자세한 설명이 접혀 있다가 펴진다
+  check('자세한 설명은 접혀 있다', (await start.getByTestId('roster-guide-detail').count()) === 0)
+  await start.getByRole('button', { name: '칸마다 무엇을 적나요?' }).click()
+  await start.waitForTimeout(300)
+  const detail = await start.getByTestId('roster-guide-detail').textContent()
+  check('펴면 칸마다 설명이 나온다', detail.includes('비우면'), detail.slice(0, 40))
+  check('자주 하는 실수를 미리 알려 준다', detail.includes('자주 하는 실수'))
+
+  // 사용설명서
+  await start.goto(`${BASE}/help`, { waitUntil: 'networkidle' })
+  await start.waitForTimeout(400)
+  check('사용설명서가 프로그램 안에 있다', (await start.getByTestId('help-toc').count()) === 1)
+  const tocCount = await start.locator('[data-testid="help-toc"] button').count()
+  check('차례가 만들어진다', tocCount >= 6, `${tocCount}절`)
+  const helpBody = await start.getByTestId('help-body').textContent()
+  check('본문이 그려진다', helpBody.length > 200, `${helpBody.length}자`)
+  check('설명서에 명단 넣는 법이 있다', (await start.textContent('body')).includes('명단'))
+  await start.getByPlaceholder('찾기 — 예: 명단, 인쇄, 영상').fill('감동영상')
+  await start.waitForTimeout(300)
+  const afterSearch = await start.locator('[data-testid="help-toc"] button').count()
+  check('찾으면 그 낱말이 든 절만 남는다', afterSearch > 0 && afterSearch < tocCount, `${afterSearch} / ${tocCount}`)
+  check('머리띠에서 설명서로 갈 수 있다', (await start.getByRole('link', { name: '사용설명서' }).count()) >= 1)
+  await start.screenshot({ path: join(OUT, 'help.jpg'), type: 'jpeg', quality: 82 })
+
+  // 학원 기록
+  await start.goto(`${BASE}/history`, { waitUntil: 'networkidle' })
+  await start.waitForTimeout(400)
+  check('학원 기록 화면이 열린다', (await start.getByRole('heading', { name: '학원 기록' }).count()) === 1)
+  await starterCtx.close()
+
   // ── 한 아이가 여러 곡 ────────────────────────────────────────────
   console.log('\n[한 아이가 여러 곡]')
   const desktop = await browser.newContext({ viewport: { width: 1400, height: 1000 } })
@@ -97,19 +159,19 @@ try {
   wide.on('pageerror', (error) => failures.push(`명단 화면 오류: ${error.message}`))
   await wide.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
 
-  const beforeRows = await wide.locator('table tbody tr').count()
-  const firstName = (await wide.locator('table tbody tr').first().locator('input[aria-label="이름"]').inputValue()).trim()
+  const beforeRows = await wide.getByTestId('roster-table').locator('tbody tr').count()
+  const firstName = (await wide.getByTestId('roster-table').locator('tbody tr').first().locator('input[aria-label="이름"]').inputValue()).trim()
   await wide.getByRole('button', { name: `${firstName} 곡 추가` }).first().click()
   await wide.waitForTimeout(1500)
-  const afterRows = await wide.locator('table tbody tr').count()
+  const afterRows = await wide.getByTestId('roster-table').locator('tbody tr').count()
   check('곡 추가로 한 줄이 늘어난다', afterRows === beforeRows + 1, `${beforeRows} → ${afterRows}`)
 
-  const sameName = await wide.locator(`table tbody tr input[aria-label="이름"]`).evaluateAll(
+  const sameName = await wide.getByTestId('roster-table').locator('tbody tr input[aria-label="이름"]').evaluateAll(
     (nodes, target) => nodes.filter((node) => node.value.trim() === target).length,
     firstName,
   )
   check('같은 아이 이름으로 들어간다', sameName === 2, `${sameName}줄`)
-  const rosterText = await wide.locator('table').textContent()
+  const rosterText = await wide.getByTestId('roster-table').textContent()
   check('몇 곡 중 몇 번째인지 표시한다', rosterText.includes('2곡 중 1번째'), rosterText.slice(0, 80))
   const headText = await wide.locator('h3, [class*="CardTitle"], div').filter({ hasText: /연주자 \d+명/ }).first().textContent()
   check('사람 수와 곡 수를 따로 센다', /연주자 \d+명/.test(headText) && headText.includes('곡'), headText.trim().slice(0, 40))
@@ -283,7 +345,7 @@ try {
   void hinted
   await page.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(700)
-  const rosterHint = await page.locator('table').textContent()
+  const rosterHint = await page.getByTestId('roster-table').textContent()
   check('명단에 지난 무대 실제 시간이 뜬다', rosterHint.includes('지난 무대 실제'), rosterHint.slice(0, 60))
 
   // 이상한 시간은 받지 않는다
@@ -334,7 +396,7 @@ try {
   rosterPage.on('pageerror', (error) => failures.push(`명단 화면 오류: ${error.message}`))
   await rosterPage.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
   await rosterPage.waitForTimeout(600)
-  const cellText = await rosterPage.locator('table tbody tr').first().textContent()
+  const cellText = await rosterPage.getByTestId('roster-table').locator('tbody tr').first().textContent()
   check('명단에 사진 장수가 표시된다', cellText.includes('3'), cellText.slice(0, 40))
 
   await rosterPage.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
@@ -352,7 +414,7 @@ try {
   await rosterPage.goto(`${BASE}/events/${EVENT_ID}?tab=roster`, { waitUntil: 'networkidle' })
   await rosterPage.waitForTimeout(500)
   const secondName = (
-    await rosterPage.locator('table tbody tr').nth(1).locator('input[aria-label="이름"]').inputValue()
+    await rosterPage.getByTestId('roster-table').locator('tbody tr').nth(1).locator('input[aria-label="이름"]').inputValue()
   ).trim()
   await rosterPage.locator('input[type="file"][multiple]').first().setInputFiles([
     { name: `${secondName}-2.jpg`, mimeType: 'image/jpeg', buffer: TINY_JPEG },
@@ -389,6 +451,15 @@ try {
   // 앞선 검사에서 명단 화면으로 옮겨 두었다 — 영상 화면으로 돌아온다
   await rosterPage.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await rosterPage.waitForTimeout(1800)
+
+  // 처음에는 고를 것이 감춰져 있어야 한다 — 컴맹 원장님이 화면을 열자마자 막히지 않게
+  const ready = rosterPage.getByTestId('video-ready')
+  check('그대로 만드셔도 된다고 먼저 말해 준다', (await ready.count()) === 1)
+  check('자세한 설정은 접혀 있다', await rosterPage.getByTestId('record-range').isHidden())
+  await rosterPage.getByTestId('video-advanced-toggle').click()
+  await rosterPage.waitForTimeout(400)
+  check('펴면 자세한 설정이 나온다', await rosterPage.getByTestId('record-range').isVisible())
+
   const rangeBox = rosterPage.getByTestId('record-range')
   check('만들 구간을 고르는 칸이 있다', (await rangeBox.count()) === 1)
   const wholeText = await rangeBox.textContent()
@@ -424,6 +495,9 @@ try {
   })
   await rosterPage.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await rosterPage.waitForTimeout(2000)
+  // 응원 켬·끔은 접혀 있는 쪽에 있다 (그대로 두셔도 되는 것이라)
+  await rosterPage.getByTestId('video-advanced-toggle').click()
+  await rosterPage.waitForTimeout(300)
   const withCheer = await rosterPage.getByTestId('storyboard').textContent()
   check('학부모 응원이 영상 장면으로 들어간다', withCheer.includes('응원'), withCheer.slice(-90))
   // 그 아이 얼굴이 함께 뜨는가 — 콘티 그림에서 밝은 점을 세어 본다

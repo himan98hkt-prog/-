@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { LiveBoard } from '@/components/ops/live-board'
+import { studentPhotos } from '@/lib/assets'
 import { formatEventDate } from '@/lib/format'
 import { normalizeLiveState } from '@/lib/ops/live'
 import { resolvePlan } from '@/lib/program/resolve'
@@ -22,6 +23,8 @@ export default async function LivePage({ params }: { params: { id: string } }) {
 
   const students = await repo.listStudents(event.id)
   const { plan } = resolvePlan(students)
+  // 대기실 강사는 이름만 보고 아이를 데려간다 — 얼굴이 함께 있어야 잘못 짚지 않는다
+  const photos = studentPhotos(academy.assets ?? [], students)
 
   return (
     <AppShell academyName={academy.name}>
@@ -44,6 +47,7 @@ export default async function LivePage({ params }: { params: { id: string } }) {
         event={event}
         plan={plan}
         students={students}
+        photos={photos}
         initialState={normalizeLiveState(event.live_state, plan.items.length + plan.breaks.length)}
       />
 

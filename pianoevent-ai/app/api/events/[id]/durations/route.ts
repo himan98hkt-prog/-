@@ -2,6 +2,7 @@ import { fail, guard, ok, readJson } from '@/lib/http'
 import { ACTUAL_MAX_SEC, ACTUAL_MIN_SEC } from '@/lib/ops/live'
 import { normalizeTimingLog, pushTimings } from '@/lib/ops/timing'
 import { getRepository } from '@/lib/store'
+import type { Level } from '@/lib/types'
 
 /**
  * 당일에 실제로 걸린 시간을 명단에 되돌린다.
@@ -25,7 +26,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // 이 행사의 학생만 고친다 — 남의 명단을 건드릴 수 없게
     const students = await repo.listStudents(params.id)
     const byId = new Map(students.map((student) => [student.id, student]))
-    const rows: { id: string; name: string; duration_sec: number }[] = []
+    const rows: { id: string; name: string; duration_sec: number; level: Level }[] = []
     for (const raw of body.updates) {
       if (!raw || typeof raw !== 'object') continue
       const row = raw as Record<string, unknown>
@@ -35,7 +36,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       if (!student || !Number.isFinite(seconds)) continue
       // 20초 미만·20분 초과는 잘못 누른 것으로 본다 (lib/ops/live.ts 와 같은 기준)
       if (seconds < ACTUAL_MIN_SEC || seconds > ACTUAL_MAX_SEC) continue
-      rows.push({ id, name: student.student_name, duration_sec: Math.round(seconds) })
+      rows.push({ id, name: student.student_name, duration_sec: Math.round(seconds), level: student.level })
     }
     if (rows.length === 0) return fail('반영할 만한 시간이 없습니다.')
 
@@ -47,7 +48,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (academy) {
       const log = pushTimings(
         normalizeTimingLog(academy.timing_log),
-        rows.map((row) => ({ name: row.name, seconds: row.duration_sec })),
+        rows.map((row) => ({ name: row.name, seconds: row.duration_sec, level: row.level })),
       )
       await repo.updateAcademy(academy.id, { timing_log: log })
     }

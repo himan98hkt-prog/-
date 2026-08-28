@@ -31,10 +31,15 @@ export interface LiveEntry {
   planned_sec: number
   /** 이 줄에 해당하는 학생 (휴식은 없다) — 실제 시간을 명단에 되돌릴 때 쓴다 */
   student_id: string | null
+  /**
+   * 그 아이 얼굴.
+   * 대기실 강사는 이름만 보고 아이를 데려간다 — 같은 이름이거나 처음 보는 아이면 잘못 짚는다.
+   */
+  photo?: string
 }
 
 /** 순서표를 그대로 한 줄씩 늘어놓는다 — 휴식도 한 자리를 차지한다 */
-export function buildLiveList(plan: ProgramPlan): LiveEntry[] {
+export function buildLiveList(plan: ProgramPlan, photos: Record<string, string> = {}): LiveEntry[] {
   const out: LiveEntry[] = []
   const breaksByOrder = new Map(plan.breaks.map((b) => [b.after_order_no, b]))
 
@@ -61,6 +66,7 @@ export function buildLiveList(plan: ProgramPlan): LiveEntry[] {
       planned_offset_sec: item.start_offset_sec,
       planned_sec: item.duration_sec,
       student_id: item.student.id,
+      photo: photos[item.student.id],
     })
   }
   return out

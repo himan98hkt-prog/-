@@ -108,6 +108,17 @@ try {
   await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(900)
 
+  // 테마·길이·로고·구간·초대장은 "자세히 고치기" 안에 접혀 있다 (원장님은 그냥 만드시면 된다).
+  // 검사할 때만 펴 준다.
+  const openAdvanced = async () => {
+    const toggle = page.getByTestId('video-advanced-toggle')
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+      await toggle.click()
+      await page.waitForTimeout(350)
+    }
+  }
+
+
   check('감동영상 화면이 열린다', (await page.getByRole('heading', { name: '감동영상' }).count()) === 1)
   const canvas = page.locator('canvas')
   check('미리보기 화면이 있다', (await canvas.count()) === 1)
@@ -233,6 +244,7 @@ try {
   await page.request.patch(`${BASE}/api/academy`, { data: { logo_url: logo } })
   await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1200)
+  await openAdvanced()
 
   const logoBox = page.getByTestId('logo-place')
   check('로고 자리를 고르는 칸이 있다', (await logoBox.count()) === 1)
@@ -273,6 +285,7 @@ try {
 
   await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1000)
+  await openAdvanced()
   const reopened = page.getByTestId('video-templates').locator('button[aria-pressed="true"]')
   check('다시 열면 저장해 둔 템플릿으로 시작한다', (await reopened.textContent()) === savedTemplate, savedTemplate ?? '')
   const reopenedLogo = await page

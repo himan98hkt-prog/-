@@ -501,7 +501,15 @@ BODY = """
         <p class="only">사진은 휴대폰 밖으로 안 나감</p>
       </div>
       <div class="feat reveal" style="--d:1.40s">
-        <p class="n">21 &nbsp;인터넷 &middot; AI 키 없이</p>
+        <p class="n">21 &nbsp;프로그램 안 사용설명서</p>
+        <h4>막히면 위쪽 &ldquo;사용설명서&rdquo;</h4>
+        <p>설명서가 프로그램 밖에 있으면 못 찾습니다. <b>머리띠에서 한 번</b>이면 열립니다.
+        찾는 칸에 &ldquo;명단&rdquo; 한 낱말만 치면 그 대목만 남고, <b>한 부 인쇄</b>해 두시면 컴퓨터를
+        켜지 않고도 보십니다. 명단 <b>양식 파일</b>도 여기서 받습니다.</p>
+        <p class="only">첫 화면에서 막히지 않게</p>
+      </div>
+      <div class="feat reveal" style="--d:1.47s">
+        <p class="n">22 &nbsp;인터넷 &middot; AI 키 없이</p>
         <h4>이 컴퓨터 안에서 전부 만들어집니다</h4>
         <p>AI 키를 넣지 않아도 순서표 &middot; 대본 &middot; 인쇄물 &middot; 무대 화면이 전부 나옵니다.
         학생 이름과 사진은 <b>학원 컴퓨터 밖으로 나가지 않습니다.</b>
@@ -509,6 +517,30 @@ BODY = """
         <p class="only">설정 화면에서 지금 상태를 보여 줌</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ── 명단 넣기는 이렇게 ────────────────────────────── -->
+<section class="usp">
+  <div class="inner">
+    <p class="eyebrow reveal">시작 &middot; 명단 넣기</p>
+    <h2 class="reveal" style="--d:0.1s">양식 파일에<br><span class="accent">이름만 바꿔</span> 넣으시면 됩니다</h2>
+    <p class="lead reveal" style="--d:0.15s">
+      가장 많이 막히시는 자리라 세 가지를 한자리에 두었습니다 &mdash;
+      <b>예시가 채워진 엑셀 파일</b>, 칸마다 무엇을 적는지, 자주 하는 실수까지.
+    </p>
+    <div class="list reveal" style="--d:0.2s">
+      <div class="item"><span class="mk">✓</span><span><b>[명단 양식 내려받기]</b> &mdash; 엑셀에서 바로 열립니다 (한글 안 깨집니다)</span></div>
+      <div class="item"><span class="mk">✓</span><span>예시 줄을 <b>우리 아이들 이름으로</b> 바꾸고 표를 통째로 복사</span></div>
+      <div class="item"><span class="mk">✓</span><span>프로그램에 붙여넣고 <b>[명단에 추가]</b> &mdash; 끝입니다</span></div>
+      <div class="item"><span class="mk">✓</span><span><b>이름 한 칸</b>만 있으면 됩니다. 나머지는 비워 두셔도 됩니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>작곡가 &middot; 연주시간을 비우면 <b>곡 사전이 알아서</b> 채웁니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>머리글이 없어도, 사이에 빈 줄이 있어도 <b>알아서 읽습니다</b></span></div>
+    </div>
+    <p class="lead reveal" style="--d:0.25s">
+      두 번째 해부터는 <b>[지난 행사에서 명단 가져오기]</b> 한 번이면 됩니다 &mdash;
+      이름 &middot; 난이도 &middot; <b>아이 사진</b>까지 그대로 따라옵니다.
+    </p>
   </div>
 </section>
 
@@ -726,6 +758,15 @@ BODY = """
         <span>무대 화면 연주자 슬라이드</span><span>파워포인트 .pptx</span><span>감동영상 장면</span>
       </div>
       <p class="last">한 번 넣으면 세 곳에 함께 들어갑니다</p>
+    </div>
+
+    <div class="notice reveal" style="--d:0.18s">
+      <p class="n-title">&#9989; 고르실 것이 없습니다</p>
+      <p>화면의 설정은 <strong>그대로 두셔도</strong> 좋은 영상이 나오게 맞춰 두었습니다.
+      감동영상 화면을 여시면 <strong>&ldquo;이대로 만드셔도 됩니다&rdquo;</strong> 와 함께 이미 짜인
+      장면이 그림으로 깔려 있고, 왼쪽 <strong>[영상 만들기]</strong> 하나만 누르시면 됩니다.
+      테마 &middot; 길이 &middot; 로고 &middot; 구간 같은 것은 <strong>접혀 있습니다</strong> &mdash;
+      바꾸고 싶으실 때만 펴시면 됩니다.</p>
     </div>
 
     <div class="notice reveal" style="--d:0.2s">

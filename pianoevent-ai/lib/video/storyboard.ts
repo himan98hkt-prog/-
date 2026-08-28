@@ -370,3 +370,19 @@ export function moveScene(scenes: VideoScene[], index: number, delta: number): V
   next.splice(target, 0, moved)
   return next
 }
+
+/**
+ * 응원 메시지가 있는 구간 (머릿말 포함).
+ *
+ * 연주회 전날 밤에 영상을 만드는데 회신은 당일 아침에도 온다.
+ * 그때 전체를 다시 만들 이유가 없다 — 응원 부분만 다시 만들어 뒤에 이으면 된다.
+ */
+export function cheerRange(scenes: VideoScene[]): { from: number; to: number } | null {
+  const first = scenes.findIndex((scene) => scene.id === 'cheer-intro' || scene.kind === 'message')
+  if (first < 0) return null
+  let last = first
+  for (let i = first; i < scenes.length; i += 1) {
+    if (scenes[i].kind === 'message' || scenes[i].id === 'cheer-intro') last = i
+  }
+  return { from: first, to: last }
+}

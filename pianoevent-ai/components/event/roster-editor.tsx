@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PieceInput } from '@/components/event/piece-input'
+import { RosterGuide } from '@/components/event/roster-guide'
 import { FieldHint, Input, Label, Select, Textarea } from '@/components/ui/field'
 import { formatDuration } from '@/lib/format'
 import { averageTiming, timingHint, type TimingLog } from '@/lib/ops/timing'
 import { performerCount, pieceIndex } from '@/lib/program/appearances'
 import { CATALOG_SIZE, type CatalogEntry } from '@/lib/program/catalog'
 import { parseRoster } from '@/lib/program/roster'
+import { rosterSampleText } from '@/lib/program/template'
 import { BulkPhotoUpload, StudentPhotoCell } from '@/components/event/student-photos'
 import type { AcademyAsset } from '@/lib/assets'
 import { FACE_SHRINK, shrinkImage } from '@/lib/image'
@@ -20,9 +22,7 @@ import { LEVEL_LABEL, type EventStudent, type Level } from '@/lib/types'
 
 const LEVELS = Object.keys(LEVEL_LABEL) as Level[]
 
-const SAMPLE = `이름\t연주곡\t작곡가\t소요시간\t난이도\t비고
-김서연\t엘리제를 위하여\t베토벤\t3:30\t중급\t세 번째 무대입니다
-박지호\t즐거운 나의 집\t비숍\t1:10\t초급\t시작한 지 다섯 달`
+const SAMPLE = rosterSampleText()
 
 export function RosterEditor({
   eventId,
@@ -311,15 +311,17 @@ export function RosterEditor({
             엑셀에서 붙여넣기
           </CardTitle>
           <CardDescription>
-            엑셀·구글시트에서 표를 복사해 그대로 붙여넣으세요. 헤더(이름·연주곡·작곡가·시간·난이도·비고)를 자동으로
-            인식합니다. 곡은 원장님이 정하신 것을 그대로 적으시면 됩니다 — 악보는 학원에서 쓰시던 것을 씁니다.
+            엑셀·구글시트에서 표를 복사해 그대로 붙여넣으세요. 머리글이 있어도 없어도 알아서 읽습니다.
             <strong className="text-foreground">
               {' '}
               작곡가나 연주시간을 비워 두시면 곡 사전 {CATALOG_SIZE}곡에서 알아서 채웁니다.
-            </strong>
+            </strong>{' '}
+            악보는 학원에서 쓰시던 것을 그대로 쓰십니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
+          <RosterGuide />
+          <p className="text-sm font-medium">여기에 붙여넣으세요</p>
           <Textarea
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
@@ -406,7 +408,7 @@ export function RosterEditor({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[720px] text-sm" data-testid="roster-table">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-4 py-2 font-medium">사진</th>
@@ -503,8 +505,8 @@ export function RosterEditor({
                         {(() => {
                           // 이 아이가 지난 무대에서 실제로 걸린 시간 — 책의 평균보다 이쪽이 낫다.
                           // 지금 값과 같으면 굳이 보여 주지 않는다
-                          const known = averageTiming(timings, s.student_name)
-                          const hint = timingHint(timings, s.student_name)
+                          const known = averageTiming(timings, s.student_name, s.level)
+                          const hint = timingHint(timings, s.student_name, s.level)
                           if (known === null || !hint || Math.abs(known - s.duration_sec) <= 5) return null
                           return (
                             <button

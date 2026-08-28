@@ -4,6 +4,9 @@ import { cn } from '@/lib/utils'
 const NAV = [
   { href: '/events', label: '행사' },
   { href: '/seasons', label: '시즌 특강' },
+  { href: '/history', label: '기록' },
+  // 설명서는 늘 손 닿는 곳에 있어야 한다 — 막혔을 때 찾아 나서게 하면 안 된다
+  { href: '/help', label: '사용설명서' },
   { href: '/settings', label: '설정' },
 ]
 

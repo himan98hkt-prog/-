@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { LiveBoard } from '@/components/ops/live-board'
 import { getTheme, themeVars } from '@/lib/design/themes'
+import { studentPhotos } from '@/lib/assets'
 import { formatEventDate } from '@/lib/format'
 import { FollowGate } from '@/components/ops/follow-gate'
 import { liveCodeAllows, normalizeLiveState } from '@/lib/ops/live'
@@ -35,6 +36,8 @@ export default async function PublicLivePage({
   if (!academy) notFound()
 
   const { plan } = resolvePlan(students)
+  // 대기실 강사는 이름만 보고 아이를 데려간다 — 얼굴이 함께 있어야 잘못 짚지 않는다
+  const photos = studentPhotos(academy.assets ?? [], students)
   const theme = getTheme(event.design_theme ?? academy.design_theme)
   // 코드를 걸어 두셨으면 코드를 아는 화면만 따라온다
   const allowed = liveCodeAllows(event.live_code, searchParams.k)
@@ -73,6 +76,7 @@ export default async function PublicLivePage({
             <LiveBoard
               event={event}
               plan={plan}
+              photos={photos}
               initialState={normalizeLiveState(event.live_state, plan.items.length + plan.breaks.length)}
               canLead={false}
               followCode={event.live_code ? searchParams.k ?? null : null}

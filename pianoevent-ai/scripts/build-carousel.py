@@ -418,8 +418,8 @@ S.append(slide(11, TOTAL,
     </div>
     <div class="list" style="margin-top:14px">
       <div class="item"><span class="mk">✓</span><span>30명이라도 <b>파일 이름으로 한꺼번에</b> 짝지어 줍니다</span></div>
+      <div class="item"><span class="mk">✓</span><span>리허설에서 <b>휴대폰으로 찍으면</b> 그날 저녁 영상에</span></div>
       <div class="item"><span class="mk">✓</span><span><b>감동영상 템플릿 10종</b> — 꽉 찬 사진 · 배경 위 액자</span></div>
-      <div class="item"><span class="mk">✓</span><span><b>만들기 전에 장면 전부가 그림으로</b> 뜹니다</span></div>
       <div class="item"><span class="mk">✓</span><span><b>2배 · 4배</b>로 확인하고 <b>학원 로고</b>를 구석에</span></div>
       <div class="item"><span class="mk">✓</span><span>아이당 <b>사진 여러 장</b> · <b>응원 메시지에 그 아이 얼굴</b></span></div>
       <div class="item"><span class="mk">✓</span><span>영상 주소를 붙이면 <b>초대장 안에서 바로 재생</b></span></div>
@@ -446,6 +446,9 @@ S.append(slide(12, TOTAL, dark=True,
       <p class="t">당일 진행 · 사진 모으기 — 휴대폰</p>
       <p class="d">무대 옆에서 <b>&ldquo;지금 · 다음&rdquo;</b>이 크게. 리허설 사진은 찍는 즉시 영상에.</p>
     </div>'''))
+
+# 12.5 쉽게 시작하기 — 명단과 설명서 ─────────────────────────
+# (번호는 아래에서 이어 붙이므로 슬라이드 수는 그대로 둔다)
 
 # 13 점검 ───────────────────────────────────────────────────
 S.append(slide(13, TOTAL,

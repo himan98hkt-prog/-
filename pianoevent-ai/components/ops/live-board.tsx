@@ -44,6 +44,7 @@ export function LiveBoard({
   event,
   plan,
   students = [],
+  photos = {},
   initialState = null,
   canLead = true,
   followCode = null,
@@ -52,6 +53,8 @@ export function LiveBoard({
   plan: ProgramPlan
   /** 실제 시간을 명단에 되돌릴 때 쓴다 */
   students?: EventStudent[]
+  /** 학생 id → 사진 — 대기실에서 아이를 잘못 짚지 않게 */
+  photos?: Record<string, string>
   /** 서버에 올라와 있던 진행 상태 */
   initialState?: LiveState | null
   /** 넘길 수 있는 화면인가 (따라보기 화면은 false) */
@@ -59,7 +62,7 @@ export function LiveBoard({
   /** 따라보기 열쇠 — 서버에 물어볼 때 함께 보낸다 */
   followCode?: string | null
 }) {
-  const list = useMemo(() => buildLiveList(plan), [plan])
+  const list = useMemo(() => buildLiveList(plan, photos), [plan, photos])
   const [state, setState] = useState<LiveState>(() => normalizeLiveState(initialState, list.length))
   /** 지금 시각(ms) — 1초마다 다시 그린다 */
   const [now, setNow] = useState(0)
@@ -238,15 +241,28 @@ export function LiveBoard({
         )}
       >
         <p className="text-xs font-medium tracking-widest text-accent">지금</p>
-        <p className="mt-1 flex flex-wrap items-baseline gap-2">
-          {current?.order_no ? (
-            <span className="text-3xl font-bold tabular-nums text-accent">{current.order_no}</span>
-          ) : null}
-          <span className="text-3xl font-bold leading-tight" data-testid="live-now">
-            {current?.title ?? '—'}
-          </span>
-        </p>
-        {current?.detail && <p className="mt-1 text-base text-muted-foreground">{current.detail}</p>}
+        <div className="mt-1 flex items-start gap-3">
+          {current?.photo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={current.photo}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-full border border-accent/50 object-cover"
+              data-testid="live-now-photo"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-baseline gap-2">
+              {current?.order_no ? (
+                <span className="text-3xl font-bold tabular-nums text-accent">{current.order_no}</span>
+              ) : null}
+              <span className="text-3xl font-bold leading-tight" data-testid="live-now">
+                {current?.title ?? '—'}
+              </span>
+            </p>
+            {current?.detail && <p className="mt-1 text-base text-muted-foreground">{current.detail}</p>}
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="tabular-nums">예정 {formatWallClock(event.event_at, planned)}</span>
           {state.started_at ? (
@@ -273,17 +289,28 @@ export function LiveBoard({
 
       {/* 다음 · 그다음 */}
       <section className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-lg border border-border p-4">
-          <p className="text-xs font-medium tracking-widest text-muted-foreground">다음</p>
-          <p className="mt-1 text-xl font-semibold" data-testid="live-next">
-            {next ? `${next.order_no ? `${next.order_no}. ` : ''}${next.title}` : '없음 (마지막)'}
-          </p>
-          {next?.detail && <p className="mt-0.5 text-sm text-muted-foreground">{next.detail}</p>}
-          {next && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              대기실에서 <strong className="text-foreground">{next.title}</strong> 을(를) 무대 옆으로
-            </p>
+        <div className="flex items-start gap-3 rounded-lg border border-border p-4">
+          {next?.photo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={next.photo}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-full border border-border object-cover"
+              data-testid="live-next-photo"
+            />
           )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium tracking-widest text-muted-foreground">다음</p>
+            <p className="mt-1 text-xl font-semibold" data-testid="live-next">
+              {next ? `${next.order_no ? `${next.order_no}. ` : ''}${next.title}` : '없음 (마지막)'}
+            </p>
+            {next?.detail && <p className="mt-0.5 text-sm text-muted-foreground">{next.detail}</p>}
+            {next && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                대기실에서 <strong className="text-foreground">{next.title}</strong> 을(를) 무대 옆으로
+              </p>
+            )}
+          </div>
         </div>
         <div className="rounded-lg border border-border p-4">
           <p className="text-xs font-medium tracking-widest text-muted-foreground">그다음</p>

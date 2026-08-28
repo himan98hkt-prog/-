@@ -109,3 +109,110 @@
     page-break-inside: avoid;
   }
 }
+
+/* ── 사용설명서 본문 ──────────────────────────────────────────
+   설명서는 글이 전부다. 읽는 데만 도움이 되게 최소한으로 꾸민다. */
+.help-prose {
+  color: hsl(var(--foreground));
+  line-height: 1.85;
+  font-size: 0.95rem;
+  max-width: 46rem;
+}
+.help-prose h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+}
+.help-prose h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid hsl(var(--border));
+}
+.help-prose h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.4rem 0 0.4rem;
+}
+.help-prose p {
+  margin: 0.7rem 0;
+}
+.help-prose ul,
+.help-prose ol {
+  margin: 0.7rem 0;
+  padding-left: 1.3rem;
+  list-style: revert;
+}
+.help-prose li {
+  margin: 0.3rem 0;
+}
+.help-prose code {
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.88em;
+}
+.help-prose pre {
+  background: hsl(var(--secondary));
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  margin: 0.9rem 0;
+}
+.help-prose pre code {
+  background: none;
+  padding: 0;
+}
+.help-prose blockquote {
+  border-left: 3px solid hsl(var(--accent));
+  background: hsl(var(--accent) / 0.06);
+  border-radius: 0 8px 8px 0;
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+}
+.help-prose blockquote p {
+  margin: 0.35rem 0;
+}
+.help-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  display: block;
+  overflow-x: auto;
+}
+.help-prose th,
+.help-prose td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+.help-prose th {
+  background: hsl(var(--secondary));
+  font-weight: 600;
+  white-space: nowrap;
+}
+.help-prose hr {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.6rem 0;
+}
+.help-prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media print {
+  .help-prose {
+    max-width: none;
+    font-size: 10.5pt;
+  }
+  .help-prose h2 {
+    page-break-before: always;
+  }
+  .help-prose section:first-child h2 {
+    page-break-before: auto;
+  }
+}

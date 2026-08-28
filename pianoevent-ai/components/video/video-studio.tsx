@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  ChevronDown,
   Download,
   Film,
   Gauge,
@@ -62,6 +63,7 @@ import {
   isTextOnly,
   moveScene,
   sceneLabel,
+  cheerRange,
   sortByFileName,
   totalSeconds,
   type CaptionPlace,
@@ -155,6 +157,11 @@ export function VideoStudio({
    * 한 토막이 짧아 다시 만들기도 쉽고, 나중에 이어 붙이시면 된다.
    */
   const [range, setRange] = useState<{ from: number; to: number } | null>(null)
+  /**
+   * 고칠 것이 많으면 그것대로 막힌다.
+   * 처음에는 **고르지 않아도 되는 것**을 감춰 둔다 — 그대로 만드셔도 좋은 영상이 나온다.
+   */
+  const [advanced, setAdvanced] = useState(false)
   /** 만들다 끊긴 것인가 — 그래도 담긴 데까지는 드린다 */
   const recorderRef = useRef<MediaRecorder | null>(null)
   const abortedRef = useRef(false)
@@ -494,7 +501,14 @@ export function VideoStudio({
     }
   }
 
-  async function record() {
+  /**
+   * 영상 담기.
+   *
+   * `override` 를 주면 그 구간만 담는다. 화면의 구간 상태를 바꾼 **직후**에도
+   * 바로 담을 수 있어야 해서다 — 상태는 다음 그림에서야 바뀌므로 그때까지
+   * 기다리면 엉뚱한 구간이 담긴다.
+   */
+  async function record(override?: { from: number; to: number }) {
     const canvas = canvasRef.current
     if (!canvas || !recordType) return
     setWarning(null)
@@ -502,7 +516,15 @@ export function VideoStudio({
     setRecording(true)
     setClock(0)
     abortedRef.current = false
-    const line = recordTimeline
+    const span = override ?? range
+    const line = override
+      ? buildTimeline(
+          scenes.slice(
+            Math.min(Math.max(0, override.from), scenes.length - 1),
+            Math.min(Math.max(0, override.to), scenes.length - 1) + 1,
+          ),
+        )
+      : recordTimeline
 
     const stream = canvas.captureStream(30)
     const audio = new AudioContext()
@@ -583,8 +605,8 @@ export function VideoStudio({
     const info = describeRecordType(recorder.mimeType || recordType)
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
     const partial = abortedRef.current
-    const label = range
-      ? ` ${range.from + 1}-${Math.min(range.to, scenes.length - 1) + 1}장면`
+    const label = span
+      ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
       : ''
     const madeUrl = URL.createObjectURL(blob)
     // 만든 것은 토막 목록에 남겨 둔다 — 나중에 한 편으로 이을 수 있게
@@ -592,7 +614,7 @@ export function VideoStudio({
       ...prev,
       {
         id: `part-${Date.now()}`,
-        label: `${range ? `${range.from + 1}-${Math.min(range.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
+        label: `${span ? `${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
         url: madeUrl,
         seconds: partial ? Math.round(clockRef.current) : Math.round(line.total),
         made: true,
@@ -627,6 +649,10 @@ export function VideoStudio({
     setResult(null)
     setJoining('준비 중…')
     abortedRef.current = false
+
+    // 이 컴퓨터에 빠른 잇기 도구가 있으면 몇 초에 끝난다. 원장님께 묻지 않는다 —
+    // 있으면 쓰고 없으면 하던 대로 다시 담는다
+    if (await joinFast()) return
 
     // 토막을 미리 다 읽어 둔다 — 트는 도중에 읽으면 사이가 끊긴다
     const players: HTMLVideoElement[] = []
@@ -742,6 +768,44 @@ export function VideoStudio({
     })
     setJoining(null)
     draw(0)
+  }
+
+  /**
+   * 빠른 잇기 — 이 컴퓨터에 도구가 있을 때만.
+   * 되면 true, 안 되면 false 를 돌려주고 부르는 쪽이 하던 대로 간다.
+   */
+  async function joinFast(): Promise<boolean> {
+    try {
+      const probe = await fetch('/api/video/join')
+      if (!probe.ok || !(await probe.json()).available) return false
+      setJoining('빠르게 잇는 중…')
+
+      const form = new FormData()
+      for (const [index, part] of parts.entries()) {
+        const blob = await (await fetch(part.url)).blob()
+        const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+        form.append('parts', new File([blob], `part-${index}.${ext}`, { type: blob.type }))
+      }
+      const res = await fetch('/api/video/join', { method: 'POST', body: form })
+      if (!res.ok) return false
+
+      const blob = await res.blob()
+      if (blob.size < 1000) return false
+      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+      setResult({
+        url: URL.createObjectURL(blob),
+        label: `${parts.length}토막을 이음 · 빠르게`,
+        note: '이 컴퓨터에 있는 도구로 몇 초 만에 이었습니다. 다시 담지 않아 화질도 그대로입니다.',
+        name: joinedName(event.title, ext),
+        bytes: blob.size,
+        partial: false,
+      })
+      setJoining(null)
+      return true
+    } catch {
+      // 빠른 길이 막히면 조용히 제 길로 간다 — 원장님은 몰라도 된다
+      return false
+    }
   }
 
   function addParts(files: FileList) {
@@ -968,6 +1032,17 @@ export function VideoStudio({
       </div>
 
       <div className="grid content-start gap-4">
+        <section className="grid gap-1.5 rounded-lg border border-accent/40 bg-accent/5 p-3" data-testid="video-ready">
+          <p className="text-sm font-medium">이대로 만드셔도 됩니다</p>
+          <p className="text-xs text-muted-foreground">
+            명단과 아이 사진에서 <strong>{scenes.length}장면 · {formatLength(length)}</strong> 짜리가 이미 짜여 있습니다.
+            아래 그림이 나올 화면 그대로입니다. 왼쪽 <strong>[영상 만들기]</strong> 만 누르시면 됩니다.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            바꾸고 싶은 것이 있을 때만 아래를 손보세요.
+          </p>
+        </section>
+
         <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="video-templates">
           <p className="text-sm font-medium">
             0 · 영상 템플릿 · {VIDEO_TEMPLATES.length}종
@@ -1095,7 +1170,21 @@ export function VideoStudio({
           </p>
         </section>
 
-        <section className="grid gap-2 rounded-lg border border-border p-3">
+        <div className="no-print">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setAdvanced((prev) => !prev)}
+            aria-expanded={advanced}
+            data-testid="video-advanced-toggle"
+          >
+            <ChevronDown className={cn('mr-1 h-4 w-4 transition-transform', advanced && 'rotate-180')} />
+            {advanced ? '자세한 설정 접기' : '자세히 고치기 — 테마 · 길이 · 로고 · 구간 · 초대장'}
+          </Button>
+        </div>
+
+        <section className={cn('grid gap-2 rounded-lg border border-border p-3', !advanced && 'hidden')}>
           <p className="text-sm font-medium">4 · 모양과 길이</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setPickerOpen((prev) => !prev)}>
@@ -1214,7 +1303,10 @@ export function VideoStudio({
           </div>
         </section>
 
-        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="record-range">
+        <section
+          className={cn('grid gap-2 rounded-lg border border-border p-3', !advanced && 'hidden')}
+          data-testid="record-range"
+        >
           <p className="text-sm font-medium">
             5 · 만들 구간
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">토막을 나눠 만들 수 있습니다</span>
@@ -1275,7 +1367,10 @@ export function VideoStudio({
           </p>
         </section>
 
-        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="join-parts">
+        <section
+          className={cn('grid gap-2 rounded-lg border border-border p-3', !advanced && 'hidden')}
+          data-testid="join-parts"
+        >
           <p className="text-sm font-medium">
             6 · 토막을 한 편으로 잇기
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -1322,6 +1417,33 @@ export function VideoStudio({
               ))}
             </ul>
           )}
+          {/* 연주회 전날 밤에 만들었는데 회신이 당일 아침에 온다 — 그 부분만 다시 만들면 된다 */}
+          {(() => {
+            const cheer = cheerRange(scenes)
+            if (!cheer) return null
+            const seconds = scenes.slice(cheer.from, cheer.to + 1).reduce((sum, scene) => sum + scene.seconds, 0)
+            return (
+              <div className="grid gap-1 rounded-md border border-accent/40 bg-accent/5 px-3 py-2">
+                <p className="text-xs">
+                  <strong>응원이 새로 왔나요?</strong> 전체를 다시 만들지 마시고 응원 부분만 만들어 뒤에 이으세요 —{' '}
+                  <strong>{formatLength(seconds)}</strong> 면 됩니다.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-fit"
+                  disabled={recording || playing || !!joining || !recordType}
+                  onClick={() => {
+                    setRange(cheer)
+                    void record(cheer)
+                  }}
+                >
+                  <MessageSquareHeart className="mr-1 h-4 w-4" />
+                  응원 부분만 만들기
+                </Button>
+              </div>
+            )
+          })()}
           <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-input px-3 text-sm hover:bg-secondary">
               <Film className="mr-1 h-4 w-4" />
@@ -1350,26 +1472,31 @@ export function VideoStudio({
           </div>
           <p className="text-xs text-muted-foreground">
             {joinBlocker(parts) ??
-              `잇는 데 ${formatLength(partsSeconds(parts))} 걸립니다 — 토막을 차례로 틀면서 다시 담기 때문입니다.`}
+              `이 컴퓨터에 빠른 잇기 도구가 있으면 몇 초, 없으면 ${formatLength(partsSeconds(parts))} 걸립니다.`}
           </p>
           <p className="text-xs text-muted-foreground">
             영상 파일은 <strong>그냥 이어 붙일 수 없습니다.</strong> 앞머리에 전체 길이와 자리표가 들어 있어
-            바이트로 붙이면 재생기마다 다르게 굽니다. 그래서 <strong>다시 한 번 담습니다</strong> —
-            시간이 걸리는 대신 나오는 것은 진짜 한 편입니다.
+            바이트로 붙이면 재생기마다 다르게 굽니다. 그래서 도구가 없으면 <strong>다시 한 번 담습니다</strong> —
+            시간이 걸리는 대신 나오는 것은 진짜 한 편입니다. <strong>고르실 것은 없습니다</strong> —
+            빠른 길이 있으면 알아서 그쪽으로 갑니다.
           </p>
         </section>
 
-        <PrefsBar
-          eventId={event.id}
-          field="video_prefs"
-          label="영상 설정"
-          prefs={currentPrefs}
-          saved={savedPrefs}
-          past={pastPrefs}
-          onLoad={applyPrefs}
-        />
+        <div className={cn(!advanced && 'hidden')}>
+          <PrefsBar
+            eventId={event.id}
+            field="video_prefs"
+            label="영상 설정"
+            prefs={currentPrefs}
+            saved={savedPrefs}
+            past={pastPrefs}
+            onLoad={applyPrefs}
+          />
+        </div>
 
-        <InviteVideoLink eventId={event.id} initialUrl={event.video_url} />
+        <div className={cn(!advanced && 'hidden')}>
+          <InviteVideoLink eventId={event.id} initialUrl={event.video_url} />
+        </div>
       </div>
     </div>
   )

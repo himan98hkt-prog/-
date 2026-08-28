@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           student_name: row.student_name,
           piece_title: keepPieces ? row.piece_title : '',
           composer: keepPieces ? row.composer : '',
-          duration_sec: keepPieces ? row.duration_sec : averageTiming(timings, row.student_name),
+          duration_sec: keepPieces ? row.duration_sec : averageTiming(timings, row.student_name, row.level),
           level: row.level,
           note: row.note,
           photo_asset_id: photos[0] ?? null,
@@ -59,7 +59,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const withPhoto = imported.filter((row) => row.photo_asset_id).length
     const withTiming = keepPieces
       ? 0
-      : rows.filter((row) => averageTiming(timings, row.student_name) !== null).length
+      : rows.filter((row) => averageTiming(timings, row.student_name, row.level) !== null).length
     return ok(
       { students: imported, from: source.title, keep_pieces: keepPieces, with_photo: withPhoto, with_timing: withTiming },
       201,
