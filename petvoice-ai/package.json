@@ -1,0 +1,37 @@
+{
+  "name": "petvoice-ai",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "description": "PetVoice AI - 반려동물 울음소리 & 행동 심리 멀티모달 분석기 (Expo)",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "expo": "~51.0.39",
+    "expo-av": "~14.0.7",
+    "expo-camera": "~15.0.16",
+    "expo-constants": "~16.0.2",
+    "expo-file-system": "~17.0.1",
+    "expo-image-picker": "~15.0.7",
+    "expo-sharing": "~12.0.1",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-view-shot": "3.8.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "~18.2.79",
+    "typescript": "~5.3.3",
+    "vitest": "^2.1.8"
+  }
+}

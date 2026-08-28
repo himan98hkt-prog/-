@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "PetVoice AI",
+    "slug": "petvoice-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "petvoice",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF9F4"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.petvoice.ai",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "반려동물의 울음소리를 녹음해 감정을 분석하는 데만 사용합니다.",
+        "NSCameraUsageDescription": "반려동물의 자세와 표정을 촬영해 행동을 분석하는 데만 사용합니다.",
+        "NSPhotoLibraryUsageDescription": "저장된 반려동물 사진으로 분석하거나 포토카드를 만들기 위해 사용합니다.",
+        "NSPhotoLibraryAddUsageDescription": "만든 포토카드를 사진 앱에 저장하기 위해 사용합니다."
+      }
+    },
+    "android": {
+      "package": "app.petvoice.ai",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFF9F4"
+      },
+      "permissions": ["RECORD_AUDIO", "CAMERA", "READ_MEDIA_IMAGES"],
+      "blockedPermissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "READ_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "반려동물의 자세와 표정을 촬영해 행동을 분석하는 데만 사용합니다.",
+          "microphonePermission": "반려동물의 울음소리를 녹음해 감정을 분석하는 데만 사용합니다.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "저장된 반려동물 사진으로 분석하거나 포토카드를 만들기 위해 사용합니다."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "반려동물의 울음소리를 녹음해 감정을 분석하는 데만 사용합니다."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}
