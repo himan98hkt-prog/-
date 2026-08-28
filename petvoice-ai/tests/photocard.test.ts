@@ -43,7 +43,7 @@ describe('layoutPhotoCard', () => {
 
   it('감정 뱃지에 라벨과 색이 실린다', () => {
     const layout = layoutPhotoCard({ width: 320, message: '아파…', emotion: 'pain' });
-    expect(layout.badge.label).toBe('통증 호소');
+    expect(layout.badge.labelKey).toBe('emotion.pain');
     expect(layout.badge.emoji).toBe('🤕');
   });
 

@@ -13,9 +13,13 @@ export async function analyze(input: AnalyzeInput): Promise<AnalyzeOutput> {
   return analyzePetMedia(proxyConfig(), input);
 }
 
-export async function weeklyReport(pet: AnalyzeInput['pet'], digest: string): Promise<WeeklyReport | null> {
+export async function weeklyReport(
+  pet: AnalyzeInput['pet'],
+  digest: string,
+  locale: AnalyzeInput['locale'],
+): Promise<WeeklyReport | null> {
   if (!isConfigured) return null;
-  return requestWeeklyReport(proxyConfig(), pet, digest);
+  return requestWeeklyReport(proxyConfig(), pet, digest, locale);
 }
 
 export { isConfigured };

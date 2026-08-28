@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, userMessage } from '../src/api/errors';
+import { ApiError, userMessageKey } from '../src/api/errors';
 import { analyzePetMedia, type ProxyConfig } from '../src/api/proxy';
 import type { PetProfile } from '../src/core/types';
 
@@ -32,7 +32,14 @@ function fail(status: number, body = ''): Response {
   return { ok: false, status, text: async () => body } as Response;
 }
 
-const input = { pet, mediaBase64: 'AAAA', mediaType: 'audio/m4a' as const, context: '외출 직전' };
+const input = {
+  pet,
+  mediaBase64: 'AAAA',
+  mediaType: 'audio/m4a' as const,
+  context: '외출 직전',
+  contextTags: ['separation' as const],
+  locale: 'ko' as const,
+};
 
 describe('analyzePetMedia', () => {
   it('사용자 토큰만 보내고 AI 키는 절대 싣지 않는다', async () => {
@@ -87,6 +94,6 @@ describe('analyzePetMedia', () => {
     const error = await analyzePetMedia(config(fetchImpl), input).catch((e) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error.code).toBe('parse');
-    expect(userMessage(error)).toContain('한 번만 더');
+    expect(userMessageKey(error)).toBe('errors.parse');
   });
 });

@@ -22,22 +22,10 @@ export class ApiError extends Error {
   }
 }
 
-const MESSAGES: Record<ApiErrorCode, string> = {
-  network: '인터넷 연결을 확인해 주세요.',
-  timeout: '분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.',
-  unauthorized: '로그인이 만료됐어요. 앱을 다시 열어 주세요.',
-  quota: '오늘 무료 분석을 모두 사용했어요.',
-  rate_limited: '요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.',
-  unsupported_media: '이 파일은 분석할 수 없어요. 다시 녹음하거나 촬영해 주세요.',
-  server: '분석 서버에 문제가 있어요. 잠시 후 다시 시도해 주세요.',
-  parse: '분석 결과를 읽지 못했어요. 한 번만 더 시도해 주세요.',
-  unknown: '알 수 없는 오류가 발생했어요.',
-};
-
-/** 사용자에게 보여줄 문구 (기술 용어 없이) */
-export function userMessage(error: unknown): string {
-  if (error instanceof ApiError) return MESSAGES[error.code];
-  return MESSAGES.unknown;
+/** 사용자에게 보여 줄 문구의 번역 키. 실제 문장은 UI 가 만든다. */
+export function userMessageKey(error: unknown): string {
+  const code: ApiErrorCode = error instanceof ApiError ? error.code : 'unknown';
+  return `errors.${code}`;
 }
 
 /** HTTP 상태 → 에러 코드 */

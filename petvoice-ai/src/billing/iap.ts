@@ -1,5 +1,14 @@
 import { NativeModules, Platform } from 'react-native';
-import { PRO_MONTHLY_SKU, SUBSCRIPTION_SKUS, freeTrialLabel, pickAndroidOffer, type AndroidOffer, type RawPurchase } from '../core/billing';
+import {
+  SUBSCRIPTION_SKUS,
+  freeTrialPeriod,
+  periodOfSku,
+  pickAndroidOffer,
+  type AndroidOffer,
+  type BillingPeriod,
+  type RawPurchase,
+  type TrialPeriod,
+} from '../core/billing';
 
 /**
  * react-native-iap 얇은 래퍼.
@@ -55,10 +64,13 @@ export interface StoreProduct {
   title: string;
   /** 스토어가 준 현지 통화 표기 ("₩3,900") */
   localizedPrice: string;
+  /** 절약률 계산에 쓰는 원가 (마이크로 단위). 모르면 0 */
+  priceMicros: number;
+  period: BillingPeriod;
   /** Play 구독 구매에 반드시 필요한 오퍼 토큰 */
   offerToken?: string;
-  /** 무료 체험 기간 ("7일"). 없으면 null */
-  freeTrial: string | null;
+  /** 무료 체험 기간. 없으면 null */
+  freeTrial: TrialPeriod | null;
 }
 
 let connected = false;
@@ -94,20 +106,26 @@ export async function fetchProducts(): Promise<StoreProduct[]> {
 
   try {
     const raw = await mod.getSubscriptions({ skus: SUBSCRIPTION_SKUS });
-    return raw.map((item) => {
-      const androidOffers = (item as { subscriptionOfferDetails?: AndroidOffer[] }).subscriptionOfferDetails;
-      const offer = pickAndroidOffer(androidOffers);
-      const androidPrice = offer?.pricingPhases?.pricingPhaseList?.at(-1)?.formattedPrice;
+    return raw
+      .map((item) => {
+        const androidOffers = (item as { subscriptionOfferDetails?: AndroidOffer[] }).subscriptionOfferDetails;
+        const offer = pickAndroidOffer(androidOffers);
+        const lastPhase = offer?.pricingPhases?.pricingPhaseList?.at(-1);
+        const iosPrice = (item as { price?: string }).price;
 
-      return {
-        productId: item.productId,
-        title: (item as { title?: string }).title ?? '프로 구독',
-        localizedPrice:
-          (item as { localizedPrice?: string }).localizedPrice ?? androidPrice ?? '',
-        ...(offer ? { offerToken: offer.offerToken } : {}),
-        freeTrial: freeTrialLabel(offer),
-      };
-    });
+        return {
+          productId: item.productId,
+          title: (item as { title?: string }).title ?? '',
+          localizedPrice:
+            (item as { localizedPrice?: string }).localizedPrice ?? lastPhase?.formattedPrice ?? '',
+          priceMicros: Number(lastPhase?.priceAmountMicros ?? (iosPrice ? Number(iosPrice) * 1_000_000 : 0)) || 0,
+          period: periodOfSku(item.productId),
+          ...(offer ? { offerToken: offer.offerToken } : {}),
+          freeTrial: freeTrialPeriod(offer),
+        };
+      })
+      // 월간 → 연간 순서로 고정해 화면이 스토어 응답 순서에 흔들리지 않게
+      .sort((a, b) => (a.period === b.period ? 0 : a.period === 'month' ? -1 : 1));
   } catch {
     return [];
   }
@@ -119,18 +137,16 @@ export async function fetchProducts(): Promise<StoreProduct[]> {
  * (스토어 시트를 닫았다가 다시 여는 경우, 느린 결제 수단 등 경로가 여럿이라
  *  리스너 하나로 모으는 편이 훨씬 안전하다.)
  */
-export async function requestProSubscription(offerToken?: string): Promise<void> {
+export async function requestProSubscription(sku: string, offerToken?: string): Promise<void> {
   const mod = iap();
   if (!mod || !(await connect())) throw new Error('billing_unavailable');
 
   if (Platform.OS === 'android') {
     if (!offerToken) throw new Error('missing_offer_token');
-    await mod.requestSubscription({
-      subscriptionOffers: [{ sku: PRO_MONTHLY_SKU, offerToken }],
-    });
+    await mod.requestSubscription({ subscriptionOffers: [{ sku, offerToken }] });
     return;
   }
-  await mod.requestSubscription({ sku: PRO_MONTHLY_SKU });
+  await mod.requestSubscription({ sku });
 }
 
 /** 기기를 바꾼 사용자를 위한 구매 복원 */
@@ -182,27 +198,27 @@ export function addPurchaseListeners({ onPurchase, onError }: PurchaseListeners)
 }
 
 /** 스토어의 구독 관리 화면으로 보낸다 (해지·결제수단 변경은 스토어에서만 가능) */
-export async function openManageSubscriptions(): Promise<void> {
+export async function openManageSubscriptions(sku = SUBSCRIPTION_SKUS[0]): Promise<void> {
   const mod = iap();
   if (!mod) return;
-  await mod.deepLinkToSubscriptions({ sku: PRO_MONTHLY_SKU }).catch(() => undefined);
+  await mod.deepLinkToSubscriptions({ sku }).catch(() => undefined);
 }
 
-/** 사용자에게 보여 줄 결제 오류 문구 */
-export function billingErrorMessage(error: { code?: string; message?: string }): string | null {
+/** 결제 오류 → 번역 키. 사용자가 직접 닫은 경우는 null (조용히 지나간다). */
+export function billingErrorKey(error: { code?: string; message?: string }): string | null {
   switch (error.code) {
     case 'E_USER_CANCELLED':
-      return null; // 사용자가 직접 닫은 경우는 조용히 지나간다
+      return null;
     case 'E_ALREADY_OWNED':
-      return '이미 구독 중이에요. [구매 복원]을 눌러 주세요.';
+      return 'billing.error.alreadyOwned';
     case 'E_ITEM_UNAVAILABLE':
-      return '지금은 이 상품을 살 수 없어요. 잠시 후 다시 시도해 주세요.';
+      return 'billing.error.itemUnavailable';
     case 'E_NETWORK_ERROR':
     case 'E_SERVICE_ERROR':
-      return '스토어에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.';
+      return 'billing.error.network';
     case 'E_DEFERRED_PAYMENT':
-      return '결제 승인을 기다리는 중이에요. 승인되면 자동으로 프로가 열립니다.';
+      return 'billing.error.deferred';
     default:
-      return '결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.';
+      return 'billing.error.generic';
   }
 }

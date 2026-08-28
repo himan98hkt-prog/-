@@ -1,7 +1,9 @@
-import { parseAnalysis, AnalysisParseError } from '../core/analysis';
+import { parseAnalysis, AnalysisParseError, type ParseFallbacks } from '../core/analysis';
+import type { ContextTag } from '../core/emotions';
 import { assessHealth } from '../core/health';
+import { MODEL_CHAIN } from '../core/models';
 import { buildPrompt, buildWeeklyReportPrompt, RESPONSE_SCHEMA } from '../core/prompt';
-import type { AnalysisResult, HealthAssessment, MediaType, PetProfile } from '../core/types';
+import type { AnalysisResult, HealthAssessment, Locale, MediaType, PetProfile } from '../core/types';
 import { ApiError, codeFromStatus } from './errors';
 
 /**
@@ -30,7 +32,13 @@ export interface AnalyzeInput {
   pet: PetProfile;
   mediaBase64: string;
   mediaType: MediaType;
+  /** 사용자에게 보여 줄 상황 문구 (사용자 언어) */
   context: string;
+  /** 언어와 무관한 의미 태그 — 이상 징후 규칙이 본다 */
+  contextTags?: ContextTag[];
+  locale: Locale;
+  /** 모델이 문장을 비워 보냈을 때 채울 번역된 문구 */
+  fallbacks?: ParseFallbacks;
 }
 
 export interface AnalyzeOutput {
@@ -104,11 +112,17 @@ async function callProxy(config: ProxyConfig, body: unknown): Promise<string> {
 
 /** 소리 또는 사진 한 건을 분석한다. */
 export async function analyzePetMedia(config: ProxyConfig, input: AnalyzeInput): Promise<AnalyzeOutput> {
-  const prompt = buildPrompt({ pet: input.pet, mediaType: input.mediaType, context: input.context });
+  const prompt = buildPrompt({
+    pet: input.pet,
+    mediaType: input.mediaType,
+    context: input.context,
+    locale: input.locale,
+  });
 
   const raw = await callProxy(config, {
     task: 'analyze',
-    model: 'gemini-1.5-flash',
+    // 서버가 앞에서부터 시도하고 안 되면 다음 모델로 내려간다
+    models: MODEL_CHAIN,
     prompt,
     responseSchema: RESPONSE_SCHEMA,
     temperature: 0.4,
@@ -117,7 +131,7 @@ export async function analyzePetMedia(config: ProxyConfig, input: AnalyzeInput):
 
   let result: AnalysisResult;
   try {
-    result = parseAnalysis(raw);
+    result = parseAnalysis(raw, input.fallbacks);
   } catch (error) {
     if (error instanceof AnalysisParseError) {
       throw new ApiError('parse', error.message);
@@ -125,7 +139,7 @@ export async function analyzePetMedia(config: ProxyConfig, input: AnalyzeInput):
     throw error;
   }
 
-  return { result, health: assessHealth(result, input.pet.type, input.context) };
+  return { result, health: assessHealth(result, input.pet.type, input.contextTags ?? []) };
 }
 
 export interface WeeklyReport {
@@ -140,11 +154,12 @@ export async function requestWeeklyReport(
   config: ProxyConfig,
   pet: PetProfile,
   digest: string,
+  locale: Locale,
 ): Promise<WeeklyReport> {
   const raw = await callProxy(config, {
     task: 'weekly',
-    model: 'gemini-1.5-flash',
-    prompt: buildWeeklyReportPrompt(pet.name, pet.type, digest),
+    models: MODEL_CHAIN,
+    prompt: buildWeeklyReportPrompt(pet.name, pet.type, digest, locale),
     temperature: 0.5,
   });
 

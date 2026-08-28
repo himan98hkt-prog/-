@@ -1,9 +1,12 @@
-import { durationKo, startOfDay, startOfNextDay } from './date';
+import { startOfDay, startOfNextDay } from './date';
+import { msg, type Message } from './message';
 import type { Subscription } from './types';
 
 /** 수익 모델: 무료는 하루 3회, 프로는 무제한 */
 export const FREE_DAILY_LIMIT = 3;
+/** 스토어에서 가격을 못 받아왔을 때 보여 줄 기본값 */
 export const PRO_PRICE_KRW = 3900;
+export const PRO_YEARLY_PRICE_KRW = 29000;
 
 export interface QuotaState {
   isPro: boolean;
@@ -16,8 +19,8 @@ export interface QuotaState {
   canAnalyze: boolean;
   /** 무료 횟수가 초기화되는 시각 */
   resetsAt: number;
-  /** 화면에 그대로 뿌리는 안내 문구 */
-  label: string;
+  /** 화면에 뿌릴 안내 문구의 번역 참조 */
+  label: Message;
 }
 
 export function isProActive(sub: Subscription | undefined, now = Date.now()): boolean {
@@ -44,7 +47,7 @@ export function quotaState(timestamps: number[], sub: Subscription | undefined, 
       remaining: null,
       canAnalyze: true,
       resetsAt,
-      label: `프로 · 무제한 분석 (오늘 ${used}회)`,
+      label: msg('quota.proUnlimited', { used }),
     };
   }
 
@@ -58,18 +61,14 @@ export function quotaState(timestamps: number[], sub: Subscription | undefined, 
     resetsAt,
     label:
       remaining > 0
-        ? `오늘 무료 분석 ${remaining}/${FREE_DAILY_LIMIT}회 남음`
-        : `오늘 무료 분석을 모두 썼어요 · ${durationKo(resetsAt - now)} 뒤 초기화`,
+        ? msg('quota.freeRemaining', { remaining, limit: FREE_DAILY_LIMIT })
+        : msg('quota.freeExhausted', { resetsAt }),
   };
 }
 
 /** 프로 전용 기능 목록 — 페이월 화면과 잠금 뱃지가 같은 소스를 쓰도록 */
-export const PRO_FEATURES = [
-  { key: 'unlimited', title: '무제한 분석', desc: '하루 3회 제한 없이 언제든 분석해요.' },
-  { key: 'weekly', title: '주간 행동 리포트', desc: '일주일 감정 변화와 다음 주 실천 과제를 정리해 드려요.' },
-  { key: 'themes', title: '캐릭터 말풍선 테마', desc: '인스타용 포토카드 테마 전부 잠금 해제.' },
-  { key: 'multipet', title: '반려동물 무제한 등록', desc: '무료는 1마리, 프로는 여러 마리를 각각 기록해요.' },
-] as const;
+export const PRO_FEATURES = ['unlimited', 'weekly', 'themes', 'multipet', 'backup', 'precise'] as const;
+export type ProFeature = (typeof PRO_FEATURES)[number];
 
 /** 무료 사용자가 등록할 수 있는 반려동물 수 */
 export const FREE_PET_LIMIT = 1;

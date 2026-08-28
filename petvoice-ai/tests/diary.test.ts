@@ -101,6 +101,11 @@ describe('weeklyStats', () => {
     expect(stats.activeDays).toBe(2);
   });
 
+  it('대표 감정을 헤드라인 참조로 만든다', () => {
+    const stats = weeklyStats([entry(at(1), { playful: 100 })]);
+    expect(weeklyHeadline(stats)).toMatchObject({ key: 'diary.headline.noCompare' });
+  });
+
   it('지난주 대비 긍정 비율 변화를 낸다', () => {
     const stats = weeklyStats([
       entry(at(1), { happy: 100 }),
@@ -137,22 +142,25 @@ describe('weeklyStats', () => {
     const stats = weeklyStats([]);
     expect(stats.count).toBe(0);
     expect(stats.dominant).toBeNull();
-    expect(weeklyHeadline(stats)).toContain('아직 없어요');
+    expect(weeklyHeadline(stats)).toMatchObject({ key: 'diary.headline.empty' });
   });
 });
 
 describe('buildWeeklyDigest', () => {
+  /** 감정 이름은 호출부가 번역해 넘긴다 */
+  const labelOf = (key: string) => key.replace('emotion.', '');
+
   it('리포트 프롬프트에 넣을 요약을 만든다', () => {
     const digest = buildWeeklyDigest([
       entry(at(1), { anxiety: 70, sad: 30 }, 'watch', '외출 직전'),
       entry(at(2), { playful: 100 }, 'none', '산책 준비 중'),
-    ]);
+    ], labelOf);
     expect(digest).toContain('총 분석 2회');
     expect(digest).toContain('외출 직전');
     expect(digest).toContain('관찰 필요 1회');
   });
 
   it('기록이 없으면 그렇게 알려 준다', () => {
-    expect(buildWeeklyDigest([])).toBe('기록 없음');
+    expect(buildWeeklyDigest([], labelOf)).toBe('기록 없음');
   });
 });

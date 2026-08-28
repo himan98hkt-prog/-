@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PRO_MONTHLY_SKU,
+  PRO_YEARLY_SKU,
   RESYNC_INTERVAL_MS,
+  periodOfSku,
+  savingsPercent,
   describeSubscription,
-  freeTrialLabel,
-  isoPeriodToKo,
+  freeTrialPeriod,
+  parseIsoPeriod,
   normalizePurchase,
   pickAndroidOffer,
   pickLatestPurchase,
@@ -88,10 +92,22 @@ describe('shouldResync', () => {
 
 describe('describeSubscription', () => {
   it('무료 · 자동갱신 · 해지 예약 · 유예를 구분해 설명한다', () => {
-    expect(describeSubscription({ pro: false }, NOW)).toBe('무료 플랜');
-    expect(describeSubscription({ pro: true, state: 'active', autoRenewing: true, expiresAt: NOW + DAY }, NOW)).toContain('자동 갱신');
-    expect(describeSubscription({ pro: true, state: 'canceled', autoRenewing: false, expiresAt: NOW + DAY }, NOW)).toContain('해지 예약');
-    expect(describeSubscription({ pro: true, state: 'grace', expiresAt: NOW + DAY }, NOW)).toContain('결제 확인');
+    expect(describeSubscription({ pro: false })).toMatchObject({ key: 'billing.state.free' });
+    expect(describeSubscription({ pro: true, state: 'active', autoRenewing: true, expiresAt: NOW + DAY })).toMatchObject({
+      key: 'billing.state.renewsOn',
+    });
+    expect(describeSubscription({ pro: true, state: 'canceled', autoRenewing: false, expiresAt: NOW + DAY })).toMatchObject({
+      key: 'billing.state.canceledUntil',
+    });
+    expect(describeSubscription({ pro: true, state: 'grace', expiresAt: NOW + DAY })).toMatchObject({
+      key: 'billing.state.graceUntil',
+    });
+  });
+
+  it('만료 시각을 모르면 날짜 없는 문구를 쓴다', () => {
+    expect(describeSubscription({ pro: true, state: 'active', autoRenewing: true })).toMatchObject({
+      key: 'billing.state.active',
+    });
   });
 });
 
@@ -123,17 +139,17 @@ describe('Play 오퍼 선택', () => {
     expect(pickAndroidOffer(undefined)).toBeNull();
   });
 
-  it('체험 기간을 한국어로 표시한다', () => {
-    expect(freeTrialLabel(trial)).toBe('7일');
-    expect(freeTrialLabel(paid)).toBeNull();
+  it('체험 기간을 구조로 돌려준다', () => {
+    expect(freeTrialPeriod(trial)).toEqual({ unit: 'day', count: 7 });
+    expect(freeTrialPeriod(paid)).toBeNull();
   });
 
-  it('ISO 기간 변환', () => {
-    expect(isoPeriodToKo('P3D')).toBe('3일');
-    expect(isoPeriodToKo('P2W')).toBe('14일');
-    expect(isoPeriodToKo('P1M')).toBe('1개월');
-    expect(isoPeriodToKo('P1Y')).toBe('1년');
-    expect(isoPeriodToKo('잘못된값')).toBeNull();
+  it('ISO 기간 파싱 — 주는 일로 환산한다', () => {
+    expect(parseIsoPeriod('P3D')).toEqual({ unit: 'day', count: 3 });
+    expect(parseIsoPeriod('P2W')).toEqual({ unit: 'day', count: 14 });
+    expect(parseIsoPeriod('P1M')).toEqual({ unit: 'month', count: 1 });
+    expect(parseIsoPeriod('P1Y')).toEqual({ unit: 'year', count: 1 });
+    expect(parseIsoPeriod('잘못된값')).toBeNull();
   });
 });
 
@@ -196,5 +212,28 @@ describe('pickLatestPurchase', () => {
 
   it('복원할 게 없으면 null', () => {
     expect(pickLatestPurchase([{ productId: '남의_상품', purchaseToken: 'x' }], 'android')).toBeNull();
+  });
+});
+
+
+describe('연간 구독', () => {
+  it('상품 ID 로 결제 주기를 판단한다', () => {
+    expect(periodOfSku(PRO_MONTHLY_SKU)).toBe('month');
+    expect(periodOfSku(PRO_YEARLY_SKU)).toBe('year');
+  });
+
+  it('연간이 월간 대비 얼마나 싼지 계산한다', () => {
+    // 월 3,900원 × 12 = 46,800원 vs 연 29,000원
+    expect(savingsPercent(3900e6, 29000e6)).toBe(38);
+  });
+
+  it('연간이 더 비싸거나 같으면 배지를 달지 않는다', () => {
+    expect(savingsPercent(3900e6, 46800e6)).toBeNull();
+    expect(savingsPercent(3900e6, 50000e6)).toBeNull();
+  });
+
+  it('가격을 모르면 null', () => {
+    expect(savingsPercent(0, 29000e6)).toBeNull();
+    expect(savingsPercent(Number.NaN, 29000e6)).toBeNull();
   });
 });

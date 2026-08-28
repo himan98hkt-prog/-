@@ -5,7 +5,36 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { createId } from '../core/id';
 import { DEFAULT_THEME_KEY } from '../core/photocard';
 import { canAddPet, isProActive, quotaState, type QuotaState } from '../core/quota';
-import type { AnalysisEntry, PetProfile, Subscription } from '../core/types';
+import type { ContextTag } from '../core/emotions';
+import type { AnalysisEntry, Locale, PetProfile, Subscription } from '../core/types';
+import { DEFAULT_LOCALE } from '../i18n';
+import type { ThemeMode } from '../ui/useTheme';
+
+/**
+ * 연결이 없을 때 저장해 두는 분석 대기 건.
+ * 산책 중에 가장 재미있는 소리가 나오는데 하필 신호가 약한 경우가 많다.
+ */
+export interface PendingAnalysis {
+  id: string;
+  petId: string;
+  uri: string;
+  mediaKind: 'audio' | 'image';
+  context: string;
+  contextKey?: string;
+  contextTags: ContextTag[];
+  levels?: number[];
+  createdAt: number;
+}
+
+/** 알림 설정 */
+export interface NotificationSettings {
+  /** 저녁 기록 리마인더 */
+  daily: boolean;
+  /** 주간 리포트 알림 */
+  weekly: boolean;
+  /** 저녁 알림 시각 (0~23) */
+  hour: number;
+}
 
 /** 앱 전역 상태. 전부 기기 로컬(AsyncStorage)에 저장된다. */
 interface PetState {
@@ -17,6 +46,16 @@ interface PetState {
   onboarded: boolean;
   hydrated: boolean;
 
+  locale: Locale;
+  themeMode: ThemeMode;
+  notifications: NotificationSettings;
+  /** 크래시·오류 보고 전송 동의 (기본 꺼짐) */
+  diagnostics: boolean;
+  /** 마지막으로 서버에 백업한 시각 */
+  lastBackupAt?: number;
+  /** 연결이 돌아오면 처리할 분석 대기열 */
+  queue: PendingAnalysis[];
+
   addPet: (input: Omit<PetProfile, 'id' | 'createdAt'>) => PetProfile | null;
   updatePet: (id: string, patch: Partial<Omit<PetProfile, 'id' | 'createdAt'>>) => void;
   removePet: (id: string) => void;
@@ -24,10 +63,23 @@ interface PetState {
 
   addEntry: (entry: Omit<AnalysisEntry, 'id'>) => AnalysisEntry;
   removeEntry: (id: string) => void;
+  /** 결과가 맞았는지 표시 (프롬프트 개선의 근거가 된다) */
+  setEntryFeedback: (id: string, feedback: 'up' | 'down') => void;
 
   setSubscription: (sub: Subscription) => void;
   setCardTheme: (key: string) => void;
   completeOnboarding: () => void;
+
+  setLocale: (locale: Locale) => void;
+  setThemeMode: (mode: ThemeMode) => void;
+  setNotifications: (patch: Partial<NotificationSettings>) => void;
+  setDiagnostics: (on: boolean) => void;
+  setLastBackupAt: (ts: number) => void;
+  /** 백업에서 복원한 기록으로 교체(중복은 id 기준으로 합침) */
+  mergeEntries: (incoming: AnalysisEntry[]) => number;
+
+  enqueueAnalysis: (item: Omit<PendingAnalysis, 'id' | 'createdAt'>) => void;
+  dequeueAnalysis: (id: string) => void;
 
   /** 설정 ▸ 모든 데이터 초기화 (Play 정책 요건) */
   resetAll: () => void;
@@ -43,6 +95,12 @@ export const usePetStore = create<PetState>()(
       cardThemeKey: DEFAULT_THEME_KEY,
       onboarded: false,
       hydrated: false,
+
+      locale: DEFAULT_LOCALE,
+      themeMode: 'system',
+      notifications: { daily: false, weekly: false, hour: 20 },
+      diagnostics: false,
+      queue: [],
 
       addPet: (input) => {
         const state = get();
@@ -75,9 +133,34 @@ export const usePetStore = create<PetState>()(
 
       removeEntry: (id) => set((state) => ({ entries: state.entries.filter((e) => e.id !== id) })),
 
+      setEntryFeedback: (id, feedback) =>
+        set((state) => ({ entries: state.entries.map((e) => (e.id === id ? { ...e, feedback } : e)) })),
+
       setSubscription: (subscription) => set({ subscription }),
       setCardTheme: (cardThemeKey) => set({ cardThemeKey }),
       completeOnboarding: () => set({ onboarded: true }),
+
+      setLocale: (locale) => set({ locale }),
+      setThemeMode: (themeMode) => set({ themeMode }),
+      setNotifications: (patch) => set((state) => ({ notifications: { ...state.notifications, ...patch } })),
+      setDiagnostics: (diagnostics) => set({ diagnostics }),
+      setLastBackupAt: (lastBackupAt) => set({ lastBackupAt }),
+
+      enqueueAnalysis: (item) =>
+        set((state) => ({
+          queue: [...state.queue, { ...item, id: createId('q_'), createdAt: Date.now() }],
+        })),
+
+      dequeueAnalysis: (id) => set((state) => ({ queue: state.queue.filter((q) => q.id !== id) })),
+
+      mergeEntries: (incoming) => {
+        const state = get();
+        const known = new Set(state.entries.map((e) => e.id));
+        const added = incoming.filter((e) => !known.has(e.id));
+        if (added.length === 0) return 0;
+        set({ entries: [...state.entries, ...added].sort((a, b) => b.createdAt - a.createdAt) });
+        return added.length;
+      },
 
       resetAll: () =>
         set({
@@ -87,6 +170,8 @@ export const usePetStore = create<PetState>()(
           subscription: { pro: false },
           cardThemeKey: DEFAULT_THEME_KEY,
           onboarded: false,
+          lastBackupAt: undefined,
+          queue: [],
         }),
     }),
     {
@@ -100,6 +185,12 @@ export const usePetStore = create<PetState>()(
         subscription: state.subscription,
         cardThemeKey: state.cardThemeKey,
         onboarded: state.onboarded,
+        locale: state.locale,
+        themeMode: state.themeMode,
+        notifications: state.notifications,
+        diagnostics: state.diagnostics,
+        lastBackupAt: state.lastBackupAt,
+        queue: state.queue,
       }),
     },
   ),

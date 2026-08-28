@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { isConfigured } from '../api';
-import { userMessage } from '../api/errors';
+import { userMessageKey } from '../api/errors';
+import { msg, type Message } from '../core/message';
 import { fetchServerSubscription, verifyPurchase } from '../api/subscription';
 import { normalizePurchase, pickLatestPurchase, shouldResync, type RawPurchase } from '../core/billing';
 import { usePetStore } from '../store/usePetStore';
 import {
   addPurchaseListeners,
-  billingErrorMessage,
+  billingErrorKey,
   connect,
   disconnect,
   fetchAvailablePurchases,
@@ -28,10 +29,10 @@ export interface BillingState {
   /** 구매·복원·검증이 진행 중 */
   busy: boolean;
   products: StoreProduct[];
-  /** 사용자에게 보여 줄 안내/오류 한 줄 */
-  notice: string | null;
+  /** 사용자에게 보여 줄 안내/오류 한 줄 (번역 참조) */
+  notice: Message | null;
   clearNotice: () => void;
-  buy: () => Promise<void>;
+  buy: (sku: string) => Promise<void>;
   restore: () => Promise<void>;
   openManage: () => Promise<void>;
 }
@@ -50,7 +51,7 @@ export function useBilling(): BillingState {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Message | null>(null);
   const mounted = useRef(true);
 
   const handlePurchase = useCallback(
@@ -64,7 +65,7 @@ export function useBilling(): BillingState {
       // 느린 결제 수단(계좌이체 등)은 승인될 때 이벤트가 다시 온다. 지금은 마무리하지 않는다.
       if (purchase.pending) {
         setBusy(false);
-        setNotice('결제 승인을 기다리는 중이에요. 승인되면 자동으로 프로가 열립니다.');
+        setNotice(msg('billing.notice.pending'));
         return;
       }
 
@@ -73,10 +74,10 @@ export function useBilling(): BillingState {
         setSubscription(subscription);
         // 검증에 성공한 뒤에만 마무리한다
         await finishPurchase(raw);
-        setNotice(subscription.pro ? '프로가 열렸어요. 마음껏 분석해 보세요!' : '구매를 확인했지만 아직 활성 상태가 아니에요.');
+        setNotice(msg(subscription.pro ? 'billing.notice.purchased' : 'billing.notice.notActive'));
       } catch (error) {
         // 마무리하지 않았으므로 다음 실행에서 이 구매가 다시 전달된다.
-        setNotice(`${userMessage(error)} 결제는 취소되지 않았으니 잠시 후 [구매 복원]을 눌러 주세요.`);
+        setNotice(msg('billing.notice.verifyFailed', { reason: `@${userMessageKey(error)}` }));
       } finally {
         if (mounted.current) setBusy(false);
       }
@@ -100,8 +101,8 @@ export function useBilling(): BillingState {
       onPurchase: (raw) => void handlePurchase(raw),
       onError: (error) => {
         setBusy(false);
-        const message = billingErrorMessage(error);
-        if (message) setNotice(message);
+        const key = billingErrorKey(error);
+        if (key) setNotice(msg(key));
       },
     });
 
@@ -121,19 +122,22 @@ export function useBilling(): BillingState {
     };
   }, [handlePurchase]);
 
-  const buy = useCallback(async () => {
+  const buy = useCallback(
+    async (sku: string) => {
     if (busy) return;
     setNotice(null);
     setBusy(true);
     try {
-      const offerToken = products.find((p) => p.offerToken)?.offerToken;
-      await requestProSubscription(offerToken);
+      const offerToken = products.find((p) => p.productId === sku)?.offerToken;
+      await requestProSubscription(sku, offerToken);
       // 성공/실패는 리스너로 들어온다. busy 해제도 거기서.
     } catch (error) {
       setBusy(false);
-      setNotice(billingErrorMessage(error as { code?: string }) ?? '결제를 시작하지 못했어요.');
+      setNotice(msg(billingErrorKey(error as { code?: string }) ?? 'billing.notice.startFailed'));
     }
-  }, [busy, products]);
+    },
+    [busy, products],
+  );
 
   const restore = useCallback(async () => {
     if (busy) return;
@@ -148,18 +152,18 @@ export function useBilling(): BillingState {
         const server = await fetchServerSubscription();
         if (server?.pro) {
           setSubscription(server);
-          setNotice('구독을 복원했어요.');
+          setNotice(msg('billing.notice.restored'));
         } else {
-          setNotice('이 계정에서 복원할 구독을 찾지 못했어요.');
+          setNotice(msg('billing.notice.restoreNone'));
         }
         return;
       }
 
       const subscription = await verifyPurchase(latest);
       setSubscription(subscription);
-      setNotice(subscription.pro ? '구독을 복원했어요.' : '구독이 만료된 상태예요.');
+      setNotice(msg(subscription.pro ? 'billing.notice.restored' : 'billing.notice.expired'));
     } catch (error) {
-      setNotice(userMessage(error));
+      setNotice(msg(userMessageKey(error)));
     } finally {
       if (mounted.current) setBusy(false);
     }

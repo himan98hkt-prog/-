@@ -1,6 +1,7 @@
 import { sortedEmotions } from './analysis';
 import { DAY_MS, dayKey, startOfDay } from './date';
 import { emotionMeta } from './emotions';
+import { msg, type Message } from './message';
 import type { AnalysisEntry, EmotionKey, EmotionScores, HealthLevel } from './types';
 
 /** "우리 아이 감정 다이어리" — 날짜별 집계와 주간 리포트 계산 */
@@ -168,30 +169,35 @@ export function weeklyStats(entries: AnalysisEntry[], now = Date.now()): WeeklyS
   };
 }
 
-/** 통계를 사람이 읽는 한 줄로. (모델 호출 없이도 리포트 상단에 바로 쓴다) */
-export function weeklyHeadline(stats: WeeklyStats): string {
-  if (stats.count === 0) return '이번 주 기록이 아직 없어요.';
-  const dom = stats.dominant ? emotionMeta(stats.dominant) : null;
-  const delta =
-    stats.positiveDelta == null
-      ? ''
-      : stats.positiveDelta > 0
-        ? ` 지난주보다 긍정 감정이 ${stats.positiveDelta}%p 늘었어요.`
-        : stats.positiveDelta < 0
-          ? ` 지난주보다 긍정 감정이 ${Math.abs(stats.positiveDelta)}%p 줄었어요.`
-          : ' 지난주와 비슷한 흐름이에요.';
-  const head = dom ? `이번 주는 ${dom.emoji} ${dom.label}이 가장 많았어요.` : '이번 주 감정 흐름을 정리했어요.';
-  return `${head}${delta}`;
+/** 통계를 한 줄로 요약한 번역 참조. (모델 호출 없이도 리포트 상단에 바로 쓴다) */
+export function weeklyHeadline(stats: WeeklyStats): Message {
+  if (stats.count === 0) return msg('diary.headline.empty');
+  if (!stats.dominant) return msg('diary.headline.plain');
+
+  const meta = emotionMeta(stats.dominant);
+  const params = { emoji: meta.emoji, emotion: `@${meta.labelKey}` };
+
+  if (stats.positiveDelta == null) return msg('diary.headline.noCompare', params);
+  if (stats.positiveDelta > 0) return msg('diary.headline.up', { ...params, delta: stats.positiveDelta });
+  if (stats.positiveDelta < 0) return msg('diary.headline.down', { ...params, delta: Math.abs(stats.positiveDelta) });
+  return msg('diary.headline.flat', params);
 }
 
-/** 주간 리포트 프롬프트에 넣을 요약 텍스트 */
-export function buildWeeklyDigest(entries: AnalysisEntry[], now = Date.now()): string {
+/**
+ * 주간 리포트 프롬프트에 넣을 요약 텍스트.
+ * 모델에게 주는 입력이라 사용자 화면이 아니고, 감정 이름은 호출부가 번역해 넘긴다.
+ */
+export function buildWeeklyDigest(
+  entries: AnalysisEntry[],
+  labelOf: (key: string) => string,
+  now = Date.now(),
+): string {
   const stats = weeklyStats(entries, now);
   if (stats.count === 0) return '기록 없음';
 
   const lines: string[] = [
     `- 총 분석 ${stats.count}회 / 기록한 날 ${stats.activeDays}일`,
-    `- 감정 분포: ${stats.distribution.map((d) => `${emotionMeta(d.key).label} ${d.share}%`).join(', ')}`,
+    `- 감정 분포: ${stats.distribution.map((d) => `${labelOf(emotionMeta(d.key).labelKey)} ${d.share}%`).join(', ')}`,
     `- 긍정 감정 비율 ${stats.positiveRatio}%${stats.positiveDelta == null ? '' : ` (지난주 대비 ${stats.positiveDelta >= 0 ? '+' : ''}${stats.positiveDelta}%p)`}`,
     `- 이상 징후: 병원 권고 ${stats.vetCount}회, 관찰 필요 ${stats.watchCount}회`,
   ];
@@ -201,7 +207,10 @@ export function buildWeeklyDigest(entries: AnalysisEntry[], now = Date.now()): s
     .filter((e) => e.createdAt >= stats.from && e.createdAt < stats.to)
     .sort((a, b) => a.createdAt - b.createdAt)
     .slice(-10)
-    .map((e) => `  · ${dayKey(e.createdAt)} [${e.context || '상황 미기재'}] ${emotionMeta(e.result.primaryEmotion).label} — ${e.result.behaviorAnalysis}`);
+    .map(
+      (e) =>
+        `  · ${dayKey(e.createdAt)} [${e.context || '-'}] ${labelOf(emotionMeta(e.result.primaryEmotion).labelKey)} — ${e.result.behaviorAnalysis}`,
+    );
   if (recent.length) lines.push('- 최근 기록:', ...recent);
 
   return lines.join('\n');

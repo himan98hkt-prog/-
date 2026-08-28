@@ -1,10 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { isConfigured } from './src/api';
 import { assertNoAiKeyInClient } from './src/api/config';
 import { ensureSession } from './src/api/supabase';
 import { syncSubscriptionFromServer } from './src/billing/useBilling';
+import { detectDeviceLocale } from './src/i18n/detect';
+import { useT } from './src/i18n/useT';
+import { initErrorReporting } from './src/diagnostics';
 import { usePetStore } from './src/store/usePetStore';
 import { CaptureScreen } from './src/ui/screens/CaptureScreen';
 import { HistoryScreen } from './src/ui/screens/HistoryScreen';
@@ -15,12 +18,54 @@ import { PetFormScreen } from './src/ui/screens/PetFormScreen';
 import { ResultScreen } from './src/ui/screens/ResultScreen';
 import { SettingsScreen } from './src/ui/screens/SettingsScreen';
 import { NavigationProvider, TAB_ROUTES, isTabRoute, useNavigation } from './src/ui/navigation';
-import { colors, font, space } from './src/ui/theme';
+import { font, HIT_SIZE, space } from './src/ui/theme';
+import { useQueueDrain } from './src/ui/useAnalyze';
+import { useStyles, useTheme, type Theme } from './src/ui/useTheme';
 
 // 클라이언트 번들에 AI 키가 섞여 들어오면 개발 단계에서 즉시 알아채도록.
 if (__DEV__) assertNoAiKeyInClient();
 
 export default function App() {
+  return (
+    <NavigationProvider>
+      <Root />
+    </NavigationProvider>
+  );
+}
+
+function Root() {
+  const { colors, scheme } = useTheme();
+  return (
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <Router />
+    </SafeAreaView>
+  );
+}
+
+function Router() {
+  const nav = useNavigation();
+  const themed = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const { t } = useT();
+
+  const hydrated = usePetStore((s) => s.hydrated);
+  const onboarded = usePetStore((s) => s.onboarded);
+  const petCount = usePetStore((s) => s.pets.length);
+  const diagnostics = usePetStore((s) => s.diagnostics);
+  const queue = useQueueDrain();
+
+  useEffect(() => {
+    if (!hydrated) return;
+    // 첫 실행이면 기기 언어를 따라간다. 이후에는 사용자의 선택을 존중한다.
+    const state = usePetStore.getState();
+    if (!state.onboarded) state.setLocale(detectDeviceLocale());
+  }, [hydrated]);
+
+  useEffect(() => {
+    initErrorReporting(diagnostics);
+  }, [diagnostics]);
+
   useEffect(() => {
     if (!isConfigured) return;
     void (async () => {
@@ -31,21 +76,15 @@ export default function App() {
     })();
   }, []);
 
-  return (
-    <NavigationProvider>
-      <SafeAreaView style={styles.root}>
-        <StatusBar style="dark" />
-        <Router />
-      </SafeAreaView>
-    </NavigationProvider>
-  );
-}
-
-function Router() {
-  const nav = useNavigation();
-  const hydrated = usePetStore((s) => s.hydrated);
-  const onboarded = usePetStore((s) => s.onboarded);
-  const petCount = usePetStore((s) => s.pets.length);
+  // 앱으로 돌아올 때마다 대기 중인 분석을 처리해 본다.
+  useEffect(() => {
+    if (!hydrated) return;
+    void queue.drain();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void queue.drain();
+    });
+    return () => sub.remove();
+  }, [hydrated, queue]);
 
   if (!hydrated) {
     return (
@@ -75,8 +114,13 @@ function Router() {
   return (
     <View style={{ flex: 1 }}>
       {nav.canGoBack ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={nav.back} style={styles.back}>
-          <Text style={font.h3}>‹ 뒤로</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          onPress={nav.back}
+          style={themed.back}
+        >
+          <Text style={[font.h3, { color: colors.text }]}>‹ {t('common.back')}</Text>
         </Pressable>
       ) : null}
 
@@ -89,21 +133,26 @@ function Router() {
 
 function TabBar() {
   const nav = useNavigation();
+  const themed = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const { t } = useT();
+
   return (
-    <View style={styles.tabBar}>
+    <View style={themed.tabBar} accessibilityRole="tablist">
       {TAB_ROUTES.map((tab) => {
         const active = nav.current.route === tab.route;
+        const label = t(tab.labelKey);
         return (
           <Pressable
             key={tab.route}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={tab.label}
+            accessibilityLabel={label}
             onPress={() => nav.switchTab(tab.route)}
-            style={styles.tab}
+            style={themed.tab}
           >
             <Text style={{ fontSize: 20, opacity: active ? 1 : 0.45 }}>{tab.emoji}</Text>
-            <Text style={[font.tiny, { color: active ? colors.primaryDark : colors.textFaint }]}>{tab.label}</Text>
+            <Text style={[font.tiny, { color: active ? colors.primaryText : colors.textFaint }]}>{label}</Text>
           </Pressable>
         );
       })}
@@ -112,15 +161,19 @@ function TabBar() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  back: { paddingHorizontal: space.lg, paddingVertical: space.sm },
-  tabBar: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingVertical: space.sm,
-  },
-  tab: { flex: 1, alignItems: 'center', gap: 2 },
 });
+
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    back: { paddingHorizontal: space.lg, paddingVertical: space.sm, minHeight: HIT_SIZE, justifyContent: 'center' },
+    tabBar: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingVertical: space.sm,
+    },
+    tab: { flex: 1, alignItems: 'center', gap: 2, minHeight: HIT_SIZE, justifyContent: 'center' },
+  });

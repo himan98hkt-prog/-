@@ -8,7 +8,7 @@ import type { AnalyzeInput, AnalyzeOutput } from './proxy';
  */
 const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
   {
-    match: /외출|혼자|출근|집을 비/,
+    match: /외출|혼자|출근|집을 비|leaving|alone|出かける|留守番/i,
     payload: {
       petVoiceMessage: '가지 마… 나 혼자 두고 어디 가?',
       primaryEmotion: 'anxiety',
@@ -19,7 +19,7 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
     },
   },
   {
-    match: /밥|식사|배고/,
+    match: /밥|식사|배고|meal|food|hungry|ごはん|食事/i,
     payload: {
       petVoiceMessage: '밥! 밥! 지금 당장 밥 주세요!',
       primaryEmotion: 'hungry',
@@ -29,7 +29,7 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
     },
   },
   {
-    match: /낯선|손님|방문/,
+    match: /낯선|손님|방문|stranger|visitor|来客|知らない人/i,
     payload: {
       petVoiceMessage: '누구야! 여긴 우리 집이라고!',
       primaryEmotion: 'alert',
@@ -39,7 +39,7 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
     },
   },
   {
-    match: /병원|아프|절뚝/,
+    match: /병원|아프|절뚝|vet|hurt|limp|病院|痛/i,
     payload: {
       petVoiceMessage: '여기 좀 아파… 살살 만져줘.',
       primaryEmotion: 'pain',
@@ -64,6 +64,6 @@ const DEFAULT_PAYLOAD = {
 export async function analyzeDemo(input: AnalyzeInput, delayMs = 1400): Promise<AnalyzeOutput> {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
   const payload = SAMPLES.find((s) => s.match.test(input.context))?.payload ?? DEFAULT_PAYLOAD;
-  const result = parseAnalysis(payload);
-  return { result, health: assessHealth(result, input.pet.type, input.context) };
+  const result = parseAnalysis(payload, input.fallbacks);
+  return { result, health: assessHealth(result, input.pet.type, input.contextTags ?? []) };
 }

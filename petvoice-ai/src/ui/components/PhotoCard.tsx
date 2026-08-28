@@ -2,7 +2,16 @@ import React, { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { layoutPhotoCard } from '../../core/photocard';
 import type { EmotionKey } from '../../core/types';
-import { colors, font, radius, space } from '../theme';
+import { useT } from '../../i18n/useT';
+import { font, radius, space } from '../theme';
+
+/**
+ * 포토카드는 **밖으로 나가는 이미지**라 앱 테마를 따르지 않는다.
+ * 보내는 사람이 다크 모드든 아니든 받는 사람에게 같은 카드로 보여야 한다.
+ */
+const CARD_BG = '#FFF2E6';
+const CARD_PLACEHOLDER_BG = '#FFE7D3';
+const CARD_WATERMARK_DARK = 'rgba(60,40,24,0.55)';
 
 interface Props {
   width: number;
@@ -23,6 +32,7 @@ export const PhotoCard = forwardRef<View, Props>(function PhotoCard(
   { width, photoUri, message, emotion, themeKey, isPro, petName },
   ref,
 ) {
+  const { t } = useT();
   const layout = layoutPhotoCard({ width, message, emotion, themeKey, isPro, petName });
   const { theme, bubble, tail, badge } = layout;
   const hasPhoto = Boolean(photoUri);
@@ -43,7 +53,7 @@ export const PhotoCard = forwardRef<View, Props>(function PhotoCard(
 
       <View style={[styles.badge, { left: badge.x, top: badge.y, backgroundColor: badge.color }]}>
         <Text style={[font.tiny, { color: '#FFFFFF' }]}>
-          {badge.emoji} {badge.label}
+          {badge.emoji} {t(badge.labelKey)}
         </Text>
       </View>
 
@@ -99,7 +109,7 @@ export const PhotoCard = forwardRef<View, Props>(function PhotoCard(
           {
             left: layout.watermark.x,
             top: layout.watermark.y,
-            color: hasPhoto ? 'rgba(255,255,255,0.8)' : colors.textFaint,
+            color: hasPhoto ? 'rgba(255,255,255,0.8)' : CARD_WATERMARK_DARK,
           },
         ]}
       >
@@ -110,8 +120,8 @@ export const PhotoCard = forwardRef<View, Props>(function PhotoCard(
 });
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
-  placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
+  card: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: CARD_BG },
+  placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: CARD_PLACEHOLDER_BG },
   badge: { position: 'absolute', paddingHorizontal: space.md, paddingVertical: 5, borderRadius: radius.pill },
   bubble: { position: 'absolute', paddingHorizontal: 14, paddingVertical: 12, justifyContent: 'center' },
   tail: {

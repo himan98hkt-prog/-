@@ -1,4 +1,5 @@
-import { emotionMeta } from './emotions';
+import { emotionMeta, type ContextTag } from './emotions';
+import { msg, raw, type Message } from './message';
 import type { AnalysisEntry, AnalysisResult, EmotionKey, HealthAssessment, HealthLevel, PetType } from './types';
 
 /**
@@ -11,31 +12,54 @@ export const PAIN_VET_THRESHOLD = 20;
 /** 불안 점수가 이 값 이상이고 분리 상황이면 분리불안 경고 */
 export const ANXIETY_WATCH_THRESHOLD = 45;
 
-/** 분석 텍스트에서 잡아내는 의학적 신호. 사람이 읽을 라벨을 같이 들고 다닌다. */
-const MEDICAL_SIGNS: { label: string; patterns: RegExp }[] = [
-  { label: '통증 의심 신호', patterns: /통증|아파|아픈|끙끙|신음|비명|낑낑대며 몸을/ },
-  { label: '보행 이상', patterns: /절뚝|파행|다리를 들|잘 걷지 못|일어서기 힘/ },
-  { label: '소화기 증상', patterns: /구토|토하|설사|혈변|식욕\s*(부진|저하|없)/ },
-  { label: '호흡기 증상', patterns: /기침|재채기|호흡\s*(곤란|이상)|숨을 헐떡|그렁/ },
-  { label: '비뇨기 증상', patterns: /배뇨|소변\s*(곤란|을 못)|혈뇨|화장실을 자주/ },
-  { label: '피부·자가 손상', patterns: /과도하게 핥|긁는|털을 뽑|자가\s*손상|피부염/ },
-  { label: '수의사 상담 권고', patterns: /수의사|동물병원|병원\s*(방문|진료|확인)/ },
+/**
+ * 분석 텍스트에서 잡아내는 의학적 신호.
+ * 모델은 사용자 언어로 답하므로 한국어·영어·일본어 표현을 한 패턴에 모아 둔다.
+ */
+const MEDICAL_SIGNS: { key: string; patterns: RegExp }[] = [
+  {
+    key: 'health.sign.pain',
+    patterns: /통증|아파|아픈|끙끙|신음|비명|pain(ful)?|whimper|whine in pain|痛み|痛が|うめき/i,
+  },
+  {
+    key: 'health.sign.gait',
+    patterns: /절뚝|파행|다리를 들|잘 걷지 못|일어서기 힘|limp(ing)?|lame(ness)?|difficulty (standing|walking)|びっこ|歩きにく|立ち上が/i,
+  },
+  {
+    key: 'health.sign.digestive',
+    patterns: /구토|토하|설사|혈변|식욕\s*(부진|저하|없)|vomit|diarrh|bloody stool|loss of appetite|嘔吐|下痢|食欲/i,
+  },
+  {
+    key: 'health.sign.respiratory',
+    patterns: /기침|재채기|호흡\s*(곤란|이상)|숨을 헐떡|그렁|cough|sneez|labored breathing|wheez|咳|くしゃみ|呼吸/i,
+  },
+  {
+    key: 'health.sign.urinary',
+    patterns: /배뇨|소변\s*(곤란|을 못)|혈뇨|화장실을 자주|urinat|blood in urine|frequent litter|排尿|血尿|トイレの回数/i,
+  },
+  {
+    key: 'health.sign.skin',
+    patterns: /과도하게 핥|긁는|털을 뽑|자가\s*손상|피부염|excessive (licking|scratching)|hair loss|self-?traum|舐め続け|かゆ|脱毛/i,
+  },
+  {
+    key: 'health.sign.vetMentioned',
+    patterns: /수의사|동물병원|병원\s*(방문|진료|확인)|veterinarian|see a vet|veterinary|獣医|動物病院/i,
+  },
 ];
 
-/** 분리불안 맥락으로 볼 상황 표현 */
-const SEPARATION_CONTEXT = /외출|혼자|집을 비|출근|부재|떨어질|이동장/;
-
-const CONTEXT_TIPS: { match: RegExp; tip: string }[] = [
-  { match: /외출|출근|혼자|집을 비/, tip: '외출 전 인사를 짧게 하고, 나가기 15분 전부터 노즈워크 등 혼자 하는 놀이를 주면 분리 신호가 약해집니다.' },
-  { match: /낯선|손님|방문/, tip: '낯선 사람이 먼저 다가가지 않게 하고, 아이가 스스로 다가올 때 간식을 주면 경계가 빨리 풉니다.' },
-  { match: /병원/, tip: '병원 방문 뒤 하루 이틀은 자극을 줄이고, 좋아하는 담요·간식으로 안전한 공간을 만들어 주세요.' },
-  { match: /식사|밥|배고/, tip: '식사량과 시간을 기록해 두면 다음 진료 때 큰 단서가 됩니다.' },
-  { match: /새벽|밤/, tip: '자기 전 활동량을 늘리고 취침 직전 소량 급여하면 새벽 각성이 줄어듭니다.' },
-];
+/** 상황 태그별 행동 교정 팁 */
+const CONTEXT_TIPS: Partial<Record<ContextTag, string>> = {
+  separation: 'health.tip.separation',
+  stranger: 'health.tip.stranger',
+  vet: 'health.tip.vet',
+  meal: 'health.tip.meal',
+  night: 'health.tip.night',
+  carrier: 'health.tip.carrier',
+};
 
 const SPECIES_TIPS: Record<PetType, string> = {
-  DOG: '산책 코스를 바꿔 냄새 맡을 거리를 늘려 주면 스트레스 해소에 효과가 큽니다.',
-  CAT: '높이 올라갈 수 있는 캣타워나 숨을 공간을 하나 더 만들어 주면 불안이 눈에 띄게 줄어듭니다.',
+  DOG: 'health.tip.dog',
+  CAT: 'health.tip.cat',
 };
 
 function negativeTotal(result: AnalysisResult): number {
@@ -54,12 +78,15 @@ function score(result: AnalysisResult, key: EmotionKey): number {
  * - `watch` : 며칠 지켜보며 행동 교정
  * - `none`  : 특이사항 없음
  */
-export function assessHealth(result: AnalysisResult, petType: PetType, context = ''): HealthAssessment {
-  const reasons: string[] = [];
-  const tips: string[] = [];
+export function assessHealth(
+  result: AnalysisResult,
+  petType: PetType,
+  contextTags: ContextTag[] = [],
+): HealthAssessment {
+  const reasons: Message[] = [];
+  const tipKeys: string[] = [];
 
   // 단계는 숫자로 누적한 뒤 마지막에 한 번 이름으로 바꾼다.
-  // (여러 규칙이 각자 단계를 올리므로 "가장 높은 단계"만 남으면 된다)
   const RANK: Record<HealthLevel, number> = { none: 0, watch: 1, vet: 2 };
   let rank = RANK.none;
   const bump = (next: HealthLevel) => {
@@ -68,72 +95,74 @@ export function assessHealth(result: AnalysisResult, petType: PetType, context =
 
   const pain = score(result, 'pain');
   if (pain >= PAIN_VET_THRESHOLD) {
-    reasons.push(`통증 호소 신호가 ${pain}% 로 감지됐어요.`);
+    reasons.push(msg('health.reason.pain', { score: pain }));
     bump('vet');
   } else if (pain > 0) {
-    reasons.push(`약한 통증 신호(${pain}%)가 섞여 있어요.`);
+    reasons.push(msg('health.reason.painMild', { score: pain }));
     bump('watch');
   }
 
   if (result.healthAlert) {
-    reasons.push(result.healthAlert);
+    // 모델이 사용자 언어로 쓴 문장이라 번역하지 않고 그대로 보여 준다.
+    reasons.push(raw(result.healthAlert));
     bump('vet');
   }
 
   const haystack = `${result.behaviorAnalysis} ${result.actionGuide} ${result.healthAlert ?? ''}`;
   for (const sign of MEDICAL_SIGNS) {
     if (sign.patterns.test(haystack)) {
-      reasons.push(`${sign.label}이(가) 분석 내용에 언급됐어요.`);
+      reasons.push(msg('health.reason.sign', { sign: `@${sign.key}` }));
       bump('vet');
     }
   }
 
   const anxiety = score(result, 'anxiety');
   if (anxiety >= ANXIETY_WATCH_THRESHOLD) {
-    const separation = SEPARATION_CONTEXT.test(context);
+    const separation = contextTags.includes('separation');
     reasons.push(
       separation
-        ? `혼자 남는 상황에서 불안이 ${anxiety}% 로 높아요. 분리불안 초기 신호일 수 있어요.`
-        : `불안 감정이 ${anxiety}% 로 높게 나왔어요.`,
+        ? msg('health.reason.separationAnxiety', { score: anxiety })
+        : msg('health.reason.anxiety', { score: anxiety }),
     );
     bump('watch');
   }
 
-  const tension = score(result, 'fear') + score(result, 'anger') + score(result, 'alert') + score(result, 'territorial');
+  const tension =
+    score(result, 'fear') + score(result, 'anger') + score(result, 'alert') + score(result, 'territorial');
   if (tension >= 55) {
-    reasons.push(`두려움·경계·분노가 합쳐 ${tension}% 로, 지금은 스트레스가 큰 상태예요.`);
+    reasons.push(msg('health.reason.tension', { score: tension }));
     bump('watch');
   }
 
   if (score(result, 'sad') >= 45) {
-    reasons.push(`무기력·외로움 신호가 ${score(result, 'sad')}% 로 나타났어요.`);
+    reasons.push(msg('health.reason.sad', { score: score(result, 'sad') }));
     bump('watch');
   }
 
   if (rank === RANK.none && negativeTotal(result) >= 70) {
-    reasons.push('부정적인 감정이 전체의 70% 를 넘었어요.');
+    reasons.push(msg('health.reason.negativeMajority'));
     bump('watch');
   }
 
   const level: HealthLevel = rank === RANK.vet ? 'vet' : rank === RANK.watch ? 'watch' : 'none';
 
   if (level === 'vet') {
-    tips.push('가능한 24시간 안에 동물병원에서 신체검사를 받아 보세요.');
-    tips.push('언제·어떤 상황에서 이 소리가 났는지 기록과 녹음을 함께 보여주면 진료에 큰 도움이 됩니다.');
+    tipKeys.push('health.tip.visitSoon', 'health.tip.bringRecording');
   }
   if (level !== 'none') {
-    for (const rule of CONTEXT_TIPS) {
-      if (rule.match.test(context)) tips.push(rule.tip);
+    for (const tag of contextTags) {
+      const tip = CONTEXT_TIPS[tag];
+      if (tip) tipKeys.push(tip);
     }
-    tips.push(SPECIES_TIPS[petType]);
+    tipKeys.push(SPECIES_TIPS[petType]);
   }
 
-  return { level, reasons, tips: [...new Set(tips)] };
+  return { level, reasons, tips: [...new Set(tipKeys)].map((key) => msg(key)) };
 }
 
 export interface HistoryRisk {
   level: HealthLevel;
-  message: string;
+  message: Message;
   /** 근거가 된 기록 수 */
   count: number;
 }
@@ -152,7 +181,7 @@ export function assessHistoryRisk(entries: AnalysisEntry[], now = Date.now(), wi
     return {
       level: 'vet',
       count: vetCount,
-      message: `최근 ${windowDays}일간 병원 확인이 필요한 신호가 ${vetCount}번 감지됐어요. 진료를 미루지 마세요.`,
+      message: msg('health.risk.repeatedVet', { days: windowDays, count: vetCount }),
     };
   }
 
@@ -161,16 +190,12 @@ export function assessHistoryRisk(entries: AnalysisEntry[], now = Date.now(), wi
     return {
       level: 'watch',
       count: anxious,
-      message: `최근 ${windowDays}일간 불안 신호가 ${anxious}번 나왔어요. 분리불안 행동 교정을 시작할 시점입니다.`,
+      message: msg('health.risk.repeatedAnxiety', { days: windowDays, count: anxious }),
     };
   }
 
   if (vetCount === 1) {
-    return {
-      level: 'watch',
-      count: 1,
-      message: '최근에 병원 확인이 권장된 기록이 있어요. 증상이 이어지는지 지켜봐 주세요.',
-    };
+    return { level: 'watch', count: 1, message: msg('health.risk.singleVet') };
   }
 
   return null;

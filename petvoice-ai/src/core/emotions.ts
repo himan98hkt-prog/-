@@ -2,8 +2,8 @@ import type { EmotionKey, PetType } from './types';
 
 export interface EmotionMeta {
   key: EmotionKey;
-  /** 한국어 라벨 */
-  label: string;
+  /** 번역 키 (`emotion.playful`). 라벨 문자열은 UI 가 만든다. */
+  labelKey: string;
   emoji: string;
   /** 감정 막대/뱃지 색 */
   color: string;
@@ -11,21 +11,25 @@ export interface EmotionMeta {
   tone: 'positive' | 'neutral' | 'negative';
 }
 
+function meta(key: EmotionKey, emoji: string, color: string, tone: EmotionMeta['tone']): EmotionMeta {
+  return { key, labelKey: `emotion.${key}`, emoji, color, tone };
+}
+
 const META: Record<EmotionKey, EmotionMeta> = {
-  happy: { key: 'happy', label: '행복', emoji: '😊', color: '#FFB627', tone: 'positive' },
-  playful: { key: 'playful', label: '신남·놀고싶음', emoji: '🎾', color: '#FF8A3D', tone: 'positive' },
-  affection: { key: 'affection', label: '애정 표현', emoji: '💗', color: '#FF6FA5', tone: 'positive' },
-  attentionSeeking: { key: 'attentionSeeking', label: '관심 요구', emoji: '🙋', color: '#F2A65A', tone: 'neutral' },
-  curious: { key: 'curious', label: '호기심', emoji: '👀', color: '#5BC0BE', tone: 'neutral' },
-  relaxed: { key: 'relaxed', label: '편안함', emoji: '😌', color: '#7BC950', tone: 'positive' },
-  hungry: { key: 'hungry', label: '배고픔', emoji: '🍚', color: '#D9A441', tone: 'neutral' },
-  anxiety: { key: 'anxiety', label: '불안', emoji: '😰', color: '#6C7BE0', tone: 'negative' },
-  fear: { key: 'fear', label: '두려움', emoji: '😨', color: '#5A6ACF', tone: 'negative' },
-  alert: { key: 'alert', label: '경계', emoji: '⚠️', color: '#8E7CC3', tone: 'negative' },
-  territorial: { key: 'territorial', label: '영역 방어', emoji: '🚧', color: '#A2708A', tone: 'negative' },
-  anger: { key: 'anger', label: '분노·짜증', emoji: '😤', color: '#E0524A', tone: 'negative' },
-  pain: { key: 'pain', label: '통증 호소', emoji: '🤕', color: '#C62828', tone: 'negative' },
-  sad: { key: 'sad', label: '외로움·우울', emoji: '😢', color: '#5F7C8A', tone: 'negative' },
+  happy: meta('happy', '😊', '#FFB627', 'positive'),
+  playful: meta('playful', '🎾', '#FF8A3D', 'positive'),
+  affection: meta('affection', '💗', '#FF6FA5', 'positive'),
+  attentionSeeking: meta('attentionSeeking', '🙋', '#F2A65A', 'neutral'),
+  curious: meta('curious', '👀', '#5BC0BE', 'neutral'),
+  relaxed: meta('relaxed', '😌', '#7BC950', 'positive'),
+  hungry: meta('hungry', '🍚', '#D9A441', 'neutral'),
+  anxiety: meta('anxiety', '😰', '#6C7BE0', 'negative'),
+  fear: meta('fear', '😨', '#5A6ACF', 'negative'),
+  alert: meta('alert', '⚠️', '#8E7CC3', 'negative'),
+  territorial: meta('territorial', '🚧', '#A2708A', 'negative'),
+  anger: meta('anger', '😤', '#E0524A', 'negative'),
+  pain: meta('pain', '🤕', '#C62828', 'negative'),
+  sad: meta('sad', '😢', '#5F7C8A', 'negative'),
 };
 
 export const EMOTION_KEYS = Object.keys(META) as EmotionKey[];
@@ -58,7 +62,7 @@ export function normalizeEmotionKey(raw: unknown): EmotionKey | null {
   return ALIASES[cleaned.toLowerCase()] ?? ALIASES[camel.toLowerCase()] ?? null;
 }
 
-/** 모델이 자주 뱉는 동의어 · 한국어 표현 흡수 */
+/** 모델이 자주 뱉는 동의어 · 한국어/일본어 표현 흡수 */
 const ALIASES: Record<string, EmotionKey> = {
   joy: 'happy',
   joyful: 'happy',
@@ -119,34 +123,85 @@ const ALIASES: Record<string, EmotionKey> = {
   아픔: 'pain',
   슬픔: 'sad',
   외로움: 'sad',
+  喜び: 'happy',
+  遊びたい: 'playful',
+  甘え: 'affection',
+  不安: 'anxiety',
+  恐怖: 'fear',
+  警戒: 'alert',
+  怒り: 'anger',
+  痛み: 'pain',
+  寂しい: 'sad',
+  空腹: 'hungry',
 };
+
+/**
+ * 상황 맥락에 붙는 의미 태그.
+ * 문구는 언어마다 다르지만 규칙(분리불안 판정 등)은 같아야 하므로,
+ * 이상 징후 로직은 **번역된 문장이 아니라 이 태그**를 본다.
+ */
+export type ContextTag =
+  | 'separation'
+  | 'reunion'
+  | 'meal'
+  | 'walk'
+  | 'stranger'
+  | 'social'
+  | 'night'
+  | 'vet'
+  | 'petting'
+  | 'litter'
+  | 'window'
+  | 'carrier';
+
+export interface ContextPreset {
+  /** 번역 키 (`context.beforeLeaving`) */
+  key: string;
+  tags: ContextTag[];
+}
+
+function preset(key: string, ...tags: ContextTag[]): ContextPreset {
+  return { key: `context.${key}`, tags };
+}
 
 /** 상황 맥락 프리셋 — 홈 화면 칩으로 노출 */
-export const CONTEXT_PRESETS: Record<PetType, string[]> = {
+export const CONTEXT_PRESETS: Record<PetType, ContextPreset[]> = {
   DOG: [
-    '외출 직전',
-    '보호자 귀가 직후',
-    '식사 전',
-    '식사 후',
-    '산책 준비 중',
-    '낯선 사람 방문',
-    '다른 개를 만남',
-    '혼자 집에 있을 때',
-    '잠자기 전',
-    '병원 다녀온 뒤',
+    preset('beforeLeaving', 'separation'),
+    preset('afterReturn', 'reunion'),
+    preset('beforeMeal', 'meal'),
+    preset('afterMeal', 'meal'),
+    preset('beforeWalk', 'walk'),
+    preset('strangerVisit', 'stranger'),
+    preset('meetingDog', 'social'),
+    preset('homeAlone', 'separation'),
+    preset('beforeSleep', 'night'),
+    preset('afterVet', 'vet'),
   ],
   CAT: [
-    '밥그릇 앞',
-    '새벽에 울 때',
-    '화장실 다녀온 뒤',
-    '낯선 사람 방문',
-    '창밖을 볼 때',
-    '쓰다듬는 중',
-    '다른 고양이를 만남',
-    '이동장에 넣을 때',
-    '혼자 집에 있을 때',
-    '병원 다녀온 뒤',
+    preset('atFoodBowl', 'meal'),
+    preset('cryingAtDawn', 'night'),
+    preset('afterLitter', 'litter'),
+    preset('strangerVisit', 'stranger'),
+    preset('lookingOutside', 'window'),
+    preset('whilePetting', 'petting'),
+    preset('meetingCat', 'social'),
+    preset('intoCarrier', 'carrier', 'vet'),
+    preset('homeAlone', 'separation'),
+    preset('afterVet', 'vet'),
   ],
 };
 
-export const PET_LABEL: Record<PetType, string> = { DOG: '강아지', CAT: '고양이' };
+/** 번역 키로 프리셋을 되찾는다 (저장된 기록에서 태그를 복원할 때) */
+export function presetByKey(key: string): ContextPreset | null {
+  for (const list of Object.values(CONTEXT_PRESETS)) {
+    const found = list.find((p) => p.key === key);
+    if (found) return found;
+  }
+  return null;
+}
+
+export const PET_LABEL_KEY: Record<PetType, string> = {
+  DOG: 'pet.dog',
+  CAT: 'pet.cat',
+};

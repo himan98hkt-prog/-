@@ -65,9 +65,21 @@ describe('parseAnalysis', () => {
     expect(result.primaryEmotion).toBe('playful');
   });
 
-  it('말풍선이 비면 감정 기반 기본 대사를 넣는다', () => {
-    const result = parseAnalysis({ ...VALID, petVoiceMessage: '   ' });
-    expect(result.petVoiceMessage.length).toBeGreaterThan(0);
+  it('말풍선이 비면 호출부가 준 대체 문구를 쓴다', () => {
+    const result = parseAnalysis(
+      { ...VALID, petVoiceMessage: '   ' },
+      { messageFor: (emotion) => `fallback:${emotion}` },
+    );
+    expect(result.petVoiceMessage).toBe('fallback:playful');
+  });
+
+  it('설명이 비면 대체 문구로 채운다', () => {
+    const result = parseAnalysis(
+      { ...VALID, behaviorAnalysis: '', actionGuide: '' },
+      { behavior: '설명 없음', action: '지켜봐 주세요' },
+    );
+    expect(result.behaviorAnalysis).toBe('설명 없음');
+    expect(result.actionGuide).toBe('지켜봐 주세요');
   });
 
   it('감정 점수를 하나도 못 읽으면 실패로 처리한다', () => {

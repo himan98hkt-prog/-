@@ -1,4 +1,4 @@
-import { emotionMeta, normalizeEmotionKey } from './emotions';
+import { normalizeEmotionKey } from './emotions';
 import type { AnalysisResult, EmotionKey, EmotionScores } from './types';
 
 /** 모델 응답을 쓸 수 없을 때 던진다. 화면에서는 "다시 시도" 안내로 이어진다. */
@@ -79,25 +79,15 @@ export function sortedEmotions(scores: EmotionScores): { key: EmotionKey; score:
     .map(([key, score]) => ({ key, score }));
 }
 
-/** 모델이 말풍선을 비워 보냈을 때 감정만으로 최소한의 대사를 만든다. */
-function fallbackMessage(primary: EmotionKey): string {
-  const canned: Partial<Record<EmotionKey, string>> = {
-    happy: '지금 기분 최고야!',
-    playful: '심심해! 같이 놀자!',
-    affection: '옆에 있어줘서 좋아.',
-    attentionSeeking: '나 좀 봐줘, 여기야!',
-    curious: '저거 뭐야? 궁금해!',
-    relaxed: '이대로 계속 쉬고 싶어.',
-    hungry: '배고파… 밥 언제 줘?',
-    anxiety: '조금 불안해, 곁에 있어줘.',
-    fear: '무서워… 여기 있기 싫어.',
-    alert: '뭔가 이상해, 내가 지킬게.',
-    territorial: '여긴 내 자리야!',
-    anger: '지금은 건드리지 말아줘.',
-    pain: '어딘가 아파, 봐줄래?',
-    sad: '혼자라 심심하고 외로워.',
-  };
-  return canned[primary] ?? `${emotionMeta(primary).label} 상태예요.`;
+/**
+ * 모델이 문장을 비워 보냈을 때 채울 대체 문구.
+ * 코어는 언어를 모르므로 호출부(UI)가 번역된 문구를 넘겨 준다.
+ */
+export interface ParseFallbacks {
+  /** 말풍선이 비었을 때, 1위 감정에 맞는 대사를 만들어 주는 함수 */
+  messageFor?: (emotion: EmotionKey) => string;
+  behavior?: string;
+  action?: string;
 }
 
 /** 말풍선이 길면 포토카드에서 넘치므로 안전 길이로 자른다. */
@@ -111,7 +101,7 @@ export function clampMessage(message: string, max = 60): string {
  * 프록시가 돌려준 원본(문자열 또는 이미 파싱된 객체)을 화면이 믿고 쓸 수 있는
  * `AnalysisResult` 로 정규화한다.
  */
-export function parseAnalysis(raw: unknown): AnalysisResult {
+export function parseAnalysis(raw: unknown, fallbacks: ParseFallbacks = {}): AnalysisResult {
   let data: unknown = raw;
 
   if (typeof raw === 'string') {
@@ -138,16 +128,15 @@ export function parseAnalysis(raw: unknown): AnalysisResult {
   const declared = normalizeEmotionKey(obj.primaryEmotion);
   const primaryEmotion = declared && emotionScores[declared] != null ? declared : ranked[0].key;
 
-  const message = clampMessage(asText(obj.petVoiceMessage)) || fallbackMessage(primaryEmotion);
+  const message = clampMessage(asText(obj.petVoiceMessage)) || (fallbacks.messageFor?.(primaryEmotion) ?? '');
   const healthAlert = asText(obj.healthAlert);
 
   return {
     petVoiceMessage: message,
     primaryEmotion,
     emotionScores,
-    behaviorAnalysis:
-      asText(obj.behaviorAnalysis) || '행동 근거를 충분히 설명받지 못했어요. 조금 더 또렷한 소리나 사진으로 다시 시도해 보세요.',
-    actionGuide: asText(obj.actionGuide) || '평소와 다른 점이 있는지 잠시 지켜봐 주세요.',
+    behaviorAnalysis: asText(obj.behaviorAnalysis) || (fallbacks.behavior ?? ''),
+    actionGuide: asText(obj.actionGuide) || (fallbacks.action ?? ''),
     ...(healthAlert ? { healthAlert } : {}),
   };
 }

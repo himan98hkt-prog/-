@@ -1,15 +1,15 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 /**
- * 화면 수가 8개뿐이라 react-navigation 대신 최소한의 스택 라우터를 직접 둔다.
+ * 화면 수가 적어 react-navigation 대신 최소한의 스택 라우터를 직접 둔다.
  * 의존성이 줄어 Expo SDK 업그레이드 때 깨질 지점도 줄어든다.
  */
 export type RouteName = 'home' | 'history' | 'settings' | 'capture' | 'result' | 'paywall' | 'petForm';
 
-export const TAB_ROUTES: { route: RouteName; label: string; emoji: string }[] = [
-  { route: 'home', label: '분석', emoji: '🎙' },
-  { route: 'history', label: '다이어리', emoji: '📔' },
-  { route: 'settings', label: '설정', emoji: '⚙️' },
+export const TAB_ROUTES: { route: RouteName; labelKey: string; emoji: string }[] = [
+  { route: 'home', labelKey: 'tab.analyze', emoji: '🎙' },
+  { route: 'history', labelKey: 'tab.diary', emoji: '📔' },
+  { route: 'settings', labelKey: 'tab.settings', emoji: '⚙️' },
 ];
 
 export interface RouteEntry {

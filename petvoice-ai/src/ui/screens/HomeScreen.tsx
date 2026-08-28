@@ -1,27 +1,35 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CONTEXT_PRESETS, PET_LABEL, emotionMeta } from '../../core/emotions';
-import { relativeKo } from '../../core/date';
+import { relativeTime } from '../../core/date';
+import { CONTEXT_PRESETS, PET_LABEL_KEY, emotionMeta, type ContextPreset } from '../../core/emotions';
+import { useT } from '../../i18n/useT';
 import { useActivePet, useEntriesForActivePet, usePetStore, useQuota } from '../../store/usePetStore';
 import { Badge, Button, Card, Chip, Empty, SectionTitle } from '../components/Basics';
 import { PulseRecordButton } from '../components/PulseRecordButton';
 import { RECORD_SECONDS, startRecording, type RecordingHandle } from '../media';
 import { useNavigation } from '../navigation';
-import { useAnalyzeMedia } from '../useAnalyze';
-import { colors, font, radius, space } from '../theme';
+import { font, radius, space } from '../theme';
+import { useStyles, useTheme, type Theme } from '../useTheme';
+import { EMPTY_CONTEXT, useAnalyzeMedia, useQueueDrain, type AnalysisContext } from '../useAnalyze';
 
 export function HomeScreen() {
   const nav = useNavigation();
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const tr = useT();
+  const { t } = tr;
+
   const pet = useActivePet();
   const pets = usePetStore((s) => s.pets);
   const setActivePet = usePetStore((s) => s.setActivePet);
   const entries = useEntriesForActivePet();
   const quota = useQuota();
 
-  const [context, setContext] = useState('');
+  const [context, setContext] = useState<AnalysisContext>(EMPTY_CONTEXT);
   const [recording, setRecording] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RECORD_SECONDS);
   const { analyzing, run } = useAnalyzeMedia();
+  const queue = useQueueDrain();
 
   const handleRef = useRef<RecordingHandle | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -39,10 +47,10 @@ export function HomeScreen() {
     stoppingRef.current = true;
     clearTimer();
     setRecording(false);
-    const uri = await handleRef.current?.stop();
+    const result = await handleRef.current?.stop();
     handleRef.current = null;
     stoppingRef.current = false;
-    if (uri) await run(uri, 'audio', context);
+    if (result?.uri) await run(result.uri, 'audio', context, result.levels);
   }, [run, context]);
 
   const onRecordPress = useCallback(async () => {
@@ -54,7 +62,7 @@ export function HomeScreen() {
       nav.navigate('paywall');
       return;
     }
-    const handle = await startRecording();
+    const handle = await startRecording(tr);
     if (!handle) return;
 
     handleRef.current = handle;
@@ -72,13 +80,19 @@ export function HomeScreen() {
         return prev - 1;
       });
     }, 1000);
-  }, [recording, quota.canAnalyze, nav, stopRecording]);
+  }, [recording, quota.canAnalyze, nav, stopRecording, tr]);
+
+  const toggleContext = (preset: ContextPreset) => {
+    setContext((prev) =>
+      prev.key === preset.key ? EMPTY_CONTEXT : { text: t(preset.key), key: preset.key, tags: preset.tags },
+    );
+  };
 
   if (!pet) {
     return (
       <ScrollView contentContainerStyle={styles.page}>
-        <Empty emoji="🐶" title="아직 등록한 아이가 없어요" desc="먼저 반려동물을 등록하면 분석을 시작할 수 있어요." />
-        <Button label="반려동물 등록하기" onPress={() => nav.navigate('petForm')} />
+        <Empty emoji="🐶" title={t('home.emptyTitle')} desc={t('home.emptyDesc')} />
+        <Button label={t('home.registerCta')} onPress={() => nav.navigate('petForm')} />
       </ScrollView>
     );
   }
@@ -89,16 +103,18 @@ export function HomeScreen() {
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={font.h1}>{pet.name}</Text>
+          <Text accessibilityRole="header" style={[font.h1, { color: colors.text }]}>
+            {pet.name}
+          </Text>
           <Text style={[font.small, { color: colors.textSoft }]}>
-            {PET_LABEL[pet.type]}
+            {t(PET_LABEL_KEY[pet.type])}
             {pet.breed ? ` · ${pet.breed}` : ''}
           </Text>
         </View>
         <Badge
-          text={quota.label}
+          text={tr.m(quota.label)}
           bg={quota.isPro ? colors.proSoft : quota.canAnalyze ? colors.primarySoft : colors.dangerSoft}
-          fg={quota.isPro ? colors.pro : quota.canAnalyze ? colors.primaryDark : colors.danger}
+          fg={quota.isPro ? colors.proText : quota.canAnalyze ? colors.primaryText : colors.danger}
         />
       </View>
 
@@ -111,24 +127,24 @@ export function HomeScreen() {
       ) : null}
 
       <Card style={{ alignItems: 'center', gap: space.md }}>
-        <Text style={[font.h2, { textAlign: 'center' }]}>
-          {recording ? '듣고 있어요…' : analyzing ? '분석하는 중이에요' : '지금 무슨 말을 하는 걸까요?'}
+        <Text accessibilityRole="header" style={[font.h2, { color: colors.text, textAlign: 'center' }]}>
+          {t(recording ? 'home.listening' : analyzing ? 'home.analyzing' : 'home.prompt')}
         </Text>
         <Text style={[font.small, { color: colors.textSoft, textAlign: 'center' }]}>
-          {recording
-            ? `${RECORD_SECONDS}초가 지나면 자동으로 분석해요`
-            : '소리를 3초만 들려주면 감정을 읽어 드려요'}
+          {t(recording ? 'home.recordingSub' : 'home.promptSub', { seconds: RECORD_SECONDS })}
         </Text>
 
         <PulseRecordButton
           recording={recording}
           disabled={analyzing}
           secondsLeft={secondsLeft}
+          idleLabel={t('home.recordLabel', { seconds: RECORD_SECONDS })}
+          a11yLabel={recording ? t('home.stopA11y') : t('home.recordA11y', { seconds: RECORD_SECONDS })}
           onPress={() => void onRecordPress()}
         />
 
         <Button
-          label="📷 사진·행동으로 분석하기"
+          label={t('home.photoCta')}
           variant="ghost"
           disabled={recording || analyzing}
           onPress={() => (quota.canAnalyze ? nav.navigate('capture') : nav.navigate('paywall'))}
@@ -136,20 +152,30 @@ export function HomeScreen() {
         />
       </Card>
 
+      {queue.pending > 0 ? (
+        <Card style={{ gap: space.sm, backgroundColor: colors.warnSoft, borderColor: colors.warnLine }}>
+          <Text style={[font.bodyStrong, { color: colors.text }]}>{t('home.queuedCount', { count: queue.pending })}</Text>
+          <Text style={[font.small, { color: colors.textSoft }]}>{t('home.queued')}</Text>
+          <Button label={t('home.retryQueue')} variant="ghost" loading={queue.draining} onPress={() => void queue.drain()} />
+        </Card>
+      ) : null}
+
       <View>
-        <SectionTitle right={context ? <Text style={[font.tiny, { color: colors.primaryDark }]}>선택됨</Text> : undefined}>
-          지금 상황은요?
+        <SectionTitle
+          right={
+            context.key ? <Text style={[font.tiny, { color: colors.primaryText }]}>{t('home.contextSelected')}</Text> : undefined
+          }
+        >
+          {t('home.contextTitle')}
         </SectionTitle>
-        <Text style={[font.small, { color: colors.textSoft, marginBottom: space.sm }]}>
-          상황을 알려 주면 훨씬 정확해져요. (선택)
-        </Text>
+        <Text style={[font.small, { color: colors.textSoft, marginBottom: space.sm }]}>{t('home.contextSub')}</Text>
         <View style={styles.wrapChips}>
           {presets.map((preset) => (
             <Chip
-              key={preset}
-              label={preset}
-              selected={context === preset}
-              onPress={() => setContext((prev) => (prev === preset ? '' : preset))}
+              key={preset.key}
+              label={t(preset.key)}
+              selected={context.key === preset.key}
+              onPress={() => toggleContext(preset)}
             />
           ))}
         </View>
@@ -159,19 +185,22 @@ export function HomeScreen() {
         <SectionTitle
           right={
             entries.length > 0 ? (
-              <Pressable onPress={() => nav.switchTab('history')} accessibilityRole="button">
-                <Text style={[font.small, { color: colors.primaryDark }]}>전체 보기</Text>
+              <Pressable
+                onPress={() => nav.switchTab('history')}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.seeAll')}
+                hitSlop={8}
+              >
+                <Text style={[font.small, { color: colors.primaryText }]}>{t('home.seeAll')}</Text>
               </Pressable>
             ) : undefined
           }
         >
-          최근 기록
+          {t('home.recentTitle')}
         </SectionTitle>
         {entries.length === 0 ? (
           <Card>
-            <Text style={[font.small, { color: colors.textSoft }]}>
-              아직 기록이 없어요. 첫 분석을 하면 여기에 쌓입니다.
-            </Text>
+            <Text style={[font.small, { color: colors.textSoft }]}>{t('home.recentEmpty')}</Text>
           </Card>
         ) : (
           <View style={{ gap: space.sm }}>
@@ -181,6 +210,7 @@ export function HomeScreen() {
                 <Pressable
                   key={entry.id}
                   accessibilityRole="button"
+                  accessibilityLabel={`${entry.result.petVoiceMessage}, ${t(meta.labelKey)}`}
                   onPress={() => nav.navigate('result', { entryId: entry.id })}
                   style={styles.recentRow}
                 >
@@ -188,11 +218,11 @@ export function HomeScreen() {
                     <Text>{meta.emoji}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={font.bodyStrong} numberOfLines={1}>
+                    <Text style={[font.bodyStrong, { color: colors.text }]} numberOfLines={1}>
                       {entry.result.petVoiceMessage}
                     </Text>
                     <Text style={[font.tiny, { color: colors.textFaint }]}>
-                      {relativeKo(entry.createdAt)} · {meta.label}
+                      {tr.relative(relativeTime(entry.createdAt))} · {t(meta.labelKey)}
                       {entry.context ? ` · ${entry.context}` : ''}
                     </Text>
                   </View>
@@ -207,20 +237,21 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { padding: space.lg, gap: space.xl, paddingBottom: space.xxl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  chipRow: { gap: space.sm, paddingVertical: space.xs },
-  wrapChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space.md,
-  },
-  recentDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-});
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    page: { padding: space.lg, gap: space.xl, paddingBottom: space.xxl },
+    header: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+    chipRow: { gap: space.sm, paddingVertical: space.xs },
+    wrapChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+    recentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: space.md,
+    },
+    recentDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  });

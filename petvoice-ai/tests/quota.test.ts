@@ -29,7 +29,7 @@ describe('quotaState', () => {
     expect(state.used).toBe(3);
     expect(state.remaining).toBe(0);
     expect(state.canAnalyze).toBe(false);
-    expect(state.label).toContain('초기화');
+    expect(state.label).toMatchObject({ key: 'quota.freeExhausted' });
   });
 
   it('어제 기록은 오늘 한도에 포함되지 않는다', () => {
@@ -47,7 +47,7 @@ describe('quotaState', () => {
     const state = quotaState([today(1), today(2), today(3), today(4)], { pro: true }, now);
     expect(state.limit).toBeNull();
     expect(state.canAnalyze).toBe(true);
-    expect(state.label).toContain('무제한');
+    expect(state.label).toMatchObject({ key: 'quota.proUnlimited' });
   });
 
   it('만료된 프로는 무료로 되돌린다', () => {

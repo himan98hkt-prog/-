@@ -1,32 +1,56 @@
-import React, { useEffect } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useBilling } from '../../billing/useBilling';
-import { PRO_FEATURES, PRO_PRICE_KRW } from '../../core/quota';
+import { PRO_MONTHLY_SKU, PRO_YEARLY_SKU, savingsPercent, type TrialPeriod } from '../../core/billing';
+import { FREE_DAILY_LIMIT, PRO_PRICE_KRW, PRO_YEARLY_PRICE_KRW, PRO_FEATURES } from '../../core/quota';
+import { useT, type Translator } from '../../i18n/useT';
 import { usePetStore, useIsPro } from '../../store/usePetStore';
 import { Button, Card } from '../components/Basics';
 import { LINKS } from '../links';
 import { useNavigation } from '../navigation';
-import { colors, font, radius, space } from '../theme';
+import { font, radius, space } from '../theme';
+import { useStyles, useTheme, type Theme } from '../useTheme';
+
+/** 체험 기간을 사람이 읽는 문구로 (1주는 파싱 단계에서 7일로 환산돼 있다) */
+function trialLabel(trial: TrialPeriod | null, tr: Translator): string | null {
+  if (!trial) return null;
+  const key = { day: 'duration.days', month: 'duration.months', year: 'duration.years' }[trial.unit];
+  return tr.t(key, { count: trial.count });
+}
 
 /**
  * 프로 구독 안내 + 결제.
  *
  * 결제 자체는 스토어가, 검증은 서버가 한다. 이 화면은 상태를 보여 주고 방아쇠만 당긴다.
- * 스토어 결제를 쓸 수 없는 환경(Expo Go·웹·데모 모드)에서는 그 사실을 숨기지 않고 알린다.
  */
 export function PaywallScreen() {
   const nav = useNavigation();
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const tr = useT();
+  const { t } = tr;
   const isPro = useIsPro();
   const setSubscription = usePetStore((s) => s.setSubscription);
   const billing = useBilling();
 
-  const product = billing.products[0];
-  const priceLabel = product?.localizedPrice || `${PRO_PRICE_KRW.toLocaleString('ko-KR')}원`;
+  const [selectedSku, setSelectedSku] = useState<string>(PRO_YEARLY_SKU);
+
+  const monthly = billing.products.find((p) => p.productId === PRO_MONTHLY_SKU);
+  const yearly = billing.products.find((p) => p.productId === PRO_YEARLY_SKU);
+  const selected = billing.products.find((p) => p.productId === selectedSku);
+  const trial = trialLabel(selected?.freeTrial ?? null, tr);
+
+  const savings = useMemo(() => {
+    if (monthly?.priceMicros && yearly?.priceMicros) return savingsPercent(monthly.priceMicros, yearly.priceMicros);
+    return savingsPercent(PRO_PRICE_KRW * 1_000_000, PRO_YEARLY_PRICE_KRW * 1_000_000);
+  }, [monthly?.priceMicros, yearly?.priceMicros]);
 
   useEffect(() => {
     if (!billing.notice) return;
-    Alert.alert('구독', billing.notice, [{ text: '확인', onPress: billing.clearNotice }]);
-  }, [billing.notice, billing.clearNotice]);
+    Alert.alert(t('paywall.subscriptionTitle'), tr.m(billing.notice), [
+      { text: t('common.confirm'), onPress: billing.clearNotice },
+    ]);
+  }, [billing.notice, billing.clearNotice, t, tr]);
 
   /** 개발 빌드에서 결제 없이 프로 화면을 확인하기 위한 우회로. 릴리스에는 없다. */
   const devUnlock = () => {
@@ -41,99 +65,192 @@ export function PaywallScreen() {
     nav.back();
   };
 
+  const priceOf = (sku: string) => {
+    const product = billing.products.find((p) => p.productId === sku);
+    if (product?.localizedPrice) return product.localizedPrice;
+    const fallback = sku === PRO_YEARLY_SKU ? PRO_YEARLY_PRICE_KRW : PRO_PRICE_KRW;
+    return `${fallback.toLocaleString(tr.locale)}${tr.locale === 'en' ? ' KRW' : '원'}`;
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.hero}>
-        <Text style={{ fontSize: 46 }}>🐾</Text>
-        <Text style={[font.h1, { textAlign: 'center' }]}>PetVoice 프로</Text>
+        <Text style={{ fontSize: 46 }} accessibilityElementsHidden importantForAccessibility="no">
+          🐾
+        </Text>
+        <Text accessibilityRole="header" style={[font.h1, { color: colors.text, textAlign: 'center' }]}>
+          {t('paywall.title')}
+        </Text>
         <Text style={[font.body, { color: colors.textSoft, textAlign: 'center' }]}>
-          하루 3회 제한 없이, 우리 아이 이야기를 마음껏 들어 보세요.
+          {t('paywall.subtitle', { limit: FREE_DAILY_LIMIT })}
         </Text>
       </View>
 
       <Card style={{ gap: space.lg }}>
         {PRO_FEATURES.map((feature) => (
-          <View key={feature.key} style={styles.feature}>
-            <Text style={styles.check}>✓</Text>
+          <View key={feature} style={styles.feature}>
+            <Text style={[styles.check, { color: colors.proText }]}>✓</Text>
             <View style={{ flex: 1 }}>
-              <Text style={font.bodyStrong}>{feature.title}</Text>
-              <Text style={[font.small, { color: colors.textSoft }]}>{feature.desc}</Text>
+              <Text style={[font.bodyStrong, { color: colors.text }]}>{t(`paywall.feature.${feature}.title`)}</Text>
+              <Text style={[font.small, { color: colors.textSoft }]}>
+                {t(`paywall.feature.${feature}.desc`, { limit: FREE_DAILY_LIMIT })}
+              </Text>
             </View>
           </View>
         ))}
       </Card>
 
-      <Card style={styles.price}>
-        {product?.freeTrial ? (
-          <Text style={[font.tiny, { color: colors.pro }]}>{product.freeTrial} 무료 체험</Text>
-        ) : null}
-        <Text style={font.h2}>월 {priceLabel}</Text>
-        <Text style={[font.small, { color: colors.textSoft }]}>언제든 스토어에서 해지할 수 있어요.</Text>
-      </Card>
+      {!isPro ? (
+        <View style={{ gap: space.sm }}>
+          <PlanOption
+            selected={selectedSku === PRO_YEARLY_SKU}
+            onPress={() => setSelectedSku(PRO_YEARLY_SKU)}
+            title={t('paywall.planYearly')}
+            price={t('paywall.perYear', { price: priceOf(PRO_YEARLY_SKU) })}
+            note={savings ? t('paywall.saveBadge', { percent: savings }) : undefined}
+          />
+          <PlanOption
+            selected={selectedSku === PRO_MONTHLY_SKU}
+            onPress={() => setSelectedSku(PRO_MONTHLY_SKU)}
+            title={t('paywall.planMonthly')}
+            price={t('paywall.perMonth', { price: priceOf(PRO_MONTHLY_SKU) })}
+          />
+          <Text style={[font.tiny, { color: colors.textFaint, textAlign: 'center' }]}>
+            {t('paywall.cancelAnytime')}
+          </Text>
+        </View>
+      ) : null}
 
       {isPro ? (
         <Card style={{ alignItems: 'center', gap: space.sm }}>
-          <Text style={font.h3}>이미 프로 이용 중이에요 🎉</Text>
+          <Text accessibilityRole="header" style={[font.h3, { color: colors.text }]}>
+            {t('paywall.alreadyPro')}
+          </Text>
           <Button
-            label="구독 관리 (해지·결제수단)"
+            label={t('settings.manageSub')}
             variant="ghost"
             onPress={() => void billing.openManage()}
             style={{ alignSelf: 'stretch' }}
           />
-          <Button label="돌아가기" variant="ghost" onPress={nav.back} style={{ alignSelf: 'stretch' }} />
+          <Button label={t('result.goBack')} variant="ghost" onPress={nav.back} style={{ alignSelf: 'stretch' }} />
         </Card>
       ) : (
         <>
           <Button
-            label={billing.loading ? '스토어 확인 중…' : product?.freeTrial ? `${product.freeTrial} 무료로 시작하기` : '프로 시작하기'}
+            label={
+              billing.loading
+                ? t('paywall.checking')
+                : trial
+                  ? t('paywall.startTrial', { period: trial })
+                  : t('paywall.start')
+            }
             variant="pro"
             loading={billing.busy || billing.loading}
             disabled={!billing.available}
-            onPress={() => void billing.buy()}
+            onPress={() => void billing.buy(selectedSku)}
           />
-          <Button label="구매 복원" variant="ghost" disabled={!billing.available} onPress={() => void billing.restore()} />
+          <Button
+            label={t('paywall.restore')}
+            variant="ghost"
+            disabled={!billing.available}
+            onPress={() => void billing.restore()}
+          />
 
           {!billing.available ? (
-            <Card style={{ backgroundColor: colors.warnSoft, borderColor: colors.warn, gap: space.xs }}>
-              <Text style={font.bodyStrong}>이 환경에서는 결제를 할 수 없어요</Text>
-              <Text style={[font.small, { color: colors.textSoft }]}>
-                스토어 결제는 EAS 개발 빌드 또는 스토어에서 내려받은 앱에서만 동작합니다.
-                {'\n'}(Expo Go·웹 미리보기에는 결제 네이티브 모듈이 없습니다.)
-              </Text>
+            <Card style={{ backgroundColor: colors.warnSoft, borderColor: colors.warnLine, gap: space.xs }}>
+              <Text style={[font.bodyStrong, { color: colors.text }]}>{t('paywall.unavailableTitle')}</Text>
+              <Text style={[font.small, { color: colors.textSoft }]}>{t('paywall.unavailableDesc')}</Text>
               {__DEV__ ? (
-                <Button label="개발용: 프로 상태로 전환" variant="ghost" onPress={devUnlock} style={{ marginTop: space.sm }} />
+                <Button
+                  label={t('paywall.devUnlock')}
+                  variant="ghost"
+                  onPress={devUnlock}
+                  style={{ marginTop: space.sm }}
+                />
               ) : null}
             </Card>
           ) : null}
 
-          <Button label="나중에 할게요" variant="ghost" onPress={nav.back} />
+          <Button label={t('paywall.later')} variant="ghost" onPress={nav.back} />
         </>
       )}
 
-      <Text style={[font.tiny, styles.legal]}>
-        구독은 매월 자동 갱신되며, 해지하지 않으면 다음 결제일에 갱신됩니다.{'\n'}
-        해지는 구독 만료 24시간 전까지 스토어의 구독 관리에서 할 수 있습니다.{'\n'}
-        결제·환불은 각 스토어 정책을 따릅니다.
+      <Text style={[font.tiny, { color: colors.textFaint, textAlign: 'center', lineHeight: 17 }]}>
+        {t('paywall.legal')}
       </Text>
       <View style={styles.legalLinks}>
-        <Text style={[font.tiny, styles.link]} onPress={() => void Linking.openURL(LINKS.terms)}>
-          이용약관
+        <Text
+          accessibilityRole="link"
+          style={[font.tiny, styles.link, { color: colors.textSoft }]}
+          onPress={() => void Linking.openURL(LINKS.terms)}
+        >
+          {t('settings.terms')}
         </Text>
-        <Text style={[font.tiny, styles.link]} onPress={() => void Linking.openURL(LINKS.privacy)}>
-          개인정보처리방침
+        <Text
+          accessibilityRole="link"
+          style={[font.tiny, styles.link, { color: colors.textSoft }]}
+          onPress={() => void Linking.openURL(LINKS.privacy)}
+        >
+          {t('settings.privacyPolicy')}
         </Text>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  hero: { alignItems: 'center', gap: space.sm, paddingTop: space.lg },
-  feature: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
-  check: { color: colors.pro, fontSize: 18, fontWeight: '800' },
-  price: { alignItems: 'center', gap: space.xs, backgroundColor: colors.proSoft, borderColor: colors.proSoft, borderRadius: radius.lg },
-  legal: { color: colors.textFaint, textAlign: 'center', lineHeight: 17 },
-  legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: space.lg },
-  link: { color: colors.textSoft, textDecorationLine: 'underline' },
-});
+function PlanOption({
+  selected,
+  onPress,
+  title,
+  price,
+  note,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  title: string;
+  price: string;
+  note?: string;
+}) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected, checked: selected }}
+      accessibilityLabel={`${title} ${price}${note ? ` ${note}` : ''}`}
+      onPress={onPress}
+      style={[styles.plan, selected && { borderColor: colors.pro, backgroundColor: colors.proSoft }]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[font.bodyStrong, { color: colors.text }]}>{title}</Text>
+        <Text style={[font.small, { color: colors.textSoft }]}>{price}</Text>
+      </View>
+      {note ? (
+        <View style={[styles.saveTag, { backgroundColor: colors.pro }]}>
+          <Text style={[font.tiny, { color: colors.onPro }]}>{note}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    page: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
+    hero: { alignItems: 'center', gap: space.sm, paddingTop: space.lg },
+    feature: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
+    check: { fontSize: 18, fontWeight: '800' },
+    plan: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      padding: space.lg,
+    },
+    saveTag: { paddingHorizontal: space.md, paddingVertical: 4, borderRadius: radius.pill },
+    legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: space.lg },
+    link: { textDecorationLine: 'underline' },
+  });

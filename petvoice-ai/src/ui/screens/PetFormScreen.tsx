@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { PET_LABEL } from '../../core/emotions';
+import { PET_LABEL_KEY } from '../../core/emotions';
 import { FREE_PET_LIMIT, canAddPet } from '../../core/quota';
 import type { PetType } from '../../core/types';
+import { useT } from '../../i18n/useT';
 import { usePetStore } from '../../store/usePetStore';
 import { Button, Card, Chip } from '../components/Basics';
 import { pickPhoto } from '../media';
 import { useNavigation } from '../navigation';
-import { colors, font, radius, space } from '../theme';
+import { font, HIT_SIZE, radius, space } from '../theme';
+import { useStyles, useTheme, type Theme } from '../useTheme';
 
 /** 반려동물 등록·수정 */
 export function PetFormScreen() {
   const nav = useNavigation();
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const tr = useT();
+  const { t } = tr;
   const editingId = nav.current.params?.petId as string | undefined;
 
   const pets = usePetStore((s) => s.pets);
@@ -29,12 +35,12 @@ export function PetFormScreen() {
   const save = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert('이름을 알려 주세요', '분석 결과의 말풍선에 이름이 쓰여요.');
+      Alert.alert(t('petForm.nameRequired'), t('petForm.nameRequiredDesc'));
       return;
     }
     const ageMonths = age.trim() ? Number(age.trim()) : undefined;
     if (ageMonths != null && (!Number.isFinite(ageMonths) || ageMonths < 0 || ageMonths > 400)) {
-      Alert.alert('나이를 확인해 주세요', '개월 수로 입력해 주세요. (예: 18)');
+      Alert.alert(t('petForm.ageInvalid'), t('petForm.ageInvalidDesc'));
       return;
     }
 
@@ -46,14 +52,10 @@ export function PetFormScreen() {
       return;
     }
     if (!canAddPet(pets.length, subscription)) {
-      Alert.alert(
-        '무료로는 한 마리까지예요',
-        `프로로 업그레이드하면 여러 마리를 각각 기록할 수 있어요. (무료 ${FREE_PET_LIMIT}마리)`,
-        [
-          { text: '닫기', style: 'cancel' },
-          { text: '프로 보기', onPress: () => nav.navigate('paywall') },
-        ],
-      );
+      Alert.alert(t('petForm.limitTitle'), t('petForm.limitDesc', { limit: FREE_PET_LIMIT }), [
+        { text: t('common.close'), style: 'cancel' },
+        { text: t('petForm.viewPro'), onPress: () => nav.navigate('paywall') },
+      ]);
       return;
     }
     addPet(payload);
@@ -62,44 +64,57 @@ export function PetFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-      <Text style={font.h1}>{existing ? '프로필 수정' : '반려동물 등록'}</Text>
+      <Text accessibilityRole="header" style={[font.h1, { color: colors.text }]}>
+        {t(existing ? 'petForm.titleEdit' : 'petForm.titleNew')}
+      </Text>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="사진 고르기"
+        accessibilityLabel={t('petForm.photoA11y')}
         onPress={async () => {
-          const uri = await pickPhoto();
+          const uri = await pickPhoto(tr);
           if (uri) setPhotoUri(uri);
         }}
         style={styles.photo}
       >
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photoImg} />
+          <Image source={{ uri: photoUri }} style={styles.photoImg} accessibilityIgnoresInvertColors />
         ) : (
           <>
             <Text style={{ fontSize: 34 }}>📷</Text>
-            <Text style={[font.tiny, { color: colors.textSoft }]}>사진 추가</Text>
+            <Text style={[font.tiny, { color: colors.textSoft }]}>{t('petForm.photoAdd')}</Text>
           </>
         )}
       </Pressable>
 
       <Card style={{ gap: space.lg }}>
         <View style={{ gap: space.sm }}>
-          <Text style={font.bodyStrong}>어떤 아이인가요?</Text>
+          <Text style={[font.bodyStrong, { color: colors.text }]}>{t('petForm.which')}</Text>
           <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {(['DOG', 'CAT'] as PetType[]).map((t) => (
-              <Chip key={t} label={PET_LABEL[t]} selected={type === t} onPress={() => setType(t)} />
+            {(['DOG', 'CAT'] as PetType[]).map((value) => (
+              <Chip
+                key={value}
+                label={t(PET_LABEL_KEY[value])}
+                selected={type === value}
+                onPress={() => setType(value)}
+              />
             ))}
           </View>
         </View>
 
-        <Field label="이름" value={name} onChange={setName} placeholder="예: 초코" />
-        <Field label="견종 / 묘종 (선택)" value={breed} onChange={setBreed} placeholder="예: 포메라니안" />
-        <Field label="나이 (개월, 선택)" value={age} onChange={setAge} placeholder="예: 18" keyboardType="number-pad" />
+        <Field label={t('petForm.name')} value={name} onChange={setName} placeholder={t('petForm.namePlaceholder')} />
+        <Field label={t('petForm.breed')} value={breed} onChange={setBreed} placeholder={t('petForm.breedPlaceholder')} />
+        <Field
+          label={t('petForm.age')}
+          value={age}
+          onChange={setAge}
+          placeholder={t('petForm.agePlaceholder')}
+          keyboardType="number-pad"
+        />
       </Card>
 
-      <Button label={existing ? '수정 저장' : '등록하기'} onPress={save} />
-      <Button label="취소" variant="ghost" onPress={nav.back} />
+      <Button label={t(existing ? 'petForm.saveEdit' : 'petForm.save')} onPress={save} />
+      <Button label={t('common.cancel')} variant="ghost" onPress={nav.back} />
     </ScrollView>
   );
 }
@@ -117,9 +132,11 @@ function Field({
   placeholder?: string;
   keyboardType?: 'default' | 'number-pad';
 }) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   return (
     <View style={{ gap: space.xs }}>
-      <Text style={font.bodyStrong}>{label}</Text>
+      <Text style={[font.bodyStrong, { color: colors.text }]}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
         value={value}
@@ -133,30 +150,32 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
-  page: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  photo: {
-    alignSelf: 'center',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs,
-    overflow: 'hidden',
-  },
-  photoImg: { width: '100%', height: '100%' },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    minHeight: 48,
-    backgroundColor: colors.surface,
-    color: colors.text,
-    fontSize: 15,
-  },
-});
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    page: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
+    photo: {
+      alignSelf: 'center',
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.xs,
+      overflow: 'hidden',
+    },
+    photoImg: { width: '100%', height: '100%' },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: space.md,
+      paddingVertical: space.md,
+      minHeight: HIT_SIZE + 4,
+      backgroundColor: colors.surface,
+      color: colors.text,
+      fontSize: 15,
+    },
+  });

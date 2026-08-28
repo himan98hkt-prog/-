@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { assessHealth, assessHistoryRisk } from '../src/core/health';
 import type { AnalysisEntry, AnalysisResult } from '../src/core/types';
 
+import type { Message } from '../src/core/message';
+
+/** Message[] 에서 번역 키 / 원문만 뽑아 비교하기 쉽게 */
+const keys = (list: Message[]) => list.map((m) => ('key' in m ? m.key : '(raw)'));
+const texts = (list: Message[]) => list.map((m) => ('text' in m ? m.text : ''));
+
 function result(over: Partial<AnalysisResult> = {}): AnalysisResult {
   return {
     petVoiceMessage: '심심해!',
@@ -37,13 +43,14 @@ describe('assessHealth', () => {
       'DOG',
     );
     expect(assessment.level).toBe('vet');
-    expect(assessment.tips.join(' ')).toContain('동물병원');
+    expect(keys(assessment.tips)).toContain('health.tip.visitSoon');
   });
 
   it('모델이 healthAlert 를 주면 그대로 근거에 싣고 병원 단계로 올린다', () => {
     const assessment = assessHealth(result({ healthAlert: '지속적인 기침이 확인됩니다.' }), 'CAT');
     expect(assessment.level).toBe('vet');
-    expect(assessment.reasons).toContain('지속적인 기침이 확인됩니다.');
+    // 모델이 사용자 언어로 쓴 문장이라 번역하지 않고 그대로 싣는다
+    expect(texts(assessment.reasons)).toContain('지속적인 기침이 확인됩니다.');
   });
 
   it('행동 분석 문장에 의학적 신호가 있으면 잡아낸다', () => {
@@ -52,18 +59,18 @@ describe('assessHealth', () => {
       'DOG',
     );
     expect(assessment.level).toBe('vet');
-    expect(assessment.reasons.some((r) => r.includes('보행 이상'))).toBe(true);
+    expect(assessment.reasons).toContainEqual({ key: 'health.reason.sign', params: { sign: '@health.sign.gait' } });
   });
 
   it('외출 맥락의 높은 불안은 분리불안으로 안내한다', () => {
     const assessment = assessHealth(
       result({ emotionScores: { anxiety: 62, sad: 26, attentionSeeking: 12 }, primaryEmotion: 'anxiety' }),
       'DOG',
-      '외출 직전',
+      ['separation'],
     );
     expect(assessment.level).toBe('watch');
-    expect(assessment.reasons.join(' ')).toContain('분리불안');
-    expect(assessment.tips.join(' ')).toContain('외출');
+    expect(keys(assessment.reasons)).toContain('health.reason.separationAnxiety');
+    expect(keys(assessment.tips)).toContain('health.tip.separation');
   });
 
   it('부정 감정이 과반을 크게 넘으면 관찰 단계로 올린다', () => {
@@ -76,7 +83,16 @@ describe('assessHealth', () => {
 
   it('종에 맞는 팁을 준다', () => {
     const cat = assessHealth(result({ emotionScores: { anxiety: 60, sad: 30, fear: 10 } }), 'CAT');
-    expect(cat.tips.join(' ')).toContain('캣타워');
+    expect(keys(cat.tips)).toContain('health.tip.cat');
+    const dog = assessHealth(result({ emotionScores: { anxiety: 60, sad: 30, fear: 10 } }), 'DOG');
+    expect(keys(dog.tips)).toContain('health.tip.dog');
+  });
+
+  it('영어·일본어로 답한 분석에서도 의학 신호를 잡는다', () => {
+    const english = assessHealth(result({ behaviorAnalysis: 'The dog is limping on the hind leg.' }), 'DOG');
+    expect(english.level).toBe('vet');
+    const japanese = assessHealth(result({ behaviorAnalysis: '嘔吐が続いているようです。' }), 'CAT');
+    expect(japanese.level).toBe('vet');
   });
 });
 
@@ -101,7 +117,7 @@ describe('assessHistoryRisk', () => {
     const entries = [0, 1, 2].map((i) => entry({ createdAt: now - i * day, result: anxious }));
     const risk = assessHistoryRisk(entries, now);
     expect(risk?.level).toBe('watch');
-    expect(risk?.message).toContain('분리불안');
+    expect(risk?.message).toMatchObject({ key: 'health.risk.repeatedAnxiety' });
   });
 
   it('7일 밖의 기록은 세지 않는다', () => {

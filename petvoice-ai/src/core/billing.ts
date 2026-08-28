@@ -4,11 +4,32 @@
  * 여기에는 react-native-iap 도, 네트워크도 없다. 스토어가 돌려준 값을 우리 도메인
  * 타입으로 옮기고 "지금 프로인가"를 판단하는 규칙만 있다. 그래서 전부 테스트로 고정된다.
  */
+import { msg, type Message } from './message';
 import type { Subscription, SubscriptionState, SubscriptionStore } from './types';
 
 /** 스토어에 등록하는 상품 ID (Play 구독 ID / App Store 제품 ID 동일하게 맞춘다) */
 export const PRO_MONTHLY_SKU = 'petvoice_pro_monthly';
-export const SUBSCRIPTION_SKUS = [PRO_MONTHLY_SKU];
+export const PRO_YEARLY_SKU = 'petvoice_pro_yearly';
+export const SUBSCRIPTION_SKUS = [PRO_MONTHLY_SKU, PRO_YEARLY_SKU];
+
+export type BillingPeriod = 'month' | 'year';
+
+/** 상품 ID 로 결제 주기를 판단한다 (스토어 응답 형식에 덜 기대는 쪽) */
+export function periodOfSku(sku: string): BillingPeriod {
+  return sku === PRO_YEARLY_SKU ? 'year' : 'month';
+}
+
+/**
+ * 연간 구독이 월간 대비 얼마나 싼지(%).
+ * 월간만 팔면 대부분 첫 달에 해지한다 — 연간을 나란히 두는 것만으로 1인당 매출이 달라진다.
+ */
+export function savingsPercent(monthlyMicros: number, yearlyMicros: number): number | null {
+  if (!Number.isFinite(monthlyMicros) || !Number.isFinite(yearlyMicros)) return null;
+  if (monthlyMicros <= 0 || yearlyMicros <= 0) return null;
+  const yearOfMonthly = monthlyMicros * 12;
+  if (yearlyMicros >= yearOfMonthly) return null;
+  return Math.round((1 - yearlyMicros / yearOfMonthly) * 100);
+}
 
 /** 서버 검증 결과가 이만큼 지나면 다시 맞춘다 */
 export const RESYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -108,24 +129,19 @@ export function shouldResync(sub: Subscription | undefined, now = Date.now()): b
   return false;
 }
 
-/** 설정 화면에 그대로 뿌리는 구독 상태 설명 */
-export function describeSubscription(sub: Subscription | undefined, now = Date.now()): string {
-  if (!sub?.pro) return '무료 플랜';
+/** 설정 화면에 뿌리는 구독 상태 설명 */
+export function describeSubscription(sub: Subscription | undefined): Message {
+  if (!sub?.pro) return msg('billing.state.free');
 
-  const until = sub.expiresAt ? formatDate(sub.expiresAt) : null;
+  const until = sub.expiresAt;
   if (sub.state === 'grace') {
-    return `결제 확인이 필요해요${until ? ` · ${until}까지 이용 가능` : ''}`;
+    return until ? msg('billing.state.graceUntil', { until }) : msg('billing.state.grace');
   }
   if (sub.autoRenewing === false) {
-    return until ? `해지 예약됨 · ${until}까지 이용 가능` : '해지 예약됨';
+    return until ? msg('billing.state.canceledUntil', { until }) : msg('billing.state.canceled');
   }
-  if (until) return `프로 이용 중 · ${until} 자동 갱신`;
-  return '프로 이용 중';
-}
-
-function formatDate(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+  if (until) return msg('billing.state.renewsOn', { until });
+  return msg('billing.state.active');
 }
 
 /* ---------- 스토어 상품/구매 정규화 ---------- */
@@ -153,22 +169,27 @@ export function pickAndroidOffer(offers: AndroidOffer[] | undefined): AndroidOff
   return introductory ?? offers[0];
 }
 
-/** 오퍼가 무료 체험을 포함하면 체험 기간 문자열을 돌려준다. (`P1W` → `7일`) */
-export function freeTrialLabel(offer: AndroidOffer | null): string | null {
+/** 오퍼가 무료 체험을 포함하면 그 기간을 돌려준다. */
+export function freeTrialPeriod(offer: AndroidOffer | null): TrialPeriod | null {
   const first = offer?.pricingPhases?.pricingPhaseList?.[0];
   if (!first || first.priceAmountMicros !== '0' || !first.billingPeriod) return null;
-  return isoPeriodToKo(first.billingPeriod);
+  return parseIsoPeriod(first.billingPeriod);
 }
 
-/** ISO-8601 기간(`P1W`, `P3D`, `P1M`)을 한국어로 */
-export function isoPeriodToKo(period: string): string | null {
+export interface TrialPeriod {
+  unit: 'day' | 'month' | 'year';
+  count: number;
+}
+
+/** ISO-8601 기간(`P1W`, `P3D`, `P1M`) 파싱. 주는 일로 환산한다. */
+export function parseIsoPeriod(period: string): TrialPeriod | null {
   const match = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?$/.exec(period.trim().toUpperCase());
   if (!match) return null;
   const [, y, m, w, d] = match;
-  if (y) return `${Number(y)}년`;
-  if (m) return `${Number(m)}개월`;
-  if (w) return `${Number(w) * 7}일`;
-  if (d) return `${Number(d)}일`;
+  if (y) return { unit: 'year', count: Number(y) };
+  if (m) return { unit: 'month', count: Number(m) };
+  if (w) return { unit: 'day', count: Number(w) * 7 };
+  if (d) return { unit: 'day', count: Number(d) };
   return null;
 }
 

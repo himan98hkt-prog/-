@@ -31,42 +31,32 @@ export function addDays(ts: number, days: number): number {
   return d.getTime();
 }
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+/**
+ * 상대 시각을 **표현이 아니라 구조로** 돌려준다.
+ * 문장은 언어마다 다르므로 조립은 UI 가 한다.
+ */
+export type RelativeTime =
+  | { kind: 'justNow' }
+  | { kind: 'minutes'; value: number }
+  | { kind: 'hours'; value: number }
+  | { kind: 'yesterday' }
+  | { kind: 'days'; value: number }
+  | { kind: 'date'; ts: number };
 
-export function weekdayKo(ts: number | Date): string {
-  const d = ts instanceof Date ? ts : new Date(ts);
-  return WEEKDAYS[d.getDay()];
-}
-
-/** `8월 28일 (금) 오후 3:12` */
-export function formatKo(ts: number | Date): string {
-  const d = ts instanceof Date ? ts : new Date(ts);
-  const hours = d.getHours();
-  const ampm = hours < 12 ? '오전' : '오후';
-  const h12 = hours % 12 === 0 ? 12 : hours % 12;
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekdayKo(d)}) ${ampm} ${h12}:${mm}`;
-}
-
-/** `방금 전`, `3분 전`, `어제`, `3일 전` */
-export function relativeKo(ts: number, now = Date.now()): string {
+export function relativeTime(ts: number, now = Date.now()): RelativeTime {
   const diff = now - ts;
-  if (diff < 60_000) return '방금 전';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}분 전`;
-  if (dayKey(ts) === dayKey(now)) return `${Math.floor(diff / 3_600_000)}시간 전`;
+  if (diff < 60_000) return { kind: 'justNow' };
+  if (diff < 3_600_000) return { kind: 'minutes', value: Math.floor(diff / 60_000) };
+  if (dayKey(ts) === dayKey(now)) return { kind: 'hours', value: Math.floor(diff / 3_600_000) };
+
   const days = Math.round((startOfDay(now) - startOfDay(ts)) / DAY_MS);
-  if (days === 1) return '어제';
-  if (days < 7) return `${days}일 전`;
-  return `${new Date(ts).getMonth() + 1}월 ${new Date(ts).getDate()}일`;
+  if (days === 1) return { kind: 'yesterday' };
+  if (days < 7) return { kind: 'days', value: days };
+  return { kind: 'date', ts };
 }
 
-/** 남은 시간을 `2시간 13분` 형태로 */
-export function durationKo(ms: number): string {
-  if (ms <= 0) return '곧';
-  const totalMinutes = Math.ceil(ms / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}분`;
-  if (minutes === 0) return `${hours}시간`;
-  return `${hours}시간 ${minutes}분`;
+/** 남은 시간을 시/분으로 쪼갠다. 문장 조립은 UI. */
+export function splitDuration(ms: number): { hours: number; minutes: number } {
+  const totalMinutes = Math.max(0, Math.ceil(ms / 60_000));
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
 }

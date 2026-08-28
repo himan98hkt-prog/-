@@ -11,7 +11,8 @@ import type { EmotionKey } from './types';
 
 export interface CardTheme {
   key: string;
-  name: string;
+  /** 번역 키 (`cardTheme.classic`) */
+  nameKey: string;
   /** 프로 구독자 전용 테마인지 */
   pro: boolean;
   bubbleBg: string;
@@ -25,12 +26,12 @@ export interface CardTheme {
 }
 
 export const CARD_THEMES: CardTheme[] = [
-  { key: 'classic', name: '클래식 화이트', pro: false, bubbleBg: '#FFFFFF', bubbleText: '#1F2430', accent: '#FF8A3D', scrim: 0.35, shape: 'round' },
-  { key: 'night', name: '나이트 블랙', pro: false, bubbleBg: 'rgba(20,22,30,0.88)', bubbleText: '#FFFFFF', accent: '#FFB627', scrim: 0.45, shape: 'round' },
-  { key: 'peach', name: '피치 하트', pro: true, bubbleBg: '#FFE3EC', bubbleText: '#8A2F52', accent: '#FF6FA5', scrim: 0.25, shape: 'cloud' },
-  { key: 'mint', name: '민트 크림', pro: true, bubbleBg: '#DFF6F0', bubbleText: '#14544B', accent: '#5BC0BE', scrim: 0.25, shape: 'cloud' },
-  { key: 'comic', name: '코믹 만화', pro: true, bubbleBg: '#FFF7D6', bubbleText: '#232323', accent: '#232323', scrim: 0.2, shape: 'sharp' },
-  { key: 'retro', name: '레트로 필름', pro: true, bubbleBg: 'rgba(255,248,231,0.92)', bubbleText: '#4A3B2A', accent: '#C2703D', scrim: 0.4, shape: 'sharp' },
+  { key: 'classic', nameKey: 'cardTheme.classic', pro: false, bubbleBg: '#FFFFFF', bubbleText: '#1F2430', accent: '#FF8A3D', scrim: 0.35, shape: 'round' },
+  { key: 'night', nameKey: 'cardTheme.night', pro: false, bubbleBg: 'rgba(20,22,30,0.88)', bubbleText: '#FFFFFF', accent: '#FFB627', scrim: 0.45, shape: 'round' },
+  { key: 'peach', nameKey: 'cardTheme.peach', pro: true, bubbleBg: '#FFE3EC', bubbleText: '#8A2F52', accent: '#FF6FA5', scrim: 0.25, shape: 'cloud' },
+  { key: 'mint', nameKey: 'cardTheme.mint', pro: true, bubbleBg: '#DFF6F0', bubbleText: '#14544B', accent: '#5BC0BE', scrim: 0.25, shape: 'cloud' },
+  { key: 'comic', nameKey: 'cardTheme.comic', pro: true, bubbleBg: '#FFF7D6', bubbleText: '#232323', accent: '#232323', scrim: 0.2, shape: 'sharp' },
+  { key: 'retro', nameKey: 'cardTheme.retro', pro: true, bubbleBg: 'rgba(255,248,231,0.92)', bubbleText: '#4A3B2A', accent: '#C2703D', scrim: 0.4, shape: 'sharp' },
 ];
 
 export const DEFAULT_THEME_KEY = 'classic';
@@ -105,7 +106,7 @@ export interface CardLayout {
   fontSize: number;
   lineHeight: number;
   lines: string[];
-  badge: { label: string; emoji: string; color: string; x: number; y: number };
+  badge: { labelKey: string; emoji: string; color: string; x: number; y: number };
   /** 하단 워터마크 위치 */
   watermark: { x: number; y: number; text: string };
 }
@@ -164,7 +165,7 @@ export function layoutPhotoCard({
     lineHeight,
     lines,
     badge: {
-      label: meta.label,
+      labelKey: meta.labelKey,
       emoji: meta.emoji,
       color: meta.color,
       x: padding,

@@ -1,3 +1,6 @@
+import type { ContextTag } from './emotions';
+import type { Message } from './message';
+
 /**
  * PetVoice AI - 공용 타입 정의
  *
@@ -7,6 +10,9 @@
  */
 
 export type PetType = 'DOG' | 'CAT';
+
+/** 지원 언어 */
+export type Locale = 'ko' | 'en' | 'ja';
 
 /** 분석 입력 매체 종류 */
 export type MediaType = 'audio/m4a' | 'audio/mp4' | 'image/jpeg' | 'image/png';
@@ -71,22 +77,34 @@ export interface AnalysisEntry {
   createdAt: number;
   /** 어떤 매체로 분석했는지 */
   mediaKind: 'audio' | 'image';
-  /** 사용자가 고른 상황 맥락 */
+  /** 사용자에게 보여 줄 상황 문구 (분석 당시 언어) */
   context: string;
-  /** 결과 화면·포토카드에 쓰는 로컬 사진/녹음 URI */
+  /** 프리셋에서 골랐다면 그 번역 키 — 언어를 바꿔도 다시 번역할 수 있게 */
+  contextKey?: string;
+  /** 언어와 무관한 의미 태그. 이상 징후 규칙이 보는 값. */
+  contextTags?: ContextTag[];
+  /** 결과 화면·포토카드에 쓰는 로컬 사진 URI */
   mediaUri?: string;
+  /** 다시 들어 볼 수 있는 녹음 파일 URI (소리 분석일 때) */
+  audioUri?: string;
   result: AnalysisResult;
   /** 분석 시점에 계산해 둔 이상 징후 판정 */
   health: HealthAssessment;
+  /** 녹음 중 측정한 음량(dBFS) — 파형 표시에 쓴다 */
+  levels?: number[];
+  /** 정밀 분석이면 종합한 횟수 */
+  shotCount?: number;
+  /** 사용자가 남긴 정확도 피드백 */
+  feedback?: 'up' | 'down';
 }
 
 /** 이상 징후 판정 결과 */
 export interface HealthAssessment {
   level: HealthLevel;
-  /** 왜 그렇게 판단했는지 (사용자에게 그대로 보여줌) */
-  reasons: string[];
+  /** 왜 그렇게 판단했는지. 번역 참조이거나, 모델이 쓴 문장 그대로. */
+  reasons: Message[];
   /** 보호자가 지금 할 수 있는 조치 */
-  tips: string[];
+  tips: Message[];
 }
 
 /** 구독을 산 스토어. `dev` 는 개발 빌드에서 상태만 바꾼 경우 */
