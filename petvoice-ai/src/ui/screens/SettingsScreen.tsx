@@ -1,8 +1,10 @@
 import Constants from 'expo-constants';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isConfigured } from '../../api';
 import { deleteAccount } from '../../api/supabase';
+import { useBilling } from '../../billing/useBilling';
+import { describeSubscription } from '../../core/billing';
 import { PET_LABEL } from '../../core/emotions';
 import { PRO_PRICE_KRW } from '../../core/quota';
 import { usePetStore, useIsPro, useQuota } from '../../store/usePetStore';
@@ -19,7 +21,14 @@ export function SettingsScreen() {
   const entries = usePetStore((s) => s.entries);
   const isPro = useIsPro();
   const quota = useQuota();
+  const subscription = usePetStore((s) => s.subscription);
+  const billing = useBilling();
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!billing.notice) return;
+    Alert.alert('구독', billing.notice, [{ text: '확인', onPress: billing.clearNotice }]);
+  }, [billing.notice, billing.clearNotice]);
 
   /** Play 정책: 로그인 없는 로컬 앱은 "모든 데이터 초기화"를 반드시 제공해야 한다. */
   const confirmReset = () => {
@@ -77,9 +86,28 @@ export function SettingsScreen() {
         <SectionTitle right={<Badge text={isPro ? 'PRO' : 'FREE'} bg={isPro ? colors.proSoft : colors.surfaceAlt} fg={isPro ? colors.pro : colors.textSoft} />}>
           구독
         </SectionTitle>
-        <Text style={font.body}>{quota.label}</Text>
-        {!isPro ? (
-          <Button label={`프로 구독하기 · 월 ${PRO_PRICE_KRW.toLocaleString('ko-KR')}원`} variant="pro" onPress={() => nav.navigate('paywall')} />
+        <Text style={font.body}>{describeSubscription(subscription)}</Text>
+        <Text style={[font.small, { color: colors.textSoft }]}>{quota.label}</Text>
+        {isPro ? (
+          <Button label="구독 관리 (해지·결제수단)" variant="ghost" onPress={() => void billing.openManage()} />
+        ) : (
+          <Button
+            label={`프로 구독하기 · 월 ${PRO_PRICE_KRW.toLocaleString('ko-KR')}원`}
+            variant="pro"
+            onPress={() => nav.navigate('paywall')}
+          />
+        )}
+        <Button
+          label="구매 복원"
+          variant="ghost"
+          loading={billing.busy}
+          disabled={!billing.available}
+          onPress={() => void billing.restore()}
+        />
+        {!billing.available ? (
+          <Text style={[font.tiny, { color: colors.textFaint }]}>
+            결제 기능은 스토어에서 설치한 앱에서만 동작합니다.
+          </Text>
         ) : null}
       </Card>
 

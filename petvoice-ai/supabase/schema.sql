@@ -22,16 +22,39 @@ drop policy if exists usage_log_no_client on public.usage_log;
 create policy usage_log_no_client on public.usage_log for select using (false);
 
 -- 구독 상태 -----------------------------------------------------------------
+-- 이 테이블이 "누가 프로인가"의 유일한 출처다. 앱이 보내온 값이 아니라
+-- verify-purchase / play-rtdn 함수가 스토어에 직접 물어본 결과만 들어온다.
 create table if not exists public.subscriptions (
-  user_id     uuid primary key references auth.users(id) on delete cascade,
-  pro         boolean not null default false,
-  expires_at  timestamptz,
-  store       text,           -- 'play' | 'appstore'
-  updated_at  timestamptz not null default now()
+  user_id        uuid primary key references auth.users(id) on delete cascade,
+  pro            boolean not null default false,
+  state          text not null default 'none'
+                 check (state in ('active','grace','on_hold','paused','canceled','expired','pending','none')),
+  expires_at     timestamptz,
+  auto_renewing  boolean not null default false,
+  store          text check (store in ('play','appstore')),
+  product_id     text,
+  -- Play 의 purchaseToken 또는 App Store 영수증. 계정 간 구독 공유를 막는 열쇠.
+  purchase_token text,
+  is_test        boolean not null default false,
+  updated_at     timestamptz not null default now()
 );
+
+-- 이미 만들어진 테이블에도 열이 붙도록 (기존 배포 환경 대응)
+alter table public.subscriptions add column if not exists state text not null default 'none';
+alter table public.subscriptions add column if not exists auto_renewing boolean not null default false;
+alter table public.subscriptions add column if not exists product_id text;
+alter table public.subscriptions add column if not exists purchase_token text;
+alter table public.subscriptions add column if not exists is_test boolean not null default false;
+
+-- 하나의 영수증은 한 계정에만 묶인다
+create unique index if not exists subscriptions_purchase_token_idx
+  on public.subscriptions (purchase_token)
+  where purchase_token is not null;
 
 alter table public.subscriptions enable row level security;
 
+-- 읽기만 본인에게 허용한다. 쓰기는 서비스 롤(Edge Function)만 —
+-- 클라이언트가 pro=true 를 직접 써 넣을 수 있으면 결제 검증이 무의미해진다.
 drop policy if exists subscriptions_select_own on public.subscriptions;
 create policy subscriptions_select_own on public.subscriptions
   for select using (auth.uid() = user_id);

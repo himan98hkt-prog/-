@@ -26,6 +26,7 @@
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
     "react-native": "0.74.5",
+    "react-native-iap": "12.16.4",
     "react-native-view-shot": "3.8.0",
     "zustand": "^4.5.5"
   },

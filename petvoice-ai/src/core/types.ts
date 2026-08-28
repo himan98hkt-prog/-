@@ -89,9 +89,40 @@ export interface HealthAssessment {
   tips: string[];
 }
 
+/** 구독을 산 스토어. `dev` 는 개발 빌드에서 상태만 바꾼 경우 */
+export type SubscriptionStore = 'play' | 'appstore' | 'dev';
+
+/**
+ * 구독 상태.
+ * 스토어(Play/App Store)가 알려 주는 생애주기를 그대로 옮겼다.
+ * - `grace`   : 결제 실패 후 유예 기간 — 기능은 계속 열어 준다
+ * - `on_hold` : 유예 기간도 지난 상태 — 기능 잠금
+ * - `paused`  : 사용자가 일시정지 (Play 전용)
+ * - `pending` : 느린 결제 수단으로 승인 대기
+ */
+export type SubscriptionState =
+  | 'active'
+  | 'grace'
+  | 'on_hold'
+  | 'paused'
+  | 'canceled'
+  | 'expired'
+  | 'pending'
+  | 'none';
+
 /** 구독 상태 */
 export interface Subscription {
   pro: boolean;
   /** 프로 만료 시각 (ms). 무료 사용자면 undefined */
   expiresAt?: number;
+  /** 어느 스토어에서 산 구독인지 */
+  store?: SubscriptionStore;
+  /** 구매한 상품 ID */
+  productId?: string;
+  /** 자동 갱신이 켜져 있는지 (해지 예약이면 false) */
+  autoRenewing?: boolean;
+  /** 스토어가 알려 준 생애주기 상태 */
+  state?: SubscriptionState;
+  /** 서버 검증과 마지막으로 맞춘 시각 (ms) */
+  verifiedAt?: number;
 }

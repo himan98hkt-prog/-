@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } fr
 import { isConfigured } from './src/api';
 import { assertNoAiKeyInClient } from './src/api/config';
 import { ensureSession } from './src/api/supabase';
+import { syncSubscriptionFromServer } from './src/billing/useBilling';
 import { usePetStore } from './src/store/usePetStore';
 import { CaptureScreen } from './src/ui/screens/CaptureScreen';
 import { HistoryScreen } from './src/ui/screens/HistoryScreen';
@@ -21,8 +22,13 @@ if (__DEV__) assertNoAiKeyInClient();
 
 export default function App() {
   useEffect(() => {
-    // 익명 세션을 미리 만들어 첫 분석에서 로그인 지연이 없도록 한다.
-    if (isConfigured) void ensureSession();
+    if (!isConfigured) return;
+    void (async () => {
+      // 익명 세션을 미리 만들어 첫 분석에서 로그인 지연이 없도록 한다.
+      await ensureSession();
+      // 해지·환불·결제 실패는 앱 밖에서 일어난다. 로컬 값만 믿지 않고 서버와 맞춘다.
+      await syncSubscriptionFromServer().catch(() => undefined);
+    })();
   }, []);
 
   return (
