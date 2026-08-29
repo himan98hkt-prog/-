@@ -341,6 +341,35 @@ export const en: Record<TranslationKey, string> = {
   'settings.diagnosticsDesc':
     'Used only to find the cause when the app crashes. Photos and recordings are never sent.',
 
+  'settings.insights': 'Accuracy & quality',
+
+  'insights.title': 'Analysis accuracy',
+  'insights.emptyTitle': 'Nothing to show yet',
+  'insights.emptyDesc': 'Run an analysis and tap "Right / Not quite" on the result — it collects here.',
+  'insights.overall': 'Overall',
+  'insights.analyses': 'Analyses',
+  'insights.rated': 'Rated',
+  'insights.agreeRate': 'Marked right',
+  'insights.noRatings': 'No ratings yet. Tap "Right / Not quite" on a result.',
+  'insights.selfReported': 'These are your own impressions, not a verified answer key.',
+  'insights.byEmotion': 'By emotion',
+  'insights.byContext': 'By situation',
+  'insights.byMedia': 'Sound vs. photo',
+  'insights.count': '{count}',
+  'insights.tooFew': 'under {min}',
+  'insights.quality': 'On this device',
+  'insights.attempts': 'Attempts',
+  'insights.failureRate': 'Failures',
+  'insights.medianTime': 'Median time',
+  'insights.noAttempts': "You haven't run an analysis yet.",
+  'insights.qualityNote': 'Only the last 50 stay on this device. Nothing is sent anywhere.',
+  'insights.limitTitle': 'What these numbers cannot tell you',
+  'insights.limitDesc':
+    'These are your impressions of the results. Nobody verified how your pet actually felt at the time. Treat a low number as a lead worth checking, not as a measurement.',
+
+  'media.audio': 'Sound',
+  'media.image': 'Photo',
+
   'photo.tooDark': 'This photo is too dark',
   'photo.tooDarkDesc': 'Try again somewhere brighter, where their face is easy to see.',
   'photo.tooBright': 'This photo is too bright',

@@ -12,6 +12,7 @@ import { usePetStore } from './src/store/usePetStore';
 import { CaptureScreen } from './src/ui/screens/CaptureScreen';
 import { HistoryScreen } from './src/ui/screens/HistoryScreen';
 import { HomeScreen } from './src/ui/screens/HomeScreen';
+import { InsightsScreen } from './src/ui/screens/InsightsScreen';
 import { OnboardingScreen } from './src/ui/screens/OnboardingScreen';
 import { PaywallScreen } from './src/ui/screens/PaywallScreen';
 import { PetFormScreen } from './src/ui/screens/PetFormScreen';
@@ -109,6 +110,7 @@ function Router() {
     result: <ResultScreen />,
     paywall: <PaywallScreen />,
     petForm: <PetFormScreen />,
+    insights: <InsightsScreen />,
   }[nav.current.route];
 
   const showTabs = isTabRoute(nav.current.route) && !nav.canGoBack;

@@ -17,6 +17,7 @@ import { createId } from '../core/id';
 import { DEFAULT_THEME_KEY } from '../core/photocard';
 import { canAddPet, isProActive, quotaState, type QuotaState } from '../core/quota';
 import { readReportCache, writeReportCache, type CachedReport } from '../core/reportCache';
+import { pushAttempt, type AnalysisAttempt } from '../core/insights';
 import { DEFAULT_RETENTION, retentionCutoff, type RetentionPolicy } from '../core/retention';
 import type { WeeklyReport } from '../api/proxy';
 import type { ContextTag } from '../core/emotions';
@@ -71,6 +72,8 @@ interface PetState {
   retention: RetentionPolicy;
   /** 주간 리포트 캐시 — 같은 입력으로 모델을 다시 부르지 않기 위해 */
   reportCache: CachedReport<WeeklyReport>[];
+  /** 최근 분석 시도 기록 (기기 안에서만. 서버 지표와 별개로 사용자가 볼 수 있게) */
+  attempts: AnalysisAttempt[];
   /** 마지막으로 서버에 백업한 시각 */
   lastBackupAt?: number;
   /** 연결이 돌아오면 처리할 분석 대기열 */
@@ -100,6 +103,8 @@ interface PetState {
   /** 보관 기간이 지난 기록을 지운다. 지운 건수를 돌려준다. */
   applyRetention: () => Promise<number>;
   setLastBackupAt: (ts: number) => void;
+
+  recordAttempt: (attempt: AnalysisAttempt) => void;
 
   /** 캐시에 있으면 모델을 부르지 않는다 */
   cachedReport: (key: string) => WeeklyReport | null;
@@ -132,6 +137,7 @@ export const usePetStore = create<PetState>()(
       diagnostics: false,
       retention: DEFAULT_RETENTION,
       reportCache: [],
+      attempts: [],
       queue: [],
 
       addPet: (input) => {
@@ -221,6 +227,8 @@ export const usePetStore = create<PetState>()(
 
       setLastBackupAt: (lastBackupAt) => set({ lastBackupAt }),
 
+      recordAttempt: (attempt) => set((state) => ({ attempts: pushAttempt(state.attempts, attempt) })),
+
       cachedReport: (key) => readReportCache(get().reportCache, key),
       putCachedReport: (key, report) =>
         set((state) => ({ reportCache: writeReportCache(state.reportCache, key, report) })),
@@ -253,6 +261,7 @@ export const usePetStore = create<PetState>()(
           onboarded: false,
           lastBackupAt: undefined,
           reportCache: [],
+          attempts: [],
           queue: [],
         });
       },
@@ -275,6 +284,7 @@ export const usePetStore = create<PetState>()(
         diagnostics: state.diagnostics,
         retention: state.retention,
         reportCache: state.reportCache,
+        attempts: state.attempts,
         lastBackupAt: state.lastBackupAt,
         queue: state.queue,
       }),

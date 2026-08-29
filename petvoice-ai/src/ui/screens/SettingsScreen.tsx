@@ -321,6 +321,7 @@ export function SettingsScreen() {
             ))}
           </View>
         </View>
+        <LinkRow label={t('settings.insights')} onPress={() => nav.navigate('insights')} />
         <Button label={t('settings.resetAll')} variant="danger" onPress={confirmReset} />
         {isConfigured ? (
           <Button

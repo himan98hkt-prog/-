@@ -48,6 +48,7 @@ export function useAnalyzeMedia() {
   const pet = useActivePet();
   const addEntry = usePetStore((s) => s.addEntry);
   const enqueueAnalysis = usePetStore((s) => s.enqueueAnalysis);
+  const recordAttempt = usePetStore((s) => s.recordAttempt);
   const tr = useT();
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -92,6 +93,7 @@ export function useAnalyzeMedia() {
       }
 
       setAnalyzing(true);
+      const startedAt = Date.now();
       try {
         if (await fileTooLarge(uri)) {
           Alert.alert(tr.t('errors.tooLarge'), tr.t('errors.tooLargeDesc'));
@@ -119,8 +121,16 @@ export function useAnalyzeMedia() {
           result,
           health,
         });
+        // 지표는 결과를 낸 뒤에 남긴다 — 기록에 실패해도 분석이 막히면 안 된다
+        recordAttempt({ at: startedAt, ok: true, ms: Date.now() - startedAt });
         nav.navigate('result', { entryId: entry.id });
       } catch (error) {
+        recordAttempt({
+          at: startedAt,
+          ok: false,
+          ms: Date.now() - startedAt,
+          code: error instanceof ApiError ? error.code : 'unknown',
+        });
         // 연결 문제라면 버리지 않고 대기열에 넣는다 — 산책 중 신호가 약한 상황이 잦다.
         const offline = error instanceof ApiError && (error.code === 'network' || error.code === 'timeout');
         if (offline) {
@@ -141,7 +151,7 @@ export function useAnalyzeMedia() {
         setAnalyzing(false);
       }
     },
-    [pet, analyzing, addEntry, enqueueAnalysis, nav, tr, fallbacks],
+    [pet, analyzing, addEntry, enqueueAnalysis, recordAttempt, nav, tr, fallbacks],
   );
 
   /**
@@ -152,6 +162,9 @@ export function useAnalyzeMedia() {
     async (shots: { uri: string; levels?: number[] }[], context: AnalysisContext) => {
       if (!pet || analyzing || shots.length === 0) return;
       setAnalyzing(true);
+      // 정밀 분석은 모델을 세 번 부르지만 사용자에게는 한 번의 시도다.
+      // 지표도 그 단위로 남긴다.
+      const startedAt = Date.now();
       try {
         const results = [];
         for (const shot of shots) {
@@ -182,14 +195,22 @@ export function useAnalyzeMedia() {
           result: merged,
           health: assessHealth(merged, pet.type, context.tags),
         });
+        // 지표는 결과를 낸 뒤에 남긴다 — 기록에 실패해도 분석이 막히면 안 된다
+        recordAttempt({ at: startedAt, ok: true, ms: Date.now() - startedAt });
         nav.navigate('result', { entryId: entry.id });
       } catch (error) {
+        recordAttempt({
+          at: startedAt,
+          ok: false,
+          ms: Date.now() - startedAt,
+          code: error instanceof ApiError ? error.code : 'unknown',
+        });
         Alert.alert(tr.t('errors.analyzeFailed'), tr.t(userMessageKey(error)));
       } finally {
         setAnalyzing(false);
       }
     },
-    [pet, analyzing, addEntry, nav, tr, fallbacks],
+    [pet, analyzing, addEntry, recordAttempt, nav, tr, fallbacks],
   );
 
   return { analyzing, run, runPrecise };

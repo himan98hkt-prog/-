@@ -338,6 +338,35 @@ export const ko = {
   'settings.diagnosticsDesc':
     '앱이 멈추거나 오류가 났을 때 원인 파악에만 사용해요. 반려동물 사진·녹음은 보내지 않습니다.',
 
+  'settings.insights': '분석 정확도 · 품질 보기',
+
+  'insights.title': '분석 정확도',
+  'insights.emptyTitle': '아직 볼 게 없어요',
+  'insights.emptyDesc': '분석을 하고 결과에 "맞아요 / 아니에요"를 눌러 주시면 여기에 모여요.',
+  'insights.overall': '전체',
+  'insights.analyses': '분석',
+  'insights.rated': '평가함',
+  'insights.agreeRate': '맞다고 한 비율',
+  'insights.noRatings': '아직 평가가 없어요. 결과 화면에서 "맞아요 / 아니에요"를 눌러 주세요.',
+  'insights.selfReported': '보호자가 직접 매긴 평가예요. 정답지가 아니라 체감입니다.',
+  'insights.byEmotion': '감정별',
+  'insights.byContext': '상황별',
+  'insights.byMedia': '소리 · 사진',
+  'insights.count': '{count}건',
+  'insights.tooFew': '{min}건 미만',
+  'insights.quality': '이 기기에서의 분석',
+  'insights.attempts': '시도',
+  'insights.failureRate': '실패율',
+  'insights.medianTime': '걸린 시간(중앙값)',
+  'insights.noAttempts': '아직 분석한 적이 없어요.',
+  'insights.qualityNote': '최근 50번만 기기 안에 둡니다. 어디로도 보내지 않아요.',
+  'insights.limitTitle': '이 숫자로 알 수 없는 것',
+  'insights.limitDesc':
+    '여기 비율은 보호자가 결과를 보고 매긴 체감이에요. 실제로 그때 아이가 어떤 상태였는지는 아무도 확인하지 않았습니다. 낮은 항목은 "고칠 곳을 찾는 실마리"로만 봐 주세요.',
+
+  'media.audio': '소리',
+  'media.image': '사진',
+
   'photo.tooDark': '사진이 너무 어두워요',
   'photo.tooDarkDesc': '아이 얼굴이 잘 보이는 밝은 곳에서 다시 찍어 주세요.',
   'photo.tooBright': '사진이 너무 밝아요',

@@ -4,7 +4,8 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
  * 화면 수가 적어 react-navigation 대신 최소한의 스택 라우터를 직접 둔다.
  * 의존성이 줄어 Expo SDK 업그레이드 때 깨질 지점도 줄어든다.
  */
-export type RouteName = 'home' | 'history' | 'settings' | 'capture' | 'result' | 'paywall' | 'petForm';
+export type RouteName =
+  'home' | 'history' | 'settings' | 'capture' | 'result' | 'paywall' | 'petForm' | 'insights';
 
 export const TAB_ROUTES: { route: RouteName; labelKey: string; emoji: string }[] = [
   { route: 'home', labelKey: 'tab.analyze', emoji: '🎙' },
