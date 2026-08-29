@@ -28,14 +28,19 @@ jobs:
   build:
     strategy:
       fail-fast: false
+      # 두 일감이 같은 판올림 표(installer-latest)에 올린다.
+      # 동시에 올리면 한쪽이 밀린다 — 한 번에 하나씩.
+      max-parallel: 1
       matrix:
         include:
           - os: windows-latest
             target: win
             name: windows
+            ext: exe
           - os: macos-latest
             target: mac
             name: mac
+            ext: dmg
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -73,9 +78,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: 피아노이벤트-설치본-${{ matrix.name }}
-          path: |
-            pianoevent-ai/배포/설치본/*.exe
-            pianoevent-ai/배포/설치본/*.dmg
+          path: pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
           if-no-files-found: error
 
       # Actions 의 첨부물은 로그인해야 받을 수 있고 90일이면 사라진다.
@@ -93,9 +96,7 @@ jobs:
 
             설치하면 바탕화면에 아이콘이 생깁니다. 검은 명령창도, 인터넷도 필요 없습니다.
             「Windows의 PC 보호」 파란 창이 뜨면 **추가 정보 → 실행** 을 누르세요.
-          files: |
-            pianoevent-ai/배포/설치본/*.exe
-            pianoevent-ai/배포/설치본/*.dmg
+          files: pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
