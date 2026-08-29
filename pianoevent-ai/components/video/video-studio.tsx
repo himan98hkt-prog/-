@@ -42,6 +42,7 @@ import {
   VIDEO_TEMPLATES,
   type VideoTemplate,
 } from '@/lib/video/templates'
+import { VideoTemplateSketch } from '@/components/video/template-sketch'
 import { cn } from '@/lib/utils'
 import {
   buildTimeline,
@@ -1195,7 +1196,11 @@ export function VideoStudio({
               <ChevronDown className={cn('h-4 w-4 transition-transform', templateOpen && 'rotate-180')} aria-hidden />
             </span>
           </button>
-          <div className={cn('flex flex-wrap gap-1.5', !templateOpen && 'hidden')}>
+          {/*
+            **이름으로는 못 고르신다.** "꽉 찬 사진 · 위 자막" 이 무엇이 다른지는 봐야 안다.
+            사진 자리와 이름 자리를 16:9 상자에 그려 준다 — 가짓수는 그대로 20종이다.
+          */}
+          <div className={cn('grid grid-cols-3 gap-2', !templateOpen && 'hidden')} data-testid="video-template-grid">
             {VIDEO_TEMPLATES.map((item) => (
               <button
                 key={item.id}
@@ -1204,13 +1209,14 @@ export function VideoStudio({
                 aria-pressed={item.id === templateId}
                 title={item.hint}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                  item.id === templateId
-                    ? 'border-accent bg-accent/10 font-medium text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-secondary',
+                  'grid justify-items-center gap-1 rounded-md border p-1.5 text-center transition-colors',
+                  item.id === templateId ? 'border-accent bg-accent/10' : 'border-border hover:bg-secondary',
                 )}
               >
-                {item.name}
+                <VideoTemplateSketch id={item.id} width={82} />
+                <span className={cn('block w-full text-xs leading-tight', item.id === templateId && 'font-medium')}>
+                  {item.name}
+                </span>
               </button>
             ))}
           </div>

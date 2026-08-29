@@ -76,12 +76,17 @@ export type PhotoShape =
  */
 export type ThemeFamily = 'classic' | 'lovely' | 'season' | 'modern' | 'kids'
 
+/**
+ * 묶음 이름은 **원장님이 자기 연주회를 고르는 말**이라야 한다.
+ * "모던 · 편집" 은 디자인 하는 사람의 말이지, 연주회를 준비하시는 분의 말이 아니다.
+ * 물음은 하나다 — "우리 연주회 분위기는 어느 쪽인가요?"
+ */
 export const FAMILY_LABEL: Record<ThemeFamily, string> = {
-  classic: '고급 · 클래식',
-  lovely: '사랑스러운',
-  season: '계절 · 시즌',
-  modern: '모던 · 편집',
-  kids: '아이들 · 활기',
+  classic: '차분하고 격식 있게',
+  lovely: '부드럽고 사랑스럽게',
+  season: '계절 느낌으로',
+  modern: '사진과 큰 글씨로',
+  kids: '밝고 아이답게',
 }
 
 export const FAMILY_HINT: Record<ThemeFamily, string> = {

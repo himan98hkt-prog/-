@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { DESIGN_THEMES, FAMILY_LABEL, FAMILY_ORDER, getTheme, themesByFamily, type ThemeFamily } from '@/lib/design/themes'
+import { ThemeSketch } from '@/components/design/theme-sketch'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -116,47 +117,38 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                 </button>
               ))}
             </div>
+            {/* 인쇄물 화면과 **같은 방식**으로 고르셔야 한다 — 두 곳이 다르면 "왜 여기선 안 되지" 하고 멈추신다 */}
             <div className="grid gap-4">
               {themesByFamily()
                 .filter((group) => group.family === family)
                 .map((group) => (
-                <div key={group.family}>
-                  <p className="mb-1.5 text-xs leading-relaxed text-muted-foreground">{group.hint}</p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
-                    {group.items.map((theme) => {
-                      const active = theme.id === designTheme
-                      return (
-                        <button
-                          key={theme.id}
-                          type="button"
-                          onClick={() => setDesignTheme(theme.id)}
-                          aria-pressed={active}
-                          className={cn(
-                            'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                            active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-                          )}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate">{theme.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {theme.mood.join(' · ')}
+                  <div key={group.family}>
+                    <p className="mb-1.5 text-xs leading-relaxed text-muted-foreground">{group.hint}</p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" data-testid="settings-theme-grid">
+                      {group.items.map((theme) => {
+                        const active = theme.id === designTheme
+                        return (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => setDesignTheme(theme.id)}
+                            aria-pressed={active}
+                            title={theme.tagline}
+                            className={cn(
+                              'grid justify-items-center gap-1 rounded-md border p-1.5 transition-colors',
+                              active ? 'border-accent bg-accent/8' : 'border-border hover:bg-secondary',
+                            )}
+                          >
+                            <ThemeSketch id={theme.id} width={82} />
+                            <span className={cn('block w-full text-center text-xs leading-tight', active && 'font-medium')}>
+                              {theme.name}
                             </span>
-                          </span>
-                          <span className="flex shrink-0 gap-1" aria-hidden>
-                            {[theme.palette.paper, theme.palette.band, theme.palette.accent].map((color, index) => (
-                              <span
-                                key={index}
-                                className="h-4 w-4 rounded-full border border-black/10"
-                                style={{ background: color }}
-                              />
-                            ))}
-                          </span>
-                        </button>
-                      )
-                    })}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
             </div>
           </div>

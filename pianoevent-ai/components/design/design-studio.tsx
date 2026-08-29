@@ -351,7 +351,11 @@ export function DesignStudio({
               ))}
             </div>
 
-            <div className="grid gap-1.5">
+            {/*
+              **이름으로는 못 고르신다.** "3단 접지 프로그램" 이 어떤 종이인지는 봐야 안다.
+              지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 51종이다.
+            */}
+            <div className="grid grid-cols-3 gap-2" data-testid="template-grid">
               {(templatesByCategory().find((g) => g.category === category)?.items ?? []).map((item: TemplateDef) => {
                 const active = item.id === templateId
                 const needsProgram = item.needsProgram && plan.items.length === 0
@@ -361,23 +365,20 @@ export function DesignStudio({
                     type="button"
                     onClick={() => setTemplateId(item.id)}
                     aria-pressed={active}
+                    title={item.description}
                     className={cn(
-                      'rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                      active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
+                      'grid justify-items-center gap-1 rounded-md border p-1.5 text-center transition-colors',
+                      active ? 'border-accent bg-accent/8' : 'border-border hover:bg-secondary',
                     )}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate">{item.name}</span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {needsProgram && <span className="text-xs text-muted-foreground">순서표 필요</span>}
-                        <span className="text-xs text-muted-foreground">{PAGE_PX[item.page].label}</span>
-                      </span>
+                    <ChoiceThumb templateId={item.id} ctx={ctx} width={82} />
+                    {/* 이름을 자르면 그림으로 바꾼 뜻이 반은 사라진다 — 두 줄까지 */}
+                    <span className={cn('block w-full text-xs leading-tight', active && 'font-medium')}>
+                      {item.name}
                     </span>
-                    {active && (
-                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                        {item.description}
-                      </span>
-                    )}
+                    <span className="block w-full truncate text-xs text-muted-foreground">
+                      {needsProgram ? '순서표 필요' : PAGE_PX[item.page].label}
+                    </span>
                   </button>
                 )
               })}
@@ -528,12 +529,13 @@ export function DesignStudio({
 function ChoiceThumb({
   templateId,
   ctx,
+  width = 88,
 }: {
   templateId: string
   ctx: Parameters<typeof renderTemplate>[1]
+  width?: number
 }) {
   const page = PAGE_PX[getTemplate(templateId).page]
-  const width = 88
   const scale = width / page.w
 
   return (

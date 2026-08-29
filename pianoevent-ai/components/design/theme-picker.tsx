@@ -12,6 +12,7 @@ import {
   themesByFamily,
   type ThemeFamily,
 } from '@/lib/design/themes'
+import { ThemeSketch } from '@/components/design/theme-sketch'
 import { eventMonth } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -96,6 +97,8 @@ export function ThemePicker({
         </div>
       </div>
 
+      {/* 묶음을 고르는 것이 곧 "우리 연주회는 어느 쪽인가" 에 답하는 일이다 */}
+      <p className="text-xs text-muted-foreground">우리 연주회 분위기는 어느 쪽인가요?</p>
       <div className="flex flex-wrap gap-1.5">
         {FAMILY_ORDER.map((id) => (
           <button
@@ -124,15 +127,20 @@ export function ThemePicker({
         className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
       />
 
-      <div className={cn('grid gap-1.5', compact && 'max-h-72 overflow-y-auto pr-1')}>
+      {/*
+        **이름으로는 못 고르신다.**
+        "빈 홀의 저녁" 이라는 이름과 색 동그라미 세 개를 보고 결과를 그리실 수 있는 분은 없다.
+        예전에는 서른두 줄을 이름으로 훑고, 하나씩 눌러 오른쪽 큰 그림을 봐야 아셨다.
+        지금은 **종이 모양 그림**으로 늘어놓는다 — 무대 모양을 그림 격자로 바꾼 것과 같은 이유다.
+        가짓수는 그대로 100종이다. 줄인 것이 아니라 보이는 방식을 바꾼 것이다.
+      */}
+      <div className={cn('grid gap-2', compact && 'max-h-[26rem] overflow-y-auto pr-1')} data-testid="theme-grid">
         {query.trim() ? (
           <>
             <p className="text-xs text-muted-foreground">
               &ldquo;{query.trim()}&rdquo; — {found.length}종
             </p>
-            {found.map((item) => (
-              <ThemeRow key={item.id} item={item} active={item.id === value} onPick={pick} note={item.tagline} />
-            ))}
+            <ThemeGrid items={found} value={value} onPick={pick} />
             {found.length === 0 && (
               <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
                 맞는 테마가 없습니다. 다른 말로 찾아 보세요.
@@ -143,17 +151,9 @@ export function ThemePicker({
           themesByFamily()
             .filter((group) => group.family === family)
             .map((group) => (
-              <div key={group.family} className="grid gap-1.5">
+              <div key={group.family} className="grid gap-2">
                 <p className="text-xs leading-relaxed text-muted-foreground">{group.hint}</p>
-                {group.items.map((item) => (
-                  <ThemeRow
-                    key={item.id}
-                    item={item}
-                    active={item.id === value}
-                    onPick={pick}
-                    note={item.mood.join(' · ')}
-                  />
-                ))}
+                <ThemeGrid items={group.items} value={value} onPick={pick} />
               </div>
             ))
         )}
@@ -162,32 +162,42 @@ export function ThemePicker({
   )
 }
 
-function ThemeRow({
-  item,
-  active,
+/** 종이 모양 그림을 늘어놓는 격자 — 좁은 자리에서는 세 칸, 넓으면 네 칸 */
+function ThemeGrid({
+  items,
+  value,
   onPick,
-  note,
 }: {
-  item: (typeof DESIGN_THEMES)[number]
-  active: boolean
+  items: (typeof DESIGN_THEMES)[number][]
+  value: string
   onPick: (id: string, family: ThemeFamily) => void
-  note: string
 }) {
+  // 세 칸이다. 네 칸으로 늘리면 칸이 69px 이 되어 이름이 잘린다
   return (
-    <button
-      type="button"
-      onClick={() => onPick(item.id, item.family)}
-      aria-pressed={active}
-      className={cn(
-        'flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-        active ? 'border-accent bg-accent/8 font-medium' : 'border-border hover:bg-secondary',
-      )}
-    >
-      <span className="min-w-0">
-        <span className="block truncate">{item.name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{note}</span>
-      </span>
-      <ThemeSwatch id={item.id} />
-    </button>
+    <div className="grid grid-cols-3 gap-2">
+      {items.map((item) => {
+        const active = item.id === value
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onPick(item.id, item.family)}
+            aria-pressed={active}
+            title={item.tagline}
+            className={cn(
+              'grid justify-items-center gap-1 rounded-md border p-1.5 transition-colors',
+              active ? 'border-accent bg-accent/8' : 'border-border hover:bg-secondary',
+            )}
+          >
+            <ThemeSketch id={item.id} width={82} />
+            {/* 이름을 자르면 그림으로 바꾼 뜻이 반은 사라진다 — 두 줄까지 보여 준다 */}
+            <span className={cn('block w-full text-center text-xs leading-tight', active && 'font-medium')}>
+              {item.name}
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
+

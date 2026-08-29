@@ -322,8 +322,34 @@ try {
     pickingWords.trim(),
   )
   await pickingToggle.click()
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(1500)
   check('펴면 고르는 자리가 나온다', await page.getByTestId('design-picking').isVisible())
+
+  // ── 고르는 형태 ──────────────────────────────────────────────────
+  // 가짓수를 줄이는 것이 아니라 **이름 목록을 그림 격자로** 바꾼다.
+  // "빈 홀의 저녁" 이라는 이름과 색 동그라미 세 개로 결과를 그리실 수 있는 분은 없다.
+  const themeGrid = page.getByTestId('theme-grid')
+  check('테마를 그림으로 고른다 — 이름 목록이 아니다', (await themeGrid.count()) === 1)
+  const themeTiles = themeGrid.locator('button')
+  const themeTileCount = await themeTiles.count()
+  check('한 묶음이 통째로 보인다 — 골라 낸 것이 아니다', themeTileCount >= 8, `${themeTileCount}칸`)
+  const themeTile = await themeTiles.first().boundingBox()
+  check('칸이 눌러 볼 만한 크기다', themeTile && themeTile.width >= 80, themeTile ? `${Math.round(themeTile.width)}px` : '자리를 못 찾음')
+  check('칸마다 종이 모양 그림이 들어 있다', (await themeTiles.first().locator('span').count()) >= 2)
+  const themeName = (await themeTiles.first().textContent()).trim()
+  check('이름이 잘리지 않는다', !themeName.includes('…') && themeName.length > 1, themeName)
+
+  const tmplGrid = page.getByTestId('template-grid')
+  check('양식도 그림으로 고른다', (await tmplGrid.count()) === 1)
+  check('양식 칸에 진짜 인쇄물 축소 그림이 들어 있다', (await tmplGrid.locator('button').first().locator('span').count()) >= 2)
+
+  // 묶음 이름이 디자인 하는 사람의 말이 아니라 원장님 말이라야 한다
+  const pickerWords = await page.getByTestId('design-picking').textContent()
+  check('우리 연주회 분위기를 묻는 말로 묶어 준다', pickerWords.includes('우리 연주회 분위기'), '')
+  check('묶음 이름이 사람 말이다', pickerWords.includes('차분하고 격식 있게'), '')
+  check('가짓수는 그대로다 — 테마 100종', pickerWords.includes('테마 · 100종') || pickerWords.includes('100종'))
+  await page.screenshot({ path: join(OUT, 'theme-grid.jpg'), type: 'jpeg', quality: 82 })
+
   await pickingToggle.click()
   await page.waitForTimeout(400)
 

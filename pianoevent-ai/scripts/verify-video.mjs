@@ -143,6 +143,10 @@ try {
   const chips = picker.locator('button:not([data-testid="video-template-toggle"])')
   const chipCount = await chips.count()
   check('템플릿이 20종이다', chipCount === 20, String(chipCount))
+  // 이름만으로는 "꽉 찬 사진 · 위 자막" 이 무엇이 다른지 알 수 없다 — 화면 모양을 그려 준다
+  check('그림으로 고른다 — 이름 목록이 아니다', (await page.getByTestId('video-template-grid').count()) === 1)
+  const vTile = await chips.first().boundingBox()
+  check('칸이 눌러 볼 만한 크기다', vTile && vTile.width >= 80, vTile ? `${Math.round(vTile.width)}px` : '자리를 못 찾음')
 
   // 사진이 든 장면에 세워 놓고 견준다 — 표지 화면은 템플릿을 갈아도 거의 같아 보인다
   await page
