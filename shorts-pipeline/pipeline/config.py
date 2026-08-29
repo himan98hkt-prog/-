@@ -77,6 +77,9 @@ class Config:
     montage_transition: str = "cut"
     montage_transition_seconds: float = 0.25
     loop_back: bool = False
+    # 클립 하나를 최대 몇 초까지 기다릴지. 넘으면 **재제출하지 않고** 멈춘다.
+    # 재제출하면 먼저 낸 작업 값까지 두 번 내게 된다.
+    poll_timeout_seconds: float = 1800.0
 
     # ── 파생값 ────────────────────────────────────────────────────────
     @property
@@ -204,6 +207,7 @@ def load_config(path: str | Path = "config.yaml", **overrides: Any) -> Config:
         montage_transition=raw.get("montage_transition", "cut"),
         montage_transition_seconds=float(raw.get("montage_transition_seconds", 0.25)),
         loop_back=bool(raw.get("loop_back", False)),
+        poll_timeout_seconds=float(raw.get("poll_timeout_seconds", 1800)),
     )
     _validate(cfg)
     return cfg
@@ -235,6 +239,32 @@ def _validate(cfg: Config) -> None:
             f"crossfade_seconds({cfg.crossfade_seconds})가 "
             f"clip_duration({cfg.clip_duration})보다 짧아야 합니다."
         )
+    if cfg.poll_timeout_seconds < 60:
+        raise ConfigError(
+            "poll_timeout_seconds 는 60 이상이어야 합니다. 짧게 잡으면 "
+            "아직 만들어지는 중인(그리고 이미 과금된) 작업을 포기하게 됩니다."
+        )
+    _validate_fps(cfg)
+
+
+def _validate_fps(cfg: Config) -> None:
+    """fps 는 숫자이거나 'auto' 다.
+
+    'auto' 는 모델이 준 클립의 프레임률을 그대로 쓴다는 뜻이다. 왜 이게
+    기본인지는 stitcher 쪽에 적어 뒀다 — 25fps 소스를 30 으로 올리면
+    5프레임마다 한 장이 복제돼 눈에 보이는 떨림이 생긴다.
+    """
+    fps = cfg.output.get("fps", "auto")
+    if isinstance(fps, str) and fps.strip().lower() == "auto":
+        return
+    try:
+        value = int(fps)
+    except (TypeError, ValueError):
+        raise ConfigError(
+            f"output.fps 는 숫자이거나 auto 여야 합니다 (현재: {fps!r})"
+        ) from None
+    if not 1 <= value <= 120:
+        raise ConfigError(f"output.fps 는 1~120 사이여야 합니다 (현재: {value})")
 
 
 def require_env(*names: str) -> dict[str, str]:

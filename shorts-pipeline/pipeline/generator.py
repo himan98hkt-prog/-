@@ -27,6 +27,7 @@ def make_provider(cfg: Config, run: Run) -> VideoProvider:
         cfg.provider,
         endpoint=cfg.model.endpoint,
         base_url=cfg.provider_cfg.get("endpoint_base"),
+        timeout=cfg.poll_timeout_seconds,
         on_log=lambda event, payload: run.log(event, **payload),
     )
 
@@ -76,9 +77,14 @@ def generate_clip(
         except ProviderError as exc:
             last = exc
             run.log("clip.attempt_failed", index=index, attempt=attempt,
-                    error=str(exc), retryable=exc.retryable)
+                    error=str(exc), retryable=exc.retryable,
+                    billed=exc.billed, job_id=exc.job_id)
             # 과금됐을 수도 있는 실패는 보수적으로 비용에 넣는다.
-            stats.clip_calls += 1
+            # 단 **접수조차 안 된 실패는 빼야 한다.** 키가 틀렸거나(401)
+            # 파라미터가 안 맞아(422) 거절당한 요청은 한 푼도 안 나간다.
+            # 그걸 세면 화면의 누적 비용이 쓰지도 않은 돈을 보여준다.
+            if exc.billed is not False:
+                stats.clip_calls += 1
             if not exc.retryable or attempt == MAX_ATTEMPTS:
                 break
             backoff = 2 ** attempt
@@ -117,8 +123,9 @@ def upscale_frame(
     try:
         out = provider.upscale(frame, dest, spec.endpoint)
     except ProviderError as exc:
-        stats.upscale_calls += 1
-        run.log("upscale.failed", index=index, error=str(exc))
+        if exc.billed is not False:
+            stats.upscale_calls += 1
+        run.log("upscale.failed", index=index, error=str(exc), billed=exc.billed)
         print(f"    ⚠ 업스케일 실패, 원본 프레임으로 계속합니다 ({exc})")
         return frame
     stats.upscale_calls += 1

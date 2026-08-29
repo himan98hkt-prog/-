@@ -130,6 +130,7 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
     spent = actual_cost(cfg, stats.clip_calls, stats.upscale_calls)
     run.save_state(
         final=str(result.path), duration=round(result.duration, 2),
+        fps=result.fps,
         clip_calls=stats.clip_calls, upscale_calls=stats.upscale_calls,
         cost_usd=round(spent, 4),
         # 어떤 곡이 들어갔는지 남긴다. 화면에서 "음악 있음/무음" 을 보여주고,
@@ -144,6 +145,9 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
     typer.echo(f"  화질   : {out['width']}x{out['height']}"
                + (f"  (모델 출력 {src[0]}x{src[1]})"
                   if (src := run.state.get("source_res")) else ""))
+    typer.echo(f"  프레임 : {result.fps}fps"
+               + ("  (모델이 준 그대로)"
+                  if str(out.get("fps", "auto")).lower() == "auto" else ""))
     typer.echo(f"  길이   : {result.duration:.2f}초")
     typer.echo(f"  크기   : {result.size_mb:.1f} MB")
     typer.echo(
@@ -281,6 +285,29 @@ def resume(
     _execute(cfg, run, interactive=interactive, resume=True)
 
 
+def _stats_from_log(run: Run) -> GenerationStats:
+    """log.jsonl 을 되짚어 실제 과금 호출 수를 센다.
+
+    실패로 빠져나오면 orchestrate 가 stats 를 못 돌려준다. 그렇다고 0 으로
+    기록하면 이미 나간 돈이 장부에서 사라진다. 로그에는 남아 있으니 센다.
+    """
+    stats = GenerationStats()
+    for entry in run.events():
+        event = entry.get("event")
+        if event == "clip.done":
+            stats.clip_calls += 1
+        elif event == "upscale.done":
+            stats.upscale_calls += 1
+        elif event in ("clip.attempt_failed", "upscale.failed"):
+            # billed=False 는 접수조차 안 된 실패다. 돈이 안 나갔다.
+            if entry.get("billed") is not False:
+                if event == "clip.attempt_failed":
+                    stats.clip_calls += 1
+                else:
+                    stats.upscale_calls += 1
+    return stats
+
+
 def _execute(cfg: Config, run: Run, *, interactive: bool, resume: bool) -> None:
     try:
         clips, stats = orchestrate(cfg, run, interactive=interactive, resume=resume)
@@ -294,7 +321,12 @@ def _execute(cfg: Config, run: Run, *, interactive: bool, resume: bool) -> None:
             f"\n생성 실패했습니다. 지금까지 만든 {len(partial)}개로 합성할까요?",
             default=True,
         ):
-            _finalize(cfg, run, [run.clip(n) for n in partial], GenerationStats())
+            # 여기서 예전에는 빈 GenerationStats() 를 넘겼다. 그래서 클립 값을
+            # 이미 낸 실패 실행이 **비용 $0 으로 기록**됐다. 화면의 누적 비용이
+            # 실제로 나간 돈보다 적게 나온다 — 비용을 보고 판단하는 사람에게
+            # 가장 나쁜 종류의 거짓말이다. 실제 호출 수를 그대로 넘긴다.
+            _finalize(cfg, run, [run.clip(n) for n in partial],
+                      getattr(exc, "stats", None) or _stats_from_log(run))
             return
         _die(f"{exc}\n  이어하기: python main.py resume --run {run.run_id}")
 

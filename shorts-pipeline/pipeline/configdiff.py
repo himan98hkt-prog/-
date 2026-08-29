@@ -28,6 +28,15 @@ WATCHED: dict[str, str] = {
     "mode": "이어붙이는 방식",
     "upscale_between_clips": "클립 사이 화질 보정",
     "crossfade_seconds": "장면 이음새(초)",
+    "poll_timeout_seconds": "클립 하나를 기다리는 한도(초)",
+}
+
+# output 블록 안의 값도 몇 개는 보여줘야 한다. 들여쓴 줄이라 _TOP 에 안 걸린다.
+# fps 가 대표적이다 — 30 으로 고정돼 있으면 25fps 모델에서 화면이 떨린다.
+WATCHED_OUTPUT: dict[str, str] = {
+    "fps": "프레임률",
+    "crf": "화질(낮을수록 좋음)",
+    "audio": "음악",
 }
 
 # 맨 왼쪽 칸에서 시작하는 `key: value` 한 줄. 들여쓴 줄(하위 설정)은 건드리지 않는다.
@@ -75,21 +84,52 @@ def top_level(text: str) -> dict[str, str]:
     return out
 
 
+# `output:` 아래에서 한 단계 들여쓴 `key: value`.
+_NESTED = re.compile(r"^[ \t]+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*?)\s*$")
+
+
+def block(text: str, name: str) -> dict[str, str]:
+    """`name:` 블록 안쪽의 한 단계 들여쓴 `key: value` 만 뽑는다."""
+    out: dict[str, str] = {}
+    inside = False
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line[0].isspace():
+            inside = line.split(":", 1)[0].strip() == name
+            continue
+        if not inside:
+            continue
+        m = _NESTED.match(line)
+        if not m:
+            continue
+        value = _strip_comment(m.group(2))
+        if value and value not in ("|", ">", ">-", "|-"):
+            out.setdefault(m.group(1), value)
+    return out
+
+
 def compare(current: Path, incoming: Path) -> list[Change]:
     """두 설정 파일에서 **볼 만한 차이**만 골라 돌려준다."""
     if not current.exists() or not incoming.exists():
         return []
     try:
-        cur = top_level(current.read_text(encoding="utf-8", errors="replace"))
-        new = top_level(incoming.read_text(encoding="utf-8", errors="replace"))
+        cur_text = current.read_text(encoding="utf-8", errors="replace")
+        new_text = incoming.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
+    cur, new = top_level(cur_text), top_level(new_text)
+    cur_out, new_out = block(cur_text, "output"), block(new_text, "output")
 
     out: list[Change] = []
     for key, label in WATCHED.items():
         a, b = cur.get(key, ""), new.get(key, "")
         if b and a != b:
             out.append(Change(key, label, a or "(없음)", b))
+    for key, label in WATCHED_OUTPUT.items():
+        a, b = cur_out.get(key, ""), new_out.get(key, "")
+        if b and a != b:
+            out.append(Change(f"output.{key}", label, a or "(없음)", b))
     return out
 
 
@@ -98,20 +138,40 @@ def apply(path: Path, updates: dict[str, str]) -> list[str]:
 
     실제로 바뀐 키 목록을 돌려준다.
     """
-    wanted = {k: v for k, v in updates.items() if k in WATCHED and v}
+    wanted = {k: v for k, v in updates.items()
+              if v and (k in WATCHED
+                        or k.removeprefix("output.") in WATCHED_OUTPUT
+                        and k.startswith("output."))}
     if not wanted or not path.exists():
         return []
 
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     changed: list[str] = []
     seen: set[str] = set()
+    section = ""
 
     for i, line in enumerate(lines):
-        if not line or line[0].isspace() or line.lstrip().startswith("#"):
+        if not line or line.lstrip().startswith("#"):
+            continue
+        if line[0].isspace():
+            m = _NESTED.match(line)
+            if not m or section != "output":
+                continue
+            key = f"output.{m.group(1)}"
+            if key not in wanted or key in seen:
+                continue
+            seen.add(key)
+            if _strip_comment(m.group(2)) == wanted[key]:
+                continue
+            indent = line[:len(line) - len(line.lstrip())]
+            lines[i] = f"{indent}{m.group(1)}: {wanted[key]}{_trailing(line)}"
+            changed.append(key)
             continue
         m = _TOP.match(line)
         if not m:
+            section = line.split(":", 1)[0].strip()
             continue
+        section = m.group(1) if not m.group(2) else ""
         key = m.group(1)
         if key not in wanted or key in seen:
             continue
@@ -120,14 +180,27 @@ def apply(path: Path, updates: dict[str, str]) -> list[str]:
         if old == wanted[key]:
             continue
         # 값 뒤의 주석은 살려 둔다 — 왜 그 값인지 적혀 있는 경우가 많다.
-        rest = line[len(m.group(1)):]
-        comment = ""
-        hash_at = rest.find("#")
-        if hash_at >= 0:
-            comment = "  " + rest[hash_at:].strip()
-        lines[i] = f"{key}: {wanted[key]}{comment}"
+        lines[i] = f"{key}: {wanted[key]}{_trailing(line)}"
         changed.append(key)
+
+    # 파일에 아예 없던 키는 위 루프가 못 고친다. 그대로 두면 "새 설정 있음"
+    # 알림이 영영 안 사라지고, 정작 값은 반영되지 않는다. 맨 끝에 붙인다 —
+    # 들여쓰기 없는 키는 앞의 블록을 닫으므로 어디에 와도 유효하다.
+    missing = [k for k in wanted if k not in seen and "." not in k]
+    if missing:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append("# 새 기본값에서 추가된 항목")
+        for key in missing:
+            lines.append(f"{key}: {wanted[key]}")
+            changed.append(key)
 
     if changed:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return changed
+
+
+def _trailing(line: str) -> str:
+    """줄 끝의 주석. 왜 그 값인지 적혀 있는 경우가 많아 살려 둔다."""
+    hash_at = line.find("#")
+    return "  " + line[hash_at:].strip() if hash_at >= 0 else ""

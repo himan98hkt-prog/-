@@ -131,6 +131,7 @@ def list_runs(limit: int = 30) -> list[dict]:
             "published": _published_of(d, state),
             "final_res": state.get("final_res"),
             "source_res": state.get("source_res"),
+            "fps": state.get("fps"),
         })
         if len(out) >= limit:
             break

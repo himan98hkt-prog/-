@@ -1111,11 +1111,12 @@ function resLabel(r) {
   const f = r.final_res, s = r.source_res;
   if (!f) return "";
   const size = `${f[0]}x${f[1]}`;
-  if (!s) return `<div class="snd">${size}</div>`;
+  const fps = r.fps ? ` · ${r.fps}fps` : "";
+  if (!s) return `<div class="snd">${size}${fps}</div>`;
   const up = s[0] < f[0] || s[1] < f[1];
-  if (!up) return `<div class="snd">${size} · 모델 출력 ${s[0]}x${s[1]}</div>`;
+  if (!up) return `<div class="snd">${size}${fps} · 모델 출력 ${s[0]}x${s[1]}</div>`;
   const pct = Math.round((1 - Math.min(s[0] / f[0], s[1] / f[1])) * 100);
-  return `<div class="snd off">${size} · 모델이 ${s[0]}x${s[1]} 로 줘서 `
+  return `<div class="snd off">${size}${fps} · 모델이 ${s[0]}x${s[1]} 로 줘서 `
     + `${pct}% 늘림 — 여기서 화질이 깎입니다</div>`;
 }
 

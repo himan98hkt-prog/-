@@ -100,13 +100,58 @@ class Run:
             encoding="utf-8",
         )
 
+    def events(self) -> list[dict[str, Any]]:
+        """log.jsonl 을 읽어 사건 목록으로. 깨진 줄은 건너뛴다."""
+        if not self.log_path.exists():
+            return []
+        out: list[dict[str, Any]] = []
+        for line in self.log_path.read_text(encoding="utf-8",
+                                            errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(record, dict):
+                out.append(record)
+        return out
+
     def completed_clips(self) -> list[int]:
-        """이미 만들어진 클립 번호. resume 의 근거."""
-        found = []
+        """이어서 쓸 수 있는 클립 번호. resume 의 근거.
+
+        두 가지를 확인한다.
+
+        **재생 가능한가.** 예전에는 `크기 > 0` 만 봤다. 다운로드가 중간에
+        끊기면 파일은 남지만 열리지 않는다. 그걸 '완성' 으로 보고 이어하면,
+        몇 분 뒤 합성 단계에서야 깨진 게 드러난다 — 그 사이에 만든 클립
+        값은 이미 나간 뒤다.
+
+        **번호가 이어지는가.** 1, 3 만 있는데 둘 다 세면 2번 자리가 비어
+        있는 채로 진행돼 같은 클립을 두 번 쓰게 된다. 앞에서부터 끊기지
+        않는 데까지만 인정한다.
+        """
+        from .ffmpeg_util import FFmpegError, duration_of
+
+        usable: set[int] = set()
         for p in sorted(self.clips_dir.glob("clip_*.mp4")):
-            if p.stat().st_size > 0:
-                try:
-                    found.append(int(p.stem.split("_")[1]))
-                except (IndexError, ValueError):
+            if p.stat().st_size == 0:
+                continue
+            try:
+                index = int(p.stem.split("_")[1])
+            except (IndexError, ValueError):
+                continue
+            try:
+                if duration_of(p) <= 0:
                     continue
+            except (FFmpegError, OSError, ValueError):
+                continue
+            usable.add(index)
+
+        found: list[int] = []
+        n = 1
+        while n in usable:
+            found.append(n)
+            n += 1
         return found

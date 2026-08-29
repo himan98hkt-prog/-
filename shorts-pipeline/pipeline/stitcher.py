@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .ffmpeg_util import FFmpegError, duration_of, has_audio, run
+from .ffmpeg_util import FFmpegError, duration_of, fps_of, has_audio, run
 
 
 @dataclass
@@ -17,10 +17,55 @@ class StitchResult:
     path: Path
     duration: float
     size_bytes: int
+    fps: int = 0
 
     @property
     def size_mb(self) -> float:
         return self.size_bytes / (1024 * 1024)
+
+
+# 클립들이 서로 다른 프레임률일 때 고를 후보. 여기 없는 값이면 최댓값을 쓴다.
+COMMON_FPS = (24, 25, 30, 50, 60)
+FALLBACK_FPS = 30
+
+
+def resolve_fps(clips: list[Path], wanted) -> int:
+    """실제로 쓸 프레임률을 정한다.
+
+    **왜 'auto' 가 기본인가.** 예전에는 무조건 30 으로 맞췄다. 그런데 영상
+    모델이 25fps 를 준다. 25 짜리를 30 으로 올리면 ffmpeg 은 없는 프레임을
+    만들어내지 못하고 **5장마다 한 장을 복제**한다. 4초 클립에서 재어 보니
+    120장 중 20장이 복제본이었다 — 1초에 6번, 눈에 보이는 떨림이다.
+    끊김 없이 앞으로 나아가는 화면에서는 특히 잘 보인다.
+
+    그래서 모델이 준 프레임률을 그대로 쓴다. 유튜브 Shorts 도 인스타
+    릴스도 24~60fps 를 그대로 받는다. 올릴 이유가 없다.
+    """
+    if not (isinstance(wanted, str) and wanted.strip().lower() == "auto"):
+        try:
+            return max(1, int(wanted))
+        except (TypeError, ValueError):
+            return FALLBACK_FPS
+
+    rates = []
+    for clip in clips:
+        try:
+            value = fps_of(clip)
+        except (FFmpegError, OSError):
+            value = None
+        if value:
+            rates.append(round(value, 3))
+    if not rates:
+        return FALLBACK_FPS
+
+    # 소수점 프레임률(29.97 등)은 가장 가까운 표준값으로 붙인다.
+    def snap(value: float) -> int:
+        near = min(COMMON_FPS, key=lambda c: abs(c - value))
+        return near if abs(near - value) <= 0.5 else int(round(value))
+
+    snapped = {snap(r) for r in rates}
+    # 섞여 있으면 가장 높은 것에 맞춘다. 낮추면 프레임을 버리게 된다.
+    return max(snapped)
 
 
 def stitch(
@@ -29,7 +74,7 @@ def stitch(
     *,
     width: int = 1080,
     height: int = 1920,
-    fps: int = 30,
+    fps: int | str = "auto",
     crf: int = 18,
     crossfade: float = 0.3,
     transition: str = "fade",
@@ -49,6 +94,7 @@ def stitch(
         )
 
     dest.parent.mkdir(parents=True, exist_ok=True)
+    fps = resolve_fps(clips, fps)
     scale_chain = (
         f"scale={width}:{height}:force_original_aspect_ratio=increase,"
         f"crop={width}:{height},fps={fps},setsar=1,format=yuv420p"
@@ -83,7 +129,7 @@ def stitch(
 
     if not dest.exists() or dest.stat().st_size == 0:
         raise FFmpegError("합성은 끝났는데 출력 파일이 비어 있습니다.")
-    return StitchResult(dest, duration_of(dest), dest.stat().st_size)
+    return StitchResult(dest, duration_of(dest), dest.stat().st_size, fps)
 
 
 def _concat_graph(clips: list[Path], scale_chain: str) -> tuple[str, str]:

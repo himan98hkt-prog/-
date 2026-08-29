@@ -110,12 +110,15 @@ class FalProvider(VideoProvider):
                  if k.endswith("image_url") and isinstance(v, str)) / 1e6
         print(f"    fal 에 올리는 중… (이미지 {mb:.1f}MB)", flush=True)
 
+        # 접수 자체가 거절되면(401/403/422/네트워크) 한 푼도 안 나간다.
         submit = self._request(
-            "POST", f"{self.base_url}/{self.endpoint}", json=payload
+            "POST", f"{self.base_url}/{self.endpoint}", json=payload, billed=False
         )
         job_id = submit.get("request_id")
         if not job_id:
-            raise ProviderError(f"fal 응답에 request_id 가 없습니다: {submit}")
+            raise ProviderError(f"fal 응답에 request_id 가 없습니다: {submit}",
+                                billed=False)
+        # 여기서부터는 작업이 대기열에 올랐다. 실패해도 과금됐다고 본다.
         self.log("fal.queued", job_id=job_id)
 
         status_url = submit.get("status_url") or (
@@ -126,21 +129,30 @@ class FalProvider(VideoProvider):
         )
 
         def check() -> tuple[bool, dict]:
-            body = self._request("GET", status_url)
+            body = self._request("GET", status_url, billed=True)
             status = body.get("status")
             if status == "COMPLETED":
                 return True, body
             if status in ("FAILED", "CANCELLED", "ERROR"):
-                raise ProviderError(f"fal 작업 실패 ({status}): {body}")
+                # 모델이 만들다가 실패한 것이라 대개 환불되지 않는다.
+                # 같은 입력으로 또 내면 또 실패할 가능성이 높다.
+                raise ProviderError(f"fal 작업 실패 ({status}): {body}",
+                                    billed=True, job_id=job_id)
             return False, body
 
-        self._poll(check, label=f"fal 작업 {job_id}")
-        result = self._request("GET", response_url)
+        try:
+            self._poll(check, label=f"fal 작업 {job_id}")
+        except ProviderError as exc:
+            exc.job_id = exc.job_id or job_id
+            raise
+        result = self._request("GET", response_url, billed=True)
         self.log("fal.completed", job_id=job_id, result=_trim(result))
 
         url = _find_video_url(result)
         if not url:
-            raise ProviderError(f"fal 결과에서 영상 URL 을 찾지 못했습니다: {_trim(result)}")
+            raise ProviderError(
+                f"fal 결과에서 영상 URL 을 찾지 못했습니다: {_trim(result)}",
+                billed=True, job_id=job_id)
         self._download(url, dest)
         return GenerationResult(dest, job_id, result, time.time() - started)
 
@@ -148,7 +160,8 @@ class FalProvider(VideoProvider):
     def upscale(self, image: Path, dest: Path, endpoint: str) -> Path:
         payload = {"image_url": _data_uri(image)}
         self.log("fal.upscale.submit", endpoint=endpoint)
-        submit = self._request("POST", f"{self.base_url}/{endpoint}", json=payload)
+        submit = self._request("POST", f"{self.base_url}/{endpoint}",
+                               json=payload, billed=False)
         job_id = submit.get("request_id")
         status_url = submit.get("status_url") or (
             f"{self.base_url}/{endpoint}/requests/{job_id}/status"
@@ -158,11 +171,11 @@ class FalProvider(VideoProvider):
         )
 
         def check() -> tuple[bool, dict]:
-            body = self._request("GET", status_url)
+            body = self._request("GET", status_url, billed=True)
             if body.get("status") == "COMPLETED":
                 return True, body
             if body.get("status") in ("FAILED", "CANCELLED", "ERROR"):
-                raise ProviderError(f"fal 업스케일 실패: {body}")
+                raise ProviderError(f"fal 업스케일 실패: {body}", billed=True)
             return False, body
 
         self._poll(check, label=f"fal 업스케일 {job_id}")
@@ -173,13 +186,20 @@ class FalProvider(VideoProvider):
         return self._download(url, dest)
 
     # ── HTTP ─────────────────────────────────────────────────────────
-    def _request(self, method: str, url: str, **kwargs) -> dict:
+    def _request(self, method: str, url: str, *, billed: bool | None = None,
+                 **kwargs) -> dict:
+        """billed 는 이 요청이 실패했을 때 **돈이 나갔다고 봐야 하는지** 다.
+
+        제출(POST) 이 거절당하면 작업이 만들어지지 않았으니 과금이 없다.
+        접수된 뒤의 조회 실패는 작업이 이미 돌고 있으므로 과금으로 본다.
+        """
         try:
             resp = requests.request(
                 method, url, headers=self._headers, timeout=180, **kwargs
             )
         except requests.RequestException as exc:
-            raise ProviderError(f"fal 요청 실패 ({method} {url}): {exc}") from exc
+            raise ProviderError(f"fal 요청 실패 ({method} {url}): {exc}",
+                                billed=billed) from exc
 
         if resp.status_code >= 400:
             retryable = resp.status_code in _RETRYABLE_STATUS
@@ -193,6 +213,7 @@ class FalProvider(VideoProvider):
             raise ProviderError(
                 f"fal HTTP {resp.status_code}: {resp.text[:400]}{hint}",
                 retryable=retryable,
+                billed=billed,
             )
         if not resp.content:
             return {}

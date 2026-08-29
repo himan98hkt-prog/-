@@ -61,5 +61,26 @@ def dimensions_of(path: Path) -> tuple[int, int]:
     raise FFmpegError(f"{path.name} 에 비디오 스트림이 없습니다.")
 
 
+def fps_of(path: Path) -> float | None:
+    """비디오 스트림의 프레임률. 못 읽으면 None.
+
+    avg_frame_rate 를 먼저 본다. r_frame_rate 는 가변 프레임률 파일에서
+    실제보다 높은 값(예: 90000/1)이 잡히는 일이 있다.
+    """
+    for st in probe(path).get("streams", []):
+        if st.get("codec_type") != "video":
+            continue
+        for key in ("avg_frame_rate", "r_frame_rate"):
+            raw = st.get(key) or ""
+            try:
+                num, _, den = raw.partition("/")
+                value = float(num) / float(den or 1)
+            except (TypeError, ValueError, ZeroDivisionError):
+                continue
+            if 1.0 <= value <= 240.0:
+                return value
+    return None
+
+
 def has_audio(path: Path) -> bool:
     return any(s.get("codec_type") == "audio" for s in probe(path).get("streams", []))
