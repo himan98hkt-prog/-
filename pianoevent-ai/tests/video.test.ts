@@ -36,6 +36,7 @@ import {
   SCENE_MIN_SEC,
   TASTER_SEC,
   tasterRange,
+  tasterStarts,
   totalSeconds,
   type ExtraMedia,
   type VideoScene,
@@ -976,14 +977,37 @@ describe('30초만 먼저 만들어 보기', () => {
 
   it('이미 짧은 영상은 맛보기가 뜻이 없다', () => {
     const short: VideoScene[] = [
-      { id: 'a', kind: 'title', seconds: 6, lines: ['하나'] },
-      { id: 'b', kind: 'title', seconds: 6, lines: ['둘'] },
+      { id: 'a', kind: 'title', seconds: 6, headline: '하나' },
+      { id: 'b', kind: 'title', seconds: 6, headline: '둘' },
     ] as VideoScene[]
     expect(tasterRange(short)).toBeNull()
   })
 
   it('장면이 하나뿐이면 나눌 것이 없다', () => {
-    expect(tasterRange([{ id: 'a', kind: 'title', seconds: 600, lines: ['하나'] }] as VideoScene[])).toBeNull()
+    expect(tasterRange([{ id: 'a', kind: 'title', seconds: 600, headline: '하나' }] as VideoScene[])).toBeNull()
+  })
+
+  it('아이 장면부터도 맛보실 수 있다 — 앞 30초는 대개 표지다', () => {
+    const scenes = bigBoard()
+    const starts = tasterStarts(scenes)
+    expect(starts[0].id).toBe('head')
+    const performers = starts.find((s) => s.id === 'performers')
+    expect(performers).toBeDefined()
+    expect(scenes[performers!.index].kind).toBe('student')
+
+    const span = tasterRange(scenes, TASTER_SEC, performers!.index)!
+    expect(span.from).toBe(performers!.index)
+    expect(span.to).toBeGreaterThan(span.from)
+    // 담기는 것이 실제로 아이 장면이다
+    expect(scenes.slice(span.from, span.to + 1).some((s) => s.kind === 'student')).toBe(true)
+  })
+
+  it('시작 자리가 끝을 넘어가도 멈추지 않는다', () => {
+    const scenes = bigBoard()
+    const span = tasterRange(scenes, TASTER_SEC, 999)!
+    expect(span.from).toBeLessThan(scenes.length)
+    expect(span.to).toBeLessThan(scenes.length)
+    expect(span.to).toBeGreaterThan(span.from)
   })
 
   it('끊는 자리는 늘 장면 안이다', () => {

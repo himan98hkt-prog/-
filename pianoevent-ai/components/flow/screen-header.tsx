@@ -11,6 +11,7 @@ import {
   type FlowState,
   type StepKey,
 } from "@/lib/flow/steps";
+import { MarkSeen } from "@/components/event/mark-seen";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,6 +46,9 @@ export function ScreenHeader({
 
   return (
     <>
+      {/* 어느 화면을 열어 보셨는지 이 컴퓨터에만 적어 둔다 — 구경용 띠에서 남은 것을 짚어 드리려고 */}
+      <MarkSeen eventId={eventId} step={step} />
+
       {/* 화면 전체 바탕도 이 단계의 색으로 아주 옅게 물들인다.
           "여기는 아까 그 화면이 아니다" 를 글이 아니라 색으로 알려 준다. */}
       <style

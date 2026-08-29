@@ -301,17 +301,44 @@ export const TASTER_SEC = 30
  * 제목 한 장만 나오면 아이가 어떻게 나오는지 못 보신다.
  * 전체가 이미 30초 안팎이면 맛보기가 뜻이 없으므로 `null` 을 준다.
  */
-export function tasterRange(scenes: VideoScene[], seconds = TASTER_SEC): { from: number; to: number } | null {
+export function tasterRange(
+  scenes: VideoScene[],
+  seconds = TASTER_SEC,
+  from = 0,
+): { from: number; to: number } | null {
   if (scenes.length < 2) return null
   if (totalSeconds(scenes) <= seconds * 1.5) return null
+  const start = Math.max(0, Math.min(from, scenes.length - 2))
   let sum = 0
-  let to = 0
-  for (let i = 0; i < scenes.length; i += 1) {
+  let to = start
+  for (let i = start; i < scenes.length; i += 1) {
     sum += scenes[i].seconds
-    if (sum > seconds && i >= 1) break
+    if (sum > seconds && i > start) break
     to = i
   }
-  return { from: 0, to: Math.max(1, to) }
+  return { from: start, to: Math.max(start + 1, to) }
+}
+
+/**
+ * 맛보기를 **어디서부터** 담을지.
+ *
+ * 앞 30초는 대개 표지와 인사말이다. 정작 보고 싶으신 것은 **아이가 나오는 화면**인데,
+ * 그건 30초 뒤에 나온다. 그래서 시작 자리를 둘 준다 — 처음부터, 아이 장면부터.
+ * 아이 장면이 맨 앞이면(표지를 끄셨다면) 하나만 준다.
+ */
+export interface TasterStart {
+  id: 'head' | 'performers'
+  label: string
+  index: number
+}
+
+export function tasterStarts(scenes: VideoScene[]): TasterStart[] {
+  const out: TasterStart[] = [{ id: 'head', label: '처음부터', index: 0 }]
+  const first = scenes.findIndex((scene) => scene.kind === 'student')
+  if (first > 0 && first < scenes.length - 1) {
+    out.push({ id: 'performers', label: '아이 장면부터', index: first })
+  }
+  return out
 }
 
 /** 15분을 넘으면 아이 한 명당 시간을 줄여 맞춘다 — 잘라 내면 누군가 빠진다 */

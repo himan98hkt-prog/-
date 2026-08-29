@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { printSummary, printSummaryLine } from '@/lib/print/paper'
+import { BOX_SHEETS, BULK_FROM_SHEETS, REAM_SHEETS, paperBulkNote, printSummary, printSummaryLine } from '@/lib/print/paper'
 
 describe('뽑기 전 마지막 확인', () => {
   it('넷을 보여 준다 — 종이 · 장수 · 색 · 양면', () => {
@@ -33,5 +33,45 @@ describe('뽑기 전 마지막 확인', () => {
 
   it('부수가 이상해도 멈추지 않는다', () => {
     expect(printSummary({ paperLabel: 'A4 세로', sheets: 3, copies: 0 })[1].value).toBe('3장')
+  })
+})
+
+describe('종이를 몸으로 아는 단위로', () => {
+  it('적게 뽑으실 때는 아무 말도 하지 않는다 — 겁줄 일이 아니다', () => {
+    expect(paperBulkNote(12)).toBeNull()
+    expect(paperBulkNote(BULK_FROM_SHEETS - 1)).toBeNull()
+  })
+
+  it('백 장쯤부터는 종이를 채워 두시라고 한다', () => {
+    const note = paperBulkNote(BULK_FROM_SHEETS)
+    expect(note).toContain('연')
+    expect(note).toContain('채워')
+  })
+
+  it('한 연에 못 미치면 연으로 견줘 준다', () => {
+    expect(paperBulkNote(300)).toContain('연')
+  })
+
+  it('연 단위면 프린터에 그만큼 있는지 보라고 한다', () => {
+    const note = paperBulkNote(1200)
+    expect(note).toContain('연')
+    expect(note).toContain('프린터')
+  })
+
+  it('박스를 넘으면 인쇄소를 권한다 — 학원 프린터로는 못 한다', () => {
+    const note = paperBulkNote(BOX_SHEETS + 100)
+    expect(note).toContain('박스')
+    expect(note).toContain('인쇄소')
+  })
+
+  it('한 연·한 박스가 실제 값이다', () => {
+    expect(REAM_SHEETS).toBe(500)
+    expect(BOX_SHEETS).toBe(2500)
+  })
+
+  it('어느 장수에서도 멈추지 않는다', () => {
+    for (const n of [0, 1, 249, 250, 499, 500, 2499, 2500, 99999]) {
+      expect(() => paperBulkNote(n), `${n}장`).not.toThrow()
+    }
   })
 })

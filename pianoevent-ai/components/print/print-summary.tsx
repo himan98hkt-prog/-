@@ -1,4 +1,4 @@
-import { printSummary } from '@/lib/print/paper'
+import { paperBulkNote, printSummary, totalSheets } from '@/lib/print/paper'
 
 /**
  * 뽑기 직전 마지막 확인.
@@ -21,6 +21,8 @@ export function PrintSummary({
   grayOk?: boolean
 }) {
   const rows = printSummary({ paperLabel, sheets, copies, duplex, grayOk })
+  // 1,200장이라는 숫자는 크기가 안 그려진다. 박스·연으로 바꿔 드려야 아신다
+  const bulk = paperBulkNote(totalSheets(sheets, Math.max(1, Math.round(copies))))
 
   return (
     <div
@@ -36,6 +38,11 @@ export function PrintSummary({
           </div>
         ))}
       </dl>
+      {bulk && (
+        <p className="mt-1 text-sm font-medium text-accent" data-testid="print-bulk">
+          {bulk}
+        </p>
+      )}
       <p className="mt-1 text-xs text-muted-foreground">
         인쇄 창에서도 이 넷이 같은지만 보시면 됩니다. 다르면 인쇄 창에서 고치세요.
       </p>

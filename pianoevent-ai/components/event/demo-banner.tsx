@@ -1,10 +1,13 @@
 'use client'
 
-import { Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { Check, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { SEEN_STEPS, parseSeen, seenStorageKey, unseenSteps } from '@/lib/events/seen'
+import { getStep, stepHref, type StepKey } from '@/lib/flow/steps'
+import { cn } from '@/lib/utils'
 
 /**
  * 구경용 행사 위에 붙는 띠.
@@ -22,6 +25,25 @@ export function DemoBanner({ eventId }: { eventId: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * 어디까지 보셨는지.
+   *
+   * 대개 인쇄물 한 번 보시고 닫으신다. 무대 화면과 감동영상이 이 프로그램에서 가장 큰
+   * 것인데 거기까지 못 가시는 것이다. 남은 것이 눈에 보이면 끝까지 보신다.
+   *
+   * 담아 둔 것을 읽는 일이라 화면이 붙은 **뒤에** 한다 — 서버에는 없는 값이다.
+   */
+  const [seen, setSeen] = useState<StepKey[] | null>(null)
+
+  useEffect(() => {
+    try {
+      setSeen(parseSeen(window.localStorage.getItem(seenStorageKey(eventId))))
+    } catch {
+      setSeen([])
+    }
+  }, [eventId])
+
+  const left = seen === null ? [] : unseenSteps(seen)
 
   async function remove() {
     setBusy(true)
@@ -50,6 +72,48 @@ export function DemoBanner({ eventId }: { eventId: string }) {
         여기 있는 아이 이름 · 연주곡 · 사진은 <strong>지어낸 것</strong>입니다. 마음껏 눌러 보시고
         인쇄물도 뽑아 보세요. 무엇을 하셔도 학원 자료에는 아무 일도 생기지 않습니다.
       </p>
+      {/* 여기까지 보셨습니다 — 남은 것이 보이면 끝까지 보신다 */}
+      {seen !== null && (
+        <div className="grid gap-1.5" data-testid="demo-seen">
+          <p className="text-sm">
+            {left.length === 0 ? (
+              <strong>구경할 것을 다 보셨습니다.</strong>
+            ) : (
+              <>
+                여기까지 보셨습니다 —{' '}
+                <strong>
+                  {SEEN_STEPS.length - left.length} / {SEEN_STEPS.length}
+                </strong>
+                . 아직 안 보신 것이 <strong>{left.length}가지</strong> 있습니다.
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {SEEN_STEPS.map((key) => {
+              const done = seen.includes(key)
+              return (
+                <Link
+                  key={key}
+                  href={stepHref(key, eventId)}
+                  data-testid={`demo-seen-${key}`}
+                  data-seen={done ? 'yes' : 'no'}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                    done
+                      ? 'border-border text-muted-foreground'
+                      : 'border-accent bg-background font-medium text-foreground hover:bg-accent/10',
+                  )}
+                >
+                  {done ? <Check className="h-3 w-3" aria-hidden /> : null}
+                  {getStep(key).name}
+                  {!done && <span className="text-muted-foreground">아직</span>}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {/* 다 보신 분이 다음에 하실 일 — 여기서 바로 짚어 드린다 */}
         <Link href="/events/new" className={buttonVariants({ size: 'sm' })} data-testid="demo-to-real">

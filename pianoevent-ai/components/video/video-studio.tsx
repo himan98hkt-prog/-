@@ -68,6 +68,7 @@ import {
   sortByFileName,
   TASTER_SEC,
   tasterRange,
+  tasterStarts,
   totalSeconds,
   type CaptionPlace,
   type CheerMessage,
@@ -278,7 +279,11 @@ export function VideoStudio({
    * 12분짜리는 만드는 데도 12분이 걸린다. 다 기다리신 뒤에 "이게 아닌데" 를 아시면
    * 그 12분이 통째로 날아간다. 짧은 영상이면 굳이 나눌 것이 없으므로 안 보여 준다.
    */
-  const taster = useMemo(() => tasterRange(scenes), [scenes])
+  const starts = useMemo(() => tasterStarts(scenes), [scenes])
+  /** 어디서부터 맛볼지 — 앞 30초는 대개 표지라, 아이 장면부터도 고르실 수 있다 */
+  const [startId, setStartId] = useState<'head' | 'performers'>('head')
+  const start = starts.find((item) => item.id === startId) ?? starts[0]
+  const taster = useMemo(() => tasterRange(scenes, TASTER_SEC, start?.index ?? 0), [scenes, start])
   const tasterSec = useMemo(
     () => (taster ? totalSeconds(scenes.slice(taster.from, taster.to + 1)) : 0),
     [taster, scenes],
@@ -620,7 +625,7 @@ export function VideoStudio({
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
     const partial = abortedRef.current
     const label = isTaster
-      ? ` (${TASTER_SEC}초 맛보기)`
+      ? ` (${TASTER_SEC}초 맛보기${span && span.from > 0 ? ' · 아이 장면부터' : ''})`
       : span
         ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
         : ''
@@ -937,17 +942,39 @@ export function VideoStudio({
           </Button>
           {/* 다 만든 뒤에 아시면 늦다. 앞 30초로 먼저 확인하시게 */}
           {taster && !recording && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void record(taster, true)}
-              disabled={!ready || !recordType || playing}
-              data-testid="video-taster"
-              title={`앞 ${taster.to + 1}장면(${formatLength(tasterSec)})만 담아 봅니다`}
-            >
-              <Timer className="mr-1 h-4 w-4" aria-hidden />
-              {TASTER_SEC}초만 먼저 만들어 보기
-            </Button>
+            <span className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void record(taster, true)}
+                disabled={!ready || !recordType || playing}
+                data-testid="video-taster"
+                title={`${taster.from + 1}~${taster.to + 1}장면 ${taster.to - taster.from + 1}장면(${formatLength(tasterSec)})만 담아 봅니다`}
+              >
+                <Timer className="mr-1 h-4 w-4" aria-hidden />
+                {TASTER_SEC}초만 먼저 만들어 보기
+              </Button>
+              {/* 앞 30초는 대개 표지다. 정작 보고 싶으신 것은 아이가 나오는 화면이다 */}
+              {starts.length > 1 && (
+                <span className="flex items-center gap-0.5 rounded-md border border-border p-0.5" data-testid="taster-start">
+                  {starts.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setStartId(item.id)}
+                      aria-pressed={item.id === startId}
+                      disabled={recording}
+                      className={cn(
+                        'rounded px-2 py-1 text-xs transition-colors disabled:opacity-40',
+                        item.id === startId ? 'bg-primary font-medium text-primary-foreground' : 'hover:bg-secondary',
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
           )}
           <div className="flex items-center gap-1" data-testid="preview-speed">
             <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden />

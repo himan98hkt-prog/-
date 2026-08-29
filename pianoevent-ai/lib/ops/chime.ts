@@ -37,25 +37,138 @@ export function chimeStorageKey(eventId: string): string {
   return `pianoevent.live.chime.${eventId}`
 }
 
-/**
- * 두 음짜리 짧은 알림.
+/* ────────────────────────────────────────────────────────────────────────────
+ * 소리 세 가지
  *
- * 객석에 들리면 안 된다. 손에 든 기계에서만 들릴 만큼 작게, 0.5초 안에 끝낸다.
+ * 홀마다 다르다. 로비가 시끄러운 곳에서는 맑은 종소리가 묻히고, 조용한 소공연장에서는
+ * 낮고 굵은 소리가 객석까지 새어 나간다. 그래서 세 가지를 두고 고르시게 한다.
+ * 셋 다 파일이 아니라 브라우저가 그 자리에서 내는 소리다.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface ChimeNote {
+  hz: number
+  start: number
+  span: number
+  /** 소리 세기 (0~1) */
+  gain?: number
+  /** 파형 — 'sine' 은 맑고, 'triangle' 은 조금 두껍다 */
+  wave?: OscillatorType
+}
+
+export interface ChimeSound {
+  id: string
+  name: string
+  /** 어떤 자리에 맞는지 */
+  hint: string
+  notes: ChimeNote[]
+}
+
+export const CHIME_SOUNDS: ChimeSound[] = [
+  {
+    id: 'bell',
+    name: '맑은 종',
+    hint: '조용한 소공연장. 객석에 거의 안 들립니다',
+    notes: [
+      { hz: 659.25, start: 0, span: 0.18 },
+      { hz: 880.0, start: 0.16, span: 0.3 },
+    ],
+  },
+  {
+    id: 'triple',
+    name: '또렷한 세 번',
+    hint: '로비가 시끄러운 홀. 세 번 끊어 울려 놓치지 않습니다',
+    notes: [
+      { hz: 987.77, start: 0, span: 0.12, gain: 0.26 },
+      { hz: 987.77, start: 0.18, span: 0.12, gain: 0.26 },
+      { hz: 1318.51, start: 0.36, span: 0.22, gain: 0.26 },
+    ],
+  },
+  {
+    id: 'low',
+    name: '낮고 부드럽게',
+    hint: '무대와 가까운 자리. 높은 소리가 튀지 않습니다',
+    notes: [
+      { hz: 329.63, start: 0, span: 0.24, wave: 'triangle' },
+      { hz: 392.0, start: 0.2, span: 0.34, wave: 'triangle' },
+    ],
+  },
+]
+
+export const DEFAULT_CHIME_SOUND = CHIME_SOUNDS[0].id
+
+export function getChimeSound(id: string | null | undefined): ChimeSound {
+  return CHIME_SOUNDS.find((sound) => sound.id === id) ?? CHIME_SOUNDS[0]
+}
+
+/**
+ * 진동.
+ *
+ * 로비가 시끄러우면 어떤 소리도 묻힌다. 주머니 속 진동은 안 묻힌다.
+ * 소리를 끄고 진동만 켜 두실 수도 있다 — 객석에서 소리가 나면 안 되는 홀도 있다.
  */
-export function playChime(ctx: AudioContext, at = ctx.currentTime): void {
-  const notes = [
-    { hz: 659.25, start: 0, span: 0.18 }, // 미
-    { hz: 880.0, start: 0.16, span: 0.3 }, // 라
-  ]
-  for (const note of notes) {
+export const CHIME_VIBRATE_MS = [180, 90, 180] as const
+
+export function vibrate(pattern: readonly number[] = CHIME_VIBRATE_MS): boolean {
+  const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean })
+  if (!nav?.vibrate) return false
+  try {
+    return nav.vibrate([...pattern])
+  } catch {
+    return false
+  }
+}
+
+/* ── 켜 두신 설정 ────────────────────────────────────────────────────────── */
+
+export interface ChimePrefs {
+  on: boolean
+  soundId: string
+  buzz: boolean
+}
+
+export const DEFAULT_CHIME_PREFS: ChimePrefs = { on: false, soundId: DEFAULT_CHIME_SOUND, buzz: false }
+
+/**
+ * 담아 둔 설정을 되읽는다.
+ *
+ * 예전 판은 `'on'` / `'off'` 한 낱말만 담았다. 그때 켜 두신 원장님의 설정이
+ * 사라지면 안 되므로 그 형태도 그대로 읽어 준다.
+ */
+export function parseChimePrefs(raw: string | null): ChimePrefs {
+  if (!raw) return { ...DEFAULT_CHIME_PREFS }
+  if (raw === 'on') return { ...DEFAULT_CHIME_PREFS, on: true }
+  if (raw === 'off') return { ...DEFAULT_CHIME_PREFS }
+  try {
+    const data = JSON.parse(raw) as Partial<ChimePrefs>
+    return {
+      on: data.on === true,
+      soundId: getChimeSound(typeof data.soundId === 'string' ? data.soundId : null).id,
+      buzz: data.buzz === true,
+    }
+  } catch {
+    return { ...DEFAULT_CHIME_PREFS }
+  }
+}
+
+export function serializeChimePrefs(prefs: ChimePrefs): string {
+  return JSON.stringify(prefs)
+}
+
+/**
+ * 짧은 알림 한 번.
+ *
+ * 객석에 들리면 안 된다. 손에 든 기계에서만 들릴 만큼 작게, 0.6초 안에 끝낸다.
+ */
+export function playChime(ctx: AudioContext, soundId?: string | null, at = ctx.currentTime): void {
+  for (const note of getChimeSound(soundId).notes) {
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
-    osc.type = 'sine'
+    osc.type = note.wave ?? 'sine'
     osc.frequency.value = note.hz
     const from = at + note.start
     // 딱 끊으면 '틱' 소리가 난다 — 올렸다 내린다
     gain.gain.setValueAtTime(0.0001, from)
-    gain.gain.exponentialRampToValueAtTime(0.22, from + 0.02)
+    gain.gain.exponentialRampToValueAtTime(note.gain ?? 0.22, from + 0.02)
     gain.gain.exponentialRampToValueAtTime(0.0001, from + note.span)
     osc.connect(gain).connect(ctx.destination)
     osc.start(from)

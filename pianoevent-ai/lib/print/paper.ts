@@ -224,6 +224,33 @@ export function printSummary(input: {
   ]
 }
 
+/**
+ * 종이를 **몸으로 아는 단위**로 바꿔 준다.
+ *
+ * "1,200장" 은 숫자일 뿐이라 크기가 안 그려진다. A4 한 박스는 2,500장(5연)이고
+ * 한 연(포장 한 묶음)은 500장이다. "한 박스의 절반" 이라고 하면 그 자리에서 아신다.
+ * 프린터에 그만큼 넣어 두셨는지, 잉크가 버티는지를 **뽑기 전에** 가늠하시라는 것이다.
+ */
+export const REAM_SHEETS = 500
+export const BOX_SHEETS = REAM_SHEETS * 5
+
+/** 이만큼부터는 "종이가 꽤 드는구나" 를 아셔야 한다 */
+export const BULK_FROM_SHEETS = 100
+
+export function paperBulkNote(totalSheets: number): string | null {
+  if (totalSheets < BULK_FROM_SHEETS) return null
+  if (totalSheets < REAM_SHEETS) {
+    const part = Math.max(1, Math.round(REAM_SHEETS / totalSheets))
+    return `A4 한 연(500장)의 ${part}분의 1쯤입니다. 프린터에 종이를 채워 두세요.`
+  }
+  if (totalSheets < BOX_SHEETS) {
+    const reams = Math.round((totalSheets / REAM_SHEETS) * 10) / 10
+    return `A4 ${reams}연(한 연 500장)입니다. 프린터에 그만큼 있는지 먼저 보세요.`
+  }
+  const boxes = Math.round((totalSheets / BOX_SHEETS) * 10) / 10
+  return `A4 ${boxes}박스(한 박스 2,500장)입니다. 학원 프린터로는 벅찹니다 — 인쇄소를 알아보세요.`
+}
+
 /** 한 줄로 — "A4 세로 · 12장 · 컬러 · 양면 아님" */
 export function printSummaryLine(rows: PrintSummaryRow[]): string {
   return rows.map((row) => row.value).join(' · ')

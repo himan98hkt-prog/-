@@ -226,6 +226,17 @@ export function DesignStudio({
             })}
           </div>
 
+          {/* 화면 색과 종이 색은 다르다. 한 장이면 실물로 견주신다 */}
+          <a
+            href={`/events/${event.id}/design/compare`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs underline underline-offset-4"
+            data-testid="compare-link"
+          >
+            세 장을 A4 한 장에 뽑아 견주기 →
+          </a>
+
           <p className="text-xs text-muted-foreground">
             셋 다 마음에 안 드실 때만 아래에서 고르세요 — 양식 {DESIGN_TEMPLATE_COUNT}종 · 테마{' '}
             {DESIGN_THEMES.length}종이 다 있습니다.

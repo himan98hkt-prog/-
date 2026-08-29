@@ -1,10 +1,22 @@
 'use client'
 
-import { Bell, BellOff, Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw } from 'lucide-react'
+import { Bell, BellOff, Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw, Vibrate } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatDuration, formatWallClock } from '@/lib/format'
-import { CHIME_LEAD_SEC, chimeDue, chimeStorageKey, playChime } from '@/lib/ops/chime'
+import {
+  CHIME_LEAD_SEC,
+  CHIME_SOUNDS,
+  DEFAULT_CHIME_PREFS,
+  chimeDue,
+  chimeStorageKey,
+  getChimeSound,
+  parseChimePrefs,
+  playChime,
+  serializeChimePrefs,
+  vibrate,
+  type ChimePrefs,
+} from '@/lib/ops/chime'
 import {
   actualRows,
   buildLiveList,
@@ -72,8 +84,9 @@ export function LiveBoard({
   const [sharedError, setSharedError] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState<number | null>(null)
-  /** 다음 차례 알림음 — 이 휴대폰에만 담긴다 */
-  const [chime, setChime] = useState(false)
+  /** 다음 차례 알림 — 소리와 진동. 이 휴대폰에만 담긴다 */
+  const [chimePrefs, setChimePrefs] = useState<ChimePrefs>(DEFAULT_CHIME_PREFS)
+  const chime = chimePrefs.on || chimePrefs.buzz
   const audioCtxRef = useRef<AudioContext | null>(null)
   /** 몇 번째 순서에서 이미 울렸는지 — 1초마다 다시 울리면 안 된다 */
   const chimedRef = useRef<number | null>(null)
@@ -93,40 +106,46 @@ export function LiveBoard({
     }
   }, [event.id, list.length, canLead])
 
-  // 알림음을 켜 두셨는지 되읽는다 (화면이 붙은 뒤에)
+  // 알림을 어떻게 켜 두셨는지 되읽는다 (화면이 붙은 뒤에)
   useEffect(() => {
     try {
-      setChime(window.localStorage.getItem(chimeStorageKey(event.id)) === 'on')
+      setChimePrefs(parseChimePrefs(window.localStorage.getItem(chimeStorageKey(event.id))))
     } catch {
       /* 저장이 막힌 브라우저면 꺼진 채로 */
     }
   }, [event.id])
 
   /**
-   * 알림음 켜기·끄기.
+   * 알림 설정 바꾸기.
    *
-   * 브라우저는 **원장님이 누르신 순간**에만 소리를 열어 준다. 그래서 켜실 때
-   * 소리 통로를 만들어 두고, 그 자리에서 한 번 들려 드린다 —
+   * 브라우저는 **원장님이 누르신 순간**에만 소리를 열어 준다. 그래서 켜시거나 소리를
+   * 바꾸실 때 소리 통로를 만들어 두고, 그 자리에서 한 번 들려 드린다 —
    * "이런 소리가 납니다" 를 미리 아셔야 당일에 놀라지 않으신다.
    */
-  function toggleChime(on: boolean) {
-    setChime(on)
+  function changeChime(patch: Partial<ChimePrefs>, taste = true) {
+    const next = { ...chimePrefs, ...patch }
+    setChimePrefs(next)
     try {
-      window.localStorage.setItem(chimeStorageKey(event.id), on ? 'on' : 'off')
+      window.localStorage.setItem(chimeStorageKey(event.id), serializeChimePrefs(next))
     } catch {
       /* 담아 두지 못해도 이번 연주회 동안은 켜져 있다 */
     }
-    if (!on) return
-    try {
-      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!Ctor) return
-      const ctx = audioCtxRef.current ?? new Ctor()
-      audioCtxRef.current = ctx
-      void ctx.resume().catch(() => undefined)
-      playChime(ctx)
-    } catch {
-      /* 소리를 못 내는 기계여도 화면은 그대로 돈다 */
+    if (!taste) return
+    if (next.on) {
+      try {
+        const Ctor =
+          window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (Ctor) {
+          const ctx = audioCtxRef.current ?? new Ctor()
+          audioCtxRef.current = ctx
+          void ctx.resume().catch(() => undefined)
+          playChime(ctx, next.soundId)
+        }
+      } catch {
+        /* 소리를 못 내는 기계여도 화면은 그대로 돈다 */
+      }
     }
+    if (next.buzz) vibrate()
   }
 
   /** 서버에 올린다. 실패해도 화면은 그대로 — 인터넷은 있으면 좋은 것이지 있어야 하는 것이 아니다 */
@@ -250,18 +269,30 @@ export function LiveBoard({
     state.started_at && next && current && chimeDue(onStageSec, current.planned_sec),
   )
 
+  /**
+   * **이 아이가 끝나기까지 남은 시간.**
+   *
+   * 무대 옆에서 가장 궁금한 숫자다. 지금까지는 "밀린 시간" 만 있었는데, 그건 연주회
+   * 전체 이야기지 지금 이 순간의 이야기가 아니다. 다음 아이를 언제 데려올지는
+   * 이 숫자로 정하신다. 넘겼으면 넘겼다고 그대로 적는다 — 0으로 멈추면 거짓말이 된다.
+   */
+  const leftSec = current && state.started_at ? Math.round(current.planned_sec - onStageSec) : null
+
   useEffect(() => {
     if (!chime || !nextSoon) return
     if (chimedRef.current === state.index) return
     chimedRef.current = state.index
+    if (chimePrefs.buzz) vibrate()
+    if (!chimePrefs.on) return
     const ctx = audioCtxRef.current
     if (!ctx) return
     try {
       void ctx.resume().catch(() => undefined)
-      playChime(ctx)
+      playChime(ctx, chimePrefs.soundId)
     } catch {
       /* 못 울려도 화면 표시는 남는다 */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chime, nextSoon, state.index])
 
   // 순서를 되돌리시면 그 순서에서 다시 울려야 한다
@@ -341,6 +372,24 @@ export function LiveBoard({
             {current?.detail && <p className="mt-1 text-base text-muted-foreground">{current.detail}</p>}
           </div>
         </div>
+        {leftSec !== null && (
+          <p
+            className={cn(
+              'mt-3 flex flex-wrap items-baseline gap-2 leading-none',
+              leftSec < 0 ? 'text-destructive' : nextSoon ? 'text-accent' : '',
+            )}
+            data-testid="live-left"
+          >
+            <span className="text-4xl font-bold tabular-nums">{formatElapsed(Math.abs(leftSec))}</span>
+            <span className="text-base font-medium">
+              {leftSec < 0 ? '넘겼습니다' : '남았습니다'}
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                {leftSec < 0 ? '이 아이 예정 시간을' : '이 아이 연주가 끝나기까지'}
+              </span>
+            </span>
+          </p>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="tabular-nums">예정 {formatWallClock(event.event_at, planned)}</span>
           {state.started_at ? (
@@ -459,15 +508,15 @@ export function LiveBoard({
 
       {/* 다음 차례 알림 — 화면을 계속 안 보셔도 되게 */}
       {canLead && (
-        <section className="rounded-lg border border-border p-3" data-testid="live-chime">
+        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="live-chime">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={chime}
-              onChange={(native) => toggleChime(native.target.checked)}
+              checked={chimePrefs.on}
+              onChange={(native) => changeChime({ on: native.target.checked })}
               className="h-4 w-4"
             />
-            {chime ? (
+            {chimePrefs.on ? (
               <Bell className="h-4 w-4 text-accent" aria-hidden />
             ) : (
               <BellOff className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -479,9 +528,55 @@ export function LiveBoard({
               </span>
             </span>
           </label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            켜시면 지금 한 번 들려 드립니다. 객석에는 안 들릴 만큼 작은 소리입니다 — 소리를 못 듣는
-            자리에서도 위 <strong>다음</strong> 칸이 함께 켜집니다.
+
+          {/* 홀마다 다르다. 로비가 시끄러우면 맑은 종은 묻히고, 무대 옆에서는 높은 소리가 튄다 */}
+          {chimePrefs.on && (
+            <div className="grid gap-1 pl-6" data-testid="chime-sounds">
+              {CHIME_SOUNDS.map((sound) => (
+                <label key={sound.id} className="flex cursor-pointer items-baseline gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="chime-sound"
+                    checked={chimePrefs.soundId === sound.id}
+                    onChange={() => changeChime({ soundId: sound.id })}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>
+                    {sound.name}
+                    <span className="ml-1.5 text-xs text-muted-foreground">{sound.hint}</span>
+                  </span>
+                </label>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                고르시면 그 자리에서 한 번 들려 드립니다. 지금 고르신 것은{' '}
+                <strong className="text-foreground">{getChimeSound(chimePrefs.soundId).name}</strong> 입니다.
+              </p>
+            </div>
+          )}
+
+          {/* 로비가 시끄러우면 어떤 소리도 묻힌다. 주머니 속 진동은 안 묻힌다 */}
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={chimePrefs.buzz}
+              onChange={(native) => changeChime({ buzz: native.target.checked })}
+              className="h-4 w-4"
+            />
+            <Vibrate
+              className={cn('h-4 w-4', chimePrefs.buzz ? 'text-accent' : 'text-muted-foreground')}
+              aria-hidden
+            />
+            <span>
+              <strong>진동도 함께</strong>
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                로비가 시끄러워도, 소리를 꺼 두셔도 주머니에서 느끼십니다 (휴대폰만)
+              </span>
+            </span>
+          </label>
+
+          <p className="text-xs text-muted-foreground">
+            객석에는 안 들릴 만큼 작은 소리입니다 — 소리를 못 듣는 자리에서도 위 <strong>다음</strong> 칸이
+            함께 켜집니다. 소리를 끄고 <strong>진동만</strong> 켜 두셔도 됩니다.
           </p>
         </section>
       )}
