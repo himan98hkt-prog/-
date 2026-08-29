@@ -274,3 +274,293 @@ of the frame is dark and empty
 | `public/art/ornament/` | 상장·초대장 모서리 장식 |
 
 그림은 **프로그램 안에 같이 깔립니다.** 인터넷 없이도 뜨고, 학원 밖으로 나가지 않습니다.
+
+---
+
+# 2차 — 더 만들면 좋을 것
+
+1차로 여덟 장이 들어가 포스터는 돌아갑니다. 그런데 **테마 108종에 견주면 그림이 한쪽으로
+쏠려 있습니다.**
+
+| 지금 | 문제 |
+|---|---|
+| 어두운 그림 6 · 밝은 그림 2 | 학원 프린터로 A4 를 까맣게 뽑으면 **잉크값이 몇 배**입니다 |
+| 계절 테마 26종 · 계절 그림 1장 | 봄(벚꽃)뿐입니다. 여름·가을·겨울이 없습니다 |
+| 사랑스러운 20 + 아이 8 = 28종 · 그 느낌 그림 1장 | 유아·저학년 발표회에 쓸 그림이 사실상 없습니다 |
+| 바탕 질감 없음 | 그림은 **양식 하나**만 바꾸지만, 질감은 **테마 전체**를 바꿉니다 |
+
+## 우선순위
+
+| 순서 | 묶음 | 장수 | 무엇이 늘어나나 |
+|---|---|---|---|
+| **1** | G · 바탕 질감 | 6 | **테마 108종 전부**가 종이 결을 갖습니다. 한 장당 효과가 가장 큽니다 |
+| **2** | D · 계절 | 4 | 포스터 4종 + 계절 테마 26종이 제 그림을 갖습니다 |
+| **3** | H · 장식 조각 | 6 | 상장·초대장·입장권·프로그램 표지 |
+| 4 | E · 밝은 판 | 4 | 포스터 4종. 잉크를 아낍니다 |
+| 5 | F · 아이·사랑스러운 | 3 | 포스터 3종 |
+| 6 | I · 무대 화면 | 4 | 무대 배경 14 → 18종 |
+| 7 | J · SNS | 2 | 인스타 카드·스토리 |
+
+한 번에 다 하실 것 없습니다. **1·2·3 만 하셔도** 확 달라집니다.
+
+## 화풍을 묶는 법
+
+- **사진 계열**(D · E1 · E3 · I) → 끝에 `--sref <A1-4 이미지 주소>`
+- **수채 계열**(F · E2) → 끝에 `--sref <A5-2 이미지 주소>`
+- **질감·장식**(G · H) → `--sref` 붙이지 마세요. 붙이면 질감에 피아노가 섞여 들어옵니다
+
+---
+
+## G. 바탕 질감 — 한 장이 테마 108종을 바꿉니다
+
+지금 테마의 종이는 **단색**입니다. 여기에 결이 들어가면 인쇄물 전체가 한 단계 올라갑니다.
+**아주 옅어야 합니다.** 질감이 눈에 띄면 실패입니다 — 글씨를 방해합니다.
+
+### G1 · 미색 면 종이
+```
+fine ivory cotton paper texture, very subtle fibre grain, even lighting, almost plain, no
+pattern, extremely low contrast, nothing in the centre
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+### G2 · 리넨 결
+```
+pale warm linen fabric texture, soft woven grain, even lighting, extremely subtle and low
+contrast, almost plain
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+### G3 · 은은한 대리석
+```
+pale ivory marble surface with very faint soft grey veining, quiet and luxurious, extremely
+low contrast, almost plain, nothing in the centre
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+### G4 · 금박 (제목 글씨를 이 질감으로 칠합니다)
+```
+a sheet of real gold leaf foil, crinkled metallic surface with warm highlights and darker
+folds, macro texture, rich and even across the whole frame
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, objects
+```
+
+### G5 · 검은 벨벳 (어두운 테마 바탕)
+```
+deep black velvet fabric texture, soft even sheen, subtle folds, luxurious, very dark and
+quiet, nothing in the centre
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects
+```
+
+### G6 · 음표 무늬 (이어 붙는 무늬)
+```
+a seamless pattern of tiny sparse gold musical notes on a pure solid black background,
+minimal, evenly spaced, very small motifs
+--tile --ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature
+```
+
+---
+
+## D. 계절 — 계절 테마 26종이 제 그림을 갖습니다
+
+### D1 · 여름 (밝은 판)
+```
+a black grand piano beside tall open windows with white linen curtains lifting in a summer
+breeze, bright green trees outside, clear daylight, airy and cool, pale blue and ivory
+tones, the upper third of the frame is bright and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### D2 · 가을
+```
+a grand piano in a room filled with warm autumn afternoon light, maple leaves in amber and
+rust tones scattered on the floor and on the lid, long soft shadows, deep warm palette, the
+upper half of the frame is dark and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### D3 · 크리스마스·송년
+```
+a black grand piano decorated with a simple pine garland and small warm lights, a decorated
+christmas tree softly out of focus behind it, deep burgundy and gold, warm candlelight, the
+upper half of the frame is dark and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces, green walls, ivy, vines
+```
+
+### D4 · 새해·졸업·수료
+```
+a black grand piano on a stage with soft golden confetti drifting in the air, warm
+celebratory light, deep navy and gold, elegant and restrained not childish, the upper half
+of the frame is dark and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## H. 장식 조각 (`--ar 1:1`, 순검정 바탕)
+
+검은 바탕에 금선으로 그리시면 프로그램이 **검정을 뚫어 내고 테마 색으로 칠합니다.**
+그래서 남색 테마에서는 남색으로, 금색 테마에서는 금색으로 나옵니다.
+
+### H1 · 리본 매듭 (1차 것은 실크 스카프 사진으로 나와 못 썼습니다)
+```
+a delicate ribbon bow drawn in fine gold line art, symmetrical, centred, elegant thin
+lines, on a pure solid black background, flat line drawing not a photograph
+--ar 1:1 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, photograph, fabric, gradient background
+```
+
+### H2 · 구분선
+```
+an elegant horizontal gold divider ornament with a small central motif and thin tapering
+flourishes, fine line art, centred, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, gradient background
+```
+
+### H3 · 높은음자리표
+```
+an elegant treble clef in fine gold line art, single centred motif, generous empty space
+around it, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, gradient background
+```
+
+### H4 · 반짝임
+```
+a sparse scatter of tiny gold sparkles and thin four point starbursts, delicate and airy,
+on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, gradient background
+```
+
+### H5 · 상장 테두리 (A4 **가로** 라 비율이 다릅니다)
+```
+an ornate art deco gold border frame running around the four edges, fine thin lines,
+classical certificate border, the entire centre is empty pure black
+--ar 7:5 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, gradient background
+```
+
+### H6 · 작은 피아노 표식 (입장권·이름표에 씁니다)
+```
+a small elegant grand piano seen from above, drawn in fine gold line art as a single simple
+icon, centred with generous empty space, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 130 --no text, letters, words, watermark, signature, gradient background
+```
+
+---
+
+## E. 밝은 판 — 잉크를 아끼는 포스터
+
+A4 를 까맣게 채우면 학원 프린터의 잉크가 몇 배로 듭니다. 밝은 포스터가 필요한 진짜 이유입니다.
+
+### E1 · 흰 홀
+```
+a black grand piano alone in a bright white minimalist concert hall, tall windows, soft even
+daylight, calm and modern, mostly white and pale grey, the piano sits low in the frame, the
+upper half is plain and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### E2 · 금색 한 줄 그림
+```
+a single continuous fine gold line drawing of a grand piano, minimal one line art, placed
+low and centred on a plain ivory paper background, elegant and modern, vast empty space above
+--ar 5:7 --v 7 --style raw --stylize 150 --no text, letters, words, watermark, signature, shading, colour fill
+```
+
+### E3 · 흑백 사진
+```
+a black and white fine art photograph of a grand piano in an empty hall, high key, soft
+film grain, mostly white, the piano small in the lower third, vast empty space above
+--ar 5:7 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+### E4 · 대리석과 그림자
+```
+a pale marble surface with delicate gold veining, the soft shadow of a grand piano falling
+across the lower half, extremely subtle, luxurious and quiet, the upper half almost empty
+--ar 5:7 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## F. 아이 · 사랑스러운 — 28종 테마가 쓸 그림
+
+### F1
+```
+a warm children's book watercolour illustration of a small upright piano with a few musical
+notes floating above it, soft pastel palette, gentle and hand painted, on a plain cream
+background with plenty of empty space at the top
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### F2
+```
+a cheerful watercolour illustration of a grand piano surrounded by colourful balloons and
+paper streamers, soft pastel colours, hand painted, plain white background, empty space at
+the top
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### F3
+```
+a soft watercolour illustration of a piano keyboard turning into a winding path of small
+flowers and stars, whimsical and gentle, pastel palette, plain white background, empty space
+at the top
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## I. 무대 화면 (`--ar 16:9`) — 가운데는 아이 사진 자리라 조용해야 합니다
+
+### I1 · 별밤
+```
+a deep navy night sky with tiny scattered stars and a very soft glow near the horizon,
+minimal and quiet, the centre of the frame is calm and even
+--ar 16:9 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+### I2 · 흰 홀 (밝은 화면용)
+```
+a bright white minimalist concert hall interior, soft even daylight, pale grey and white,
+very calm, nothing in the centre of the frame
+--ar 16:9 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+### I3 · 객석에서 본 무대
+```
+an empty stage seen from the middle of a dark auditorium, warm lights washing the stage
+floor, the audience seats in silhouette along the bottom edge, the centre is calm and open
+--ar 16:9 --v 7 --style raw --stylize 220 --no text, letters, words, watermark, signature, people, faces
+```
+
+### I4 · 은은한 그라데이션
+```
+a smooth deep gradient from midnight blue to warm gold at the bottom edge, completely
+abstract, no objects, very subtle grain, calm and even across the centre
+--ar 16:9 --v 7 --style raw --stylize 150 --no text, letters, words, watermark, signature, objects
+```
+
+---
+
+## J. SNS
+
+### J1 · 정사각 카드 (`--ar 1:1`)
+```
+a black grand piano in warm stage light on a deep dark background, elegant and simple, the
+piano in the lower half, the upper half dark and empty
+--ar 1:1 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### J2 · 스토리 (`--ar 9:16`)
+```
+a black grand piano in warm stage light on a deep dark background, tall vertical
+composition, the piano near the bottom, the upper two thirds dark and empty
+--ar 9:16 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## 보내실 때
+
+1차와 같습니다. 압축해서 **릴리스**에 올려 주세요 (태그는 `art2` 처럼 새로 하나).
+파일 이름은 이번에도 `G1` `G1(2)` … 식으로 해 주시면 그대로 알아봅니다.
+
+https://github.com/himan98hkt-prog/-/releases/new
