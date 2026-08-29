@@ -1,0 +1,18 @@
+node_modules/
+.expo/
+dist/
+web-build/
+# prebuild 산출물. 설정은 app.json 과 plugins/ 가 원본이다.
+android/
+ios/
+*.log
+.env
+.env.local
+
+# 평가용 실제 녹음은 반려동물 개인 데이터라 저장소에 올리지 않는다
+eval/dataset/real/
+eval/dataset/manifest.json
+# 대조군 오디오는 스크립트로 다시 만들면 되므로 저장소에 두지 않는다 (npm run eval:controls)
+eval/dataset/controls/
+# 합성 사진 표본도 마찬가지 (node eval/make-photo-samples.mjs)
+eval/dataset/photos/

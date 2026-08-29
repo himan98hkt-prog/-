@@ -1,0 +1,37 @@
+{
+  "cli": { "version": ">= 5.9.0" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ALLOW_DIRECT_KEY": "1"
+      }
+    },
+    "test": {
+      "//": "실기기 테스트용 APK. 기기에 직접 키를 넣어 정확도를 확인하는 용도이므로 테스트 모드를 켠다.",
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_ALLOW_DIRECT_KEY": "1"
+      }
+    },
+    "preview": {
+      "//": "배포 전 점검용. 제품과 같은 구조로만 동작해야 하므로 테스트 모드를 끈다.",
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_ALLOW_DIRECT_KEY": "0"
+      }
+    },
+    "production": {
+      "//": "스토어 제출용. 테스트 모드가 절대 들어가면 안 된다.",
+      "android": { "buildType": "app-bundle" },
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_ALLOW_DIRECT_KEY": "0"
+      }
+    }
+  },
+  "submit": { "production": {} }
+}
