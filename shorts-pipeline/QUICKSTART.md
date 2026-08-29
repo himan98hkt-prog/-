@@ -145,6 +145,19 @@ python main.py generate --image seeds/내이미지.png --mode montage --clips 5
 ```bash
 # 클립만 다시 이어붙이기 (추가 비용 $0)
 python main.py stitch --run 20260821_193000
+```
+
+**싼 모델로 먼저 시험** — 본편 값을 내기 전에 움직임만 확인한다.
+
+```bash
+python main.py preview --image seeds/내이미지.png     # 5초 1클립 ~$0.25
+```
+
+**클립 하나만 다시** — 전체를 다시 만들지 않는다.
+
+```bash
+python main.py redo --run 20260821_193000 --clip 2
+python main.py redo --run 20260821_193000 --clip 2 --only   # 그 하나만 (이음매 생김)
 
 # 회차마다 확인하며 진행 — 망가지면 중간에 끊는다. 비용 절약에 가장 효과적
 python main.py generate --image seeds/내이미지.png --interactive

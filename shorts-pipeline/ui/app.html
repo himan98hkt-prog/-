@@ -132,6 +132,10 @@
     display:grid;place-items:center;font-weight:700;font-size:14px}
   .seed .warn{position:absolute;top:7px;left:7px;background:var(--warn);color:#231803;
               font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
+  .seed .used{position:absolute;top:7px;left:7px;background:#2A3340;color:var(--ink2);
+              font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
+  .seed.done img{opacity:.42}
+  .mnote{display:block;color:var(--mute);font-size:11.5px;margin:-2px 0 10px}
   .empty{color:var(--mute);font-size:14px;padding:26px 0;text-align:center}
 
   .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;
@@ -604,11 +608,20 @@
         <small id="suggestNote"></small>
         <div id="suggestList"></div>
       </div>
+      <label class="fld"><span>카메라 움직임 — 고르면 아래 문장이 채워집니다</span>
+        <select id="motion">
+          <option value="">직접 쓰기</option>
+        </select></label>
+      <small class="mnote" id="motionNote"></small>
       <label class="fld"><span>움직임 프롬프트 (비우면 기본값)</span>
         <textarea id="prompt" placeholder="forward motion through ..."></textarea></label>
 
       <div class="cost"><span id="costLabel">예상 비용</span><b id="cost">—</b></div>
       <button class="go" id="go" disabled>영상 만들기</button>
+      <!-- 본편을 만들고 나서야 "이상하다" 를 알면 그 값은 이미 나간 뒤다. -->
+      <button class="ghost" id="tryFirst" disabled style="width:100%;margin-top:8px">
+        🔍 먼저 싸게 시험 — 5초 한 클립만</button>
+      <small class="mnote" id="tryNote">본편을 만들기 전에 움직임이 제대로 나오는지 봅니다.</small>
       </div><!-- /#expert -->
 
       <div class="prog" id="prog" hidden>
@@ -739,9 +752,12 @@ function renderSeeds() {
     STATE.seeds.length ? `${list.length}장 표시 중 · 클릭해서 고르세요`
                        : "seeds 폴더가 비어 있습니다.";
   $("grid").innerHTML = list.length ? list.map((s) => `
-    <button class="seed" data-n="${s.name}" aria-pressed="${picked.includes(s.name)}">
+    <button class="seed${s.used_by ? " done" : ""}" data-n="${s.name}"
+            aria-pressed="${picked.includes(s.name)}"
+            title="${s.used_by ? "이미 " + s.used_by + " 에서 영상으로 만들었습니다" : ""}">
       <img src="/api/thumb?name=${encodeURIComponent(s.name)}" alt="${s.title}" loading="lazy">
-      ${s.has_meta ? "" : '<span class="warn">제목없음</span>'}
+      ${s.used_by ? '<span class="used">이미 만듦</span>'
+                  : (s.has_meta ? "" : '<span class="warn">제목없음</span>')}
       <span class="cap">${s.title || s.name}</span>
     </button>`).join("")
     : `<div class="empty">이미지가 없습니다.<br>seeds 폴더에 9:16 세로 이미지를 넣으세요.</div>`;
@@ -871,6 +887,8 @@ function syncForm() {
   // 장면 1장짜리 '장면 전환' 은 만들 수 없게 막는다. 예전에는 눌러졌고,
   // 5초짜리 한 컷이 나와서 "이게 맞나" 하는 신고로 이어졌다.
   $("go").disabled = n === 0 || short || activeJob !== null;
+  // 시험판은 이어지는 영상이든 장면 전환이든 첫 장 하나만 쓴다.
+  $("tryFirst").disabled = n === 0 || activeJob !== null;
   syncClips();
   updateCost();
 }
@@ -955,13 +973,22 @@ $("go").onclick = async () => {
     ? picked.length
     : (Number($("clips").value) || 6);
   const cost = $("cost").textContent;
+  // 272장을 눈으로 구별할 수 없다. 같은 그림으로 두 번 만들면 값만 다시 나간다.
+  const again = picked
+    .map((n) => STATE.seeds.find((s) => s.name === n))
+    .filter((s) => s && s.used_by);
+  if (again.length && !confirm(
+      `이미 영상으로 만든 이미지가 ${again.length}장 있습니다.\n\n`
+      + again.map((s) => `· ${s.title || s.name}  (${s.used_by})`).join("\n")
+      + `\n\n같은 영상이 한 편 더 만들어지고 값도 다시 나갑니다.\n그래도 진행할까요?`)) return;
   if (!confirm(`영상을 만듭니다.\n\n예상 비용 ${cost}\n5~10분 걸립니다.\n\n진행할까요?`)) return;
 
   try {
     await api("/api/save-meta", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seed: picked[0], title: $("title").value,
-                             hook: $("hook").value, prompt: $("prompt").value }),
+                             hook: $("hook").value, prompt: $("prompt").value,
+                             negative: motionNegative() }),
     });
     const d = await api("/api/generate", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -975,6 +1002,55 @@ $("go").onclick = async () => {
     });
     activeJob = d.id; $("prog").hidden = false; $("go").disabled = true;
     $("log").textContent = ""; toast("생성을 시작했습니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
+
+// ── 카메라 움직임 프리셋 ────────────────────────────────────────────
+// 영어 프롬프트를 직접 쓰라고 하면 안 쓰거나 잘못 쓴다. 잘못 쓰면 애니메이션이
+// 이상해지고 그 값은 이미 나간 뒤다. 검증된 문장을 골라 쓰게 한다.
+let MOTIONS = [];
+
+async function loadMotions() {
+  try {
+    const d = await api("/api/motions");
+    MOTIONS = d.motions || [];
+  } catch { return; }
+  $("motion").innerHTML = '<option value="">직접 쓰기</option>'
+    + MOTIONS.map((m) => `<option value="${m.key}">${m.label}</option>`).join("");
+}
+
+function motionNegative() {
+  const m = MOTIONS.find((x) => x.key === $("motion").value);
+  return m ? m.negative : "";
+}
+
+$("motion").onchange = () => {
+  const m = MOTIONS.find((x) => x.key === $("motion").value);
+  $("motionNote").textContent = m ? m.note : "";
+  if (m) $("prompt").value = m.prompt;
+};
+
+// ── 싸게 먼저 시험 ──────────────────────────────────────────────────
+$("tryFirst").onclick = async () => {
+  if (!picked.length) return;
+  if (!confirm("싼 모델로 5초 한 클립만 만듭니다.\n\n"
+             + "움직임이 제대로 나오는지 먼저 보고,\n괜찮을 때만 본편을 만드세요.\n\n"
+             + "진행할까요?")) return;
+  try {
+    await api("/api/save-meta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value,
+                             hook: $("hook").value, prompt: $("prompt").value,
+                             negative: motionNegative() }),
+    });
+    const d = await api("/api/preview", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value }),
+    });
+    activeJob = d.id; $("prog").hidden = false;
+    $("go").disabled = true; $("tryFirst").disabled = true;
+    $("log").textContent = ""; toast("시험판을 만듭니다.");
     poll();
   } catch (e) { toast(e.message, true); }
 };
@@ -1080,7 +1156,7 @@ function renderRuns() {
     <div class="run">
       <video src="/api/video?run=${r.id}" controls preload="metadata" playsinline></video>
       <div class="meta">
-        <div class="t">${r.title || r.id}</div>
+        <div class="t">${r.preview ? "🔍 시험판 · " : ""}${r.title || r.id}</div>
         <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
         <div class="snd ${r.has_sound === false ? "off" : ""}">${soundLabel(r)}</div>
         ${resLabel(r)}
@@ -1090,6 +1166,8 @@ function renderRuns() {
           <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
           <button class="ghost" data-up="${r.id}" data-tg="both">둘 다</button>
           <button class="ghost" data-sch="${r.id}">예약</button>
+          ${r.clips > 1 ? `<button class="ghost" data-redo="${r.id}"
+                  data-clips="${r.clips}">클립 하나만 다시</button>` : ""}
           <button class="ghost danger" data-del="${r.id}"
                   data-title="${(r.title || r.id).replace(/"/g, "&quot;")}"
                   data-mb="${r.size_mb}">삭제</button>
@@ -1101,8 +1179,36 @@ function renderRuns() {
   $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
   $("runs").querySelectorAll("[data-del]").forEach((b) =>
     b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+  $("runs").querySelectorAll("[data-redo]").forEach((b) =>
+    b.onclick = () => redoClip(b.dataset.redo, Number(b.dataset.clips)));
   $("runs").querySelectorAll("[data-sch]").forEach((b) =>
     b.onclick = () => scheduleUpload(b.dataset.sch));
+}
+
+// 한 클립만 어긋났을 때 전체를 다시 만들면 멀쩡한 클립 값까지 다시 낸다.
+// 3클립짜리에서 2번만 이상하면 $1.47 대신 $0.49 로 끝난다.
+async function redoClip(id, total) {
+  const raw = prompt(
+    `몇 번째 클립을 다시 만들까요? (1~${total})\n\n`
+    + "이어지는 영상은 그 뒤 클립도 같이 다시 만듭니다.\n"
+    + "앞 클립의 마지막 장면이 바뀌기 때문입니다.", "");
+  if (raw === null) return;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > total) {
+    toast(`1~${total} 사이 숫자를 넣어주세요.`, true);
+    return;
+  }
+  if (!confirm(`${n}번 클립부터 다시 만듭니다.\n\n`
+             + "다시 만드는 클립만큼 값이 나갑니다.\n진행할까요?")) return;
+  try {
+    const d = await api("/api/redo", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: id, clip: n }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("go").disabled = true;
+    $("log").textContent = ""; toast(`${n}번 클립을 다시 만듭니다.`);
+    poll();
+  } catch (e) { toast(e.message, true); }
 }
 
 // 화질이 어디서 깎였는지. 최종 크기만 보면 원인을 알 수 없다 —
@@ -1762,6 +1868,7 @@ $("duration").onchange = () => { syncClips(); updateCost(); };
 
 // ── 시작 ────────────────────────────────────────────────────────────
 refresh(); loadDoctor(); loadOverview(); loadEasy(); syncForm(); applyAside();
+loadMotions();
 setInterval(() => { if (!activeJob || !polling) refresh(); }, 6000);
 setInterval(() => {
   loadDoctor(); loadOverview();

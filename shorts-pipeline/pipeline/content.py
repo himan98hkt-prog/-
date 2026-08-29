@@ -35,6 +35,9 @@ class Content:
     title: str
     hook: str = ""
     prompt: str = ""
+    # 이 영상에서만 추가로 막을 것. 공통 금지 사항(config 의 negative_prompt)
+    # 뒤에 더해진다. 움직임 프리셋이 여기에 자기 것을 적어 둔다.
+    negative: str = ""
     scene_prompts: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     source: Path | None = None
@@ -113,6 +116,7 @@ def load_content(image: Path) -> Content:
         title=str(data.get("title") or _title_from_filename(image)).strip(),
         hook=str(data.get("hook") or "").strip(),
         prompt=str(data.get("prompt") or "").strip(),
+        negative=str(data.get("negative") or "").strip(),
         scene_prompts=[str(s).strip() for s in scenes if str(s).strip()],
         tags=[str(t).strip() for t in (data.get("tags") or []) if str(t).strip()],
         source=sidecar,

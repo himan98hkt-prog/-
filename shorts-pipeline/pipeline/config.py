@@ -91,6 +91,11 @@ class Config:
         return self.raw["cost"]
 
     @property
+    def preview_cfg(self) -> dict[str, Any]:
+        """싸게 먼저 시험할 때 쓸 설정. 없으면 빈 dict — 그러면 본편 설정을 쓴다."""
+        return self.raw.get("preview") or {}
+
+    @property
     def publish_cfg(self) -> dict[str, Any]:
         return self.raw.get("publish", {})
 

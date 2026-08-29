@@ -27,7 +27,13 @@ from pipeline.config import Config, ConfigError, load_config
 from pipeline.content import Content, load_content
 from pipeline.costs import actual_cost, estimate
 from pipeline.ffmpeg_util import FFmpegError, ensure_ffmpeg
-from pipeline.generator import GenerationStats
+from pipeline.frame_extractor import extract_last_frame
+from pipeline.generator import (
+    GenerationStats,
+    generate_clip,
+    make_provider,
+    upscale_frame,
+)
 from pipeline.modes import Aborted, orchestrate
 from pipeline.providers import ProviderError
 from pipeline.runlog import Run
@@ -214,6 +220,8 @@ def generate(
                               width=cfg.output["width"], height=cfg.output["height"])
             except ValidationError as exc:
                 _die(str(exc))
+        # 어떤 그림을 썼는지 남긴다. 화면에서 '이미 만든 시드' 로 표시된다.
+        run.save_state(scene_seeds=[str(s) for s in scenes])
         typer.echo(f"  장면 이미지 {len(scenes)}장을 준비했습니다.")
         if cfg.mode == "montage" and len(scenes) < cfg.num_clips:
             typer.secho(
@@ -236,6 +244,10 @@ def _apply_content(cfg: Config, run: Run, content: Content) -> None:
     """
     if content.prompt:
         cfg.motion_prompt = content.prompt
+    if content.negative:
+        # 공통 금지 사항을 지우지 않고 뒤에 더한다. 중복은 뺀다.
+        from pipeline.motions import merge_negative
+        cfg.negative_prompt = merge_negative(cfg.negative_prompt, content.negative)
     if content.scene_prompts:
         cfg.scene_prompts = content.scene_prompts
 
@@ -243,6 +255,7 @@ def _apply_content(cfg: Config, run: Run, content: Content) -> None:
         "title": content.title,
         "hook": content.hook,
         "prompt": content.prompt,
+        "negative": content.negative,
         "scene_prompts": content.scene_prompts,
         "tags": content.tags,
     })
@@ -351,7 +364,158 @@ def stitch_cmd(
     done = run.completed_clips()
     if not done:
         _die(f"run {run_id} 에 합성할 클립이 없습니다.")
-    _finalize(cfg, run, [run.clip(n) for n in done], GenerationStats())
+    # 빈 통계를 넘기면 이 run 의 비용이 $0 으로 덮어써진다. 이미 나간 돈이다.
+    _finalize(cfg, run, [run.clip(n) for n in done], _stats_from_log(run))
+
+
+@app.command("redo")
+def redo_cmd(
+    run_id: str = typer.Option(..., "--run", help="고칠 run ID"),
+    clip: int = typer.Option(..., "--clip", help="다시 만들 클립 번호 (1부터)"),
+    only: bool = typer.Option(
+        False, "--only", help="이 클립 하나만. 이어지는 영상에서는 이음매가 생깁니다"),
+    config: str = typer.Option("config.yaml", "--config", "-c"),
+    assume_yes: bool = typer.Option(False, "--yes", "-y"),
+):
+    """클립 하나만 다시 만들고 합성한다.
+
+    한 클립만 어긋났을 때 전체를 처음부터 다시 만들면 멀쩡한 클립 값까지
+    다시 낸다. 3클립짜리에서 2번만 이상하면 $1.47 대신 $0.49 로 끝난다.
+    """
+    cfg = _load(config)
+    try:
+        ensure_ffmpeg()
+        run = Run.load(RUNS_DIR, run_id)
+    except (FFmpegError, FileNotFoundError) as exc:
+        _die(str(exc))
+
+    done = run.completed_clips()
+    if not done:
+        _die(f"run {run_id} 에 클립이 없습니다.")
+    if clip < 1 or clip > len(done):
+        _die(f"클립 번호는 1~{len(done)} 사이여야 합니다 (현재: {clip}).")
+
+    mode = run.state.get("mode") or cfg.mode
+    # 이어지는 영상에서 N 번을 새로 만들면 N+1 번의 시작 그림이 달라진다.
+    # 그 뒤를 그대로 두면 딱 그 자리에서 화면이 튄다. 숨기지 않고 말한다.
+    targets = [clip]
+    if mode == "chain" and clip < len(done) and not only:
+        targets = list(range(clip, len(done) + 1))
+    if mode == "chain" and clip < len(done) and only:
+        typer.secho(
+            f"  ⚠ {clip}번만 다시 만듭니다. {clip + 1}번은 예전 {clip}번의 "
+            "마지막 장면에서 출발했으므로 그 자리에서 화면이 튑니다.",
+            fg=typer.colors.YELLOW)
+
+    per_clip = cfg.model.cost_per_clip(cfg.clip_duration, cfg.usd_per_credit)
+    typer.echo(f"\n▶ 다시 만들 클립: {targets}  (약 ${per_clip * len(targets):.2f})")
+    if not assume_yes and not typer.confirm("계속할까요?", default=False):
+        raise typer.Exit(code=0)
+
+    # 사이드카 문구를 다시 얹는다 — 프롬프트를 고친 뒤 다시 만드는 경우가 많다.
+    seed = run.state.get("seed_image")
+    if seed and Path(seed).exists():
+        _apply_content(cfg, run, load_content(Path(seed)))
+
+    provider = make_provider(cfg, run)
+    stats = GenerationStats()
+    prompts = cfg.scene_prompts or []
+    try:
+        for index in targets:
+            image = _redo_input(run, cfg, mode, index)
+            prompt = (prompts[index - 1] if mode == "montage" and index <= len(prompts)
+                      else cfg.motion_prompt)
+            typer.echo(f"  [{index}] 다시 만드는 중… (입력: {image.name})")
+            generate_clip(provider, cfg, run, stats,
+                          index=index, image=image, prompt=prompt)
+            if mode == "chain" and index < max(targets):
+                raw = extract_last_frame(run.clip(index), run.frame(index))
+                upscale_frame(provider, cfg, run, stats, index=index, frame=raw)
+    except ProviderError as exc:
+        run.log("redo.failed", error=str(exc), clips=targets)
+        _die(f"{exc}\n  지금까지의 클립으로 합성만: "
+             f"python main.py stitch --run {run.run_id}")
+
+    run.log("redo.done", clips=targets)
+    # 이번에 쓴 값에, 예전에 쓴 값을 더해 기록한다. 덮어쓰면 장부가 줄어든다.
+    before = _stats_from_log(run)
+    _finalize(cfg, run, [run.clip(n) for n in run.completed_clips()], before)
+
+
+def _redo_input(run: Run, cfg: Config, mode: str, index: int) -> Path:
+    """다시 만들 클립의 시작 그림. 없으면 앞 클립에서 뽑아 온다."""
+    if mode == "montage":
+        seed = run.seed(index)
+        return seed if seed.exists() else run.input_image
+    if index == 1:
+        return run.input_image
+    for candidate in (run.frame(index - 1, upscaled=True), run.frame(index - 1)):
+        if candidate.exists():
+            return candidate
+    return extract_last_frame(run.clip(index - 1), run.frame(index - 1))
+
+
+@app.command("preview")
+def preview_cmd(
+    image: str = typer.Option(..., "--image", "-i", help="시험할 이미지"),
+    config: str = typer.Option("config.yaml", "--config", "-c"),
+    model: Optional[str] = typer.Option(None, "--model", help="preview 설정 덮어쓰기"),
+    duration: Optional[int] = typer.Option(None, "--duration"),
+    pad: bool = typer.Option(False, "--pad"),
+    assume_yes: bool = typer.Option(False, "--yes", "-y"),
+):
+    """싼 모델로 한 클립만 뽑아 움직임을 미리 본다.
+
+    본편을 만들고 나서야 "애니메이션이 이상하다" 를 알게 되면 그 값은 이미
+    나간 뒤다. 먼저 $0.25 로 5초만 보고, 괜찮을 때만 본편을 돌린다.
+    """
+    base = _load(config)
+    pv = base.preview_cfg
+    cfg = _load(
+        config,
+        model=model or pv.get("model") or base.model_key,
+        clip_duration=duration or int(pv.get("clip_duration") or 5),
+        num_clips=1,
+        mode="chain",
+        loop_back=False,
+        upscale_between_clips=bool(pv.get("upscale", False)),
+    )
+    try:
+        ensure_ffmpeg()
+    except FFmpegError as exc:
+        _die(str(exc))
+
+    per = cfg.model.cost_per_clip(cfg.clip_duration, cfg.usd_per_credit)
+    full = estimate(base)
+    typer.echo(
+        f"\n▶ 시험판  {cfg.provider}/{cfg.model_key}  "
+        f"{cfg.clip_duration}초 1클립 = ${per:.2f}\n"
+        f"   (본편은 {base.model_key} {base.num_clips}x{base.clip_duration}초 "
+        f"= ${full.subtotal:.2f})"
+    )
+    if per > full.subtotal:
+        typer.secho("  ⚠ 시험판이 본편보다 비쌉니다. preview.model 을 더 싼 것으로 "
+                    "바꾸세요.", fg=typer.colors.YELLOW)
+    if not assume_yes and not typer.confirm("만들까요?", default=True):
+        raise typer.Exit(code=0)
+
+    run = Run.create(RUNS_DIR)
+    typer.echo(f"\n▶ run {run.run_id}  (시험판)")
+    run.log("run.started", config=cfg.raw, image=str(image), preview=True)
+    # 시험판은 '이 시드로 영상을 만들었다' 로 치지 않는다. 본편은 아직이다.
+    run.save_state(seed_image=str(image), preview=True, mode="chain")
+
+    try:
+        for w in prepare_input(image, run.input_image, pad=pad,
+                               width=cfg.output["width"], height=cfg.output["height"]):
+            typer.secho(f"  {w}", fg=typer.colors.YELLOW)
+    except ValidationError as exc:
+        _die(str(exc))
+
+    _apply_content(cfg, run, load_content(Path(image)))
+    _execute(cfg, run, interactive=False, resume=False)
+    typer.echo("\n  움직임이 괜찮으면 본편을 만드세요:")
+    typer.echo(f"    python main.py generate --image {image}")
 
 
 @app.command("estimate")

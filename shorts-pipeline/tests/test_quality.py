@@ -335,6 +335,144 @@ def configdiff_tests() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  7. 값을 덜 쓰게 하는 장치들
+# ══════════════════════════════════════════════════════════════════════
+def saver_tests() -> None:
+    print("\n[아끼기] 카메라 움직임 프리셋")
+    from pipeline import motions
+
+    presets = motions.as_list()
+    check("프리셋이 여러 개 있다", len(presets) >= 6, f"{len(presets)}개")
+    check("키가 겹치지 않는다", len({m["key"] for m in presets}) == len(presets))
+    for m in presets:
+        ok = all(x in m["prompt"] for x in ("no scene cut", "steady speed"))
+        if not ok:
+            check(f"{m['key']} 가 컷·속도를 못 박는다", False, m["prompt"])
+            break
+    else:
+        check("모든 프리셋이 컷·속도를 못 박는다", True, f"{len(presets)}개 확인")
+    check("설명이 한국어로 다 있다", all(m["note"] and m["label"] for m in presets))
+    check("이름으로 찾을 수 있다", motions.get("follow").label == "뒤에서 따라가기")
+    check("모르는 이름은 None", motions.get("없는거") is None)
+
+    merged = motions.combine_negative("blur, text", "rise")
+    check("공통 금지 사항을 지운다", "blur" in merged and "text" in merged)
+    check("움직임별 금지 사항을 더한다", "descending" in merged, merged)
+    dup = motions.merge_negative("blur, zoom out", "zoom out, text")
+    check("중복은 한 번만", dup.count("zoom out") == 1, dup)
+    check("모르는 움직임이면 그대로",
+          motions.combine_negative("blur, text", "없는거") == "blur, text")
+
+    print("\n[아끼기] 이 영상에서만 막을 것이 사이드카에 남는다")
+    import yaml
+
+    from pipeline.content import load_content
+    from ui.server import save_meta
+
+    d = TMP / "seeds"
+    d.mkdir(parents=True, exist_ok=True)
+    img = d / "alley_bike_01.png"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi",
+                    "-i", "color=c=gray:s=108x192:d=1", "-frames:v", "1",
+                    "-y", str(img)], check=True, capture_output=True)
+    (d / "alley_bike_01.yaml").write_text(
+        "title: 옛 제목\ntheme: alley_bike\nsource: /somewhere/orig.png\n",
+        encoding="utf-8")
+
+    save_meta(img, title="새 제목", hook="훅", prompt="forward",
+              negative="zoom out, blur")
+    side = yaml.safe_load((d / "alley_bike_01.yaml").read_text(encoding="utf-8"))
+    check("금지 사항이 저장된다", side["negative"] == "zoom out, blur")
+    check("theme 은 그대로 살아 있다", side["theme"] == "alley_bike")
+    check("source 도 살아 있다", side["source"] == "/somewhere/orig.png")
+    check("읽어올 때도 잡힌다", load_content(img).negative == "zoom out, blur")
+
+    save_meta(img, title="또", hook="", prompt="forward")
+    side = yaml.safe_load((d / "alley_bike_01.yaml").read_text(encoding="utf-8"))
+    check("비우면 줄 자체가 빠진다", "negative" not in side)
+
+    print("\n[아끼기] 같은 시드를 두 번 만들지 않게")
+    import ui.server as srv
+
+    runs = TMP / "runs2"
+    real = runs / "20260101_000000"
+    (real / "clips").mkdir(parents=True)
+    (real / "final.mp4").write_bytes(b"x")
+    (real / "state.json").write_text(json.dumps({
+        "seed_image": "seeds/dragon_b.png", "clips_done": 3}), encoding="utf-8")
+    pv = runs / "20260101_010000"
+    pv.mkdir(parents=True)
+    (pv / "final.mp4").write_bytes(b"x")
+    (pv / "state.json").write_text(json.dumps({
+        "seed_image": "seeds/ice_c.png", "clips_done": 1, "preview": True}),
+        encoding="utf-8")
+    dead = runs / "20260101_020000"
+    dead.mkdir(parents=True)
+    (dead / "state.json").write_text(json.dumps({
+        "seed_image": "seeds/coast_d.png"}), encoding="utf-8")
+    scenes = runs / "20260101_030000"
+    scenes.mkdir(parents=True)
+    (scenes / "final.mp4").write_bytes(b"x")
+    (scenes / "state.json").write_text(json.dumps({
+        "seed_image": "seeds/a.png", "clips_done": 2,
+        "scene_seeds": ["seeds/b.png", "seeds/c.png"]}), encoding="utf-8")
+
+    keep = srv.RUNS
+    try:
+        srv.RUNS = runs
+        used = srv.seeds_already_used()
+    finally:
+        srv.RUNS = keep
+
+    check("만든 시드를 짚어낸다", used.get("dragon_b.png") == "20260101_000000")
+    check("시험판은 '만들었다' 로 치지 않는다", "ice_c.png" not in used,
+          "시험판 때문에 본편을 못 만들면 안 된다")
+    check("클립도 못 만든 실행은 빼고", "coast_d.png" not in used)
+    check("장면 전환의 장면들도 센다",
+          used.get("b.png") == "20260101_030000" and "c.png" in used)
+
+    print("\n[아끼기] 클립 하나만 다시 만들기")
+    from pipeline.config import load_config
+    from pipeline.runlog import Run
+    import main as cli
+
+    cfg = load_config(ROOT / "tests" / "config.test.yaml")
+    run = Run.create(TMP / "runs3", "redo")
+    run.input_image.write_bytes(b"seed")
+    check("1번은 원본 이미지에서 출발",
+          cli._redo_input(run, cfg, "chain", 1) == run.input_image)
+
+    run.frame(1).write_bytes(b"f1")
+    check("2번은 1번의 마지막 장면에서",
+          cli._redo_input(run, cfg, "chain", 2) == run.frame(1))
+    run.frame(1, upscaled=True).write_bytes(b"f1u")
+    check("보정된 장면이 있으면 그쪽을",
+          cli._redo_input(run, cfg, "chain", 2) == run.frame(1, upscaled=True))
+
+    check("장면 전환은 그 장면의 시드에서",
+          cli._redo_input(run, cfg, "montage", 2) == run.input_image)
+    run.seed(2).write_bytes(b"s2")
+    check("장면 시드가 있으면 그것을",
+          cli._redo_input(run, cfg, "montage", 2) == run.seed(2))
+
+    print("\n[아끼기] 싼 모델로 먼저 시험")
+    real_cfg = load_config(ROOT / "config.yaml")
+    pvc = real_cfg.preview_cfg
+    check("시험판 설정이 있다", bool(pvc), str(pvc))
+    check("시험판 모델이 존재한다",
+          pvc.get("model") in real_cfg.provider_cfg.get("models", {}), str(pvc.get("model")))
+
+    trial = load_config(ROOT / "config.yaml", model=pvc["model"],
+                        clip_duration=int(pvc["clip_duration"]), num_clips=1)
+    one = trial.model.cost_per_clip(trial.clip_duration, trial.usd_per_credit)
+    from pipeline.costs import estimate as est
+    full = est(real_cfg).subtotal
+    check("시험판이 본편보다 훨씬 싸다", one < full / 3,
+          f"시험 ${one:.2f} vs 본편 ${full:.2f}")
+    check("시험판은 클립 하나다", trial.num_clips == 1)
+
+
+# ══════════════════════════════════════════════════════════════════════
 def main() -> int:
     if TMP.exists():
         shutil.rmtree(TMP)
@@ -345,6 +483,7 @@ def main() -> int:
         ledger_tests()
         resume_tests()
         configdiff_tests()
+        saver_tests()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

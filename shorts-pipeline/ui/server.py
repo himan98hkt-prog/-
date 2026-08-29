@@ -80,11 +80,46 @@ def _safe_name(name: str) -> str | None:
 
 
 # ── 데이터 수집 ───────────────────────────────────────────────────────
+def seeds_already_used() -> dict[str, str]:
+    """이미 영상으로 만든 시드 -> 그 run 의 id.
+
+    같은 그림으로 두 번 만들면 화면이 막아 세우지 않는 한 그냥 만들어지고
+    값도 그대로 나간다. 272장을 눈으로 구별할 수 없으니 실제로 일어난다.
+    가장 최근 run 을 남긴다 — "언제 만들었더라" 를 바로 볼 수 있게.
+    """
+    used: dict[str, str] = {}
+    if not RUNS.is_dir():
+        return used
+    for d in sorted(RUNS.iterdir(), key=lambda x: x.name):
+        sp = d / "state.json"
+        if not d.is_dir() or not sp.exists():
+            continue
+        try:
+            state = json.loads(sp.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        seed = state.get("seed_image")
+        if not seed:
+            continue
+        # 클립을 한 장도 못 만든 실행은 '만들었다' 고 볼 수 없다.
+        if not (d / "final.mp4").exists() and not state.get("clips_done"):
+            continue
+        # 시험판은 본편이 아니다. 이걸로 '이미 만들었다' 고 막으면
+        # 정작 본편을 못 만든다.
+        if state.get("preview"):
+            continue
+        used[Path(str(seed)).name] = d.name
+        for extra in state.get("scene_seeds") or []:
+            used.setdefault(Path(str(extra)).name, d.name)
+    return used
+
+
 def list_seeds() -> list[dict]:
     from pipeline.content import load_content
 
     if not SEEDS.is_dir():
         return []
+    used = seeds_already_used()
     out = []
     for p in sorted(SEEDS.iterdir()):
         if not p.is_file() or p.suffix.lower() not in IMAGE_EXT:
@@ -96,7 +131,9 @@ def list_seeds() -> list[dict]:
             "title": c.title,
             "hook": c.hook,
             "prompt": c.prompt,
+            "negative": c.negative,
             "has_meta": c.source is not None,
+            "used_by": used.get(p.name),
         })
     return out
 
@@ -132,6 +169,9 @@ def list_runs(limit: int = 30) -> list[dict]:
             "final_res": state.get("final_res"),
             "source_res": state.get("source_res"),
             "fps": state.get("fps"),
+            "preview": bool(state.get("preview")),
+            "clips": len(list((d / "clips").glob("clip_*.mp4")))
+                     if (d / "clips").is_dir() else 0,
         })
         if len(out) >= limit:
             break
@@ -702,6 +742,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(schedule_state())
             return
 
+        if p == "/api/motions":
+            from pipeline.motions import as_list
+            self._json({"motions": as_list()})
+            return
         if p == "/api/music":
             self._json(music_state())
             return
@@ -859,6 +903,12 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/client-secret":
             self._client_secret(body)
             return
+        if u.path == "/api/preview":
+            self._preview(body)
+            return
+        if u.path == "/api/redo":
+            self._redo(body)
+            return
         if u.path == "/api/connect":
             self._connect(body)
             return
@@ -899,6 +949,41 @@ class Handler(BaseHTTPRequestHandler):
             args += ["--scenes", f"seeds/{s}"]
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
+        self._json({"id": job.id})
+
+    def _preview(self, body: dict) -> None:
+        """싼 모델로 5초 한 클립. 본편을 만들기 전에 움직임만 확인한다."""
+        if jobs.active():
+            self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시작하세요."}, 409)
+            return
+        name = _safe_name(body.get("seed", ""))
+        if not name or not (SEEDS / name).exists():
+            self._json({"error": "이미지를 찾을 수 없습니다."}, 400)
+            return
+        args = ["main.py", "preview", "--image", f"seeds/{name}", "--yes"]
+        job = jobs.start("preview", f"시험판 · {body.get('title') or name}", args, ROOT)
+        self._json({"id": job.id})
+
+    def _redo(self, body: dict) -> None:
+        """클립 하나만 다시. 전체를 다시 만드는 것보다 훨씬 싸다."""
+        if jobs.active():
+            self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시작하세요."}, 409)
+            return
+        run_id = _safe_name(str(body.get("run", "")))
+        if not run_id or not (RUNS / run_id).is_dir():
+            self._json({"error": "그 실행을 찾을 수 없습니다."}, 400)
+            return
+        try:
+            clip = int(body.get("clip", 0))
+        except (TypeError, ValueError):
+            clip = 0
+        if clip < 1:
+            self._json({"error": "다시 만들 클립 번호를 골라주세요."}, 400)
+            return
+        args = ["main.py", "redo", "--run", run_id, "--clip", str(clip), "--yes"]
+        if body.get("only"):
+            args.append("--only")
+        job = jobs.start("redo", f"{run_id} · {clip}번 클립 다시", args, ROOT)
         self._json({"id": job.id})
 
     def _apply_config(self, body: dict) -> None:
@@ -1358,7 +1443,8 @@ class Handler(BaseHTTPRequestHandler):
         save_meta(SEEDS / name,
                   title=str(body.get("title", "")).strip(),
                   hook=str(body.get("hook", "")).strip(),
-                  prompt=str(body.get("prompt", "")).strip())
+                  prompt=str(body.get("prompt", "")).strip(),
+                  negative=str(body.get("negative", "")).strip())
         self._json({"ok": True})
 
 
@@ -1398,7 +1484,8 @@ def _polish_seed(seed: Path) -> None:
         print(f"  · 제목 다듬기는 건너뜁니다: {exc}")
 
 
-def save_meta(image: Path, *, title: str, hook: str, prompt: str) -> Path:
+def save_meta(image: Path, *, title: str, hook: str, prompt: str,
+              negative: str = "") -> Path:
     """사이드카의 제목·훅·프롬프트를 고친다. **theme 과 source 는 지키면서.**
 
     예전에는 화면에서 제목을 저장하면 파일을 통째로 새로 써서 theme/source 가
@@ -1412,8 +1499,11 @@ def save_meta(image: Path, *, title: str, hook: str, prompt: str) -> Path:
     body = ("# 웹 화면에서 저장했습니다.\n"
             f"title:  {title}\n"
             f"hook:   {hook}\n"
-            f"prompt: {prompt}\n"
-            "\nscene_prompts: []\n")
+            f"prompt: {prompt}\n")
+    if negative:
+        body += ("# 이 영상에서만 추가로 막을 것. config 의 공통 금지 사항 뒤에 붙습니다.\n"
+                 f"negative: {negative}\n")
+    body += "\nscene_prompts: []\n"
     tail = "".join(f"{k}:  {keep[k]}\n" for k in ("theme", "source") if keep.get(k))
     if tail:
         body += ("\n# 아래 두 줄은 자동으로 다시 분류할 때 씁니다. 지우지 마세요.\n"
