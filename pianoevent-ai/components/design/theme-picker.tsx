@@ -127,7 +127,7 @@ export function ThemePicker({
       <div className={cn('grid gap-1.5', compact && 'max-h-72 overflow-y-auto pr-1')}>
         {query.trim() ? (
           <>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               &ldquo;{query.trim()}&rdquo; — {found.length}종
             </p>
             {found.map((item) => (
@@ -144,7 +144,7 @@ export function ThemePicker({
             .filter((group) => group.family === family)
             .map((group) => (
               <div key={group.family} className="grid gap-1.5">
-                <p className="text-[11px] leading-relaxed text-muted-foreground">{group.hint}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{group.hint}</p>
                 {group.items.map((item) => (
                   <ThemeRow
                     key={item.id}
@@ -185,7 +185,7 @@ function ThemeRow({
     >
       <span className="min-w-0">
         <span className="block truncate">{item.name}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">{note}</span>
+        <span className="block truncate text-xs text-muted-foreground">{note}</span>
       </span>
       <ThemeSwatch id={item.id} />
     </button>

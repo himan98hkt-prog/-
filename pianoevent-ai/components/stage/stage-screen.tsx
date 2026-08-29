@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Download, Maximize2, Moon, Palette, Printer, Sun } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Download, Maximize2, Moon, Palette, Printer, Sun } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
@@ -67,6 +67,8 @@ export function StageScreen({
   const [layout, setLayout] = useState<StageLayout>(() =>
     getStageLayout(prefString(savedPrefs, 'layout', DEFAULT_STAGE_LAYOUT)),
   )
+  /** 모양·사진 창·배경 서른 가지는 바꾸실 때만 편다 */
+  const [shapesOpen, setShapesOpen] = useState(false)
   const [shape, setShape] = useState<PhotoShape>(() =>
     getPhotoShape(prefString(savedPrefs, 'shape', DEFAULT_PHOTO_SHAPE)),
   )
@@ -330,6 +332,30 @@ export function StageScreen({
         </div>
 
         <div className="grid content-start gap-2">
+          {/*
+            모양 14 · 사진 창 8 · 배경 10 을 한꺼번에 펼쳐 두면 서른 개가 넘는다.
+            바꾸실 분만 펴시면 되고, 그때까지는 지금 고른 것 이름만 있으면 된다.
+          */}
+          <button
+            type="button"
+            onClick={() => setShapesOpen((on) => !on)}
+            aria-expanded={shapesOpen}
+            className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-left"
+            data-testid="stage-shapes-toggle"
+          >
+            <span className="text-sm">
+              <span className="font-medium">화면 모양 바꾸기</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                지금은 <strong className="text-foreground">{stageLayoutInfo(layout).name}</strong>
+              </span>
+            </span>
+            <ChevronDown
+              className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', shapesOpen && 'rotate-180')}
+              aria-hidden
+            />
+          </button>
+
+          <div className={cn('grid gap-2', !shapesOpen && 'hidden')} data-testid="stage-shapes">
           <p className="text-sm font-medium">
             연주자 화면 모양 · {STAGE_LAYOUTS.length}종
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
@@ -354,9 +380,9 @@ export function StageScreen({
                   )}
                 >
                   <LayoutThumb sketch={item.sketch} active={active} face={sampleFace} />
-                  <span className="px-0.5 text-[11px] leading-tight">
+                  <span className="px-0.5 text-xs leading-tight">
                     <span className={cn('block truncate', active && 'font-medium')}>{item.name}</span>
-                    {blocked && <span className="block text-[10px] text-muted-foreground">사진 필요</span>}
+                    {blocked && <span className="block text-xs text-muted-foreground">사진 필요</span>}
                   </span>
                 </button>
               )
@@ -421,6 +447,7 @@ export function StageScreen({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">{stageBackdropInfo(backdrop).hint}</p>
+          </div>
 
           <p className="mt-1 text-sm font-medium">화면에 넣을 것</p>
           <div className="grid gap-1.5">

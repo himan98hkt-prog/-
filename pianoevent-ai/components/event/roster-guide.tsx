@@ -94,7 +94,7 @@ export function RosterGuide() {
                 <p className="text-sm font-medium">
                   {field.name}
                   {field.required ? (
-                    <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-[10px] text-accent-foreground">
+                    <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-xs text-accent-foreground">
                       꼭 필요
                     </span>
                   ) : (

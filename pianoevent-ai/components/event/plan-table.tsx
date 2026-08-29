@@ -58,7 +58,7 @@ export function PlanTable({
               </td>
               <td className="py-2.5">
                 {stageChanged && (
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-accent">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-accent">
                     {STAGE_LABEL[item.stage]}
                   </p>
                 )}
@@ -69,7 +69,7 @@ export function PlanTable({
                 </p>
                 {item.student.composer && <p className="text-xs text-muted-foreground">{item.student.composer}</p>}
                 {showScript && scripts?.[item.student.id] && (
-                  <p className="mt-1.5 whitespace-pre-line border-l-2 border-accent/50 pl-3 text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="mt-1.5 whitespace-pre-line border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-muted-foreground">
                     {scripts[item.student.id]}
                   </p>
                 )}

@@ -133,7 +133,14 @@ try {
   // 영상 템플릿 20종 — 배경과 사진 놓는 방식이 실제로 달라지는가
   const picker = page.getByTestId('video-templates')
   check('영상 템플릿 창이 있다', (await picker.count()) === 1)
-  const chips = picker.locator('button')
+  // 스무 가지는 접혀 있다 — "이대로 만드셔도 됩니다" 아래에 펼쳐 두면 그 말을 못 믿으신다
+  const shownChips = await picker.locator('button').evaluateAll((nodes) =>
+    nodes.filter((n) => n.checkVisibility?.({ checkVisibilityCSS: true }) ?? true).length,
+  )
+  check('평소에는 접혀 있다 — 눌러 볼 것이 하나뿐이다', shownChips === 1, `${shownChips}개 보임`)
+  await page.getByTestId('video-template-toggle').click()
+  await page.waitForTimeout(500)
+  const chips = picker.locator('button:not([data-testid="video-template-toggle"])')
   const chipCount = await chips.count()
   check('템플릿이 20종이다', chipCount === 20, String(chipCount))
 
@@ -274,7 +281,12 @@ try {
   // 설정 저장 → 다시 열면 그대로
   await page.getByRole('button', { name: '테마 · ', exact: false }).first().click()
   await page.waitForTimeout(300)
-  const templateChips = page.getByTestId('video-templates').locator('button')
+  // 템플릿은 접혀 있다 — 고르려면 먼저 펴야 한다
+  await page.getByTestId('video-template-toggle').click()
+  await page.waitForTimeout(400)
+  const templateChips = page
+    .getByTestId('video-templates')
+    .locator('button:not([data-testid="video-template-toggle"])')
   const savedTemplate = await templateChips.nth(5).textContent()
   await templateChips.nth(5).click()
   await page.waitForTimeout(300)
@@ -286,6 +298,8 @@ try {
   await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1000)
   await openAdvanced()
+  await page.getByTestId('video-template-toggle').click()
+  await page.waitForTimeout(400)
   const reopened = page.getByTestId('video-templates').locator('button[aria-pressed="true"]')
   check('다시 열면 저장해 둔 템플릿으로 시작한다', (await reopened.textContent()) === savedTemplate, savedTemplate ?? '')
   const reopenedLogo = await page

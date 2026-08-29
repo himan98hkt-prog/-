@@ -642,7 +642,7 @@ export function RosterEditor({
                           // 같은 아이의 두 번째·세 번째 곡임을 표시한다 — 이름이 두 번 보이는 이유가 보이게
                           const many = pieceIndex(students, s)
                           return many ? (
-                            <Badge variant="outline" className="ml-1 mt-1 text-[11px]">
+                            <Badge variant="outline" className="ml-1 mt-1 text-xs">
                               {many.total}곡 중 {many.index}번째
                             </Badge>
                           ) : null
@@ -711,7 +711,7 @@ export function RosterEditor({
                             <button
                               type="button"
                               onClick={() => patchStudent(s.id, { duration_sec: known })}
-                              className="mt-0.5 block text-left text-[11px] text-accent underline underline-offset-2"
+                              className="mt-0.5 block text-left text-xs text-accent underline underline-offset-2"
                               title="당일 진행 화면에서 쌓인 실제 시간입니다. 누르면 이 값으로 바꿉니다"
                             >
                               {hint} · 이 값으로

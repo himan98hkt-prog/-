@@ -89,7 +89,7 @@ export function PieceInput({
           role="listbox"
           className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-background shadow-lg"
         >
-          <li className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+          <li className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
             <Sparkles className="h-3 w-3 text-accent" aria-hidden />
             곡을 고르면 작곡가 · 난이도 · 연주시간이 함께 들어갑니다
           </li>
@@ -111,11 +111,11 @@ export function PieceInput({
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{entry.title}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {entry.composer} · {LEVEL_LABEL[entry.level]}
                   </span>
                 </span>
-                <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                   {formatDuration(entry.duration_sec)}
                 </span>
               </button>

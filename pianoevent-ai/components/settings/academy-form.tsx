@@ -15,6 +15,8 @@ export function AcademyForm({ academy }: { academy: Academy }) {
   const [message, setMessage] = useState<string | null>(null)
   const [designTheme, setDesignTheme] = useState(academy.design_theme ?? 'classic-navy')
   const [family, setFamily] = useState<ThemeFamily>(getTheme(academy.design_theme ?? 'classic-navy').family)
+  /** 테마 서른두 개는 바꾸실 때만 편다 — 행사마다 따로 고를 수 있어 여기 것은 한 번이면 끝난다 */
+  const [themeOpen, setThemeOpen] = useState(false)
 
   async function save(formData: FormData) {
     setPending(true)
@@ -78,6 +80,24 @@ export function AcademyForm({ academy }: { academy: Academy }) {
             <FieldHint className="mb-2 mt-0">
               포스터·순서지·입장권·상장에 공통으로 쓰입니다. 행사마다 다르게 고를 수도 있습니다.
             </FieldHint>
+            {/*
+              학원 정보를 고치러 오신 분께 테마 서른두 개를 펼쳐 보일 이유가 없다.
+              게다가 행사마다 따로 고르실 수 있어, 여기 것은 처음 한 번이면 끝난다.
+            */}
+            <button
+              type="button"
+              onClick={() => setThemeOpen((on) => !on)}
+              aria-expanded={themeOpen}
+              className="mb-3 flex w-full items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-secondary"
+              data-testid="settings-theme-toggle"
+            >
+              <span>
+                지금은 <strong>{getTheme(designTheme).name}</strong>
+                <span className="ml-1.5 text-xs text-muted-foreground">{getTheme(designTheme).tagline}</span>
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">{themeOpen ? '닫기' : '바꾸기'}</span>
+            </button>
+            <div className={cn(!themeOpen && 'hidden')} data-testid="settings-themes">
             <div className="mb-3 flex flex-wrap gap-1.5">
               {FAMILY_ORDER.map((id) => (
                 <button
@@ -101,7 +121,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                 .filter((group) => group.family === family)
                 .map((group) => (
                 <div key={group.family}>
-                  <p className="mb-1.5 text-[11px] leading-relaxed text-muted-foreground">{group.hint}</p>
+                  <p className="mb-1.5 text-xs leading-relaxed text-muted-foreground">{group.hint}</p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
                     {group.items.map((theme) => {
                       const active = theme.id === designTheme
@@ -118,7 +138,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                         >
                           <span className="min-w-0">
                             <span className="block truncate">{theme.name}</span>
-                            <span className="block truncate text-[11px] text-muted-foreground">
+                            <span className="block truncate text-xs text-muted-foreground">
                               {theme.mood.join(' · ')}
                             </span>
                           </span>
@@ -138,7 +158,7 @@ export function AcademyForm({ academy }: { academy: Academy }) {
                 </div>
               ))}
             </div>
-            <FieldHint>선택: {getTheme(designTheme).tagline}</FieldHint>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

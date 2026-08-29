@@ -239,6 +239,12 @@ try {
     await page.waitForTimeout(150)
   }
 
+  // 모양 고르는 자리는 접혀 있다 — 바꾸실 때만 펴신다
+  const shapesShut = await page.getByTestId('layout-grid').isVisible()
+  check('화면 모양은 접혀 있다', shapesShut === false)
+  await page.getByTestId('stage-shapes-toggle').click()
+  await page.waitForTimeout(500)
+
   for (const name of LAYOUT_NAMES) {
     await page.getByRole('button', { name: new RegExp('^' + name) }).first().click()
     await page.waitForTimeout(300)
@@ -460,7 +466,9 @@ try {
   const prefs = page.getByTestId('prefs-stage_prefs')
   check('무대 화면 설정 저장 칸이 있다', (await prefs.count()) === 1)
 
-  // 배경과 배치를 바꾸고 저장한 뒤 다시 연다
+  // 배경과 배치를 바꾸고 저장한 뒤 다시 연다 (고르는 자리는 접혀 있다)
+  await page.getByTestId('stage-shapes-toggle').click()
+  await page.waitForTimeout(500)
   const backdropChip = page.getByRole('button', { name: '무대 커튼', exact: true })
   await backdropChip.click()
   await page.getByRole('button', { name: '밝은 화면' }).click().catch(() => undefined)
@@ -472,6 +480,8 @@ try {
 
   await page.goto(`${BASE}/events/${EVENT_ID}/stage`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(700)
+  await page.getByTestId('stage-shapes-toggle').click()
+  await page.waitForTimeout(500)
   check(
     '다시 열면 저장해 둔 배경으로 시작한다',
     (await page.getByRole('button', { name: '무대 커튼', exact: true }).getAttribute('aria-pressed')) === 'true',

@@ -83,7 +83,7 @@ export function StudentPhotoCell({
       </button>
       {picked.length > 1 && (
         <span
-          className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[10px] font-medium tabular-nums text-accent-foreground"
+          className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-xs font-medium tabular-nums text-accent-foreground"
           aria-hidden
         >
           {picked.length}
@@ -112,7 +112,7 @@ export function StudentPhotoCell({
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
-          <p className="mb-2 text-[11px] leading-snug text-muted-foreground">
+          <p className="mb-2 text-xs leading-snug text-muted-foreground">
             여러 장 고르시면 <strong>감동영상</strong>에서 넘겨 가며 나옵니다. 맨 앞 <strong>①</strong> 이 대표
             사진이라 무대 화면과 파워포인트에 들어갑니다.
           </p>
@@ -135,7 +135,7 @@ export function StudentPhotoCell({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
                   {at >= 0 && (
-                    <span className="absolute left-0 top-0 rounded-br bg-accent px-1 text-[10px] font-medium tabular-nums text-accent-foreground">
+                    <span className="absolute left-0 top-0 rounded-br bg-accent px-1 text-xs font-medium tabular-nums text-accent-foreground">
                       {at + 1}
                     </span>
                   )}
@@ -144,7 +144,7 @@ export function StudentPhotoCell({
             })}
           </div>
           {full && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               한 아이당 {STUDENT_PHOTO_MAX}장까지입니다. 빼시려면 고른 사진을 다시 누르세요.
             </p>
           )}

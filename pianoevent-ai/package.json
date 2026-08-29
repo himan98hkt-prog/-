@@ -26,7 +26,8 @@
     "verify:live": "node scripts/verify-live.mjs",
     "verify:easy": "node scripts/verify-easy.mjs",
     "manual:shots": "node scripts/manual-shots.mjs",
-    "sample:xlsx": "node scripts/sample-xlsx.mjs"
+    "sample:xlsx": "node scripts/sample-xlsx.mjs",
+    "verify:simple": "node scripts/verify-simple.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

@@ -376,7 +376,7 @@ function OrderEditor({
               </span>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             사회자 멘트는 그대로 남습니다. 순서만 바뀝니다. — 시각은 {formatWallClock(startISO, 0)} 개회 기준
           </p>
         </div>

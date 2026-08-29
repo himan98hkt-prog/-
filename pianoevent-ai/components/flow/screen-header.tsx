@@ -154,7 +154,7 @@ export function ScreenHeader({
                     }
                   >
                     <span
-                      className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold text-white"
                       style={{
                         background: finished ? tone.band : "hsl(0 0% 78%)",
                       }}

@@ -30,7 +30,7 @@ function Thumb({ asset, selected, onClick }: { asset: AcademyAsset; selected: bo
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={asset.url} alt={asset.label} className="h-16 w-full bg-secondary object-cover" />
-      <span className="block truncate px-1 py-0.5 text-[10px] text-muted-foreground">{asset.label}</span>
+      <span className="block truncate px-1 py-0.5 text-xs text-muted-foreground">{asset.label}</span>
     </button>
   )
 }
@@ -42,7 +42,7 @@ function NoneTile({ selected, onClick, label }: { selected: boolean; onClick: ()
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        'flex h-[86px] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed text-[11px] transition-colors',
+        'flex h-[86px] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed text-xs transition-colors',
         selected ? 'border-accent text-foreground' : 'border-border text-muted-foreground hover:bg-secondary',
       )}
     >
@@ -156,7 +156,7 @@ export function ImagePicker({
                 {(['poster', 'program', 'invite'] as TemplateCategory[]).map((category) => (
                   <div key={category}>
                     <p className="text-xs font-medium">{CATEGORY_LABEL[category]}</p>
-                    <p className="mb-1.5 text-[11px] text-muted-foreground">{CATEGORY_HINT[category]}</p>
+                    <p className="mb-1.5 text-xs text-muted-foreground">{CATEGORY_HINT[category]}</p>
                     <div className="grid grid-cols-4 gap-1.5">
                       <NoneTile
                         selected={!value[category]}

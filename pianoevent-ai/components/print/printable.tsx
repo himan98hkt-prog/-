@@ -261,7 +261,7 @@ export function Printable({
                   style={{ top: top + marginPx }}
                   data-testid="paper-cut"
                 >
-                  <span className="absolute right-1 top-1 rounded bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">
+                  <span className="absolute right-1 top-1 rounded bg-destructive px-1.5 py-0.5 text-xs font-medium text-destructive-foreground">
                     여기서 다음 장
                   </span>
                 </div>

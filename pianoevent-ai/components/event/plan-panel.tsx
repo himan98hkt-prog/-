@@ -156,12 +156,12 @@ export function PlanPanel({
                     <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   )}
                   <span className="font-medium">{issue.title}</span>
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-xs">
                     {ISSUE_LEVEL_LABEL[issue.level]}
                   </Badge>
                 </div>
-                <p className="mt-1.5 text-[13px] opacity-90">{issue.detail}</p>
-                <p className="mt-1 text-[13px] font-medium opacity-80">→ {issue.fix}</p>
+                <p className="mt-1.5 text-sm opacity-90">{issue.detail}</p>
+                <p className="mt-1 text-sm font-medium opacity-80">→ {issue.fix}</p>
               </div>
             ))
           )}
@@ -211,7 +211,7 @@ export function PlanPanel({
           </div>
 
           {rehearsal.warnings.map((warning) => (
-            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {warning}
             </p>
           ))}
@@ -229,7 +229,7 @@ export function PlanPanel({
                           무대 {formatWallClock(event.event_at, group.members[0].stage_offset_sec)}부터
                         </span>
                       </p>
-                      <p className="mt-1 text-[13px] text-muted-foreground">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {group.members.map((m) => m.student_name).join(', ')}
                       </p>
                     </div>
@@ -280,12 +280,12 @@ export function PlanPanel({
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline gap-2">
                       <span className="font-medium">{item.label}</span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {BASIS_LABEL[item.basis]} {item.unit_cost.toLocaleString('ko-KR')}원
                       </span>
-                      {!item.optional && <Badge variant="outline" className="text-[10px]">필수</Badge>}
+                      {!item.optional && <Badge variant="outline" className="text-xs">필수</Badge>}
                     </span>
-                    <span className="mt-0.5 block text-[12px] text-muted-foreground">{item.note}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{item.note}</span>
                   </span>
                   <span className="shrink-0 text-sm font-medium tabular-nums">
                     {line ? line.amount.toLocaleString('ko-KR') : '—'}
@@ -318,7 +318,7 @@ export function PlanPanel({
           </div>
 
           {budget.warnings.map((warning) => (
-            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {warning}
             </p>
           ))}
@@ -348,7 +348,7 @@ export function PlanPanel({
           </div>
 
           {seating.warnings.map((warning) => (
-            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            <p key={warning} className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {warning}
             </p>
           ))}

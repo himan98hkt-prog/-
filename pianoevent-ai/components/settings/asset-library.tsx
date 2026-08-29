@@ -267,9 +267,9 @@ function AssetRow({
           className="h-8 text-sm"
         />
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">{assetSizeLabel(asset.url)}</span>
+          <span className="text-xs text-muted-foreground">{assetSizeLabel(asset.url)}</span>
           {isDefault ? (
-            <Badge variant="accent" className="gap-1 text-[10px]">
+            <Badge variant="accent" className="gap-1 text-xs">
               <Check className="h-3 w-3" aria-hidden />
               학원 기본
             </Badge>
@@ -278,7 +278,7 @@ function AssetRow({
               type="button"
               disabled={busy}
               onClick={() => onMakeDefault(asset)}
-              className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
               학원 기본으로 지정
             </button>

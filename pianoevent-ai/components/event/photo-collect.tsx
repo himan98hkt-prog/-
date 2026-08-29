@@ -282,7 +282,7 @@ export function PhotoCollect({
                   )}
                 </span>
                 {shots.length > 1 && (
-                  <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[11px] font-medium leading-5 tabular-nums text-accent-foreground">
+                  <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-xs font-medium leading-5 tabular-nums text-accent-foreground">
                     {shots.length}
                   </span>
                 )}

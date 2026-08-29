@@ -141,11 +141,11 @@ function StatusTile({
       <p className="mt-1 flex items-center gap-1.5 font-medium">
         {icon}
         {value}
-        <Badge variant={good ? 'accent' : 'outline'} className="ml-auto text-[10px]">
+        <Badge variant={good ? 'accent' : 'outline'} className="ml-auto text-xs">
           {good ? '정상' : '대체 동작'}
         </Badge>
       </p>
-      <p className={cn('mt-1 text-[11px]', good ? 'text-muted-foreground' : 'text-foreground')}>{note}</p>
+      <p className={cn('mt-1 text-xs', good ? 'text-muted-foreground' : 'text-foreground')}>{note}</p>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Printer, Save } from 'lucide-react'
+import { Check, ChevronDown, Printer, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { ImagePicker } from '@/components/design/image-picker'
 import { renderTemplate } from '@/components/design/render'
@@ -99,6 +99,16 @@ export function DesignStudio({
   const [imageMap, setImageMap] = useState<ImageMap>(event.image_map ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  /**
+   * **직접 고르기는 접어 둔다.**
+   *
+   * 위에서 "이대로 뽑으셔도 됩니다" 라고 해 놓고 바로 아래에 테마 32개와 양식 목록을
+   * 펼쳐 두면, 그 말을 못 믿으신다. 재어 보니 이 화면에 눌러 볼 것이 102개였고
+   * 길이가 6,000px 이었다 — 여섯 화면을 내려야 끝나는 화면이다.
+   *
+   * 세 장으로 되는 분은 여기서 끝내시고, 바꾸실 분만 펴신다.
+   */
+  const [picking, setPicking] = useState(false)
   // 양식 40종·테마 100종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
   const [category, setCategory] = useState<TemplateCategory>(getTemplate(opening.templateId).category)
   const [themeQuery, setThemeQuery] = useState('')
@@ -239,10 +249,10 @@ export function DesignStudio({
                 >
                   <ChoiceThumb templateId={choice.templateId} ctx={{ ...ctx, theme: getTheme(choice.themeId) }} />
                   {/* 종이에 뽑은 것과 같은 번호 — "종이의 2번" 이 화면에서도 2번이라야 한다 */}
-                  <span className="block text-[11px] font-medium leading-tight">
+                  <span className="block text-xs font-medium leading-tight">
                     {index + 1}. {choice.label}
                   </span>
-                  <span className="block truncate text-[10px] leading-tight text-muted-foreground">
+                  <span className="block truncate text-xs leading-tight text-muted-foreground">
                     {getTheme(choice.themeId).name}
                   </span>
                 </button>
@@ -261,12 +271,61 @@ export function DesignStudio({
             세 장을 A4 한 장에 뽑아 견주기 →
           </a>
 
-          <p className="text-xs text-muted-foreground">
-            셋 다 마음에 안 드실 때만 아래에서 고르세요 — 양식 {DESIGN_TEMPLATE_COUNT}종 · 테마{' '}
-            {DESIGN_THEMES.length}종이 다 있습니다.
-          </p>
         </section>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>한 벌 인쇄</CardTitle>
+            <CardDescription>양식을 하나씩 고르지 않고 필요한 것을 묶어서 한 번에 뽑습니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {PRINT_PACKS.map((pack) => (
+              <a
+                key={pack.id}
+                href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="min-w-0"
+              >
+                {/* 단추는 본디 한 줄짜리다. 설명이 길어 좁은 화면에서 가로로 넘쳤다 — 줄바꿈을 열어 준다 */}
+                <Button
+                  variant="outline"
+                  className="h-auto w-full justify-start whitespace-normal py-2.5 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">
+                      {pack.name}
+                      {/* 몇 장이 나오는지는 고르시는 자리에서 아셔야 한다 — 눌러 들어가 보고 아시면 늦다 */}
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        종이 {packSheets(pack)}장
+                      </span>
+                    </span>
+                    <span className="block text-xs font-normal text-muted-foreground">{pack.description}</span>
+                  </span>
+                </Button>
+              </a>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* 셋 다 마음에 안 드실 때만 — 그때까지는 화면에 없는 편이 낫다 */}
+        <button
+          type="button"
+          onClick={() => setPicking((on) => !on)}
+          aria-expanded={picking}
+          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm hover:bg-secondary"
+          data-testid="design-picking-toggle"
+        >
+          <span>
+            <span className="font-medium">{picking ? '직접 고르기 닫기' : '직접 고르기'}</span>
+            <span className="ml-1.5 text-xs text-muted-foreground">
+              양식 {DESIGN_TEMPLATE_COUNT}종 · 테마 {DESIGN_THEMES.length}종 · 문구 · 사진
+            </span>
+          </span>
+          <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', picking && 'rotate-180')} aria-hidden />
+        </button>
+
+        <div className={cn('grid gap-5', !picking && 'hidden')} data-testid="design-picking">
         <Card>
           <CardHeader>
             <CardTitle>양식 · {DESIGN_TEMPLATE_COUNT}종</CardTitle>
@@ -310,12 +369,12 @@ export function DesignStudio({
                     <span className="flex items-center justify-between gap-2">
                       <span className="min-w-0 truncate">{item.name}</span>
                       <span className="flex shrink-0 items-center gap-1.5">
-                        {needsProgram && <span className="text-[10px] text-muted-foreground">순서표 필요</span>}
-                        <span className="text-[10px] text-muted-foreground">{PAGE_PX[item.page].label}</span>
+                        {needsProgram && <span className="text-xs text-muted-foreground">순서표 필요</span>}
+                        <span className="text-xs text-muted-foreground">{PAGE_PX[item.page].label}</span>
                       </span>
                     </span>
                     {active && (
-                      <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
+                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                         {item.description}
                       </span>
                     )}
@@ -368,41 +427,6 @@ export function DesignStudio({
 
         <Card>
           <CardHeader>
-            <CardTitle>한 벌 인쇄</CardTitle>
-            <CardDescription>양식을 하나씩 고르지 않고 필요한 것을 묶어서 한 번에 뽑습니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {PRINT_PACKS.map((pack) => (
-              <a
-                key={pack.id}
-                href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="min-w-0"
-              >
-                {/* 단추는 본디 한 줄짜리다. 설명이 길어 좁은 화면에서 가로로 넘쳤다 — 줄바꿈을 열어 준다 */}
-                <Button
-                  variant="outline"
-                  className="h-auto w-full justify-start whitespace-normal py-2.5 text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">
-                      {pack.name}
-                      {/* 몇 장이 나오는지는 고르시는 자리에서 아셔야 한다 — 눌러 들어가 보고 아시면 늦다 */}
-                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                        종이 {packSheets(pack)}장
-                      </span>
-                    </span>
-                    <span className="block text-xs font-normal text-muted-foreground">{pack.description}</span>
-                  </span>
-                </Button>
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>사진</CardTitle>
             <CardDescription>사진 포스터·프로그램 표지·SNS 카드·감사 카드에 쓰입니다.</CardDescription>
           </CardHeader>
@@ -433,6 +457,7 @@ export function DesignStudio({
             </div>
           </CardContent>
         </Card>
+        </div>
 
         {/* 다 고르셨으면 여기서 저장하거나 바로 뽑으세요 */}
         <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3">

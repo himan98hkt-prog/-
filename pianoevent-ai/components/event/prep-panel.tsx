@@ -163,11 +163,11 @@ export function PrepPanel({
                           aria-hidden
                         />
                         <span className="min-w-0">
-                          <span className={cn('text-[13px]', checked[id] && 'text-muted-foreground line-through')}>
+                          <span className={cn('text-sm', checked[id] && 'text-muted-foreground line-through')}>
                             {task.title}
                             {task.critical && <span className="ml-1 text-accent">★</span>}
                           </span>
-                          <span className="block text-[11px] leading-snug text-muted-foreground">{task.detail}</span>
+                          <span className="block text-xs leading-snug text-muted-foreground">{task.detail}</span>
                         </span>
                       </button>
                     </li>
@@ -202,7 +202,7 @@ export function PrepPanel({
                   <CopyButton text={message.body} label="복사" variant="ghost" />
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap px-4 py-3 font-sans text-[13px] leading-relaxed text-muted-foreground">
+              <pre className="whitespace-pre-wrap px-4 py-3 font-sans text-sm leading-relaxed text-muted-foreground">
                 {message.body}
               </pre>
             </div>

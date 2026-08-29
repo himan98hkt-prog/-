@@ -132,6 +132,8 @@ export function VideoStudio({
 }) {
   const [themeId, setThemeId] = useState(() => prefString(savedPrefs, 'theme', initialThemeId))
   const [pickerOpen, setPickerOpen] = useState(false)
+  /** 영상 템플릿 20가지 — 고르실 때만 편다 */
+  const [templateOpen, setTemplateOpen] = useState(false)
   const [options, setOptions] = useState<StoryboardOptions>(() => ({
     student_seconds: prefNumber(savedPrefs, 'student_seconds', DEFAULT_STORYBOARD_OPTIONS.student_seconds),
     title_seconds: prefNumber(savedPrefs, 'title_seconds', DEFAULT_STORYBOARD_OPTIONS.title_seconds),
@@ -291,6 +293,7 @@ export function VideoStudio({
    * 이어 보실 수도 있다 — 걱정되는 것은 대개 "끝까지 이 느낌인가" 라서다.
    */
   const [startId, setStartId] = useState<'head' | 'performers' | 'spread'>('head')
+  const [startOpen, setStartOpen] = useState(false)
   const start = starts.find((item) => item.id === startId) ?? starts[0]
   const spread = useMemo(() => (startId === 'spread' ? tasterSpread(scenes) : null), [startId, scenes])
   const taster = useMemo(
@@ -983,29 +986,45 @@ export function VideoStudio({
                 <Timer className="mr-1 h-4 w-4" aria-hidden />
                 {TASTER_SEC}초만 먼저 만들어 보기
               </Button>
-              {/* 앞 30초는 대개 표지다. 정작 보고 싶으신 것은 아이가 나오는 화면이다 */}
+              {/*
+                앞 30초는 대개 표지다. 어디부터 맛볼지 고를 수 있어야 하는데, 그 셋을 늘
+                펼쳐 두면 정작 [영상 만들기] 가 묻힌다. 평소에는 ▾ 하나로 접어 둔다.
+              */}
               {starts.length > 1 && (
-                <span className="flex items-center gap-0.5 rounded-md border border-border p-0.5" data-testid="taster-start">
-                  {starts.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setStartId(item.id)}
-                      aria-pressed={item.id === startId}
-                      disabled={recording}
-                      className={cn(
-                        'rounded px-2 py-1 text-xs transition-colors disabled:opacity-40',
-                        item.id === startId ? 'bg-primary font-medium text-primary-foreground' : 'hover:bg-secondary',
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                <span className="flex items-center gap-1" data-testid="taster-start">
+                  <button
+                    type="button"
+                    onClick={() => setStartOpen((on) => !on)}
+                    aria-expanded={startOpen}
+                    disabled={recording}
+                    className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary disabled:opacity-40"
+                    data-testid="taster-start-toggle"
+                  >
+                    {start?.label ?? '처음부터'}
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', startOpen && 'rotate-180')} aria-hidden />
+                  </button>
+                  {startOpen &&
+                    starts
+                      .filter((item) => item.id !== startId)
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setStartId(item.id)
+                            setStartOpen(false)
+                          }}
+                          disabled={recording}
+                          className="rounded-md border border-border px-2 py-1.5 text-xs hover:bg-secondary disabled:opacity-40"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
                 </span>
               )}
             </span>
           )}
-          <div className="flex items-center gap-1" data-testid="preview-speed">
+          <div className={cn('flex items-center gap-1', !playing && !advanced && 'hidden')} data-testid="preview-speed">
             <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden />
             {SPEEDS.map((rate) => (
               <button
@@ -1154,13 +1173,29 @@ export function VideoStudio({
         </section>
 
         <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="video-templates">
-          <p className="text-sm font-medium">
-            0 · 영상 템플릿 · {VIDEO_TEMPLATES.length}종
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-              사진을 어떻게 놓고 어떤 배경을 깔지
+          {/*
+            "이대로 만드셔도 됩니다" 라고 해 놓고 바로 아래에 스무 가지를 펼쳐 두면 그 말을 못 믿으신다.
+            재어 보니 이 화면 첫 판에 눌러 볼 것이 46개였다. 지금 고른 것만 남기고 나머지는 접는다.
+          */}
+          <button
+            type="button"
+            onClick={() => setTemplateOpen((on) => !on)}
+            aria-expanded={templateOpen}
+            className="flex items-center justify-between gap-2 text-left"
+            data-testid="video-template-toggle"
+          >
+            <span className="text-sm font-medium">
+              0 · 영상 템플릿
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                지금은 <strong className="text-foreground">{template.name}</strong>
+              </span>
             </span>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
+            <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              {templateOpen ? '닫기' : `다른 모양 ${VIDEO_TEMPLATES.length - 1}가지`}
+              <ChevronDown className={cn('h-4 w-4 transition-transform', templateOpen && 'rotate-180')} aria-hidden />
+            </span>
+          </button>
+          <div className={cn('flex flex-wrap gap-1.5', !templateOpen && 'hidden')}>
             {VIDEO_TEMPLATES.map((item) => (
               <button
                 key={item.id}
@@ -1775,11 +1810,11 @@ function StoryboardStrip({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={shots[index]} alt="" className="h-full w-full object-cover" />
               ) : null}
-              <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] tabular-nums text-white">
+              <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-xs tabular-nums text-white">
                 {scene.seconds}초
               </span>
               {isTextOnly(scene) && (
-                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] text-white">사진 없음</span>
+                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-xs text-white">사진 없음</span>
               )}
             </span>
               <span className="truncate px-0.5 text-xs leading-tight text-muted-foreground">
@@ -1792,7 +1827,7 @@ function StoryboardStrip({
                 onClick={() => onMove(index, -1)}
                 disabled={index === 0}
                 aria-label={`${sceneLabel(scene)} 앞으로`}
-                className="rounded bg-black/70 px-1 text-[11px] text-white disabled:opacity-30"
+                className="rounded bg-black/70 px-1 text-xs text-white disabled:opacity-30"
               >
                 ←
               </button>
@@ -1801,7 +1836,7 @@ function StoryboardStrip({
                 onClick={() => onMove(index, 1)}
                 disabled={index === timeline.scenes.length - 1}
                 aria-label={`${sceneLabel(scene)} 뒤로`}
-                className="rounded bg-black/70 px-1 text-[11px] text-white disabled:opacity-30"
+                className="rounded bg-black/70 px-1 text-xs text-white disabled:opacity-30"
               >
                 →
               </button>

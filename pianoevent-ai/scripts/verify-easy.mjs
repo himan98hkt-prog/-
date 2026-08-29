@@ -307,6 +307,26 @@ try {
   )
   await page.screenshot({ path: join(OUT, 'sticky-preview.jpg'), type: 'jpeg', quality: 82 })
 
+  // 세 장을 권해 놓고 바로 아래 테마 서른두 개를 펼쳐 두면 그 말을 못 믿으신다.
+  // 재어 보니 이 화면에 눌러 볼 것이 102개, 길이가 6,000px 이었다.
+  check(
+    '고르는 자리는 접혀 있다 — 세 장으로 되시는 분께는 없는 편이 낫다',
+    (await page.getByTestId('design-picking').isVisible()) === false,
+  )
+  const pickingToggle = page.getByTestId('design-picking-toggle')
+  check('바꾸실 분만 펴신다', (await pickingToggle.count()) === 1)
+  const pickingWords = ((await pickingToggle.textContent()) ?? '').replace(/\s+/g, ' ')
+  check(
+    '무엇이 들어 있는지 단추에 적어 준다',
+    ['양식', '테마', '문구', '사진'].every((w) => pickingWords.includes(w)),
+    pickingWords.trim(),
+  )
+  await pickingToggle.click()
+  await page.waitForTimeout(600)
+  check('펴면 고르는 자리가 나온다', await page.getByTestId('design-picking').isVisible())
+  await pickingToggle.click()
+  await page.waitForTimeout(400)
+
   // 고를 것이 있다는 사실 자체에서 멈추신다 — 하나를 미리 골라 두고 먼저 말해야 한다
   const ready = page.getByTestId('design-ready')
   check('무엇을 뽑을지 미리 골라 둔다', (await ready.count()) === 1)
@@ -824,6 +844,10 @@ try {
   console.log('\n[무대 모양 고르기]')
   await page.goto(`${BASE}/events/${EVENT_ID}/stage`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1600)
+  // 모양·사진 창·배경 서른 가지는 접혀 있다 — 바꾸실 때만 펴신다
+  check('화면 모양은 접혀 있다 — 그냥 쓰시는 분께는 없는 편이 낫다', (await page.getByTestId('layout-grid').isVisible()) === false)
+  await page.getByTestId('stage-shapes-toggle').click()
+  await page.waitForTimeout(600)
   const grid = page.getByTestId('layout-grid')
   check('모양을 그림 격자로 보여 준다', (await grid.count()) === 1)
   const tiles = await grid.locator('button').count()
@@ -1057,6 +1081,8 @@ try {
   console.log('\n[무대 모양 — 내 아이 사진으로]')
   await page.goto(`${BASE}/events/${demoId}/stage`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(2000)
+  await page.getByTestId('stage-shapes-toggle').click()
+  await page.waitForTimeout(700)
   const faceTiles = page.locator('[data-testid="layout-grid"] img')
   check('모양 그림에 실제 사진이 들어간다 — 회색 네모가 아니다', (await faceTiles.count()) >= 1, `${await faceTiles.count()}장`)
   const facesOk = await faceTiles.evaluateAll((nodes) =>
@@ -1172,18 +1198,27 @@ try {
   // 앞 30초는 대개 표지다 — 정작 보고 싶으신 것은 아이가 나오는 화면이다
   const startBox = page.getByTestId('taster-start')
   check('어디서부터 맛볼지 고를 수 있다', (await startBox.count()) === 1)
+  // 셋을 늘 펼쳐 두면 정작 [영상 만들기] 가 묻힌다 — 평소에는 지금 것 하나만
+  const startShut = await startBox.locator('button').evaluateAll((n) =>
+    n.filter((el) => el.checkVisibility?.({ checkVisibilityCSS: true }) ?? true).length,
+  )
+  check('평소에는 지금 고른 자리 하나만 보인다', startShut === 1, `${startShut}개 보임`)
+  check('지금 고른 자리를 단추에 적어 준다', (await startBox.getByTestId('taster-start-toggle').textContent()).includes('처음부터'))
+  await startBox.getByTestId('taster-start-toggle').click()
+  await page.waitForTimeout(500)
   const startWords = await startBox.textContent()
-  check('처음부터와 아이 장면부터를 준다', startWords.includes('처음부터') && startWords.includes('아이 장면부터'), startWords.trim())
-  check('처음에는 처음부터로 둔다', (await startBox.locator('button[aria-pressed="true"]').textContent()) === '처음부터')
-  await startBox.getByText('아이 장면부터').click()
+  check('펴면 아이 장면부터도 나온다', startWords.includes('아이 장면부터'), startWords.trim())
+  await startBox.getByText('아이 장면부터', { exact: true }).click()
   await page.waitForTimeout(700)
-  check('아이 장면부터로 바꿀 수 있다', (await startBox.locator('button[aria-pressed="true"]').textContent()) === '아이 장면부터')
+  check('아이 장면부터로 바꿀 수 있다', (await startBox.getByTestId('taster-start-toggle').textContent()).includes('아이 장면부터'))
   const movedTip = await page.getByTestId('video-taster').getAttribute('title')
   check('바꾸면 담기는 자리도 바뀐다', movedTip !== tasterTip, `${tasterTip} → ${movedTip}`)
 
   // 걱정되는 것은 대개 "끝까지 이 느낌인가" 다
   check('앞·가운데·끝도 고를 수 있다', startWords.includes('앞·가운데·끝'), startWords.trim())
-  await startBox.getByText('앞·가운데·끝').click()
+  await startBox.getByTestId('taster-start-toggle').click()
+  await page.waitForTimeout(400)
+  await startBox.getByText('앞·가운데·끝', { exact: true }).click()
   await page.waitForTimeout(700)
   const spreadTip = await page.getByTestId('video-taster').getAttribute('title')
   check('이어 붙여 담는다고 알려 준다', (spreadTip ?? '').includes('이어 붙여'), spreadTip ?? '')
