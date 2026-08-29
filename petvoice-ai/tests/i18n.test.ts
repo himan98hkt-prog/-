@@ -23,6 +23,44 @@ describe('사전 정합성', () => {
     }
   });
 
+  /**
+   * 원어민 검수를 대신하지는 못한다. 다만 검수자가 손으로 찾을 필요가 없는 것들 —
+   * 번역을 빠뜨렸거나, 한 언어의 글자가 다른 언어에 섞여 들어간 경우는 여기서 잡는다.
+   */
+  it('영어 사전에 한글이 섞여 있지 않다', () => {
+    const leaked = Object.entries(en).filter(([, v]) => /[가-힣]/.test(v));
+    expect(leaked.map(([k]) => k)).toEqual([]);
+  });
+
+  it('일본어 사전에 한글이 섞여 있지 않다', () => {
+    const leaked = Object.entries(ja).filter(([, v]) => /[가-힣]/.test(v));
+    expect(leaked.map(([k]) => k)).toEqual([]);
+  });
+
+  it('영어 사전에 일본어 가나가 섞여 있지 않다', () => {
+    const leaked = Object.entries(en).filter(([, v]) => /[ぁ-んァ-ン]/.test(v));
+    expect(leaked.map(([k]) => k)).toEqual([]);
+  });
+
+  it('번역을 빠뜨린 채 한국어를 그대로 둔 항목이 없다', () => {
+    // 이모지·기호·자리표시자만 있는 값은 세 언어가 같아도 정상이다 (예: '{value}%')
+    const meaningful = (text: string) => /[가-힣A-Za-z぀-ヿ一-鿿]/.test(text.replace(/\{\w+\}/g, ''));
+    for (const [locale, dict] of Object.entries({ en, ja })) {
+      const copied = koKeys.filter((key) => {
+        const source = ko[key as keyof typeof ko];
+        return meaningful(source) && dict[key as keyof typeof en] === source;
+      });
+      expect(`${locale}: ${copied.join(', ')}`).toBe(`${locale}: `);
+    }
+  });
+
+  it('반려동물 1인칭 대사에 성별이 드러나는 표현을 쓰지 않는다', () => {
+    // 아이의 성별을 우리는 모른다. 일본어는 1인칭에서 특히 드러난다.
+    const voiceKeys = koKeys.filter((key) => key.startsWith('voice.fallback.'));
+    const gendered = voiceKeys.filter((key) => /ぼく|僕|おれ|俺|あたし/.test(ja[key as keyof typeof ja]));
+    expect(gendered).toEqual([]);
+  });
+
   it('한국어에 있는 자리표시자가 다른 언어에도 있다', () => {
     const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
     for (const key of koKeys) {
