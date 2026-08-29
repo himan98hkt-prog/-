@@ -1,4 +1,5 @@
-import { encode } from 'jpeg-js';
+import { decode, encode } from 'jpeg-js';
+import { downscaleRgba } from '../eval/imageOps.mjs';
 import { describe, expect, it } from 'vitest';
 import {
   judgeJpegBase64,
@@ -182,5 +183,103 @@ describe('JPEG 경로 전체', () => {
   it('JPEG 이 아닌 값을 넣어도 막지 않는다', () => {
     expect(judgeJpegBase64('this-is-not-an-image')).toEqual({ ok: true });
     expect(judgeJpegBase64('')).toEqual({ ok: true });
+  });
+});
+
+describe('원본 해상도에서 흔들린 사진 (실제 경로)', () => {
+  /**
+   * 앞의 테스트들은 **판정 해상도에서** 흐리게 만든 이미지를 쓴다.
+   * 그건 실제와 다르다 — 진짜 사진은 큰 해상도에서 흔들리고, 320px 로 줄이는
+   * 과정이 그 흔들림을 상당히 가린다. 처음 임계값(1.6)이 거의 아무것도 막지
+   * 못했던 이유가 이것이었다.
+   *
+   * 그래서 여기서는 큰 그림을 흐리게 만든 뒤 **줄여서** 판정한다.
+   */
+  const BIG_W = 960;
+  const BIG_H = 1200;
+
+  function bigImage(fn: (x: number, y: number) => number): Uint8Array {
+    const buf = new Uint8Array(BIG_W * BIG_H * 4);
+    for (let y = 0; y < BIG_H; y += 1) {
+      for (let x = 0; x < BIG_W; x += 1) {
+        const v = Math.max(0, Math.min(255, fn(x, y)));
+        const o = (y * BIG_W + x) * 4;
+        buf[o] = v;
+        buf[o + 1] = v;
+        buf[o + 2] = v;
+        buf[o + 3] = 255;
+      }
+    }
+    return buf;
+  }
+
+  /**
+   * 분리형 박스 블러 — 가로 한 번, 세로 한 번.
+   * 2차원으로 한꺼번에 돌리면 반지름의 제곱에 비례해 느려진다 (r=12 에서 4초가 넘었다).
+   * 결과는 사실상 같으면서 50배쯤 빠르다.
+   */
+  function bigBlur(src: Uint8Array, radius: number): Uint8Array {
+    const pass = (input: Float32Array, width: number, height: number, horizontal: boolean) => {
+      const out = new Float32Array(input.length);
+      for (let a = 0; a < (horizontal ? height : width); a += 1) {
+        for (let b = 0; b < (horizontal ? width : height); b += 1) {
+          let sum = 0;
+          let n = 0;
+          for (let d = -radius; d <= radius; d += 1) {
+            const nb = b + d;
+            if (nb < 0 || nb >= (horizontal ? width : height)) continue;
+            sum += input[horizontal ? a * width + nb : nb * width + a];
+            n += 1;
+          }
+          out[horizontal ? a * width + b : b * width + a] = sum / n;
+        }
+      }
+      return out;
+    };
+
+    const gray = new Float32Array(BIG_W * BIG_H);
+    for (let i = 0; i < gray.length; i += 1) gray[i] = src[i * 4];
+
+    const blurred = pass(pass(gray, BIG_W, BIG_H, true), BIG_W, BIG_H, false);
+
+    const out = new Uint8Array(src.length);
+    for (let i = 0; i < gray.length; i += 1) {
+      const v = blurred[i];
+      out[i * 4] = v;
+      out[i * 4 + 1] = v;
+      out[i * 4 + 2] = v;
+      out[i * 4 + 3] = 255;
+    }
+    return out;
+  }
+
+  /** 털결 같은 고주파가 있는 화면 */
+  const furry = (base: number) =>
+    bigImage(
+      (x, y) => base + 40 * Math.sin(x / 40) * Math.cos(y / 55) + 14 * Math.sin(x / 2.5 + Math.sin(y / 9)),
+    );
+
+  /** 앱과 같은 순서: 큰 JPEG → 디코딩 → 320px 축소 → 판정 */
+  function judgeThroughPipeline(big: Uint8Array) {
+    const jpg = encode({ data: big, width: BIG_W, height: BIG_H }, 85);
+    const decoded = decode(jpg.data, { useTArray: true, formatAsRGBA: true });
+    const small = downscaleRgba(decoded.data, decoded.width, decoded.height, PHOTO_PROBE_WIDTH);
+    return judgePhoto(statsFromRgba(small.data, small.width, small.height));
+  }
+
+  it('크게 흔들린 사진은 줄인 뒤에도 걸린다', () => {
+    expect(judgeThroughPipeline(bigBlur(furry(140), 12))).toEqual({ ok: false, reason: 'blurry' });
+  });
+
+  it('초점이 나간 사진도 걸린다', () => {
+    expect(judgeThroughPipeline(bigBlur(furry(120), 9))).toEqual({ ok: false, reason: 'blurry' });
+  });
+
+  it('멀쩡한 사진은 통과한다', () => {
+    expect(judgeThroughPipeline(furry(150))).toEqual({ ok: true });
+  });
+
+  it('살짝 부드러운 정도는 통과한다', () => {
+    expect(judgeThroughPipeline(bigBlur(furry(140), 1))).toEqual({ ok: true });
   });
 });
