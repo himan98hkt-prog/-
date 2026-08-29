@@ -20,6 +20,35 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
 
   {
+    /**
+     * 타입 정보가 있어야 도는 규칙들.
+     *
+     * 여기서 노리는 건 하나다 — **떠다니는 프라미스**.
+     * 이 앱은 `void saveEntry(...)` 처럼 일부러 기다리지 않는 비동기 호출이 많다.
+     * 의도한 것과 `await` 을 빠뜨린 것을 사람 눈으로는 구별할 수 없는데,
+     * 후자는 저장이 끝나기 전에 화면이 넘어가거나 오류가 조용히 사라지는 식으로 나타난다.
+     *
+     * `void` 를 붙이면 "일부러 안 기다린다"는 표시가 되고, 규칙은 통과시킨다.
+     * 즉 이 규칙은 비동기를 막는 게 아니라 **의도를 적게 만든다.**
+     */
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.ts', 'App.tsx'],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        // JSX 의 onPress={() => void f()} 는 이미 쓰고 있는 관용구다.
+        // 속성에 async 함수를 그대로 꽂는 경우만 잡는다.
+        { checksVoidReturn: { attributes: false } },
+      ],
+      '@typescript-eslint/require-await': 'warn',
+    },
+  },
+
+  {
     files: ['**/*.{ts,tsx,mts,mjs}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -86,6 +115,15 @@ export default tseslint.config(
     // Edge Function 은 Deno 런타임에서 돈다.
     files: ['supabase/functions/**/*.ts'],
     languageOptions: { globals: { Deno: 'readonly' } },
+  },
+
+  {
+    /**
+     * 테스트 대역은 비동기 인터페이스를 흉내 내는 게 일이라 `await` 이 없는 게 정상이다.
+     * (SQLite·AsyncStorage 대역, fetch 응답 대역 등)
+     */
+    files: ['tests/**/*.ts'],
+    rules: { '@typescript-eslint/require-await': 'off' },
   },
 
   prettier,

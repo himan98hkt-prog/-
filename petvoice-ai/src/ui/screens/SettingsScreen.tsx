@@ -124,6 +124,25 @@ export function SettingsScreen() {
     );
   };
 
+  /**
+   * Alert 의 onPress 에 async 함수를 그대로 꽂으면 거부(rejection)를 아무도 받지 않는다.
+   * 이름 붙인 함수로 빼고 `void` 로 부른다 — "일부러 안 기다린다"는 표시다.
+   */
+  const runAccountDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      resetAll();
+      void cancelAllReminders();
+      Alert.alert(t('settings.deleteAccountDone'), t('settings.deleteAccountDoneDesc'));
+      nav.switchTab('home');
+    } catch {
+      Alert.alert(t('settings.deleteAccountFail'), t('settings.deleteAccountFailDesc'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   /** Play 정책: 계정을 만드는 앱은 앱 안에서 계정 삭제를 제공해야 한다. */
   const confirmAccountDelete = () => {
     Alert.alert(t('settings.deleteAccountTitle'), t('settings.deleteAccountDesc'), [
@@ -131,20 +150,7 @@ export function SettingsScreen() {
       {
         text: t('settings.deleteAccount'),
         style: 'destructive',
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            await deleteAccount();
-            resetAll();
-            void cancelAllReminders();
-            Alert.alert(t('settings.deleteAccountDone'), t('settings.deleteAccountDoneDesc'));
-            nav.switchTab('home');
-          } catch {
-            Alert.alert(t('settings.deleteAccountFail'), t('settings.deleteAccountFailDesc'));
-          } finally {
-            setDeleting(false);
-          }
-        },
+        onPress: () => void runAccountDelete(),
       },
     ]);
   };
