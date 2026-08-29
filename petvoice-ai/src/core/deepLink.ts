@@ -9,7 +9,7 @@
  * - 모르는 링크에 앱이 반응하지 않는다는 걸 **명시적으로** 못 박을 수 있다.
  */
 
-export type DeepLinkAction = { kind: 'record' } | { kind: 'diary' } | null;
+export type DeepLinkAction = { kind: 'record' } | { kind: 'precise' } | { kind: 'diary' } | null;
 
 /** 우리 스킴 (app.json 의 scheme 과 같아야 한다) */
 export const APP_SCHEME = 'petvoice';
@@ -33,6 +33,7 @@ export function parseDeepLink(url: string | null | undefined): DeepLinkAction {
   const token = rest.split(/[/?#]/)[0];
 
   if (token === 'record') return { kind: 'record' };
+  if (token === 'precise') return { kind: 'precise' };
   if (token === 'diary') return { kind: 'diary' };
   return null;
 }

@@ -24,11 +24,20 @@
         "UIApplicationShortcutItems": [
           {
             "UIApplicationShortcutItemType": "app.petvoice.ai.record",
-            "UIApplicationShortcutItemTitle": "3초 녹음",
-            "UIApplicationShortcutItemSubtitle": "바로 3초 녹음하기",
+            "UIApplicationShortcutItemTitle": "SHORTCUT_RECORD_TITLE",
+            "UIApplicationShortcutItemSubtitle": "SHORTCUT_RECORD_SUBTITLE",
             "UIApplicationShortcutItemIconType": "UIApplicationShortcutIconTypeAudio",
             "UIApplicationShortcutItemUserInfo": {
               "url": "petvoice://record"
+            }
+          },
+          {
+            "UIApplicationShortcutItemType": "app.petvoice.ai.precise",
+            "UIApplicationShortcutItemTitle": "SHORTCUT_PRECISE_TITLE",
+            "UIApplicationShortcutItemSubtitle": "SHORTCUT_PRECISE_SUBTITLE",
+            "UIApplicationShortcutItemIconType": "UIApplicationShortcutIconTypeTaskCompleted",
+            "UIApplicationShortcutItemUserInfo": {
+              "url": "petvoice://precise"
             }
           }
         ]
@@ -76,6 +85,11 @@
       "eas": {
         "projectId": "00000000-0000-0000-0000-000000000000"
       }
+    },
+    "locales": {
+      "ko": "./locales/ko.json",
+      "en": "./locales/en.json",
+      "ja": "./locales/ja.json"
     }
   }
 }

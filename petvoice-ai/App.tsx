@@ -104,8 +104,8 @@ function Router() {
     const handle = (url: string | null) => {
       const action = parseDeepLink(url);
       if (!action) return;
-      nav.switchTab(action.kind === 'record' ? 'home' : 'history');
-      if (action.kind === 'record') usePetStore.getState().setPendingQuickRecord(true);
+      nav.switchTab(action.kind === 'diary' ? 'history' : 'home');
+      if (action.kind !== 'diary') usePetStore.getState().setPendingQuickAction(action.kind);
     };
 
     void Linking.getInitialURL().then(handle);

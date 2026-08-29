@@ -31,8 +31,8 @@ export function HomeScreen() {
   const setActivePet = usePetStore((s) => s.setActivePet);
   const entries = useEntriesForActivePet();
   const quota = useQuota();
-  const pendingQuickRecord = usePetStore((s) => s.pendingQuickRecord);
-  const setPendingQuickRecord = usePetStore((s) => s.setPendingQuickRecord);
+  const pendingQuickAction = usePetStore((s) => s.pendingQuickAction);
+  const setPendingQuickAction = usePetStore((s) => s.setPendingQuickAction);
 
   const [context, setContext] = useState<AnalysisContext>(EMPTY_CONTEXT);
   const [recording, setRecording] = useState(false);
@@ -94,20 +94,6 @@ export function HomeScreen() {
   }, [recording, quota.canAnalyze, nav, stopRecording, tr]);
 
   /**
-   * 홈 화면 바로가기로 들어왔으면 곧바로 녹음을 시작한다.
-   *
-   * 표시를 **먼저 지우고** 시작한다. 권한 대화상자가 뜨는 동안 화면이 다시
-   * 그려지는데, 표시가 남아 있으면 녹음을 두 번 시작하게 된다.
-   * 반려동물이 아직 없거나 이미 녹음 중이면 표시만 지우고 아무것도 하지 않는다.
-   */
-  useEffect(() => {
-    if (!pendingQuickRecord) return;
-    setPendingQuickRecord(false);
-    if (!pet || recording || analyzing) return;
-    void onRecordPress();
-  }, [pendingQuickRecord, setPendingQuickRecord, pet, recording, analyzing, onRecordPress]);
-
-  /**
    * 정밀 분석: 3초씩 세 번 연속으로 녹음한 뒤 한꺼번에 종합한다.
    * 중간에 권한이 거부되면 그때까지 모은 회차로 진행한다.
    */
@@ -133,6 +119,33 @@ export function HomeScreen() {
     }
     if (shots.length > 0) await runPrecise(shots, context);
   }, [isPro, nav, tr, runPrecise, context]);
+
+  /**
+   * 홈 화면 바로가기로 들어왔으면 곧바로 시작한다.
+   *
+   * 표시를 **먼저 지우고** 시작한다. 권한 대화상자가 뜨는 동안 화면이 다시
+   * 그려지는데, 표시가 남아 있으면 녹음을 두 번 시작하게 된다.
+   * 반려동물이 아직 없거나 이미 녹음 중이면 표시만 지우고 아무것도 하지 않는다.
+   *
+   * 정밀 분석 바로가기는 무료 사용자에게는 페이월로 간다 —
+   * `runPreciseFlow` 안에 이미 그 판단이 있으므로 여기서 또 보지 않는다.
+   */
+  useEffect(() => {
+    if (!pendingQuickAction) return;
+    setPendingQuickAction(null);
+    if (!pet || recording || analyzing || preciseShot > 0) return;
+    if (pendingQuickAction === 'precise') void runPreciseFlow();
+    else void onRecordPress();
+  }, [
+    pendingQuickAction,
+    setPendingQuickAction,
+    pet,
+    recording,
+    analyzing,
+    preciseShot,
+    onRecordPress,
+    runPreciseFlow,
+  ]);
 
   const toggleContext = (preset: ContextPreset) => {
     setContext((prev) =>
