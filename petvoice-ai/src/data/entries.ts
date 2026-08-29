@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AnalysisEntry } from '../core/types';
 
 /**
@@ -10,20 +9,72 @@ import type { AnalysisEntry } from '../core/types';
  *
  * SQLite 가 없는 환경(웹 미리보기 등)에서는 예전처럼 AsyncStorage 에 배열로 둔다 —
  * 느리지만 동작은 같고, 그런 환경에는 기록이 수백 건 쌓일 일도 없다.
+ *
+ * 기기 모듈 두 개(expo-sqlite, AsyncStorage)를 **주입받을 수 있게** 열어 뒀다.
+ * 실제 앱에서는 아무것도 넘기지 않고 기본값이 쓰이지만, 그 덕에 노드에서도
+ * 이전·폴백·검증 경로를 그대로 돌려 볼 수 있다. 이 저장소에서 한 번
+ * 기록을 통째로 잃을 뻔했고, 그때 브라우저로 직접 확인해서야 잡았다.
  */
 
 const FALLBACK_KEY = 'petvoice-entries-v1';
 const DB_NAME = 'petvoice.db';
 
-type SQLiteDatabase = {
+/** expo-sqlite 가 주는 DB 핸들 중 우리가 쓰는 부분만 */
+export interface SqliteDatabase {
   execAsync: (sql: string) => Promise<unknown>;
   runAsync: (sql: string, params?: unknown[]) => Promise<unknown>;
   getAllAsync: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
   getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
-};
+}
 
-let db: SQLiteDatabase | null = null;
+export interface SqliteModule {
+  openDatabaseAsync?: (name: string) => Promise<SqliteDatabase>;
+}
+
+/** AsyncStorage 중 우리가 쓰는 부분만 */
+export interface KeyValueStore {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+}
+
+export interface EntryStoreDeps {
+  /** 없으면 expo-sqlite 를 찾아본다 */
+  sqlite?: SqliteModule | null;
+  /** 없으면 AsyncStorage 를 찾아본다 */
+  storage?: KeyValueStore | null;
+}
+
+let db: SqliteDatabase | null = null;
+let storage: KeyValueStore | null = null;
 let initialized = false;
+
+function defaultSqlite(): SqliteModule | null {
+  try {
+    return require('expo-sqlite') as SqliteModule;
+  } catch {
+    return null;
+  }
+}
+
+function defaultStorage(): KeyValueStore | null {
+  try {
+    return require('@react-native-async-storage/async-storage').default as KeyValueStore;
+  } catch {
+    return null;
+  }
+}
+
+const SCHEMA = `
+  CREATE TABLE IF NOT EXISTS entries (
+    id         TEXT PRIMARY KEY NOT NULL,
+    pet_id     TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    payload    TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS entries_pet_created ON entries (pet_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS entries_created ON entries (created_at DESC);
+`;
 
 /**
  * SQLite 를 연다.
@@ -32,14 +83,11 @@ let initialized = false;
  * 그래서 열자마자 **쓰고 읽어 보는 검사**를 한 번 하고,
  * 거기서 실패하면 SQLite 를 쓰지 않는다. 반쯤 동작하는 저장소가 제일 위험하다.
  */
-async function openDatabase(): Promise<SQLiteDatabase | null> {
+async function openDatabase(mod: SqliteModule | null): Promise<SqliteDatabase | null> {
   try {
-    const SQLite = require('expo-sqlite') as {
-      openDatabaseAsync?: (name: string) => Promise<SQLiteDatabase>;
-    };
-    if (typeof SQLite.openDatabaseAsync !== 'function') return null;
+    if (!mod || typeof mod.openDatabaseAsync !== 'function') return null;
 
-    const opened = await SQLite.openDatabaseAsync(DB_NAME);
+    const opened = await mod.openDatabaseAsync(DB_NAME);
     await opened.execAsync(SCHEMA);
 
     // 왕복 검사: 넣고, 읽고, 지운다
@@ -60,22 +108,19 @@ async function openDatabase(): Promise<SQLiteDatabase | null> {
   }
 }
 
-const SCHEMA = `
-  CREATE TABLE IF NOT EXISTS entries (
-    id         TEXT PRIMARY KEY NOT NULL,
-    pet_id     TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    payload    TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS entries_pet_created ON entries (pet_id, created_at DESC);
-  CREATE INDEX IF NOT EXISTS entries_created ON entries (created_at DESC);
-`;
-
 /** 앱 시작 시 한 번. 저장소를 열고(가능하면 SQLite) 준비한다. */
-export async function initEntryStore(): Promise<void> {
+export async function initEntryStore(deps: EntryStoreDeps = {}): Promise<void> {
   if (initialized) return;
   initialized = true;
-  db = await openDatabase();
+  storage = deps.storage !== undefined ? deps.storage : defaultStorage();
+  db = await openDatabase(deps.sqlite !== undefined ? deps.sqlite : defaultSqlite());
+}
+
+/** 테스트에서 모듈 상태를 비운다. 앱 코드는 부르지 않는다. */
+export function resetEntryStore(): void {
+  db = null;
+  storage = null;
+  initialized = false;
 }
 
 /**
@@ -182,20 +227,58 @@ export async function clearEntries(): Promise<void> {
     await db.runAsync('DELETE FROM entries');
     return;
   }
-  await AsyncStorage.removeItem(FALLBACK_KEY).catch(() => undefined);
+  await writeFallback([]);
+}
+
+/** 지금 저장소에 들어 있는 기록 수 (메모리 상한과 무관한 실제 개수) */
+export async function countEntries(): Promise<number> {
+  if (db) {
+    const row = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM entries');
+    return row?.n ?? 0;
+  }
+  return (await readFallback()).length;
+}
+
+/**
+ * 기준 시각보다 오래된 기록을 지운다 (보관 정책).
+ * 지운 건수를 돌려준다 — 화면에서 "몇 건을 정리했다"를 보여 주려면 필요하다.
+ */
+export async function pruneEntriesBefore(cutoff: number): Promise<number> {
+  if (db) {
+    const before = await countEntries();
+    await db.runAsync('DELETE FROM entries WHERE created_at < ?', [cutoff]);
+    const after = await countEntries();
+    return Math.max(0, before - after);
+  }
+  const all = await readFallback();
+  const kept = all.filter((e) => e.createdAt >= cutoff);
+  if (kept.length === all.length) return 0;
+  await writeFallback(kept);
+  return all.length - kept.length;
 }
 
 async function readFallback(): Promise<AnalysisEntry[]> {
+  if (!storage) return [];
   try {
-    const raw = await AsyncStorage.getItem(FALLBACK_KEY);
-    return raw ? (JSON.parse(raw) as AnalysisEntry[]) : [];
+    const raw = await storage.getItem(FALLBACK_KEY);
+    const parsed = raw ? (JSON.parse(raw) as AnalysisEntry[]) : [];
+    // 읽을 때 정렬한다. SQLite 쪽은 ORDER BY 로 최신순이 보장되는데
+    // 폴백은 넣은 순서 그대로였다 — `limit` 을 걸면 두 저장소가 서로 다른 기록을 잘랐다.
+    // (백업 복원처럼 오래된 기록을 뒤늦게 넣는 경로가 있어서 쓰기 순서는 믿을 수 없다)
+    return parsed.sort((a, b) => b.createdAt - a.createdAt);
   } catch {
     return [];
   }
 }
 
 async function writeFallback(entries: AnalysisEntry[]): Promise<void> {
-  await AsyncStorage.setItem(FALLBACK_KEY, JSON.stringify(entries)).catch(() => undefined);
+  if (!storage) return;
+  try {
+    if (entries.length === 0) await storage.removeItem(FALLBACK_KEY);
+    else await storage.setItem(FALLBACK_KEY, JSON.stringify(entries));
+  } catch {
+    // 저장 실패로 앱을 멈추지는 않는다 — 메모리 값은 그대로 남아 있다
+  }
 }
 
 /** 테스트·진단용: 지금 SQLite 를 쓰고 있는지 */
