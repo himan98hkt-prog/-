@@ -5,7 +5,7 @@
 #
 #   깃허브 → Actions → "설치본 만들기" → Run workflow
 #   끝나면 Artifacts 에서 「피아노이벤트-설치.exe」를 내려받으시면 됩니다.
-name: 설치본 만들기
+name: PianoEvent 설치본 만들기
 
 on:
   workflow_dispatch:
