@@ -86,21 +86,40 @@ def hook_tests() -> None:
         return
 
     # 화면 밖으로 나가지 않게 줄을 나눈다. 이걸 안 하면 양쪽이 잘린다.
-    lines, size = look.wrap("이 길 끝에 뭐가 있을까", font=font, size=34,
-                            max_width=round(270 * 0.86))
-    check("긴 훅은 줄을 나눈다", len(lines) == 2, str(lines))
-    for line in lines:
-        if look.measure(line, font, size) > round(270 * 0.86):
-            check("모든 줄이 폭 안에 들어온다", False, line)
-            break
-    else:
-        check("모든 줄이 폭 안에 들어온다", True, f"{size}px")
+    #
+    # **줄이 몇 개로 나뉘는지는 검사하지 않는다.** 폰트마다 글자 폭이 달라서
+    # 같은 문구가 어디서는 한 줄, 어디서는 두 줄이 된다. 실제로 이 검사가
+    # CI 에서만 깨졌다. 지켜야 하는 성질은 그게 아니라 이 둘이다.
+    #
+    #   1) 모든 줄이 정해진 폭 안에 들어온다  (안 그러면 화면 밖으로 잘린다)
+    #   2) 글자를 잃지 않는다                (줄여도 내용이 사라지면 안 된다)
+    def fits(text: str, width: int, base: int = 34) -> tuple[bool, bool, int, list]:
+        lines, size = look.wrap(text, font=font, size=base, max_width=width)
+        inside = all(look.measure(ln, font, size) <= width for ln in lines)
+        kept = " ".join(lines).split() == text.split()
+        return inside, kept, size, lines
 
-    long_text = "비 내리는 네온 골목을 끝없이 달리다 그리고 조금 더 멀리까지"
-    lines2, size2 = look.wrap(long_text, font=font, size=34,
-                              max_width=round(270 * 0.86))
-    check("더 길면 글자를 줄인다", size2 < size, f"{size} -> {size2}px")
+    hook_text = "이 길 끝에 뭐가 있을까"
+    inside, kept, size, lines = fits(hook_text, round(270 * 0.86))
+    check("모든 줄이 폭 안에 들어온다", inside, f"{size}px {lines}")
+    check("글자를 잃지 않는다", kept, str(lines))
+
+    # 좁게 잡으면 어떤 폰트에서도 한 줄로는 못 담는다 — 여기서는 나뉘어야 한다.
+    narrow = look.measure("이 길", font, 34)
+    _, _, _, tight = fits(hook_text, narrow)
+    check("한 줄에 안 들어가면 줄을 나눈다", len(tight) >= 2,
+          f"폭 {narrow}px -> {tight}")
+
+    long_text = "비 내리는 네온 골목을 끝없이 달리다 그리고 조금 더 멀리까지 계속"
+    inside2, kept2, size2, lines2 = fits(long_text, round(270 * 0.86))
+    check("더 길어도 폭 안에 들어온다", inside2, f"{size2}px {lines2}")
     check("두 줄을 넘기지 않는다", len(lines2) <= 2, str(len(lines2)))
+    check("두 줄로 안 되면 글자를 줄인다", size2 <= size, f"{size} -> {size2}px")
+    check("긴 문구도 글자를 잃지 않는다", kept2, str(lines2))
+
+    # 아주 좁아도 죽지 않고 최소 크기에서 멈춘다
+    _, _, tiny, _ = fits(long_text, 20)
+    check("아무리 좁아도 멈춘다", tiny >= 14, f"{tiny}px")
     check("빈 문구는 빈 결과", look.wrap("", font=font, size=34, max_width=200)[0] == [])
 
     check("폰트가 없으면 자막을 건너뛴다",
