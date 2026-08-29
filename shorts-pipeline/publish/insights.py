@@ -166,12 +166,47 @@ def _int(value) -> int:
 # ══════════════════════════════════════════════════════════════════════
 #  모으기
 # ══════════════════════════════════════════════════════════════════════
+def published_of(run_dir: Path, state: dict) -> dict:
+    """이 영상이 어디에 올라갔는지.
+
+    **예전에 올린 것들이 여기서 빠지면 성적표가 텅 빈다.** state.json 에
+    `published` 를 적기 시작한 것은 나중이라, 그 전에 올린 영상은 상태
+    파일만 봐서는 "안 올렸다" 로 보인다. 실제로는 유튜브에 올라가 있는데.
+
+    log.jsonl 에는 처음부터 publish.* 사건이 남아 있다. 거기서 되살린다.
+    작업실 화면이 쓰는 것과 같은 방식이다.
+    """
+    saved = state.get("published")
+    if saved:
+        return saved
+
+    log = Path(run_dir) / "log.jsonl"
+    if not log.exists():
+        return {}
+    found: dict[str, dict] = {}
+    try:
+        for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+            if "publish." not in line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if rec.get("event") == "publish.youtube" and rec.get("video_id"):
+                found["youtube"] = {"ok": True, "id": rec["video_id"]}
+            elif rec.get("event") == "publish.instagram" and rec.get("media_id"):
+                found["instagram"] = {"ok": True, "id": rec["media_id"]}
+    except OSError:
+        return {}
+    return found
+
+
 def published_ids(runs_dir: Path) -> tuple[dict[str, str], dict[str, str]]:
     """(유튜브 video_id -> run_id, 인스타 media_id -> run_id)."""
     yt: dict[str, str] = {}
     ig: dict[str, str] = {}
     for state, run_dir in _states(runs_dir):
-        pub = state.get("published") or {}
+        pub = published_of(run_dir, state)
         for key, table in (("youtube", yt), ("instagram", ig)):
             entry = pub.get(key) or {}
             ident = entry.get("id") or entry.get("video_id") or entry.get("media_id")

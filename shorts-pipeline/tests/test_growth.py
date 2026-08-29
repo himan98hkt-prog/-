@@ -286,10 +286,36 @@ def stats_tests() -> None:
     make("r5", "space", "직접 쓴 프롬프트", 300, 150, 1.47, title="우주")
     make("r6", "space", follow.prompt, 0, 0, 1.47, title="아직", metrics=False)
 
+    # state.json 에 published 를 적기 시작한 것은 나중이다. 그 전에 올린
+    # 영상은 log.jsonl 에만 기록이 있다. **여기서 빠지면 성적표가 텅 빈다** —
+    # 오래 운영한 사람일수록 손해가 크다.
+    old_run = runs / "r0_예전"
+    old_run.mkdir(parents=True, exist_ok=True)
+    (old_run / "state.json").write_text(json.dumps({
+        "seed_image": "seeds/temple_z.png", "cost_usd": 2.15,
+        "content": {"title": "예전에 올린 것"}}, ensure_ascii=False),
+        encoding="utf-8")
+    (old_run / "log.jsonl").write_text(
+        json.dumps({"event": "run.started"}) + "\n"
+        + json.dumps({"event": "publish.youtube", "video_id": "OLDYT",
+                      "url": "https://youtube.com/shorts/OLDYT"}) + "\n"
+        + json.dumps({"event": "publish.instagram", "media_id": "OLDIG"}) + "\n"
+        + "{깨진 줄\n",
+        encoding="utf-8")
+
     yt, ig = insights.published_ids(runs)
-    check("올린 영상의 id 를 모은다", len(yt) == 6 and len(ig) == 6,
+    check("올린 영상의 id 를 모은다", len(yt) == 7 and len(ig) == 7,
           f"yt {len(yt)} ig {len(ig)}")
     check("run 으로 되짚을 수 있다", yt["yt_r1"] == "r1")
+    check("예전에 올린 것도 찾는다 (log.jsonl)",
+          yt.get("OLDYT") == "r0_예전" and ig.get("OLDIG") == "r0_예전",
+          "state.json 에 published 가 없던 시절의 기록")
+    check("깨진 줄이 있어도 죽지 않는다", "OLDYT" in yt)
+    check("published 가 있으면 그것을 우선",
+          insights.published_of(runs / "r1", {"published": {"youtube":
+              {"ok": True, "id": "STATE"}}})["youtube"]["id"] == "STATE")
+    check("둘 다 없으면 빈 결과",
+          insights.published_of(runs / "없는run", {}) == {})
 
     s = insights.summarize(runs)
     check("성적을 읽은 것만 센다", s["videos"] == 5, f"{s['videos']}편")
