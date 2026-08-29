@@ -364,6 +364,13 @@ export const ko = {
   'insights.limitDesc':
     '여기 비율은 보호자가 결과를 보고 매긴 체감이에요. 실제로 그때 아이가 어떤 상태였는지는 아무도 확인하지 않았습니다. 낮은 항목은 "고칠 곳을 찾는 실마리"로만 봐 주세요.',
 
+  'insights.exportTitle': '평가 도구로 내보내기',
+  'insights.exportDesc':
+    '집계된 숫자만 파일로 내보내요. 말풍선·사진·아이 이름은 들어가지 않습니다. 라벨로 잰 정확도와 나란히 비교할 때 씁니다.',
+  'insights.export': 'JSON 으로 내보내기',
+  'insights.exportSaved': '파일로 저장했어요',
+  'insights.exportFailed': '내보내지 못했어요',
+
   'media.audio': '소리',
   'media.image': '사진',
 

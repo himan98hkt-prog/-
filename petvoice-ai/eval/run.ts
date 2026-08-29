@@ -18,7 +18,14 @@ import { assessHealth } from '../src/core/health';
 import { MODEL_CHAIN } from '../src/core/models';
 import { buildPrompt, RESPONSE_SCHEMA } from '../src/core/prompt';
 import type { AnalysisResult, ContextTag, PetProfile } from './types';
-import { classification, controlBehavior, flagPerformance, selfConsistency } from './metrics.mjs';
+import {
+  classification,
+  compareFeltVsMeasured,
+  controlBehavior,
+  flagPerformance,
+  perClassAccuracy,
+  selfConsistency,
+} from './metrics.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -209,6 +216,8 @@ async function main() {
     console.log('  혼동 행렬 (행=실제, 열=예측):');
     console.table(stats.matrix);
     console.log('');
+
+    reportFeltVsMeasured(perClassAccuracy(stats));
   }
 
   console.log('── 이상 징후 플래그 ' + '─'.repeat(41));
@@ -232,6 +241,71 @@ async function main() {
     console.log(`── 오류 ${failures.length}건 ` + '─'.repeat(46));
     for (const f of failures.slice(0, 5)) console.log(`  ${basename(f.clip.file)}: ${f.error}`);
   }
+}
+
+/**
+ * 앱에서 내보낸 체감 비율과 방금 잰 측정 정확도를 나란히 놓는다.
+ *
+ * 이 둘이 갈라지는 게 이 제품에서 가장 위험한 상태다 — 사용자는 "맞네"라고
+ * 느끼는데 라벨로 재면 우연 수준인 경우다. 체감만 보고 있으면 아무 문제도
+ * 없어 보인다. 문헌이 경고한 바로 그 함정이라, 한 화면에 같이 띄운다.
+ */
+function reportFeltVsMeasured(measured: { id: string; rate: number | null; total: number }[]): void {
+  const feltPath = valueOf('--felt');
+  if (!feltPath) {
+    console.log('  (앱에서 내보낸 피드백을 --felt <파일> 로 주면 체감과 나란히 봅니다)\n');
+    return;
+  }
+
+  let exported: {
+    version?: number;
+    felt?: { byContextTag?: { id: string; rate: number | null; total: number }[] };
+  };
+  try {
+    exported = JSON.parse(readFileSync(feltPath, 'utf8'));
+  } catch (error) {
+    console.log(`  체감 파일을 읽지 못했습니다: ${(error as Error).message}\n`);
+    return;
+  }
+
+  if (exported.version !== 1) {
+    console.log(`  모르는 내보내기 형식입니다 (version=${exported.version}). 앱을 업데이트해 주세요.\n`);
+    return;
+  }
+
+  const felt = exported.felt?.byContextTag ?? [];
+  if (felt.length === 0) {
+    console.log(
+      '  체감 데이터에 상황 태그별 집계가 없습니다. 상황 프리셋을 골라 분석한 기록이 필요합니다.\n',
+    );
+    return;
+  }
+
+  console.log('── 체감 vs 측정 ' + '─'.repeat(45));
+  console.log('  체감 = 보호자가 "맞아요"를 누른 비율 · 측정 = 라벨로 잰 상황 분류 정확도\n');
+
+  const rows = compareFeltVsMeasured(felt, measured);
+  console.log('  상황          체감      측정      차이');
+  for (const row of rows) {
+    const mark = !row.enough ? ' (표본 부족)' : (row.gap ?? 0) >= 20 ? '  ⚠️ 어긋남' : '';
+    console.log(
+      `  ${row.id.padEnd(12)} ${fmt(row.feltRate)}(${row.feltN})  ${fmt(row.measuredRate)}(${row.measuredN})  ${
+        row.gap === null ? '  -' : `${row.gap > 0 ? '+' : ''}${row.gap}%p`
+      }${mark}`,
+    );
+  }
+
+  const worrying = rows.filter((row) => row.enough && (row.gap ?? 0) >= 20);
+  if (worrying.length > 0) {
+    console.log(`\n  ⚠️ ${worrying.length}개 상황에서 체감이 측정보다 20%p 이상 높습니다.`);
+    console.log('     사용자는 맞다고 느끼지만 실제로는 그만큼 맞히지 못하고 있다는 뜻입니다.');
+    console.log('     이 상태에서 감정 확률 퍼센트를 보여 주는 것은 없는 정밀도를 파는 것입니다.');
+  }
+  console.log('');
+}
+
+function fmt(rate: number | null): string {
+  return (rate === null ? '-' : `${rate}%`).padStart(5);
 }
 
 /** 감정 1위를 상황 태그로 옮기는 대략적 대응 — 분류 정확도를 보기 위한 근사다 */

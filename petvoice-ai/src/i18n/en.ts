@@ -367,6 +367,13 @@ export const en: Record<TranslationKey, string> = {
   'insights.limitDesc':
     'These are your impressions of the results. Nobody verified how your pet actually felt at the time. Treat a low number as a lead worth checking, not as a measurement.',
 
+  'insights.exportTitle': 'Export for evaluation',
+  'insights.exportDesc':
+    "Exports the aggregate numbers only — no speech bubbles, photos, or your pet's name. Used to compare against accuracy measured from labelled recordings.",
+  'insights.export': 'Export as JSON',
+  'insights.exportSaved': 'Saved to a file',
+  'insights.exportFailed': "Couldn't export",
+
   'media.audio': 'Sound',
   'media.image': 'Photo',
 

@@ -1,9 +1,17 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { MIN_SAMPLES, summarizeFeedback, summarizeQuality, type RatingBucket } from '../../core/insights';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import React, { useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  buildFeedbackExport,
+  MIN_SAMPLES,
+  summarizeFeedback,
+  summarizeQuality,
+  type RatingBucket,
+} from '../../core/insights';
 import { useT } from '../../i18n/useT';
 import { usePetStore } from '../../store/usePetStore';
-import { Card, Empty, SectionTitle } from '../components/Basics';
+import { Button, Card, Empty, SectionTitle } from '../components/Basics';
 import { font, radius, space } from '../theme';
 import { useStyles, useTheme, type Theme } from '../useTheme';
 
@@ -26,6 +34,33 @@ export function InsightsScreen() {
 
   const feedback = useMemo(() => summarizeFeedback(entries), [entries]);
   const quality = useMemo(() => summarizeQuality(attempts), [attempts]);
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * 집계된 숫자만 파일로 내보낸다 — 평가 도구(`npm run eval -- --felt`)가
+   * 라벨로 잰 정확도와 나란히 놓고 볼 수 있게.
+   *
+   * 말풍선·사진 경로·상황 문구·아이 이름은 하나도 들어가지 않는다.
+   * 정확도를 맞대 보려고 개인 기록을 넘길 이유는 없다.
+   */
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const payload = buildFeedbackExport(feedback, quality);
+      const path = `${FileSystem.cacheDirectory}petvoice-feedback.json`;
+      await FileSystem.writeAsStringAsync(path, JSON.stringify(payload, null, 2));
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(path, { mimeType: 'application/json', UTI: 'public.json' });
+      } else {
+        Alert.alert(t('insights.exportSaved'), path);
+      }
+    } catch {
+      Alert.alert(t('insights.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (feedback.analyses === 0) {
     return (
@@ -93,6 +128,17 @@ export function InsightsScreen() {
       <Card style={{ backgroundColor: colors.warnSoft, borderColor: colors.warnLine, gap: space.xs }}>
         <Text style={[font.bodyStrong, { color: colors.text }]}>{t('insights.limitTitle')}</Text>
         <Text style={[font.small, { color: colors.textSoft }]}>{t('insights.limitDesc')}</Text>
+      </Card>
+
+      <Card style={{ gap: space.sm }}>
+        <SectionTitle>{t('insights.exportTitle')}</SectionTitle>
+        <Text style={[font.small, { color: colors.textSoft }]}>{t('insights.exportDesc')}</Text>
+        <Button
+          label={t('insights.export')}
+          variant="ghost"
+          loading={exporting}
+          onPress={() => void runExport()}
+        />
       </Card>
     </ScrollView>
   );

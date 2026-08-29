@@ -129,3 +129,63 @@ function round(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 }
+
+/**
+ * 혼동 행렬에서 상황별 정확도를 뽑는다 (0~100).
+ *
+ * 앱이 모은 체감 비율과 같은 축·같은 눈금에 놓기 위한 변환이다.
+ * 전체 정확도 하나로는 "어떤 상황에서" 어긋나는지가 보이지 않는다.
+ */
+export function perClassAccuracy(report) {
+  return report.classes
+    .map((label) => {
+      const row = report.matrix[label] ?? {};
+      const total = Object.values(row).reduce((sum, n) => sum + n, 0);
+      return {
+        id: label,
+        rate: total > 0 ? Math.round(((row[label] ?? 0) / total) * 100) : null,
+        total,
+      };
+    })
+    .filter((row) => row.total > 0);
+}
+
+/**
+ * 체감(앱이 모은 "맞아요") 과 측정(라벨로 잰 정확도)을 맞대 본다.
+ *
+ * 이 둘이 갈라지는 게 이 제품에서 가장 위험한 상태다.
+ * 사용자는 결과를 보고 "맞네"라고 느끼지만, 통제된 라벨로 재면 우연 수준일 수 있다.
+ * 그럴 때 체감만 보고 있으면 아무 문제도 없어 보인다 — 문헌이 경고한 바로 그 함정이다.
+ *
+ * 두 숫자를 같은 축(상황 태그)에 놓고, 벌어진 곳을 크기순으로 돌려준다.
+ * 판정은 하지 않는다. 표본이 적으면 `enough: false` 로 표시만 하고 넘긴다.
+ */
+export function compareFeltVsMeasured(felt, measured, minSamples = 5) {
+  const feltById = new Map(felt.map((row) => [row.id, row]));
+  const ids = new Set([...felt.map((r) => r.id), ...measured.map((r) => r.id)]);
+
+  const rows = [];
+  for (const id of ids) {
+    const f = feltById.get(id);
+    const m = measured.find((row) => row.id === id);
+    const feltRate = f?.rate ?? null;
+    const measuredRate = m?.rate ?? null;
+    const gap = feltRate === null || measuredRate === null ? null : feltRate - measuredRate;
+
+    rows.push({
+      id,
+      feltRate,
+      feltN: f?.total ?? 0,
+      measuredRate,
+      measuredN: m?.total ?? 0,
+      gap,
+      enough: (f?.total ?? 0) >= minSamples && (m?.total ?? 0) >= minSamples,
+    });
+  }
+
+  // 체감이 측정보다 많이 앞선 것부터. 그게 위험한 쪽이다.
+  return rows.sort((a, b) => {
+    if (a.enough !== b.enough) return a.enough ? -1 : 1;
+    return (b.gap ?? -Infinity) - (a.gap ?? -Infinity);
+  });
+}

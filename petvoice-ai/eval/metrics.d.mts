@@ -44,3 +44,28 @@ export function flagPerformance(cases: { flagged: boolean; actuallySick: boolean
 export function controlBehavior(
   results: { refused: boolean; primaryEmotion?: string; emotionScores?: Record<string, number> }[],
 ): ControlReport;
+
+export interface RateRow {
+  id: string;
+  rate: number | null;
+  total: number;
+}
+
+export function perClassAccuracy(report: ClassificationReport): RateRow[];
+
+export interface FeltVsMeasuredRow {
+  id: string;
+  feltRate: number | null;
+  feltN: number;
+  measuredRate: number | null;
+  measuredN: number;
+  /** 체감 − 측정 (%p). 한쪽이 없으면 null */
+  gap: number | null;
+  enough: boolean;
+}
+
+export function compareFeltVsMeasured(
+  felt: RateRow[],
+  measured: RateRow[],
+  minSamples?: number,
+): FeltVsMeasuredRow[];

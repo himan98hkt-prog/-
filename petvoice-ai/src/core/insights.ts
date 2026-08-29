@@ -1,4 +1,4 @@
-import { emotionMeta } from './emotions';
+import { emotionMeta, type ContextTag } from './emotions';
 import type { AnalysisEntry, EmotionKey } from './types';
 
 /**
@@ -41,6 +41,15 @@ export interface FeedbackSummary {
   rate: number | null;
   byEmotion: RatingBucket[];
   byContext: RatingBucket[];
+  /**
+   * 언어와 무관한 의미 태그별 집계.
+   *
+   * 화면에는 상황 문구(byContext)를 보여 주지만, **평가 도구와 맞대 보려면**
+   * 이쪽이 필요하다. eval 은 라벨을 `separation` 같은 태그로 달기 때문에
+   * 번역 키로는 두 숫자를 같은 축에 놓을 수 없다.
+   * 한 기록에 태그가 여럿이면 각각에 센다.
+   */
+  byContextTag: RatingBucket[];
   byMedia: RatingBucket[];
 }
 
@@ -94,7 +103,57 @@ export function summarizeFeedback(entries: readonly AnalysisEntry[]): FeedbackSu
     byContext: bucketize(
       rated.filter((e) => e.contextKey).map((e) => ({ id: e.contextKey as string, feedback: e.feedback })),
     ),
+    byContextTag: bucketize(
+      rated.flatMap((e) =>
+        (e.contextTags ?? []).map((tag: ContextTag) => ({ id: tag, feedback: e.feedback })),
+      ),
+    ),
     byMedia: bucketize(rated.map((e) => ({ id: `media.${e.mediaKind}`, feedback: e.feedback }))),
+  };
+}
+
+/* ---------- 평가 도구로 넘기는 내보내기 ---------- */
+
+/** 내보내기 형식이 바뀌면 올린다. eval 이 이 값을 보고 거절할 수 있게. */
+export const FEEDBACK_EXPORT_VERSION = 1;
+
+export interface FeedbackExport {
+  version: number;
+  generatedAt: number;
+  /** 보호자 체감 — 정답지가 아니다 */
+  felt: {
+    overall: { rate: number | null; total: number };
+    byEmotion: { id: string; rate: number | null; total: number }[];
+    byContextTag: { id: string; rate: number | null; total: number }[];
+    byMedia: { id: string; rate: number | null; total: number }[];
+  };
+  quality: QualitySummary;
+}
+
+/**
+ * 화면이 보여 주는 것을 그대로 파일로 만든다.
+ *
+ * 여기에는 **분석 내용이 하나도 들어가지 않는다** — 말풍선, 사진 경로, 상황 문구,
+ * 반려동물 이름 전부 빠진다. 집계된 숫자와 의미 태그뿐이다.
+ * 정확도를 맞대 보려고 개인 기록을 넘길 이유는 없다.
+ */
+export function buildFeedbackExport(
+  summary: FeedbackSummary,
+  quality: QualitySummary,
+  now = Date.now(),
+): FeedbackExport {
+  const slim = (buckets: RatingBucket[]) => buckets.map(({ id, rate, total }) => ({ id, rate, total }));
+
+  return {
+    version: FEEDBACK_EXPORT_VERSION,
+    generatedAt: now,
+    felt: {
+      overall: { rate: summary.rate, total: summary.rated },
+      byEmotion: slim(summary.byEmotion),
+      byContextTag: slim(summary.byContextTag),
+      byMedia: slim(summary.byMedia),
+    },
+    quality,
   };
 }
 

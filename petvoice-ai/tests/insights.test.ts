@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildFeedbackExport,
+  FEEDBACK_EXPORT_VERSION,
   METRIC_WINDOW,
   MIN_SAMPLES,
   pushAttempt,
@@ -148,5 +150,41 @@ describe('품질 지표', () => {
     }
     expect(history).toHaveLength(METRIC_WINDOW);
     expect(history[0].at).toBe(METRIC_WINDOW + 9);
+  });
+});
+
+describe('평가 도구로 내보내기', () => {
+  const entries = [
+    entry('a', 'anxiety', 'up', { contextTags: ['separation'] }),
+    entry('b', 'anxiety', 'down', { contextTags: ['separation', 'night'] }),
+    entry('c', 'happy', 'up', { contextTags: ['walk'] }),
+    entry('d', 'happy'),
+  ];
+
+  it('의미 태그별로도 집계한다 — eval 과 같은 축이라야 맞대 볼 수 있다', () => {
+    const summary = summarizeFeedback(entries);
+    expect(summary.byContextTag.find((b) => b.id === 'separation')).toMatchObject({ total: 2, rate: 50 });
+    expect(summary.byContextTag.find((b) => b.id === 'night')).toMatchObject({ total: 1, rate: 0 });
+    expect(summary.byContextTag.find((b) => b.id === 'walk')).toMatchObject({ total: 1, rate: 100 });
+  });
+
+  it('내보내기에 분석 내용이 들어가지 않는다', () => {
+    const payload = buildFeedbackExport(summarizeFeedback(entries), summarizeQuality([]), 1000);
+    const text = JSON.stringify(payload);
+
+    // 정확도를 맞대 보려고 개인 기록을 넘길 이유가 없다
+    expect(text).not.toContain('메시지');
+    expect(text).not.toContain('분석');
+    expect(text).not.toContain('가이드');
+    expect(text).not.toContain('p1');
+    expect(payload).toMatchObject({ version: FEEDBACK_EXPORT_VERSION, generatedAt: 1000 });
+  });
+
+  it('체감 비율과 표본 수만 담는다', () => {
+    const payload = buildFeedbackExport(summarizeFeedback(entries), summarizeQuality([]), 1000);
+    expect(payload.felt.overall).toEqual({ rate: 67, total: 3 });
+    for (const row of payload.felt.byContextTag) {
+      expect(Object.keys(row).sort()).toEqual(['id', 'rate', 'total']);
+    }
   });
 });

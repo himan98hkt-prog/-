@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { classification, controlBehavior, flagPerformance, selfConsistency } from '../eval/metrics.mjs';
+import {
+  classification,
+  compareFeltVsMeasured,
+  controlBehavior,
+  flagPerformance,
+  perClassAccuracy,
+  selfConsistency,
+} from '../eval/metrics.mjs';
 
 describe('selfConsistency', () => {
   it('매번 같은 답이면 1.0', () => {
@@ -120,5 +127,62 @@ describe('controlBehavior', () => {
       refused: 1,
       confident: 0,
     });
+  });
+});
+
+describe('perClassAccuracy', () => {
+  it('혼동 행렬에서 상황별 정확도를 뽑는다', () => {
+    const report = classification([
+      { expected: 'separation', actual: 'separation' },
+      { expected: 'separation', actual: 'separation' },
+      { expected: 'separation', actual: 'meal' },
+      { expected: 'meal', actual: 'separation' },
+    ]);
+
+    const rows = perClassAccuracy(report);
+    expect(rows.find((r) => r.id === 'separation')).toEqual({ id: 'separation', rate: 67, total: 3 });
+    expect(rows.find((r) => r.id === 'meal')).toEqual({ id: 'meal', rate: 0, total: 1 });
+  });
+
+  it('표본이 없는 분류는 빼고 준다', () => {
+    const report = classification([{ expected: 'meal', actual: 'meal' }], ['meal', 'walk']);
+    expect(perClassAccuracy(report).map((r) => r.id)).toEqual(['meal']);
+  });
+});
+
+describe('compareFeltVsMeasured', () => {
+  const felt = [
+    { id: 'separation', rate: 90, total: 10 },
+    { id: 'meal', rate: 60, total: 8 },
+    { id: 'walk', rate: 100, total: 2 },
+  ];
+  const measured = [
+    { id: 'separation', rate: 40, total: 12 },
+    { id: 'meal', rate: 55, total: 9 },
+    { id: 'walk', rate: 30, total: 3 },
+  ];
+
+  it('체감이 측정보다 많이 앞선 것부터 보여 준다', () => {
+    // 이게 가장 위험한 상태다 — 사용자는 맞다고 느끼는데 실제로는 못 맞히고 있다
+    const rows = compareFeltVsMeasured(felt, measured);
+    expect(rows[0].id).toBe('separation');
+    expect(rows[0].gap).toBe(50);
+  });
+
+  it('표본이 적은 쪽은 뒤로 밀고 표시만 한다', () => {
+    const rows = compareFeltVsMeasured(felt, measured);
+    const walk = rows.find((r) => r.id === 'walk');
+    expect(walk?.enough).toBe(false);
+    expect(rows.filter((r) => r.enough).every((r) => rows.indexOf(r) < rows.indexOf(walk!))).toBe(true);
+  });
+
+  it('한쪽에만 있는 항목도 빠뜨리지 않는다', () => {
+    const rows = compareFeltVsMeasured([{ id: 'vet', rate: 80, total: 9 }], []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: 'vet', measuredRate: null, gap: null, enough: false });
+  });
+
+  it('양쪽이 비어 있으면 빈 목록', () => {
+    expect(compareFeltVsMeasured([], [])).toEqual([]);
   });
 });

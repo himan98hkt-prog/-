@@ -361,6 +361,13 @@ export const ja: Record<TranslationKey, string> = {
   'insights.limitDesc':
     'ここの割合は結果を見た飼い主さんの体感です。そのとき実際にどんな状態だったかは誰も確認していません。低い項目は「直す手がかり」として見てください。',
 
+  'insights.exportTitle': '評価ツールに書き出す',
+  'insights.exportDesc':
+    '集計した数値だけを書き出します。吹き出し・写真・うちの子の名前は含まれません。ラベルで測った精度と並べて比べるときに使います。',
+  'insights.export': 'JSON で書き出す',
+  'insights.exportSaved': 'ファイルに保存しました',
+  'insights.exportFailed': '書き出せませんでした',
+
   'media.audio': '音',
   'media.image': '写真',
 
