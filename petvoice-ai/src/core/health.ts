@@ -1,6 +1,13 @@
 import { emotionMeta, type ContextTag } from './emotions';
 import { msg, raw, type Message } from './message';
-import type { AnalysisEntry, AnalysisResult, EmotionKey, HealthAssessment, HealthLevel, PetType } from './types';
+import type {
+  AnalysisEntry,
+  AnalysisResult,
+  EmotionKey,
+  HealthAssessment,
+  HealthLevel,
+  PetType,
+} from './types';
 
 /**
  * 경쟁 앱과의 차별점: 재미로 끝내지 않고 이상 징후를 잡아 준다.
@@ -23,23 +30,28 @@ const MEDICAL_SIGNS: { key: string; patterns: RegExp }[] = [
   },
   {
     key: 'health.sign.gait',
-    patterns: /절뚝|파행|다리를 들|잘 걷지 못|일어서기 힘|limp(ing)?|lame(ness)?|difficulty (standing|walking)|びっこ|歩きにく|立ち上が/i,
+    patterns:
+      /절뚝|파행|다리를 들|잘 걷지 못|일어서기 힘|limp(ing)?|lame(ness)?|difficulty (standing|walking)|びっこ|歩きにく|立ち上が/i,
   },
   {
     key: 'health.sign.digestive',
-    patterns: /구토|토하|설사|혈변|식욕\s*(부진|저하|없)|vomit|diarrh|bloody stool|loss of appetite|嘔吐|下痢|食欲/i,
+    patterns:
+      /구토|토하|설사|혈변|식욕\s*(부진|저하|없)|vomit|diarrh|bloody stool|loss of appetite|嘔吐|下痢|食欲/i,
   },
   {
     key: 'health.sign.respiratory',
-    patterns: /기침|재채기|호흡\s*(곤란|이상)|숨을 헐떡|그렁|cough|sneez|labored breathing|wheez|咳|くしゃみ|呼吸/i,
+    patterns:
+      /기침|재채기|호흡\s*(곤란|이상)|숨을 헐떡|그렁|cough|sneez|labored breathing|wheez|咳|くしゃみ|呼吸/i,
   },
   {
     key: 'health.sign.urinary',
-    patterns: /배뇨|소변\s*(곤란|을 못)|혈뇨|화장실을 자주|urinat|blood in urine|frequent litter|排尿|血尿|トイレの回数/i,
+    patterns:
+      /배뇨|소변\s*(곤란|을 못)|혈뇨|화장실을 자주|urinat|blood in urine|frequent litter|排尿|血尿|トイレの回数/i,
   },
   {
     key: 'health.sign.skin',
-    patterns: /과도하게 핥|긁는|털을 뽑|자가\s*손상|피부염|excessive (licking|scratching)|hair loss|self-?traum|舐め続け|かゆ|脱毛/i,
+    patterns:
+      /과도하게 핥|긁는|털을 뽑|자가\s*손상|피부염|excessive (licking|scratching)|hair loss|self-?traum|舐め続け|かゆ|脱毛/i,
   },
   {
     key: 'health.sign.vetMentioned',
@@ -171,7 +183,11 @@ export interface HistoryRisk {
  * 한 건은 우연일 수 있다. 최근 기록에서 같은 신호가 반복되면 강도를 올린다.
  * (히스토리 화면 상단 배너에 사용)
  */
-export function assessHistoryRisk(entries: AnalysisEntry[], now = Date.now(), windowDays = 7): HistoryRisk | null {
+export function assessHistoryRisk(
+  entries: AnalysisEntry[],
+  now = Date.now(),
+  windowDays = 7,
+): HistoryRisk | null {
   const since = now - windowDays * 24 * 60 * 60 * 1000;
   const recent = entries.filter((e) => e.createdAt >= since && e.createdAt <= now);
   if (recent.length === 0) return null;
@@ -185,7 +201,9 @@ export function assessHistoryRisk(entries: AnalysisEntry[], now = Date.now(), wi
     };
   }
 
-  const anxious = recent.filter((e) => (e.result.emotionScores.anxiety ?? 0) >= ANXIETY_WATCH_THRESHOLD).length;
+  const anxious = recent.filter(
+    (e) => (e.result.emotionScores.anxiety ?? 0) >= ANXIETY_WATCH_THRESHOLD,
+  ).length;
   if (anxious >= 3) {
     return {
       level: 'watch',

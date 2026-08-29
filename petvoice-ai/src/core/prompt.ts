@@ -56,11 +56,17 @@ const BREED_NOTES: { match: RegExp; note: string }[] = [
   { match: /리트리버|retriever/i, note: '사회성이 높아 놀이·관심 요구 발성이 주를 이룹니다.' },
   { match: /웰시코기|corgi/i, note: '목축 본능으로 움직이는 대상에 짖는 경향이 있습니다.' },
   { match: /닥스|dachshund/i, note: '경계 짖음이 많고 허리 통증 관련 신호를 주의해야 합니다.' },
-  { match: /시츄|shih ?tzu|퍼그|pug|불독|bulldog/i, note: '단두종이라 호흡음이 평소에도 거칠 수 있어 호흡기 신호 판단에 주의가 필요합니다.' },
+  {
+    match: /시츄|shih ?tzu|퍼그|pug|불독|bulldog/i,
+    note: '단두종이라 호흡음이 평소에도 거칠 수 있어 호흡기 신호 판단에 주의가 필요합니다.',
+  },
   { match: /코숏|코리안숏헤어|korean short/i, note: '개체차가 크지만 대체로 경계심이 뚜렷합니다.' },
   { match: /샴|siamese/i, note: '발성이 매우 잦고 요구 표현이 분명한 품종입니다.' },
   { match: /페르시안|persian/i, note: '활동량이 낮아 평소보다 잦은 발성은 불편 신호일 수 있습니다.' },
-  { match: /러시안블루|russian blue/i, note: '낯선 자극에 민감하고 조용한 편이라 발성 자체가 신호일 수 있습니다.' },
+  {
+    match: /러시안블루|russian blue/i,
+    note: '낯선 자극에 민감하고 조용한 편이라 발성 자체가 신호일 수 있습니다.',
+  },
   { match: /벵갈|bengal/i, note: '활동 요구량이 매우 높아 에너지 미발산이 문제 행동으로 이어집니다.' },
   { match: /먼치킨|munchkin/i, note: '관절 부담이 있어 움직임 관련 통증 신호를 살펴야 합니다.' },
 ];
@@ -109,7 +115,9 @@ export function buildPrompt({ pet, mediaType, context, locale }: PromptInput): s
   const language = LANGUAGE_NAME[locale];
 
   const notes = [breedNote(pet.breed), ageNote(pet.type, pet.ageMonths)].filter(Boolean);
-  const knowledge = notes.length ? `\n[이 아이에 대해 알려진 특성]\n${notes.map((n) => `- ${n}`).join('\n')}\n` : '';
+  const knowledge = notes.length
+    ? `\n[이 아이에 대해 알려진 특성]\n${notes.map((n) => `- ${n}`).join('\n')}\n`
+    : '';
 
   return `당신은 20년 경력의 반려동물 행동 교정 전문가(수의행동의학 전문)입니다.
 출력하는 모든 문장은 반드시 ${language}로 작성하세요.

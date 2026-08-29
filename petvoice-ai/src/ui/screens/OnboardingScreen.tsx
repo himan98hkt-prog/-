@@ -37,7 +37,9 @@ export function OnboardingScreen() {
         <Text accessibilityRole="header" style={[font.h1, { color: colors.text, textAlign: 'center' }]}>
           {t('onboarding.title')}
         </Text>
-        <Text style={[font.body, { color: colors.textSoft, textAlign: 'center' }]}>{t('onboarding.subtitle')}</Text>
+        <Text style={[font.body, { color: colors.textSoft, textAlign: 'center' }]}>
+          {t('onboarding.subtitle')}
+        </Text>
       </View>
 
       <Card style={{ gap: space.lg }}>
@@ -47,7 +49,9 @@ export function OnboardingScreen() {
               {step.emoji}
             </Text>
             <View style={{ flex: 1 }}>
-              <Text style={[font.bodyStrong, { color: colors.text }]}>{t(`onboarding.${step.key}.title`)}</Text>
+              <Text style={[font.bodyStrong, { color: colors.text }]}>
+                {t(`onboarding.${step.key}.title`)}
+              </Text>
               <Text style={[font.small, { color: colors.textSoft }]}>{t(`onboarding.${step.key}.desc`)}</Text>
             </View>
           </View>
@@ -64,7 +68,13 @@ export function OnboardingScreen() {
 
 const makeStyles = (_theme: Theme) =>
   StyleSheet.create({
-    page: { padding: space.lg, gap: space.xl, paddingBottom: space.xxl, justifyContent: 'center', flexGrow: 1 },
+    page: {
+      padding: space.lg,
+      gap: space.xl,
+      paddingBottom: space.xxl,
+      justifyContent: 'center',
+      flexGrow: 1,
+    },
     hero: { alignItems: 'center', gap: space.md },
     step: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
   });

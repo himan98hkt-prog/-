@@ -24,7 +24,8 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
       petVoiceMessage: '밥! 밥! 지금 당장 밥 주세요!',
       primaryEmotion: 'hungry',
       emotionScores: { hungry: 58, attentionSeeking: 30, playful: 12 },
-      behaviorAnalysis: '짧고 반복적인 고음 발성과 보호자·밥그릇 사이를 오가는 이동이 함께 나타나는 전형적인 요구 행동입니다.',
+      behaviorAnalysis:
+        '짧고 반복적인 고음 발성과 보호자·밥그릇 사이를 오가는 이동이 함께 나타나는 전형적인 요구 행동입니다.',
       actionGuide: '급여 시간을 고정하고, 조를 때 바로 주기보다 조용해진 뒤 주면 요구성 발성이 줄어듭니다.',
     },
   },
@@ -34,7 +35,8 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
       petVoiceMessage: '누구야! 여긴 우리 집이라고!',
       primaryEmotion: 'alert',
       emotionScores: { alert: 48, territorial: 34, fear: 18 },
-      behaviorAnalysis: '낮고 굵은 톤의 연속 짖음과 앞으로 쏠린 체중은 영역 방어와 경계가 섞인 상태를 뜻합니다.',
+      behaviorAnalysis:
+        '낮고 굵은 톤의 연속 짖음과 앞으로 쏠린 체중은 영역 방어와 경계가 섞인 상태를 뜻합니다.',
       actionGuide: '손님이 눈을 맞추지 않고 옆으로 지나가게 하고, 아이가 스스로 다가오면 간식을 주세요.',
     },
   },
@@ -44,7 +46,8 @@ const SAMPLES: { match: RegExp; payload: Record<string, unknown> }[] = [
       petVoiceMessage: '여기 좀 아파… 살살 만져줘.',
       primaryEmotion: 'pain',
       emotionScores: { pain: 46, anxiety: 34, fear: 20 },
-      behaviorAnalysis: '평소보다 낮고 끊기는 신음성 발성이 반복되며 특정 부위를 보호하려는 자세가 관찰됩니다.',
+      behaviorAnalysis:
+        '평소보다 낮고 끊기는 신음성 발성이 반복되며 특정 부위를 보호하려는 자세가 관찰됩니다.',
       actionGuide: '만졌을 때 반응하는 부위를 확인하고 무리한 촉진은 피하세요.',
       healthAlert: '통증 관련 발성이 반복되고 있어 수의사 확인이 필요합니다.',
     },

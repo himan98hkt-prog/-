@@ -119,14 +119,7 @@ export type SubscriptionStore = 'play' | 'appstore' | 'dev';
  * - `pending` : 느린 결제 수단으로 승인 대기
  */
 export type SubscriptionState =
-  | 'active'
-  | 'grace'
-  | 'on_hold'
-  | 'paused'
-  | 'canceled'
-  | 'expired'
-  | 'pending'
-  | 'none';
+  'active' | 'grace' | 'on_hold' | 'paused' | 'canceled' | 'expired' | 'pending' | 'none';
 
 /** 구독 상태 */
 export interface Subscription {

@@ -22,7 +22,6 @@ let started = false;
 function load(): SentryModule | null {
   if (sentry !== undefined) return sentry;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('@sentry/react-native') as Partial<SentryModule> | undefined;
     sentry = typeof mod?.init === 'function' ? (mod as SentryModule) : null;
   } catch {

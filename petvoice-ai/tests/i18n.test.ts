@@ -38,7 +38,9 @@ describe('사전 정합성', () => {
 
 describe('translate', () => {
   it('자리표시자를 채운다', () => {
-    expect(translate('ko', 'quota.freeRemaining', { remaining: 2, limit: 3 })).toBe('오늘 무료 분석 2/3회 남음');
+    expect(translate('ko', 'quota.freeRemaining', { remaining: 2, limit: 3 })).toBe(
+      '오늘 무료 분석 2/3회 남음',
+    );
     expect(translate('en', 'quota.freeRemaining', { remaining: 2, limit: 3 })).toContain('2 of 3');
   });
 

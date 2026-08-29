@@ -116,6 +116,9 @@ describe('controlBehavior', () => {
   });
 
   it('전부 물러서면 refused 가 1', () => {
-    expect(controlBehavior([{ refused: true }, { refused: true }])).toMatchObject({ refused: 1, confident: 0 });
+    expect(controlBehavior([{ refused: true }, { refused: true }])).toMatchObject({
+      refused: 1,
+      confident: 0,
+    });
   });
 });

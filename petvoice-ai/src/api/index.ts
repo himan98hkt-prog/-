@@ -2,7 +2,14 @@ import { isConfigured, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { analyzeDemo } from './demo';
 import { analyzeDirect } from './directGemini';
 import { getTestKey } from './testKey';
-import { analyzePetMedia, requestWeeklyReport, type AnalyzeInput, type AnalyzeOutput, type ProxyConfig, type WeeklyReport } from './proxy';
+import {
+  analyzePetMedia,
+  requestWeeklyReport,
+  type AnalyzeInput,
+  type AnalyzeOutput,
+  type ProxyConfig,
+  type WeeklyReport,
+} from './proxy';
 import { getAccessToken } from './supabase';
 
 function proxyConfig(): ProxyConfig {

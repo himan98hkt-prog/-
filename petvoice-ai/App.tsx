@@ -154,7 +154,9 @@ function TabBar() {
             style={themed.tab}
           >
             <Text style={{ fontSize: 20, opacity: active ? 1 : 0.45 }}>{tab.emoji}</Text>
-            <Text style={[font.tiny, { color: active ? colors.primaryText : colors.textFaint }]}>{label}</Text>
+            <Text style={[font.tiny, { color: active ? colors.primaryText : colors.textFaint }]}>
+              {label}
+            </Text>
           </Pressable>
         );
       })}
@@ -169,7 +171,12 @@ const styles = StyleSheet.create({
 
 const makeStyles = ({ colors }: Theme) =>
   StyleSheet.create({
-    back: { paddingHorizontal: space.lg, paddingVertical: space.sm, minHeight: HIT_SIZE, justifyContent: 'center' },
+    back: {
+      paddingHorizontal: space.lg,
+      paddingVertical: space.sm,
+      minHeight: HIT_SIZE,
+      justifyContent: 'center',
+    },
     tabBar: {
       flexDirection: 'row',
       borderTopWidth: 1,

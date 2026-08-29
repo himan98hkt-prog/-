@@ -67,19 +67,23 @@ export function SettingsScreen() {
 
   /** Play 정책: 로그인 없는 로컬 앱은 "모든 데이터 초기화"를 반드시 제공해야 한다. */
   const confirmReset = () => {
-    Alert.alert(t('settings.resetTitle'), t('settings.resetDesc', { pets: pets.length, entries: entries.length }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('settings.resetConfirm'),
-        style: 'destructive',
-        onPress: () => {
-          resetAll();
-          void cancelAllReminders(); // 데이터를 지웠는데 알림만 계속 오면 안 된다
-          Alert.alert(t('settings.resetDone'), t('settings.resetDoneDesc'));
-          nav.switchTab('home');
+    Alert.alert(
+      t('settings.resetTitle'),
+      t('settings.resetDesc', { pets: pets.length, entries: entries.length }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.resetConfirm'),
+          style: 'destructive',
+          onPress: () => {
+            resetAll();
+            void cancelAllReminders(); // 데이터를 지웠는데 알림만 계속 오면 안 된다
+            Alert.alert(t('settings.resetDone'), t('settings.resetDoneDesc'));
+            nav.switchTab('home');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   /** Play 정책: 계정을 만드는 앱은 앱 안에서 계정 삭제를 제공해야 한다. */
@@ -266,7 +270,12 @@ export function SettingsScreen() {
         />
         <Button label={t('settings.resetAll')} variant="danger" onPress={confirmReset} />
         {isConfigured ? (
-          <Button label={t('settings.deleteAccount')} variant="danger" loading={deleting} onPress={confirmAccountDelete} />
+          <Button
+            label={t('settings.deleteAccount')}
+            variant="danger"
+            loading={deleting}
+            onPress={confirmAccountDelete}
+          />
         ) : null}
       </Card>
 
@@ -275,8 +284,13 @@ export function SettingsScreen() {
       <Card style={{ gap: space.sm }}>
         <SectionTitle>{t('settings.appInfo')}</SectionTitle>
         <Row label={t('settings.version')} value={String(Constants.expoConfig?.version ?? '1.0.0')} />
-        <Row label={t('settings.server')} value={t(isConfigured ? 'settings.serverConnected' : 'settings.serverDemo')} />
-        <Text style={[font.tiny, { color: colors.textFaint, marginTop: space.sm }]}>{t('settings.disclaimer')}</Text>
+        <Row
+          label={t('settings.server')}
+          value={t(isConfigured ? 'settings.serverConnected' : 'settings.serverDemo')}
+        />
+        <Text style={[font.tiny, { color: colors.textFaint, marginTop: space.sm }]}>
+          {t('settings.disclaimer')}
+        </Text>
       </Card>
     </ScrollView>
   );
@@ -325,5 +339,10 @@ const makeStyles = ({ colors }: Theme) =>
       paddingVertical: space.sm,
       borderRadius: radius.sm,
     },
-    infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: space.xs },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: space.xs,
+    },
   });

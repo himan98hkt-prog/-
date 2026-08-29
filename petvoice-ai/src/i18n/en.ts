@@ -68,7 +68,8 @@ export const en: Record<TranslationKey, string> = {
   'voice.fallback.anger': "Please don't touch me right now.",
   'voice.fallback.pain': 'Something hurts. Can you check?',
   'voice.fallback.sad': "It's lonely being by myself.",
-  'analysis.fallback.behavior': "I couldn't get a clear read on the behavior. Try again with a clearer sound or photo.",
+  'analysis.fallback.behavior':
+    "I couldn't get a clear read on the behavior. Try again with a clearer sound or photo.",
   'analysis.fallback.action': 'Keep an eye out for anything different from usual.',
 
   'time.justNow': 'Just now',
@@ -99,7 +100,8 @@ export const en: Record<TranslationKey, string> = {
   'onboarding.step4.title': "We'll flag warning signs",
   'onboarding.step4.desc': 'If we see separation anxiety or pain signals, we suggest a vet visit.',
   'onboarding.cta': 'Get started',
-  'onboarding.note': 'You get {limit} free analyses a day.\nResults are for reference only and are not a veterinary diagnosis.',
+  'onboarding.note':
+    'You get {limit} free analyses a day.\nResults are for reference only and are not a veterinary diagnosis.',
 
   'home.emptyTitle': 'No pet added yet',
   'home.emptyDesc': 'Add your pet first and you can start analyzing.',
@@ -127,13 +129,16 @@ export const en: Record<TranslationKey, string> = {
   'home.retryQueue': 'Analyze now',
 
   'record.tooQuiet': 'We barely heard anything',
-  'record.tooQuietDesc': "Try recording closer, while your pet is actually making a sound. This didn't use up a free analysis.",
+  'record.tooQuietDesc':
+    "Try recording closer, while your pet is actually making a sound. This didn't use up a free analysis.",
   'record.noPetSound': "We couldn't find a pet sound",
-  'record.noPetSoundDesc': "We only heard voices or background noise. Trying again won't cost you an analysis.",
+  'record.noPetSoundDesc':
+    "We only heard voices or background noise. Trying again won't cost you an analysis.",
   'record.retry': 'Record again',
 
   'capture.permTitle': 'Analyze behavior with the camera',
-  'capture.permDesc': 'Posture and expression say as much as sound.\nPhotos are used only for analysis and photo cards.',
+  'capture.permDesc':
+    'Posture and expression say as much as sound.\nPhotos are used only for analysis and photo cards.',
   'capture.enable': 'Turn on camera',
   'capture.guide': 'Fit the whole body and the face in the frame',
   'capture.analyzing': 'Reading the behavior…',
@@ -155,7 +160,7 @@ export const en: Record<TranslationKey, string> = {
   'result.mediaPrecise': 'Precise analysis ×{count}',
   'result.share': '📤 Share photo card',
   'result.sharing': 'Making the card…',
-  'result.shareText': "{name} had something to say today — heard it with PetVoice AI {link}",
+  'result.shareText': '{name} had something to say today — heard it with PetVoice AI {link}',
   'result.shareUnavailable': "Can't share",
   'result.shareUnavailableDesc': 'Sharing is not available on this device.',
   'result.shareFailed': 'Sharing failed',
@@ -220,8 +225,10 @@ export const en: Record<TranslationKey, string> = {
   'diary.headline.empty': 'No records this week yet.',
   'diary.headline.plain': "Here's how this week went.",
   'diary.headline.noCompare': '{emoji} {emotion} led the week.',
-  'diary.headline.up': '{emoji} {emotion} led the week. Positive emotions are up {delta} points from last week.',
-  'diary.headline.down': '{emoji} {emotion} led the week. Positive emotions are down {delta} points from last week.',
+  'diary.headline.up':
+    '{emoji} {emotion} led the week. Positive emotions are up {delta} points from last week.',
+  'diary.headline.down':
+    '{emoji} {emotion} led the week. Positive emotions are down {delta} points from last week.',
   'diary.headline.flat': '{emoji} {emotion} led the week — much like last week.',
 
   'health.vetTitle': '🏥 Worth a vet visit',
@@ -231,7 +238,8 @@ export const en: Record<TranslationKey, string> = {
   'health.reason.pain': 'Pain signals came through at {score}%.',
   'health.reason.painMild': 'There is a mild pain signal in the mix ({score}%).',
   'health.reason.sign': '{sign} appears in the analysis.',
-  'health.reason.separationAnxiety': 'Anxiety is high at {score}% while being left alone. This can be an early separation-anxiety signal.',
+  'health.reason.separationAnxiety':
+    'Anxiety is high at {score}% while being left alone. This can be an early separation-anxiety signal.',
   'health.reason.anxiety': 'Anxiety came through high at {score}%.',
   'health.reason.tension': 'Fear, alertness and anger add up to {score}% — stress is high right now.',
   'health.reason.sad': 'Low mood and loneliness signals showed at {score}%.',
@@ -244,17 +252,24 @@ export const en: Record<TranslationKey, string> = {
   'health.sign.skin': 'skin irritation or self-trauma',
   'health.sign.vetMentioned': 'a recommendation to see a vet',
   'health.tip.visitSoon': 'Try to get a physical exam at the vet within 24 hours.',
-  'health.tip.bringRecording': 'Bring the recording and note when and where it happened — it helps the vet a lot.',
-  'health.tip.separation': 'Keep goodbyes short, and start a solo activity like a snuffle mat 15 minutes before you leave.',
-  'health.tip.stranger': "Ask visitors not to approach first, and treat your pet when they choose to come closer.",
-  'health.tip.vet': 'For a day or two after a vet visit, lower the stimulation and set up a safe spot with a favorite blanket.',
+  'health.tip.bringRecording':
+    'Bring the recording and note when and where it happened — it helps the vet a lot.',
+  'health.tip.separation':
+    'Keep goodbyes short, and start a solo activity like a snuffle mat 15 minutes before you leave.',
+  'health.tip.stranger':
+    'Ask visitors not to approach first, and treat your pet when they choose to come closer.',
+  'health.tip.vet':
+    'For a day or two after a vet visit, lower the stimulation and set up a safe spot with a favorite blanket.',
   'health.tip.meal': 'Logging how much and when they eat gives the vet a strong clue next visit.',
   'health.tip.night': 'More activity before bed and a small late meal cuts down on early-morning waking.',
   'health.tip.carrier': 'Leave the carrier open at home and feed treats inside so it stops being scary.',
-  'health.tip.dog': 'Changing the walking route adds new things to sniff, which relieves stress remarkably well.',
+  'health.tip.dog':
+    'Changing the walking route adds new things to sniff, which relieves stress remarkably well.',
   'health.tip.cat': 'One more high perch or hiding spot noticeably lowers anxiety.',
-  'health.risk.repeatedVet': 'In the last {days} days we flagged a vet visit {count} times. Please do not put it off.',
-  'health.risk.repeatedAnxiety': 'Anxiety signals appeared {count} times in the last {days} days. This is the moment to start separation-anxiety work.',
+  'health.risk.repeatedVet':
+    'In the last {days} days we flagged a vet visit {count} times. Please do not put it off.',
+  'health.risk.repeatedAnxiety':
+    'Anxiety signals appeared {count} times in the last {days} days. This is the moment to start separation-anxiety work.',
   'health.risk.singleVet': 'A recent record suggested a vet check. Watch whether the symptom continues.',
 
   'notify.daily.title': 'How was {name} today?',
@@ -301,14 +316,17 @@ export const en: Record<TranslationKey, string> = {
   'settings.server': 'Analysis server',
   'settings.serverConnected': 'Connected',
   'settings.serverDemo': 'Demo mode',
-  'settings.disclaimer': 'PetVoice AI results are for reference only and do not replace veterinary diagnosis.',
+  'settings.disclaimer':
+    'PetVoice AI results are for reference only and do not replace veterinary diagnosis.',
   'settings.resetTitle': 'Erase all data?',
-  'settings.resetDesc': '{pets} pet profile(s) and {entries} analysis record(s) will be permanently removed from this device. This cannot be undone.',
+  'settings.resetDesc':
+    '{pets} pet profile(s) and {entries} analysis record(s) will be permanently removed from this device. This cannot be undone.',
   'settings.resetConfirm': 'Erase everything',
   'settings.resetDone': 'Erased',
   'settings.resetDoneDesc': 'All data has been removed.',
   'settings.deleteAccountTitle': 'Delete your account and server data?',
-  'settings.deleteAccountDesc': 'Your anonymous account and the usage records stored on the server will be deleted, along with everything on this device.',
+  'settings.deleteAccountDesc':
+    'Your anonymous account and the usage records stored on the server will be deleted, along with everything on this device.',
   'settings.deleteAccountDone': 'Deleted',
   'settings.deleteAccountDoneDesc': 'Your account and data have been deleted.',
   'settings.deleteAccountFail': 'Deletion failed',
@@ -320,7 +338,8 @@ export const en: Record<TranslationKey, string> = {
   'settings.restore': 'Restore purchases',
   'settings.billingUnavailable': 'Purchases only work in the app installed from the store.',
   'settings.diagnostics': 'Send error reports',
-  'settings.diagnosticsDesc': 'Used only to find the cause when the app crashes. Photos and recordings are never sent.',
+  'settings.diagnosticsDesc':
+    'Used only to find the cause when the app crashes. Photos and recordings are never sent.',
 
   'paywall.title': 'PetVoice Pro',
   'paywall.subtitle': 'No {limit}-a-day limit. Listen as much as you like.',
@@ -351,9 +370,11 @@ export const en: Record<TranslationKey, string> = {
   'paywall.restore': 'Restore purchases',
   'paywall.later': 'Maybe later',
   'paywall.unavailableTitle': 'Purchases are unavailable here',
-  'paywall.unavailableDesc': 'Store purchases only work in an EAS development build or the app from the store.\n(Expo Go and the web preview have no billing module.)',
+  'paywall.unavailableDesc':
+    'Store purchases only work in an EAS development build or the app from the store.\n(Expo Go and the web preview have no billing module.)',
   'paywall.devUnlock': 'Dev only: switch to Pro',
-  'paywall.legal': 'The subscription renews monthly unless cancelled.\nCancel up to 24 hours before renewal in your store subscription settings.\nPayments and refunds follow each store policy.',
+  'paywall.legal':
+    'The subscription renews monthly unless cancelled.\nCancel up to 24 hours before renewal in your store subscription settings.\nPayments and refunds follow each store policy.',
   'paywall.subscriptionTitle': 'Subscription',
 
   'billing.state.free': 'Free plan',
@@ -369,7 +390,8 @@ export const en: Record<TranslationKey, string> = {
   'billing.notice.restored': 'Subscription restored.',
   'billing.notice.restoreNone': 'No subscription to restore on this account.',
   'billing.notice.expired': 'The subscription has expired.',
-  'billing.notice.verifyFailed': '{reason} Your payment was not cancelled — tap Restore purchases in a moment.',
+  'billing.notice.verifyFailed':
+    '{reason} Your payment was not cancelled — tap Restore purchases in a moment.',
   'billing.notice.startFailed': "Couldn't start the purchase.",
   'billing.notice.devUnlocked': 'Switched to Pro. (not a real purchase)',
   'billing.error.alreadyOwned': "You're already subscribed. Tap Restore purchases.",
@@ -400,13 +422,16 @@ export const en: Record<TranslationKey, string> = {
   'petForm.viewPro': 'See Pro',
 
   'permissions.mic.title': 'Microphone access needed',
-  'permissions.mic.message': "Used only to record 3 seconds of your pet's sound and read the emotion.\nRecordings stay on your device and are never used for anything else.",
+  'permissions.mic.message':
+    "Used only to record 3 seconds of your pet's sound and read the emotion.\nRecordings stay on your device and are never used for anything else.",
   'permissions.camera.title': 'Camera access needed',
-  'permissions.camera.message': "Used only to photograph your pet's posture and expression for analysis.\nPhotos are used for analysis and photo cards only.",
+  'permissions.camera.message':
+    "Used only to photograph your pet's posture and expression for analysis.\nPhotos are used for analysis and photo cards only.",
   'permissions.photos.title': 'Photo access needed',
   'permissions.photos.message': 'Used to analyze photos you already took and to build photo cards.',
   'permissions.notifications.title': 'Notification permission needed',
-  'permissions.notifications.message': "One evening reminder, and one when the weekly report is ready. That's all.",
+  'permissions.notifications.message':
+    "One evening reminder, and one when the weekly report is ready. That's all.",
   'permissions.deniedTitle': 'That permission is off',
   'permissions.deniedMessage': 'Turn it on in device settings and you can use it right away.',
 

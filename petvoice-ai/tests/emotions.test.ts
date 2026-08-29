@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CONTEXT_PRESETS, EMOTION_KEYS, emotionMeta, isEmotionKey, normalizeEmotionKey, presetByKey } from '../src/core/emotions';
+import {
+  CONTEXT_PRESETS,
+  EMOTION_KEYS,
+  emotionMeta,
+  isEmotionKey,
+  normalizeEmotionKey,
+  presetByKey,
+} from '../src/core/emotions';
 
 describe('normalizeEmotionKey', () => {
   it('표준 키는 그대로', () => {

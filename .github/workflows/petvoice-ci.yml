@@ -34,6 +34,12 @@ jobs:
       - name: 의존성 설치
         run: npm ci
 
+      - name: 린트
+        run: npm run lint
+
+      - name: 서식 검사
+        run: npm run format:check
+
       - name: 단위 테스트
         run: npm test
 

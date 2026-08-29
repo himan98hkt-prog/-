@@ -48,13 +48,16 @@ export const RESYNC_NEAR_EXPIRY_MS = 24 * 60 * 60 * 1000;
  *
  * `on_hold` / `paused` / `expired` 는 잠근다.
  */
-export function subscriptionFromEntitlement(entitlement: {
-  state?: string | null;
-  expiresAt?: number | null;
-  autoRenewing?: boolean | null;
-  store?: string | null;
-  productId?: string | null;
-}, now = Date.now()): Subscription {
+export function subscriptionFromEntitlement(
+  entitlement: {
+    state?: string | null;
+    expiresAt?: number | null;
+    autoRenewing?: boolean | null;
+    store?: string | null;
+    productId?: string | null;
+  },
+  now = Date.now(),
+): Subscription {
   const state = normalizeState(entitlement.state);
   const expiresAt = toTimestamp(entitlement.expiresAt);
   const entitled =
@@ -87,7 +90,10 @@ const KNOWN_STATES: SubscriptionState[] = [
 
 function normalizeState(raw: unknown): SubscriptionState {
   if (typeof raw !== 'string') return 'none';
-  const value = raw.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const value = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
   return (KNOWN_STATES as string[]).includes(value) ? (value as SubscriptionState) : 'none';
 }
 

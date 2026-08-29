@@ -3,7 +3,10 @@ import type { AnalysisResult, EmotionKey, EmotionScores } from './types';
 
 /** 모델 응답을 쓸 수 없을 때 던진다. 화면에서는 "다시 시도" 안내로 이어진다. */
 export class AnalysisParseError extends Error {
-  constructor(message: string, readonly raw?: string) {
+  constructor(
+    message: string,
+    readonly raw?: string,
+  ) {
     super(message);
     this.name = 'AnalysisParseError';
   }

@@ -16,7 +16,6 @@ export function detectDeviceLocale(): Locale {
 
 function deviceLanguageTags(): string[] {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const localization = require('expo-localization') as {
       getLocales?: () => { languageTag?: string; languageCode?: string }[];
     };
@@ -29,7 +28,8 @@ function deviceLanguageTags(): string[] {
 
   try {
     if (Platform.OS === 'ios') {
-      const settings = (NativeModules as { SettingsManager?: { settings?: Record<string, unknown> } }).SettingsManager;
+      const settings = (NativeModules as { SettingsManager?: { settings?: Record<string, unknown> } })
+        .SettingsManager;
       const languages = settings?.settings?.AppleLanguages as string[] | undefined;
       if (languages?.length) return languages;
       const locale = settings?.settings?.AppleLocale as string | undefined;

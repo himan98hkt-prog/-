@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildWeeklyDigest, monthGrid, positiveRatio, summarizeDays, weeklyHeadline, weeklyStats } from '../src/core/diary';
+import {
+  buildWeeklyDigest,
+  monthGrid,
+  positiveRatio,
+  summarizeDays,
+  weeklyHeadline,
+  weeklyStats,
+} from '../src/core/diary';
 import type { AnalysisEntry, EmotionScores, HealthLevel } from '../src/core/types';
-
-const DAY = 24 * 60 * 60 * 1000;
 
 function at(daysAgo: number, hour = 12): number {
   const d = new Date();
@@ -11,8 +16,14 @@ function at(daysAgo: number, hour = 12): number {
   return d.getTime();
 }
 
-function entry(createdAt: number, scores: EmotionScores, level: HealthLevel = 'none', context = ''): AnalysisEntry {
-  const primary = (Object.entries(scores).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] ?? 'happy') as never;
+function entry(
+  createdAt: number,
+  scores: EmotionScores,
+  level: HealthLevel = 'none',
+  context = '',
+): AnalysisEntry {
+  const primary = (Object.entries(scores).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] ??
+    'happy') as never;
   return {
     id: `e${createdAt}${Math.random()}`,
     petId: 'p1',
@@ -79,7 +90,11 @@ describe('monthGrid', () => {
   });
 
   it('윤년 2월도 정확히 29일', () => {
-    expect(monthGrid(2028, 2, []).flat().filter((c) => c.day !== null)).toHaveLength(29);
+    expect(
+      monthGrid(2028, 2, [])
+        .flat()
+        .filter((c) => c.day !== null),
+    ).toHaveLength(29);
   });
 
   it('그 날의 요약이 셀에 붙는다', () => {
@@ -107,10 +122,7 @@ describe('weeklyStats', () => {
   });
 
   it('지난주 대비 긍정 비율 변화를 낸다', () => {
-    const stats = weeklyStats([
-      entry(at(1), { happy: 100 }),
-      entry(at(9), { anxiety: 100 }),
-    ]);
+    const stats = weeklyStats([entry(at(1), { happy: 100 }), entry(at(9), { anxiety: 100 })]);
     expect(stats.positiveRatio).toBe(100);
     expect(stats.positiveDelta).toBe(100);
   });
@@ -151,10 +163,13 @@ describe('buildWeeklyDigest', () => {
   const labelOf = (key: string) => key.replace('emotion.', '');
 
   it('리포트 프롬프트에 넣을 요약을 만든다', () => {
-    const digest = buildWeeklyDigest([
-      entry(at(1), { anxiety: 70, sad: 30 }, 'watch', '외출 직전'),
-      entry(at(2), { playful: 100 }, 'none', '산책 준비 중'),
-    ], labelOf);
+    const digest = buildWeeklyDigest(
+      [
+        entry(at(1), { anxiety: 70, sad: 30 }, 'watch', '외출 직전'),
+        entry(at(2), { playful: 100 }, 'none', '산책 준비 중'),
+      ],
+      labelOf,
+    );
     expect(digest).toContain('총 분석 2회');
     expect(digest).toContain('외출 직전');
     expect(digest).toContain('관찰 필요 1회');

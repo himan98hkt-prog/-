@@ -66,7 +66,8 @@ export const ko = {
   'voice.fallback.anger': '지금은 건드리지 말아줘.',
   'voice.fallback.pain': '어딘가 아파, 봐줄래?',
   'voice.fallback.sad': '혼자라 심심하고 외로워.',
-  'analysis.fallback.behavior': '행동 근거를 충분히 설명받지 못했어요. 조금 더 또렷한 소리나 사진으로 다시 시도해 보세요.',
+  'analysis.fallback.behavior':
+    '행동 근거를 충분히 설명받지 못했어요. 조금 더 또렷한 소리나 사진으로 다시 시도해 보세요.',
   'analysis.fallback.action': '평소와 다른 점이 있는지 잠시 지켜봐 주세요.',
 
   'time.justNow': '방금 전',
@@ -97,7 +98,8 @@ export const ko = {
   'onboarding.step4.title': '이상 신호는 짚어 드려요',
   'onboarding.step4.desc': '분리불안·통증 신호가 보이면 병원 방문을 권해 드립니다.',
   'onboarding.cta': '시작하기',
-  'onboarding.note': '하루 {limit}회까지 무료로 분석할 수 있어요.\n분석 결과는 참고용이며 수의학적 진단이 아닙니다.',
+  'onboarding.note':
+    '하루 {limit}회까지 무료로 분석할 수 있어요.\n분석 결과는 참고용이며 수의학적 진단이 아닙니다.',
 
   'home.emptyTitle': '아직 등록한 아이가 없어요',
   'home.emptyDesc': '먼저 반려동물을 등록하면 분석을 시작할 수 있어요.',
@@ -125,13 +127,15 @@ export const ko = {
   'home.retryQueue': '지금 분석하기',
 
   'record.tooQuiet': '소리가 거의 들리지 않았어요',
-  'record.tooQuietDesc': '조금 더 가까이에서, 아이가 소리를 낼 때 녹음해 주세요. 무료 횟수는 차감되지 않았어요.',
+  'record.tooQuietDesc':
+    '조금 더 가까이에서, 아이가 소리를 낼 때 녹음해 주세요. 무료 횟수는 차감되지 않았어요.',
   'record.noPetSound': '반려동물 소리를 찾지 못했어요',
   'record.noPetSoundDesc': '사람 목소리나 주변 소음만 들렸어요. 다시 시도해도 횟수는 차감되지 않습니다.',
   'record.retry': '다시 녹음',
 
   'capture.permTitle': '카메라로 행동을 분석해요',
-  'capture.permDesc': '자세와 표정은 소리만큼 많은 걸 알려 줍니다.\n촬영한 사진은 분석과 포토카드에만 사용돼요.',
+  'capture.permDesc':
+    '자세와 표정은 소리만큼 많은 걸 알려 줍니다.\n촬영한 사진은 분석과 포토카드에만 사용돼요.',
   'capture.enable': '카메라 켜기',
   'capture.guide': '전신과 얼굴이 함께 보이게 담아 주세요',
   'capture.analyzing': '행동을 읽는 중…',
@@ -218,8 +222,10 @@ export const ko = {
   'diary.headline.empty': '이번 주 기록이 아직 없어요.',
   'diary.headline.plain': '이번 주 감정 흐름을 정리했어요.',
   'diary.headline.noCompare': '이번 주는 {emoji} {emotion}이 가장 많았어요.',
-  'diary.headline.up': '이번 주는 {emoji} {emotion}이 가장 많았어요. 지난주보다 긍정 감정이 {delta}%p 늘었어요.',
-  'diary.headline.down': '이번 주는 {emoji} {emotion}이 가장 많았어요. 지난주보다 긍정 감정이 {delta}%p 줄었어요.',
+  'diary.headline.up':
+    '이번 주는 {emoji} {emotion}이 가장 많았어요. 지난주보다 긍정 감정이 {delta}%p 늘었어요.',
+  'diary.headline.down':
+    '이번 주는 {emoji} {emotion}이 가장 많았어요. 지난주보다 긍정 감정이 {delta}%p 줄었어요.',
   'diary.headline.flat': '이번 주는 {emoji} {emotion}이 가장 많았어요. 지난주와 비슷한 흐름이에요.',
 
   'health.vetTitle': '🏥 동물병원 확인이 필요해요',
@@ -229,7 +235,8 @@ export const ko = {
   'health.reason.pain': '통증 호소 신호가 {score}% 로 감지됐어요.',
   'health.reason.painMild': '약한 통증 신호({score}%)가 섞여 있어요.',
   'health.reason.sign': '{sign}이(가) 분석 내용에 언급됐어요.',
-  'health.reason.separationAnxiety': '혼자 남는 상황에서 불안이 {score}% 로 높아요. 분리불안 초기 신호일 수 있어요.',
+  'health.reason.separationAnxiety':
+    '혼자 남는 상황에서 불안이 {score}% 로 높아요. 분리불안 초기 신호일 수 있어요.',
   'health.reason.anxiety': '불안 감정이 {score}% 로 높게 나왔어요.',
   'health.reason.tension': '두려움·경계·분노가 합쳐 {score}% 로, 지금은 스트레스가 큰 상태예요.',
   'health.reason.sad': '무기력·외로움 신호가 {score}% 로 나타났어요.',
@@ -242,17 +249,25 @@ export const ko = {
   'health.sign.skin': '피부·자가 손상',
   'health.sign.vetMentioned': '수의사 상담 권고',
   'health.tip.visitSoon': '가능한 24시간 안에 동물병원에서 신체검사를 받아 보세요.',
-  'health.tip.bringRecording': '언제·어떤 상황에서 이 소리가 났는지 기록과 녹음을 함께 보여주면 진료에 큰 도움이 됩니다.',
-  'health.tip.separation': '외출 전 인사를 짧게 하고, 나가기 15분 전부터 노즈워크 등 혼자 하는 놀이를 주면 분리 신호가 약해집니다.',
-  'health.tip.stranger': '낯선 사람이 먼저 다가가지 않게 하고, 아이가 스스로 다가올 때 간식을 주면 경계가 빨리 풉니다.',
-  'health.tip.vet': '병원 방문 뒤 하루 이틀은 자극을 줄이고, 좋아하는 담요·간식으로 안전한 공간을 만들어 주세요.',
+  'health.tip.bringRecording':
+    '언제·어떤 상황에서 이 소리가 났는지 기록과 녹음을 함께 보여주면 진료에 큰 도움이 됩니다.',
+  'health.tip.separation':
+    '외출 전 인사를 짧게 하고, 나가기 15분 전부터 노즈워크 등 혼자 하는 놀이를 주면 분리 신호가 약해집니다.',
+  'health.tip.stranger':
+    '낯선 사람이 먼저 다가가지 않게 하고, 아이가 스스로 다가올 때 간식을 주면 경계가 빨리 풉니다.',
+  'health.tip.vet':
+    '병원 방문 뒤 하루 이틀은 자극을 줄이고, 좋아하는 담요·간식으로 안전한 공간을 만들어 주세요.',
   'health.tip.meal': '식사량과 시간을 기록해 두면 다음 진료 때 큰 단서가 됩니다.',
   'health.tip.night': '자기 전 활동량을 늘리고 취침 직전 소량 급여하면 새벽 각성이 줄어듭니다.',
-  'health.tip.carrier': '이동장을 평소에도 열어 두고 안에서 간식을 주면 이동장 자체에 대한 공포가 줄어듭니다.',
+  'health.tip.carrier':
+    '이동장을 평소에도 열어 두고 안에서 간식을 주면 이동장 자체에 대한 공포가 줄어듭니다.',
   'health.tip.dog': '산책 코스를 바꿔 냄새 맡을 거리를 늘려 주면 스트레스 해소에 효과가 큽니다.',
-  'health.tip.cat': '높이 올라갈 수 있는 캣타워나 숨을 공간을 하나 더 만들어 주면 불안이 눈에 띄게 줄어듭니다.',
-  'health.risk.repeatedVet': '최근 {days}일간 병원 확인이 필요한 신호가 {count}번 감지됐어요. 진료를 미루지 마세요.',
-  'health.risk.repeatedAnxiety': '최근 {days}일간 불안 신호가 {count}번 나왔어요. 분리불안 행동 교정을 시작할 시점입니다.',
+  'health.tip.cat':
+    '높이 올라갈 수 있는 캣타워나 숨을 공간을 하나 더 만들어 주면 불안이 눈에 띄게 줄어듭니다.',
+  'health.risk.repeatedVet':
+    '최근 {days}일간 병원 확인이 필요한 신호가 {count}번 감지됐어요. 진료를 미루지 마세요.',
+  'health.risk.repeatedAnxiety':
+    '최근 {days}일간 불안 신호가 {count}번 나왔어요. 분리불안 행동 교정을 시작할 시점입니다.',
   'health.risk.singleVet': '최근에 병원 확인이 권장된 기록이 있어요. 증상이 이어지는지 지켜봐 주세요.',
 
   'notify.daily.title': '오늘 {name}은 어땠나요?',
@@ -262,7 +277,8 @@ export const ko = {
   'notify.petFallback': '우리 아이',
 
   'testMode.title': '테스트 모드 (개발자용)',
-  'testMode.warning': '출시 앱은 AI 키를 서버에만 둡니다. 이 화면은 정확도를 직접 확인해 보려는 테스트 빌드에만 나타나고, 키는 이 기기의 보안 저장소에만 저장됩니다.',
+  'testMode.warning':
+    '출시 앱은 AI 키를 서버에만 둡니다. 이 화면은 정확도를 직접 확인해 보려는 테스트 빌드에만 나타나고, 키는 이 기기의 보안 저장소에만 저장됩니다.',
   'testMode.placeholder': 'Google AI Studio 에서 발급한 키',
   'testMode.save': '키 저장',
   'testMode.clear': '키 삭제',
@@ -300,12 +316,14 @@ export const ko = {
   'settings.serverDemo': '데모 모드',
   'settings.disclaimer': 'PetVoice AI 의 분석 결과는 참고용이며 수의학적 진단을 대체하지 않습니다.',
   'settings.resetTitle': '모든 데이터를 지울까요?',
-  'settings.resetDesc': '등록한 반려동물 {pets}마리와 분석 기록 {entries}건이 기기에서 완전히 삭제됩니다. 되돌릴 수 없어요.',
+  'settings.resetDesc':
+    '등록한 반려동물 {pets}마리와 분석 기록 {entries}건이 기기에서 완전히 삭제됩니다. 되돌릴 수 없어요.',
   'settings.resetConfirm': '전부 삭제',
   'settings.resetDone': '삭제했어요',
   'settings.resetDoneDesc': '모든 데이터가 지워졌습니다.',
   'settings.deleteAccountTitle': '계정과 서버 데이터를 삭제할까요?',
-  'settings.deleteAccountDesc': '익명 계정과 서버에 저장된 사용 기록이 모두 삭제됩니다. 기기 안의 기록도 함께 지워집니다.',
+  'settings.deleteAccountDesc':
+    '익명 계정과 서버에 저장된 사용 기록이 모두 삭제됩니다. 기기 안의 기록도 함께 지워집니다.',
   'settings.deleteAccountDone': '삭제 완료',
   'settings.deleteAccountDoneDesc': '계정과 데이터가 삭제됐습니다.',
   'settings.deleteAccountFail': '삭제 실패',
@@ -317,7 +335,8 @@ export const ko = {
   'settings.restore': '구매 복원',
   'settings.billingUnavailable': '결제 기능은 스토어에서 설치한 앱에서만 동작합니다.',
   'settings.diagnostics': '오류 보고 보내기',
-  'settings.diagnosticsDesc': '앱이 멈추거나 오류가 났을 때 원인 파악에만 사용해요. 반려동물 사진·녹음은 보내지 않습니다.',
+  'settings.diagnosticsDesc':
+    '앱이 멈추거나 오류가 났을 때 원인 파악에만 사용해요. 반려동물 사진·녹음은 보내지 않습니다.',
 
   'paywall.title': 'PetVoice 프로',
   'paywall.subtitle': '하루 {limit}회 제한 없이, 우리 아이 이야기를 마음껏 들어 보세요.',
@@ -348,9 +367,11 @@ export const ko = {
   'paywall.restore': '구매 복원',
   'paywall.later': '나중에 할게요',
   'paywall.unavailableTitle': '이 환경에서는 결제를 할 수 없어요',
-  'paywall.unavailableDesc': '스토어 결제는 EAS 개발 빌드 또는 스토어에서 내려받은 앱에서만 동작합니다.\n(Expo Go·웹 미리보기에는 결제 네이티브 모듈이 없습니다.)',
+  'paywall.unavailableDesc':
+    '스토어 결제는 EAS 개발 빌드 또는 스토어에서 내려받은 앱에서만 동작합니다.\n(Expo Go·웹 미리보기에는 결제 네이티브 모듈이 없습니다.)',
   'paywall.devUnlock': '개발용: 프로 상태로 전환',
-  'paywall.legal': '구독은 매월 자동 갱신되며, 해지하지 않으면 다음 결제일에 갱신됩니다.\n해지는 구독 만료 24시간 전까지 스토어의 구독 관리에서 할 수 있습니다.\n결제·환불은 각 스토어 정책을 따릅니다.',
+  'paywall.legal':
+    '구독은 매월 자동 갱신되며, 해지하지 않으면 다음 결제일에 갱신됩니다.\n해지는 구독 만료 24시간 전까지 스토어의 구독 관리에서 할 수 있습니다.\n결제·환불은 각 스토어 정책을 따릅니다.',
   'paywall.subscriptionTitle': '구독',
 
   'billing.state.free': '무료 플랜',
@@ -397,13 +418,17 @@ export const ko = {
   'petForm.viewPro': '프로 보기',
 
   'permissions.mic.title': '마이크 권한이 필요해요',
-  'permissions.mic.message': '반려동물의 울음소리를 3초간 녹음해 감정을 분석하는 데만 사용합니다.\n녹음 파일은 분석 후 기기 안에만 남고, 분석 목적 외에는 사용하지 않습니다.',
+  'permissions.mic.message':
+    '반려동물의 울음소리를 3초간 녹음해 감정을 분석하는 데만 사용합니다.\n녹음 파일은 분석 후 기기 안에만 남고, 분석 목적 외에는 사용하지 않습니다.',
   'permissions.camera.title': '카메라 권한이 필요해요',
-  'permissions.camera.message': '반려동물의 자세와 표정을 촬영해 행동을 분석하는 데만 사용합니다.\n촬영한 사진은 분석과 포토카드 만들기에만 쓰입니다.',
+  'permissions.camera.message':
+    '반려동물의 자세와 표정을 촬영해 행동을 분석하는 데만 사용합니다.\n촬영한 사진은 분석과 포토카드 만들기에만 쓰입니다.',
   'permissions.photos.title': '사진 접근 권한이 필요해요',
-  'permissions.photos.message': '이미 찍어 둔 반려동물 사진으로 분석하거나 포토카드를 만들기 위해 사용합니다.',
+  'permissions.photos.message':
+    '이미 찍어 둔 반려동물 사진으로 분석하거나 포토카드를 만들기 위해 사용합니다.',
   'permissions.notifications.title': '알림 권한이 필요해요',
-  'permissions.notifications.message': '기록을 잊지 않도록 저녁에 한 번, 주간 리포트가 나오면 한 번만 알려 드립니다.',
+  'permissions.notifications.message':
+    '기록을 잊지 않도록 저녁에 한 번, 주간 리포트가 나오면 한 번만 알려 드립니다.',
   'permissions.deniedTitle': '권한이 꺼져 있어요',
   'permissions.deniedMessage': '기기 설정에서 권한을 켜면 바로 사용할 수 있습니다.',
 

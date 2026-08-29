@@ -19,7 +19,14 @@ interface Props {
  * 원형 펄스 애니메이션이 적용된 녹음 버튼.
  * 녹음 중에는 링이 계속 퍼져 나가 "지금 듣고 있다"는 걸 보여 준다.
  */
-export function PulseRecordButton({ recording, disabled, secondsLeft, idleLabel, a11yLabel, onPress }: Props) {
+export function PulseRecordButton({
+  recording,
+  disabled,
+  secondsLeft,
+  idleLabel,
+  a11yLabel,
+  onPress,
+}: Props) {
   const { colors } = useTheme();
   const pulse = useRef(new Animated.Value(0)).current;
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -87,7 +94,13 @@ export function PulseRecordButton({ recording, disabled, secondsLeft, idleLabel,
 const SIZE = 132;
 
 const styles = StyleSheet.create({
-  wrap: { width: SIZE * 2, height: SIZE, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  wrap: {
+    width: SIZE * 2,
+    height: SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
   ring: { position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2 },
   button: {
     width: SIZE,

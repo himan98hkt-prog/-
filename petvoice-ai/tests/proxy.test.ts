@@ -62,7 +62,9 @@ describe('analyzePetMedia', () => {
 
   it('세션이 없으면 인증 오류', async () => {
     const fetchImpl = (async () => ok(VALID_BODY)) as unknown as typeof fetch;
-    await expect(analyzePetMedia(config(fetchImpl, { getAccessToken: async () => null }), input)).rejects.toMatchObject({
+    await expect(
+      analyzePetMedia(config(fetchImpl, { getAccessToken: async () => null }), input),
+    ).rejects.toMatchObject({
       code: 'unauthorized',
     });
   });
@@ -75,7 +77,9 @@ describe('analyzePetMedia', () => {
 
   it('415 는 지원하지 않는 미디어로 매핑한다', async () => {
     const fetchImpl = (async () => fail(415)) as unknown as typeof fetch;
-    await expect(analyzePetMedia(config(fetchImpl), input)).rejects.toMatchObject({ code: 'unsupported_media' });
+    await expect(analyzePetMedia(config(fetchImpl), input)).rejects.toMatchObject({
+      code: 'unsupported_media',
+    });
   });
 
   it('5xx 는 재시도한 뒤 성공하면 결과를 준다', async () => {

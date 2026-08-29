@@ -20,7 +20,10 @@ const DAY = 24 * 60 * 60 * 1000;
 
 describe('subscriptionFromEntitlement', () => {
   it('활성 구독은 프로를 연다', () => {
-    const sub = subscriptionFromEntitlement({ state: 'active', expiresAt: NOW + 30 * DAY, autoRenewing: true }, NOW);
+    const sub = subscriptionFromEntitlement(
+      { state: 'active', expiresAt: NOW + 30 * DAY, autoRenewing: true },
+      NOW,
+    );
     expect(sub.pro).toBe(true);
     expect(sub.state).toBe('active');
     expect(sub.verifiedAt).toBe(NOW);
@@ -31,7 +34,10 @@ describe('subscriptionFromEntitlement', () => {
   });
 
   it('해지 예약은 만료 전까지 이용 가능하다', () => {
-    const sub = subscriptionFromEntitlement({ state: 'canceled', expiresAt: NOW + 5 * DAY, autoRenewing: false }, NOW);
+    const sub = subscriptionFromEntitlement(
+      { state: 'canceled', expiresAt: NOW + 5 * DAY, autoRenewing: false },
+      NOW,
+    );
     expect(sub.pro).toBe(true);
     expect(sub.autoRenewing).toBe(false);
   });
@@ -56,13 +62,18 @@ describe('subscriptionFromEntitlement', () => {
 
   it('초 단위 timestamp 와 ISO 문자열을 모두 받는다', () => {
     const seconds = subscriptionFromEntitlement({ state: 'active', expiresAt: (NOW + DAY) / 1000 }, NOW);
-    const iso = subscriptionFromEntitlement({ state: 'active', expiresAt: new Date(NOW + DAY).toISOString() as never }, NOW);
+    const iso = subscriptionFromEntitlement(
+      { state: 'active', expiresAt: new Date(NOW + DAY).toISOString() as never },
+      NOW,
+    );
     expect(seconds.expiresAt).toBe(NOW + DAY);
     expect(iso.expiresAt).toBe(NOW + DAY);
   });
 
   it('모르는 상태 문자열은 none 으로 떨어뜨린다', () => {
-    expect(subscriptionFromEntitlement({ state: 'SOMETHING_NEW', expiresAt: NOW + DAY }, NOW).state).toBe('none');
+    expect(subscriptionFromEntitlement({ state: 'SOMETHING_NEW', expiresAt: NOW + DAY }, NOW).state).toBe(
+      'none',
+    );
   });
 
   it('스토어 표기를 정규화한다', () => {
@@ -86,17 +97,23 @@ describe('shouldResync', () => {
   });
 
   it('만료가 코앞이면 주기와 무관하게 맞춘다', () => {
-    expect(shouldResync({ pro: true, verifiedAt: NOW - 60_000, expiresAt: NOW + 3 * 60 * 60 * 1000 }, NOW)).toBe(true);
+    expect(
+      shouldResync({ pro: true, verifiedAt: NOW - 60_000, expiresAt: NOW + 3 * 60 * 60 * 1000 }, NOW),
+    ).toBe(true);
   });
 });
 
 describe('describeSubscription', () => {
   it('무료 · 자동갱신 · 해지 예약 · 유예를 구분해 설명한다', () => {
     expect(describeSubscription({ pro: false })).toMatchObject({ key: 'billing.state.free' });
-    expect(describeSubscription({ pro: true, state: 'active', autoRenewing: true, expiresAt: NOW + DAY })).toMatchObject({
+    expect(
+      describeSubscription({ pro: true, state: 'active', autoRenewing: true, expiresAt: NOW + DAY }),
+    ).toMatchObject({
       key: 'billing.state.renewsOn',
     });
-    expect(describeSubscription({ pro: true, state: 'canceled', autoRenewing: false, expiresAt: NOW + DAY })).toMatchObject({
+    expect(
+      describeSubscription({ pro: true, state: 'canceled', autoRenewing: false, expiresAt: NOW + DAY }),
+    ).toMatchObject({
       key: 'billing.state.canceledUntil',
     });
     expect(describeSubscription({ pro: true, state: 'grace', expiresAt: NOW + DAY })).toMatchObject({
@@ -156,7 +173,12 @@ describe('Play 오퍼 선택', () => {
 describe('normalizePurchase', () => {
   it('Play 구매에서 purchaseToken 을 뽑고 승인 필요 여부를 판단한다', () => {
     const purchase = normalizePurchase(
-      { productId: 'petvoice_pro_monthly', purchaseToken: 'tok', purchaseStateAndroid: 1, isAcknowledgedAndroid: false },
+      {
+        productId: 'petvoice_pro_monthly',
+        purchaseToken: 'tok',
+        purchaseStateAndroid: 1,
+        isAcknowledgedAndroid: false,
+      },
       'android',
     );
     expect(purchase).toMatchObject({ token: 'tok', store: 'play', needsAcknowledge: true, pending: false });
@@ -164,7 +186,12 @@ describe('normalizePurchase', () => {
 
   it('이미 승인된 Play 구매는 다시 승인하지 않는다', () => {
     const purchase = normalizePurchase(
-      { productId: 'petvoice_pro_monthly', purchaseToken: 'tok', purchaseStateAndroid: 1, isAcknowledgedAndroid: true },
+      {
+        productId: 'petvoice_pro_monthly',
+        purchaseToken: 'tok',
+        purchaseStateAndroid: 1,
+        isAcknowledgedAndroid: true,
+      },
       'android',
     );
     expect(purchase?.needsAcknowledge).toBe(false);
@@ -185,7 +212,11 @@ describe('normalizePurchase', () => {
 
   it('iOS 는 영수증을 토큰으로 쓰고 원본 트랜잭션 ID 를 함께 담는다', () => {
     const purchase = normalizePurchase(
-      { productId: 'petvoice_pro_monthly', transactionReceipt: 'receipt', originalTransactionIdentifierIOS: 'orig-1' },
+      {
+        productId: 'petvoice_pro_monthly',
+        transactionReceipt: 'receipt',
+        originalTransactionIdentifierIOS: 'orig-1',
+      },
       'ios',
     );
     expect(purchase).toMatchObject({ token: 'receipt', store: 'appstore', transactionId: 'orig-1' });
@@ -214,7 +245,6 @@ describe('pickLatestPurchase', () => {
     expect(pickLatestPurchase([{ productId: '남의_상품', purchaseToken: 'x' }], 'android')).toBeNull();
   });
 });
-
 
 describe('연간 구독', () => {
   it('상품 ID 로 결제 주기를 판단한다', () => {

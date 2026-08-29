@@ -119,7 +119,10 @@ export function HistoryScreen() {
       {risk ? (
         <View
           accessibilityRole="alert"
-          style={[styles.riskBanner, { backgroundColor: risk.level === 'vet' ? colors.dangerSoft : colors.warnSoft }]}
+          style={[
+            styles.riskBanner,
+            { backgroundColor: risk.level === 'vet' ? colors.dangerSoft : colors.warnSoft },
+          ]}
         >
           <Text style={[font.bodyStrong, { color: risk.level === 'vet' ? colors.danger : colors.warnText }]}>
             {risk.level === 'vet' ? '🏥 ' : '👀 '}
@@ -170,9 +173,7 @@ export function HistoryScreen() {
                   {cell.day ? (
                     <View
                       accessible
-                      accessibilityLabel={
-                        meta ? `${cell.day} ${t(meta.labelKey)}` : String(cell.day)
-                      }
+                      accessibilityLabel={meta ? `${cell.day} ${t(meta.labelKey)}` : String(cell.day)}
                       style={[styles.dayBox, cell.isToday && { backgroundColor: colors.primarySoft }]}
                     >
                       <Text style={[font.tiny, { color: colors.textSoft }]}>{cell.day}</Text>
@@ -181,7 +182,9 @@ export function HistoryScreen() {
                         <View
                           style={[
                             styles.dot,
-                            { backgroundColor: cell.summary.level === 'vet' ? colors.danger : colors.warnLine },
+                            {
+                              backgroundColor: cell.summary.level === 'vet' ? colors.danger : colors.warnLine,
+                            },
                           ]}
                         />
                       ) : null}
@@ -195,14 +198,19 @@ export function HistoryScreen() {
       </Card>
 
       <Card style={{ gap: space.md }}>
-        <SectionTitle right={<Badge text={isPro ? 'PRO' : '🔒 PRO'} bg={colors.proSoft} fg={colors.proText} />}>
+        <SectionTitle
+          right={<Badge text={isPro ? 'PRO' : '🔒 PRO'} bg={colors.proSoft} fg={colors.proText} />}
+        >
           {t('history.weeklyTitle')}
         </SectionTitle>
         <Text style={[font.body, { color: colors.text }]}>{tr.m(weeklyHeadline(stats))}</Text>
         <View style={styles.statRow}>
           <Stat label={t('history.statAnalyses')} value={t('history.countTimes', { count: stats.count })} />
           <Stat label={t('history.statDays')} value={t('history.countDays', { count: stats.activeDays })} />
-          <Stat label={t('history.statPositive')} value={t('history.percent', { value: stats.positiveRatio })} />
+          <Stat
+            label={t('history.statPositive')}
+            value={t('history.percent', { value: stats.positiveRatio })}
+          />
           <Stat label={t('history.statVet')} value={t('history.countTimes', { count: stats.vetCount })} />
         </View>
 
@@ -210,7 +218,9 @@ export function HistoryScreen() {
           <View style={{ gap: space.sm }}>
             <Text style={[font.h3, { color: colors.text }]}>{report.headline}</Text>
             <Text style={[font.body, { color: colors.text }]}>{report.trend}</Text>
-            {report.concern ? <Text style={[font.body, { color: colors.danger }]}>⚠️ {report.concern}</Text> : null}
+            {report.concern ? (
+              <Text style={[font.body, { color: colors.danger }]}>⚠️ {report.concern}</Text>
+            ) : null}
             {report.todo.map((todo) => (
               <Text key={todo} style={[font.body, { color: colors.text }]}>
                 ✅ {todo}
@@ -228,15 +238,29 @@ export function HistoryScreen() {
       </Card>
 
       <Card style={{ gap: space.sm }}>
-        <SectionTitle right={isPro ? undefined : <Badge text="🔒 PRO" bg={colors.proSoft} fg={colors.proText} />}>
+        <SectionTitle
+          right={isPro ? undefined : <Badge text="🔒 PRO" bg={colors.proSoft} fg={colors.proText} />}
+        >
           {t('history.backupTitle')}
         </SectionTitle>
         <Text style={[font.small, { color: colors.textSoft }]}>{t('history.backupDesc')}</Text>
         {lastBackupAt ? (
-          <Text style={[font.tiny, { color: colors.textFaint }]}>{t('history.lastBackup', { when: lastBackupAt })}</Text>
+          <Text style={[font.tiny, { color: colors.textFaint }]}>
+            {t('history.lastBackup', { when: lastBackupAt })}
+          </Text>
         ) : null}
-        <Button label={t('history.backupNow')} variant="ghost" loading={syncing} onPress={() => void runBackup()} />
-        <Button label={t('history.restoreNow')} variant="ghost" loading={syncing} onPress={() => void runRestore()} />
+        <Button
+          label={t('history.backupNow')}
+          variant="ghost"
+          loading={syncing}
+          onPress={() => void runBackup()}
+        />
+        <Button
+          label={t('history.restoreNow')}
+          variant="ghost"
+          loading={syncing}
+          onPress={() => void runRestore()}
+        />
       </Card>
 
       <View>
@@ -264,7 +288,11 @@ export function HistoryScreen() {
                     {entry.context ? ` · ${entry.context}` : ''}
                   </Text>
                 </View>
-                {entry.health.level === 'vet' ? <Text>🏥</Text> : entry.health.level === 'watch' ? <Text>👀</Text> : null}
+                {entry.health.level === 'vet' ? (
+                  <Text>🏥</Text>
+                ) : entry.health.level === 'watch' ? (
+                  <Text>👀</Text>
+                ) : null}
               </Pressable>
             );
           })}

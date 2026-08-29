@@ -121,7 +121,11 @@ export function ResultScreen() {
         />
       </View>
 
-      <Button label={sharing ? t('result.sharing') : t('result.share')} loading={sharing} onPress={() => void share()} />
+      <Button
+        label={sharing ? t('result.sharing') : t('result.share')}
+        loading={sharing}
+        onPress={() => void share()}
+      />
 
       {entry.audioUri ? (
         <Card style={{ gap: space.sm }}>
@@ -136,11 +140,19 @@ export function ResultScreen() {
 
       <View>
         <SectionTitle
-          right={isPro ? undefined : <Badge text={t('result.themePartlyLocked')} bg={colors.proSoft} fg={colors.proText} />}
+          right={
+            isPro ? undefined : (
+              <Badge text={t('result.themePartlyLocked')} bg={colors.proSoft} fg={colors.proText} />
+            )
+          }
         >
           {t('result.themeTitle')}
         </SectionTitle>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: space.sm }}
+        >
           {themesFor(isPro).map(({ theme, locked }) => (
             <Chip
               key={theme.key}

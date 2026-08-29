@@ -124,17 +124,17 @@ export function useBilling(): BillingState {
 
   const buy = useCallback(
     async (sku: string) => {
-    if (busy) return;
-    setNotice(null);
-    setBusy(true);
-    try {
-      const offerToken = products.find((p) => p.productId === sku)?.offerToken;
-      await requestProSubscription(sku, offerToken);
-      // 성공/실패는 리스너로 들어온다. busy 해제도 거기서.
-    } catch (error) {
-      setBusy(false);
-      setNotice(msg(billingErrorKey(error as { code?: string }) ?? 'billing.notice.startFailed'));
-    }
+      if (busy) return;
+      setNotice(null);
+      setBusy(true);
+      try {
+        const offerToken = products.find((p) => p.productId === sku)?.offerToken;
+        await requestProSubscription(sku, offerToken);
+        // 성공/실패는 리스너로 들어온다. busy 해제도 거기서.
+      } catch (error) {
+        setBusy(false);
+        setNotice(msg(billingErrorKey(error as { code?: string }) ?? 'billing.notice.startFailed'));
+      }
     },
     [busy, products],
   );

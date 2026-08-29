@@ -107,11 +107,16 @@ export function Empty({ emoji, title, desc }: { emoji: string; title: string; de
       <Text style={{ fontSize: 44 }} accessibilityElementsHidden importantForAccessibility="no">
         {emoji}
       </Text>
-      <Text accessibilityRole="header" style={[font.h3, { color: colors.text, marginTop: space.md, textAlign: 'center' }]}>
+      <Text
+        accessibilityRole="header"
+        style={[font.h3, { color: colors.text, marginTop: space.md, textAlign: 'center' }]}
+      >
         {title}
       </Text>
       {desc ? (
-        <Text style={[font.small, { color: colors.textSoft, textAlign: 'center', marginTop: space.xs }]}>{desc}</Text>
+        <Text style={[font.small, { color: colors.textSoft, textAlign: 'center', marginTop: space.xs }]}>
+          {desc}
+        </Text>
       ) : null}
     </View>
   );

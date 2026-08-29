@@ -38,7 +38,6 @@ function secureStore(): SecureStoreModule | null {
     return null;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('expo-secure-store') as Partial<SecureStoreModule> | undefined;
     store = typeof mod?.getItemAsync === 'function' ? (mod as SecureStoreModule) : null;
   } catch {

@@ -4,7 +4,13 @@ import { PRECISE_SHOT_COUNT } from '../../core/aggregate';
 import { relativeTime } from '../../core/date';
 import { CONTEXT_PRESETS, PET_LABEL_KEY, emotionMeta, type ContextPreset } from '../../core/emotions';
 import { useT } from '../../i18n/useT';
-import { useActivePet, useEntriesForActivePet, useIsPro, usePetStore, useQuota } from '../../store/usePetStore';
+import {
+  useActivePet,
+  useEntriesForActivePet,
+  useIsPro,
+  usePetStore,
+  useQuota,
+} from '../../store/usePetStore';
 import { Badge, Button, Card, Chip, Empty, SectionTitle } from '../components/Basics';
 import { PulseRecordButton } from '../components/PulseRecordButton';
 import { RECORD_SECONDS, startRecording, type RecordingHandle } from '../media';
@@ -184,32 +190,49 @@ export function HomeScreen() {
         />
 
         <Button
-          label={isPro ? t('home.preciseCta', { count: PRECISE_SHOT_COUNT }) : `🔒 ${t('home.preciseCta', { count: PRECISE_SHOT_COUNT })}`}
+          label={
+            isPro
+              ? t('home.preciseCta', { count: PRECISE_SHOT_COUNT })
+              : `🔒 ${t('home.preciseCta', { count: PRECISE_SHOT_COUNT })}`
+          }
           variant="ghost"
           disabled={recording || analyzing || preciseShot > 0}
           onPress={() => void runPreciseFlow()}
           style={{ alignSelf: 'stretch' }}
         />
-        <Text style={[font.tiny, { color: colors.textFaint, textAlign: 'center' }]}>{t('home.preciseHint')}</Text>
+        <Text style={[font.tiny, { color: colors.textFaint, textAlign: 'center' }]}>
+          {t('home.preciseHint')}
+        </Text>
       </Card>
 
       {queue.pending > 0 ? (
         <Card style={{ gap: space.sm, backgroundColor: colors.warnSoft, borderColor: colors.warnLine }}>
-          <Text style={[font.bodyStrong, { color: colors.text }]}>{t('home.queuedCount', { count: queue.pending })}</Text>
+          <Text style={[font.bodyStrong, { color: colors.text }]}>
+            {t('home.queuedCount', { count: queue.pending })}
+          </Text>
           <Text style={[font.small, { color: colors.textSoft }]}>{t('home.queued')}</Text>
-          <Button label={t('home.retryQueue')} variant="ghost" loading={queue.draining} onPress={() => void queue.drain()} />
+          <Button
+            label={t('home.retryQueue')}
+            variant="ghost"
+            loading={queue.draining}
+            onPress={() => void queue.drain()}
+          />
         </Card>
       ) : null}
 
       <View>
         <SectionTitle
           right={
-            context.key ? <Text style={[font.tiny, { color: colors.primaryText }]}>{t('home.contextSelected')}</Text> : undefined
+            context.key ? (
+              <Text style={[font.tiny, { color: colors.primaryText }]}>{t('home.contextSelected')}</Text>
+            ) : undefined
           }
         >
           {t('home.contextTitle')}
         </SectionTitle>
-        <Text style={[font.small, { color: colors.textSoft, marginBottom: space.sm }]}>{t('home.contextSub')}</Text>
+        <Text style={[font.small, { color: colors.textSoft, marginBottom: space.sm }]}>
+          {t('home.contextSub')}
+        </Text>
         <View style={styles.wrapChips}>
           {presets.map((preset) => (
             <Chip

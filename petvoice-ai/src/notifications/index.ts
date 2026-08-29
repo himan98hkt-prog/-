@@ -23,7 +23,6 @@ function notifications(): NotificationsModule | null {
     return null;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('expo-notifications') as Partial<NotificationsModule> | undefined;
     moduleCache = typeof mod?.scheduleNotificationAsync === 'function' ? (mod as NotificationsModule) : null;
   } catch {

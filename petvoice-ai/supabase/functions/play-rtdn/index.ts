@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
     await admin
       .from('subscriptions')
       .update({
-        pro: entitlement.state === 'active' || entitlement.state === 'grace' || entitlement.state === 'canceled',
+        pro:
+          entitlement.state === 'active' || entitlement.state === 'grace' || entitlement.state === 'canceled',
         state: entitlement.state,
         expires_at: entitlement.expiresAt ? new Date(entitlement.expiresAt).toISOString() : null,
         auto_renewing: entitlement.autoRenewing,

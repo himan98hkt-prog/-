@@ -5,9 +5,7 @@
  * 예외는 모델이 만든 문장(behaviorAnalysis, healthAlert 등)이다.
  * 그건 이미 사용자 언어로 쓰여 있으므로 `raw()` 로 그대로 흘려보낸다.
  */
-export type Message =
-  | { key: string; params?: Record<string, string | number> }
-  | { text: string };
+export type Message = { key: string; params?: Record<string, string | number> } | { text: string };
 
 export function msg(key: string, params?: Record<string, string | number>): Message {
   return params ? { key, params } : { key };

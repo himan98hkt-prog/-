@@ -87,7 +87,12 @@ export interface CalendarCell {
  * 캘린더 화면용 6주 × 7일 격자.
  * `month` 는 1~12.
  */
-export function monthGrid(year: number, month: number, entries: AnalysisEntry[], now = Date.now()): CalendarCell[][] {
+export function monthGrid(
+  year: number,
+  month: number,
+  entries: AnalysisEntry[],
+  now = Date.now(),
+): CalendarCell[][] {
   const byKey = new Map(summarizeDays(entries).map((s) => [s.key, s]));
   const first = new Date(year, month - 1, 1);
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -179,7 +184,8 @@ export function weeklyHeadline(stats: WeeklyStats): Message {
 
   if (stats.positiveDelta == null) return msg('diary.headline.noCompare', params);
   if (stats.positiveDelta > 0) return msg('diary.headline.up', { ...params, delta: stats.positiveDelta });
-  if (stats.positiveDelta < 0) return msg('diary.headline.down', { ...params, delta: Math.abs(stats.positiveDelta) });
+  if (stats.positiveDelta < 0)
+    return msg('diary.headline.down', { ...params, delta: Math.abs(stats.positiveDelta) });
   return msg('diary.headline.flat', params);
 }
 

@@ -6,14 +6,7 @@
  */
 
 export type EntitlementState =
-  | 'active'
-  | 'grace'
-  | 'on_hold'
-  | 'paused'
-  | 'canceled'
-  | 'expired'
-  | 'pending'
-  | 'none';
+  'active' | 'grace' | 'on_hold' | 'paused' | 'canceled' | 'expired' | 'pending' | 'none';
 
 export interface Entitlement {
   state: EntitlementState;
@@ -208,8 +201,7 @@ export function parseRtdnMessage(decodedJson: string): RtdnPayload | null {
   }
 
   const sub = parsed.subscriptionNotification as
-    | { purchaseToken?: string; subscriptionId?: string; notificationType?: number }
-    | undefined;
+    { purchaseToken?: string; subscriptionId?: string; notificationType?: number } | undefined;
   if (!sub?.purchaseToken || typeof sub.notificationType !== 'number') return null;
 
   return {

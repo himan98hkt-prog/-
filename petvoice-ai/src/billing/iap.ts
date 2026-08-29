@@ -32,9 +32,7 @@ let moduleCache: IapModule | null | undefined;
 function hasNativeModule(): boolean {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') return false;
   const modules = NativeModules as Record<string, unknown>;
-  return Boolean(
-    modules.RNIapModule || modules.RNIapAmazonModule || modules.RNIapIos || modules.RNIapIosSk2,
-  );
+  return Boolean(modules.RNIapModule || modules.RNIapAmazonModule || modules.RNIapIos || modules.RNIapIosSk2);
 }
 
 function iap(): IapModule | null {
@@ -45,7 +43,6 @@ function iap(): IapModule | null {
   }
   try {
     // 정적 import 를 쓰면 네이티브 모듈이 없는 환경에서 번들 평가 단계부터 터질 수 있다.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('react-native-iap') as Partial<IapModule> | undefined;
     moduleCache = typeof mod?.initConnection === 'function' ? (mod as IapModule) : null;
   } catch {
@@ -106,26 +103,30 @@ export async function fetchProducts(): Promise<StoreProduct[]> {
 
   try {
     const raw = await mod.getSubscriptions({ skus: SUBSCRIPTION_SKUS });
-    return raw
-      .map((item) => {
-        const androidOffers = (item as { subscriptionOfferDetails?: AndroidOffer[] }).subscriptionOfferDetails;
-        const offer = pickAndroidOffer(androidOffers);
-        const lastPhase = offer?.pricingPhases?.pricingPhaseList?.at(-1);
-        const iosPrice = (item as { price?: string }).price;
+    return (
+      raw
+        .map((item) => {
+          const androidOffers = (item as { subscriptionOfferDetails?: AndroidOffer[] })
+            .subscriptionOfferDetails;
+          const offer = pickAndroidOffer(androidOffers);
+          const lastPhase = offer?.pricingPhases?.pricingPhaseList?.at(-1);
+          const iosPrice = (item as { price?: string }).price;
 
-        return {
-          productId: item.productId,
-          title: (item as { title?: string }).title ?? '',
-          localizedPrice:
-            (item as { localizedPrice?: string }).localizedPrice ?? lastPhase?.formattedPrice ?? '',
-          priceMicros: Number(lastPhase?.priceAmountMicros ?? (iosPrice ? Number(iosPrice) * 1_000_000 : 0)) || 0,
-          period: periodOfSku(item.productId),
-          ...(offer ? { offerToken: offer.offerToken } : {}),
-          freeTrial: freeTrialPeriod(offer),
-        };
-      })
-      // 월간 → 연간 순서로 고정해 화면이 스토어 응답 순서에 흔들리지 않게
-      .sort((a, b) => (a.period === b.period ? 0 : a.period === 'month' ? -1 : 1));
+          return {
+            productId: item.productId,
+            title: (item as { title?: string }).title ?? '',
+            localizedPrice:
+              (item as { localizedPrice?: string }).localizedPrice ?? lastPhase?.formattedPrice ?? '',
+            priceMicros:
+              Number(lastPhase?.priceAmountMicros ?? (iosPrice ? Number(iosPrice) * 1_000_000 : 0)) || 0,
+            period: periodOfSku(item.productId),
+            ...(offer ? { offerToken: offer.offerToken } : {}),
+            freeTrial: freeTrialPeriod(offer),
+          };
+        })
+        // 월간 → 연간 순서로 고정해 화면이 스토어 응답 순서에 흔들리지 않게
+        .sort((a, b) => (a.period === b.period ? 0 : a.period === 'month' ? -1 : 1))
+    );
   } catch {
     return [];
   }

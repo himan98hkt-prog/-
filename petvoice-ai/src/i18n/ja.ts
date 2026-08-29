@@ -68,7 +68,8 @@ export const ja: Record<TranslationKey, string> = {
   'voice.fallback.anger': 'いまはさわらないで。',
   'voice.fallback.pain': 'どこか痛いよ、見てくれる？',
   'voice.fallback.sad': 'ひとりでさみしいよ。',
-  'analysis.fallback.behavior': '行動の根拠を十分に読み取れませんでした。もう少しはっきりした音や写真でもう一度お試しください。',
+  'analysis.fallback.behavior':
+    '行動の根拠を十分に読み取れませんでした。もう少しはっきりした音や写真でもう一度お試しください。',
   'analysis.fallback.action': 'いつもと違うところがないか、しばらく様子を見てあげてください。',
 
   'time.justNow': 'たった今',
@@ -99,7 +100,8 @@ export const ja: Record<TranslationKey, string> = {
   'onboarding.step4.title': '異変のサインもお知らせ',
   'onboarding.step4.desc': '分離不安や痛みのサインが見えたら、受診をおすすめします。',
   'onboarding.cta': 'はじめる',
-  'onboarding.note': '1日{limit}回まで無料で分析できます。\n結果は参考情報であり、獣医学的な診断ではありません。',
+  'onboarding.note':
+    '1日{limit}回まで無料で分析できます。\n結果は参考情報であり、獣医学的な診断ではありません。',
 
   'home.emptyTitle': 'まだ登録された子がいません',
   'home.emptyDesc': 'まずペットを登録すると分析を始められます。',
@@ -133,7 +135,8 @@ export const ja: Record<TranslationKey, string> = {
   'record.retry': 'もう一度録音',
 
   'capture.permTitle': 'カメラでしぐさを分析します',
-  'capture.permDesc': '姿勢や表情は鳴き声と同じくらい多くを教えてくれます。\n撮った写真は分析とフォトカードにのみ使います。',
+  'capture.permDesc':
+    '姿勢や表情は鳴き声と同じくらい多くを教えてくれます。\n撮った写真は分析とフォトカードにのみ使います。',
   'capture.enable': 'カメラをオンにする',
   'capture.guide': '全身と顔が一緒に入るように撮ってください',
   'capture.analyzing': 'しぐさを読んでいます…',
@@ -220,8 +223,10 @@ export const ja: Record<TranslationKey, string> = {
   'diary.headline.empty': '今週の記録はまだありません。',
   'diary.headline.plain': '今週の気持ちの流れをまとめました。',
   'diary.headline.noCompare': '今週は{emoji}{emotion}がいちばん多めでした。',
-  'diary.headline.up': '今週は{emoji}{emotion}がいちばん多めでした。先週よりポジティブな感情が{delta}ポイント増えています。',
-  'diary.headline.down': '今週は{emoji}{emotion}がいちばん多めでした。先週よりポジティブな感情が{delta}ポイント減っています。',
+  'diary.headline.up':
+    '今週は{emoji}{emotion}がいちばん多めでした。先週よりポジティブな感情が{delta}ポイント増えています。',
+  'diary.headline.down':
+    '今週は{emoji}{emotion}がいちばん多めでした。先週よりポジティブな感情が{delta}ポイント減っています。',
   'diary.headline.flat': '今週は{emoji}{emotion}がいちばん多めでした。先週とほぼ同じ流れです。',
 
   'health.vetTitle': '🏥 動物病院で確認しましょう',
@@ -231,7 +236,8 @@ export const ja: Record<TranslationKey, string> = {
   'health.reason.pain': '痛みを訴えるサインが{score}%で検出されました。',
   'health.reason.painMild': '弱い痛みのサイン（{score}%）が混じっています。',
   'health.reason.sign': '{sign}が分析内容に出ています。',
-  'health.reason.separationAnxiety': 'ひとりになる場面で不安が{score}%と高めです。分離不安の初期サインかもしれません。',
+  'health.reason.separationAnxiety':
+    'ひとりになる場面で不安が{score}%と高めです。分離不安の初期サインかもしれません。',
   'health.reason.anxiety': '不安が{score}%と高く出ています。',
   'health.reason.tension': '恐怖・警戒・怒りの合計が{score}%で、いまストレスが大きい状態です。',
   'health.reason.sad': '元気のなさ・さみしさのサインが{score}%出ています。',
@@ -244,17 +250,22 @@ export const ja: Record<TranslationKey, string> = {
   'health.sign.skin': '皮膚・自己損傷',
   'health.sign.vetMentioned': '獣医師への相談のすすめ',
   'health.tip.visitSoon': 'できれば24時間以内に動物病院で身体検査を受けてください。',
-  'health.tip.bringRecording': 'いつ・どんな場面で出た音かを記録と録音で見せると、診察の大きな手がかりになります。',
-  'health.tip.separation': '出かける前のあいさつは短くし、15分前からノーズワークなど一人遊びを渡すとサインが弱まります。',
-  'health.tip.stranger': '来客から先に近づかないようにして、自分から寄ってきたときにおやつをあげると警戒が早くほどけます。',
+  'health.tip.bringRecording':
+    'いつ・どんな場面で出た音かを記録と録音で見せると、診察の大きな手がかりになります。',
+  'health.tip.separation':
+    '出かける前のあいさつは短くし、15分前からノーズワークなど一人遊びを渡すとサインが弱まります。',
+  'health.tip.stranger':
+    '来客から先に近づかないようにして、自分から寄ってきたときにおやつをあげると警戒が早くほどけます。',
   'health.tip.vet': '受診後の1〜2日は刺激を減らし、好きな毛布やおやつで安心できる場所を作ってください。',
   'health.tip.meal': '食べた量と時間を記録しておくと、次の診察で大きな手がかりになります。',
   'health.tip.night': '寝る前の運動量を増やし、就寝直前に少量あげると明け方の目覚めが減ります。',
   'health.tip.carrier': '普段からキャリーを開けておき、中でおやつをあげるとキャリー自体への恐怖が減ります。',
   'health.tip.dog': '散歩コースを変えてにおいを嗅ぐ機会を増やすと、ストレス解消の効果が大きいです。',
   'health.tip.cat': '高く登れるキャットタワーや隠れ場所をもう一つ作ると、不安が目に見えて減ります。',
-  'health.risk.repeatedVet': '直近{days}日で受診が必要なサインが{count}回検出されました。受診を先延ばしにしないでください。',
-  'health.risk.repeatedAnxiety': '直近{days}日で不安のサインが{count}回出ています。分離不安のトレーニングを始める時期です。',
+  'health.risk.repeatedVet':
+    '直近{days}日で受診が必要なサインが{count}回検出されました。受診を先延ばしにしないでください。',
+  'health.risk.repeatedAnxiety':
+    '直近{days}日で不安のサインが{count}回出ています。分離不安のトレーニングを始める時期です。',
   'health.risk.singleVet': '最近、受診がすすめられた記録があります。症状が続くか見てあげてください。',
 
   'notify.daily.title': '今日の{name}はどうでしたか？',
@@ -264,7 +275,8 @@ export const ja: Record<TranslationKey, string> = {
   'notify.petFallback': 'うちの子',
 
   'testMode.title': 'テストモード（開発者向け）',
-  'testMode.warning': 'リリース版は AI キーをサーバーにのみ置きます。この画面は精度を確認するテストビルドにだけ現れ、キーはこの端末の安全な保管領域にのみ保存されます。',
+  'testMode.warning':
+    'リリース版は AI キーをサーバーにのみ置きます。この画面は精度を確認するテストビルドにだけ現れ、キーはこの端末の安全な保管領域にのみ保存されます。',
   'testMode.placeholder': 'Google AI Studio で発行したキー',
   'testMode.save': 'キーを保存',
   'testMode.clear': 'キーを削除',
@@ -302,12 +314,14 @@ export const ja: Record<TranslationKey, string> = {
   'settings.serverDemo': 'デモモード',
   'settings.disclaimer': 'PetVoice AI の分析結果は参考情報であり、獣医学的な診断に代わるものではありません。',
   'settings.resetTitle': 'すべてのデータを消しますか？',
-  'settings.resetDesc': '登録したペット{pets}匹と分析記録{entries}件が端末から完全に削除されます。元に戻せません。',
+  'settings.resetDesc':
+    '登録したペット{pets}匹と分析記録{entries}件が端末から完全に削除されます。元に戻せません。',
   'settings.resetConfirm': 'すべて削除',
   'settings.resetDone': '削除しました',
   'settings.resetDoneDesc': 'すべてのデータを消去しました。',
   'settings.deleteAccountTitle': 'アカウントとサーバーのデータを削除しますか？',
-  'settings.deleteAccountDesc': '匿名アカウントとサーバーに保存された利用記録がすべて削除されます。端末内の記録も一緒に消えます。',
+  'settings.deleteAccountDesc':
+    '匿名アカウントとサーバーに保存された利用記録がすべて削除されます。端末内の記録も一緒に消えます。',
   'settings.deleteAccountDone': '削除完了',
   'settings.deleteAccountDoneDesc': 'アカウントとデータを削除しました。',
   'settings.deleteAccountFail': '削除に失敗しました',
@@ -350,9 +364,11 @@ export const ja: Record<TranslationKey, string> = {
   'paywall.restore': '購入を復元',
   'paywall.later': 'あとにする',
   'paywall.unavailableTitle': 'この環境では購入できません',
-  'paywall.unavailableDesc': 'ストア購入は EAS 開発ビルド、またはストアからインストールしたアプリでのみ動作します。\n（Expo Go・Web プレビューには課金ネイティブモジュールがありません。）',
+  'paywall.unavailableDesc':
+    'ストア購入は EAS 開発ビルド、またはストアからインストールしたアプリでのみ動作します。\n（Expo Go・Web プレビューには課金ネイティブモジュールがありません。）',
   'paywall.devUnlock': '開発用: プロ状態に切り替え',
-  'paywall.legal': 'サブスクリプションは毎月自動更新され、解約しない限り次の請求日に更新されます。\n解約は更新の24時間前までにストアのサブスク管理から行えます。\n支払い・返金は各ストアのポリシーに従います。',
+  'paywall.legal':
+    'サブスクリプションは毎月自動更新され、解約しない限り次の請求日に更新されます。\n解約は更新の24時間前までにストアのサブスク管理から行えます。\n支払い・返金は各ストアのポリシーに従います。',
   'paywall.subscriptionTitle': 'サブスクリプション',
 
   'billing.state.free': '無料プラン',
@@ -368,7 +384,8 @@ export const ja: Record<TranslationKey, string> = {
   'billing.notice.restored': 'サブスクを復元しました。',
   'billing.notice.restoreNone': 'このアカウントで復元できるサブスクは見つかりませんでした。',
   'billing.notice.expired': 'サブスクは期限切れです。',
-  'billing.notice.verifyFailed': '{reason} 支払いはキャンセルされていません。少ししてから［購入を復元］を押してください。',
+  'billing.notice.verifyFailed':
+    '{reason} 支払いはキャンセルされていません。少ししてから［購入を復元］を押してください。',
   'billing.notice.startFailed': '購入を開始できませんでした。',
   'billing.notice.devUnlocked': 'プロ状態に切り替えました。（実際の決済ではありません）',
   'billing.error.alreadyOwned': 'すでに購読中です。［購入を復元］を押してください。',
@@ -399,13 +416,17 @@ export const ja: Record<TranslationKey, string> = {
   'petForm.viewPro': 'プロを見る',
 
   'permissions.mic.title': 'マイクの許可が必要です',
-  'permissions.mic.message': 'ペットの鳴き声を3秒録音して気持ちを分析するためだけに使います。\n録音は分析後も端末内に残るだけで、分析以外の目的には使いません。',
+  'permissions.mic.message':
+    'ペットの鳴き声を3秒録音して気持ちを分析するためだけに使います。\n録音は分析後も端末内に残るだけで、分析以外の目的には使いません。',
   'permissions.camera.title': 'カメラの許可が必要です',
-  'permissions.camera.message': 'ペットの姿勢や表情を撮影して行動を分析するためだけに使います。\n撮影した写真は分析とフォトカード作成にのみ使われます。',
+  'permissions.camera.message':
+    'ペットの姿勢や表情を撮影して行動を分析するためだけに使います。\n撮影した写真は分析とフォトカード作成にのみ使われます。',
   'permissions.photos.title': '写真へのアクセス許可が必要です',
-  'permissions.photos.message': 'すでに撮ってあるペットの写真で分析したり、フォトカードを作るために使います。',
+  'permissions.photos.message':
+    'すでに撮ってあるペットの写真で分析したり、フォトカードを作るために使います。',
   'permissions.notifications.title': '通知の許可が必要です',
-  'permissions.notifications.message': '記録を忘れないように夜に1回、週次レポートができたときに1回だけお知らせします。',
+  'permissions.notifications.message':
+    '記録を忘れないように夜に1回、週次レポートができたときに1回だけお知らせします。',
   'permissions.deniedTitle': '許可がオフになっています',
   'permissions.deniedMessage': '端末の設定で許可をオンにすると、すぐに使えます。',
 

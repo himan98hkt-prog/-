@@ -12,9 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFF9F4"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.petvoice.ai",
@@ -31,12 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFF9F4"
       },
-      "permissions": [
-        "RECORD_AUDIO",
-        "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "com.android.vending.BILLING"
-      ],
+      "permissions": ["RECORD_AUDIO", "CAMERA", "READ_MEDIA_IMAGES", "com.android.vending.BILLING"],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

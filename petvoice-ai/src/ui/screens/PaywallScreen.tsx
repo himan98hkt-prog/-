@@ -41,7 +41,8 @@ export function PaywallScreen() {
   const trial = trialLabel(selected?.freeTrial ?? null, tr);
 
   const savings = useMemo(() => {
-    if (monthly?.priceMicros && yearly?.priceMicros) return savingsPercent(monthly.priceMicros, yearly.priceMicros);
+    if (monthly?.priceMicros && yearly?.priceMicros)
+      return savingsPercent(monthly.priceMicros, yearly.priceMicros);
     return savingsPercent(PRO_PRICE_KRW * 1_000_000, PRO_YEARLY_PRICE_KRW * 1_000_000);
   }, [monthly?.priceMicros, yearly?.priceMicros]);
 
@@ -91,7 +92,9 @@ export function PaywallScreen() {
           <View key={feature} style={styles.feature}>
             <Text style={[styles.check, { color: colors.proText }]}>✓</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[font.bodyStrong, { color: colors.text }]}>{t(`paywall.feature.${feature}.title`)}</Text>
+              <Text style={[font.bodyStrong, { color: colors.text }]}>
+                {t(`paywall.feature.${feature}.title`)}
+              </Text>
               <Text style={[font.small, { color: colors.textSoft }]}>
                 {t(`paywall.feature.${feature}.desc`, { limit: FREE_DAILY_LIMIT })}
               </Text>
@@ -132,7 +135,12 @@ export function PaywallScreen() {
             onPress={() => void billing.openManage()}
             style={{ alignSelf: 'stretch' }}
           />
-          <Button label={t('result.goBack')} variant="ghost" onPress={nav.back} style={{ alignSelf: 'stretch' }} />
+          <Button
+            label={t('result.goBack')}
+            variant="ghost"
+            onPress={nav.back}
+            style={{ alignSelf: 'stretch' }}
+          />
         </Card>
       ) : (
         <>

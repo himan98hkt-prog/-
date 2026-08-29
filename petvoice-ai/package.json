@@ -13,7 +13,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "eval": "vite-node eval/run.ts --",
-    "eval:controls": "node eval/make-controls.mjs"
+    "eval:controls": "node eval/make-controls.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
@@ -40,7 +44,12 @@
   },
   "devDependencies": {
     "@types/react": "~18.2.79",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.9.6",
     "typescript": "~5.3.3",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^2.1.8"
   }
 }

@@ -11,7 +11,11 @@ import { supabase } from './supabase';
  * 보내는 것은 판정과 분류값뿐이다 — 사진·녹음·분석 문장은 올리지 않는다.
  * 실패해도 조용히 넘어간다. 피드백 때문에 사용자 흐름이 끊기면 안 된다.
  */
-export async function sendFeedback(entry: AnalysisEntry, verdict: 'up' | 'down', locale: Locale): Promise<void> {
+export async function sendFeedback(
+  entry: AnalysisEntry,
+  verdict: 'up' | 'down',
+  locale: Locale,
+): Promise<void> {
   const sb = supabase();
   if (!sb || !isConfigured) return;
 

@@ -34,7 +34,6 @@ let initialized = false;
  */
 async function openDatabase(): Promise<SQLiteDatabase | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const SQLite = require('expo-sqlite') as {
       openDatabaseAsync?: (name: string) => Promise<SQLiteDatabase>;
     };
@@ -45,13 +44,13 @@ async function openDatabase(): Promise<SQLiteDatabase | null> {
 
     // 왕복 검사: 넣고, 읽고, 지운다
     const probeId = `__probe_${Date.now()}`;
-    await opened.runAsync('INSERT OR REPLACE INTO entries (id, pet_id, created_at, payload) VALUES (?, ?, ?, ?)', [
+    await opened.runAsync(
+      'INSERT OR REPLACE INTO entries (id, pet_id, created_at, payload) VALUES (?, ?, ?, ?)',
+      [probeId, '__probe', 0, '{}'],
+    );
+    const found = await opened.getFirstAsync<{ id: string }>('SELECT id FROM entries WHERE id = ?', [
       probeId,
-      '__probe',
-      0,
-      '{}',
     ]);
-    const found = await opened.getFirstAsync<{ id: string }>('SELECT id FROM entries WHERE id = ?', [probeId]);
     await opened.runAsync('DELETE FROM entries WHERE id = ?', [probeId]);
     if (!found) return null;
 

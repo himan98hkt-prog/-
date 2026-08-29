@@ -11,9 +11,7 @@ export const SILENCE_DBFS = -45;
 /** 반려동물 소리로 볼 만한 최소 피크 */
 export const PEAK_DBFS = -30;
 
-export type RecordingVerdict =
-  | { ok: true }
-  | { ok: false; reason: 'tooQuiet' | 'noPetSound' };
+export type RecordingVerdict = { ok: true } | { ok: false; reason: 'tooQuiet' | 'noPetSound' };
 
 /**
  * 녹음이 분석할 만한지 판단한다.

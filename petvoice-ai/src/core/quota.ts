@@ -33,7 +33,11 @@ export function isProActive(sub: Subscription | undefined, now = Date.now()): bo
  * 오늘 남은 분석 횟수를 계산한다.
  * `timestamps` 는 분석 히스토리의 createdAt 목록 (정렬 여부 무관).
  */
-export function quotaState(timestamps: number[], sub: Subscription | undefined, now = Date.now()): QuotaState {
+export function quotaState(
+  timestamps: number[],
+  sub: Subscription | undefined,
+  now = Date.now(),
+): QuotaState {
   const pro = isProActive(sub, now);
   const todayStart = startOfDay(now);
   const resetsAt = startOfNextDay(now);

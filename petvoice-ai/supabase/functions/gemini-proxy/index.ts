@@ -23,7 +23,14 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FREE_DAILY_LIMIT = 3;
 const MAX_MEDIA_BYTES = 5 * 1024 * 1024;
 const MAX_PROMPT_CHARS = 8000;
-const ALLOWED_MIME = new Set(['audio/m4a', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'image/jpeg', 'image/png']);
+const ALLOWED_MIME = new Set([
+  'audio/m4a',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+  'image/jpeg',
+  'image/png',
+]);
 // 화이트리스트에만 있으면 클라이언트가 순서를 정할 수 있다.
 // 구글이 모델을 갈아치워도 앱을 새로 배포하지 않게 하려는 것.
 const ALLOWED_MODELS = new Set([
@@ -121,8 +128,10 @@ Deno.serve(async (req) => {
 
   const media = payload.media;
   if (media) {
-    if (!media.mimeType || !ALLOWED_MIME.has(media.mimeType)) return json({ error: 'unsupported_media' }, 415);
-    if (!media.data || base64Bytes(media.data) > MAX_MEDIA_BYTES) return json({ error: 'media_too_large' }, 413);
+    if (!media.mimeType || !ALLOWED_MIME.has(media.mimeType))
+      return json({ error: 'unsupported_media' }, 415);
+    if (!media.data || base64Bytes(media.data) > MAX_MEDIA_BYTES)
+      return json({ error: 'media_too_large' }, 413);
   }
 
   // 3) 사용량 제한 (서버 기준) -------------------------------------------
@@ -133,7 +142,12 @@ Deno.serve(async (req) => {
   });
   if (quotaError) return json({ error: 'quota_check_failed' }, 500);
   if (allowed === false) {
-    await recordMetric(admin, { model: chain[0], mediaKind: 'none', outcome: 'quota', startedAt: Date.now() });
+    await recordMetric(admin, {
+      model: chain[0],
+      mediaKind: 'none',
+      outcome: 'quota',
+      startedAt: Date.now(),
+    });
     return json({ error: 'quota_exceeded' }, 402);
   }
 
@@ -189,12 +203,24 @@ Deno.serve(async (req) => {
 
     // 이 모델을 못 쓰는 경우에만 다음 후보로 내려간다
     if (upstream.status === 404 || upstream.status === 400) continue;
-    await recordMetric(admin, { model, mediaKind, outcome: 'upstream_error', startedAt, status: upstream.status });
+    await recordMetric(admin, {
+      model,
+      mediaKind,
+      outcome: 'upstream_error',
+      startedAt,
+      status: upstream.status,
+    });
     return json({ error: 'upstream_error' }, upstream.status === 429 ? 429 : 502);
   }
 
   if (body == null) {
-    await recordMetric(admin, { model: chain.join(','), mediaKind, outcome: 'upstream_error', startedAt, status: lastStatus });
+    await recordMetric(admin, {
+      model: chain.join(','),
+      mediaKind,
+      outcome: 'upstream_error',
+      startedAt,
+      status: lastStatus,
+    });
     return json({ error: 'no_usable_model' }, 502);
   }
 

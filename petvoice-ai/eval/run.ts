@@ -71,7 +71,9 @@ async function askGemini(prompt: string, base64: string, mime: string): Promise<
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ inline_data: { mime_type: mime, data: base64 } }, { text: prompt }] }],
+          contents: [
+            { role: 'user', parts: [{ inline_data: { mime_type: mime, data: base64 } }, { text: prompt }] },
+          ],
           generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: RESPONSE_SCHEMA,
@@ -109,13 +111,19 @@ function mockAnswer(): string {
 async function analyzeOnce(clip: Clip): Promise<Run> {
   const pet = { ...DEFAULT_PET, ...clip.pet } as PetProfile;
   const path = join(HERE, 'dataset', clip.file);
-  const mime = clip.file.endsWith('.wav') ? 'audio/wav' : clip.file.endsWith('.mp3') ? 'audio/mpeg' : 'audio/m4a';
+  const mime = clip.file.endsWith('.wav')
+    ? 'audio/wav'
+    : clip.file.endsWith('.mp3')
+      ? 'audio/mpeg'
+      : 'audio/m4a';
 
   const prompt = buildPrompt({ pet, mediaType: 'audio/m4a', context: '', locale: 'ko' });
 
   try {
     const raw =
-      provider === 'gemini' ? await askGemini(prompt, readFileSync(path).toString('base64'), mime) : mockAnswer();
+      provider === 'gemini'
+        ? await askGemini(prompt, readFileSync(path).toString('base64'), mime)
+        : mockAnswer();
     const result = parseAnalysis(raw);
     return {
       clip,
@@ -173,7 +181,11 @@ async function main() {
   } else {
     const behavior = controlBehavior(
       controls.flatMap((runs) =>
-        runs.map((r) => ({ refused: r.refused, primaryEmotion: r.result?.primaryEmotion, emotionScores: r.result?.emotionScores })),
+        runs.map((r) => ({
+          refused: r.refused,
+          primaryEmotion: r.result?.primaryEmotion,
+          emotionScores: r.result?.emotionScores,
+        })),
       ),
     );
     console.log(`  판단 불가로 물러선 비율 : ${pct(behavior.refused)}  (높을수록 정직)`);

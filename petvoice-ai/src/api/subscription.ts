@@ -48,7 +48,11 @@ export async function verifyPurchase(purchase: NormalizedPurchase): Promise<Subs
 
   if (error) {
     const status = (error as { context?: { status?: number } }).context?.status;
-    throw new ApiError(status ? codeFromStatus(status) : 'server', error.message ?? '검증에 실패했습니다.', status);
+    throw new ApiError(
+      status ? codeFromStatus(status) : 'server',
+      error.message ?? '검증에 실패했습니다.',
+      status,
+    );
   }
 
   return subscriptionFromEntitlement(data as Record<string, unknown>);

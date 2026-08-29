@@ -16,8 +16,10 @@ export const isConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
  * 클라이언트 번들에 AI 제공자 키가 들어오면 개발/테스트 단계에서 즉시 실패시킨다.
  */
 export function assertNoAiKeyInClient(env: Record<string, string | undefined> = process.env as never): void {
-  const leaked = Object.keys(env).filter((key) =>
-    /^(EXPO_PUBLIC_|REACT_APP_|NEXT_PUBLIC_)/.test(key) && /(GEMINI|GOOGLE_AI|GENAI|OPENAI|ANTHROPIC)_?API_?KEY/i.test(key),
+  const leaked = Object.keys(env).filter(
+    (key) =>
+      /^(EXPO_PUBLIC_|REACT_APP_|NEXT_PUBLIC_)/.test(key) &&
+      /(GEMINI|GOOGLE_AI|GENAI|OPENAI|ANTHROPIC)_?API_?KEY/i.test(key),
   );
   if (leaked.length > 0) {
     throw new Error(

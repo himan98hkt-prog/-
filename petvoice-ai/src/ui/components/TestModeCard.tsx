@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput } from 'react-native';
 import { isConfigured } from '../../api';
 import { clearTestKey, getTestKey, isTestKeyUsable, maskKey, setTestKey } from '../../api/testKey';
 import { useT } from '../../i18n/useT';

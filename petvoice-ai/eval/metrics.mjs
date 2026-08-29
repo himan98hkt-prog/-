@@ -120,7 +120,8 @@ export function controlBehavior(results) {
     refused: round(refused / total),
     // 대조군인데도 60% 이상 확신한 비율 (높을수록 지어낸다)
     confident: round(confident / total),
-    meanTopScore: topScores.length > 0 ? round(topScores.reduce((a, b) => a + b, 0) / topScores.length, 1) : null,
+    meanTopScore:
+      topScores.length > 0 ? round(topScores.reduce((a, b) => a + b, 0) / topScores.length, 1) : null,
   };
 }
 

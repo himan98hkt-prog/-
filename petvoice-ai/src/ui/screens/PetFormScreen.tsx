@@ -102,8 +102,18 @@ export function PetFormScreen() {
           </View>
         </View>
 
-        <Field label={t('petForm.name')} value={name} onChange={setName} placeholder={t('petForm.namePlaceholder')} />
-        <Field label={t('petForm.breed')} value={breed} onChange={setBreed} placeholder={t('petForm.breedPlaceholder')} />
+        <Field
+          label={t('petForm.name')}
+          value={name}
+          onChange={setName}
+          placeholder={t('petForm.namePlaceholder')}
+        />
+        <Field
+          label={t('petForm.breed')}
+          value={breed}
+          onChange={setBreed}
+          placeholder={t('petForm.breedPlaceholder')}
+        />
         <Field
           label={t('petForm.age')}
           value={age}

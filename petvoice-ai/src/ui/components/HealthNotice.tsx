@@ -40,7 +40,9 @@ export function HealthNotice({ health }: { health: HealthAssessment }) {
 
       {health.tips.length > 0 ? (
         <View style={styles.tips}>
-          <Text style={[font.tiny, { color: colors.textSoft, marginBottom: space.xs }]}>{t('health.nowTitle')}</Text>
+          <Text style={[font.tiny, { color: colors.textSoft, marginBottom: space.xs }]}>
+            {t('health.nowTitle')}
+          </Text>
           {health.tips.map((tip, index) => (
             <Text key={index} style={[font.small, { color: colors.text }]}>
               · {m(tip)}
@@ -49,7 +51,9 @@ export function HealthNotice({ health }: { health: HealthAssessment }) {
         </View>
       ) : null}
 
-      <Text style={[font.tiny, { color: colors.textFaint, marginTop: space.md }]}>{t('health.disclaimer')}</Text>
+      <Text style={[font.tiny, { color: colors.textFaint, marginTop: space.md }]}>
+        {t('health.disclaimer')}
+      </Text>
     </View>
   );
 }

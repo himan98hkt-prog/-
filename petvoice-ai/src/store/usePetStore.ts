@@ -284,7 +284,12 @@ export function useQuota(now = Date.now()): QuotaState {
   const entries = usePetStore((s) => s.entries);
   const subscription = usePetStore((s) => s.subscription);
   return useMemo(
-    () => quotaState(entries.map((e) => e.createdAt), subscription, now),
+    () =>
+      quotaState(
+        entries.map((e) => e.createdAt),
+        subscription,
+        now,
+      ),
     [entries, subscription, now],
   );
 }

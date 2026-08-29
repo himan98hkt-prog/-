@@ -15,11 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { CORS, json } from '../_shared/cors.ts';
-import {
-  entitlementFromApple,
-  entitlementFromPlay,
-  type Entitlement,
-} from '../_shared/entitlement.ts';
+import { entitlementFromApple, entitlementFromPlay, type Entitlement } from '../_shared/entitlement.ts';
 import { getGoogleAccessToken } from '../_shared/googleAuth.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -154,7 +150,8 @@ Deno.serve(async (req) => {
   const { error: upsertError } = await admin.from('subscriptions').upsert(
     {
       user_id: userId,
-      pro: entitlement.state === 'active' || entitlement.state === 'grace' || entitlement.state === 'canceled',
+      pro:
+        entitlement.state === 'active' || entitlement.state === 'grace' || entitlement.state === 'canceled',
       state: entitlement.state,
       expires_at: entitlement.expiresAt ? new Date(entitlement.expiresAt).toISOString() : null,
       auto_renewing: entitlement.autoRenewing,

@@ -70,7 +70,11 @@ export function CaptureScreen() {
               {t('capture.permTitle')}
             </Text>
             <Text style={[font.small, styles.permissionText]}>{t('capture.permDesc')}</Text>
-            <Button label={t('capture.enable')} onPress={() => void askPermission()} style={{ marginTop: space.lg }} />
+            <Button
+              label={t('capture.enable')}
+              onPress={() => void askPermission()}
+              style={{ marginTop: space.lg }}
+            />
           </View>
         )}
 
@@ -84,7 +88,9 @@ export function CaptureScreen() {
         {analyzing || busy ? (
           <View style={[StyleSheet.absoluteFill, styles.loading]} accessibilityRole="progressbar">
             <ActivityIndicator size="large" color="#FFFFFF" />
-            <Text style={[font.bodyStrong, { color: '#FFFFFF', marginTop: space.md }]}>{t('capture.analyzing')}</Text>
+            <Text style={[font.bodyStrong, { color: '#FFFFFF', marginTop: space.md }]}>
+              {t('capture.analyzing')}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -94,7 +100,11 @@ export function CaptureScreen() {
           <Text accessibilityRole="header" style={[font.h3, { color: colors.text }]}>
             {t('capture.contextTitle')}
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: space.sm }}
+          >
             {presets.map((preset) => (
               <Chip
                 key={preset.key}
@@ -168,7 +178,12 @@ const makeStyles = ({ colors }: Theme) =>
     },
     loading: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.55)' },
     panel: { padding: space.lg, gap: space.lg },
-    actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xl },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: space.xl,
+    },
     sideButton: {
       width: HIT_SIZE + 8,
       height: HIT_SIZE + 8,

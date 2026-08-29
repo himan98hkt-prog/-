@@ -59,7 +59,10 @@ describe('assessHealth', () => {
       'DOG',
     );
     expect(assessment.level).toBe('vet');
-    expect(assessment.reasons).toContainEqual({ key: 'health.reason.sign', params: { sign: '@health.sign.gait' } });
+    expect(assessment.reasons).toContainEqual({
+      key: 'health.reason.sign',
+      params: { sign: '@health.sign.gait' },
+    });
   });
 
   it('외출 맥락의 높은 불안은 분리불안으로 안내한다', () => {

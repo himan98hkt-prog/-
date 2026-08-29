@@ -54,7 +54,11 @@ describe('entitlementFromPlay', () => {
     const e = entitlementFromPlay({
       ...base,
       lineItems: [
-        { productId: 'old', expiryTime: new Date(NOW + DAY).toISOString(), autoRenewingPlan: { autoRenewEnabled: false } },
+        {
+          productId: 'old',
+          expiryTime: new Date(NOW + DAY).toISOString(),
+          autoRenewingPlan: { autoRenewEnabled: false },
+        },
         {
           productId: 'petvoice_pro_monthly',
           expiryTime: new Date(NOW + 30 * DAY).toISOString(),
@@ -68,7 +72,10 @@ describe('entitlementFromPlay', () => {
   });
 
   it('승인 대기 상태를 표시한다', () => {
-    expect(entitlementFromPlay({ ...base, acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING' }).needsAcknowledge).toBe(true);
+    expect(
+      entitlementFromPlay({ ...base, acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING' })
+        .needsAcknowledge,
+    ).toBe(true);
     expect(entitlementFromPlay(base).needsAcknowledge).toBe(false);
   });
 
@@ -90,14 +97,23 @@ describe('entitlementFromApple', () => {
   const receipt = (expiresMs: number, autoRenew = '1', extra: Record<string, string> = {}) => ({
     status: 0,
     latest_receipt_info: [
-      { product_id: 'petvoice_pro_monthly', expires_date_ms: String(expiresMs), original_transaction_id: 'orig-1' },
+      {
+        product_id: 'petvoice_pro_monthly',
+        expires_date_ms: String(expiresMs),
+        original_transaction_id: 'orig-1',
+      },
     ],
     pending_renewal_info: [{ auto_renew_status: autoRenew, ...extra }],
   });
 
   it('만료 전 + 자동갱신이면 active', () => {
     const e = entitlementFromApple(receipt(NOW + 10 * DAY), NOW);
-    expect(e).toMatchObject({ state: 'active', expiresAt: NOW + 10 * DAY, autoRenewing: true, store: 'appstore' });
+    expect(e).toMatchObject({
+      state: 'active',
+      expiresAt: NOW + 10 * DAY,
+      autoRenewing: true,
+      store: 'appstore',
+    });
   });
 
   it('만료 전 + 자동갱신 꺼짐이면 해지 예약', () => {
@@ -107,7 +123,10 @@ describe('entitlementFromApple', () => {
   it('만료됐고 유예 기간이 남았으면 grace, 만료 시각은 유예 종료로 본다', () => {
     const graceUntil = NOW + 3 * DAY;
     const e = entitlementFromApple(
-      receipt(NOW - DAY, '1', { is_in_billing_retry_period: '1', grace_period_expires_date_ms: String(graceUntil) }),
+      receipt(NOW - DAY, '1', {
+        is_in_billing_retry_period: '1',
+        grace_period_expires_date_ms: String(graceUntil),
+      }),
       NOW,
     );
     expect(e.state).toBe('grace');
@@ -115,7 +134,9 @@ describe('entitlementFromApple', () => {
   });
 
   it('유예 없이 결제 재시도 중이면 on_hold', () => {
-    expect(entitlementFromApple(receipt(NOW - DAY, '1', { is_in_billing_retry_period: '1' }), NOW).state).toBe('on_hold');
+    expect(
+      entitlementFromApple(receipt(NOW - DAY, '1', { is_in_billing_retry_period: '1' }), NOW).state,
+    ).toBe('on_hold');
   });
 
   it('그냥 지났으면 expired', () => {
@@ -148,7 +169,12 @@ describe('parseRtdnMessage', () => {
     const payload = JSON.stringify({
       version: '1.0',
       packageName: 'app.petvoice.ai',
-      subscriptionNotification: { version: '1.0', notificationType: 13, purchaseToken: 'tok', subscriptionId: 'petvoice_pro_monthly' },
+      subscriptionNotification: {
+        version: '1.0',
+        notificationType: 13,
+        purchaseToken: 'tok',
+        subscriptionId: 'petvoice_pro_monthly',
+      },
     });
     expect(parseRtdnMessage(payload)).toEqual({
       purchaseToken: 'tok',
@@ -167,7 +193,9 @@ describe('parseRtdnMessage', () => {
   });
 
   it('모르는 알림 유형에도 이름을 붙인다', () => {
-    const payload = JSON.stringify({ subscriptionNotification: { notificationType: 99, purchaseToken: 'tok' } });
+    const payload = JSON.stringify({
+      subscriptionNotification: { notificationType: 99, purchaseToken: 'tok' },
+    });
     expect(parseRtdnMessage(payload)?.notificationName).toBe('UNKNOWN_99');
   });
 });

@@ -45,18 +45,18 @@ describe('aggregateResults', () => {
   it('종합 1위 감정을 가장 강하게 본 회차의 문장을 대표로 쓴다', () => {
     const merged = aggregateResults([
       result({ emotionScores: { playful: 60, curious: 40 }, petVoiceMessage: '약한 회차' }),
-      result({ emotionScores: { playful: 95, curious: 5 }, petVoiceMessage: '강한 회차', behaviorAnalysis: '강한 분석' }),
+      result({
+        emotionScores: { playful: 95, curious: 5 },
+        petVoiceMessage: '강한 회차',
+        behaviorAnalysis: '강한 분석',
+      }),
     ]);
     expect(merged.petVoiceMessage).toBe('강한 회차');
     expect(merged.behaviorAnalysis).toBe('강한 분석');
   });
 
   it('이상 징후는 한 번이라도 잡혔으면 살린다', () => {
-    const merged = aggregateResults([
-      result({}),
-      result({ healthAlert: '기침이 반복됩니다.' }),
-      result({}),
-    ]);
+    const merged = aggregateResults([result({}), result({ healthAlert: '기침이 반복됩니다.' }), result({})]);
     expect(merged.healthAlert).toBe('기침이 반복됩니다.');
   });
 
