@@ -22,13 +22,23 @@ const SKIP = new Set([
   '백업',
 ])
 
-function copy(src, dst) {
+/**
+ * 이름만 보고 건너뛰면 안 되는 것 하나 — `desktop`.
+ *
+ * `desktop/main.js` 와 아이콘은 설치본을 직접 만들어 보실 분께 필요하다(합쳐 11KB).
+ * 그런데 `desktop/app` 은 빌드해서 만든 본체라 24MB 다. 원본 묶음에 넣을 이유가 없다.
+ */
+const SKIP_PATH = new Set([path.join('desktop', 'app')])
+
+function copy(src, dst, rel = '') {
   const st = fs.statSync(src)
   if (st.isDirectory()) {
     fs.mkdirSync(dst, { recursive: true })
     for (const name of fs.readdirSync(src)) {
       if (SKIP.has(name)) continue
-      copy(path.join(src, name), path.join(dst, name))
+      const next = rel ? path.join(rel, name) : name
+      if (SKIP_PATH.has(next)) continue
+      copy(path.join(src, name), path.join(dst, name), next)
     }
     return
   }

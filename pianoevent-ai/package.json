@@ -2,7 +2,7 @@
   "name": "pianoevent-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "피아노학원 정기 연주회·시즌 특강 올인원 기획 SaaS",
+  "description": "피아노학원 연주회 준비 프로그램",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -27,7 +27,12 @@
     "verify:easy": "node scripts/verify-easy.mjs",
     "manual:shots": "node scripts/manual-shots.mjs",
     "sample:xlsx": "node scripts/sample-xlsx.mjs",
-    "verify:simple": "node scripts/verify-simple.mjs"
+    "verify:simple": "node scripts/verify-simple.mjs",
+    "desktop": "npm run build && node scripts/build-desktop.mjs",
+    "desktop:dev": "node scripts/build-desktop.mjs && electron .",
+    "dist": "npm run desktop && electron-builder --linux",
+    "dist:win": "npm run desktop && electron-builder --win",
+    "dist:mac": "npm run desktop && electron-builder --mac"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -46,6 +51,8 @@
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.1.0",
     "autoprefixer": "^10.5.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
     "jsqr": "^1.4.0",
@@ -56,5 +63,11 @@
     "typescript": "^6.0.3",
     "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.11"
-  }
+  },
+  "main": "desktop/main.js",
+  "author": {
+    "name": "아첼쌤"
+  },
+  "repository": "https://github.com/himan98hkt-prog/-",
+  "desktopName": "pianoevent.desktop"
 }

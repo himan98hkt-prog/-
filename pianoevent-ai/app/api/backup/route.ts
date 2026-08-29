@@ -1,4 +1,5 @@
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { backupRoot } from '@/lib/paths'
 import path from 'node:path'
 import { BACKUP_DIR, backupDay, pruneDays, safeFileName, sortDays, uniqueName, type BackupDay } from '@/lib/events/backup'
 import { buildBundle } from '@/lib/events/transfer'
@@ -9,7 +10,7 @@ import { getRepository } from '@/lib/store'
 export const dynamic = 'force-dynamic'
 
 function root(): string {
-  return path.join(process.cwd(), BACKUP_DIR)
+  return backupRoot(BACKUP_DIR)
 }
 
 /**

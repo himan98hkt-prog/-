@@ -15,6 +15,10 @@ npm run dev      # http://localhost:3000  (환경변수 없이 바로 전 기능
 npm run reset    # 데모 데이터를 처음 상태로 되돌리기
 npm run mobile   # 같은 와이파이의 휴대폰에서 열기 (주소 + QR 코드 표시)
 npm run pack     # 배포용 ZIP 만들기 (실행기가 맨 위에 오도록 구성)
+npm run desktop  # 설치판에 담을 본체 만들기 (.next/standalone + static + public + docs)
+npm run dist     # 리눅스 AppImage        · 배포/설치본/
+npm run dist:win # 윈도우 설치 프로그램    · 윈도우에서 실행해야 합니다
+npm run dist:mac # 맥 dmg                 · 맥에서 실행해야 합니다
 npm run carousel # 상품 캐러셀 15장 (1080×1080 PNG)
 npm test         # 순수 로직 단위 테스트 680건
 npm run manual:shots             # 사용설명서에 넣을 화면 그림 10장 다시 찍기
@@ -138,6 +142,9 @@ npm run verify:video             # 템플릿 20종 · 콘티 · 실제 영상 �
 | [글씨 크게] 가 정작 작은 글씨엔 안 들음 | px 로 박아 둔 화면 글씨 53곳을 rem 으로 — 최소 10px→12px, 아주 크게에서 15.75px |
 | 화면 하나에 눌러 볼 것이 102개·6,000px | **고르는 자리를 접음** — 디자인 102→43·1,939px, 영상 63→39, 무대 54→31, 설정 61→25 |
 | "쉽다" 를 재어 보지 않아 조용히 무거워짐 | `npm run verify:simple` — 화면마다 문턱을 넘으면 실패 |
+| 설치가 아니라 개발 도구를 건네 드린 셈 | **설치 프로그램** — 다음·다음·설치, 바탕화면 아이콘, 명령창 없음, `npm install` 없음, 인터넷 없이 켜짐 (`desktop/main.js`, `electron-builder.yml`) |
+| 설치 폴더에 명단을 쓰면 저장이 통째로 실패 | **자료는 사용자 폴더로** — `PIANOEVENT_DATA_DIR` (`lib/paths.ts`). 프로그램을 지워도 명단은 남음 |
+| 켤 때마다 2~4분 + 인터넷 | **혼자 도는 서버**(`output: 'standalone'`) — 재어 보니 **69ms** 만에 켜짐 |
 | 테마·양식을 **이름 목록**으로 골라야 함 | **그림 격자로** — 테마는 종이 모양 스케치, 양식은 지금 테마로 그린 진짜 축소 그림. 가짓수는 그대로 100·51종 |
 | 묶음 이름이 디자인 용어 (모던·편집) | **원장님 말로** — 「우리 연주회 분위기는?」 차분하게 · 사랑스럽게 · 계절 느낌 · 사진과 큰 글씨 · 아이답게 |
 

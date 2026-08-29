@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { backupRoot } from '@/lib/paths'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { BACKUP_DIR } from '@/lib/events/backup'
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST() {
   return guard(async () => {
-    const folder = path.join(process.cwd(), BACKUP_DIR)
+    const folder = backupRoot(BACKUP_DIR)
     await mkdir(folder, { recursive: true })
 
     const opener =

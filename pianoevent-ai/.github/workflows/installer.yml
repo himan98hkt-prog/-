@@ -1,0 +1,67 @@
+# 설치본 만들기 — 윈도우 설치 프로그램(.exe)과 맥 dmg
+#
+# 윈도우용 설치 프로그램은 **윈도우에서** 만들어야 제대로 나온다(리눅스에서 흉내 낼 수는
+# 있지만 서명·아이콘·바로가기에서 어긋난다). 그래서 만드는 일을 여기에 맡긴다.
+#
+#   깃허브 → Actions → "설치본 만들기" → Run workflow
+#   끝나면 Artifacts 에서 「피아노이벤트-설치.exe」를 내려받으시면 됩니다.
+name: 설치본 만들기
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            name: windows
+          - os: macos-latest
+            target: mac
+            name: mac
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: pianoevent-ai
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pianoevent-ai/package-lock.json
+
+      - name: 꾸러미 받기
+        run: npm ci
+
+      - name: 프로그램 본체 만들기
+        run: npm run desktop
+
+      # 본체가 온전한지 먼저 본다 — 빠진 채로 설치본을 뽑으면 원장님 컴퓨터에서야 안다
+      - name: 본체 확인
+        shell: bash
+        run: |
+          for f in server.js node_modules .next/static public/manual docs/MANUAL.md; do
+            test -e "desktop/app/$f" || { echo "✗ $f 가 빠졌습니다"; exit 1; }
+          done
+          echo "본체 확인 완료"
+
+      - name: 설치본 뽑기
+        run: npx electron-builder --${{ matrix.target }} --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 피아노이벤트-설치본-${{ matrix.name }}
+          path: |
+            pianoevent-ai/배포/설치본/*.exe
+            pianoevent-ai/배포/설치본/*.dmg
+          if-no-files-found: error

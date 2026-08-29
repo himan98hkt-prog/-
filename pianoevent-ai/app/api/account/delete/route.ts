@@ -1,4 +1,5 @@
 import { rm } from 'node:fs/promises'
+import { backupRoot } from '@/lib/paths'
 import path from 'node:path'
 import { cookies } from 'next/headers'
 import { fail, guard, ok, readJson } from '@/lib/http'
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     const id = currentAcademyId()
     const academy = await repo.ensureAcademy(id)
     await repo.deleteAcademy(academy.id)
-    await rm(path.join(process.cwd(), BACKUP_DIR), { recursive: true, force: true })
+    await rm(backupRoot(BACKUP_DIR), { recursive: true, force: true })
 
     cookies().delete(ACADEMY_COOKIE)
     return ok({ deleted: true })
