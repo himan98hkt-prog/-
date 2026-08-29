@@ -96,6 +96,16 @@ export function LiveBoard({
   const chimedRef = useRef<number | null>(null)
   /** 이 브라우저가 말을 할 수 있는가 — 서버에서는 알 수 없어 화면이 붙은 뒤에 본다 */
   const [speakable, setSpeakable] = useState(false)
+  /**
+   * **대기실 모드.**
+   *
+   * 대기실 선생님이 보시는 화면은 무대 옆 화면과 필요한 것이 다르다.
+   * 밀린 시간도, 사회자 멘트도 필요 없다 — **다음에 누구를 데려오나** 하나뿐이다.
+   * 아이를 챙기면서 흘깃 보시는 자리라 글씨는 크고 그 밖의 것은 없어야 한다.
+   */
+  const [waiting, setWaiting] = useState(false)
+  /** 방금 읽어 드린 이름 — 같은 이름을 두 번 읽지 않는다 */
+  const spokenRef = useRef<string | null>(null)
   const wakeRef = useRef<{ release: () => Promise<void> } | null>(null)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -327,6 +337,22 @@ export function LiveBoard({
     if (chimedRef.current !== null && chimedRef.current !== state.index) chimedRef.current = null
   }, [state.index])
 
+  /**
+   * 대기실 모드에서는 **다음 아이가 바뀌는 순간** 읽어 드린다.
+   *
+   * 무대 옆 화면은 "1분 전" 이 신호지만, 대기실에서는 "다음이 누구로 바뀌었나" 가 신호다.
+   * 그때 아이를 찾아 무대 옆으로 데려가시기 시작해야 한다.
+   */
+  useEffect(() => {
+    if (!waiting || !chimePrefs.speak || !next) return
+    const say = nextCallText(next.title, next.order_no)
+    if (spokenRef.current === say) return
+    spokenRef.current = say
+    speak(say)
+    if (chimePrefs.buzz) vibrate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, chimePrefs.speak, next?.title, next?.order_no])
+
   const rows = useMemo(() => actualRows(list, state), [list, state])
   const suggestions = useMemo(() => namedDurations(rows, students), [rows, students])
 
@@ -353,6 +379,68 @@ export function LiveBoard({
       <p className="rounded-lg border border-border px-4 py-10 text-center text-sm text-muted-foreground">
         순서표가 아직 없습니다. 순서표를 먼저 만들어 주세요.
       </p>
+    )
+  }
+
+  /**
+   * 대기실 화면 — 필요한 것 하나뿐이다.
+   *
+   * 밀린 시간도, 사회자 멘트도, 전체 순서도 없앤다. 대기실 선생님이 아이를 챙기면서
+   * 흘깃 보시는 자리라, 있는 것이 적을수록 잘 보인다.
+   */
+  if (waiting) {
+    return (
+      <div className="grid gap-3" data-testid="waiting-room">
+        <section className="rounded-xl border-2 border-accent bg-accent/10 p-5">
+          <p className="text-sm font-medium tracking-widest text-accent">지금 데려오실 아이</p>
+          <div className="mt-2 flex items-center gap-4">
+            {next?.photo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={next.photo}
+                alt=""
+                className="h-24 w-24 shrink-0 rounded-full border-2 border-accent object-cover"
+                data-testid="waiting-photo"
+              />
+            )}
+            <p className="min-w-0 text-4xl font-bold leading-tight" data-testid="waiting-next">
+              {next ? `${next.order_no ? `${next.order_no}. ` : ''}${next.title}` : '없음 (마지막)'}
+            </p>
+          </div>
+          {next?.detail && <p className="mt-2 text-lg text-muted-foreground">{next.detail}</p>}
+        </section>
+
+        <section className="rounded-lg border border-border p-4">
+          <p className="text-xs font-medium tracking-widest text-muted-foreground">그다음 준비</p>
+          <p className="mt-1 text-2xl font-semibold" data-testid="waiting-after">
+            {after ? `${after.order_no ? `${after.order_no}. ` : ''}${after.title}` : '없음'}
+          </p>
+        </section>
+
+        <p className="text-sm text-muted-foreground">
+          지금 무대는 <strong className="text-foreground">{current?.title ?? '—'}</strong> 입니다.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setWaiting(false)}
+          className="justify-self-start rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
+          data-testid="waiting-off"
+        >
+          보통 화면으로
+        </button>
+
+        {chimePrefs.speak ? (
+          <p className="text-xs text-muted-foreground">
+            다음 아이가 바뀌면 <strong>이름을 읽어 드립니다.</strong> 화면을 안 보고 계셔도 됩니다.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            [보통 화면으로] 에서 <strong>이름까지 말로</strong> 를 켜 두시면, 다음 아이가 바뀔 때 이름을 읽어
+            드립니다.
+          </p>
+        )}
+      </div>
     )
   }
 
@@ -555,9 +643,23 @@ export function LiveBoard({
         </div>
       )}
 
-      {/* 다음 차례 알림 — 화면을 계속 안 보셔도 되게 */}
-      {canLead && (
-        <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="live-chime">
+      {/* 대기실 선생님께는 "다음에 누구" 하나뿐이다 — 나머지를 다 걷어 낸 화면 */}
+      {!canLead && (
+        <button
+          type="button"
+          onClick={() => setWaiting(true)}
+          className="rounded-lg border border-accent bg-accent/5 px-4 py-3 text-left"
+          data-testid="waiting-on"
+        >
+          <span className="block font-medium">대기실 모드로 보기</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            다음에 데려올 아이만 아주 크게. 밀린 시간·전체 순서는 감춥니다.
+          </span>
+        </button>
+      )}
+
+      {/* 다음 차례 알림 — 화면을 계속 안 보셔도 되게. 이 기계에만 담기므로 따라보기 화면에도 둔다 */}
+      <section className="grid gap-2 rounded-lg border border-border p-3" data-testid="live-chime">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -574,6 +676,7 @@ export function LiveBoard({
               <strong>다음 차례 알림음</strong>
               <span className="ml-1.5 text-xs text-muted-foreground">
                 다음 아이 차례 {CHIME_LEAD_SEC}초 전에 짧게 한 번 울립니다
+                {!canLead && ' — 대기실에서 아이를 부르실 때입니다'}
               </span>
             </span>
           </label>
@@ -651,7 +754,6 @@ export function LiveBoard({
             함께 켜집니다. 소리를 끄고 <strong>진동만</strong> 켜 두셔도 됩니다.
           </p>
         </section>
-      )}
 
       {/* 함께 보기 */}
       {canLead && (

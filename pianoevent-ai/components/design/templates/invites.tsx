@@ -3,6 +3,7 @@ import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
 import { PhotoBackdrop, PhotoFrame } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
+import { QrCode } from '@/components/qr-code'
 import type { DesignContext } from '@/lib/design/context'
 
 /** 손으로 건네는 초대장. A4 한 장을 반으로 자르면 두 장이 나온다. */
@@ -50,14 +51,30 @@ export function InvitationCards({ ctx }: { ctx: DesignContext }) {
         {event.greeting || '한 해 동안 아이들이 쌓아 온 시간을 들려드립니다. 귀한 걸음으로 함께해 주세요.'}
       </p>
 
-      <div style={{ marginTop: 'auto', width: '100%', paddingTop: 12, borderTop: '0.5px solid var(--d-line)' }}>
-        <p style={{ ...T.body(9.5) }}>
-          {copy.host}
-          {copy.contact ? ` · ${copy.contact}` : ''}
-        </p>
-        <p style={{ marginTop: 3, fontSize: 8.5, color: 'var(--d-muted)' }}>
-          참석 회신 · {ctx.inviteUrl.replace(/^https?:\/\//, '')}
-        </p>
+      <div
+        style={{
+          marginTop: 'auto',
+          width: '100%',
+          paddingTop: 12,
+          borderTop: '0.5px solid var(--d-line)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          textAlign: 'left',
+        }}
+      >
+        {/* 학부모 손에 종이로 갑니다. 주소를 손으로 치게 하지 않는다 */}
+        <QrCode path={ctx.inviteUrl} size={54} />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ ...T.body(9.5) }}>
+            {copy.host}
+            {copy.contact ? ` · ${copy.contact}` : ''}
+          </p>
+          <p style={{ marginTop: 3, fontSize: 8.5, color: 'var(--d-muted)' }}>
+            <strong style={{ color: 'var(--d-accent)' }}>카메라로 비추면 참석 회신</strong> ·{' '}
+            {ctx.inviteUrl.replace(/^https?:\/\//, '')}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -138,10 +155,19 @@ export function StoryCard({ ctx }: { ctx: DesignContext }) {
             background: 'var(--d-accent-soft)',
           }}
         >
-          <p style={{ fontSize: 17, fontWeight: 700 }}>참석 회신은 링크에서</p>
-          <p style={{ marginTop: 6, fontSize: 14, color: 'var(--d-muted)' }}>
-            {ctx.inviteUrl.replace(/^https?:\/\//, '')}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            {/* 문자로 링크를 따로 보내지 않으셔도 되게 */}
+            <QrCode path={ctx.inviteUrl} size={84} />
+            <div style={{ textAlign: 'left' }}>
+              <p style={{ fontSize: 17, fontWeight: 700 }}>휴대폰 카메라로 비추면</p>
+              <p style={{ marginTop: 4, fontSize: 15, fontWeight: 700, color: 'var(--d-accent)' }}>
+                참석 회신 바로 가능합니다
+              </p>
+              <p style={{ marginTop: 6, fontSize: 12, color: 'var(--d-muted)' }}>
+                {ctx.inviteUrl.replace(/^https?:\/\//, '')}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </Sheet>

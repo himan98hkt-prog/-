@@ -172,6 +172,59 @@ export function buildMcScript(
   return { opening, closing, byStudentId }
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * 짧은 판
+ *
+ * 연주회는 늘 밀린다. 밀리면 당일 화면이 "멘트를 줄이세요" 라고 말씀드리는데,
+ * 정작 사회자 손에 든 종이에는 **긴 멘트밖에** 없다. 그 자리에서 줄여 읽는 것은
+ * 무대 옆에서 할 수 있는 일이 아니다 — 어디를 빼야 할지 눈으로 찾다가 더 늦어진다.
+ *
+ * 그래서 같은 종이에 **한 줄짜리**를 나란히 찍어 둔다. 밀렸을 때는 오른쪽만 읽으시면 된다.
+ * 지어내지 않는다 — 이름과 곡, 꼭 필요한 한마디만 남긴다.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** 한 순서를 한 줄로 — "3번, 김서연. 모차르트 「터키 행진곡」." */
+export function shortStudentScript(item: ProgramItem): string {
+  const s = item.student
+  const composer = s.composer.trim()
+  const piece = composer ? `${composer}의 「${s.piece_title}」` : `「${s.piece_title}」`
+  const head =
+    item.stage === 'opening'
+      ? '첫 무대입니다. '
+      : item.stage === 'finale'
+        ? '마지막 무대입니다. '
+        : ''
+  return `${head}${item.order_no}번, ${s.student_name}. ${piece}.`
+}
+
+/**
+ * 밀렸을 때 그대로 읽는 짧은 판.
+ *
+ * 여는 말과 닫는 말은 **빼면 안 되는 것**만 남긴다 — 인사, 무음 부탁, 박수 부탁.
+ * 곡 수와 걸리는 시간은 뺀다(밀린 상태에서 예정 시간을 말하면 더 이상해진다).
+ */
+export function buildShortMcScript(
+  plan: ProgramPlan,
+  meta: { eventTitle: string; academyName: string },
+): McScript {
+  const opening = [
+    `안녕하십니까. ${meta.academyName} ${meta.eventTitle}에 오신 것을 환영합니다.`,
+    `휴대전화는 무음으로 해 주시고, 한 곡이 끝나면 박수로 답해 주시기 바랍니다.`,
+    `그럼 시작하겠습니다.`,
+  ].join(' ')
+
+  const closing = [
+    `이것으로 ${meta.eventTitle}를 모두 마칩니다.`,
+    `오늘 무대에 선 아이들에게 큰 박수 부탁드립니다.`,
+    `감사합니다. 조심히 돌아가시기 바랍니다.`,
+  ].join(' ')
+
+  const byStudentId: Record<string, string> = {}
+  for (const item of plan.items) byStudentId[item.student.id] = shortStudentScript(item)
+
+  return { opening, closing, byStudentId }
+}
+
 export function stageHeadline(stage: Stage): string {
   switch (stage) {
     case 'opening':

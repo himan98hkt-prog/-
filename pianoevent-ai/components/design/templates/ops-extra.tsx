@@ -5,7 +5,9 @@ import type { DesignContext } from '@/lib/design/context'
 import { formatWallClock } from '@/lib/format'
 import { buildBudget, DEFAULT_BUDGET_ITEMS, formatWon, BASIS_LABEL } from '@/lib/ops/budget'
 import { buildRehearsal } from '@/lib/ops/rehearsal'
+import { PROJECTOR_GUIDE, PROJECTOR_PACKING, PROJECTOR_WHEN } from '@/lib/ops/projector'
 import { buildSeating, seatLabel } from '@/lib/ops/seating'
+import { shortStudentScript } from '@/lib/program/script'
 
 /** 인쇄 문서 공통 머리말 — 진행 문서는 장식을 걷고 정보 밀도를 올린다 */
 function DocHeader({ ctx, title, note }: { ctx: DesignContext; title: string; note?: string }) {
@@ -41,7 +43,11 @@ export function McScriptSheet({ ctx }: { ctx: DesignContext }) {
   return (
     <Sheet theme={theme} page="a4-portrait" decorated={false} flow>
       <div style={{ flex: 1, padding: '48px 54px 38px', display: 'flex', flexDirection: 'column' }}>
-        <DocHeader ctx={ctx} title="사회자 대본" note="굵은 글씨는 그대로 읽으시고, 회색 글씨는 진행 지시입니다." />
+        <DocHeader
+          ctx={ctx}
+          title="사회자 대본"
+          note="예정보다 밀리면 「밀렸을 때」 줄만 읽으세요. 순서마다 10초쯤 붙습니다."
+        />
 
         {event.mc_opening && (
           <section style={{ marginTop: 18 }} className="print-avoid-break">
@@ -75,6 +81,20 @@ export function McScriptSheet({ ctx }: { ctx: DesignContext }) {
               </div>
               <p style={{ marginTop: 6, fontSize: 12.5, lineHeight: 1.85, whiteSpace: 'pre-line' }}>
                 {item.student.mc_script || '(멘트가 아직 없습니다 — 순서표 화면에서 대본을 만들어 주세요)'}
+              </p>
+              {/* 밀렸을 때 그대로 읽는 한 줄 — 무대 옆에서 어디를 뺄지 찾을 수는 없다 */}
+              <p
+                style={{
+                  marginTop: 5,
+                  padding: '4px 8px',
+                  border: '0.5px solid var(--d-line)',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                  color: 'var(--d-muted)',
+                }}
+              >
+                <strong style={{ color: 'var(--d-accent)' }}>밀렸을 때</strong> {shortStudentScript(item)}
               </p>
             </div>
           ))}
@@ -614,6 +634,100 @@ export function AfterNotice({ ctx }: { ctx: DesignContext }) {
             {academy.director_name} 원장 드림{copy.contact ? ` · ${copy.contact}` : ''}
           </p>
         </footer>
+      </div>
+    </Sheet>
+  )
+}
+
+/**
+ * 빔프로젝터 연결 카드.
+ *
+ * 당일 연주회장에서 스크린에 안 나올 때, 노트북은 못 쓰는 상태일 수 있다
+ * (그게 바로 안 나오는 상황이니까). 그래서 **종이**여야 한다.
+ * 가방에 한 장 넣어 가시라고 챙길 것 목록도 함께 찍는다.
+ */
+export function ProjectorCard({ ctx }: { ctx: DesignContext }) {
+  const { theme } = ctx
+
+  return (
+    <Sheet theme={theme} page="a4-portrait" decorated={false} flow>
+      <div style={{ flex: 1, padding: '48px 54px 38px', display: 'flex', flexDirection: 'column' }}>
+        <DocHeader
+          ctx={ctx}
+          title="빔프로젝터 연결 카드"
+          note="스크린에 안 나올 때 이 종이만 보시면 됩니다. 가방에 한 장 넣어 가세요."
+        />
+
+        <section style={{ marginTop: 18 }}>
+          {PROJECTOR_GUIDE.map((block) => (
+            <div key={block.title} className="print-avoid-break" style={{ marginTop: 16 }}>
+              <p style={{ ...T.label(9.5), color: 'var(--d-accent)' }}>{block.title}</p>
+              <ol style={{ marginTop: 7 }}>
+                {block.steps.map((step, i) => (
+                  <li
+                    key={step}
+                    style={{ display: 'flex', gap: 8, marginTop: 5, fontSize: 12.5, lineHeight: 1.75 }}
+                  >
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: 16,
+                        fontWeight: 700,
+                        color: 'var(--d-accent)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </section>
+
+        <section className="print-avoid-break" style={{ marginTop: 22 }}>
+          <p style={{ ...T.label(9.5), color: 'var(--d-accent)' }}>가방에 넣어 가실 것</p>
+          {PROJECTOR_PACKING.map((item) => (
+            <div
+              key={item}
+              style={{
+                display: 'flex',
+                gap: 9,
+                alignItems: 'center',
+                marginTop: 8,
+                paddingBottom: 7,
+                borderBottom: '0.5px solid var(--d-line)',
+                fontSize: 12.5,
+              }}
+            >
+              {/* 챙기신 것에 표시하실 자리 */}
+              <span
+                style={{
+                  flexShrink: 0,
+                  width: 13,
+                  height: 13,
+                  border: '1px solid var(--d-muted)',
+                  borderRadius: 3,
+                }}
+              />
+              <span>{item}</span>
+            </div>
+          ))}
+        </section>
+
+        <p
+          style={{
+            marginTop: 'auto',
+            paddingTop: 14,
+            fontSize: 12,
+            lineHeight: 1.7,
+            color: 'var(--d-muted)',
+          }}
+        >
+          <strong style={{ color: 'var(--d-accent)' }}>언제 해 보나요</strong> · {PROJECTOR_WHEN}
+        </p>
       </div>
     </Sheet>
   )

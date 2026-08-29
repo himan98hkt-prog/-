@@ -320,6 +320,36 @@ export function tasterRange(
 }
 
 /**
+ * **앞 · 가운데 · 끝을 조금씩.**
+ *
+ * 앞 30초만 보시면 표지와 첫 아이까지만 아신다. 그런데 정작 걱정되는 것은
+ * "끝까지 이 느낌인가", "마무리는 어떻게 나오나" 다. 그러려면 앞·가운데·끝을
+ * 조금씩 이어 보셔야 한다.
+ *
+ * 장면을 잘라 내지는 않는다 — 장면 단위로 앞에서 하나, 가운데에서 하나, 끝에서 하나를
+ * 고른다. 이어 놓으면 30초 안팎에 영상 전체의 분위기가 담긴다.
+ * 장면이 너무 적으면 나눌 것이 없으므로 `null` 을 준다.
+ */
+export function tasterSpread(scenes: VideoScene[], seconds = TASTER_SEC): number[] | null {
+  if (scenes.length < 5) return null
+  if (totalSeconds(scenes) <= seconds * 1.5) return null
+
+  const last = scenes.length - 1
+  const middle = Math.floor(scenes.length / 2)
+  const picked = [...new Set([0, middle, last])].sort((a, b) => a - b)
+
+  // 아직 자리가 남으면 앞·가운데 사이에서 한 장면 더 — 30초를 알차게 쓴다
+  const used = () => picked.reduce((sum, i) => sum + scenes[i].seconds, 0)
+  for (const extra of [Math.floor(scenes.length / 4), Math.floor((scenes.length * 3) / 4)]) {
+    if (picked.includes(extra)) continue
+    if (used() + scenes[extra].seconds > seconds) break
+    picked.push(extra)
+  }
+
+  return picked.sort((a, b) => a - b)
+}
+
+/**
  * 맛보기를 **어디서부터** 담을지.
  *
  * 앞 30초는 대개 표지와 인사말이다. 정작 보고 싶으신 것은 **아이가 나오는 화면**인데,
@@ -327,7 +357,7 @@ export function tasterRange(
  * 아이 장면이 맨 앞이면(표지를 끄셨다면) 하나만 준다.
  */
 export interface TasterStart {
-  id: 'head' | 'performers'
+  id: 'head' | 'performers' | 'spread'
   label: string
   index: number
 }
@@ -338,6 +368,8 @@ export function tasterStarts(scenes: VideoScene[]): TasterStart[] {
   if (first > 0 && first < scenes.length - 1) {
     out.push({ id: 'performers', label: '아이 장면부터', index: first })
   }
+  // 앞·가운데·끝을 조금씩 — 이어 붙이는 것이라 시작 자리가 하나가 아니다 (index 는 안 쓴다)
+  if (tasterSpread(scenes)) out.push({ id: 'spread', label: '앞·가운데·끝', index: 0 })
   return out
 }
 

@@ -494,6 +494,15 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     needsProgram: true,
     perStudent: false,
   },
+  {
+    id: 'projector-card',
+    name: '빔프로젝터 연결 카드',
+    description: '노트북을 스크린에 띄우는 법과 챙길 것. 당일 가방에 한 장 넣어 가세요.',
+    category: 'ops',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
 ]
 
 export const DEFAULT_TEMPLATE_ID = 'poster-classic'
@@ -546,8 +555,8 @@ export const PRINT_PACKS: PrintPack[] = [
   {
     id: 'day',
     name: '당일 운영 한 벌',
-    description: '진행표 · 준비 체크리스트 · 좌석 이름표를 한 번에 인쇄합니다.',
-    templates: ['cue-sheet', 'checklist', 'nametag'],
+    description: '진행표 · 준비 체크리스트 · 빔프로젝터 연결 카드 · 좌석 이름표를 한 번에 인쇄합니다.',
+    templates: ['cue-sheet', 'checklist', 'projector-card', 'nametag'],
   },
   {
     id: 'notice',

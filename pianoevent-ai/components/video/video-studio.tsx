@@ -69,6 +69,7 @@ import {
   TASTER_FIXES,
   TASTER_SEC,
   tasterRange,
+  tasterSpread,
   tasterStarts,
   totalSeconds,
   type CaptionPlace,
@@ -283,14 +284,25 @@ export function VideoStudio({
    * 그 12분이 통째로 날아간다. 짧은 영상이면 굳이 나눌 것이 없으므로 안 보여 준다.
    */
   const starts = useMemo(() => tasterStarts(scenes), [scenes])
-  /** 어디서부터 맛볼지 — 앞 30초는 대개 표지라, 아이 장면부터도 고르실 수 있다 */
-  const [startId, setStartId] = useState<'head' | 'performers'>('head')
+  /**
+   * 어디를 맛볼지.
+   *
+   * 앞 30초는 대개 표지라 아이 장면부터도 고르실 수 있고, 앞·가운데·끝을 조금씩
+   * 이어 보실 수도 있다 — 걱정되는 것은 대개 "끝까지 이 느낌인가" 라서다.
+   */
+  const [startId, setStartId] = useState<'head' | 'performers' | 'spread'>('head')
   const start = starts.find((item) => item.id === startId) ?? starts[0]
-  const taster = useMemo(() => tasterRange(scenes, TASTER_SEC, start?.index ?? 0), [scenes, start])
-  const tasterSec = useMemo(
-    () => (taster ? totalSeconds(scenes.slice(taster.from, taster.to + 1)) : 0),
-    [taster, scenes],
+  const spread = useMemo(() => (startId === 'spread' ? tasterSpread(scenes) : null), [startId, scenes])
+  const taster = useMemo(
+    () => (spread ? { from: spread[0], to: spread[spread.length - 1] } : tasterRange(scenes, TASTER_SEC, start?.index ?? 0)),
+    [spread, scenes, start],
   )
+  /** 실제로 담기는 장면들 — 이어 붙이기면 고른 것만, 아니면 구간 통째로 */
+  const tasterScenes = useMemo(() => {
+    if (spread) return spread.map((i) => scenes[i])
+    return taster ? scenes.slice(taster.from, taster.to + 1) : []
+  }, [spread, taster, scenes])
+  const tasterSec = useMemo(() => totalSeconds(tasterScenes), [tasterScenes])
   const withPhoto = Object.keys(photos).length
   /**
    * 지금 화면에 보이는 장면 — 콘티에서 표시해 준다.
@@ -530,7 +542,12 @@ export function VideoStudio({
    * 바로 담을 수 있어야 해서다 — 상태는 다음 그림에서야 바뀌므로 그때까지
    * 기다리면 엉뚱한 구간이 담긴다.
    */
-  async function record(override?: { from: number; to: number }, isTaster = false) {
+  async function record(
+    override?: { from: number; to: number },
+    isTaster = false,
+    /** 이어 붙여 담을 장면들 (앞·가운데·끝처럼 떨어져 있는 것) */
+    picked?: VideoScene[],
+  ) {
     const canvas = canvasRef.current
     if (!canvas || !recordType) return
     setWarning(null)
@@ -539,14 +556,16 @@ export function VideoStudio({
     setClock(0)
     abortedRef.current = false
     const span = override ?? range
-    const line = override
-      ? buildTimeline(
-          scenes.slice(
-            Math.min(Math.max(0, override.from), scenes.length - 1),
-            Math.min(Math.max(0, override.to), scenes.length - 1) + 1,
-          ),
-        )
-      : recordTimeline
+    const line = picked?.length
+      ? buildTimeline(picked)
+      : override
+        ? buildTimeline(
+            scenes.slice(
+              Math.min(Math.max(0, override.from), scenes.length - 1),
+              Math.min(Math.max(0, override.to), scenes.length - 1) + 1,
+            ),
+          )
+        : recordTimeline
 
     const stream = canvas.captureStream(30)
     const audio = new AudioContext()
@@ -628,7 +647,7 @@ export function VideoStudio({
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
     const partial = abortedRef.current
     const label = isTaster
-      ? ` (${TASTER_SEC}초 맛보기${span && span.from > 0 ? ' · 아이 장면부터' : ''})`
+      ? ` (${TASTER_SEC}초 맛보기${picked?.length ? ' · 앞가운데끝' : span && span.from > 0 ? ' · 아이 장면부터' : ''})`
       : span
         ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
         : ''
@@ -638,7 +657,7 @@ export function VideoStudio({
       ...prev,
       {
         id: `part-${Date.now()}`,
-        label: `${isTaster ? `${TASTER_SEC}초 맛보기` : span ? `${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
+        label: `${isTaster ? `${TASTER_SEC}초 맛보기${picked?.length ? ' · 앞가운데끝' : ''}` : span ? `${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
         url: madeUrl,
         seconds: partial ? Math.round(clockRef.current) : Math.round(line.total),
         made: true,
@@ -650,7 +669,9 @@ export function VideoStudio({
       note: partial
         ? `만들다 멈춰 ${formatLength(clockRef.current)} 까지만 담겼습니다. 그래도 재생됩니다 — 이어서 만드시려면 아래 [만들 구간]에서 멈춘 장면부터 고르세요.`
         : isTaster
-          ? '앞부분만 담은 맛보기입니다. 글씨 크기·사진·음악을 여기서 확인하시고, 마음에 드시면 [영상 만들기] 로 전체를 만드세요.'
+          ? picked?.length
+            ? '앞·가운데·끝에서 한 장면씩 이어 붙인 맛보기입니다. 장면 사이가 건너뛴 것처럼 보이는 것은 그래서이고, 진짜 영상은 이어집니다. 마음에 드시면 [영상 만들기] 로 전체를 만드세요.'
+            : '앞부분만 담은 맛보기입니다. 글씨 크기·사진·음악을 여기서 확인하시고, 마음에 드시면 [영상 만들기] 로 전체를 만드세요.'
           : info.note,
       name: `${event.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '연주회'} 감동영상${label}${partial ? ' (중간까지)' : ''}.${info.ext}`,
       bytes: blob.size,
@@ -950,10 +971,14 @@ export function VideoStudio({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void record(taster, true)}
+                onClick={() => void record(taster, true, spread ? tasterScenes : undefined)}
                 disabled={!ready || !recordType || playing}
                 data-testid="video-taster"
-                title={`${taster.from + 1}~${taster.to + 1}장면 ${taster.to - taster.from + 1}장면(${formatLength(tasterSec)})만 담아 봅니다`}
+                title={
+                  spread
+                    ? `앞·가운데·끝에서 ${tasterScenes.length}장면(${formatLength(tasterSec)})을 이어 붙여 담습니다`
+                    : `${taster.from + 1}~${taster.to + 1}장면 ${tasterScenes.length}장면(${formatLength(tasterSec)})만 담아 봅니다`
+                }
               >
                 <Timer className="mr-1 h-4 w-4" aria-hidden />
                 {TASTER_SEC}초만 먼저 만들어 보기

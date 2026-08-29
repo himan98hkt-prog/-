@@ -671,6 +671,18 @@ try {
   await page.waitForTimeout(800)
   check('사회자 대본도 종이로 볼 수 있다', (await page.getByTestId('paper-toggle').count()) === 1)
 
+  // 밀렸을 때 "줄이세요" 라고만 하고 정작 종이에는 긴 멘트뿐이었다
+  const shortLines = page.getByTestId('short-line')
+  check('순서마다 짧은 판이 함께 찍힌다', (await shortLines.count()) >= 1, `${await shortLines.count()}줄`)
+  check('여는 말도 짧은 판이 있다', (await page.getByTestId('short-opening').count()) === 1)
+  check('닫는 말도 짧은 판이 있다', (await page.getByTestId('short-closing').count()) === 1)
+  const shortGuide = await page.getByTestId('short-guide').textContent()
+  check('언제 읽는 것인지 맨 위에 적어 준다', shortGuide.includes('밀리면'), shortGuide.replace(/\s+/g, ' ').slice(0, 70))
+  const shortOne = (await shortLines.first().textContent()).replace('밀렸을 때', '').trim()
+  check('짧은 판은 한 줄이다', !shortOne.includes('\n') && shortOne.length < 90, shortOne)
+  check('짧은 판에도 순번과 이름이 남는다', /\d+번,/.test(shortOne), shortOne)
+  await page.screenshot({ path: join(OUT, 'script-short.jpg'), type: 'jpeg', quality: 82 })
+
   // 첫 장만 뽑아 보기 — 표시를 붙였다 떼는지까지 본다
   check('첫 장만 뽑아 보는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
   await page.evaluate(() => {
@@ -835,7 +847,20 @@ try {
   check('빔프로젝터 쪽 입력도 짚어 준다 — 이게 가장 흔하다', steps.includes('입력'))
   check('젠더가 필요할 수 있다고 미리 알려 준다', steps.includes('HDMI'))
   check('당일 아침에 해 보시라고 한다', steps.includes('리허설') || steps.includes('당일 아침'))
+  check('종이로도 뽑아 가시라고 짚어 준다 — 노트북이 안 켜지면 이 화면도 못 보신다', steps.includes('연결 카드'))
   await page.screenshot({ path: join(OUT, 'projector.jpg'), type: 'jpeg', quality: 82 })
+
+  // 안 나오는 상황에서는 노트북을 못 쓰신다 — 그래서 종이여야 한다
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=projector-card`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1000)
+  const card = await page.locator('.d-sheet').first().textContent()
+  check('빔프로젝터 연결 카드를 종이로 뽑을 수 있다', card.includes('빔프로젝터 연결 카드'), card.slice(0, 40))
+  check('종이에도 같은 자판이 적혀 있다', card.includes('윈도우키') && card.includes('미러링'))
+  check('가방에 넣어 갈 것까지 적어 준다', card.includes('젠더') && card.includes('멀티탭'))
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?pack=day`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  check('당일 운영 한 벌을 뽑으면 연결 카드가 함께 나온다', (await page.locator('.d-sheet').allTextContents()).join(' ').includes('빔프로젝터 연결 카드'))
+  await page.screenshot({ path: join(OUT, 'projector-card.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 행사 목록에도 어디까지 왔는지 ────────────────────────────────
   console.log('\n[행사 목록]')
@@ -1155,6 +1180,51 @@ try {
   check('아이 장면부터로 바꿀 수 있다', (await startBox.locator('button[aria-pressed="true"]').textContent()) === '아이 장면부터')
   const movedTip = await page.getByTestId('video-taster').getAttribute('title')
   check('바꾸면 담기는 자리도 바뀐다', movedTip !== tasterTip, `${tasterTip} → ${movedTip}`)
+
+  // 걱정되는 것은 대개 "끝까지 이 느낌인가" 다
+  check('앞·가운데·끝도 고를 수 있다', startWords.includes('앞·가운데·끝'), startWords.trim())
+  await startBox.getByText('앞·가운데·끝').click()
+  await page.waitForTimeout(700)
+  const spreadTip = await page.getByTestId('video-taster').getAttribute('title')
+  check('이어 붙여 담는다고 알려 준다', (spreadTip ?? '').includes('이어 붙여'), spreadTip ?? '')
+  check('몇 장면을 잇는지 적어 준다', /\d+장면/.test(spreadTip ?? ''), spreadTip ?? '')
+
+  // ── 초대장 QR ────────────────────────────────────────────────────
+  console.log('\n[초대장 QR]')
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=invitation-card`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1600)
+  const inviteQr = page.getByTestId('qr-code')
+  check('초대장에 비출 무늬가 들어간다', (await inviteQr.count()) >= 1, `${await inviteQr.count()}개`)
+  const inviteSheet = await page.locator('.d-sheet').first().textContent()
+  check('무엇을 하는 무늬인지 적어 준다', inviteSheet.includes('비추면'), inviteSheet.slice(0, 80))
+  check('주소도 글로 함께 적는다 — 못 비추셔도 되게', inviteSheet.includes('/e/'))
+  const inviteQrBox = await inviteQr.first().boundingBox()
+  check('비출 만한 크기다', inviteQrBox && inviteQrBox.width >= 40, inviteQrBox ? `${Math.round(inviteQrBox.width)}px` : '자리를 못 찾음')
+  await page.screenshot({ path: join(OUT, 'invite-qr.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 대기실 모드 ──────────────────────────────────────────────────
+  console.log('\n[대기실 모드]')
+  await page.goto(`${BASE}/e/${EVENT_ID}/live`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1500)
+  check('대기실 화면에도 알림을 켤 수 있다', (await page.getByTestId('live-chime').count()) === 1)
+  const waitOn = page.getByTestId('waiting-on')
+  check('대기실 모드로 가는 자리가 있다', (await waitOn.count()) === 1)
+  check('무엇이 달라지는지 적어 준다', (await waitOn.textContent()).includes('감춥니다'))
+  await waitOn.click()
+  await page.waitForTimeout(600)
+  const room = page.getByTestId('waiting-room')
+  check('대기실 화면으로 바뀐다', (await room.count()) === 1)
+  const roomText = await room.textContent()
+  check('데려올 아이를 먼저 말해 준다', roomText.includes('지금 데려오실 아이'), roomText.slice(0, 40))
+  const roomNextSize = await page.getByTestId('waiting-next').evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  check('아주 큰 글씨다 — 아이를 챙기며 흘깃 보신다', roomNextSize >= 34, `${roomNextSize.toFixed(1)}px`)
+  check('밀린 시간은 감춘다 — 대기실에서 하실 일이 아니다', (await page.getByTestId('live-drift').count()) === 0)
+  check('사회자 멘트도 감춘다', (await page.getByTestId('live-pace').count()) === 0)
+  check('그다음 아이도 함께 보여 준다', (await page.getByTestId('waiting-after').count()) === 1)
+  await page.screenshot({ path: join(OUT, 'waiting-room.jpg'), type: 'jpeg', quality: 82 })
+  await page.getByTestId('waiting-off').click()
+  await page.waitForTimeout(500)
+  check('보통 화면으로 되돌아온다', (await page.getByTestId('waiting-room').count()) === 0)
 
   // 보시고 "이게 아닌데" 하신 다음이 있어야 한다
   check('맛보기를 만들기 전에는 고치는 법이 안 뜬다', (await page.getByTestId('taster-fixes').count()) === 0)

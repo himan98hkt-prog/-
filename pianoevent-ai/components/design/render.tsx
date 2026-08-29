@@ -26,6 +26,7 @@ import {
   AttendanceSheet,
   BudgetSheet,
   McScriptSheet,
+  ProjectorCard,
   ParentNotice,
   PracticeLog,
   RehearsalSheet,
@@ -102,6 +103,8 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <AwardSheet ctx={ctx} />
     case 'mc-script':
       return <McScriptSheet ctx={ctx} />
+    case 'projector-card':
+      return <ProjectorCard ctx={ctx} />
     case 'rehearsal-sheet':
       return <RehearsalSheet ctx={ctx} />
     case 'attendance-sheet':

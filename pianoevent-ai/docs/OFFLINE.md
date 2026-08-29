@@ -22,7 +22,7 @@
 | 연주 순서 자동 배치·직접 조정·러닝타임 | `lib/program/order.ts` |
 | 사회자 대본 곡별 생성 | `lib/program/script.ts` |
 | 순서표 정밀 점검 8가지 | `lib/program/diagnose.ts` |
-| 인쇄물 50종 × 테마 100종 · 인쇄 · PDF 저장 | `components/design/` |
+| 인쇄물 51종 × 테마 100종 · 인쇄 · PDF 저장 | `components/design/` |
 | 무대 화면 — 연주회장 스크린용 16:9 슬라이드 · PDF 저장 | `lib/stage/deck.ts` |
 | 파워포인트(.pptx) 파일 만들기 | `lib/stage/pptx.ts` · `lib/stage/zip.ts` |
 | 아이 사진을 무대 화면·PPT에 넣기 | `lib/assets.ts` · `lib/image.ts` |

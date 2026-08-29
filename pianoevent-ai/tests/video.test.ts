@@ -37,6 +37,7 @@ import {
   TASTER_FIXES,
   TASTER_SEC,
   tasterRange,
+  tasterSpread,
   tasterStarts,
   totalSeconds,
   type ExtraMedia,
@@ -1046,5 +1047,59 @@ describe('맛보기를 보시고 무엇을 만지는가', () => {
   it('음악은 넣어 드리지 않는다고 그 자리에서 밝힌다', () => {
     const music = TASTER_FIXES.find((f) => f.symptom.includes('음악'))
     expect(music?.how).toContain('저작권')
+  })
+})
+
+describe('앞·가운데·끝을 조금씩', () => {
+  const bigPlan2 = buildProgram(
+    Array.from({ length: 20 }, (_, i) =>
+      student(`아이${i + 1}`, i % 2 === 0 ? 'beginner' : 'advanced', 120 + i * 5, { piece_title: `곡 ${i + 1}` }),
+    ),
+  )
+  const long = () =>
+    buildStoryboard({
+      event,
+      plan: bigPlan2,
+      academyName: '하모니 피아노학원',
+      photos: {},
+      extras: [],
+      options: DEFAULT_STORYBOARD_OPTIONS,
+    })
+
+  it('앞·가운데·끝에서 골라 준다', () => {
+    const scenes = long()
+    const picked = tasterSpread(scenes)!
+    expect(picked[0]).toBe(0)
+    expect(picked[picked.length - 1]).toBe(scenes.length - 1)
+    expect(picked.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('고른 자리는 겹치지 않고 차례대로다', () => {
+    const picked = tasterSpread(long())!
+    expect(new Set(picked).size).toBe(picked.length)
+    expect([...picked].sort((a, b) => a - b)).toEqual(picked)
+  })
+
+  it('30초 안팎이다 — 장면을 잘라 내지는 않으니 딱 맞지는 않는다', () => {
+    const scenes = long()
+    const picked = tasterSpread(scenes)!
+    const seconds = picked.reduce((sum, i) => sum + scenes[i].seconds, 0)
+    expect(seconds).toBeLessThanOrEqual(TASTER_SEC + 20)
+  })
+
+  it('장면이 적으면 나눌 것이 없다', () => {
+    expect(tasterSpread(board())).toBeNull()
+  })
+
+  it('고를 자리가 실제로 있는 장면이다', () => {
+    const scenes = long()
+    for (const i of tasterSpread(scenes)!) {
+      expect(scenes[i], `${i}`).toBeDefined()
+    }
+  })
+
+  it('시작 자리 목록에 함께 나온다', () => {
+    expect(tasterStarts(long()).map((s) => s.id)).toContain('spread')
+    expect(tasterStarts(board()).map((s) => s.id)).not.toContain('spread')
   })
 })

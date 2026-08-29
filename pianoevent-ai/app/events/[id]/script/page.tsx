@@ -6,7 +6,7 @@ import { Printable } from "@/components/print/printable";
 import { getTheme, themeVars } from "@/lib/design/themes";
 import { formatEventDate, formatWallClock } from "@/lib/format";
 import { resolvePlan } from "@/lib/program/resolve";
-import { buildMcScript } from "@/lib/program/script";
+import { buildMcScript, buildShortMcScript } from "@/lib/program/script";
 import { getRepository } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +32,24 @@ export default async function ScriptPage({
     academyName: academy?.name ?? "피아노학원",
   });
 
+  /**
+   * 밀렸을 때 그대로 읽는 **짧은 판**.
+   *
+   * 당일 화면은 "멘트를 줄이세요" 라고 말씀드리는데, 정작 손에 든 종이에는 긴 멘트뿐이었다.
+   * 무대 옆에서 어디를 뺄지 눈으로 찾다가 더 늦어진다. 같은 종이에 나란히 찍어 둔다.
+   *
+   * 원장님이 직접 고쳐 두신 멘트는 짧은 판을 만들 수 없다(무엇을 빼도 되는지 우리가 모른다).
+   * 그런 줄은 짧은 판 자리를 비워 두고, 왼쪽 것을 읽으시게 한다.
+   */
+  const short = buildShortMcScript(plan, {
+    eventTitle: event.title,
+    academyName: academy?.name ?? "피아노학원",
+  });
+
   const opening = event.mc_opening ?? fallback.opening;
   const closing = event.mc_closing ?? fallback.closing;
+  const shortFor = (id: string) =>
+    students.find((s) => s.id === id)?.mc_script ? null : (short.byStudentId[id] ?? null);
   const scriptFor = (id: string) =>
     students.find((s) => s.id === id)?.mc_script ??
     fallback.byStudentId[id] ??
@@ -95,6 +111,14 @@ export default async function ScriptPage({
               <div className="mt-4 flex justify-center">
                 <OrnamentDivider id={theme.ornament} width={170} />
               </div>
+              <p
+                className="mt-3 text-[12px] leading-relaxed"
+                style={{ color: "var(--d-muted)" }}
+                data-testid="short-guide"
+              >
+                예정보다 밀리면 <strong style={{ color: "var(--d-accent)" }}>「밀렸을 때」</strong> 줄만
+                읽으시면 됩니다. 순서마다 10초쯤 붙습니다.
+              </p>
             </header>
 
             <section className="print-avoid-break mt-8">
@@ -106,6 +130,13 @@ export default async function ScriptPage({
               </h2>
               <p className="mt-2 whitespace-pre-line text-[15px] leading-loose">
                 {opening}
+              </p>
+              <p
+                className="mt-2 rounded border px-3 py-2 text-[13px] leading-relaxed"
+                style={{ borderColor: "var(--d-line)", color: "var(--d-muted)" }}
+                data-testid="short-opening"
+              >
+                <strong style={{ color: "var(--d-accent)" }}>밀렸을 때</strong> {short.opening}
               </p>
             </section>
 
@@ -142,6 +173,16 @@ export default async function ScriptPage({
                   <p className="mt-2 whitespace-pre-line text-[15px] leading-loose">
                     {scriptFor(item.student.id)}
                   </p>
+                  {shortFor(item.student.id) && (
+                    <p
+                      className="mt-2 rounded border px-3 py-1.5 text-[13px] leading-relaxed"
+                      style={{ borderColor: "var(--d-line)", color: "var(--d-muted)" }}
+                      data-testid="short-line"
+                    >
+                      <strong style={{ color: "var(--d-accent)" }}>밀렸을 때</strong>{" "}
+                      {shortFor(item.student.id)}
+                    </p>
+                  )}
                 </li>
               ))}
             </ol>
@@ -158,6 +199,13 @@ export default async function ScriptPage({
               </h2>
               <p className="mt-2 whitespace-pre-line text-[15px] leading-loose">
                 {closing}
+              </p>
+              <p
+                className="mt-2 rounded border px-3 py-2 text-[13px] leading-relaxed"
+                style={{ borderColor: "var(--d-line)", color: "var(--d-muted)" }}
+                data-testid="short-closing"
+              >
+                <strong style={{ color: "var(--d-accent)" }}>밀렸을 때</strong> {short.closing}
               </p>
             </section>
           </article>
