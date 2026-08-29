@@ -1,43 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fitTitle } from '@/lib/design/fit'
-import { DESIGN_TEMPLATES, getPack, packTemplates } from '@/lib/design/templates'
 import { DESIGN_THEMES, FAMILY_LABEL, isDarkTheme, themesByFamily } from '@/lib/design/themes'
 import { recommendDesigns } from '@/lib/design/recommend'
-
-const GALA_TEMPLATES = [
-  'gala-piano',
-  'gala-keys',
-  'gala-spotlight',
-  'gala-arch',
-  'gala-editorial',
-  'gala-photo',
-  'gala-laurel',
-  'gala-minimal',
-]
-
-describe('명품 연주회 포스터', () => {
-  it('여덟 장이 모두 포스터 갈래의 A4 세로다', () => {
-    for (const id of GALA_TEMPLATES) {
-      const def = DESIGN_TEMPLATES.find((t) => t.id === id)
-      expect(def, id).toBeTruthy()
-      expect(def!.category, id).toBe('poster')
-      expect(def!.page, id).toBe('a4-portrait')
-    }
-  })
-
-  it('포스터 갈래 앞쪽에 온다 — 뒤에 묻히면 고르실 일이 없다', () => {
-    const posters = DESIGN_TEMPLATES.filter((t) => t.category === 'poster').map((t) => t.id)
-    for (const id of GALA_TEMPLATES) {
-      expect(posters.indexOf(id), id).toBeLessThan(12)
-    }
-  })
-
-  it('예술회관 한 벌은 용지가 하나다 — 인쇄 대화상자는 용지를 한 번만 정한다', () => {
-    const pack = getPack('gala')
-    expect(pack).toBeTruthy()
-    expect(packTemplates(pack!)).toHaveLength(pack!.templates.length)
-  })
-})
 
 describe('제목 글씨 크기 맞추기', () => {
   it('짧은 제목은 가장 크게 그대로', () => {

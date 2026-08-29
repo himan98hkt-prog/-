@@ -14,16 +14,6 @@ import { Certificates, NameTags, SocialCard, ThankYouCards, TicketStrip } from '
 import { ChecklistSheet, CueSheet } from '@/components/design/templates/ops'
 import { ProgramBifold, ProgramCover, ProgramInner } from '@/components/design/templates/program'
 import {
-  GalaArch,
-  GalaEditorial,
-  GalaKeys,
-  GalaLaurel,
-  GalaMinimal,
-  GalaPhoto,
-  GalaPiano,
-  GalaSpotlight,
-} from '@/components/design/templates/gala'
-import {
   PosterClassic,
   PosterFullBleed,
   PosterModern,
@@ -113,22 +103,6 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <AwardSheet ctx={ctx} />
     case 'mc-script':
       return <McScriptSheet ctx={ctx} />
-    case 'gala-piano':
-      return <GalaPiano ctx={ctx} />
-    case 'gala-keys':
-      return <GalaKeys ctx={ctx} />
-    case 'gala-spotlight':
-      return <GalaSpotlight ctx={ctx} />
-    case 'gala-arch':
-      return <GalaArch ctx={ctx} />
-    case 'gala-editorial':
-      return <GalaEditorial ctx={ctx} />
-    case 'gala-photo':
-      return <GalaPhoto ctx={ctx} />
-    case 'gala-laurel':
-      return <GalaLaurel ctx={ctx} />
-    case 'gala-minimal':
-      return <GalaMinimal ctx={ctx} />
     case 'projector-card':
       return <ProjectorCard ctx={ctx} />
     case 'rehearsal-sheet':

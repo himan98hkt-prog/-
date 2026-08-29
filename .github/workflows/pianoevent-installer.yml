@@ -15,10 +15,10 @@ on:
     tags: ['pianoevent-v*']
     # 아직 기본 브랜치에 안 들어간 동안에도 설치본을 받아 보실 수 있게
     branches: ['claude/piano-event-program-**']
+    # 껍데기뿐 아니라 **프로그램이 바뀔 때마다** 다시 만든다.
+    # 받는 자리에 놓인 것이 지금 프로그램과 다르면, 원장님은 고쳐지지 않은 판을 쓰시게 된다.
     paths:
-      - 'pianoevent-ai/desktop/**'
-      - 'pianoevent-ai/electron-builder.yml'
-      - 'pianoevent-ai/scripts/build-desktop.mjs'
+      - 'pianoevent-ai/**'
       - '.github/workflows/pianoevent-installer.yml'
 
 permissions:
