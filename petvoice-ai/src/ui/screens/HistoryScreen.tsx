@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { weeklyReport } from '../../api';
 import { backupEntries, restoreEntries } from '../../api/backup';
@@ -7,6 +7,7 @@ import type { WeeklyReport } from '../../api/proxy';
 import { relativeTime } from '../../core/date';
 import { buildWeeklyDigest, monthGrid, weeklyHeadline, weeklyStats } from '../../core/diary';
 import { emotionMeta } from '../../core/emotions';
+import { reportCacheKey } from '../../core/reportCache';
 import { assessHistoryRisk } from '../../core/health';
 import { useT } from '../../i18n/useT';
 import { useActivePet, useEntriesForActivePet, useIsPro, usePetStore } from '../../store/usePetStore';
@@ -30,6 +31,8 @@ export function HistoryScreen() {
   const lastBackupAt = usePetStore((s) => s.lastBackupAt);
   const setLastBackupAt = usePetStore((s) => s.setLastBackupAt);
   const isPro = useIsPro();
+  const cachedReport = usePetStore((s) => s.cachedReport);
+  const putCachedReport = usePetStore((s) => s.putCachedReport);
 
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
@@ -48,18 +51,51 @@ export function HistoryScreen() {
     });
   };
 
+  /**
+   * 리포트 캐시 키는 **모델에게 주는 입력 그대로**다.
+   * 새 기록이 없으면 입력이 같고, 입력이 같으면 답도 같다 — 부를 이유가 없다.
+   */
+  const cacheKey = useMemo(
+    () =>
+      pet
+        ? reportCacheKey(
+            pet.id,
+            tr.locale,
+            buildWeeklyDigest(entries, (key) => t(key)),
+          )
+        : null,
+    // t 는 매 렌더 새로 만들어지므로 의존성에서 뺀다. 언어가 바뀌면 tr.locale 이 바뀐다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pet?.id, tr.locale, entries],
+  );
+
+  // 화면에 들어올 때 지난번 리포트가 그대로 유효하면 바로 보여 준다.
+  useEffect(() => {
+    if (!cacheKey) return;
+    setReport(cachedReport(cacheKey));
+  }, [cacheKey, cachedReport]);
+
   const loadReport = async () => {
-    if (!pet) return;
+    if (!pet || !cacheKey) return;
     if (!isPro) {
       nav.navigate('paywall');
       return;
     }
+
+    const hit = cachedReport(cacheKey);
+    if (hit) {
+      setReport(hit);
+      return;
+    }
+
     setLoadingReport(true);
     try {
       const digest = buildWeeklyDigest(entries, (key) => t(key));
       const result = await weeklyReport(pet, digest, tr.locale);
-      if (result) setReport(result);
-      else Alert.alert(t('history.reportUnavailable'), t('history.reportUnavailableDesc'));
+      if (result) {
+        setReport(result);
+        putCachedReport(cacheKey, result);
+      } else Alert.alert(t('history.reportUnavailable'), t('history.reportUnavailableDesc'));
     } catch (error) {
       Alert.alert(t('history.reportFailTitle'), t(userMessageKey(error)));
     } finally {

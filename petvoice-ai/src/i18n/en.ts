@@ -341,6 +341,17 @@ export const en: Record<TranslationKey, string> = {
   'settings.diagnosticsDesc':
     'Used only to find the cause when the app crashes. Photos and recordings are never sent.',
 
+  'settings.retention': 'Keep records for',
+  'settings.retentionDesc':
+    'Older records are cleared automatically when you open the app. Kept forever by default.',
+  'settings.retentionForever': 'Forever',
+  'settings.retention2y': '2 years',
+  'settings.retention1y': '1 year',
+  'settings.retention6m': '6 months',
+  'settings.retentionConfirmTitle': 'This deletes {count} records',
+  'settings.retentionConfirmDesc':
+    'Shortening the period deletes {count} older records. This cannot be undone.',
+
   'paywall.title': 'PetVoice Pro',
   'paywall.subtitle': 'No {limit}-a-day limit. Listen as much as you like.',
   'paywall.feature.unlimited.title': 'Unlimited analyses',

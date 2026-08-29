@@ -338,6 +338,15 @@ export const ko = {
   'settings.diagnosticsDesc':
     '앱이 멈추거나 오류가 났을 때 원인 파악에만 사용해요. 반려동물 사진·녹음은 보내지 않습니다.',
 
+  'settings.retention': '기록 보관 기간',
+  'settings.retentionDesc': '기간이 지난 기록은 앱을 열 때 자동으로 정리돼요. 기본은 계속 보관이에요.',
+  'settings.retentionForever': '계속 보관',
+  'settings.retention2y': '2년',
+  'settings.retention1y': '1년',
+  'settings.retention6m': '6개월',
+  'settings.retentionConfirmTitle': '지금 {count}건이 삭제돼요',
+  'settings.retentionConfirmDesc': '기간을 줄이면 그보다 오래된 기록 {count}건이 지워지고, 되돌릴 수 없어요.',
+
   'paywall.title': 'PetVoice 프로',
   'paywall.subtitle': '하루 {limit}회 제한 없이, 우리 아이 이야기를 마음껏 들어 보세요.',
   'paywall.feature.unlimited.title': '무제한 분석',

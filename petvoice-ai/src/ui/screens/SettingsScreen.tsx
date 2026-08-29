@@ -7,6 +7,7 @@ import { useBilling } from '../../billing/useBilling';
 import { describeSubscription } from '../../core/billing';
 import { PET_LABEL_KEY } from '../../core/emotions';
 import { PRO_PRICE_KRW } from '../../core/quota';
+import { countExpiring, RETENTION_POLICIES, type RetentionPolicy } from '../../core/retention';
 import type { Locale } from '../../core/types';
 import { LOCALES } from '../../i18n';
 import { useT } from '../../i18n/useT';
@@ -24,6 +25,13 @@ const THEME_MODES: { mode: ThemeMode; key: string }[] = [
   { mode: 'light', key: 'settings.themeLight' },
   { mode: 'dark', key: 'settings.themeDark' },
 ];
+
+const RETENTION_LABEL: Record<RetentionPolicy, string> = {
+  forever: 'settings.retentionForever',
+  '2y': 'settings.retention2y',
+  '1y': 'settings.retention1y',
+  '6m': 'settings.retention6m',
+};
 
 export function SettingsScreen() {
   const nav = useNavigation();
@@ -45,6 +53,9 @@ export function SettingsScreen() {
   const setNotifications = usePetStore((s) => s.setNotifications);
   const diagnostics = usePetStore((s) => s.diagnostics);
   const setDiagnostics = usePetStore((s) => s.setDiagnostics);
+  const retention = usePetStore((s) => s.retention);
+  const setRetention = usePetStore((s) => s.setRetention);
+  const applyRetention = usePetStore((s) => s.applyRetention);
 
   const activePet = useActivePet();
   const isPro = useIsPro();
@@ -63,6 +74,33 @@ export function SettingsScreen() {
     const next = { ...notifications, ...patch };
     const applied = await syncReminders(next, tr, activePet?.name);
     setNotifications(applied);
+  };
+
+  /**
+   * 보관 기간을 줄이면 그 자리에서 기록이 사라진다.
+   * 몇 건이 지워지는지 **먼저 세어 보여 주고** 확인을 받는다 —
+   * 되돌릴 수 없는 삭제를 칩 한 번으로 실행하면 안 된다.
+   */
+  const changeRetention = (next: RetentionPolicy) => {
+    if (next === retention) return;
+
+    const doomed = countExpiring(
+      entries.map((e) => e.createdAt),
+      next,
+    );
+    const apply = () => {
+      setRetention(next);
+      void applyRetention();
+    };
+
+    if (doomed === 0) {
+      apply();
+      return;
+    }
+    Alert.alert(t('settings.retentionConfirmTitle'), t('settings.retentionConfirmDesc', { count: doomed }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: apply },
+    ]);
   };
 
   /** Play 정책: 로그인 없는 로컬 앱은 "모든 데이터 초기화"를 반드시 제공해야 한다. */
@@ -268,6 +306,21 @@ export function SettingsScreen() {
           value={diagnostics}
           onChange={setDiagnostics}
         />
+
+        <View style={{ gap: space.sm }}>
+          <Text style={[font.bodyStrong, { color: colors.text }]}>{t('settings.retention')}</Text>
+          <Text style={[font.tiny, { color: colors.textFaint }]}>{t('settings.retentionDesc')}</Text>
+          <View style={styles.chipRow}>
+            {RETENTION_POLICIES.map((policy) => (
+              <Chip
+                key={policy}
+                label={t(RETENTION_LABEL[policy])}
+                selected={retention === policy}
+                onPress={() => changeRetention(policy)}
+              />
+            ))}
+          </View>
+        </View>
         <Button label={t('settings.resetAll')} variant="danger" onPress={confirmReset} />
         {isConfigured ? (
           <Button

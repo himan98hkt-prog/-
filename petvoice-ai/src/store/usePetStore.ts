@@ -9,12 +9,16 @@ import {
   initEntryStore,
   loadAllEntries,
   migrateLegacyEntries,
+  pruneEntriesBefore,
   saveEntries,
   saveEntry,
 } from '../data/entries';
 import { createId } from '../core/id';
 import { DEFAULT_THEME_KEY } from '../core/photocard';
 import { canAddPet, isProActive, quotaState, type QuotaState } from '../core/quota';
+import { readReportCache, writeReportCache, type CachedReport } from '../core/reportCache';
+import { DEFAULT_RETENTION, retentionCutoff, type RetentionPolicy } from '../core/retention';
+import type { WeeklyReport } from '../api/proxy';
 import type { ContextTag } from '../core/emotions';
 import type { AnalysisEntry, Locale, PetProfile, Subscription } from '../core/types';
 import { DEFAULT_LOCALE } from '../i18n';
@@ -63,6 +67,10 @@ interface PetState {
   notifications: NotificationSettings;
   /** 크래시·오류 보고 전송 동의 (기본 꺼짐) */
   diagnostics: boolean;
+  /** 기록 보관 기간 */
+  retention: RetentionPolicy;
+  /** 주간 리포트 캐시 — 같은 입력으로 모델을 다시 부르지 않기 위해 */
+  reportCache: CachedReport<WeeklyReport>[];
   /** 마지막으로 서버에 백업한 시각 */
   lastBackupAt?: number;
   /** 연결이 돌아오면 처리할 분석 대기열 */
@@ -88,7 +96,14 @@ interface PetState {
   setThemeMode: (mode: ThemeMode) => void;
   setNotifications: (patch: Partial<NotificationSettings>) => void;
   setDiagnostics: (on: boolean) => void;
+  setRetention: (policy: RetentionPolicy) => void;
+  /** 보관 기간이 지난 기록을 지운다. 지운 건수를 돌려준다. */
+  applyRetention: () => Promise<number>;
   setLastBackupAt: (ts: number) => void;
+
+  /** 캐시에 있으면 모델을 부르지 않는다 */
+  cachedReport: (key: string) => WeeklyReport | null;
+  putCachedReport: (key: string, report: WeeklyReport) => void;
   /** 백업에서 복원한 기록으로 교체(중복은 id 기준으로 합침) */
   mergeEntries: (incoming: AnalysisEntry[]) => number;
 
@@ -115,6 +130,8 @@ export const usePetStore = create<PetState>()(
       themeMode: 'system',
       notifications: { daily: false, weekly: false, hour: 20 },
       diagnostics: false,
+      retention: DEFAULT_RETENTION,
+      reportCache: [],
       queue: [],
 
       addPet: (input) => {
@@ -189,7 +206,24 @@ export const usePetStore = create<PetState>()(
       setThemeMode: (themeMode) => set({ themeMode }),
       setNotifications: (patch) => set((state) => ({ notifications: { ...state.notifications, ...patch } })),
       setDiagnostics: (diagnostics) => set({ diagnostics }),
+      setRetention: (retention) => set({ retention }),
+
+      applyRetention: async () => {
+        const cutoff = retentionCutoff(get().retention);
+        if (cutoff === null) return 0;
+        const removed = await pruneEntriesBefore(cutoff);
+        // 저장소에서 지웠으면 화면이 보는 거울도 맞춰 준다
+        if (removed > 0) {
+          set((state) => ({ entries: state.entries.filter((e) => e.createdAt >= cutoff) }));
+        }
+        return removed;
+      },
+
       setLastBackupAt: (lastBackupAt) => set({ lastBackupAt }),
+
+      cachedReport: (key) => readReportCache(get().reportCache, key),
+      putCachedReport: (key, report) =>
+        set((state) => ({ reportCache: writeReportCache(state.reportCache, key, report) })),
 
       enqueueAnalysis: (item) =>
         set((state) => ({
@@ -218,6 +252,7 @@ export const usePetStore = create<PetState>()(
           cardThemeKey: DEFAULT_THEME_KEY,
           onboarded: false,
           lastBackupAt: undefined,
+          reportCache: [],
           queue: [],
         });
       },
@@ -238,6 +273,8 @@ export const usePetStore = create<PetState>()(
         themeMode: state.themeMode,
         notifications: state.notifications,
         diagnostics: state.diagnostics,
+        retention: state.retention,
+        reportCache: state.reportCache,
         lastBackupAt: state.lastBackupAt,
         queue: state.queue,
       }),
@@ -255,6 +292,10 @@ export const usePetStore = create<PetState>()(
 async function bootstrapEntries(): Promise<void> {
   try {
     await usePetStore.getState().loadEntries();
+    // 보관 기간 정리는 기록을 다 읽은 뒤에. 이전(migration)보다 먼저 지우면
+    // 아직 옮기지 못한 예전 기록을 지워 버린다.
+    const removed = await usePetStore.getState().applyRetention();
+    if (removed > 0) console.log(`보관 기간이 지난 기록 ${removed}건을 정리했습니다.`);
   } catch (error) {
     console.warn('기록을 불러오지 못했습니다', error);
     usePetStore.setState({ entriesLoaded: true });

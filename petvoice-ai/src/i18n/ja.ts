@@ -335,6 +335,17 @@ export const ja: Record<TranslationKey, string> = {
   'settings.diagnostics': 'エラーレポートを送る',
   'settings.diagnosticsDesc': 'アプリが落ちたときの原因調査だけに使います。写真や録音は送りません。',
 
+  'settings.retention': '記録の保存期間',
+  'settings.retentionDesc':
+    '期間を過ぎた記録は、アプリを開いたときに自動で整理されます。初期設定はずっと保存です。',
+  'settings.retentionForever': 'ずっと保存',
+  'settings.retention2y': '2年',
+  'settings.retention1y': '1年',
+  'settings.retention6m': '6か月',
+  'settings.retentionConfirmTitle': '{count}件が削除されます',
+  'settings.retentionConfirmDesc':
+    '期間を短くすると、それより古い記録{count}件が削除されます。元には戻せません。',
+
   'paywall.title': 'PetVoice プロ',
   'paywall.subtitle': '1日{limit}回の制限なしで、うちの子の話を思う存分どうぞ。',
   'paywall.feature.unlimited.title': '無制限の分析',
