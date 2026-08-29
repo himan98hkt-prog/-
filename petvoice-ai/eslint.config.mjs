@@ -76,9 +76,10 @@ export default tseslint.config(
   },
 
   {
-    // babel.config.js 는 Metro 가 CommonJS 로 읽는다.
+    // babel.config.js 와 설정 플러그인은 CommonJS 다 (Expo 가 require 로 읽는다).
     files: ['**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: { module: 'writable', require: 'readonly' } },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 
   {

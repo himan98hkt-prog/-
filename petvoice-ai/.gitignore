@@ -2,6 +2,9 @@ node_modules/
 .expo/
 dist/
 web-build/
+# prebuild 산출물. 설정은 app.json 과 plugins/ 가 원본이다.
+android/
+ios/
 *.log
 .env
 .env.local

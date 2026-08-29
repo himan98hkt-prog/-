@@ -78,6 +78,11 @@ interface PetState {
   lastBackupAt?: number;
   /** 연결이 돌아오면 처리할 분석 대기열 */
   queue: PendingAnalysis[];
+  /**
+   * 홈 화면 바로가기로 들어왔다는 표시. 홈 화면이 집어서 녹음을 시작하고 지운다.
+   * 저장하지 않는다 — 앱을 다시 켰을 때 저절로 녹음이 시작되면 안 된다.
+   */
+  pendingQuickRecord: boolean;
 
   addPet: (input: Omit<PetProfile, 'id' | 'createdAt'>) => PetProfile | null;
   updatePet: (id: string, patch: Partial<Omit<PetProfile, 'id' | 'createdAt'>>) => void;
@@ -115,6 +120,8 @@ interface PetState {
   enqueueAnalysis: (item: Omit<PendingAnalysis, 'id' | 'createdAt'>) => void;
   dequeueAnalysis: (id: string) => void;
 
+  setPendingQuickRecord: (pending: boolean) => void;
+
   /** 설정 ▸ 모든 데이터 초기화 (Play 정책 요건) */
   resetAll: () => void;
 }
@@ -139,6 +146,7 @@ export const usePetStore = create<PetState>()(
       reportCache: [],
       attempts: [],
       queue: [],
+      pendingQuickRecord: false,
 
       addPet: (input) => {
         const state = get();
@@ -239,6 +247,8 @@ export const usePetStore = create<PetState>()(
         })),
 
       dequeueAnalysis: (id) => set((state) => ({ queue: state.queue.filter((q) => q.id !== id) })),
+
+      setPendingQuickRecord: (pendingQuickRecord) => set({ pendingQuickRecord }),
 
       mergeEntries: (incoming) => {
         const state = get();

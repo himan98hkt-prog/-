@@ -20,7 +20,18 @@
         "NSMicrophoneUsageDescription": "반려동물의 울음소리를 녹음해 감정을 분석하는 데만 사용합니다.",
         "NSCameraUsageDescription": "반려동물의 자세와 표정을 촬영해 행동을 분석하는 데만 사용합니다.",
         "NSPhotoLibraryUsageDescription": "저장된 반려동물 사진으로 분석하거나 포토카드를 만들기 위해 사용합니다.",
-        "NSPhotoLibraryAddUsageDescription": "만든 포토카드를 사진 앱에 저장하기 위해 사용합니다."
+        "NSPhotoLibraryAddUsageDescription": "만든 포토카드를 사진 앱에 저장하기 위해 사용합니다.",
+        "UIApplicationShortcutItems": [
+          {
+            "UIApplicationShortcutItemType": "app.petvoice.ai.record",
+            "UIApplicationShortcutItemTitle": "3초 녹음",
+            "UIApplicationShortcutItemSubtitle": "바로 3초 녹음하기",
+            "UIApplicationShortcutItemIconType": "UIApplicationShortcutIconTypeAudio",
+            "UIApplicationShortcutItemUserInfo": {
+              "url": "petvoice://record"
+            }
+          }
+        ]
       }
     },
     "android": {
@@ -58,7 +69,8 @@
         {
           "microphonePermission": "반려동물의 울음소리를 녹음해 감정을 분석하는 데만 사용합니다."
         }
-      ]
+      ],
+      "./plugins/withRecordShortcut"
     ],
     "extra": {
       "eas": {

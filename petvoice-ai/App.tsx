@@ -1,10 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, AppState, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  AppState,
+  Linking,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { isConfigured } from './src/api';
 import { assertNoAiKeyInClient } from './src/api/config';
 import { ensureSession } from './src/api/supabase';
 import { syncSubscriptionFromServer } from './src/billing/useBilling';
+import { parseDeepLink } from './src/core/deepLink';
 import { detectDeviceLocale } from './src/i18n/detect';
 import { useT } from './src/i18n/useT';
 import { initErrorReporting } from './src/diagnostics';
@@ -78,6 +88,30 @@ function Router() {
       await syncSubscriptionFromServer().catch(() => undefined);
     })();
   }, []);
+
+  /**
+   * 홈 화면 바로가기 · 딥링크.
+   *
+   * 앱이 꺼져 있다 켜진 경우(`getInitialURL`)와 이미 떠 있는 경우(`url` 이벤트)를
+   * 둘 다 받아야 한다. 하나만 처리하면 "처음엔 되는데 두 번째부터 안 되는" 버그가 된다.
+   *
+   * 여기서는 표시만 세우고 녹음은 홈 화면이 시작한다 — 권한 요청과 타이머가
+   * 이미 그쪽에 있고, 두 군데서 녹음을 시작하면 서로를 밟는다.
+   */
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const handle = (url: string | null) => {
+      const action = parseDeepLink(url);
+      if (!action) return;
+      nav.switchTab(action.kind === 'record' ? 'home' : 'history');
+      if (action.kind === 'record') usePetStore.getState().setPendingQuickRecord(true);
+    };
+
+    void Linking.getInitialURL().then(handle);
+    const sub = Linking.addEventListener('url', (event) => handle(event.url));
+    return () => sub.remove();
+  }, [hydrated, nav]);
 
   // 앱으로 돌아올 때마다 대기 중인 분석을 처리해 본다.
   useEffect(() => {
