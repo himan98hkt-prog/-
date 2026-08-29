@@ -335,6 +335,17 @@ export const ja: Record<TranslationKey, string> = {
   'settings.diagnostics': 'エラーレポートを送る',
   'settings.diagnosticsDesc': 'アプリが落ちたときの原因調査だけに使います。写真や録音は送りません。',
 
+  'photo.tooDark': '写真が暗すぎます',
+  'photo.tooDarkDesc': '顔がよく見える明るい場所で撮り直してください。',
+  'photo.tooBright': '写真が明るすぎます',
+  'photo.tooBrightDesc': '逆光を避けるか、少し暗い場所で撮り直してください。',
+  'photo.featureless': 'うちの子が写っていないようです',
+  'photo.featurelessDesc': '壁や床だけが写っているようです。画面に入るように撮ってください。',
+  'photo.blurry': '写真がぶれています',
+  'photo.blurryDesc': 'ピントが合うまで少し待ってから撮り直してください。',
+  'photo.retake': '撮り直す',
+  'photo.sendAnyway': 'このまま分析',
+
   'settings.retention': '記録の保存期間',
   'settings.retentionDesc':
     '期間を過ぎた記録は、アプリを開いたときに自動で整理されます。初期設定はずっと保存です。',

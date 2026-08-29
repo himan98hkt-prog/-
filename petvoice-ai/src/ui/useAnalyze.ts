@@ -10,7 +10,7 @@ import type { ContextTag } from '../core/emotions';
 import type { EmotionKey } from '../core/types';
 import { useT } from '../i18n/useT';
 import { usePetStore, useActivePet } from '../store/usePetStore';
-import { fileTooLarge, toBase64 } from './media';
+import { fileTooLarge, judgePhotoFile, toBase64 } from './media';
 import { useNavigation } from './navigation';
 
 /** 화면이 넘겨 주는 상황 맥락 */
@@ -23,6 +23,21 @@ export interface AnalysisContext {
 }
 
 export const EMPTY_CONTEXT: AnalysisContext = { text: '', tags: [] };
+
+/** Alert 를 기다렸다가 예/아니오를 돌려준다 */
+function confirmProceed(
+  title: string,
+  message: string,
+  cancelLabel: string,
+  confirmLabel: string,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: cancelLabel, style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmLabel, onPress: () => resolve(true) },
+    ]);
+  });
+}
 
 /**
  * 녹음/촬영 어느 쪽에서 들어와도 분석 흐름은 같다.
@@ -57,6 +72,22 @@ export function useAnalyzeMedia() {
         if (!verdict.ok) {
           Alert.alert(tr.t(`record.${verdict.reason}`), tr.t(`record.${verdict.reason}Desc`));
           return;
+        }
+      }
+
+      // 사진도 같은 이유로 거른다 — 캄캄하거나 흔들린 사진에도 모델은 무언가를 답한다.
+      // 다만 소리와 달리 **막지 않고 물어본다**. 임계값이 아직 실제 사진으로
+      // 검증되지 않았으니, 오탐이 났을 때 사용자가 빠져나갈 길은 남겨 둬야 한다.
+      if (mediaKind === 'image') {
+        const verdict = await judgePhotoFile(uri);
+        if (!verdict.ok) {
+          const proceed = await confirmProceed(
+            tr.t(`photo.${verdict.reason}`),
+            tr.t(`photo.${verdict.reason}Desc`),
+            tr.t('photo.retake'),
+            tr.t('photo.sendAnyway'),
+          );
+          if (!proceed) return;
         }
       }
 

@@ -341,6 +341,17 @@ export const en: Record<TranslationKey, string> = {
   'settings.diagnosticsDesc':
     'Used only to find the cause when the app crashes. Photos and recordings are never sent.',
 
+  'photo.tooDark': 'This photo is too dark',
+  'photo.tooDarkDesc': 'Try again somewhere brighter, where their face is easy to see.',
+  'photo.tooBright': 'This photo is too bright',
+  'photo.tooBrightDesc': 'Try again out of the backlight, or somewhere a little darker.',
+  'photo.featureless': "We can't see your pet",
+  'photo.featurelessDesc': 'This looks like just a wall or the floor. Try to get them in the frame.',
+  'photo.blurry': 'This photo is blurry',
+  'photo.blurryDesc': 'Wait a moment for the focus to settle, then take it again.',
+  'photo.retake': 'Retake',
+  'photo.sendAnyway': 'Analyze anyway',
+
   'settings.retention': 'Keep records for',
   'settings.retentionDesc':
     'Older records are cleared automatically when you open the app. Kept forever by default.',

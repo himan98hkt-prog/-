@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { judgeJpegBase64, PHOTO_PROBE_WIDTH, type PhotoVerdict } from '../core/photo';
 import type { Translator } from '../i18n/useT';
 import { requestWithRationale } from './permissions';
 
@@ -38,6 +39,28 @@ export async function compressImage(uri: string): Promise<string> {
     return result.uri;
   } catch {
     return uri; // 줄이지 못해도 원본으로 계속 간다
+  }
+}
+
+/**
+ * 보내기 전에 사진이 쓸 만한지 본다.
+ *
+ * 판정용으로 가로 320px 짜리를 따로 한 장 만든다. 원본(1280px)으로 재면
+ * 디코딩이 무겁고, 무엇보다 임계값이 해상도에 따라 달라져 기기마다 다르게 걸린다.
+ * 폭을 고정하면 어느 기기에서 찍었든 같은 잣대로 잰다.
+ *
+ * 실패하면 통과시킨다 — 사전 필터가 분석을 못 하게 만드는 원인이 되면 안 된다.
+ */
+export async function judgePhotoFile(uri: string): Promise<PhotoVerdict> {
+  try {
+    const probe = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: PHOTO_PROBE_WIDTH } }], {
+      compress: 0.8,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    return probe.base64 ? judgeJpegBase64(probe.base64) : { ok: true };
+  } catch {
+    return { ok: true };
   }
 }
 

@@ -338,6 +338,17 @@ export const ko = {
   'settings.diagnosticsDesc':
     '앱이 멈추거나 오류가 났을 때 원인 파악에만 사용해요. 반려동물 사진·녹음은 보내지 않습니다.',
 
+  'photo.tooDark': '사진이 너무 어두워요',
+  'photo.tooDarkDesc': '아이 얼굴이 잘 보이는 밝은 곳에서 다시 찍어 주세요.',
+  'photo.tooBright': '사진이 너무 밝아요',
+  'photo.tooBrightDesc': '역광을 피하거나 조금 어두운 곳에서 다시 찍어 주세요.',
+  'photo.featureless': '아이가 안 보이는 것 같아요',
+  'photo.featurelessDesc': '벽이나 바닥만 찍힌 것 같아요. 아이가 화면에 들어오게 찍어 주세요.',
+  'photo.blurry': '사진이 흔들렸어요',
+  'photo.blurryDesc': '초점이 맞을 때까지 잠깐 기다렸다가 다시 찍어 주세요.',
+  'photo.retake': '다시 찍기',
+  'photo.sendAnyway': '이대로 분석',
+
   'settings.retention': '기록 보관 기간',
   'settings.retentionDesc': '기간이 지난 기록은 앱을 열 때 자동으로 정리돼요. 기본은 계속 보관이에요.',
   'settings.retentionForever': '계속 보관',
