@@ -13,7 +13,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# upload 만으로는 **내 영상의 조회수도 못 읽는다.** 비공개·미등록 영상의
+# statistics 는 readonly 권한이 있어야 한다. 성적표를 보려면 이게 필요해서
+# 같이 요청한다 — 이미 연결해 둔 분은 유튜브를 한 번 다시 연결해야 한다.
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+]
 _STATE_FILE = "youtube_uploads.json"
 
 
@@ -50,6 +56,11 @@ def _credentials():
     creds = None
     if token_file.exists():
         creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
+        # 예전에 upload 권한만으로 연결해 둔 토큰이면 조회수를 못 읽는다.
+        # 조용히 안 되는 것보다 다시 연결하라고 말하는 편이 낫다.
+        granted = set(getattr(creds, "scopes", None) or [])
+        if granted and not set(SCOPES) <= granted:
+            creds = None
     if creds and creds.valid:
         return creds
     if creds and creds.expired and creds.refresh_token:

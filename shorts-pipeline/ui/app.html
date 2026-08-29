@@ -136,6 +136,21 @@
               font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
   .seed.done img{opacity:.42}
   .mnote{display:block;color:var(--mute);font-size:11.5px;margin:-2px 0 10px}
+  .rank{margin:12px 0 0}
+  .rank h4{margin:0 0 5px;font-size:12px;color:var(--mute);font-weight:600;
+           letter-spacing:.4px}
+  .rank .row{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:12.5px}
+  .rank .row .nm{flex:0 0 132px;color:var(--ink2);white-space:nowrap;
+                 overflow:hidden;text-overflow:ellipsis}
+  .rank .row .bar{flex:1;height:8px;background:var(--panel2);border-radius:4px;
+                  overflow:hidden}
+  .rank .row .bar i{display:block;height:100%;background:var(--cyan)}
+  .rank .row .vv{flex:0 0 92px;text-align:right;color:var(--ink2);
+                 font-variant-numeric:tabular-nums}
+  .rank .thin{color:var(--mute);font-size:11.5px;padding-top:3px}
+  .tokwarn{margin:0 0 12px;padding:9px 12px;border-radius:9px;font-size:12.5px;
+           background:#3A2A0B;color:#FDE68A;border:1px solid #6B4E12}
+  .tokwarn b{color:#FEF3C7}
   .empty{color:var(--mute);font-size:14px;padding:26px 0;text-align:center}
 
   .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;
@@ -395,11 +410,22 @@
     <div id="p-home" hidden>
       <div class="stats" id="stats"></div>
 
+      <!-- 만들고 올리는 것까지는 되는데 뭐가 통했는지 모르면 계속 감으로
+           고르게 된다. 여기가 그 답이다. -->
+      <div class="card" style="margin-bottom:14px">
+        <h2>성적표 — 무엇이 통했나</h2>
+        <p class="sub" id="statsSub">올린 영상의 조회수를 끌어와 테마·음악·움직임별로 묶습니다.</p>
+        <div id="statsBox"><div class="empty">아직 읽은 성적이 없습니다.</div></div>
+        <button class="ghost" id="statsRefresh" style="margin-top:10px">
+          조회수 새로 가져오기</button>
+      </div>
+
       <div class="card" style="margin-bottom:14px">
         <h2>바로 하기</h2>
         <p class="sub">자주 쓰는 동작입니다.</p>
         <div class="quick">
           <button id="q-make">영상 만들기</button>
+          <button id="q-batch">일주일치 만들기</button>
           <button id="q-upload">이미지 추가</button>
           <button id="q-auto">자동 업로드 설정</button>
           <a href="https://studio.youtube.com/" target="_blank" rel="noopener">유튜브 스튜디오 ↗</a>
@@ -458,6 +484,12 @@
         </div>
         <div id="sGrp-instagram"></div>
         <button class="big" id="igConnect">인스타 확인하기</button>
+        <!-- 장기 토큰은 60일이면 만료된다. 만료된 뒤에는 연장이 안 되고
+             처음부터 다시 발급해야 하므로, 남았을 때 눌러야 한다. -->
+        <button class="ghost" id="igRefresh" style="width:100%;margin-top:8px">
+          🔄 토큰 60일 연장</button>
+        <small class="mnote" id="igTokNote">토큰이 만료되면 인스타 업로드만 조용히 실패합니다.
+          만료 <b>전에</b> 눌러야 연장됩니다.</small>
       </div>
 
       <div class="card">
@@ -1494,7 +1526,7 @@ function switchTab(which) {
     $(`p-${t}`).hidden = t !== which;
   });
   if (which === "easy") loadEasy();
-  if (which === "home") { loadOverview(); loadDoctor(); }
+  if (which === "home") { loadOverview(); loadDoctor(); loadStats(); }
   if (which === "auto") { loadSchedule(); loadHistory(); }
   if (which === "set") loadSettings();
   if (which === "music") loadMusic();
@@ -1773,8 +1805,142 @@ async function loadOverview() {
       ${budgetTile(o)}`;
     const link = $("setBudget");
     if (link) link.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
+    renderToken(o.token);
   } catch (e) { /* 무시 */ }
 }
+
+// 인스타 장기 토큰은 60일이면 만료된다. 만료되면 **인스타만 조용히 실패**하고
+// 유튜브는 계속 되므로 몇 주 지나서야 알아챈다. 미리 세어 보여준다.
+function renderToken(t) {
+  const box = $("stats");
+  const old = document.getElementById("tokwarn");
+  if (old) old.remove();
+  if (!t || !t.present) return;
+  const days = t.days_left;
+  if (days === null || days === undefined || days > 14) return;
+  const el = document.createElement("div");
+  el.id = "tokwarn";
+  el.className = "tokwarn";
+  el.innerHTML = days > 0
+    ? `인스타 토큰이 <b>${days}일 뒤 만료</b>됩니다. 만료되면 인스타 업로드만 `
+      + `조용히 실패합니다. <a href="#" id="tokGo">[설정]에서 60일 연장하기</a> — `
+      + `만료된 뒤에는 연장이 안 됩니다.`
+    : `인스타 토큰이 <b>만료됐습니다.</b> 연장은 안 되고 새로 발급해야 합니다. `
+      + `<a href="#" id="tokGo">[설정] 탭으로</a>`;
+  box.parentNode.insertBefore(el, box.nextSibling);
+  const go = document.getElementById("tokGo");
+  if (go) go.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
+}
+
+// ── 성적표 ──────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    renderStats(await api("/api/stats"));
+  } catch (e) { /* 무시 */ }
+}
+
+function renderStats(st) {
+  if (!st || !st.videos) {
+    $("statsBox").innerHTML =
+      '<div class="empty">아직 읽은 성적이 없습니다.<br>'
+      + '올린 영상이 있으면 아래 버튼을 눌러 조회수를 가져오세요.</div>';
+    $("statsSub").textContent =
+      "올린 영상의 조회수를 끌어와 테마·음악·움직임별로 묶습니다. API 비용은 없습니다.";
+    return;
+  }
+  $("statsSub").innerHTML =
+    `영상 <b>${st.videos}</b>편 · 총 조회 <b>${st.total_views.toLocaleString()}</b>회 · `
+    + `비용 <b>$${st.total_cost.toFixed(2)}</b>`
+    + (st.cost_per_1k !== null && st.cost_per_1k !== undefined
+        ? ` · 조회 1,000회당 <b>$${st.cost_per_1k.toFixed(2)}</b>` : "");
+
+  const order = ["theme", "motion", "mood", "hook", "loop", "grade"];
+  let html = "";
+  for (const key of order) {
+    const rows = (st.tables[key] || []).filter((r) => r.enough);
+    const thin = (st.tables[key] || []).filter((r) => !r.enough);
+    if (!rows.length && !thin.length) continue;
+    const top = Math.max(1, ...rows.map((r) => r.average));
+    html += `<div class="rank"><h4>${st.labels[key] || key}</h4>`;
+    for (const r of rows) {
+      const pct = Math.round((r.average / top) * 100);
+      html += `<div class="row"><span class="nm" title="${r.key}">${r.key}</span>`
+        + `<span class="bar"><i style="width:${pct}%"></i></span>`
+        + `<span class="vv">${Math.round(r.average).toLocaleString()}회 · ${r.videos}편</span></div>`;
+    }
+    if (thin.length) {
+      html += `<div class="thin">2편 미만이라 판단 보류: `
+        + thin.slice(0, 6).map((r) => `${r.key}(${r.videos})`).join(", ") + `</div>`;
+    }
+    html += "</div>";
+  }
+  if (st.best && st.best.length) {
+    html += `<div class="rank"><h4>가장 많이 본 영상</h4>`;
+    for (const r of st.best) {
+      html += `<div class="row"><span class="nm">${r.title || r.run}</span>`
+        + `<span class="bar"></span>`
+        + `<span class="vv">${r.views.toLocaleString()}회</span></div>`;
+    }
+    html += "</div>";
+  }
+  $("statsBox").innerHTML = html || '<div class="empty">묶을 것이 없습니다.</div>';
+}
+
+$("statsRefresh").onclick = async () => {
+  const b = $("statsRefresh");
+  b.disabled = true; b.textContent = "가져오는 중…";
+  try {
+    const d = await api("/api/refresh-stats", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    renderStats(d.stats);
+    (d.problems || []).forEach((p) => toast(p, true));
+    toast(`${d.updated}편의 조회수를 가져왔습니다.`);
+  } catch (e) { toast(e.message, true); }
+  b.disabled = false; b.textContent = "조회수 새로 가져오기";
+};
+
+$("igRefresh").onclick = async () => {
+  if (!confirm("인스타 토큰을 60일 연장합니다.\n\n"
+             + "새 토큰이 .env 에 자동으로 저장됩니다.\n진행할까요?")) return;
+  const b = $("igRefresh");
+  b.disabled = true; b.textContent = "연장하는 중…";
+  try {
+    const d = await api("/api/refresh-token", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    toast(d.message || "연장했습니다.");
+    loadSettings(); loadOverview(); loadDoctor();
+  } catch (e) { toast(e.message, true); }
+  b.disabled = false; b.textContent = "🔄 토큰 60일 연장";
+};
+
+// ── 일주일치 만들기 ─────────────────────────────────────────────────
+$("q-batch").onclick = async () => {
+  const raw = prompt(
+    "몇 편을 이어서 만들까요?\n\n"
+    + "한 편에 5~10분입니다. 7편이면 한 시간쯤 걸립니다.\n"
+    + "한 편이 실패해도 멈추지 않고 다음 편으로 넘어갑니다.", "7");
+  if (raw === null) return;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 30) {
+    toast("1~30 사이 숫자를 넣어주세요.", true);
+    return;
+  }
+  if (!confirm(`${n}편을 이어서 만듭니다.\n\n`
+             + `편당 비용이 ${n}번 나갑니다.\n진행할까요?`)) return;
+  try {
+    const d = await api("/api/batch", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: n }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
+    switchTab("make"); applyAside();
+    toast(`${d.count}편을 이어서 만듭니다.`);
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
 
 // 충전액을 넣어 두면 남은 금액을, 아니면 누적 비용만 보여준다.
 function budgetTile(o) {
@@ -1868,7 +2034,7 @@ $("duration").onchange = () => { syncClips(); updateCost(); };
 
 // ── 시작 ────────────────────────────────────────────────────────────
 refresh(); loadDoctor(); loadOverview(); loadEasy(); syncForm(); applyAside();
-loadMotions();
+loadMotions(); loadStats();
 setInterval(() => { if (!activeJob || !polling) refresh(); }, 6000);
 setInterval(() => {
   loadDoctor(); loadOverview();

@@ -173,6 +173,31 @@ def check_youtube(root: Path, cfg: dict) -> Section:
     return Section("유튜브 업로드", checks, "선택")
 
 
+def _token_check() -> "Check":
+    """인스타 토큰 남은 기간. 네트워크가 안 되면 조용히 넘어간다."""
+    try:
+        from publish.instagram import token_status
+        st = token_status()
+    except Exception as exc:            # noqa: BLE001 — 점검이 죽으면 안 된다
+        return Check("토큰 유효기간", WARN, "확인 못 함",
+                     f"인터넷이 안 되거나 응답이 이상합니다 ({exc})")
+
+    if not st.get("ok"):
+        return Check("토큰 유효기간", FAIL, st.get("reason", "쓸 수 없음"),
+                     "[설정] 탭에서 인스타 토큰을 새로 발급해 넣으세요")
+    days = st.get("days_left")
+    if days is None:
+        return Check("토큰 유효기간", OK, st.get("note", "만료 없음"), "")
+    if days <= 0:
+        return Check("토큰 유효기간", FAIL, "만료됨",
+                     "만료된 토큰은 연장이 안 됩니다. 새로 발급해야 합니다")
+    if days <= 14:
+        return Check("토큰 유효기간", WARN, f"{days}일 남음",
+                     "[설정] 탭에서 [토큰 60일 연장] 을 누르세요. "
+                     "만료된 뒤에는 연장이 안 됩니다")
+    return Check("토큰 유효기간", OK, f"{days}일 남음", "")
+
+
 def check_instagram(root: Path) -> Section:
     checks = []
     uid, tok = _env("IG_USER_ID"), _env("IG_ACCESS_TOKEN")
@@ -184,6 +209,11 @@ def check_instagram(root: Path) -> Section:
         _mask(tok) if tok else "없음",
         "Meta 개발자 앱에서 instagram_content_publish 권한으로 장기 토큰 발급 후 "
         "작업실 [설정] 탭에 붙여넣기"))
+
+    # 장기 토큰은 60일이면 만료된다. 만료되면 **인스타만 조용히 실패**하고
+    # 유튜브는 계속 되므로 몇 주가 지나서야 알아채게 된다. 미리 센다.
+    if tok:
+        checks.append(_token_check())
 
     bucket = _env("S3_BUCKET")
     checks.append(Check(

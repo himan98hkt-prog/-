@@ -37,7 +37,8 @@ from pipeline.generator import (
 from pipeline.modes import Aborted, orchestrate
 from pipeline.providers import ProviderError
 from pipeline.runlog import Run
-from pipeline.stitcher import stitch
+from pipeline import look
+from pipeline.stitcher import StitchResult, stitch
 from pipeline.validator import ValidationError, prepare_input
 
 app = typer.Typer(add_completion=False, help=__doc__)
@@ -88,6 +89,9 @@ def _resolve_audio(cfg: Config, run: Run, out: dict):
 
     seed = Path(run.state.get("seed_image") or "")
     theme = _theme_of_seed(seed)
+    # 성적표에서 테마별로 묶으려면 이 값이 필요하다. 나중에 파일명으로
+    # 다시 분류하면 사이드카에 적힌 진짜 테마를 놓친다.
+    run.save_state(theme=theme)
     track = music.pick(theme, seed.stem or run.run_id,
                        Path(out.get("music_dir") or "music"))
     if track is None:
@@ -126,13 +130,57 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
     audio_mode, audio_file, track = _resolve_audio(cfg, run, out)
     if track:
         typer.echo(f"  음악   : {track.name}  ({music.MOOD_LABEL.get(track.mood, track.mood)})")
+
+    hook_cfg = out.get("hook_overlay") or {}
+    look_cfg = out.get("look") or {}
+    hook_text = ""
+    hook_font = None
+    if hook_cfg.get("enabled"):
+        hook_text = (run.state.get("content") or {}).get("hook", "")
+        hook_font = look.find_font(str(hook_cfg.get("font") or ""))
+        if hook_text and hook_font is None:
+            typer.secho("  ⚠ 한글 폰트를 못 찾아 훅 자막을 건너뜁니다.",
+                        fg=typer.colors.YELLOW)
+        elif not hook_text:
+            typer.secho("  ⓘ 훅 문구가 비어 있어 자막을 넣지 않습니다.",
+                        fg=typer.colors.YELLOW)
+
     result = stitch(
         clips, run.final,
         width=out["width"], height=out["height"], fps=out["fps"],
         crf=out.get("crf", 18),
         crossfade=crossfade, transition=transition,
         audio=audio_mode, audio_file=audio_file,
+        hook=hook_text,
+        hook_seconds=float(hook_cfg.get("seconds", 2.2) or 0),
+        hook_font=hook_font,
+        hook_font_size=int(hook_cfg.get("font_size", 0) or 0),
+        grade=str(look_cfg.get("grade") or "none"),
+        logo=str(look_cfg.get("logo") or ""),
+        logo_height=int(look_cfg.get("logo_height", 72) or 72),
+        logo_margin=int(look_cfg.get("logo_margin", 40) or 40),
+        logo_opacity=float(look_cfg.get("logo_opacity", 0.55) or 0.55),
     )
+
+    # 무한 루프는 완성본을 한 번 더 손봐야 해서 따로 돈다.
+    # 실패해도 영상 자체는 이미 나와 있다 — 여기서 죽이지 않는다.
+    loop_cfg = out.get("seamless_loop") or {}
+    looped = False
+    if loop_cfg.get("enabled"):
+        try:
+            new_duration = look.make_seamless(
+                run.final, overlap=float(loop_cfg.get("seconds", 0.6) or 0.6),
+                crf=int(out.get("crf", 18)), fps=result.fps)
+            result = StitchResult(run.final, new_duration,
+                                  run.final.stat().st_size, result.fps)
+            looped = True
+        except FFmpegError as exc:
+            typer.secho(f"  ⚠ 무한 루프 처리를 건너뜁니다 ({exc})",
+                        fg=typer.colors.YELLOW)
+
+    styled = look.describe(out)
+    if styled != "없음":
+        typer.echo(f"  꾸밈   : {styled}")
     spent = actual_cost(cfg, stats.clip_calls, stats.upscale_calls)
     run.save_state(
         final=str(result.path), duration=round(result.duration, 2),
@@ -143,6 +191,9 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
         # 소리가 안 들릴 때 무엇을 확인해야 하는지 바로 알 수 있게 한다.
         music=(track.name if track else None),
         final_res=[out["width"], out["height"]],
+        hook_burned=bool(hook_text and hook_font),
+        looped=looped,
+        grade=str(look_cfg.get("grade") or "none"),
     )
     run.log("run.finished", duration=result.duration, cost_usd=spent)
 
@@ -518,6 +569,104 @@ def preview_cmd(
     typer.echo(f"    python main.py generate --image {image}")
 
 
+@app.command("batch")
+def batch_cmd(
+    count: int = typer.Option(7, "--count", "-n", help="몇 편을 만들지"),
+    seeds_dir: str = typer.Option("seeds", "--seeds"),
+    config: str = typer.Option("config.yaml", "--config", "-c"),
+    mode: Optional[str] = typer.Option(None, "--mode"),
+    clips: Optional[int] = typer.Option(None, "--clips"),
+    assume_yes: bool = typer.Option(False, "--yes", "-y"),
+):
+    """한 번에 여러 편을 만들어 둔다. 일주일치를 미리.
+
+    매일 저녁 자동 실행은 **그 시각에 컴퓨터가 켜져 있어야** 한다. 유튜브
+    예약 공개는 컴퓨터가 꺼져 있어도 되지만, 만드는 것은 안 된다.
+    일요일에 7편을 만들어 두면 그 의존이 사라진다.
+
+    한 편이 실패해도 멈추지 않는다. 다음 편으로 넘어가고 끝에 요약한다.
+    """
+    from publish.scheduler import pick_seed, retire_seed
+
+    cfg = _load(config, mode=mode, num_clips=clips)
+    try:
+        ensure_ffmpeg()
+    except FFmpegError as exc:
+        _die(str(exc))
+
+    root = Path(seeds_dir)
+    if not root.is_absolute():
+        root = RUNS_DIR.parent / seeds_dir
+    if not root.is_dir():
+        _die(f"시드 폴더가 없습니다: {root}")
+
+    count = max(1, min(count, 50))
+    per = estimate(cfg)
+    typer.echo(
+        f"\n▶ {count}편을 이어서 만듭니다.\n"
+        f"   편당 약 ${per.subtotal:.2f}  ·  전부 만들면 약 ${per.subtotal * count:.2f}\n"
+        f"   한 편에 5~10분이라 {count}편이면 {count * 5}~{count * 10}분쯤 걸립니다."
+    )
+    cap = float(cfg.cost_cfg.get("hard_cap_usd", float("inf")))
+    if per.subtotal * count > cap:
+        _die(f"전체 예상 ${per.subtotal * count:.2f} 가 상한 ${cap:.2f} 를 넘습니다.\n"
+             f"  --count 를 줄이거나 config.yaml 의 cost.hard_cap_usd 를 올리세요.")
+    if not assume_yes and not typer.confirm("계속할까요?", default=False):
+        raise typer.Exit(code=0)
+
+    made: list[tuple[str, str]] = []
+    failed: list[tuple[str, str]] = []
+    spent = 0.0
+
+    for n in range(1, count + 1):
+        seed = pick_seed(root)
+        if seed is None:
+            typer.secho(f"\n시드가 떨어졌습니다. {n - 1}편까지 만들었습니다.",
+                        fg=typer.colors.YELLOW)
+            break
+        content = load_content(seed)
+        typer.secho(f"\n{'─' * 60}\n[{n}/{count}] {seed.name} — 「{content.title}」",
+                    bold=True)
+
+        run = Run.create(RUNS_DIR)
+        run.log("run.started", config=cfg.raw, image=str(seed), batch=True)
+        run.save_state(seed_image=str(seed), batch=True)
+        try:
+            for w in prepare_input(seed, run.input_image,
+                                   width=cfg.output["width"],
+                                   height=cfg.output["height"]):
+                typer.secho(f"  {w}", fg=typer.colors.YELLOW)
+            _apply_content(cfg, run, content)
+            clips_made, stats = orchestrate(cfg, run, interactive=False, resume=False)
+            _finalize(cfg, run, clips_made, stats)
+        except (Aborted, KeyboardInterrupt):
+            typer.secho("\n중단했습니다.", fg=typer.colors.YELLOW)
+            break
+        except (ProviderError, ValidationError, FFmpegError) as exc:
+            # 한 편이 안 된다고 나머지를 포기하지 않는다. 밤새 돌려두는 것이다.
+            run.log("batch.failed", error=str(exc))
+            failed.append((seed.name, str(exc).splitlines()[0]))
+            typer.secho(f"  ✗ 실패 — 다음 편으로 넘어갑니다 ({str(exc).splitlines()[0]})",
+                        fg=typer.colors.RED)
+            spent += float(run.state.get("cost_usd") or 0)
+            continue
+
+        spent += float(run.state.get("cost_usd") or 0)
+        made.append((run.run_id, content.title))
+        # 성공한 시드만 치운다. 실패한 것은 남겨 다시 시도할 수 있게.
+        retire_seed(seed)
+
+    typer.secho(f"\n{'═' * 60}", bold=True)
+    typer.secho(f" {len(made)}편 완성 · {len(failed)}편 실패 · 총 ${spent:.2f}", bold=True)
+    typer.secho("═" * 60, bold=True)
+    for run_id, title in made:
+        typer.echo(f"  ✓ {run_id}  {title}")
+    for name, why in failed:
+        typer.secho(f"  ✗ {name}  {why}", fg=typer.colors.RED)
+    if made:
+        typer.echo("\n  [자동 업로드] 탭에서 예약하면 매일 하나씩 올라갑니다.")
+
+
 @app.command("estimate")
 def estimate_cmd(
     config: str = typer.Option("config.yaml", "--config", "-c"),
@@ -786,6 +935,35 @@ def upload_cmd(
         typer.echo(storage.usage().render())
     except StorageError as exc:
         typer.secho(f"  (사용량 조회 생략: {exc})", fg=typer.colors.YELLOW)
+
+
+@app.command("stats")
+def stats_cmd(
+    refresh: bool = typer.Option(
+        False, "--refresh/--no-refresh",
+        help="유튜브·인스타에서 최신 조회수를 새로 끌어온다"),
+    youtube: bool = typer.Option(True, "--youtube/--no-youtube"),
+    instagram: bool = typer.Option(True, "--instagram/--no-instagram"),
+    min_videos: int = typer.Option(
+        2, "--min", help="이 편수 미만인 묶음은 판단 보류로 표시"),
+):
+    """무엇이 통했는지 — 테마·음악·움직임별 성적표.
+
+    지금까지는 만들고 올리는 데까지였다. 100편을 만들어도 어떤 테마가
+    먹혔는지 알 방법이 없었다. 이제 데이터로 정한다.
+    """
+    from publish import insights
+
+    if refresh:
+        typer.echo("조회수를 끌어오는 중…")
+        report = insights.collect(RUNS_DIR, youtube=youtube, instagram=instagram)
+        typer.echo(f"  {len(report['updated'])}편 갱신")
+        for problem in report["problems"]:
+            typer.secho(f"  ⚠ {problem}", fg=typer.colors.YELLOW)
+        typer.echo()
+
+    summary = insights.summarize(RUNS_DIR, min_videos=min_videos)
+    typer.echo(insights.render(summary, min_videos=min_videos))
 
 
 @app.command("doctor")

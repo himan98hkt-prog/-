@@ -158,6 +158,19 @@ python main.py preview --image seeds/내이미지.png     # 5초 1클립 ~$0.25
 ```bash
 python main.py redo --run 20260821_193000 --clip 2
 python main.py redo --run 20260821_193000 --clip 2 --only   # 그 하나만 (이음매 생김)
+```
+
+**일주일치 미리** — 한 편이 실패해도 멈추지 않는다.
+
+```bash
+python main.py batch --count 7
+```
+
+**무엇이 통했나** — 테마·음악·움직임별 성적표.
+
+```bash
+python main.py stats --refresh      # 조회수를 새로 끌어온 뒤 보여준다
+python main.py stats                # 저장된 것만 보여준다
 
 # 회차마다 확인하며 진행 — 망가지면 중간에 끊는다. 비용 절약에 가장 효과적
 python main.py generate --image seeds/내이미지.png --interactive

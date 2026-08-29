@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import look
 from .ffmpeg_util import FFmpegError, duration_of, fps_of, has_audio, run
 
 
@@ -80,10 +81,22 @@ def stitch(
     transition: str = "fade",
     audio: str = "silent",
     audio_file: str | None = None,
+    hook: str = "",
+    hook_seconds: float = 0.0,
+    hook_font: str | None = None,
+    hook_font_size: int = 0,
+    grade: str = "none",
+    logo: str = "",
+    logo_height: int = 64,
+    logo_margin: int = 36,
+    logo_opacity: float = 0.55,
 ) -> StitchResult:
     """clips 를 순서대로 이어붙여 dest 에 쓴다.
 
     transition: "cut"(하드 컷) 또는 xfade 트랜지션 이름("fade", "fadeblack" 등).
+
+    훅 자막·색보정·로고는 **한 번의 인코딩 안에서** 같이 처리한다. 따로
+    한 번 더 돌리면 그만큼 다시 압축돼 화질이 깎인다.
     """
     if not clips:
         raise FFmpegError("합성할 클립이 없습니다.")
@@ -107,13 +120,36 @@ def stitch(
             clips, scale_chain, crossfade, transition
         )
 
+    # 색보정 -> 훅 자막 -> 로고 순서. 색보정을 자막 뒤에 두면 글씨 색까지
+    # 같이 물든다.
+    post = [f for f in (look.grade_filter(grade),
+                        look.hook_filter(hook, seconds=hook_seconds, height=height,
+                                         font=hook_font, font_size=hook_font_size,
+                                         width=width))
+            if f]
+    if post:
+        filter_complex += f";[{last_label}]" + ",".join(post) + "[styled]"
+        last_label = "styled"
+
     args = ["ffmpeg", "-v", "error", "-stats"]
     for c in clips:
         args += ["-i", str(c)]
 
+    logo_args = look.logo_inputs(logo)
+    args += logo_args
+
     audio_args, audio_map, audio_graph = _audio_args(
-        audio, audio_file, len(clips), _total_seconds(clips, crossfade, transition))
+        audio, audio_file, len(clips) + (1 if logo_args else 0),
+        _total_seconds(clips, crossfade, transition))
     args += audio_args
+
+    # 로고는 영상 입력 다음, 소리 입력 앞이다. 번호를 그렇게 잡아야 한다.
+    if logo_args:
+        filter_complex += ";" + look.logo_filter(
+            len(clips), height=logo_height, margin=logo_margin,
+            opacity=logo_opacity, video_label=last_label, out_label="branded")
+        last_label = "branded"
+
     if audio_graph:
         filter_complex = f"{filter_complex};{audio_graph}"
     args += [

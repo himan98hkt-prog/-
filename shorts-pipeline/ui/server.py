@@ -212,6 +212,7 @@ def overview() -> dict:
         "not_published": pending,
         "upload_failed": failed_up,
         "spent": round(spent, 2),
+        "token": token_state(),
         "music": music_mod.total_tracks(music_dir),
         "music_note": music_mod.describe(music_dir),
         **budget_state(spent),
@@ -346,6 +347,33 @@ def _seed_pool() -> list[Path]:
         return []
     return [p for p in sorted(SEEDS.iterdir())
             if p.is_file() and p.suffix.lower() in IMAGE_EXT]
+
+
+def stats_state() -> dict:
+    """성적표. 조회수를 새로 끌어오지는 않는다 — 저장된 것만 읽는다."""
+    from publish import insights
+
+    try:
+        summary = insights.summarize(RUNS)
+    except Exception as exc:            # noqa: BLE001 — 화면 전체를 막지 않는다
+        return {"videos": 0, "error": str(exc), "tables": {}, "best": []}
+    summary["labels"] = {k: v[0] for k, v in insights.DIMENSIONS.items()}
+    return summary
+
+
+def token_state() -> dict:
+    """인스타 토큰 남은 기간. 60일 뒤 조용히 죽는 것을 막는다."""
+    from pipeline import envfile
+
+    if not envfile.read_raw().get("IG_ACCESS_TOKEN", "").strip():
+        return {"present": False}
+    try:
+        from publish.instagram import token_status
+        st = token_status()
+    except Exception as exc:            # noqa: BLE001
+        return {"present": True, "ok": None, "note": f"확인 못 함 ({exc})"}
+    st["present"] = True
+    return st
 
 
 def music_state() -> dict:
@@ -742,6 +770,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(schedule_state())
             return
 
+        if p == "/api/stats":
+            self._json(stats_state())
+            return
         if p == "/api/motions":
             from pipeline.motions import as_list
             self._json({"motions": as_list()})
@@ -903,6 +934,15 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/client-secret":
             self._client_secret(body)
             return
+        if u.path == "/api/refresh-stats":
+            self._refresh_stats()
+            return
+        if u.path == "/api/refresh-token":
+            self._refresh_token()
+            return
+        if u.path == "/api/batch":
+            self._batch(body)
+            return
         if u.path == "/api/preview":
             self._preview(body)
             return
@@ -950,6 +990,55 @@ class Handler(BaseHTTPRequestHandler):
 
         job = jobs.start("generate", body.get("title") or name, args, ROOT)
         self._json({"id": job.id})
+
+    def _refresh_stats(self) -> None:
+        """유튜브·인스타에서 조회수를 새로 끌어온다. API 비용 0원."""
+        from publish import insights
+
+        try:
+            report = insights.collect(RUNS)
+        except Exception as exc:        # noqa: BLE001
+            self._json({"error": f"성적을 못 읽었습니다: {exc}"}, 500)
+            return
+        self._json({"ok": True, "updated": len(report["updated"]),
+                    "problems": report["problems"], "stats": stats_state()})
+
+    def _refresh_token(self) -> None:
+        """인스타 장기 토큰을 60일 연장하고 .env 에 새로 적는다."""
+        from pipeline import envfile
+        from publish.instagram import UploadError, refresh_token
+
+        try:
+            fresh = refresh_token()
+        except UploadError as exc:
+            self._json({"error": str(exc)}, 400)
+            return
+        except Exception as exc:        # noqa: BLE001
+            self._json({"error": f"연장에 실패했습니다: {exc}"}, 500)
+            return
+        try:
+            envfile.write({"IG_ACCESS_TOKEN": fresh["token"]})
+        except OSError as exc:
+            self._json({"error": f"새 토큰을 저장하지 못했습니다: {exc}"}, 500)
+            return
+        days = fresh.get("days")
+        self._json({"ok": True,
+                    "message": f"토큰을 연장했습니다. "
+                               + (f"{days}일 더 쓸 수 있습니다." if days else "")})
+
+    def _batch(self, body: dict) -> None:
+        """여러 편을 이어서 만든다. 일주일치를 미리."""
+        if jobs.active():
+            self._json({"error": "이미 작업이 진행 중입니다. 끝난 뒤에 시작하세요."}, 409)
+            return
+        try:
+            count = int(body.get("count", 7))
+        except (TypeError, ValueError):
+            count = 7
+        count = max(1, min(count, 30))
+        args = ["main.py", "batch", "--count", str(count), "--yes"]
+        job = jobs.start("batch", f"{count}편 이어서 만들기", args, ROOT)
+        self._json({"id": job.id, "count": count})
 
     def _preview(self, body: dict) -> None:
         """싼 모델로 5초 한 클립. 본편을 만들기 전에 움직임만 확인한다."""

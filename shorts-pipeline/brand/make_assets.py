@@ -43,17 +43,37 @@ def font(path: str, size: int, index: int = 0) -> ImageFont.FreeTypeFont:
 
 
 def kr(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
-    """Noto Sans CJK KR. TTC 안에서 KR 은 index 1 이다 (SC=0, TC=?, JP, KR)."""
-    path = CJK_BOLD if bold else CJK_REG
-    for idx in (1, 0):
-        try:
-            f = ImageFont.truetype(path, size, index=idx)
+    """한글이 나오는 폰트.
+
+    예전에는 리눅스 Noto 경로만 봤다. **윈도우에는 그 경로가 없다.**
+    그러면 PIL 기본 비트맵 폰트로 떨어져서 프로필·배너의 한글이 뭉개진다.
+    이 프로그램은 윈도우에서 돌아가는데도 그랬다.
+
+    이제 pipeline.look 이 운영체제별로 찾아준다(윈도우 맑은 고딕 등).
+    """
+    for path in (CJK_BOLD if bold else CJK_REG, _system_kr()):
+        if not path:
+            continue
+        for idx in (1, 0):
+            try:
+                f = ImageFont.truetype(path, size, index=idx)
+            except OSError:
+                continue
             # 한글이 실제로 그려지는 인덱스인지 확인
             if f.getbbox("한") != (0, 0, 0, 0):
                 return f
-        except OSError:
-            continue
     return font(LATIN_BOLD, size)
+
+
+def _system_kr() -> str | None:
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+        from pipeline.look import find_font
+        return find_font()
+    except Exception:          # noqa: BLE001 — 폰트를 못 찾아도 그림은 그린다
+        return None
 
 
 def lerp(a: tuple, b: tuple, t: float) -> tuple:

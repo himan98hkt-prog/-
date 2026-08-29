@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,6 +63,93 @@ def _creds() -> tuple[str, str]:
             "  3) 장기 액세스 토큰 발급 후 .env 에 기록"
         )
     return user_id, token
+
+
+def token_status(token: str = "") -> dict:
+    """토큰이 언제 만료되는지. **이게 없으면 60일 뒤 조용히 죽는다.**
+
+    장기 토큰은 60일이면 만료된다. 만료되면 인스타 업로드만 실패하고
+    유튜브는 계속 되므로, 며칠에서 몇 주가 지나서야 알아채게 된다.
+    남은 날짜를 미리 보여주고, 얼마 안 남았으면 갱신하라고 말한다.
+
+    갱신은 만료 **전에** 해야 한다. 만료된 토큰은 갱신할 수 없고 처음부터
+    다시 발급해야 한다. Meta 는 발급 후 24시간이 지나야 갱신을 받아준다.
+    """
+    token = token or os.getenv("IG_ACCESS_TOKEN", "")
+    if not token:
+        return {"ok": False, "reason": "토큰이 없습니다."}
+
+    base = api_base(token)
+    try:
+        resp = requests.get(f"{base}/debug_token",
+                            params={"input_token": token, "access_token": token},
+                            timeout=20)
+    except requests.RequestException as exc:
+        return {"ok": False, "reason": f"확인하지 못했습니다 ({exc})"}
+    if resp.status_code >= 400:
+        return {"ok": False,
+                "reason": f"토큰이 거절됐습니다 (HTTP {resp.status_code}). "
+                          "만료됐거나 권한이 바뀌었을 수 있습니다."}
+
+    data = (resp.json().get("data") or {})
+    expires = data.get("expires_at")
+    out: dict = {"ok": bool(data.get("is_valid", True)),
+                 "scopes": data.get("scopes") or []}
+    if not expires:                      # 0 이면 만료 없음
+        out.update({"expires_at": None, "days_left": None,
+                    "note": "만료 없음"})
+        return out
+
+    when = datetime.fromtimestamp(int(expires), tz=timezone.utc)
+    days = (when - datetime.now(timezone.utc)).days
+    out.update({
+        "expires_at": when.isoformat(timespec="seconds"),
+        "days_left": days,
+        "note": (f"{days}일 남음" if days > 0 else "만료됨"),
+    })
+    return out
+
+
+def refresh_token(token: str = "") -> dict:
+    """장기 토큰을 60일 더 연장한다.
+
+    만료된 뒤에는 안 된다. 그래서 남은 날짜를 보고 미리 눌러야 한다.
+    """
+    token = token or os.getenv("IG_ACCESS_TOKEN", "")
+    if not token:
+        raise UploadError("IG_ACCESS_TOKEN 이 없습니다.")
+
+    if token.startswith(_IG_LOGIN_PREFIXES):
+        url = f"{GRAPH_IG}/refresh_access_token"
+        params = {"grant_type": "ig_refresh_token", "access_token": token}
+    else:
+        # 페이스북 로그인 경로의 장기 토큰은 app_id/secret 이 있어야 연장된다.
+        app_id = os.getenv("IG_APP_ID", "")
+        secret = os.getenv("IG_APP_SECRET", "")
+        if not (app_id and secret):
+            raise UploadError(
+                "이 토큰을 연장하려면 IG_APP_ID 와 IG_APP_SECRET 이 필요합니다.\n"
+                "  Meta 개발자 앱 → 설정 → 기본 설정에서 확인해 [설정] 탭에 넣으세요.\n"
+                "  (인스타그램 로그인으로 받은 IGAA... 토큰은 이게 필요 없습니다)")
+        url = f"{GRAPH_FB}/oauth/access_token"
+        params = {"grant_type": "fb_exchange_token", "client_id": app_id,
+                  "client_secret": secret, "fb_exchange_token": token}
+
+    try:
+        resp = requests.get(url, params=params, timeout=30)
+    except requests.RequestException as exc:
+        raise UploadError(f"연장 요청이 실패했습니다: {exc}") from exc
+    if resp.status_code >= 400:
+        raise UploadError(
+            f"연장이 거절됐습니다 (HTTP {resp.status_code}): {resp.text[:300]}\n"
+            "  이미 만료됐다면 연장이 안 됩니다. 새로 발급해야 합니다.")
+
+    body = resp.json()
+    fresh = body.get("access_token")
+    if not fresh:
+        raise UploadError(f"응답에 새 토큰이 없습니다: {body}")
+    seconds = int(body.get("expires_in") or 0)
+    return {"token": fresh, "days": round(seconds / 86400) if seconds else None}
 
 
 def publishing_limit() -> dict:
