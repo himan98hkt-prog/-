@@ -36,6 +36,7 @@ export function StageBackdropView({
     const matches = photo.tone === (dark ? 'dark' : 'light')
     return (
       <div className="stage-backdrop" aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photo.src}
           alt=""

@@ -37,6 +37,20 @@ export interface PosterArt {
    * 그림마다 그려진 자리가 다르므로 여기서 따로 준다.
    */
   inset?: { top: number; bottom: number }
+  /**
+   * 밝은 그림은 보통 흰 종이에 그린 수채라 담아서(contain) 넣는다.
+   * 그런데 **밝은 사진**(여름 창가처럼)은 담으면 흰 여백만 커지고 사진이 작아진다.
+   * 그런 것만 가득 채우게(cover) 표시해 둔다.
+   */
+  fill?: 'cover' | 'contain'
+  /**
+   * 막의 색.
+   *
+   * 어두운 사진에는 검은 막을 깔고 흰 글씨를 얹는다(기본).
+   * 그런데 **밝은 사진**에 검은 막을 깔면 사진을 고른 이유가 사라진다.
+   * 그런 것에는 **흰 막**을 깔고 테마의 어두운 글씨를 그대로 쓴다 — 잉크도 덜 든다.
+   */
+  scrimTone?: 'dark' | 'light'
 }
 
 export const POSTER_ART: PosterArt[] = [
@@ -107,6 +121,42 @@ export const POSTER_ART: PosterArt[] = [
     // 벚꽃이 그림 위쪽 끝까지 그려져 있어 더 내려 담는다
     inset: { top: 33, bottom: 12 },
   },
+  {
+    id: 'summer-window',
+    src: '/art/poster/summer-window.jpg',
+    name: '여름 창가',
+    tone: 'light',
+    anchor: 'top-left',
+    // 창과 커튼이 위쪽까지 밝게 이어져 흰 글씨로는 묻힌다.
+    // 흰 막을 얇게 깔고 테마의 어두운 글씨를 얹는다
+    scrim: 0.5,
+    scrimTone: 'light',
+    fill: 'cover',
+  },
+  {
+    id: 'autumn-leaves',
+    src: '/art/poster/autumn-leaves.jpg',
+    name: '가을 낙엽',
+    tone: 'dark',
+    anchor: 'top-right',
+    scrim: 0.3,
+  },
+  {
+    id: 'christmas-pine',
+    src: '/art/poster/christmas-pine.jpg',
+    name: '크리스마스',
+    tone: 'dark',
+    anchor: 'top-left',
+    scrim: 0.34,
+  },
+  {
+    id: 'confetti-night',
+    src: '/art/poster/confetti-night.jpg',
+    name: '금빛 축하',
+    tone: 'dark',
+    anchor: 'top-left',
+    scrim: 0.24,
+  },
 ]
 
 export function getPosterArt(id: string): PosterArt {
@@ -132,4 +182,31 @@ export const ORNAMENT_ART = [
   { id: 'laurel', src: '/art/ornament/laurel.png', name: '월계관' },
   { id: 'corner', src: '/art/ornament/corner.png', name: '금박 모서리' },
   { id: 'staff', src: '/art/ornament/staff.png', name: '오선과 음표' },
+  { id: 'ribbon', src: '/art/ornament/ribbon.png', name: '리본 매듭' },
+  { id: 'divider', src: '/art/ornament/divider.png', name: '구분선' },
+  { id: 'clef', src: '/art/ornament/clef.png', name: '높은음자리표' },
+  { id: 'sparkle', src: '/art/ornament/sparkle.png', name: '반짝임' },
+  { id: 'cert-border', src: '/art/ornament/cert-border.png', name: '상장 테두리' },
+  { id: 'piano-mark', src: '/art/ornament/piano-mark.png', name: '피아노 표식' },
 ]
+
+/**
+ * 바탕 질감.
+ *
+ * 테마의 종이는 단색이었다. 여기에 **아주 옅은 결**이 들어가면 인쇄물 전체가 한 단계
+ * 올라간다. 그림은 양식 하나만 바꾸지만 질감은 **테마 108종 전부**를 바꾼다.
+ *
+ * 눈에 띄면 실패다 — 글씨를 방해한다. 그래서 옅게(10~18%) 곱하기로만 겹친다.
+ */
+export const TEXTURE_ART = {
+  cotton: '/art/texture/paper-cotton.jpg',
+  linen: '/art/texture/paper-linen.jpg',
+  marble: '/art/texture/paper-marble.jpg',
+  velvet: '/art/texture/velvet.jpg',
+} as const
+
+/** 금박. 제목 글씨를 이 질감으로 칠한다 — 진짜 금박으로 찍은 것처럼 보인다 */
+export const GOLD_FOIL = '/art/texture/gold-foil.jpg'
+
+/** 금가루. 검은 바탕에 금점이라 마스크로 뿌린다 */
+export const GOLD_FLECKS = '/art/texture/gold-flecks.png'

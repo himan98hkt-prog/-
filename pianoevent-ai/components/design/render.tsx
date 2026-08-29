@@ -70,6 +70,14 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <ArtPoster ctx={ctx} artId="watercolor-piano" />
     case 'art-blossom':
       return <ArtPoster ctx={ctx} artId="blossom-piano" />
+    case 'art-summer':
+      return <ArtPoster ctx={ctx} artId="summer-window" />
+    case 'art-autumn':
+      return <ArtPoster ctx={ctx} artId="autumn-leaves" />
+    case 'art-christmas':
+      return <ArtPoster ctx={ctx} artId="christmas-pine" />
+    case 'art-confetti':
+      return <ArtPoster ctx={ctx} artId="confetti-night" />
     case 'poster-fullbleed':
       return <PosterFullBleed ctx={ctx} />
     case 'poster-photo':
@@ -94,6 +102,8 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
       return <ChecklistSheet ctx={ctx} />
     case 'certificate':
       return <Certificates ctx={ctx} limit={preview ? 1 : undefined} />
+    case 'certificate-gold':
+      return <Certificates ctx={ctx} limit={preview ? 1 : undefined} gold />
     case 'nametag':
       return <NameTags ctx={ctx} limitSheets={preview ? 1 : undefined} />
     case 'poster-typographic':

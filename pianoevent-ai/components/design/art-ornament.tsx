@@ -17,11 +17,14 @@ import { ORNAMENT_ART } from '@/lib/design/art'
 export function ArtOrnament({
   id,
   width,
+  height,
   color = 'var(--d-accent)',
   opacity = 0.85,
 }: {
   id: string
   width: number
+  /** 정사각이 아닌 것(상장 테두리)만 따로 준다 */
+  height?: number
   color?: string
   opacity?: number
 }) {
@@ -35,7 +38,7 @@ export function ArtOrnament({
       className="art-ornament"
       style={{
         width,
-        height: width,
+        height: height ?? width,
         opacity,
         background: color,
         WebkitMask: mask,

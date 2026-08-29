@@ -157,7 +157,7 @@ describe('기본 문구', () => {
   })
 })
 
-describe('디자인 확장 — 테마 108종 · 양식 59종', () => {
+describe('디자인 확장 — 테마 108종 · 양식 64종', () => {
   it('테마가 108종이고 id 가 겹치지 않는다', () => {
     expect(DESIGN_THEMES).toHaveLength(108)
     expect(new Set(DESIGN_THEMES.map((t) => t.id)).size).toBe(108)
@@ -216,9 +216,9 @@ describe('디자인 확장 — 테마 108종 · 양식 59종', () => {
     }
   })
 
-  it('양식이 59종이고 id 가 겹치지 않는다', () => {
-    expect(DESIGN_TEMPLATES).toHaveLength(59)
-    expect(new Set(DESIGN_TEMPLATES.map((t) => t.id)).size).toBe(59)
+  it('양식이 64종이고 id 가 겹치지 않는다', () => {
+    expect(DESIGN_TEMPLATES).toHaveLength(64)
+    expect(new Set(DESIGN_TEMPLATES.map((t) => t.id)).size).toBe(64)
   })
 
   it('갈래마다 고를 것이 넉넉하다 — 한 갈래에 한둘뿐이면 고르는 뜻이 없다', () => {

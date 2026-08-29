@@ -25,6 +25,17 @@ function palette(art: PosterArt) {
       // 남색·먹빛처럼 어두운 강조색도 어둠 위에서 보이도록 밝은 쪽으로 끌어올린다
       accent: 'color-mix(in srgb, var(--d-accent) 38%, #f2dda6)',
       rule: 'rgba(242,221,166,0.5)',
+      eyebrow: undefined as string | undefined,
+    }
+  }
+  // 밝은 **사진** 위에서는 흐린 색이 사진에 먹힌다. 보조 글씨도 본문 색으로 올린다
+  if (art.fill === 'cover') {
+    return {
+      ink: 'var(--d-ink)',
+      dim: 'var(--d-ink)',
+      accent: 'var(--d-accent)',
+      rule: 'var(--d-line)',
+      eyebrow: 'var(--d-ink)',
     }
   }
   // 밝은 그림은 흰 종이에 그린 것이라 테마 색이 그대로 산다
@@ -77,12 +88,13 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
         글씨가 그림 위에 얹힌다. 그래서 위아래를 비워 두고 그 안에 담는다(contain).
         비운 자리는 테마 종이색이 그대로 보인다.
       */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={art.src}
         alt=""
         aria-hidden
         style={
-          art.tone === 'dark'
+          art.tone === 'dark' || art.fill === 'cover'
             ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }
             : {
                 position: 'absolute',
@@ -105,10 +117,17 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
           style={{
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(to bottom, rgba(6,6,10,${art.scrim}) 0%, rgba(6,6,10,${(
-              art.scrim * 0.7
-            ).toFixed(3)}) 34%, rgba(6,6,10,0) 64%),
-              linear-gradient(to top, rgba(6,6,10,0.6) 0%, rgba(6,6,10,0.28) 16%, rgba(6,6,10,0) 34%)`,
+            background: (() => {
+              // 밝은 사진에는 흰 막, 어두운 사진에는 검은 막
+              const c = art.scrimTone === 'light' ? '255,253,248' : '6,6,10'
+              const foot = art.scrimTone === 'light' ? 0.82 : 0.6
+              return `linear-gradient(to bottom, rgba(${c},${art.scrim}) 0%, rgba(${c},${(
+                art.scrim * 0.7
+              ).toFixed(3)}) 34%, rgba(${c},0) 64%),
+              linear-gradient(to top, rgba(${c},${foot}) 0%, rgba(${c},${(foot * 0.45).toFixed(
+                3,
+              )}) 16%, rgba(${c},0) 34%)`
+            })(),
           }}
         />
       )}
@@ -127,7 +146,7 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, flexDirection: art.anchor === 'top-right' ? 'row-reverse' : 'row' }}>
           <LogoSlot ctx={ctx} height={theme.logo.height} />
-          <p style={{ fontSize: 12, letterSpacing: '0.4em', color: c.accent, margin: 0 }}>{academy.name}</p>
+          <p style={{ fontSize: 12, letterSpacing: '0.4em', color: c.eyebrow ?? c.accent, margin: 0 }}>{academy.name}</p>
         </div>
 
         <h1

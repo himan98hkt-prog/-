@@ -564,3 +564,40 @@ composition, the piano near the bottom, the upper two thirds dark and empty
 파일 이름은 이번에도 `G1` `G1(2)` … 식으로 해 주시면 그대로 알아봅니다.
 
 https://github.com/himan98hkt-prog/-/releases/new
+
+
+---
+
+## 2차 결과 — 68장 중 16장
+
+| 자리 | 파일 | 고른 것 · 이유 |
+|---|---|---|
+| 질감 | `texture/paper-cotton.jpg` | G1-2 · 평균밝기 227, 결 편차 4.1. 넷 중 가장 밝고 가장 옅습니다 |
+| 질감 | `texture/paper-linen.jpg` | G2-4 |
+| 질감 | `texture/paper-marble.jpg` | G3-4 |
+| 질감 | `texture/velvet.jpg` | G5-2 · 어두운 테마에 화면(screen)으로 얹습니다 |
+| 질감 | `texture/gold-foil.jpg` | G4-1 · **제목 글씨를 이걸로 칠합니다** |
+| 질감 | `texture/gold-flecks.png` | G6-3 · 음표가 아니라 금가루로 나왔지만 그대로 씁니다 |
+| 포스터 | `poster/summer-window.jpg` | D1-3 |
+| 포스터 | `poster/autumn-leaves.jpg` | D2-3 |
+| 포스터 | `poster/christmas-pine.jpg` | D3-4 |
+| 포스터 | `poster/confetti-night.jpg` | D4-1 |
+| 장식 | `ornament/ribbon.png` | H1-2 |
+| 장식 | `ornament/divider.png` | H2-3 |
+| 장식 | `ornament/clef.png` | H3-4 |
+| 장식 | `ornament/sparkle.png` | H4-4 |
+| 장식 | `ornament/cert-border.png` | H5-1 · **금테두리 상장** |
+| 장식 | `ornament/piano-mark.png` | H6-**3** |
+
+**떨어뜨린 것 중 알아 두실 것**
+
+- **D3-2** 건반 뚜껑에 `ROMITHOFI` 같은 **가짜 브랜드 글자**. 1차 A2-3 과 같은 실패입니다
+- **H6-1** 오른쪽 아래에 **가짜 서명**. 예뻤지만 남의 이름처럼 보이는 것을 팔 수는 없습니다
+- **H3-3 · H4-1** 검은 바탕이 아니라 밝은 바탕으로 나왔습니다. 마스크로 못 씁니다
+
+장식은 넣기 전에 **검정을 완전히 눌렀습니다**(`lutyuv` 로 45 아래를 0 으로).
+미드저니의 "검정"은 실제로는 아주 어두운 회색이라, 그대로 마스크로 쓰면 종이 전체에
+옅은 얼룩이 집니다.
+
+**아직 안 만드신 것** — E(밝은 판 4) · F(아이 3) · I(무대 화면 4) · J(SNS 2),
+그리고 다시 뽑기로 한 A4(빈 콘서트홀) · A7(겨울). 위 프롬프트 그대로 있습니다.

@@ -5,6 +5,7 @@ import { PhotoBackdrop, PhotoFrame } from '@/components/design/photo'
 import { Sheet, type as T } from '@/components/design/sheet'
 import { dateParts } from '@/components/design/templates/posters'
 import type { DesignContext } from '@/lib/design/context'
+import { PAGE_PX } from '@/lib/design/templates'
 import { formatShortDate } from '@/lib/format'
 
 /** 입장권 3매 — 절취선을 따라 자른다 */
@@ -184,7 +185,16 @@ export function ThankYouCards({ ctx }: { ctx: DesignContext }) {
 }
 
 /** 참가 상장 — 학생 한 명당 한 장 */
-export function Certificates({ ctx, limit }: { ctx: DesignContext; limit?: number }) {
+export function Certificates({
+  ctx,
+  limit,
+  gold = false,
+}: {
+  ctx: DesignContext
+  limit?: number
+  /** 금테두리 판 — 테두리를 두르고 제목을 금박으로 칠한다 */
+  gold?: boolean
+}) {
   const { theme, academy, event, plan } = ctx
   const items = typeof limit === 'number' ? plan.items.slice(0, limit) : plan.items
   const d = dateParts(event.event_at)
@@ -203,14 +213,26 @@ export function Certificates({ ctx, limit }: { ctx: DesignContext; limit?: numbe
               textAlign: 'center',
             }}
           >
-            {/* 월계관을 제목 뒤에 앉힌다 — 상장은 이 하나로 격이 달라진다 */}
-            <div style={{ position: 'absolute', top: 84, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }}>
-              <ArtOrnament id="laurel" width={260} opacity={0.5} />
-            </div>
+            {gold ? (
+              // 테두리가 종이 가장자리를 두른다. 상장은 이 하나로 격이 달라진다
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex' }}>
+                <ArtOrnament id="cert-border" width={PAGE_PX['a4-landscape'].w} height={PAGE_PX['a4-landscape'].h} opacity={0.9} />
+              </div>
+            ) : (
+              /* 월계관을 제목 뒤에 앉힌다 */
+              <div style={{ position: 'absolute', top: 84, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }}>
+                <ArtOrnament id="laurel" width={260} opacity={0.5} />
+              </div>
+            )}
 
             <LogoSlot ctx={ctx} height={48} />
             <p style={{ ...T.label(12), marginTop: 12 }}>{academy.name}</p>
-            <h1 style={{ ...T.display(40), marginTop: 18, letterSpacing: '0.3em' }}>참 가 상</h1>
+            <h1
+              className={gold ? 'd-foil' : undefined}
+              style={{ ...T.display(40), marginTop: 18, letterSpacing: '0.3em' }}
+            >
+              참 가 상
+            </h1>
 
             <div style={{ marginTop: 18 }}>
               <OrnamentDivider id={theme.ornament} width={220} />

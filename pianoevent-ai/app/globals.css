@@ -261,3 +261,28 @@
     page-break-before: auto;
   }
 }
+
+
+/*
+ * 금박 글씨.
+ *
+ * 제목을 금박 사진으로 칠한다 — 진짜 금박으로 찍은 것처럼 보인다.
+ * 「고급지게」에서 가장 값싸게 효과가 큰 한 수다.
+ *
+ * 글자 모양으로 배경을 오려 내는 것이라, 이걸 못 하는 브라우저에서는 글씨가
+ * 사라져 버린다. 그래서 기본값은 **강조색 글씨**로 두고, 할 수 있을 때만 금박을 입힌다.
+ */
+.d-foil {
+  color: var(--d-accent);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .d-foil {
+    background-image: url('/art/texture/gold-foil.jpg');
+    background-size: cover;
+    background-position: center;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}

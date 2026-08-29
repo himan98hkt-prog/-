@@ -1,5 +1,6 @@
 import { OrnamentBackdrop, OrnamentCorner } from '@/components/design/ornaments'
 import { PAGE_PX, type PageSize } from '@/lib/design/templates'
+import { TEXTURE_ART } from '@/lib/design/art'
 import { themeVars, type DesignTheme } from '@/lib/design/themes'
 
 /** 테마 프레임 — 종이 가장자리 장식 */
@@ -68,42 +69,49 @@ function Frame({ theme }: { theme: DesignTheme }) {
   }
 }
 
+/**
+ * 종이 결.
+ *
+ * 예전에는 CSS 로 만든 점무늬였다. 화면에서는 그럴듯해도 인쇄하면 그냥 지저분했다.
+ * 지금은 **진짜 종이·리넨·대리석 사진**을 아주 옅게 곱해서 겹친다.
+ *
+ * 눈에 띄면 실패다 — 글씨를 방해한다. 그래서 10~16% 만 쓴다.
+ * 어두운 테마에는 벨벳을 화면(screen)으로 얹어 결만 남긴다.
+ */
 function Texture({ theme }: { theme: DesignTheme }) {
-  if (theme.texture === 'grain') {
-    return (
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          opacity: 0.5,
-          backgroundImage:
-            'repeating-linear-gradient(0deg, color-mix(in srgb, var(--d-line) 14%, transparent) 0 1px, transparent 1px 4px)',
-        }}
-      />
-    )
-  }
-  if (theme.texture === 'gradient') {
-    return (
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          background: 'linear-gradient(160deg, var(--d-paper-alt) 0%, transparent 55%)',
-        }}
-      />
-    )
-  }
-  return null
+  const dark = theme.texture === 'glow'
+  const src =
+    theme.texture === 'grain'
+      ? TEXTURE_ART.cotton
+      : theme.texture === 'gradient'
+        ? TEXTURE_ART.linen
+        : theme.texture === 'glow'
+          ? TEXTURE_ART.velvet
+          : null
+  if (!src) return null
+
+  return (
+    // 인쇄물에는 next/image 의 최적화가 필요 없다 — 화면이 곧 종이다
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      aria-hidden
+      className="d-texture"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        pointerEvents: 'none',
+        opacity: dark ? 0.22 : 0.14,
+        mixBlendMode: dark ? 'screen' : 'multiply',
+      }}
+    />
+  )
 }
 
-/**
- * 한 장의 인쇄면.
- * 화면 미리보기와 인쇄가 같은 컴포넌트를 쓰고, 크기는 96dpi 기준 실제 A4 픽셀로 고정한다.
- */
 export function Sheet({
   theme,
   page,

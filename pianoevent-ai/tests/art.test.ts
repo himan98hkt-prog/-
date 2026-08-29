@@ -1,12 +1,13 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ORNAMENT_ART, POSTER_ART, STAGE_ART, getPosterArt } from '@/lib/design/art'
+import { GOLD_FLECKS, GOLD_FOIL, ORNAMENT_ART, POSTER_ART, STAGE_ART, TEXTURE_ART, getPosterArt } from '@/lib/design/art'
 import { DESIGN_TEMPLATES, getPack, packTemplates } from '@/lib/design/templates'
 import { STAGE_BACKDROPS } from '@/lib/stage/backdrops'
 
 const PUBLIC = join(process.cwd(), 'public')
 const ALL = [...POSTER_ART, ...STAGE_ART, ...ORNAMENT_ART]
+const TEXTURES = [...Object.values(TEXTURE_ART), GOLD_FOIL, GOLD_FLECKS]
 
 describe('연주회 그림', () => {
   it('id 가 겹치지 않는다', () => {
@@ -35,26 +36,47 @@ describe('연주회 그림', () => {
   })
 
   it('막은 얇게 — 두꺼우면 그림을 고른 뜻이 없다', () => {
-    for (const art of POSTER_ART) {
+    for (const art of POSTER_ART.filter((a) => a.scrimTone !== 'light')) {
       expect(art.scrim, art.id).toBeGreaterThanOrEqual(0)
       expect(art.scrim, art.id).toBeLessThanOrEqual(0.45)
     }
   })
 
-  it('밝은 그림은 막을 깔지 않는다 — 흰 종이에 그린 것이라 필요가 없다', () => {
-    for (const art of POSTER_ART.filter((a) => a.tone === 'light')) {
+  it('흰 종이에 그린 수채는 막을 깔지 않는다 — 필요가 없다', () => {
+    for (const art of POSTER_ART.filter((a) => a.tone === 'light' && a.fill !== 'cover')) {
       expect(art.scrim, art.id).toBe(0)
     }
+  })
+
+  it('밝은 사진에는 흰 막을 깐다 — 검은 막을 깔면 사진을 고른 뜻이 사라진다', () => {
+    for (const art of POSTER_ART.filter((a) => a.tone === 'light' && a.fill === 'cover')) {
+      expect(art.scrimTone, art.id).toBe('light')
+      expect(art.scrim, art.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('바탕 질감과 금박도 프로그램 안에 들어 있다', () => {
+    for (const src of TEXTURES) {
+      expect(src.startsWith('/art/'), src).toBe(true)
+      expect(existsSync(join(PUBLIC, src)), src).toBe(true)
+    }
+  })
+
+  it('금테두리 상장이 있다 — 시상이 있는 연주회용', () => {
+    const gold = DESIGN_TEMPLATES.find((t) => t.id === 'certificate-gold')
+    expect(gold).toBeTruthy()
+    expect(gold!.page).toBe('a4-landscape')
+    expect(gold!.perStudent).toBe(true)
   })
 })
 
 describe('그림 포스터 양식', () => {
   const ids = POSTER_ART.map((a) => a.id)
 
-  it('그림 여덟 장이 모두 양식으로 나와 있다', () => {
-    expect(ids).toHaveLength(8)
+  it('그림마다 양식이 하나씩 나와 있다', () => {
+    expect(ids).toHaveLength(12)
     const templates = DESIGN_TEMPLATES.filter((t) => t.id.startsWith('art-'))
-    expect(templates).toHaveLength(8)
+    expect(templates).toHaveLength(12)
     for (const t of templates) {
       expect(t.category, t.id).toBe('poster')
       expect(t.page, t.id).toBe('a4-portrait')
@@ -64,7 +86,7 @@ describe('그림 포스터 양식', () => {
   it('포스터 갈래 앞쪽에 온다 — 뒤에 묻히면 고르실 일이 없다', () => {
     const posters = DESIGN_TEMPLATES.filter((t) => t.category === 'poster').map((t) => t.id)
     for (const t of posters.filter((id) => id.startsWith('art-'))) {
-      expect(posters.indexOf(t), t).toBeLessThan(12)
+      expect(posters.indexOf(t), t).toBeLessThan(16)
     }
   })
 
