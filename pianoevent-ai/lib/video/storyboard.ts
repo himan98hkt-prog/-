@@ -341,6 +341,47 @@ export function tasterStarts(scenes: VideoScene[]): TasterStart[] {
   return out
 }
 
+/**
+ * **맛보기를 보시고 나서 무엇을 만지면 되는가.**
+ *
+ * 30초를 보여 드리는 것까지는 했는데, 보시고 "글씨가 작네" 하신 다음이 없었다.
+ * 그 화면 어디에 그 설정이 있는지 원장님은 모르신다. 그래서 흔히 걸리는 넷을
+ * 그 자리에 붙여 둔다 — 무엇이 마음에 안 드는지 → 어디를 만지는지.
+ *
+ * 지어내지 않는다. 넷 다 이 화면에 실제로 있는 자리다.
+ */
+export interface TasterFix {
+  /** 보시고 이런 생각이 드셨다면 */
+  symptom: string
+  /** 여기를 만지시면 됩니다 */
+  where: string
+  /** 어떻게 */
+  how: string
+}
+
+export const TASTER_FIXES: TasterFix[] = [
+  {
+    symptom: '글씨가 작아 안 읽힙니다',
+    where: '0 · 영상 템플릿',
+    how: '글씨가 큰 템플릿으로 바꾸세요. "이름만 크게" 쪽이 뒷줄에서도 읽힙니다.',
+  },
+  {
+    symptom: '사진이 이상하게 잘립니다',
+    where: '아래 [만들어질 모습]',
+    how: '그 장면을 누르면 장면 고치기가 열립니다. 글자 자리를 옮기거나, 명단에서 사진을 바꾸세요.',
+  },
+  {
+    symptom: '너무 빨리 넘어갑니다',
+    where: '4 · 모양과 길이',
+    how: '아이 한 명당 시간을 늘리세요. 늘리면 전체 길이도 그만큼 늡니다.',
+  },
+  {
+    symptom: '음악이 없어 허전합니다',
+    where: '3 · 배경음악',
+    how: '학원에서 쓰시던 음악 파일을 끌어다 놓으세요. 저작권 때문에 음악은 넣어 드리지 못합니다.',
+  },
+]
+
 /** 15분을 넘으면 아이 한 명당 시간을 줄여 맞춘다 — 잘라 내면 누군가 빠진다 */
 export function fitToLimit(scenes: VideoScene[], limit = MAX_TOTAL_SEC): VideoScene[] {
   const total = totalSeconds(scenes)

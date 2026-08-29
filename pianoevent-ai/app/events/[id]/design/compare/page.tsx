@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { QrCode } from '@/components/qr-code'
 import { renderTemplate } from '@/components/design/render'
 import { PrintTips } from '@/components/print/print-tips'
 import { resolveLogo, resolvePhoto } from '@/lib/assets'
@@ -80,7 +81,7 @@ export default async function DesignComparePage({ params }: { params: { id: stri
           </p>
 
           <div className="mt-5 grid flex-1 grid-cols-3 gap-6">
-            {choices.map((choice) => {
+            {choices.map((choice, index) => {
               const theme = getTheme(choice.themeId)
               const template = getTemplate(choice.templateId)
               const slot = PAGE_PX[template.page]
@@ -106,7 +107,9 @@ export default async function DesignComparePage({ params }: { params: { id: stri
                   <div className="flex items-baseline gap-1.5">
                     {/* 종이에 동그라미를 치실 자리 */}
                     <span className="inline-block h-4 w-4 shrink-0 rounded-full border-2 border-neutral-400" />
-                    <span className="text-sm font-bold">{choice.label}</span>
+                    <span className="text-sm font-bold">
+                      {index + 1}. {choice.label}
+                    </span>
                   </div>
                   <p className="mt-0.5 text-[11px] text-neutral-500">
                     {theme.name} · {template.name}
@@ -119,13 +122,25 @@ export default async function DesignComparePage({ params }: { params: { id: stri
                       {renderTemplate(choice.templateId, ctx, true)}
                     </div>
                   </div>
-                  <p className="mt-2 text-[11px] leading-snug text-neutral-600">{choice.why}</p>
+                  <div className="mt-2 flex items-start gap-2">
+                    {/* 종이에서 화면으로 돌아오는 길 — 비추면 이 디자인이 골라진 채로 열린다 */}
+                    <QrCode
+                      path={`/events/${event.id}/design?pick=${choice.kind}`}
+                      size={62}
+                      label="비추면 골라집니다"
+                    />
+                    <p className="text-[11px] leading-snug text-neutral-600">{choice.why}</p>
+                  </div>
                 </div>
               )
             })}
           </div>
 
-          <p className="mt-4 text-[10px] text-neutral-400">
+          <p className="mt-3 text-[11px] text-neutral-600">
+            마음에 드는 것에 동그라미를 치신 뒤, 그 아래 <strong>네모 무늬를 휴대폰 카메라로 비추면</strong>{' '}
+            그 디자인이 골라진 채로 열립니다. 못 비추시면 화면에서 같은 번호를 누르셔도 됩니다.
+          </p>
+          <p className="mt-2 text-[10px] text-neutral-400">
             실제 인쇄물은 이보다 큽니다 — 여기서는 색과 분위기만 견주세요. 크기는 화면에서 [종이로 보기] 로 보십니다.
           </p>
         </div>

@@ -20,6 +20,7 @@ export function PrintTips({
   sheets,
   approx = false,
   duplex = false,
+  heavyInk = false,
 }: {
   what: string
   paperLabel: string
@@ -28,6 +29,8 @@ export function PrintTips({
   approx?: boolean
   /** 양면으로 뽑아야 뜻이 있는 인쇄물인가 (반 접는 책자) */
   duplex?: boolean
+  /** 색을 꽉 채우는 인쇄물인가 — 포스터·표지는 잉크가 몇 배로 든다 */
+  heavyInk?: boolean
 }) {
   const [howto, setHowto] = useState(false)
   const [copies, setCopies] = useState(1)
@@ -71,7 +74,7 @@ export function PrintTips({
       </div>
 
       {/* 뽑기 직전 마지막 한 줄 — 종이·장수·색·양면 */}
-      <PrintSummary paperLabel={paperLabel} sheets={sheets} copies={copies} duplex={duplex} />
+      <PrintSummary paperLabel={paperLabel} sheets={sheets} copies={copies} duplex={duplex} heavyInk={heavyInk} />
 
       {/* 책자는 양면으로 뽑아야 뜻이 있다. 넘기는 방향까지 틀리면 접었을 때 속장이 뒤집힌다 */}
       {duplex && (

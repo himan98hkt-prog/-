@@ -7,6 +7,7 @@ import {
   chimeDue,
   chimeStorageKey,
   getChimeSound,
+  nextCallText,
   parseChimePrefs,
   serializeChimePrefs,
 } from '@/lib/ops/chime'
@@ -93,7 +94,7 @@ describe('알림 설정 담아 두기', () => {
   })
 
   it('담았다 되읽으면 그대로다', () => {
-    const prefs = { on: true, soundId: CHIME_SOUNDS[2].id, buzz: true }
+    const prefs = { on: true, soundId: CHIME_SOUNDS[2].id, buzz: true, speak: true }
     expect(parseChimePrefs(serializeChimePrefs(prefs))).toEqual(prefs)
   })
 
@@ -115,5 +116,30 @@ describe('알림 설정 담아 두기', () => {
     const prefs = parseChimePrefs('{"on":false,"buzz":true}')
     expect(prefs.on).toBe(false)
     expect(prefs.buzz).toBe(true)
+  })
+})
+
+describe('이름까지 말로', () => {
+  it('순번이 있으면 순번까지 읽는다 — 무대 옆에서는 번호로 부르신다', () => {
+    expect(nextCallText('김서연', 3)).toBe('다음, 3번 김서연')
+  })
+
+  it('순번이 없으면 이름만', () => {
+    expect(nextCallText('김서연')).toBe('다음, 김서연')
+    expect(nextCallText('쉬는 시간', null)).toBe('다음, 쉬는 시간')
+  })
+
+  it('읽을 것이 없으면 그래도 말이 된다', () => {
+    expect(nextCallText('   ')).toBe('다음 순서입니다')
+    expect(nextCallText('')).toBe('다음 순서입니다')
+  })
+
+  it('처음에는 말로 읽어 주지 않는다 — 묻지 않고 소리를 내지 않는다', () => {
+    expect(DEFAULT_CHIME_PREFS.speak).toBe(false)
+  })
+
+  it('말로 읽기를 켜 두신 것도 담긴다', () => {
+    expect(parseChimePrefs('{"speak":true}').speak).toBe(true)
+    expect(parseChimePrefs('on').speak).toBe(false)
   })
 })

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
 import { StageSlideView } from '@/components/stage/slide'
+import { ProjectorHelp } from '@/components/stage/projector-help'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { getTheme } from '@/lib/design/themes'
 import { prefBool, prefString, type Prefs } from '@/lib/prefs'
@@ -296,6 +297,9 @@ export function StageScreen({
           </Button>
         </div>
       </div>
+
+      {/* 여기서 대부분 멈추신다 — 선은 꽂았는데 스크린에 안 나온다 */}
+      <ProjectorHelp />
 
       <p className="no-print text-sm text-muted-foreground" data-testid="stage-next">
         다음 화면 — <strong className="text-foreground">{slide.next || '없음 (마지막)'}</strong>

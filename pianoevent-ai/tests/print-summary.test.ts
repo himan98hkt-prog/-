@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { BOX_SHEETS, BULK_FROM_SHEETS, REAM_SHEETS, paperBulkNote, printSummary, printSummaryLine } from '@/lib/print/paper'
+import {
+  BOX_SHEETS,
+  BULK_FROM_SHEETS,
+  INK_FROM_SHEETS,
+  REAM_SHEETS,
+  inkNote,
+  isHeavyInk,
+  paperBulkNote,
+  printSummary,
+  printSummaryLine,
+} from '@/lib/print/paper'
 
 describe('뽑기 전 마지막 확인', () => {
   it('넷을 보여 준다 — 종이 · 장수 · 색 · 양면', () => {
@@ -72,6 +82,56 @@ describe('종이를 몸으로 아는 단위로', () => {
   it('어느 장수에서도 멈추지 않는다', () => {
     for (const n of [0, 1, 249, 250, 499, 500, 2499, 2500, 99999]) {
       expect(() => paperBulkNote(n), `${n}장`).not.toThrow()
+    }
+  })
+})
+
+describe('잉크는 종이보다 먼저 떨어진다', () => {
+  it('몇 장 안 뽑으실 때는 말하지 않는다', () => {
+    expect(inkNote(10, { heavy: true })).toBeNull()
+    expect(inkNote(INK_FROM_SHEETS - 1, { heavy: true })).toBeNull()
+  })
+
+  it('색을 꽉 채우는 인쇄물이면 잉크부터 보라고 한다', () => {
+    const note = inkNote(50, { heavy: true })
+    expect(note).toContain('잉크')
+  })
+
+  it('많이 뽑으시면 한 통으로 모자란다고 말해 준다', () => {
+    const note = inkNote(300, { heavy: true })
+    expect(note).toContain('모자랍니다')
+    expect(note).toContain('인쇄소')
+  })
+
+  it('글 위주 인쇄물은 겁주지 않는다', () => {
+    expect(inkNote(50, {})).toBeNull()
+    expect(inkNote(100, {})).toBeNull()
+  })
+
+  it('글 위주라도 아주 많으면 검정 잉크는 짚어 준다', () => {
+    expect(inkNote(600, {})).toContain('검정')
+  })
+
+  it('포스터·표지·초대장은 색을 꽉 채우는 갈래다', () => {
+    expect(isHeavyInk(['poster'])).toBe(true)
+    expect(isHeavyInk(['program'])).toBe(true)
+    expect(isHeavyInk(['invite'])).toBe(true)
+  })
+
+  it('진행 문서와 무대 카드는 글 위주다', () => {
+    expect(isHeavyInk(['ops'])).toBe(false)
+    expect(isHeavyInk(['stage'])).toBe(false)
+    expect(isHeavyInk([])).toBe(false)
+  })
+
+  it('한 벌에 하나라도 색을 꽉 채우면 그쪽으로 본다', () => {
+    expect(isHeavyInk(['ops', 'poster'])).toBe(true)
+  })
+
+  it('어느 장수에서도 멈추지 않는다', () => {
+    for (const n of [0, 1, 29, 30, 99, 100, 2500, 99999]) {
+      expect(() => inkNote(n, { heavy: true }), `${n}장`).not.toThrow()
+      expect(() => inkNote(n, {}), `${n}장`).not.toThrow()
     }
   })
 })

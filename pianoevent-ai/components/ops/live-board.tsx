@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, BellOff, Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw, Vibrate } from 'lucide-react'
+import { Bell, BellOff, Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw, Vibrate, Volume2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatDuration, formatWallClock } from '@/lib/format'
@@ -12,11 +12,15 @@ import {
   chimeStorageKey,
   getChimeSound,
   parseChimePrefs,
+  canSpeak,
+  nextCallText,
   playChime,
   serializeChimePrefs,
+  speak,
   vibrate,
   type ChimePrefs,
 } from '@/lib/ops/chime'
+import { paceAdvice } from '@/lib/ops/pace'
 import {
   actualRows,
   buildLiveList,
@@ -86,10 +90,12 @@ export function LiveBoard({
   const [applied, setApplied] = useState<number | null>(null)
   /** 다음 차례 알림 — 소리와 진동. 이 휴대폰에만 담긴다 */
   const [chimePrefs, setChimePrefs] = useState<ChimePrefs>(DEFAULT_CHIME_PREFS)
-  const chime = chimePrefs.on || chimePrefs.buzz
+  const chime = chimePrefs.on || chimePrefs.buzz || chimePrefs.speak
   const audioCtxRef = useRef<AudioContext | null>(null)
   /** 몇 번째 순서에서 이미 울렸는지 — 1초마다 다시 울리면 안 된다 */
   const chimedRef = useRef<number | null>(null)
+  /** 이 브라우저가 말을 할 수 있는가 — 서버에서는 알 수 없어 화면이 붙은 뒤에 본다 */
+  const [speakable, setSpeakable] = useState(false)
   const wakeRef = useRef<{ release: () => Promise<void> } | null>(null)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -105,6 +111,10 @@ export function LiveBoard({
       /* 저장이 막힌 브라우저라면 그냥 처음부터 쓴다 */
     }
   }, [event.id, list.length, canLead])
+
+  useEffect(() => {
+    setSpeakable(canSpeak())
+  }, [])
 
   // 알림을 어떻게 켜 두셨는지 되읽는다 (화면이 붙은 뒤에)
   useEffect(() => {
@@ -146,6 +156,7 @@ export function LiveBoard({
       }
     }
     if (next.buzz) vibrate()
+    if (next.speak) speak(nextCallText('김서연', 3))
   }
 
   /** 서버에 올린다. 실패해도 화면은 그대로 — 인터넷은 있으면 좋은 것이지 있어야 하는 것이 아니다 */
@@ -278,19 +289,35 @@ export function LiveBoard({
    */
   const leftSec = current && state.started_at ? Math.round(current.planned_sec - onStageSec) : null
 
+  /**
+   * 밀렸으면 **어쩌라는 말까지.**
+   *
+   * "12분 늦음" 은 원장님이 이미 아신다. 필요한 것은 무엇을 줄이면 되는가다.
+   * 연주회에서 줄일 수 있는 것은 사실상 사회자 멘트뿐이므로 그 길이로 말씀드린다.
+   */
+  const pace = state.started_at ? paceAdvice(elapsedSec - planned, Math.max(0, list.length - 1 - state.index)) : null
+
   useEffect(() => {
     if (!chime || !nextSoon) return
     if (chimedRef.current === state.index) return
     chimedRef.current = state.index
     if (chimePrefs.buzz) vibrate()
-    if (!chimePrefs.on) return
-    const ctx = audioCtxRef.current
-    if (!ctx) return
-    try {
-      void ctx.resume().catch(() => undefined)
-      playChime(ctx, chimePrefs.soundId)
-    } catch {
-      /* 못 울려도 화면 표시는 남는다 */
+    if (chimePrefs.on) {
+      const ctx = audioCtxRef.current
+      if (ctx) {
+        try {
+          void ctx.resume().catch(() => undefined)
+          playChime(ctx, chimePrefs.soundId)
+        } catch {
+          /* 못 울려도 화면 표시는 남는다 */
+        }
+      }
+    }
+    // 소리는 "무슨 일이 났다" 만 알려 준다. 이름까지 들으시면 화면을 아예 안 보셔도 된다
+    if (chimePrefs.speak && next) {
+      // 종소리와 겹치지 않게 조금 뒤에 읽는다
+      const said = nextCallText(next.title, next.order_no)
+      window.setTimeout(() => speak(said), chimePrefs.on ? 800 : 0)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chime, nextSoon, state.index])
@@ -413,6 +440,28 @@ export function LiveBoard({
           )}
         </div>
       </section>
+
+      {/* 밀렸으면 무엇을 줄이면 되는지 — 늦었다는 사실만으로는 하실 일이 없다 */}
+      {pace && (
+        <section
+          className={cn(
+            'rounded-lg border px-4 py-3',
+            pace.level === 'late'
+              ? 'border-destructive/50 bg-destructive/5'
+              : pace.level === 'warn'
+                ? 'border-accent/60 bg-accent/8'
+                : 'border-border',
+          )}
+          data-testid="live-pace"
+          data-level={pace.level}
+        >
+          <p className="text-xs font-medium tracking-widest text-muted-foreground">{pace.what} · 사회자에게</p>
+          <p className="mt-1 text-lg font-semibold leading-snug" data-testid="pace-say">
+            {pace.say}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{pace.why}</p>
+        </section>
+      )}
 
       {/* 다음 · 그다음 */}
       <section className="grid gap-2 sm:grid-cols-2">
@@ -553,6 +602,29 @@ export function LiveBoard({
               </p>
             </div>
           )}
+
+          {/* 소리는 "무슨 일이 났다" 만 알려 준다. 이름까지 들으면 화면을 안 봐도 된다 */}
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={chimePrefs.speak}
+              onChange={(native) => changeChime({ speak: native.target.checked })}
+              className="h-4 w-4"
+              disabled={!speakable}
+            />
+            <Volume2
+              className={cn('h-4 w-4', chimePrefs.speak ? 'text-accent' : 'text-muted-foreground')}
+              aria-hidden
+            />
+            <span>
+              <strong>이름까지 말로</strong>
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                {speakable
+                  ? '"다음, 3번 김서연" 처럼 읽어 드립니다 — 화면을 안 보셔도 됩니다'
+                  : '이 브라우저는 읽어 주기를 지원하지 않습니다 (크롬·엣지에서 됩니다)'}
+              </span>
+            </span>
+          </label>
 
           {/* 로비가 시끄러우면 어떤 소리도 묻힌다. 주머니 속 진동은 안 묻힌다 */}
           <label className="flex cursor-pointer items-center gap-2 text-sm">

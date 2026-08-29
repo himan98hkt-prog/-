@@ -14,7 +14,14 @@ import { getRepository } from '@/lib/store'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: '인쇄물 디자인' }
 
-export default async function DesignPage({ params }: { params: { id: string } }) {
+export default async function DesignPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  /** 종이에서 QR 을 비추고 오시면 그 장이 골라진 채로 열린다 */
+  searchParams: { pick?: string }
+}) {
   const repo = getRepository()
   const [academy, event] = await Promise.all([currentAcademy(), repo.getEvent(params.id)])
   if (!event) notFound()
@@ -76,6 +83,7 @@ export default async function DesignPage({ params }: { params: { id: string } })
         rsvps={rsvps}
         inviteUrl={`/e/${event.id}`}
         initialCopy={copy}
+        pickKind={searchParams.pick}
       />
     </AppShell>
   )

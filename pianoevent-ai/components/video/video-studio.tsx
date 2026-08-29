@@ -66,6 +66,7 @@ import {
   sceneLabel,
   cheerRange,
   sortByFileName,
+  TASTER_FIXES,
   TASTER_SEC,
   tasterRange,
   tasterStarts,
@@ -183,6 +184,8 @@ export function VideoStudio({
     name: string
     bytes: number
     partial: boolean
+    /** 맛보기로 만든 것인가 — 보시고 무엇을 만질지 함께 알려 드린다 */
+    taster?: boolean
   } | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -652,6 +655,7 @@ export function VideoStudio({
       name: `${event.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '연주회'} 감동영상${label}${partial ? ' (중간까지)' : ''}.${info.ext}`,
       bytes: blob.size,
       partial,
+      taster: isTaster,
     })
     setRecording(false)
     setClock(0)
@@ -1056,6 +1060,26 @@ export function VideoStudio({
               </a>
               <span className="text-xs text-muted-foreground">{result.note}</span>
             </div>
+
+            {/* 보시고 "이게 아닌데" 하신 다음이 없었다 — 어디를 만지는지 그 자리에 적어 둔다 */}
+            {result.taster && !result.partial && (
+              <div className="grid gap-1.5 rounded-md border border-border bg-background p-3" data-testid="taster-fixes">
+                <p className="text-sm font-medium">보시고 마음에 안 드는 것이 있으면</p>
+                <dl className="grid gap-1.5 text-xs">
+                  {TASTER_FIXES.map((fix) => (
+                    <div key={fix.symptom} className="sm:flex sm:gap-2">
+                      <dt className="shrink-0 font-medium sm:w-40">{fix.symptom}</dt>
+                      <dd className="text-muted-foreground">
+                        <strong className="text-foreground">{fix.where}</strong> — {fix.how}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="text-xs text-muted-foreground">
+                  고치신 뒤에 <strong>다시 30초만</strong> 만들어 보시면 됩니다. 30초면 끝나니 몇 번이든 하세요.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

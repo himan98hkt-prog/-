@@ -1,4 +1,4 @@
-import { paperBulkNote, printSummary, totalSheets } from '@/lib/print/paper'
+import { inkNote, paperBulkNote, printSummary, totalSheets } from '@/lib/print/paper'
 
 /**
  * 뽑기 직전 마지막 확인.
@@ -13,16 +13,22 @@ export function PrintSummary({
   copies = 1,
   duplex = false,
   grayOk = false,
+  heavyInk = false,
 }: {
   paperLabel: string
   sheets: number
   copies?: number
   duplex?: boolean
   grayOk?: boolean
+  /** 색을 꽉 채우는 인쇄물인가 — 포스터·표지는 잉크가 몇 배로 든다 */
+  heavyInk?: boolean
 }) {
   const rows = printSummary({ paperLabel, sheets, copies, duplex, grayOk })
   // 1,200장이라는 숫자는 크기가 안 그려진다. 박스·연으로 바꿔 드려야 아신다
-  const bulk = paperBulkNote(totalSheets(sheets, Math.max(1, Math.round(copies))))
+  const total = totalSheets(sheets, Math.max(1, Math.round(copies)))
+  const bulk = paperBulkNote(total)
+  // 종이만 세시는데, 연주회 전날 밤에 멈추는 것은 잉크다
+  const ink = inkNote(total, { heavy: heavyInk && !grayOk })
 
   return (
     <div
@@ -41,6 +47,11 @@ export function PrintSummary({
       {bulk && (
         <p className="mt-1 text-sm font-medium text-accent" data-testid="print-bulk">
           {bulk}
+        </p>
+      )}
+      {ink && (
+        <p className="mt-0.5 text-sm text-muted-foreground" data-testid="print-ink">
+          {ink}
         </p>
       )}
       <p className="mt-1 text-xs text-muted-foreground">

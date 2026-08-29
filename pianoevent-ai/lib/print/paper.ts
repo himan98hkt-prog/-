@@ -251,6 +251,42 @@ export function paperBulkNote(totalSheets: number): string | null {
   return `A4 ${boxes}박스(한 박스 2,500장)입니다. 학원 프린터로는 벅찹니다 — 인쇄소를 알아보세요.`
 }
 
+/**
+ * **잉크는 종이보다 먼저 떨어진다.**
+ *
+ * 원장님은 종이만 세신다. 그런데 실제로 연주회 전날 밤에 멈추는 것은 잉크다.
+ * 색을 꽉 채운 포스터는 글만 있는 문서와 잉크 드는 양이 열 배쯤 다르다.
+ *
+ * 정확한 장수는 프린터마다 다르므로 **어림수**로만 말씀드리고, 그렇다고 밝힌다.
+ * 제조사가 말하는 "한 통에 몇 장" 은 종이의 5%만 칠했을 때 값이라, 포스터에는
+ * 그대로 못 쓴다. 그 사실을 아시는 것만으로도 여분을 챙기신다.
+ */
+export const INK_FROM_SHEETS = 30
+
+export function inkNote(totalSheets: number, opts: { heavy?: boolean } = {}): string | null {
+  if (totalSheets < INK_FROM_SHEETS) return null
+  if (!opts.heavy) {
+    return totalSheets >= REAM_SHEETS
+      ? `글 위주라 잉크는 덜 듭니다. 그래도 ${totalSheets.toLocaleString('ko-KR')}장이면 검정 잉크는 미리 봐 두세요.`
+      : null
+  }
+  // 색을 꽉 채우는 인쇄물 — 제조사 값(5% 칠했을 때)의 서너 배로 닳는다
+  if (totalSheets < 100) {
+    return '색을 꽉 채운 인쇄물이라 잉크가 빨리 닳습니다. 컬러 잉크가 얼마나 남았는지 먼저 보세요.'
+  }
+  return `색을 꽉 채운 인쇄물 ${totalSheets.toLocaleString('ko-KR')}장이면 컬러 잉크 한 통으로는 모자랍니다. 여분을 두시거나, 인쇄소에 맡기시는 편이 쌉니다.`
+}
+
+/**
+ * 색을 꽉 채우는 갈래인가.
+ *
+ * 포스터 · 프로그램(표지) · 초대·홍보는 종이 전체가 색이다.
+ * 진행 문서(`ops`)와 무대용 카드(`stage`)는 글 위주라 잉크가 훨씬 덜 든다.
+ */
+export function isHeavyInk(categories: string[]): boolean {
+  return categories.some((c) => c === 'poster' || c === 'program' || c === 'invite')
+}
+
 /** 한 줄로 — "A4 세로 · 12장 · 컬러 · 양면 아님" */
 export function printSummaryLine(rows: PrintSummaryRow[]): string {
   return rows.map((row) => row.value).join(' · ')

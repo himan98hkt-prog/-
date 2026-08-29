@@ -34,6 +34,7 @@ import {
   MAX_MESSAGE_SCENES,
   MAX_TOTAL_SEC,
   SCENE_MIN_SEC,
+  TASTER_FIXES,
   TASTER_SEC,
   tasterRange,
   tasterStarts,
@@ -1014,5 +1015,36 @@ describe('30초만 먼저 만들어 보기', () => {
     const scenes = bigBoard()
     const span = tasterRange(scenes)!
     expect(span.to).toBeLessThan(scenes.length)
+  })
+})
+
+describe('맛보기를 보시고 무엇을 만지는가', () => {
+  it('흔히 걸리는 것들을 짚어 준다', () => {
+    expect(TASTER_FIXES.length).toBeGreaterThanOrEqual(3)
+    const symptoms = TASTER_FIXES.map((f) => f.symptom).join(' ')
+    expect(symptoms).toContain('글씨')
+    expect(symptoms).toContain('사진')
+  })
+
+  it('무엇이 문제인지 · 어디를 만지는지 · 어떻게 를 다 적는다', () => {
+    for (const fix of TASTER_FIXES) {
+      expect(fix.symptom.length, fix.symptom).toBeGreaterThan(3)
+      expect(fix.where.length, fix.symptom).toBeGreaterThan(1)
+      expect(fix.how.length, fix.symptom).toBeGreaterThan(6)
+    }
+  })
+
+  it('가리키는 자리가 화면에 실제로 있는 번호다 — 없는 곳으로 보내면 안 된다', () => {
+    const numbered = TASTER_FIXES.filter((f) => /^\d/.test(f.where))
+    for (const fix of numbered) {
+      const no = Number(fix.where[0])
+      expect(no, fix.where).toBeGreaterThanOrEqual(0)
+      expect(no, fix.where).toBeLessThanOrEqual(7)
+    }
+  })
+
+  it('음악은 넣어 드리지 않는다고 그 자리에서 밝힌다', () => {
+    const music = TASTER_FIXES.find((f) => f.symptom.includes('음악'))
+    expect(music?.how).toContain('저작권')
   })
 })

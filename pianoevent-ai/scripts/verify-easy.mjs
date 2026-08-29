@@ -362,6 +362,29 @@ try {
   const compareText = await sheet.textContent()
   check('동그라미 치시라고 적어 준다', compareText.includes('동그라미'), compareText.slice(0, 80))
   check('종이마다 무엇인지 적혀 있다', ['담백한 쪽', '화려한 쪽'].every((w) => compareText.includes(w)))
+  check('종이에도 번호가 붙는다 — 화면과 같은 번호라야 한다', /1\./.test(compareText) && /3\./.test(compareText))
+
+  // 종이에서 화면으로 돌아오는 길
+  const codes = sheet.getByTestId('qr-code')
+  check('장마다 비출 무늬가 있다', (await codes.count()) === 3, `${await codes.count()}개`)
+  check('무엇을 하는 무늬인지 적어 준다', compareText.includes('비추면'), compareText.slice(0, 120))
+  check('못 비추셔도 되는 길을 함께 적어 준다', compareText.includes('같은 번호'))
+  const qrBox = await codes.first().boundingBox()
+  check('무늬가 비출 만한 크기다', qrBox && qrBox.width >= 50, qrBox ? `${Math.round(qrBox.width)}px` : '자리를 못 찾음')
+
+  // 비추고 오시면 그 장이 골라진 채로 열린다
+  await page.goto(`${BASE}/events/${EVENT_ID}/design?pick=fancy`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1600)
+  const fromPaper = page.getByTestId('design-choices')
+  check(
+    '종이에서 오시면 그 장이 골라진 채로 열린다',
+    (await fromPaper.getByTestId('design-choice-fancy').getAttribute('aria-pressed')) === 'true',
+  )
+  check('종이에서 오셨다고 말해 준다', (await page.getByTestId('design-ready').textContent()).includes('종이에서 고르신'))
+  await page.goto(`${BASE}/events/${EVENT_ID}/design?pick=없는것`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1400)
+  check('엉뚱한 주소로 오셔도 멈추지 않는다', (await page.getByTestId('design-choices').count()) === 1)
+  await page.screenshot({ path: join(OUT, 'design-from-paper.jpg'), type: 'jpeg', quality: 82 })
   await page.screenshot({ path: join(OUT, 'design-compare.jpg'), type: 'jpeg', quality: 82 })
 
   // 좁은 화면에서도 가로로 넘치지 않아야 한다 (넘치면 단추가 화면 밖으로 나간다)
@@ -679,6 +702,24 @@ try {
   check('인쇄물에도 인쇄 설정 안내가 있다', (await page.getByTestId('print-howto-toggle').count()) === 1)
   check('인쇄물에도 첫 장만 뽑는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
   check('인쇄물에도 뽑기 전 마지막 확인이 있다', (await page.getByTestId('print-summary').count()) === 1)
+  // 종이만 세시는데, 연주회 전날 밤에 멈추는 것은 잉크다
+  await page.getByLabel('몇 부 뽑으실지').fill('120')
+  await page.waitForTimeout(500)
+  const ink = page.getByTestId('print-ink')
+  check('색을 꽉 채운 인쇄물은 잉크도 짚어 준다', (await ink.count()) === 1)
+  const inkText = await ink.textContent()
+  check('잉크가 모자랄 수 있다고 말해 준다', inkText.includes('잉크'), inkText.trim().slice(0, 80))
+  await page.getByLabel('몇 부 뽑으실지').fill('1')
+  await page.waitForTimeout(400)
+  check('몇 장 안 뽑으실 때는 잉크로 겁주지 않는다', (await page.getByTestId('print-ink').count()) === 0)
+  await page.screenshot({ path: join(OUT, 'print-ink.jpg'), type: 'jpeg', quality: 82 })
+
+  // 글만 있는 인쇄물은 잉크가 훨씬 덜 든다 — 같은 말을 하면 안 된다
+  await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=checklist`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  await page.getByLabel('몇 부 뽑으실지').fill('120')
+  await page.waitForTimeout(500)
+  check('글 위주 인쇄물에는 잉크 이야기를 하지 않는다', (await page.getByTestId('print-ink').count()) === 0)
 
   // ── 종이 위 글씨 크기 ───────────────────────────────────────────
   console.log('\n[종이 글씨 크기]')
@@ -781,6 +822,20 @@ try {
   await page.waitForTimeout(600)
   check('고르면 그 모양으로 바뀐다', (await grid.locator('button[aria-pressed="true"]').count()) === 1)
   await page.screenshot({ path: join(OUT, 'layout-grid.jpg'), type: 'jpeg', quality: 82 })
+
+  // 여기서 대부분 멈추신다 — 선은 꽂았는데 스크린에 안 나온다
+  const projector = page.getByTestId('projector-help')
+  check('빔프로젝터에 안 나올 때 볼 곳이 있다', (await projector.count()) === 1)
+  check('평소에는 접혀 있다 — 아는 분께는 군더더기다', (await page.getByTestId('projector-steps').count()) === 0)
+  await page.getByTestId('projector-toggle').click()
+  await page.waitForTimeout(400)
+  const steps = await page.getByTestId('projector-steps').textContent()
+  check('윈도우에서 누를 자판을 정확히 적어 준다', steps.includes('윈도우키') && steps.includes('P'), steps.slice(0, 60))
+  check('맥에서 갈 곳도 적어 준다', steps.includes('미러링'))
+  check('빔프로젝터 쪽 입력도 짚어 준다 — 이게 가장 흔하다', steps.includes('입력'))
+  check('젠더가 필요할 수 있다고 미리 알려 준다', steps.includes('HDMI'))
+  check('당일 아침에 해 보시라고 한다', steps.includes('리허설') || steps.includes('당일 아침'))
+  await page.screenshot({ path: join(OUT, 'projector.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 행사 목록에도 어디까지 왔는지 ────────────────────────────────
   console.log('\n[행사 목록]')
@@ -1029,7 +1084,15 @@ try {
   check('고른 것이 표시된다', await sounds.locator('input[type="radio"]').nth(1).isChecked())
 
   // 로비가 시끄러우면 어떤 소리도 묻힌다
-  const buzz = chimeBox.locator('input[type="checkbox"]').nth(1)
+  // 소리는 "무슨 일이 났다" 만 알려 준다 — 이름까지 들으면 화면을 안 봐도 된다
+  const speakBox = chimeBox.locator('input[type="checkbox"]').nth(1)
+  check('이름까지 말로 읽어 줄 수 있다', (await speakBox.count()) === 1)
+  check('무엇을 읽어 주는지 본보기를 적어 준다', (await chimeBox.textContent()).includes('다음, 3번'))
+  await speakBox.check()
+  await page.waitForTimeout(400)
+  check('말로 읽기가 켜진다', await speakBox.isChecked())
+
+  const buzz = chimeBox.locator('input[type="checkbox"]').nth(2)
   check('진동도 켤 수 있다', (await buzz.count()) === 1)
   await buzz.check()
   await page.waitForTimeout(300)
@@ -1043,7 +1106,8 @@ try {
     await keptChime.locator('input[type="checkbox"]').first().isChecked(),
   )
   check('고르신 소리도 그대로다', await keptChime.getByTestId('chime-sounds').locator('input[type="radio"]').nth(1).isChecked())
-  check('진동도 그대로다', await keptChime.locator('input[type="checkbox"]').nth(1).isChecked())
+  check('말로 읽기도 그대로다', await keptChime.locator('input[type="checkbox"]').nth(1).isChecked())
+  check('진동도 그대로다', await keptChime.locator('input[type="checkbox"]').nth(2).isChecked())
   check('다음 칸이 곧 차례인지 함께 알려 준다', (await page.getByTestId('live-next-card').count()) === 1)
   await page.screenshot({ path: join(OUT, 'live-chime.jpg'), type: 'jpeg', quality: 82 })
 
@@ -1059,6 +1123,15 @@ try {
   const leftSize = await leftBox.locator('span').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
   check('가장 큰 글씨다 — 흘깃 보고 아셔야 한다', leftSize >= 30, `${leftSize.toFixed(1)}px`)
   await page.screenshot({ path: join(OUT, 'live-left.jpg'), type: 'jpeg', quality: 82 })
+
+  // 늦었다는 사실은 이미 아신다 — 무엇을 줄이면 되는가가 있어야 한다
+  const pace = page.getByTestId('live-pace')
+  check('사회자에게 무엇을 시킬지 알려 준다', (await pace.count()) === 1)
+  const paceSay = await page.getByTestId('pace-say').textContent()
+  check('그대로 전할 수 있는 말이다', paceSay.trim().length > 4, paceSay.trim())
+  const paceLevel = await pace.getAttribute('data-level')
+  check('막 시작했으면 예정대로라고 한다 — 겁주지 않는다', paceLevel === 'ok', String(paceLevel))
+  check('왜 그렇게 하면 되는지도 적어 준다', (await pace.textContent()).length > 30)
 
   // ── 감동영상 30초 맛보기 ────────────────────────────────────────
   console.log('\n[감동영상 30초 맛보기]')
@@ -1082,6 +1155,9 @@ try {
   check('아이 장면부터로 바꿀 수 있다', (await startBox.locator('button[aria-pressed="true"]').textContent()) === '아이 장면부터')
   const movedTip = await page.getByTestId('video-taster').getAttribute('title')
   check('바꾸면 담기는 자리도 바뀐다', movedTip !== tasterTip, `${tasterTip} → ${movedTip}`)
+
+  // 보시고 "이게 아닌데" 하신 다음이 있어야 한다
+  check('맛보기를 만들기 전에는 고치는 법이 안 뜬다', (await page.getByTestId('taster-fixes').count()) === 0)
   await page.screenshot({ path: join(OUT, 'video-taster.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 설명서 그림 ──────────────────────────────────────────────────

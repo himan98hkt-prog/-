@@ -42,6 +42,7 @@ export function DesignStudio({
   rsvps,
   inviteUrl,
   initialCopy,
+  pickKind,
 }: {
   academy: Academy
   event: EventRecord
@@ -49,6 +50,8 @@ export function DesignStudio({
   rsvps: Rsvp[]
   inviteUrl: string
   initialCopy: DesignCopy
+  /** 종이의 QR 을 비추고 오셨다면 그 장 ('chosen' · 'season' · 'plain' · 'fancy') */
+  pickKind?: string
 }) {
   /**
    * 처음 열면 **이미 골라진 채로** 열린다.
@@ -80,17 +83,26 @@ export function DesignStudio({
       }),
     [event.event_at, event.design_theme, event.design_template, academy.design_theme, plan.items.length],
   )
-  const [templateId, setTemplateId] = useState(pick.templateId)
-  const [themeId, setThemeId] = useState(pick.themeId)
+  /**
+   * 종이에서 오셨으면 **그 장으로 열린다.**
+   *
+   * 종이에 동그라미를 치고 QR 을 비추셨는데 화면이 딴것으로 열리면, 종이에 표시한 일이
+   * 헛일이 된다. 없는 장을 가리키면 그냥 첫 장으로 연다 — 멈추는 것보다 낫다.
+   */
+  const fromPaper = choices.find((item) => item.kind === pickKind) ?? null
+  const opening = fromPaper ?? pick
+
+  const [templateId, setTemplateId] = useState(opening.templateId)
+  const [themeId, setThemeId] = useState(opening.themeId)
   const [copy, setCopy] = useState<DesignCopy>(initialCopy)
   const [photoUrl, setPhotoUrl] = useState(event.photo_url ?? '')
   const [imageMap, setImageMap] = useState<ImageMap>(event.image_map ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   // 양식 40종·테마 100종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
-  const [category, setCategory] = useState<TemplateCategory>(getTemplate(pick.templateId).category)
+  const [category, setCategory] = useState<TemplateCategory>(getTemplate(opening.templateId).category)
   const [themeQuery, setThemeQuery] = useState('')
-  const [family, setFamily] = useState<ThemeFamily>(getTheme(pick.themeId).family)
+  const [family, setFamily] = useState<ThemeFamily>(getTheme(opening.themeId).family)
 
   // 행사 달에 맞는 계절 테마 — 40종을 다 훑지 않아도 되게
   const template = getTemplate(templateId)
@@ -190,13 +202,22 @@ export function DesignStudio({
         <section className="grid gap-1.5 rounded-lg border border-accent/40 bg-accent/5 p-3" data-testid="design-ready">
           <p className="text-sm font-medium">이대로 뽑으셔도 됩니다</p>
           <p className="text-sm text-muted-foreground">
-            <strong className="text-foreground">{describePick(pick)}</strong> 로 맞춰 두었습니다. {pick.why}{' '}
-            오른쪽 그림이 그대로 나옵니다 — 아래 <strong>[인쇄 · PDF]</strong> 만 누르시면 됩니다.
+            {fromPaper ? (
+              <>
+                종이에서 고르신 <strong className="text-foreground">{describePick(fromPaper)}</strong> 로 맞춰
+                두었습니다. 아래 <strong>[인쇄 · PDF]</strong> 만 누르시면 됩니다.
+              </>
+            ) : (
+              <>
+                <strong className="text-foreground">{describePick(pick)}</strong> 로 맞춰 두었습니다. {pick.why}{' '}
+                오른쪽 그림이 그대로 나옵니다 — 아래 <strong>[인쇄 · PDF]</strong> 만 누르시면 됩니다.
+              </>
+            )}
           </p>
 
           {/* 마음에 안 드실 때 100종으로 보내지 않는다. 딴 길 둘만 옆에 세워 둔다 */}
           <div className="mt-1 grid grid-cols-3 gap-2" data-testid="design-choices">
-            {choices.map((choice) => {
+            {choices.map((choice, index) => {
               const chosen = choice.themeId === themeId && choice.templateId === templateId
               return (
                 <button
@@ -217,7 +238,10 @@ export function DesignStudio({
                   )}
                 >
                   <ChoiceThumb templateId={choice.templateId} ctx={{ ...ctx, theme: getTheme(choice.themeId) }} />
-                  <span className="block text-[11px] font-medium leading-tight">{choice.label}</span>
+                  {/* 종이에 뽑은 것과 같은 번호 — "종이의 2번" 이 화면에서도 2번이라야 한다 */}
+                  <span className="block text-[11px] font-medium leading-tight">
+                    {index + 1}. {choice.label}
+                  </span>
                   <span className="block truncate text-[10px] leading-tight text-muted-foreground">
                     {getTheme(choice.themeId).name}
                   </span>

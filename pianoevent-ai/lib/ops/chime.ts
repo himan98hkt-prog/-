@@ -124,9 +124,16 @@ export interface ChimePrefs {
   on: boolean
   soundId: string
   buzz: boolean
+  /** 이름까지 말로 읽어 줄지 */
+  speak: boolean
 }
 
-export const DEFAULT_CHIME_PREFS: ChimePrefs = { on: false, soundId: DEFAULT_CHIME_SOUND, buzz: false }
+export const DEFAULT_CHIME_PREFS: ChimePrefs = {
+  on: false,
+  soundId: DEFAULT_CHIME_SOUND,
+  buzz: false,
+  speak: false,
+}
 
 /**
  * 담아 둔 설정을 되읽는다.
@@ -144,6 +151,7 @@ export function parseChimePrefs(raw: string | null): ChimePrefs {
       on: data.on === true,
       soundId: getChimeSound(typeof data.soundId === 'string' ? data.soundId : null).id,
       buzz: data.buzz === true,
+      speak: data.speak === true,
     }
   } catch {
     return { ...DEFAULT_CHIME_PREFS }
@@ -173,5 +181,45 @@ export function playChime(ctx: AudioContext, soundId?: string | null, at = ctx.c
     osc.connect(gain).connect(ctx.destination)
     osc.start(from)
     osc.stop(from + note.span + 0.02)
+  }
+}
+
+/* ── 말로도 ──────────────────────────────────────────────────────────────── */
+
+/**
+ * **"다음, 김서연" 을 말로.**
+ *
+ * 소리는 "무슨 일이 났다" 만 알려 준다. 그러면 화면을 봐야 누구인지 아신다.
+ * 그런데 그때 원장님 손에는 아이가 있고 눈은 무대에 있다. 이름까지 말해 주면
+ * 화면을 아예 안 보셔도 된다.
+ *
+ * 브라우저가 가진 읽어 주기를 쓴다 — 소리 파일도, 인터넷도 필요 없다.
+ * (읽어 주기가 없는 브라우저·기계도 있다. 그때는 조용히 지나간다.)
+ */
+export function nextCallText(title: string, orderNo?: number | null): string {
+  const name = title.trim()
+  if (!name) return '다음 순서입니다'
+  return orderNo ? `다음, ${orderNo}번 ${name}` : `다음, ${name}`
+}
+
+/** 이 브라우저가 말을 할 수 있는가 */
+export function canSpeak(): boolean {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window
+}
+
+export function speak(text: string, lang = 'ko-KR'): boolean {
+  if (!canSpeak()) return false
+  try {
+    // 앞서 읽던 것이 남아 있으면 겹친다 — 지우고 새로 읽는다
+    window.speechSynthesis.cancel()
+    const said = new SpeechSynthesisUtterance(text)
+    said.lang = lang
+    // 무대 옆이라 또박또박, 객석에 안 들릴 크기로
+    said.rate = 0.95
+    said.volume = 0.7
+    window.speechSynthesis.speak(said)
+    return true
+  } catch {
+    return false
   }
 }
