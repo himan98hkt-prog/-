@@ -378,6 +378,9 @@ export const ja: Record<TranslationKey, string> = {
   'settings.retention': '記録の保存期間',
   'settings.retentionDesc':
     '期間を過ぎた記録は、アプリを開いたときに自動で整理されます。初期設定はずっと保存です。',
+  'settings.retentionServerFailed': 'サーバーのバックアップは整理できませんでした',
+  'settings.retentionServerFailedDesc':
+    '端末からは削除しました。接続後にバックアップを一度押すと、サーバー側も整理されます。',
   'settings.retentionForever': 'ずっと保存',
   'settings.retention2y': '2年',
   'settings.retention1y': '1年',

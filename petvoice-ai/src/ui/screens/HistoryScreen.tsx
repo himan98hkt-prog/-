@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { weeklyReport } from '../../api';
-import { backupEntries, restoreEntries } from '../../api/backup';
+import { backupEntries, pruneBackupBefore, restoreEntries } from '../../api/backup';
 import { userMessageKey } from '../../api/errors';
 import type { WeeklyReport } from '../../api/proxy';
 import { relativeTime } from '../../core/date';
 import { buildWeeklyDigest, monthGrid, weeklyHeadline, weeklyStats } from '../../core/diary';
 import { emotionMeta } from '../../core/emotions';
 import { reportCacheKey } from '../../core/reportCache';
+import { retentionCutoff } from '../../core/retention';
 import { assessHistoryRisk } from '../../core/health';
 import { useT } from '../../i18n/useT';
 import { useActivePet, useEntriesForActivePet, useIsPro, usePetStore } from '../../store/usePetStore';
@@ -31,6 +32,7 @@ export function HistoryScreen() {
   const lastBackupAt = usePetStore((s) => s.lastBackupAt);
   const setLastBackupAt = usePetStore((s) => s.setLastBackupAt);
   const isPro = useIsPro();
+  const retention = usePetStore((s) => s.retention);
   const cachedReport = usePetStore((s) => s.cachedReport);
   const putCachedReport = usePetStore((s) => s.putCachedReport);
 
@@ -111,6 +113,10 @@ export function HistoryScreen() {
     setSyncing(true);
     try {
       const count = await backupEntries(allEntries);
+      // 올린 김에 서버에서도 기간 지난 것을 정리한다.
+      // 여기서 안 하면 기기에서 지운 기록이 서버에만 영원히 남는다.
+      const cutoff = retentionCutoff(retention);
+      if (cutoff !== null) await pruneBackupBefore(cutoff);
       setLastBackupAt(Date.now());
       Alert.alert(t('history.backupDone', { count }));
     } catch (error) {
@@ -127,7 +133,9 @@ export function HistoryScreen() {
     }
     setSyncing(true);
     try {
-      const restored = await restoreEntries();
+      // 정책보다 오래된 백업은 되살리지 않는다 —
+      // 안 그러면 폰을 바꿀 때마다 지운 기록이 되돌아온다.
+      const restored = await restoreEntries(retention);
       const added = mergeEntries(restored);
       Alert.alert(t('history.restoreDone', { count: added }));
     } catch (error) {

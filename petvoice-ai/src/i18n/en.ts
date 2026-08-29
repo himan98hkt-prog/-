@@ -384,6 +384,9 @@ export const en: Record<TranslationKey, string> = {
   'settings.retention': 'Keep records for',
   'settings.retentionDesc':
     'Older records are cleared automatically when you open the app. Kept forever by default.',
+  'settings.retentionServerFailed': "Couldn't clear the backup",
+  'settings.retentionServerFailedDesc':
+    'Records were deleted on this device. Tap Back up once you are online and the server will be cleared too.',
   'settings.retentionForever': 'Forever',
   'settings.retention2y': '2 years',
   'settings.retention1y': '1 year',

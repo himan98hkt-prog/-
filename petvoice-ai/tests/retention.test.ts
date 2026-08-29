@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countExpiring,
+  keepWithinRetention,
   DEFAULT_RETENTION,
   isRetentionPolicy,
   RETENTION_POLICIES,
@@ -52,5 +53,29 @@ describe('countExpiring', () => {
 
   it('무제한이면 언제나 0', () => {
     expect(countExpiring([0, 1, 2], 'forever', NOW)).toBe(0);
+  });
+});
+
+describe('keepWithinRetention', () => {
+  const cutoff = retentionCutoff('1y', NOW)!;
+  const items = [
+    { createdAt: cutoff - DAY_MS, id: 'old' },
+    { createdAt: cutoff, id: 'edge' },
+    { createdAt: NOW, id: 'new' },
+  ];
+
+  it('복원에서 정책 밖 기록을 되살리지 않는다', () => {
+    // 이게 없으면 폰을 바꿀 때마다 지운 기록이 백업에서 되돌아온다
+    expect(keepWithinRetention(items, '1y', NOW).map((i) => i.id)).toEqual(['edge', 'new']);
+  });
+
+  it('무제한이면 전부 남긴다', () => {
+    expect(keepWithinRetention(items, 'forever', NOW)).toHaveLength(3);
+  });
+
+  it('원본을 건드리지 않는다', () => {
+    const copy = [...items];
+    keepWithinRetention(items, '6m', NOW);
+    expect(items).toEqual(copy);
   });
 });

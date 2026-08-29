@@ -380,6 +380,9 @@ export const ko = {
 
   'settings.retention': '기록 보관 기간',
   'settings.retentionDesc': '기간이 지난 기록은 앱을 열 때 자동으로 정리돼요. 기본은 계속 보관이에요.',
+  'settings.retentionServerFailed': '서버 백업은 정리하지 못했어요',
+  'settings.retentionServerFailedDesc':
+    '기기에서는 지웠어요. 연결된 뒤 백업을 한 번 눌러 주시면 서버도 정리됩니다.',
   'settings.retentionForever': '계속 보관',
   'settings.retention2y': '2년',
   'settings.retention1y': '1년',

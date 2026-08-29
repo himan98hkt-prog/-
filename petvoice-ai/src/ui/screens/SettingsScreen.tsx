@@ -2,12 +2,18 @@ import Constants from 'expo-constants';
 import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isConfigured } from '../../api';
+import { pruneBackupBefore } from '../../api/backup';
 import { deleteAccount } from '../../api/supabase';
 import { useBilling } from '../../billing/useBilling';
 import { describeSubscription } from '../../core/billing';
 import { PET_LABEL_KEY } from '../../core/emotions';
 import { PRO_PRICE_KRW } from '../../core/quota';
-import { countExpiring, RETENTION_POLICIES, type RetentionPolicy } from '../../core/retention';
+import {
+  countExpiring,
+  RETENTION_POLICIES,
+  retentionCutoff,
+  type RetentionPolicy,
+} from '../../core/retention';
 import type { Locale } from '../../core/types';
 import { LOCALES } from '../../i18n';
 import { useT } from '../../i18n/useT';
@@ -91,6 +97,17 @@ export function SettingsScreen() {
     const apply = () => {
       setRetention(next);
       void applyRetention();
+
+      // 서버 백업도 같은 규칙으로 정리한다. 기기만 지우면 두 곳의 규칙이 갈라지고,
+      // 폰을 바꿔 복원하는 순간 지운 기록이 되돌아온다.
+      const cutoff = retentionCutoff(next);
+      if (cutoff !== null && isConfigured) {
+        void pruneBackupBefore(cutoff).catch(() =>
+          // 네트워크가 없을 수 있다. 조용히 넘기지 말고 알린다 —
+          // 사용자는 서버에서도 지워졌다고 믿게 되기 때문이다.
+          Alert.alert(t('settings.retentionServerFailed'), t('settings.retentionServerFailedDesc')),
+        );
+      }
     };
 
     if (doomed === 0) {

@@ -57,3 +57,20 @@ export function countExpiring(
   if (cutoff === null) return 0;
   return createdAts.filter((ts) => ts < cutoff).length;
 }
+
+/**
+ * 정책에 맞는 기록만 남긴다.
+ *
+ * 복원(restore)에서 이게 없으면 보관 정책이 조용히 무효가 된다 —
+ * 기기에서 지운 오래된 기록이 백업에서 그대로 되돌아오기 때문이다.
+ * 사용자는 지웠다고 생각하는데 폰을 바꾸면 다시 나타난다.
+ */
+export function keepWithinRetention<T extends { createdAt: number }>(
+  items: readonly T[],
+  policy: RetentionPolicy,
+  now = Date.now(),
+): T[] {
+  const cutoff = retentionCutoff(policy, now);
+  if (cutoff === null) return [...items];
+  return items.filter((item) => item.createdAt >= cutoff);
+}
