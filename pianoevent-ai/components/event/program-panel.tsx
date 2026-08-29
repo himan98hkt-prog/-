@@ -372,7 +372,7 @@ function OrderEditor({
             {saved && !dirty && <span className="text-xs text-accent">저장했습니다. 시각이 다시 계산됩니다.</span>}
             {dirty && (
               <span className="text-xs text-muted-foreground">
-                저장하면 연주 시각과 인쇄물 51종이 함께 바뀝니다.
+                저장하면 연주 시각과 인쇄물 59종이 함께 바뀝니다.
               </span>
             )}
           </div>

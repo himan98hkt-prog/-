@@ -1,3 +1,4 @@
+import { ArtOrnament } from '@/components/design/art-ornament'
 import { LogoSlot } from '@/components/design/logo'
 import { OrnamentDivider, TrebleClef } from '@/components/design/ornaments'
 import { PhotoBackdrop, PhotoFrame } from '@/components/design/photo'
@@ -202,6 +203,11 @@ export function Certificates({ ctx, limit }: { ctx: DesignContext; limit?: numbe
               textAlign: 'center',
             }}
           >
+            {/* 월계관을 제목 뒤에 앉힌다 — 상장은 이 하나로 격이 달라진다 */}
+            <div style={{ position: 'absolute', top: 84, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }}>
+              <ArtOrnament id="laurel" width={260} opacity={0.5} />
+            </div>
+
             <LogoSlot ctx={ctx} height={48} />
             <p style={{ ...T.label(12), marginTop: 12 }}>{academy.name}</p>
             <h1 style={{ ...T.display(40), marginTop: 18, letterSpacing: '0.3em' }}>참 가 상</h1>

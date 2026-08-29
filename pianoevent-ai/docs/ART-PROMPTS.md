@@ -3,7 +3,8 @@
 인쇄물과 무대 화면에 들어갈 **그림을 밖에서 만들어 넣기 위한** 문서입니다.
 
 직접 그린 SVG 그림(피아노·건반·아치…)은 인쇄물에서 어설퍼 보여 **전부 걷어냈습니다.**
-그 자리에 미드저니로 만든 그림을 넣습니다. 아래 프롬프트를 그대로 복사해 쓰시면 됩니다.
+그 자리에 미드저니로 만든 그림을 넣었습니다. 지금 들어가 있는 것은 아래 「지금 들어가 있는
+그림」 표에 있고, 더 넣으실 때는 여기 프롬프트를 그대로 복사해 쓰시면 됩니다.
 
 ---
 
@@ -181,6 +182,70 @@ a soft satin ribbon tied in an elegant bow, cream and pale gold, delicate waterc
 pure solid white background
 --ar 1:1 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, gradient background
 ```
+
+---
+
+## 지금 들어가 있는 그림
+
+64장을 받아 아래 열다섯 장을 골랐습니다. 고른 기준은 하나입니다 —
+**제목이 들어갈 자리가 비어 있는가.** 예뻐도 위쪽이 차 있으면 포스터로 못 씁니다.
+
+| 자리 | 파일 | 어느 장을 골랐나 |
+|---|---|---|
+| 포스터 | `poster/stage-piano.jpg` | A1-4 · 위쪽 3분의 1이 비어 막 없이 제목이 앉습니다 |
+| 포스터 | `poster/oil-hall.jpg` | A1-2 · 유화 질감. 인쇄하면 AI 티가 가장 덜 납니다 |
+| 포스터 | `poster/keys-close.jpg` | A2-2 · 위쪽 절반이 어둡고 검은건반 묶음이 자연스럽습니다 |
+| 포스터 | `poster/child-hands.jpg` | A3-2 · 손가락이 자연스럽고 얼굴이 없습니다 |
+| 포스터 | `poster/gala-bokeh.jpg` | A8-2 · 바닥 반사가 고급스럽고 위가 깨끗합니다 |
+| 포스터 | `poster/light-field.jpg` | A8-3 · 빛의 들판. 송년·기념 연주회에 |
+| 포스터 | `poster/watercolor-piano.jpg` | A5-2 · 흰 바탕 수채. 검은 피아노라 어느 테마에도 얹힙니다 |
+| 포스터 | `poster/blossom-piano.jpg` | A6-2 · 오른쪽이 통째로 비어 제목 자리가 확실합니다 |
+| 무대 | `stage/curtain.jpg` | B1-2 · 가운데가 조용해 아이 사진이 그 위에 올라갑니다 |
+| 무대 | `stage/keys-wide.jpg` | B2-2 |
+| 무대 | `stage/bokeh.jpg` | B3-2 |
+| 무대 | `stage/paper.jpg` | B4-2 · 밝은 화면용 |
+| 장식 | `ornament/laurel.png` | C1-3 · 두 가지가 아래에서 만나는 제대로 된 월계관 |
+| 장식 | `ornament/corner.png` | C2-2 |
+| 장식 | `ornament/staff.png` | C3-1 |
+
+**떨어뜨린 것 중 눈여겨볼 것** — A2-3 과 B2-1 은 건반 뚜껑에 **글자 비슷한 얼룩**(가짜 브랜드명)이
+생겼습니다. 화면에서는 안 보여도 A4 로 뽑으면 눈에 걸립니다. 다음에 뽑으실 때 `--no` 에
+`brand name, logo on the piano` 를 더하시면 줄어듭니다.
+
+---
+
+## 다시 뽑아야 하는 둘 — A4 · A7
+
+두 세트는 네 장 모두 못 썼습니다. **제 프롬프트가 잘못 쓰였습니다.**
+
+### A4 · 빈 콘서트홀 — 넷 다 만화 배경 같은 선화로 나왔습니다
+
+`painterly editorial illustration` 이라고 적은 것이 원인입니다. 미드저니가 이 말을
+"선으로 그린 삽화" 로 받습니다. 사진 쪽 말로 바꿨습니다.
+
+```
+the interior of a grand classical concert hall photographed from the stage, rows of deep
+red velvet seats receding into shadow, warm chandeliers glowing along the balconies, the
+quiet moment before a recital begins, shot on a full frame camera with a wide lens, soft
+volumetric light, the upper third of the frame is dark and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces, illustration, anime, line art, cartoon
+```
+
+### A7 · 겨울 — 넷 다 담쟁이 덩굴이 뒤덮인 청록색 방이 나왔습니다
+
+`deep green and burgundy palette` 를 미드저니가 "방 전체를 초록으로, 피아노까지 초록으로"
+로 받았습니다. 색은 **빛과 소품에만** 걸리게 고쳤습니다.
+
+```
+a black grand piano in a warm room on a winter evening, snow falling outside a frosted
+window behind it, a few pine branches and small warm candles on top of the piano, deep
+warm shadows, burgundy and gold light, photographed with a soft wide lens, the upper half
+of the frame is dark and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces, green walls, ivy, vines, illustration, anime, line art
+```
+
+두 세트를 다시 뽑아 보내 주시면 **포스터 두 종이 더** 생깁니다. 급하지 않습니다 —
+지금 여덟 장으로도 포스터는 이미 돌아갑니다.
 
 ---
 

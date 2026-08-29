@@ -1,3 +1,4 @@
+import { ArtPoster } from '@/components/design/templates/art-poster'
 import {
   BookletCover,
   BookletInner,
@@ -53,6 +54,22 @@ export function renderTemplate(templateId: string, ctx: DesignContext, preview =
   switch (templateId) {
     case 'poster-modern':
       return <PosterModern ctx={ctx} />
+    case 'art-stage-piano':
+      return <ArtPoster ctx={ctx} artId="stage-piano" />
+    case 'art-oil-hall':
+      return <ArtPoster ctx={ctx} artId="oil-hall" />
+    case 'art-keys':
+      return <ArtPoster ctx={ctx} artId="keys-close" />
+    case 'art-hands':
+      return <ArtPoster ctx={ctx} artId="child-hands" />
+    case 'art-gala':
+      return <ArtPoster ctx={ctx} artId="gala-bokeh" />
+    case 'art-field':
+      return <ArtPoster ctx={ctx} artId="light-field" />
+    case 'art-watercolor':
+      return <ArtPoster ctx={ctx} artId="watercolor-piano" />
+    case 'art-blossom':
+      return <ArtPoster ctx={ctx} artId="blossom-piano" />
     case 'poster-fullbleed':
       return <PosterFullBleed ctx={ctx} />
     case 'poster-photo':

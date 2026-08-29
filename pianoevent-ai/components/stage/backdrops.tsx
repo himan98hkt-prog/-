@@ -3,6 +3,20 @@ import { STAGE_SLIDE_H, STAGE_SLIDE_W } from '@/lib/stage/deck'
 import type { StageBackdrop } from '@/lib/stage/backdrops'
 
 /**
+ * 사진 배경.
+ *
+ * 어두운 사진을 밝은 화면에 깔면 아이 이름이 안 보이고, 그 반대도 마찬가지다.
+ * 화면 밝기와 맞으면 사진을 그대로 쓰고, 어긋나면 **옅게 깔아 무늬로만** 쓴다.
+ * 그러면 원장님이 무엇을 고르시든 이름이 안 보이는 일은 생기지 않는다.
+ */
+const PHOTO: Partial<Record<StageBackdrop, { src: string; tone: 'dark' | 'light' }>> = {
+  'photo-curtain': { src: '/art/stage/curtain.jpg', tone: 'dark' },
+  'photo-keys': { src: '/art/stage/keys-wide.jpg', tone: 'dark' },
+  'photo-bokeh': { src: '/art/stage/bokeh.jpg', tone: 'dark' },
+  'photo-paper': { src: '/art/stage/paper.jpg', tone: 'light' },
+}
+
+/**
  * 무대 배경 — 사진이 아니라 그림(SVG)이다.
  * 인터넷 없이 뜨고, 테마 색을 그대로 입고, 아무리 키워도 흐려지지 않는다.
  */
@@ -16,6 +30,32 @@ export function StageBackdropView({
   dark: boolean
 }) {
   if (id === 'plain') return null
+
+  const photo = PHOTO[id]
+  if (photo) {
+    const matches = photo.tone === (dark ? 'dark' : 'light')
+    return (
+      <div className="stage-backdrop" aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <img
+          src={photo.src}
+          alt=""
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: matches ? 1 : 0.16 }}
+        />
+        {matches && (
+          // 가운데는 아이 사진과 이름 자리다. 가장자리만 눌러 가운데를 비워 준다
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: photo.tone === 'dark'
+                ? 'radial-gradient(120% 100% at 50% 50%, rgba(8,8,12,0.34) 0%, rgba(8,8,12,0.6) 68%, rgba(8,8,12,0.78) 100%)'
+                : 'radial-gradient(120% 100% at 50% 50%, rgba(255,253,248,0.5) 0%, rgba(255,253,248,0.24) 70%, rgba(255,253,248,0.1) 100%)',
+            }}
+          />
+        )}
+      </div>
+    )
+  }
 
   const p = theme.palette
   /**

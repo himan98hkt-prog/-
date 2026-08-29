@@ -109,7 +109,7 @@ export function DesignStudio({
    * 세 장으로 되는 분은 여기서 끝내시고, 바꾸실 분만 펴신다.
    */
   const [picking, setPicking] = useState(false)
-  // 양식 51종·테마 108종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
+  // 양식 59종·테마 108종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
   const [category, setCategory] = useState<TemplateCategory>(getTemplate(opening.templateId).category)
   const [themeQuery, setThemeQuery] = useState('')
   const [family, setFamily] = useState<ThemeFamily>(getTheme(opening.themeId).family)
@@ -353,7 +353,7 @@ export function DesignStudio({
 
             {/*
               **이름으로는 못 고르신다.** "3단 접지 프로그램" 이 어떤 종이인지는 봐야 안다.
-              지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 51종이다.
+              지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 59종이다.
             */}
             <div className="grid grid-cols-3 gap-2" data-testid="template-grid">
               {(templatesByCategory().find((g) => g.category === category)?.items ?? []).map((item: TemplateDef) => {
