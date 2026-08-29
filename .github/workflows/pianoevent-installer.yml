@@ -100,3 +100,10 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 옛 이름으로 올라간 것이 옆에 남아 있으면 무엇을 눌러야 할지 망설이시게 된다
+      - name: 옛 이름의 첨부물 치우기
+        run: node scripts/clean-release-assets.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
