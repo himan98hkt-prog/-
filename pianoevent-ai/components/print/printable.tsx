@@ -4,6 +4,7 @@ import { ChevronDown, Eye, FileCheck2, Printer, Type } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { printNow } from "@/components/print/print-now";
+import { PrintSummary } from "@/components/print/print-summary";
 import {
   PRINT_CHECKLIST,
   PRINT_TEXT_SIZES,
@@ -181,6 +182,9 @@ export function Printable({
             인쇄 · PDF 저장
           </Button>
         </div>
+
+        {/* 뽑기 직전 마지막 한 줄 — 종이·장수·색·양면 */}
+        <PrintSummary paperLabel={paper.label} sheets={sheets} copies={copies} />
 
         <button
           type="button"

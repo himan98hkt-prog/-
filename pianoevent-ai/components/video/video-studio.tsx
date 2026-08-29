@@ -15,6 +15,7 @@ import {
   Merge,
   Scissors,
   Square,
+  Timer,
   Trash2,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -65,6 +66,8 @@ import {
   sceneLabel,
   cheerRange,
   sortByFileName,
+  TASTER_SEC,
+  tasterRange,
   totalSeconds,
   type CaptionPlace,
   type CheerMessage,
@@ -269,6 +272,17 @@ export function VideoStudio({
     return scenes.slice(from, to + 1)
   }, [scenes, range])
   const recordTimeline = useMemo(() => buildTimeline(recordScenes), [recordScenes])
+  /**
+   * 앞 30초만 먼저 만들어 보실 구간.
+   *
+   * 12분짜리는 만드는 데도 12분이 걸린다. 다 기다리신 뒤에 "이게 아닌데" 를 아시면
+   * 그 12분이 통째로 날아간다. 짧은 영상이면 굳이 나눌 것이 없으므로 안 보여 준다.
+   */
+  const taster = useMemo(() => tasterRange(scenes), [scenes])
+  const tasterSec = useMemo(
+    () => (taster ? totalSeconds(scenes.slice(taster.from, taster.to + 1)) : 0),
+    [taster, scenes],
+  )
   const withPhoto = Object.keys(photos).length
   /**
    * 지금 화면에 보이는 장면 — 콘티에서 표시해 준다.
@@ -508,7 +522,7 @@ export function VideoStudio({
    * 바로 담을 수 있어야 해서다 — 상태는 다음 그림에서야 바뀌므로 그때까지
    * 기다리면 엉뚱한 구간이 담긴다.
    */
-  async function record(override?: { from: number; to: number }) {
+  async function record(override?: { from: number; to: number }, isTaster = false) {
     const canvas = canvasRef.current
     if (!canvas || !recordType) return
     setWarning(null)
@@ -605,16 +619,18 @@ export function VideoStudio({
     const info = describeRecordType(recorder.mimeType || recordType)
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
     const partial = abortedRef.current
-    const label = span
-      ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
-      : ''
+    const label = isTaster
+      ? ` (${TASTER_SEC}초 맛보기)`
+      : span
+        ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
+        : ''
     const madeUrl = URL.createObjectURL(blob)
     // 만든 것은 토막 목록에 남겨 둔다 — 나중에 한 편으로 이을 수 있게
     setParts((prev) => [
       ...prev,
       {
         id: `part-${Date.now()}`,
-        label: `${span ? `${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
+        label: `${isTaster ? `${TASTER_SEC}초 맛보기` : span ? `${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면` : '전체'}${partial ? ' (중간까지)' : ''}`,
         url: madeUrl,
         seconds: partial ? Math.round(clockRef.current) : Math.round(line.total),
         made: true,
@@ -622,10 +638,12 @@ export function VideoStudio({
     ])
     setResult({
       url: madeUrl,
-      label: partial ? `${info.label} · 중간까지` : info.label,
+      label: partial ? `${info.label} · 중간까지` : isTaster ? `${info.label} · 맛보기` : info.label,
       note: partial
         ? `만들다 멈춰 ${formatLength(clockRef.current)} 까지만 담겼습니다. 그래도 재생됩니다 — 이어서 만드시려면 아래 [만들 구간]에서 멈춘 장면부터 고르세요.`
-        : info.note,
+        : isTaster
+          ? '앞부분만 담은 맛보기입니다. 글씨 크기·사진·음악을 여기서 확인하시고, 마음에 드시면 [영상 만들기] 로 전체를 만드세요.'
+          : info.note,
       name: `${event.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '연주회'} 감동영상${label}${partial ? ' (중간까지)' : ''}.${info.ext}`,
       bytes: blob.size,
       partial,
@@ -917,6 +935,20 @@ export function VideoStudio({
             {recording ? <Square className="mr-1 h-4 w-4" /> : <Film className="mr-1 h-4 w-4" />}
             {recording ? '여기까지 만들고 멈추기' : range ? '고른 구간 만들기' : '영상 만들기'}
           </Button>
+          {/* 다 만든 뒤에 아시면 늦다. 앞 30초로 먼저 확인하시게 */}
+          {taster && !recording && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void record(taster, true)}
+              disabled={!ready || !recordType || playing}
+              data-testid="video-taster"
+              title={`앞 ${taster.to + 1}장면(${formatLength(tasterSec)})만 담아 봅니다`}
+            >
+              <Timer className="mr-1 h-4 w-4" aria-hidden />
+              {TASTER_SEC}초만 먼저 만들어 보기
+            </Button>
+          )}
           <div className="flex items-center gap-1" data-testid="preview-speed">
             <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden />
             {SPEEDS.map((rate) => (

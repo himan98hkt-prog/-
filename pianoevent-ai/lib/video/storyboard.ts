@@ -287,6 +287,33 @@ export function totalSeconds(scenes: VideoScene[]): number {
   return scenes.reduce((sum, scene) => sum + scene.seconds, 0)
 }
 
+/** 맛보기 길이 — 이만큼만 먼저 만들어 보신다 */
+export const TASTER_SEC = 30
+
+/**
+ * **30초만 먼저 만들어 보기.**
+ *
+ * 12분짜리 영상은 만드는 데도 12분이 걸린다 (화면을 그리면서 담기 때문에).
+ * 그런데 그 12분을 다 기다리신 뒤에야 "글씨가 작네", "이 사진이 아닌데" 를 아신다.
+ * 앞 30초만 먼저 만들어 보시면 그 자리에서 아신다.
+ *
+ * 앞에서부터 30초를 넘지 않는 데까지 담되, **최소 두 장면**은 넣는다 —
+ * 제목 한 장만 나오면 아이가 어떻게 나오는지 못 보신다.
+ * 전체가 이미 30초 안팎이면 맛보기가 뜻이 없으므로 `null` 을 준다.
+ */
+export function tasterRange(scenes: VideoScene[], seconds = TASTER_SEC): { from: number; to: number } | null {
+  if (scenes.length < 2) return null
+  if (totalSeconds(scenes) <= seconds * 1.5) return null
+  let sum = 0
+  let to = 0
+  for (let i = 0; i < scenes.length; i += 1) {
+    sum += scenes[i].seconds
+    if (sum > seconds && i >= 1) break
+    to = i
+  }
+  return { from: 0, to: Math.max(1, to) }
+}
+
 /** 15분을 넘으면 아이 한 명당 시간을 줄여 맞춘다 — 잘라 내면 누군가 빠진다 */
 export function fitToLimit(scenes: VideoScene[], limit = MAX_TOTAL_SEC): VideoScene[] {
   const total = totalSeconds(scenes)

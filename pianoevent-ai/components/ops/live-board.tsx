@@ -1,9 +1,10 @@
 'use client'
 
-import { Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw } from 'lucide-react'
+import { Bell, BellOff, Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Play, RadioTower, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatDuration, formatWallClock } from '@/lib/format'
+import { CHIME_LEAD_SEC, chimeDue, chimeStorageKey, playChime } from '@/lib/ops/chime'
 import {
   actualRows,
   buildLiveList,
@@ -71,6 +72,11 @@ export function LiveBoard({
   const [sharedError, setSharedError] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState<number | null>(null)
+  /** 다음 차례 알림음 — 이 휴대폰에만 담긴다 */
+  const [chime, setChime] = useState(false)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  /** 몇 번째 순서에서 이미 울렸는지 — 1초마다 다시 울리면 안 된다 */
+  const chimedRef = useRef<number | null>(null)
   const wakeRef = useRef<{ release: () => Promise<void> } | null>(null)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -86,6 +92,42 @@ export function LiveBoard({
       /* 저장이 막힌 브라우저라면 그냥 처음부터 쓴다 */
     }
   }, [event.id, list.length, canLead])
+
+  // 알림음을 켜 두셨는지 되읽는다 (화면이 붙은 뒤에)
+  useEffect(() => {
+    try {
+      setChime(window.localStorage.getItem(chimeStorageKey(event.id)) === 'on')
+    } catch {
+      /* 저장이 막힌 브라우저면 꺼진 채로 */
+    }
+  }, [event.id])
+
+  /**
+   * 알림음 켜기·끄기.
+   *
+   * 브라우저는 **원장님이 누르신 순간**에만 소리를 열어 준다. 그래서 켜실 때
+   * 소리 통로를 만들어 두고, 그 자리에서 한 번 들려 드린다 —
+   * "이런 소리가 납니다" 를 미리 아셔야 당일에 놀라지 않으신다.
+   */
+  function toggleChime(on: boolean) {
+    setChime(on)
+    try {
+      window.localStorage.setItem(chimeStorageKey(event.id), on ? 'on' : 'off')
+    } catch {
+      /* 담아 두지 못해도 이번 연주회 동안은 켜져 있다 */
+    }
+    if (!on) return
+    try {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!Ctor) return
+      const ctx = audioCtxRef.current ?? new Ctor()
+      audioCtxRef.current = ctx
+      void ctx.resume().catch(() => undefined)
+      playChime(ctx)
+    } catch {
+      /* 소리를 못 내는 기계여도 화면은 그대로 돈다 */
+    }
+  }
 
   /** 서버에 올린다. 실패해도 화면은 그대로 — 인터넷은 있으면 좋은 것이지 있어야 하는 것이 아니다 */
   const push = useCallback(
@@ -198,6 +240,35 @@ export function LiveBoard({
   const planned = current?.planned_offset_sec ?? 0
   const level = state.started_at ? driftLevel(elapsedSec, planned) : 'ok'
 
+  /**
+   * 곧 다음 차례 — 소리로도, 글로도.
+   *
+   * 소리는 못 듣는 자리(객석 옆, 무음 모드)가 있으니 화면에도 함께 띄운다.
+   * 판단은 `lib/ops/chime.ts` 가 하고, 여기서는 **한 순서에 한 번만** 울리게 지킨다.
+   */
+  const nextSoon = Boolean(
+    state.started_at && next && current && chimeDue(onStageSec, current.planned_sec),
+  )
+
+  useEffect(() => {
+    if (!chime || !nextSoon) return
+    if (chimedRef.current === state.index) return
+    chimedRef.current = state.index
+    const ctx = audioCtxRef.current
+    if (!ctx) return
+    try {
+      void ctx.resume().catch(() => undefined)
+      playChime(ctx)
+    } catch {
+      /* 못 울려도 화면 표시는 남는다 */
+    }
+  }, [chime, nextSoon, state.index])
+
+  // 순서를 되돌리시면 그 순서에서 다시 울려야 한다
+  useEffect(() => {
+    if (chimedRef.current !== null && chimedRef.current !== state.index) chimedRef.current = null
+  }, [state.index])
+
   const rows = useMemo(() => actualRows(list, state), [list, state])
   const suggestions = useMemo(() => namedDurations(rows, students), [rows, students])
 
@@ -296,7 +367,14 @@ export function LiveBoard({
 
       {/* 다음 · 그다음 */}
       <section className="grid gap-2 sm:grid-cols-2">
-        <div className="flex items-start gap-3 rounded-lg border border-border p-4">
+        <div
+          className={cn(
+            'flex items-start gap-3 rounded-lg border p-4 transition-colors',
+            nextSoon ? 'border-accent bg-accent/10' : 'border-border',
+          )}
+          data-testid="live-next-card"
+          data-soon={nextSoon ? 'yes' : 'no'}
+        >
           {next?.photo && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -313,8 +391,17 @@ export function LiveBoard({
             </p>
             {next?.detail && <p className="mt-0.5 text-sm text-muted-foreground">{next.detail}</p>}
             {next && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                대기실에서 <strong className="text-foreground">{next.title}</strong> 을(를) 무대 옆으로
+              <p className={cn('mt-1 text-xs', nextSoon ? 'font-medium text-accent' : 'text-muted-foreground')}>
+                {nextSoon ? (
+                  <>
+                    <Bell className="mr-1 inline h-3.5 w-3.5" aria-hidden />곧 다음 차례입니다 —{' '}
+                    <strong>{next.title}</strong> 을(를) 무대 옆으로
+                  </>
+                ) : (
+                  <>
+                    대기실에서 <strong className="text-foreground">{next.title}</strong> 을(를) 무대 옆으로
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -368,6 +455,35 @@ export function LiveBoard({
             <RotateCcw className="h-5 w-5" />
           </Button>
         </div>
+      )}
+
+      {/* 다음 차례 알림 — 화면을 계속 안 보셔도 되게 */}
+      {canLead && (
+        <section className="rounded-lg border border-border p-3" data-testid="live-chime">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={chime}
+              onChange={(native) => toggleChime(native.target.checked)}
+              className="h-4 w-4"
+            />
+            {chime ? (
+              <Bell className="h-4 w-4 text-accent" aria-hidden />
+            ) : (
+              <BellOff className="h-4 w-4 text-muted-foreground" aria-hidden />
+            )}
+            <span>
+              <strong>다음 차례 알림음</strong>
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                다음 아이 차례 {CHIME_LEAD_SEC}초 전에 짧게 한 번 울립니다
+              </span>
+            </span>
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            켜시면 지금 한 번 들려 드립니다. 객석에는 안 들릴 만큼 작은 소리입니다 — 소리를 못 듣는
+            자리에서도 위 <strong>다음</strong> 칸이 함께 켜집니다.
+          </p>
+        </section>
       )}
 
       {/* 함께 보기 */}

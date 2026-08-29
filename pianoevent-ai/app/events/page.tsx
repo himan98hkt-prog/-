@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Plus, Users } from 'lucide-react'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
+import { isDemoEvent } from '@/lib/events/demo-seed'
 import { DemoEventButton } from '@/components/event/demo-event'
 import { EventImport } from '@/components/event/event-transfer'
 import { ProgressDots } from '@/components/flow/progress-dots'
@@ -78,6 +79,8 @@ export default async function EventsPage() {
                           {EVENT_STATUS_LABEL[event.status]}
                         </Badge>
                         {event.theme && <Badge variant="default">{SEASON_LABEL[event.theme]}</Badge>}
+                        {/* 진짜 행사와 섞이면 안 된다. 목록에서 한눈에 갈라져 보여야 한다 */}
+                        {isDemoEvent(event.title) && <Badge variant="outline">구경용</Badge>}
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">

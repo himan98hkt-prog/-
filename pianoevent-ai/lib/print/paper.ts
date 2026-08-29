@@ -188,3 +188,43 @@ export function getPrintTextSize(id: string | null | undefined): { id: PrintText
 export function sheetsAtTextSize(contentHeightPx: number, paper: Paper, marginPx: number, id: PrintTextSize): number {
   return sheetsNeeded(contentHeightPx * getPrintTextSize(id).scale, paper, marginPx)
 }
+
+/**
+ * 뽑기 직전 **마지막 한 줄.**
+ *
+ * 인쇄 대화상자는 브라우저 것이라 우리가 못 고친다. 거기서 잘못 눌러 종이를 버리는
+ * 자리는 늘 같은 넷이다 — 종이 · 장수 · 색 · 양면. 그래서 누르시기 **전에**
+ * 이 넷을 큰 글씨로 한 번 되짚어 드린다. 다르면 그때 인쇄 창에서 고치시면 된다.
+ *
+ * 숫자를 새로 지어내지 않는다. 위 띠에서 이미 세어 둔 값을 그대로 옮긴다.
+ */
+export interface PrintSummaryRow {
+  what: string
+  value: string
+}
+
+export function printSummary(input: {
+  paperLabel: string
+  sheets: number
+  copies?: number
+  duplex?: boolean
+  /** 색을 빼고 뽑아도 되는 인쇄물인가 (진행표·체크리스트처럼 글만 있는 것) */
+  grayOk?: boolean
+}): PrintSummaryRow[] {
+  const copies = Math.max(1, Math.round(input.copies ?? 1))
+  const total = totalSheets(input.sheets, copies)
+  return [
+    { what: '종이', value: input.paperLabel },
+    {
+      what: '장수',
+      value: copies > 1 ? `${input.sheets}장 × ${copies}부 = ${total.toLocaleString('ko-KR')}장` : `${input.sheets}장`,
+    },
+    { what: '색', value: input.grayOk ? '흑백으로 뽑으셔도 됩니다' : '컬러' },
+    { what: '양면', value: input.duplex ? '예 · 짧은 쪽 넘기기' : '아니요 (한 면씩)' },
+  ]
+}
+
+/** 한 줄로 — "A4 세로 · 12장 · 컬러 · 양면 아님" */
+export function printSummaryLine(rows: PrintSummaryRow[]): string {
+  return rows.map((row) => row.value).join(' · ')
+}

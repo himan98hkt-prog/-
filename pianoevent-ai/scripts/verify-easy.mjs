@@ -329,6 +329,26 @@ try {
   const zeroSheets = allPacks.filter((t) => /종이 0장/.test(t)).length
   check('장수가 0장으로 나오지 않는다', zeroSheets === 0, `${zeroSheets}벌`)
 
+  // 하나만 정해 드리면 "마음에 안 드는데" 에서 막히신다. 셋이면 견주신다
+  const choices = page.getByTestId('design-choices')
+  check('견주어 보실 세 장이 있다', (await choices.count()) === 1)
+  const choiceCards = choices.locator('button')
+  check('세 장이다 — 넷이면 다시 고민이 시작된다', (await choiceCards.count()) === 3, `${await choiceCards.count()}장`)
+  const thumbs = await choices.locator('button > span:first-child').count()
+  check('카드마다 실제 그림이 들어 있다 — 색 동그라미로는 못 고르신다', thumbs === 3, `${thumbs}장`)
+  const cardWords = await choiceCards.evaluateAll((nodes) => nodes.map((n) => n.textContent ?? ''))
+  check('무엇이 다른지 글로도 적혀 있다', cardWords.every((t) => t.trim().length > 2), cardWords.join(' / '))
+  check('담백한 쪽과 화려한 쪽이 함께 있다', (await choices.getByTestId('design-choice-plain').count()) === 1 && (await choices.getByTestId('design-choice-fancy').count()) === 1)
+
+  // 눌러 보시면 큰 그림이 그대로 바뀐다 — 안 바뀌면 고른 뜻이 없다
+  const beforePick = await designPreview.textContent()
+  await choices.getByTestId('design-choice-fancy').click()
+  await page.waitForTimeout(900)
+  check('누르면 그 장이 골라진다', (await choices.locator('button[aria-pressed="true"]').count()) === 1)
+  const afterPick = await designPreview.textContent()
+  check('누르면 오른쪽 큰 그림도 바뀐다', afterPick !== beforePick || (await choices.getByTestId('design-choice-fancy').getAttribute('aria-pressed')) === 'true')
+  await page.screenshot({ path: join(OUT, 'design-choices.jpg'), type: 'jpeg', quality: 82 })
+
   // 좁은 화면에서도 가로로 넘치지 않아야 한다 (넘치면 단추가 화면 밖으로 나간다)
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const small = await phone.newPage()
@@ -572,6 +592,17 @@ try {
   await page.waitForTimeout(300)
   check('부수를 넣으면 종이 총량을 알려 준다', (await bar.textContent()).includes(`${sheets * 100}장`))
 
+  // 뽑기 직전 마지막 한 줄 — 인쇄 창에서 무엇을 봐야 하는지
+  const summary = page.getByTestId('print-summary')
+  check('뽑기 전 마지막 확인이 있다', (await summary.count()) === 1)
+  const summaryText = (await summary.textContent()).replace(/\s+/g, ' ')
+  check('종이·장수·색·양면 넷을 짚어 준다', ['종이', '장수', '색', '양면'].every((w) => summaryText.includes(w)), summaryText.slice(0, 90))
+  check('부수까지 곱해 적어 준다', summaryText.includes(`${sheets * 100}`) || summaryText.includes((sheets * 100).toLocaleString('ko-KR')), summaryText.slice(0, 120))
+  const summarySize = await summary.locator('dd').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  const pageSize = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize))
+  check('마지막 확인은 큰 글씨다 — 흘려보시면 뜻이 없다', summarySize >= pageSize, `${summarySize.toFixed(1)}px / ${pageSize.toFixed(1)}px`)
+  await page.screenshot({ path: join(OUT, 'print-summary.jpg'), type: 'jpeg', quality: 82 })
+
   check('인쇄 설정 안내는 접혀 있다', (await page.getByTestId('print-howto').count()) === 0)
   await page.getByTestId('print-howto-toggle').click()
   await page.waitForTimeout(300)
@@ -622,6 +653,7 @@ try {
   check('인쇄물도 종이 장수를 알려 준다', (await page.getByTestId('print-sheets').count()) === 1)
   check('인쇄물에도 인쇄 설정 안내가 있다', (await page.getByTestId('print-howto-toggle').count()) === 1)
   check('인쇄물에도 첫 장만 뽑는 단추가 있다', (await page.getByTestId('print-first').count()) === 1)
+  check('인쇄물에도 뽑기 전 마지막 확인이 있다', (await page.getByTestId('print-summary').count()) === 1)
 
   // ── 종이 위 글씨 크기 ───────────────────────────────────────────
   console.log('\n[종이 글씨 크기]')
@@ -651,10 +683,16 @@ try {
   const duplexText = await duplex.textContent()
   check('넘기는 방향까지 짚어 준다 — 긴 쪽이면 속장이 뒤집힌다', duplexText.includes('짧은 쪽'))
   check('접으면 무엇이 되는지 적어 준다', duplexText.includes('반으로 접으면'))
+  const bookletSummary = await page.getByTestId('print-summary').textContent()
+  check('마지막 확인에도 양면이라고 적힌다', bookletSummary.includes('짧은 쪽'), bookletSummary.replace(/\s+/g, ' ').slice(0, 90))
 
   await page.goto(`${BASE}/events/${EVENT_ID}/design/print?template=poster-classic`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(900)
   check('보통 인쇄물에는 양면 안내를 띄우지 않는다', (await page.getByTestId('duplex-hint').count()) === 0)
+  check(
+    '보통 인쇄물의 마지막 확인은 한 면씩이라고 적는다',
+    (await page.getByTestId('print-summary').textContent()).includes('아니요'),
+  )
 
   // ── 인쇄소용 (재단선 · 물림 여백) ────────────────────────────────
   console.log('\n[인쇄소에 맡기실 때]')
@@ -870,7 +908,23 @@ try {
   const demoEvent = ((await (await page.request.get(`${BASE}/api/events`)).json()).events ?? []).find((e) => e.id === demoId)
   check('연주 순서까지 이미 짜여 있다', Boolean(demoEvent?.program_source), String(demoEvent?.program_source))
   check('구경용이라고 이름에 적혀 있다', (demoEvent?.title ?? '').includes('지우셔도'), demoEvent?.title)
+
+  // 구경은 끝이 있어야 한다 — 진짜 행사로 가시거나, 지우시거나
+  const demoBar = page.getByTestId('demo-banner')
+  check('구경용 행사에는 안내 띠가 붙는다', (await demoBar.count()) === 1)
+  const barText = await demoBar.textContent()
+  check('지어낸 자료라고 말해 준다', barText.includes('지어낸'), barText.slice(0, 50))
+  check('무엇을 해도 학원 자료는 그대로라고 안심시킨다', barText.includes('학원 자료'))
+  check('이제 진짜 행사를 만들 자리가 있다', (await demoBar.getByTestId('demo-to-real').count()) === 1)
+  check(
+    '진짜 행사 만들기가 새 행사 화면으로 간다',
+    (await demoBar.getByTestId('demo-to-real').getAttribute('href')) === '/events/new',
+  )
   await page.screenshot({ path: join(OUT, 'demo-event.jpg'), type: 'jpeg', quality: 82 })
+
+  await page.goto(`${BASE}/events`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(700)
+  check('목록에서도 구경용인 줄 안다', (await page.getByText('구경용', { exact: true }).count()) >= 1)
 
   // ── 무대 모양 그림에 진짜 사진이 들어간다 ────────────────────────
   console.log('\n[무대 모양 — 내 아이 사진으로]')
@@ -895,6 +949,45 @@ try {
   const baseFont = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize))
   check('당일 화면 글씨가 보통보다 크다', liveFont > baseFont, `${liveFont.toFixed(1)}px / ${baseFont.toFixed(1)}px`)
   await page.screenshot({ path: join(OUT, 'live-big.jpg'), type: 'jpeg', quality: 82 })
+
+  // 화면만 보고 계실 수 없는 자리다 — 소리로도 알려 드린다
+  const chimeBox = page.getByTestId('live-chime')
+  check('다음 차례 알림음을 켤 수 있다', (await chimeBox.count()) === 1)
+  const chimeText = await chimeBox.textContent()
+  check('몇 초 전에 울리는지 적혀 있다', /\d+초 전/.test(chimeText), chimeText.replace(/\s+/g, ' ').slice(0, 70))
+  check('객석에 안 들릴 크기라고 적어 준다', chimeText.includes('객석'))
+  check('소리를 못 듣는 자리도 챙긴다 — 화면에도 켜진다고 적었다', chimeText.includes('다음'))
+  // 소리 파일을 실어 나르지 않는다 (저작권 · 오프라인)
+  const audioFiles = await page.evaluate(() =>
+    performance.getEntriesByType('resource').filter((r) => /\.(mp3|wav|ogg|m4a)(\?|$)/i.test(r.name)).length,
+  )
+  check('알림에 소리 파일을 쓰지 않는다 — 브라우저가 직접 낸다', audioFiles === 0, `${audioFiles}개`)
+
+  const chimeInput = chimeBox.locator('input[type="checkbox"]')
+  check('처음에는 꺼져 있다 — 묻지 않고 소리를 내지 않는다', (await chimeInput.isChecked()) === false)
+  await chimeInput.check()
+  await page.waitForTimeout(400)
+  check('켜진다', await chimeInput.isChecked())
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  check(
+    '새로고침해도 켜 두신 대로다 — 당일에 다시 켜게 하면 안 된다',
+    await page.getByTestId('live-chime').locator('input[type="checkbox"]').isChecked(),
+  )
+  check('다음 칸이 곧 차례인지 함께 알려 준다', (await page.getByTestId('live-next-card').count()) === 1)
+  await page.screenshot({ path: join(OUT, 'live-chime.jpg'), type: 'jpeg', quality: 82 })
+
+  // ── 감동영상 30초 맛보기 ────────────────────────────────────────
+  console.log('\n[감동영상 30초 맛보기]')
+  await page.goto(`${BASE}/events/${demoId}/video`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(3000)
+  const taster = page.getByTestId('video-taster')
+  check('30초만 먼저 만들어 보는 단추가 있다', (await taster.count()) === 1)
+  const tasterText = await taster.textContent()
+  check('몇 초짜리인지 단추에 적혀 있다', /\d+초/.test(tasterText), tasterText.trim())
+  const tasterTip = await taster.getAttribute('title')
+  check('몇 장면이 담기는지 알려 준다', /\d+장면/.test(tasterTip ?? ''), tasterTip ?? '')
+  await page.screenshot({ path: join(OUT, 'video-taster.jpg'), type: 'jpeg', quality: 82 })
 
   // ── 설명서 그림 ──────────────────────────────────────────────────
   console.log('\n[설명서 그림]')

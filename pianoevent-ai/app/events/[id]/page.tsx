@@ -2,6 +2,7 @@ import { CalendarDays, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
+import { DemoBanner } from '@/components/event/demo-banner'
 import { EventHub } from '@/components/flow/event-hub'
 import { ScreenHeader } from '@/components/flow/screen-header'
 import { PlanPanel } from '@/components/event/plan-panel'
@@ -10,6 +11,7 @@ import { ProgramPanel } from '@/components/event/program-panel'
 import { RosterEditor } from '@/components/event/roster-editor'
 import { Badge } from '@/components/ui/badge'
 import { formatEventDate } from '@/lib/format'
+import { isDemoEvent } from '@/lib/events/demo-seed'
 import { normalizeTimingLog } from '@/lib/ops/timing'
 import { resolvePlan } from '@/lib/program/resolve'
 import { currentAcademy } from '@/lib/session'
@@ -100,6 +102,9 @@ export default async function EventPage({
           </div>
         </div>
       </div>
+
+      {/* 구경용은 끝이 있어야 한다 — 진짜 행사로 가시거나, 지우시거나 */}
+      {isDemoEvent(event.title) && <DemoBanner eventId={event.id} />}
 
       {tab === 'hub' ? (
         <EventHub eventId={event.id} state={flow} />

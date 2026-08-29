@@ -29,7 +29,7 @@ import {
 } from '@/lib/design/themes'
 import type { Academy, EventRecord, ProgramPlan, Rsvp } from '@/lib/types'
 import { ThemePicker } from '@/components/design/theme-picker'
-import { describePick, recommendDesign } from '@/lib/design/recommend'
+import { describePick, recommendDesign, recommendDesigns } from '@/lib/design/recommend'
 import { cn } from '@/lib/utils'
 
 const PREVIEW_WIDTH = 520
@@ -57,6 +57,22 @@ export function DesignStudio({
   const pick = useMemo(
     () =>
       recommendDesign({
+        eventAt: event.event_at,
+        hasProgram: plan.items.length > 0,
+        themeId: event.design_theme ?? academy.design_theme ?? null,
+        templateId: event.design_template ?? null,
+      }),
+    [event.event_at, event.design_theme, event.design_template, academy.design_theme, plan.items.length],
+  )
+  /**
+   * 견주어 보실 **세 장.**
+   *
+   * 하나만 정해 드리면 "마음에 안 드는데" 에서 막히시고, 100종을 펼치면 처음으로 돌아간다.
+   * 셋이면 한눈에 견주신다. 눌러 보시면 오른쪽 큰 그림이 그대로 바뀐다.
+   */
+  const choices = useMemo(
+    () =>
+      recommendDesigns({
         eventAt: event.event_at,
         hasProgram: plan.items.length > 0,
         themeId: event.design_theme ?? academy.design_theme ?? null,
@@ -177,7 +193,43 @@ export function DesignStudio({
             <strong className="text-foreground">{describePick(pick)}</strong> 로 맞춰 두었습니다. {pick.why}{' '}
             오른쪽 그림이 그대로 나옵니다 — 아래 <strong>[인쇄 · PDF]</strong> 만 누르시면 됩니다.
           </p>
-          <p className="text-xs text-muted-foreground">바꾸고 싶은 것이 있을 때만 아래를 손보세요.</p>
+
+          {/* 마음에 안 드실 때 100종으로 보내지 않는다. 딴 길 둘만 옆에 세워 둔다 */}
+          <div className="mt-1 grid grid-cols-3 gap-2" data-testid="design-choices">
+            {choices.map((choice) => {
+              const chosen = choice.themeId === themeId && choice.templateId === templateId
+              return (
+                <button
+                  key={choice.kind}
+                  type="button"
+                  onClick={() => {
+                    setThemeId(choice.themeId)
+                    setTemplateId(choice.templateId)
+                    setFamily(getTheme(choice.themeId).family)
+                    setCategory(getTemplate(choice.templateId).category)
+                  }}
+                  aria-pressed={chosen}
+                  title={choice.why}
+                  data-testid={`design-choice-${choice.kind}`}
+                  className={cn(
+                    'grid gap-1 rounded-md border p-1.5 text-left transition-colors',
+                    chosen ? 'border-accent bg-background shadow-sm' : 'border-border hover:bg-background/60',
+                  )}
+                >
+                  <ChoiceThumb templateId={choice.templateId} ctx={{ ...ctx, theme: getTheme(choice.themeId) }} />
+                  <span className="block text-[11px] font-medium leading-tight">{choice.label}</span>
+                  <span className="block truncate text-[10px] leading-tight text-muted-foreground">
+                    {getTheme(choice.themeId).name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            셋 다 마음에 안 드실 때만 아래에서 고르세요 — 양식 {DESIGN_TEMPLATE_COUNT}종 · 테마{' '}
+            {DESIGN_THEMES.length}종이 다 있습니다.
+          </p>
         </section>
 
         <Card>
@@ -403,5 +455,36 @@ export function DesignStudio({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * 견줌 카드에 들어가는 아주 작은 그림.
+ *
+ * 색 동그라미 세 개로는 "무슨 느낌인지" 를 알 수 없다. 실제로 뽑힐 그림을
+ * 그대로 줄여 보여 드려야 고르실 수 있다. 큰 미리보기와 같은 것을 그리되,
+ * 카드 폭에 맞게만 줄인다.
+ */
+function ChoiceThumb({
+  templateId,
+  ctx,
+}: {
+  templateId: string
+  ctx: Parameters<typeof renderTemplate>[1]
+}) {
+  const page = PAGE_PX[getTemplate(templateId).page]
+  const width = 88
+  const scale = width / page.w
+
+  return (
+    <span
+      className="block overflow-hidden rounded border border-border bg-muted/40"
+      style={{ width, height: Math.round(page.h * scale) }}
+      aria-hidden
+    >
+      <span className="block" style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+        {renderTemplate(templateId, ctx, true)}
+      </span>
+    </span>
   )
 }

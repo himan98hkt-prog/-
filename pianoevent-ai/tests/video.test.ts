@@ -34,6 +34,8 @@ import {
   MAX_MESSAGE_SCENES,
   MAX_TOTAL_SEC,
   SCENE_MIN_SEC,
+  TASTER_SEC,
+  tasterRange,
   totalSeconds,
   type ExtraMedia,
   type VideoScene,
@@ -931,5 +933,62 @@ describe('응원 부분만 다시 만들기', () => {
 
   it('응원이 없으면 잡을 구간도 없다', () => {
     expect(cheerRange(board())).toBeNull()
+  })
+})
+
+describe('30초만 먼저 만들어 보기', () => {
+  /** 실제 학원 규모 — 20명이면 영상이 3분을 넘는다 */
+  const bigPlan = buildProgram(
+    Array.from({ length: 20 }, (_, i) =>
+      student(`아이${i + 1}`, i % 3 === 0 ? 'beginner' : i % 3 === 1 ? 'intermediate' : 'advanced', 120 + i * 5, {
+        piece_title: `곡 ${i + 1}`,
+      }),
+    ),
+  )
+  const bigBoard = () =>
+    buildStoryboard({
+      event,
+      plan: bigPlan,
+      academyName: '하모니 피아노학원',
+      photos: {},
+      extras: [],
+      options: DEFAULT_STORYBOARD_OPTIONS,
+    })
+
+  it('긴 영상은 앞 30초 안팎으로 끊어 준다', () => {
+    const scenes = bigBoard()
+    const span = tasterRange(scenes)
+    expect(span).not.toBeNull()
+    expect(span!.from).toBe(0)
+    const seconds = totalSeconds(scenes.slice(0, span!.to + 1))
+    // 마지막 한 장면은 30초를 살짝 넘길 수 있다 — 장면을 잘라 내지는 않는다
+    expect(seconds).toBeLessThanOrEqual(TASTER_SEC + 30)
+  })
+
+  it('제목 한 장만 담지 않는다 — 아이가 어떻게 나오는지 보셔야 한다', () => {
+    const span = tasterRange(bigBoard())
+    expect(span!.to).toBeGreaterThanOrEqual(1)
+  })
+
+  it('아이가 몇 안 되어 영상이 짧으면 맛보기를 권하지 않는다 — 그냥 다 만드시면 된다', () => {
+    expect(tasterRange(board())).toBeNull()
+  })
+
+  it('이미 짧은 영상은 맛보기가 뜻이 없다', () => {
+    const short: VideoScene[] = [
+      { id: 'a', kind: 'title', seconds: 6, lines: ['하나'] },
+      { id: 'b', kind: 'title', seconds: 6, lines: ['둘'] },
+    ] as VideoScene[]
+    expect(tasterRange(short)).toBeNull()
+  })
+
+  it('장면이 하나뿐이면 나눌 것이 없다', () => {
+    expect(tasterRange([{ id: 'a', kind: 'title', seconds: 600, lines: ['하나'] }] as VideoScene[])).toBeNull()
+  })
+
+  it('끊는 자리는 늘 장면 안이다', () => {
+    const scenes = bigBoard()
+    const span = tasterRange(scenes)!
+    expect(span.to).toBeLessThan(scenes.length)
   })
 })

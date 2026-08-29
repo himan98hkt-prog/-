@@ -4,6 +4,7 @@ import { ChevronDown, FileCheck2, Printer } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { printNow } from '@/components/print/print-now'
+import { PrintSummary } from '@/components/print/print-summary'
 import { DUPLEX_HINT, PRINT_CHECKLIST, totalSheets } from '@/lib/print/paper'
 import { cn } from '@/lib/utils'
 
@@ -68,6 +69,9 @@ export function PrintTips({
           인쇄 · PDF 저장
         </Button>
       </div>
+
+      {/* 뽑기 직전 마지막 한 줄 — 종이·장수·색·양면 */}
+      <PrintSummary paperLabel={paperLabel} sheets={sheets} copies={copies} duplex={duplex} />
 
       {/* 책자는 양면으로 뽑아야 뜻이 있다. 넘기는 방향까지 틀리면 접었을 때 속장이 뒤집힌다 */}
       {duplex && (
