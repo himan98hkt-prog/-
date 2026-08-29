@@ -8,9 +8,18 @@
 name: PianoEvent 설치본 만들기
 
 on:
+  # 손으로 눌러 만들기 (기본 브랜치에 들어간 뒤부터 눌립니다)
   workflow_dispatch:
+  # 판올림 표를 붙이면 만들기
   push:
-    tags: ['v*']
+    tags: ['pianoevent-v*']
+    # 아직 기본 브랜치에 안 들어간 동안에도 설치본을 받아 보실 수 있게
+    branches: ['claude/piano-event-program-**']
+    paths:
+      - 'pianoevent-ai/desktop/**'
+      - 'pianoevent-ai/electron-builder.yml'
+      - 'pianoevent-ai/scripts/build-desktop.mjs'
+      - '.github/workflows/pianoevent-installer.yml'
 
 jobs:
   build:
