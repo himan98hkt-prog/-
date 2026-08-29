@@ -291,21 +291,37 @@ def configdiff_tests() -> None:
         "output:\n"
         "  width: 1080\n"
         "  fps: 30          # 왜 30 인지 적어둔 주석\n"
+        "  hook_overlay:\n"
+        "    enabled: false\n"
+        "  seamless_loop:\n"
+        "    enabled: false\n"
+        "cost:\n"
+        "  hard_cap_usd: 25.0\n"
         "providers:\n"
         "  fal:\n"
         "    models:\n"
         "      x:\n"
-        "        fps: 999\n", encoding="utf-8")
+        "        fps: 999\n"
+        "        enabled: true\n", encoding="utf-8")
     new.write_text(
         "mode: chain\n"
         "model: hailuo_23_pro\n"
         "poll_timeout_seconds: 1800\n"
         "output:\n"
         "  width: 1080\n"
-        "  fps: auto\n", encoding="utf-8")
+        "  fps: auto\n"
+        "  hook_overlay:\n"
+        "    enabled: false\n"
+        "  seamless_loop:\n"
+        "    enabled: true\n"
+        "cost:\n"
+        "  hard_cap_usd: 25.0\n"
+        "  monthly_cap_usd: 30\n", encoding="utf-8")
 
     changes = {c.key: c for c in configdiff.compare(cur, new)}
     check("output 안쪽 값도 비교한다", "output.fps" in changes)
+    check("두 단계 안쪽도 비교한다", "output.seamless_loop.enabled" in changes,
+          str(sorted(changes)))
     check("바뀔 값을 정확히 짚는다",
           changes["output.fps"].current == "30"
           and changes["output.fps"].incoming == "auto")
@@ -318,15 +334,30 @@ def configdiff_tests() -> None:
     parsed = yaml.safe_load(text)
 
     check("output.fps 가 실제로 바뀐다", parsed["output"]["fps"] == "auto")
+    check("두 단계 안쪽도 바뀐다",
+          parsed["output"]["seamless_loop"]["enabled"] is True)
+    check("이름이 같은 옆 항목은 그대로",
+          parsed["output"]["hook_overlay"]["enabled"] is False,
+          "seamless_loop.enabled 와 이름이 같다")
     check("주석은 살아 있다", "왜 30 인지 적어둔 주석" in text)
-    check("없던 키는 새로 추가된다", parsed.get("poll_timeout_seconds") == 1800)
+    check("없던 맨 윗단 키는 새로 추가된다",
+          parsed.get("poll_timeout_seconds") == 1800)
+    check("없던 하위 키는 부모 블록 안에 들어간다",
+          parsed["cost"].get("monthly_cap_usd") == 30,
+          "cost: 블록 안에 끼워 넣는다")
     check("providers 안쪽 fps 는 그대로", parsed["providers"]["fal"]["models"]["x"]["fps"] == 999)
+    check("providers 안쪽 enabled 도 그대로",
+          parsed["providers"]["fal"]["models"]["x"]["enabled"] is True)
     check("적용 목록에 다 들어 있다",
-          set(applied) == {"model", "output.fps", "poll_timeout_seconds"}, str(applied))
+          set(applied) == {"model", "output.fps", "output.seamless_loop.enabled",
+                           "poll_timeout_seconds", "cost.monthly_cap_usd"},
+          str(sorted(applied)))
     check("적용 뒤에는 알림이 사라진다", configdiff.compare(cur, new) == [])
 
     # 두 번 눌러도 같은 결과여야 한다.
     check("다시 눌러도 바뀌는 게 없다", configdiff.apply(cur, {"output.fps": "auto"}) == [])
+    check("두 번 적용해도 그대로",
+          configdiff.apply(cur, {k: c.incoming for k, c in changes.items()}) == [])
 
     # 실제 배포 설정에도 적용된다 — 여기서 놓치면 사용자에게 안 닿는다.
     real = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
@@ -473,6 +504,81 @@ def saver_tests() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  8. 이번 달 상한 — 하루 조금씩 서른 번을 막는다
+# ══════════════════════════════════════════════════════════════════════
+def budget_tests() -> None:
+    print("\n[예산] 이번 달 상한")
+    from datetime import date
+
+    from pipeline import budget as bud
+    from pipeline.config import load_config
+
+    runs = TMP / "budget_runs"
+    this_month = date.today().strftime("%Y%m")
+    other = "202601" if this_month[-2:] != "01" else "202602"
+
+    def run(name, cost):
+        d = runs / name
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "state.json").write_text(json.dumps({"cost_usd": cost}), encoding="utf-8")
+
+    run(f"{this_month}01_100000", 0.99)
+    run(f"{this_month}02_100000", 0.99)
+    run(f"{this_month}03_100000", 0)          # 안 쓴 실행은 안 센다
+    run(f"{other}15_100000", 40.0)            # 지난달은 안 센다
+    (runs / "이상한폴더").mkdir(parents=True, exist_ok=True)
+    (runs / f"{this_month}04_100000").mkdir(parents=True, exist_ok=True)  # state 없음
+
+    spent, videos = bud.spent_in(runs)
+    check("이번 달 것만 더한다", abs(spent - 1.98) < 0.001, f"${spent}")
+    check("편수도 센다", videos == 2, str(videos))
+    check("비용 0 인 실행은 빼고", videos == 2, "실패해서 안 쓴 실행")
+    check("지난달은 안 센다", spent < 40, f"${spent}")
+    check("이상한 폴더 이름은 건너뛴다", spent > 0)
+    check("없는 폴더는 0", bud.spent_in(TMP / "없는폴더") == (0.0, 0))
+
+    cfg = load_config(ROOT / "tests" / "config.test.yaml")
+    cfg.raw.setdefault("cost", {})["monthly_cap_usd"] = 30
+    state = bud.load(cfg, runs)
+    check("설정에서 상한을 읽는다", state.cap == 30.0)
+    check("남은 예산을 낸다", abs(state.left - 28.02) < 0.01, f"${state.left}")
+    check("쓴 비율을 낸다", state.used_pct == 7, f"{state.used_pct}%")
+
+    b = bud.Budget(month="2026-08", cap=30.0, spent=29.50, videos=30)
+    check("넘으면 막는다", not b.allows(0.99))
+    check("딱 맞으면 통과", b.allows(0.50))
+    msg = bud.blocked_message(b, 0.99)
+    check("왜 막혔는지 말한다", msg and "$30.49" in msg, (msg or "").splitlines()[0])
+    check("어떻게 풀지도 말한다", msg and "monthly_cap_usd" in msg)
+
+    near = bud.Budget(month="2026-08", cap=30.0, spent=28.50, videos=29)
+    check("80% 넘으면 미리 알린다", bud.warn_message(near, 0.99) is not None)
+    check("아직 여유 있으면 조용히",
+          bud.warn_message(bud.Budget("2026-08", 30.0, 1.0, 1), 0.99) is None)
+
+    free = bud.Budget(month="2026-08", cap=0.0, spent=999.0, videos=500)
+    check("상한 0 이면 안 막는다", free.allows(100.0))
+    check("상한 0 이면 남은 예산도 없음", free.left is None and free.used_pct is None)
+    check("상한 0 이면 경고도 없다", bud.warn_message(free, 100.0) is None)
+
+    # 실제 배포 설정에 상한이 들어 있는지 — 여기서 빠지면 아무 효과가 없다
+    import yaml
+    real = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    check("기본 설정에 월 상한이 있다", real["cost"].get("monthly_cap_usd") == 30.0,
+          str(real["cost"].get("monthly_cap_usd")))
+    check("기본이 20초(2클립)다", real["num_clips"] == 2, str(real["num_clips"]))
+    check("무한 루프가 켜져 있다",
+          real["output"]["seamless_loop"]["enabled"] is True)
+
+    from pipeline.costs import estimate as est
+    real_cfg = load_config(ROOT / "config.yaml")
+    per = est(real_cfg).subtotal
+    check("편당 $1 아래", per < 1.0, f"${per:.2f}")
+    check("월 상한 안에서 30편", per * 30 <= real_cfg.cost_cfg["monthly_cap_usd"],
+          f"${per * 30:.2f} / ${real_cfg.cost_cfg['monthly_cap_usd']}")
+
+
+# ══════════════════════════════════════════════════════════════════════
 def main() -> int:
     if TMP.exists():
         shutil.rmtree(TMP)
@@ -484,6 +590,7 @@ def main() -> int:
         resume_tests()
         configdiff_tests()
         saver_tests()
+        budget_tests()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
 

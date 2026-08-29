@@ -213,6 +213,7 @@ def overview() -> dict:
         "upload_failed": failed_up,
         "spent": round(spent, 2),
         "token": token_state(),
+        "budget": monthly_budget(),
         "music": music_mod.total_tracks(music_dir),
         "music_note": music_mod.describe(music_dir),
         **budget_state(spent),
@@ -347,6 +348,40 @@ def _seed_pool() -> list[Path]:
         return []
     return [p for p in sorted(SEEDS.iterdir())
             if p.is_file() and p.suffix.lower() in IMAGE_EXT]
+
+
+def config_defaults() -> dict:
+    """config.yaml 의 기본 클립 구성. 화면이 이걸 그대로 따라야 한다.
+
+    예전에는 화면이 "30초" 를 코드에 박아두고 있었다. 설정을 20초로 내려도
+    작업실에서 누르면 여전히 30초짜리가 만들어졌다 — 설정을 고쳤는데
+    화면에는 안 닿는, 이 프로그램에서 세 번째로 반복된 실수다.
+    """
+    from pipeline.config import load_config
+
+    try:
+        cfg = load_config(CONFIG)
+    except Exception:               # noqa: BLE001
+        return {"mode": "chain", "clips": 3, "duration": 10, "seconds": 30}
+    return {"mode": cfg.mode, "clips": cfg.num_clips,
+            "duration": cfg.clip_duration,
+            "seconds": cfg.num_clips * cfg.clip_duration}
+
+
+def monthly_budget() -> dict:
+    """이번 달 상한 대비 얼마나 썼는지.
+
+    실행 1회당 상한만으로는 하루 조금씩 서른 번을 못 막는다. 달 단위로
+    보여주고, config 의 monthly_cap_usd 를 넘으면 생성 자체가 막힌다.
+    """
+    from pipeline import budget as bud
+    from pipeline.config import load_config
+
+    try:
+        cfg = load_config(CONFIG)
+    except Exception:               # noqa: BLE001 — 화면 전체를 막지 않는다
+        return {"cap": 0, "spent": 0, "videos": 0}
+    return bud.load(cfg, RUNS).as_dict()
 
 
 def stats_state() -> dict:
@@ -747,6 +782,7 @@ class Handler(BaseHTTPRequestHandler):
                 "queue": upload_queue_state(),
                 "needs_restart": needs_restart(),
                 "config_diff": config_diff_state()["changes"],
+                "defaults": config_defaults(),
             })
             return
 
@@ -982,6 +1018,13 @@ class Handler(BaseHTTPRequestHandler):
         clips = clip_count(body.get("clips"), mode, len(scenes))
         duration = max(1, min(_positive(body.get("duration"), 5), 15))
 
+        # 이번 달 상한을 넘으면 여기서 막는다. 안 막으면 검은 창에서만
+        # 거절당하고 화면은 "시작했습니다" 로 보인다.
+        blocked = self._budget_block(clips, duration)
+        if blocked:
+            self._json({"error": blocked}, 400)
+            return
+
         args = ["main.py", "generate", "--image", f"seeds/{name}",
                 "--mode", mode, "--clips", str(clips),
                 "--duration", str(duration), "--yes"]
@@ -1074,6 +1117,18 @@ class Handler(BaseHTTPRequestHandler):
             args.append("--only")
         job = jobs.start("redo", f"{run_id} · {clip}번 클립 다시", args, ROOT)
         self._json({"id": job.id})
+
+    def _budget_block(self, clips: int, duration: int) -> str | None:
+        """이번 달 상한을 넘기면 사람이 읽을 이유를, 아니면 None."""
+        from pipeline import budget as bud
+        from pipeline.config import load_config
+        from pipeline.costs import estimate as est
+
+        try:
+            cfg = load_config(CONFIG, num_clips=clips, clip_duration=duration)
+            return bud.blocked_message(bud.load(cfg, RUNS), est(cfg).subtotal)
+        except Exception:           # noqa: BLE001 — 못 재면 막지 않는다
+            return None
 
     def _apply_config(self, body: dict) -> None:
         """새 설정을 사용자 config.yaml 에 반영한다. 고르는 것은 사용자다."""

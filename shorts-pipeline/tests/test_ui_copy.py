@@ -139,6 +139,41 @@ def make_seed(seeds: Path) -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════
+
+def defaults_from_config(page, check) -> None:
+    """화면의 기본 길이가 **config.yaml 을 따라야 한다.**
+
+    예전에는 화면이 "30초" 를 코드에 박아두고 있었다. 설정을 20초로 내려도
+    작업실에서 누르면 30초짜리가 나왔다 — 편당 $0.99 대신 $1.49.
+    설정을 고쳤는데 화면에 안 닿는, 이 프로그램에서 반복된 실수다.
+    """
+    import yaml
+
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    want_clips, want_dur = cfg["num_clips"], cfg["clip_duration"]
+
+    page.click("#t-make")
+    page.wait_for_timeout(1500)
+    check("클립 길이가 설정을 따른다",
+          page.eval_on_selector("#duration", "e=>Number(e.value)") == want_dur,
+          f"화면 {page.eval_on_selector('#duration', 'e=>e.value')} vs 설정 {want_dur}")
+    got = page.eval_on_selector("#clips", "e=>Number(e.value)")
+    check("클립 수가 설정을 따른다", got == want_clips,
+          f"화면 {got} vs 설정 {want_clips}")
+
+    # 사용자가 고른 값은 자동 새로고침(6초)에 되돌아가면 안 된다.
+    options = page.eval_on_selector_all("#clips option", "e=>e.map(x=>Number(x.value))")
+    other = next((o for o in options if o != want_clips), None)
+    if other is not None:
+        page.select_option("#clips", str(other))
+        page.wait_for_timeout(7500)
+        kept = page.eval_on_selector("#clips", "e=>Number(e.value)")
+        check("사용자가 고른 값은 안 되돌아간다", kept == other, f"{other} -> {kept}")
+        # 뒤에 오는 검사들이 깨끗한 상태에서 시작하도록 되돌린다.
+        page.select_option("#clips", str(want_clips))
+        page.wait_for_timeout(300)
+
+
 def main() -> int:
     from playwright.sync_api import sync_playwright
 
@@ -187,6 +222,8 @@ def main() -> int:
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(f"http://127.0.0.1:{ui_port}/", wait_until="networkidle")
 
+            defaults_from_config(page, check)
+
             # [1 · 이미지 고르기] 탭으로. 간편 모드는 버튼 하나만 보여준다.
             page.click("#t-make")
             page.wait_for_timeout(400)
@@ -204,17 +241,27 @@ def main() -> int:
             page.wait_for_timeout(200)
             o10, v10 = opts(), page.input_value("#clips")
             check("10초일 때 선택지가 [2,3,4,5]", o10 == ["2", "3", "4", "5"], str(o10))
-            check("10초 기본이 3개 = 30초", v10 == "3", f"실제 {v10}")
+            # 기본값은 **config.yaml 이 정한다.** 숫자를 여기 박아두면 설정을
+            # 바꿨을 때 검사만 통과하고 화면은 안 따라온다.
+            import yaml
+            want = yaml.safe_load(
+                (ROOT / "config.yaml").read_text(encoding="utf-8"))["num_clips"]
+            check(f"10초 기본이 설정대로 {want}개", v10 == str(want),
+                  f"화면 {v10} vs 설정 {want}")
 
             page.select_option("#duration", "5")
             page.wait_for_timeout(200)
             o5, v5 = opts(), page.input_value("#clips")
             check("5초일 때 선택지가 [4,6,8,10]", o5 == ["4", "6", "8", "10"], str(o5))
-            check("길이를 바꿔도 30초를 지킨다", v5 == "6", f"실제 {v5}")
+            # 지켜야 하는 것은 "6개" 라는 숫자가 아니라 **총 길이**다.
+            # 숫자를 박아두면 설정을 바꿀 때마다 검사가 깨진다.
+            check("길이를 바꿔도 총 초를 지킨다", int(v5) * 5 == int(v10) * 10,
+                  f"{v10}x10초 -> {v5}x5초")
 
             page.select_option("#duration", "10")
             page.wait_for_timeout(200)
-            check("되돌려도 30초 (3개)", page.input_value("#clips") == "3")
+            check("되돌리면 원래대로", page.input_value("#clips") == v10,
+                  f"{v10} -> {page.input_value('#clips')}")
             check("select 가 비지 않는다 — 예전 5초 1클립 버그",
                   page.input_value("#clips") != "")
 
@@ -291,8 +338,12 @@ def main() -> int:
             page.click("#m-chain")
             page.wait_for_timeout(500)
             check("돌아오면 드롭다운이 살아난다", not page.is_hidden("#clipsPick"))
-            check("장면 수가 클립 수로 새지 않는다", page.input_value("#clips") == "3",
-                  page.input_value("#clips"))
+            # 장면 3장을 골랐다가 [이어지는 영상] 으로 돌아오면, 그 3 이 클립
+            # 수로 따라오면 안 된다. 설정의 기본값으로 돌아가야 한다.
+            back = page.input_value("#clips")
+            check("장면 수가 클립 수로 새지 않는다", back != "3", f"실제 {back}")
+            check("설정 기본값으로 돌아간다", back == str(want),
+                  f"화면 {back} vs 설정 {want}")
 
             check("콘솔 오류 0건", not errors, "; ".join(errors[:3]))
             browser.close()

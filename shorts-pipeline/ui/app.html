@@ -716,7 +716,11 @@ async function api(path, opts) {
 async function refresh() {
   try {
     const s = await api("/api/state");
+    const first = !STATE.defaults;
     STATE = s;
+    // 처음 한 번만 설정의 기본 길이를 화면에 반영한다. 매번 하면 사용자가
+    // 방금 고른 값이 6초마다 되돌아간다.
+    if (first && s.defaults) { applyDefaults(s.defaults); syncClips(); updateCost(); }
     // 파일은 새것인데 서버가 예전 코드로 돌고 있으면 알려준다.
     // 안 그러면 새 버튼을 눌렀을 때 영문 모를 오류만 뜬다.
     $("restartBar").classList.toggle("on", !!s.needs_restart);
@@ -934,9 +938,26 @@ function syncForm() {
 // 6개 = 60초짜리가 나왔다 — 쇼츠로는 너무 길고 값은 두 배였다.
 const TOTALS = [20, 30, 40, 50];
 
+// 기본 길이는 **config.yaml 이 정한다.** 화면에 숫자를 박아두면, 설정을
+// 20초로 내려도 작업실에서 누른 영상은 30초로 나온다 — 실제로 그랬다.
+let DEFAULTS = { mode: "chain", clips: 2, duration: 10, seconds: 20 };
+
+function applyDefaults(d) {
+  if (!d) return;
+  DEFAULTS = d;
+  const dur = $("duration");
+  if (dur && [...dur.options].some((o) => Number(o.value) === d.duration)) {
+    dur.value = String(d.duration);
+  }
+  // 고른 값을 비워야 syncClips 가 설정 기본값으로 다시 잡는다. 안 비우면
+  // 화면이 먼저 그려놓은 값(3개)이 그대로 남는다.
+  const sel = $("clips");
+  if (sel) { sel.value = ""; sel.dataset.dur = ""; }
+}
+
 function chainClips(dur) {
   const out = TOTALS.map((s) => s / dur).filter((n) => Number.isInteger(n) && n >= 1);
-  return out.length ? out : [Math.max(1, Math.round(30 / dur))];
+  return out.length ? out : [Math.max(1, Math.round(DEFAULTS.seconds / dur))];
 }
 
 function syncClips() {
@@ -966,8 +987,9 @@ function syncClips() {
   $("clipsPick").hidden = false;
   $("clipsFixed").hidden = true;
   const opts = chainClips(dur);
-  // 길이를 바꿔도 총 길이를 최대한 유지한다. 30초 기본, 없으면 가장 가까운 것.
-  const wantSec = (Number(sel.value) || 0) * (Number(sel.dataset.dur) || dur) || 30;
+  // 길이를 바꿔도 총 길이를 최대한 유지한다. 처음에는 설정의 기본 길이.
+  const wantSec = (Number(sel.value) || 0) * (Number(sel.dataset.dur) || dur)
+                  || DEFAULTS.seconds;
   const keep = opts.reduce((a, b) =>
     Math.abs(b * dur - wantSec) < Math.abs(a * dur - wantSec) ? b : a);
   sel.innerHTML = opts
@@ -1802,6 +1824,7 @@ async function loadOverview() {
       <div class="stat ${o.music ? "" : "warn"}" title="${o.music_note || ""}">
         <div class="n">${o.music ?? 0}</div>
         <div class="l">${o.music ? "배경음악" : "배경음악 없음 · 무음"}</div></div>
+      ${monthTile(o)}
       ${budgetTile(o)}`;
     const link = $("setBudget");
     if (link) link.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
@@ -1942,6 +1965,20 @@ $("q-batch").onclick = async () => {
   } catch (e) { toast(e.message, true); }
 };
 
+// 이번 달 상한. 1회당 상한만으로는 하루 조금씩 서른 번을 못 막는다.
+// 넘으면 생성 자체가 막히므로, 남은 예산이 보여야 한다.
+function monthTile(o) {
+  const b = o.budget;
+  if (!b || !b.cap) return "";
+  const cls = b.left <= 0 ? "bad" : b.used_pct >= 80 ? "warn" : "";
+  const per = b.videos ? b.spent / b.videos : 0;
+  const more = per > 0 ? ` · 약 ${Math.max(0, Math.floor(b.left / per))}편 더` : "";
+  return `<div class="stat ${cls}"
+    title="이번 달(${b.month}) ${b.videos}편에 $${b.spent.toFixed(2)} 썼습니다. 상한 $${b.cap.toFixed(2)}">
+    <div class="n">$${b.left.toFixed(2)}</div>
+    <div class="l">이번 달 남은 예산 (${b.used_pct}% 씀)${more}</div></div>`;
+}
+
 // 충전액을 넣어 두면 남은 금액을, 아니면 누적 비용만 보여준다.
 function budgetTile(o) {
   if (!o.topup) {
@@ -2023,7 +2060,7 @@ function setMode(m) {
   // 안 했는데 길이와 비용이 바뀐다. 30초 기준으로 되돌린다.
   if (m === "chain" && was === "montage") {
     $("clips").dataset.dur = "";
-    $("clips").value = "";        // 값까지 비워야 30초 기준으로 다시 잡힌다
+    $("clips").value = "";        // 값까지 비워야 설정 기본값으로 다시 잡힌다
   }
   syncForm(); renderSeeds();
 }

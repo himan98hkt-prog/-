@@ -61,6 +61,7 @@ def _load(config: str, **overrides) -> Config:
 def _confirm_cost(cfg: Config, assume_yes: bool) -> None:
     est = estimate(cfg)
     typer.echo(est.render())
+    _check_budget(cfg, est.subtotal)
     if est.over_cap:
         _die(
             f"예상 비용 ${est.expected:.2f} 가 상한 ${est.hard_cap:.2f} 를 넘습니다.\n"
@@ -68,6 +69,26 @@ def _confirm_cost(cfg: Config, assume_yes: bool) -> None:
         )
     if not assume_yes and not typer.confirm("계속할까요?", default=False):
         raise typer.Exit(code=0)
+
+
+def _check_budget(cfg: Config, amount: float) -> None:
+    """이번 달 상한을 넘으면 **--yes 가 있어도** 멈춘다.
+
+    실행 1회당 상한만으로는 하루 $2 씩 서른 번을 못 막는다. 비용이
+    부담된다는 말이 나온 자리가 정확히 거기다.
+    """
+    from pipeline import budget as bud
+
+    state = bud.load(cfg, RUNS_DIR)
+    blocked = bud.blocked_message(state, amount)
+    if blocked:
+        _die(blocked)
+    warn = bud.warn_message(state, amount)
+    if warn:
+        typer.secho(f"  ⚠ {warn}", fg=typer.colors.YELLOW)
+    elif state.cap > 0:
+        typer.echo(f"  이번 달  : ${state.spent:.2f} / ${state.cap:.2f} "
+                   f"({state.videos}편)")
 
 
 def _now() -> str:
@@ -624,6 +645,16 @@ def batch_cmd(
             typer.secho(f"\n시드가 떨어졌습니다. {n - 1}편까지 만들었습니다.",
                         fg=typer.colors.YELLOW)
             break
+        # 편마다 다시 본다. 7편을 걸어두고 3편째에 상한을 넘으면
+        # 거기서 멈춰야 한다 — 시작할 때 한 번 본 것으로는 부족하다.
+        from pipeline import budget as bud
+        state = bud.load(cfg, RUNS_DIR)
+        if not state.allows(per.subtotal):
+            typer.secho(f"\n{bud.blocked_message(state, per.subtotal)}",
+                        fg=typer.colors.YELLOW)
+            typer.secho(f"{n - 1}편까지 만들고 멈춥니다.", fg=typer.colors.YELLOW)
+            break
+
         content = load_content(seed)
         typer.secho(f"\n{'─' * 60}\n[{n}/{count}] {seed.name} — 「{content.title}」",
                     bold=True)
