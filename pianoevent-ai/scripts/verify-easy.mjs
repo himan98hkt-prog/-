@@ -347,7 +347,7 @@ try {
   const pickerWords = await page.getByTestId('design-picking').textContent()
   check('우리 연주회 분위기를 묻는 말로 묶어 준다', pickerWords.includes('우리 연주회 분위기'), '')
   check('묶음 이름이 사람 말이다', pickerWords.includes('차분하고 격식 있게'), '')
-  check('가짓수는 그대로다 — 테마 100종', pickerWords.includes('테마 · 100종') || pickerWords.includes('100종'))
+  check('가짓수는 그대로다 — 테마 108종', pickerWords.includes('테마 · 108종') || pickerWords.includes('108종'))
   await page.screenshot({ path: join(OUT, 'theme-grid.jpg'), type: 'jpeg', quality: 82 })
 
   await pickingToggle.click()

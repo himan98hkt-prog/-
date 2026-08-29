@@ -70,7 +70,7 @@ export function DesignStudio({
   /**
    * 견주어 보실 **세 장.**
    *
-   * 하나만 정해 드리면 "마음에 안 드는데" 에서 막히시고, 100종을 펼치면 처음으로 돌아간다.
+   * 하나만 정해 드리면 "마음에 안 드는데" 에서 막히시고, 108종을 펼치면 처음으로 돌아간다.
    * 셋이면 한눈에 견주신다. 눌러 보시면 오른쪽 큰 그림이 그대로 바뀐다.
    */
   const choices = useMemo(
@@ -109,12 +109,12 @@ export function DesignStudio({
    * 세 장으로 되는 분은 여기서 끝내시고, 바꾸실 분만 펴신다.
    */
   const [picking, setPicking] = useState(false)
-  // 양식 40종·테마 100종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
+  // 양식 59종·테마 108종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
   const [category, setCategory] = useState<TemplateCategory>(getTemplate(opening.templateId).category)
   const [themeQuery, setThemeQuery] = useState('')
   const [family, setFamily] = useState<ThemeFamily>(getTheme(opening.themeId).family)
 
-  // 행사 달에 맞는 계절 테마 — 40종을 다 훑지 않아도 되게
+  // 행사 달에 맞는 계절 테마 — 108종을 다 훑지 않아도 되게
   const template = getTemplate(templateId)
   const theme = useMemo(() => getTheme(themeId), [themeId])
   const ctx = useMemo(
@@ -225,7 +225,7 @@ export function DesignStudio({
             )}
           </p>
 
-          {/* 마음에 안 드실 때 100종으로 보내지 않는다. 딴 길 둘만 옆에 세워 둔다 */}
+          {/* 마음에 안 드실 때 108종으로 보내지 않는다. 딴 길 둘만 옆에 세워 둔다 */}
           <div className="mt-1 grid grid-cols-3 gap-2" data-testid="design-choices">
             {choices.map((choice, index) => {
               const chosen = choice.themeId === themeId && choice.templateId === templateId
@@ -353,7 +353,7 @@ export function DesignStudio({
 
             {/*
               **이름으로는 못 고르신다.** "3단 접지 프로그램" 이 어떤 종이인지는 봐야 안다.
-              지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 51종이다.
+              지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 59종이다.
             */}
             <div className="grid grid-cols-3 gap-2" data-testid="template-grid">
               {(templatesByCategory().find((g) => g.category === category)?.items ?? []).map((item: TemplateDef) => {

@@ -33,7 +33,7 @@ export function ThemeSwatch({ id, size = 4 }: { id: string; size?: number }) {
 }
 
 /**
- * 테마 100종 고르기.
+ * 테마 108종 고르기.
  *
  * 인쇄물 화면과 무대 화면이 같은 것을 쓴다 — 두 곳에서 고르는 방법이 다르면
  * 원장님은 "왜 여기선 안 되지" 하고 멈춘다.
@@ -132,7 +132,7 @@ export function ThemePicker({
         "빈 홀의 저녁" 이라는 이름과 색 동그라미 세 개를 보고 결과를 그리실 수 있는 분은 없다.
         예전에는 서른두 줄을 이름으로 훑고, 하나씩 눌러 오른쪽 큰 그림을 봐야 아셨다.
         지금은 **종이 모양 그림**으로 늘어놓는다 — 무대 모양을 그림 격자로 바꾼 것과 같은 이유다.
-        가짓수는 그대로 100종이다. 줄인 것이 아니라 보이는 방식을 바꾼 것이다.
+        가짓수는 그대로 108종이다. 줄인 것이 아니라 보이는 방식을 바꾼 것이다.
       */}
       <div className={cn('grid gap-2', compact && 'max-h-[26rem] overflow-y-auto pr-1')} data-testid="theme-grid">
         {query.trim() ? (

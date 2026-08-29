@@ -322,7 +322,7 @@ export function StageScreen({
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            인쇄물과 같은 테마 100종입니다. 여기서 바꾸면 이 화면과 내려받는 파워포인트가 함께 바뀝니다.
+            인쇄물과 같은 테마 108종입니다. 여기서 바꾸면 이 화면과 내려받는 파워포인트가 함께 바뀝니다.
           </p>
           {pickerOpen && (
             <div className="mt-1">

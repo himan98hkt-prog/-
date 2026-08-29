@@ -72,9 +72,9 @@ export type PhotoShape =
   | 'arch'
 
 /**
- * 테마 성격. 원장이 40종을 한 줄로 훑지 않고 "우리 학원 분위기"로 바로 찾게 한다.
+ * 테마 성격. 원장이 108종을 한 줄로 훑지 않고 "우리 학원 분위기"로 바로 찾게 한다.
  */
-export type ThemeFamily = 'classic' | 'lovely' | 'season' | 'modern' | 'kids'
+export type ThemeFamily = 'gala' | 'classic' | 'lovely' | 'season' | 'modern' | 'kids'
 
 /**
  * 묶음 이름은 **원장님이 자기 연주회를 고르는 말**이라야 한다.
@@ -82,6 +82,7 @@ export type ThemeFamily = 'classic' | 'lovely' | 'season' | 'modern' | 'kids'
  * 물음은 하나다 — "우리 연주회 분위기는 어느 쪽인가요?"
  */
 export const FAMILY_LABEL: Record<ThemeFamily, string> = {
+  gala: '예술회관처럼 격조 있게',
   classic: '차분하고 격식 있게',
   lovely: '부드럽고 사랑스럽게',
   season: '계절 느낌으로',
@@ -90,6 +91,7 @@ export const FAMILY_LABEL: Record<ThemeFamily, string> = {
 }
 
 export const FAMILY_HINT: Record<ThemeFamily, string> = {
+  gala: '국립극장·예술의전당 연주회 포스터의 색. 깊은 바탕 하나에 금 한 줄, 그 밖의 색은 쓰지 않습니다.',
   classic: '정통 정기 연주회, 격식 있는 홀. 금선·아치·진주 장식으로 무게를 잡습니다.',
   lovely: '유아·초등 학부모 초청. 부드러운 색과 하트·리본·꽃 장식.',
   season: '봄 벚꽃부터 겨울 눈꽃까지. 시즌 특강 발표회와 계절 음악회에.',
@@ -2604,6 +2606,203 @@ export const DESIGN_THEMES: DesignTheme[] = [
     logo: { shape: 'circle', height: 64 },
     photo: { shape: 'circle', treatment: 'bright' },
   },
+  // ── 예술회관 갈라 ─────────────────────────────────────────────
+  // "디자인이 너무 단순하다" 는 말을 듣고 넣은 묶음이다.
+  // 국립극장·예술의전당 연주회 포스터가 쓰는 색을 그대로 가져왔다 —
+  // 깊은 바탕 하나에 금(또는 진홍) 하나, 그 밖의 색은 쓰지 않는다.
+  // 색을 아끼는 것이 격을 만든다. 아래 여덟은 모두 그 규칙으로 짰다.
+  {
+    id: 'gala-noir',
+    name: '예술회관 누아르',
+    tagline: '검정에 가까운 밤빛 바탕에 금 한 줄. 정기 연주회를 가장 격조 있게 보이게 합니다.',
+    mood: ['갈라', '예술회관', '금박', '격식', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#0f0d14',
+      paperAlt: '#171523',
+      ink: '#f6f1e6',
+      muted: '#a9a2b4',
+      accent: '#d9b871',
+      accentSoft: '#2a2436',
+      line: '#332c44',
+      band: '#d9b871',
+      bandInk: '#0f0d14',
+    },
+    fonts: { display: SERIF_NOTO, body: SANS },
+    ornament: 'foil',
+    frame: 'thin',
+    texture: 'glow',
+    logo: { shape: 'plate', height: 60 },
+    photo: { shape: 'rect', treatment: 'soft' },
+  },
+  {
+    id: 'gala-ivory',
+    name: '아이보리 갈라',
+    tagline: '미색 종이에 금박 글씨. 초청장을 손에 들었을 때 가장 값져 보입니다.',
+    mood: ['갈라', '예술회관', '초청장', '금박', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#fbf7ef',
+      paperAlt: '#f3ecdf',
+      ink: '#1b1710',
+      muted: '#6d6354',
+      accent: '#8a6a2a',
+      accentSoft: '#efe4cd',
+      line: '#ddd2ba',
+      band: '#1b1710',
+      bandInk: '#f5e9cf',
+    },
+    fonts: { display: SERIF_CLASSIC, body: SANS },
+    ornament: 'lyre',
+    frame: 'double',
+    texture: 'grain',
+    logo: { shape: 'ring', height: 58 },
+    photo: { shape: 'arch', treatment: 'warm' },
+  },
+  {
+    id: 'gala-burgundy',
+    name: '갈라 버건디',
+    tagline: '깊은 와인빛 강조. 겨울 정기 연주회와 시상식이 있는 무대에.',
+    mood: ['갈라', '예술회관', '와인', '격식', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#fdfaf7',
+      paperAlt: '#f6eeeb',
+      ink: '#22131a',
+      muted: '#6f5b62',
+      accent: '#7d1f33',
+      accentSoft: '#f3e2e4',
+      line: '#e6d5d6',
+      band: '#7d1f33',
+      bandInk: '#fdf6ec',
+    },
+    fonts: { display: SERIF_NOTO, body: SANS },
+    ornament: 'arch',
+    frame: 'deco',
+    texture: 'grain',
+    logo: { shape: 'ring', height: 58 },
+    photo: { shape: 'arch', treatment: 'warm' },
+  },
+  {
+    id: 'gala-navy',
+    name: '콘서트홀 블루',
+    tagline: '남색과 금. 콩쿠르 입상 발표회처럼 무게가 필요한 자리에.',
+    mood: ['갈라', '예술회관', '콩쿠르', '남색', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#f8f9fc',
+      paperAlt: '#eef1f7',
+      ink: '#101627',
+      muted: '#5c667f',
+      accent: '#1f3a68',
+      accentSoft: '#e0e7f2',
+      line: '#d3dae7',
+      band: '#101627',
+      bandInk: '#e8d9ae',
+    },
+    fonts: { display: SERIF_NOTO, body: SANS },
+    ornament: 'arch',
+    frame: 'thin',
+    texture: 'none',
+    logo: { shape: 'plain', height: 56 },
+    photo: { shape: 'rect', treatment: 'natural' },
+  },
+  {
+    id: 'gala-emerald',
+    name: '갈라 에메랄드',
+    tagline: '짙은 초록에 금. 가을 정기 연주회와 학원 창립 기념 무대에.',
+    mood: ['갈라', '예술회관', '초록', '가을', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#f7faf8',
+      paperAlt: '#ecf3ef',
+      ink: '#0e1f1a',
+      muted: '#556760',
+      accent: '#13564a',
+      accentSoft: '#dcece6',
+      line: '#cfdfd8',
+      band: '#0e1f1a',
+      bandInk: '#e6d6a8',
+    },
+    fonts: { display: SERIF_CLASSIC, body: SANS },
+    ornament: 'garland',
+    frame: 'double',
+    texture: 'grain',
+    logo: { shape: 'ring', height: 56 },
+    photo: { shape: 'arch', treatment: 'soft' },
+  },
+  {
+    id: 'gala-champagne',
+    name: '갈라 샴페인',
+    tagline: '따뜻한 미색과 황금빛. 저녁 시간 연주회 포스터가 특히 잘 나옵니다.',
+    mood: ['갈라', '예술회관', '저녁', '금박', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#f7f2e8',
+      paperAlt: '#efe7d7',
+      ink: '#241d13',
+      muted: '#6b6050',
+      accent: '#8b6420',
+      accentSoft: '#eadcbe',
+      line: '#dccfb4',
+      band: '#241d13',
+      bandInk: '#f0dfb6',
+    },
+    fonts: { display: SERIF_THIN, body: SANS },
+    ornament: 'candle',
+    frame: 'thin',
+    texture: 'grain',
+    logo: { shape: 'plain', height: 56 },
+    photo: { shape: 'rounded', treatment: 'warm' },
+  },
+  {
+    id: 'gala-onyx',
+    name: '갈라 오닉스',
+    tagline: '검은 돌빛 바탕에 옅은 금. 사진을 크게 쓰는 포스터에 가장 잘 맞습니다.',
+    mood: ['갈라', '예술회관', '사진', '어두움', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#14121a',
+      paperAlt: '#1d1a26',
+      ink: '#f2ece0',
+      muted: '#a49cae',
+      accent: '#cfa75f',
+      accentSoft: '#2c2738',
+      line: '#352f42',
+      band: '#cfa75f',
+      bandInk: '#14121a',
+    },
+    fonts: { display: SANS, body: SANS },
+    ornament: 'spotlight',
+    frame: 'none',
+    texture: 'glow',
+    logo: { shape: 'plate', height: 58 },
+    photo: { shape: 'rect', treatment: 'natural' },
+  },
+  {
+    id: 'gala-crimson',
+    name: '갈라 크림슨',
+    tagline: '무대 막 같은 진홍. 송년 음악회와 시상이 있는 연주회에.',
+    mood: ['갈라', '예술회관', '무대막', '진홍', '고급'],
+    family: 'gala',
+    palette: {
+      paper: '#190d11',
+      paperAlt: '#23131a',
+      ink: '#f7ece9',
+      muted: '#b0989e',
+      accent: '#cc6a7c',
+      accentSoft: '#331c25',
+      line: '#3c222c',
+      band: '#cc6a7c',
+      bandInk: '#190d11',
+    },
+    fonts: { display: SERIF_NOTO, body: SANS },
+    ornament: 'deco',
+    frame: 'thin',
+    texture: 'glow',
+    logo: { shape: 'plate', height: 58 },
+    photo: { shape: 'rect', treatment: 'soft' },
+  },
 ]
 
 export const DEFAULT_THEME_ID = 'classic-navy'
@@ -2627,10 +2826,10 @@ export function themesByTone(): { tone: 'light' | 'dark'; label: string; items: 
   ]
 }
 
-export const FAMILY_ORDER: ThemeFamily[] = ['classic', 'lovely', 'season', 'modern', 'kids']
+export const FAMILY_ORDER: ThemeFamily[] = ['gala', 'classic', 'lovely', 'season', 'modern', 'kids']
 
 /**
- * 성격별 묶음 — 40종을 한 줄로 늘어놓으면 고를 수가 없다.
+ * 성격별 묶음 — 108종을 한 줄로 늘어놓으면 고를 수가 없다.
  * 원장이 "우리 학원은 이런 분위기" 한 번으로 후보를 5~14종으로 좁히게 한다.
  */
 export function themesByFamily(): {
@@ -2649,7 +2848,7 @@ export function themesByFamily(): {
 
 /**
  * 행사 날짜로 계절 테마를 추천한다.
- * 원장이 40종을 다 훑지 않아도 "지금 시기에 맞는 것"이 먼저 보이게 하기 위한 것.
+ * 원장이 108종을 다 훑지 않아도 "지금 시기에 맞는 것"이 먼저 보이게 하기 위한 것.
  */
 export function seasonalThemeIds(month: number): string[] {
   if (month >= 3 && month <= 5) return ['cherry-spring', 'spring-bloom', 'peach-blossom', 'sunlit-ivory']
@@ -2659,7 +2858,7 @@ export function seasonalThemeIds(month: number): string[] {
 }
 
 /**
- * 테마 찾기 — 100종이면 목록을 훑는 것만으로는 못 고른다.
+ * 테마 찾기 — 108종이면 목록을 훑는 것만으로는 못 고른다.
  * 이름·분위기·설명 어디에 걸려도 나오게 한다. "봄", "금", "아이" 처럼 적어도 찾아진다.
  */
 export function searchThemes(query: string, within?: ThemeFamily): DesignTheme[] {

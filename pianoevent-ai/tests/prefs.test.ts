@@ -23,7 +23,7 @@ describe('설정 저장 — 받아도 되는 값만 받는다', () => {
     expect(VIDEO_PREF_SPEC.template).toEqual({ type: 'enum', values: VIDEO_TEMPLATES.map((t) => t.id) })
   })
 
-  it('테마 100종이 모두 저장된다', () => {
+  it('테마 108종이 모두 저장된다', () => {
     for (const theme of DESIGN_THEMES) {
       expect(sanitizePrefs(STAGE_PREF_SPEC, { theme: theme.id })).toEqual({ theme: theme.id })
     }

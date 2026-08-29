@@ -136,7 +136,7 @@ async function run() {
   const stageThemed = await call(`/events/${event.id}/stage?theme=blush-romance`)
   check('무대 화면도 테마를 따른다', stageThemed.ok && (await stageThemed.text()).includes('--d-accent'))
   check('무대 화면에서 테마를 바꿀 수 있음', stageHtml.includes('테마 바꾸기'))
-  check('테마 100종을 쓴다고 안내', stageHtml.includes('테마 100종'))
+  check('테마 108종을 쓴다고 안내', stageHtml.includes('테마 108종'))
   check('연주자 화면 모양을 고를 수 있음', stageHtml.includes('연주자 화면 모양'))
   check('무대 배경을 고를 수 있음', stageHtml.includes('무대 배경') && stageHtml.includes('건반'))
 
@@ -367,7 +367,7 @@ async function run() {
   const programTab = await call(`/events/${catId}?tab=program`)
   check('순서 직접 바꾸기 노출', (await programTab.text()).includes('순서 직접 바꾸기'))
 
-  console.log('\n▸ 새 양식 8종 · 테마 100종')
+  console.log('\n▸ 새 양식 8종 · 테마 108종')
 
   for (const [id, needle] of [
     ['stage-map', '무대 배치도'],

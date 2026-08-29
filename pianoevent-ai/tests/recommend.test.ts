@@ -67,7 +67,7 @@ describe('인쇄물을 미리 정해 드리기', () => {
 })
 
 describe('견주어 보실 세 장', () => {
-  it('셋을 준다 — 하나면 막히고 100종이면 못 고르신다', () => {
+  it('셋을 준다 — 하나면 막히고 108종이면 못 고르신다', () => {
     expect(recommendDesigns({ eventAt: march, hasProgram: true })).toHaveLength(3)
   })
 
