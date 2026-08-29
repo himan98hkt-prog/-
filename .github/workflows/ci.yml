@@ -49,3 +49,71 @@ jobs:
           name: dist
           path: dist
           retention-days: 7
+
+  # 위 job 은 루트의 웹 프로젝트만 본다. 영상 파이프라인은 파이썬이라
+  # 여기서 따로 돌려야 실제로 검사가 된다.
+  shorts-pipeline:
+    name: shorts-pipeline 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: shorts-pipeline
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: shorts-pipeline/requirements.txt
+
+      - name: ffmpeg 설치
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest "moto[s3]"
+
+      - name: 파이프라인 (생성 · 체이닝 · 합성)
+        run: python -m pytest tests/test_pipeline.py -q
+
+      - name: 스토리지
+        run: python tests/test_storage.py
+
+      - name: 스케줄러 · 콘텐츠
+        run: python tests/test_scheduler.py
+
+      - name: 설정 · 아이콘 · 연결
+        run: python tests/test_settings.py
+
+      - name: 들여오기 · 배경음악
+        run: python tests/test_intake.py
+
+      - name: 무료 LLM 제목 작성
+        run: python tests/test_llm.py
+
+      # 화면이 떨리던 것(25fps 를 30 으로 올려 프레임 복제)과, 값이 두 번
+      # 나가던 것(폴링 타임아웃에 같은 클립 재제출)을 여기서 붙잡는다.
+      - name: 프레임률 · 과금 · 이어하기
+        run: python tests/test_quality.py
+
+      # 성적표(무엇이 통했나) · 배치 · 인스타 토큰 만료 · 훅 자막/루프/로고.
+      # 네트워크는 부르지 않는다 — 가짜 응답을 끼운다.
+      - name: 성적표 · 배치 · 토큰 · 영상 꾸미기
+        run: python tests/test_growth.py
+
+      # 옛 작업실이 포트를 물고 있으면 새로 켜는 쪽이 죽고, 브라우저는 옛
+      # 서버에 붙은 채라 '다시 실행하세요' 띠가 영영 안 사라졌다.
+      - name: 다시 켜기 · 새 권장 설정 적용
+        run: python tests/test_restart.py
+
+      # 클립 길이/개수 연동과 [AI로 제목 뽑기] 는 브라우저에서만 재현된다.
+      # OpenRouter 는 부르지 않는다 — 가짜 서버를 띄워 그쪽을 보게 한다.
+      - name: 브라우저에서 화면 눌러보기
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python tests/test_ui_copy.py

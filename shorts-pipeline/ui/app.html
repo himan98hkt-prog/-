@@ -1,0 +1,2082 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI DEOKHU 작업실</title>
+<link rel="icon" href="/favicon.ico" type="image/png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#070B1A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root{
+    --bg:#070B1A; --panel:#111A33; --panel2:#16203D; --line:#25325A;
+    --ink:#E6EAF7; --ink2:#B4BDD8; --mute:#8791B0;
+    --cyan:#22D3EE; --cyanInk:#8DEBFA; --cyanDim:#0C2E3A;
+    --hot:#E879F9; --warn:#FBBF24; --bad:#FB7185; --good:#34D399;
+    --sans:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+    --disp:"Chakra Petch",var(--sans);
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6}
+  button{font-family:inherit}
+
+  header{
+    position:sticky;top:0;z-index:20;background:rgba(7,11,26,.92);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+    padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
+  .brand{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.01em}
+  .brand span{color:var(--cyan)}
+  .status{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chip{
+    font-size:12.5px;padding:4px 11px;border-radius:99px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink2);
+  }
+  .chip.ok{border-color:var(--good);color:var(--good)}
+  .chip.bad{border-color:var(--bad);color:var(--bad)}
+
+  main{max-width:1240px;margin:0 auto;padding:22px 22px 80px;
+       display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start}
+  @media(max-width:1000px){main{grid-template-columns:1fr}}
+  /* 간편 모드처럼 오른쪽 칸이 비면 한 칸으로 붙인다 */
+  main.solo{max-width:860px;grid-template-columns:1fr}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  h2{font-family:var(--disp);font-size:16px;font-weight:700;margin:0 0 4px;
+     letter-spacing:.02em;text-transform:uppercase;color:var(--cyan)}
+  .sub{font-size:13px;color:var(--mute);margin:0 0 14px}
+
+  /* 탭 */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--ink2);
+       padding:7px 15px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600}
+  .tab[aria-selected=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
+
+  /* 재시작 안내 띠 */
+  .restart{
+    display:none;background:var(--warn);color:#231A02;padding:11px 22px;
+    font-size:14px;font-weight:600;text-align:center;
+  }
+  .restart.on{display:block}
+  .restart b{font-weight:700}
+
+  /* 간편 모드 */
+  .hero{background:linear-gradient(150deg,var(--panel2),var(--panel));
+        border:1px solid var(--cyan);border-radius:16px;padding:22px;margin-bottom:16px}
+  .hero .step{font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+              color:var(--cyan);font-family:var(--disp);font-weight:700}
+  .hero .say{font-size:19px;font-weight:600;margin:8px 0 16px;line-height:1.5}
+  .big{width:100%;padding:16px;border:0;border-radius:12px;cursor:pointer;
+       background:var(--cyan);color:#04121A;font-size:17px;font-weight:700}
+  .big:disabled{background:var(--panel2);color:var(--mute);cursor:not-allowed}
+  .big.alt{background:transparent;border:1px solid var(--line);color:var(--ink2);
+           font-size:15px;padding:12px;margin-top:9px}
+  .pills{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:9px;margin-bottom:16px}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:11px 13px;display:flex;align-items:center;gap:9px}
+  .pill .dot{width:9px;height:9px;border-radius:99px;background:var(--mute);flex:none}
+  .pill.on{border-color:var(--good)} .pill.on .dot{background:var(--good)}
+  .pill .nm{font-size:13.5px;font-weight:600}
+  .pill .st{font-size:11.5px;color:var(--mute);margin-left:auto}
+  .pill.on .st{color:var(--good)}
+  .how{counter-reset:h;margin:0;padding:0;list-style:none}
+  .how li{counter-increment:h;position:relative;padding:0 0 13px 34px;font-size:13.5px;
+          color:var(--ink2)}
+  .how li::before{content:counter(h);position:absolute;left:0;top:1px;width:22px;height:22px;
+    border-radius:99px;background:var(--cyanDim);border:1px solid var(--cyan);
+    color:var(--cyanInk);font-size:12px;font-weight:700;display:grid;place-items:center}
+  .how li b{color:var(--ink);font-weight:600}
+
+  /* 설정 */
+  .grp{margin-bottom:18px}
+  .grp > h3{font-size:14px;font-weight:700;margin:0 0 3px;color:var(--ink)}
+  .grp > p{font-size:12.5px;color:var(--mute);margin:0 0 12px}
+  .setf{display:block;margin-bottom:12px}
+  .setf > span{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:4px}
+  .setf input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+              color:var(--ink);padding:9px 11px;font-size:13.5px;font-family:var(--mono)}
+  .setf input:focus{outline:none;border-color:var(--cyan)}
+  .setf .hint{display:block;font-size:11.5px;color:var(--mute);margin-top:4px;
+              font-family:var(--sans)}
+  .setf.done > span:first-of-type::after{content:" ✓";color:var(--good)}
+  .setf .warn{display:block;font-size:11.5px;color:var(--warn);margin-top:4px;
+              font-family:var(--sans)}
+  .drop{border:1.5px dashed var(--line);border-radius:11px;padding:16px;text-align:center;
+        cursor:pointer;font-size:13px;color:var(--mute);margin-bottom:12px}
+  .drop:hover{border-color:var(--cyan);color:var(--cyanInk)}
+  .drop.has{border-style:solid;border-color:var(--good);color:var(--good)}
+  .lnk{display:inline-block;font-size:12.5px;color:var(--cyan);text-decoration:none;
+       border-bottom:1px dotted var(--cyan);margin-right:14px}
+
+  /* 시드 격자 */
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .f{background:transparent;border:1px solid var(--line);color:var(--mute);
+     padding:4px 11px;border-radius:99px;cursor:pointer;font-size:12.5px}
+  .f[aria-pressed=true]{background:var(--cyanDim);border-color:var(--cyan);color:var(--cyanInk)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+  .seed{position:relative;border:2px solid transparent;border-radius:11px;overflow:hidden;
+        cursor:pointer;background:var(--panel2);padding:0;display:block;text-align:left}
+  .seed img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block}
+  .seed .cap{padding:7px 8px;font-size:11.5px;color:var(--ink2);
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seed[aria-pressed=true]{border-color:var(--cyan)}
+  .seed[aria-pressed=true]::after{
+    content:"✓";position:absolute;top:7px;right:7px;width:24px;height:24px;
+    background:var(--cyan);color:#04121A;border-radius:50%;
+    display:grid;place-items:center;font-weight:700;font-size:14px}
+  .seed .warn{position:absolute;top:7px;left:7px;background:var(--warn);color:#231803;
+              font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
+  .seed .used{position:absolute;top:7px;left:7px;background:#2A3340;color:var(--ink2);
+              font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px}
+  .seed.done img{opacity:.42}
+  .mnote{display:block;color:var(--mute);font-size:11.5px;margin:-2px 0 10px}
+  .rank{margin:12px 0 0}
+  .rank h4{margin:0 0 5px;font-size:12px;color:var(--mute);font-weight:600;
+           letter-spacing:.4px}
+  .rank .row{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:12.5px}
+  .rank .row .nm{flex:0 0 132px;color:var(--ink2);white-space:nowrap;
+                 overflow:hidden;text-overflow:ellipsis}
+  .rank .row .bar{flex:1;height:8px;background:var(--panel2);border-radius:4px;
+                  overflow:hidden}
+  .rank .row .bar i{display:block;height:100%;background:var(--cyan)}
+  .rank .row .vv{flex:0 0 92px;text-align:right;color:var(--ink2);
+                 font-variant-numeric:tabular-nums}
+  .rank .thin{color:var(--mute);font-size:11.5px;padding-top:3px}
+  .tokwarn{margin:0 0 12px;padding:9px 12px;border-radius:9px;font-size:12.5px;
+           background:#3A2A0B;color:#FDE68A;border:1px solid #6B4E12}
+  .tokwarn b{color:#FEF3C7}
+  .empty{color:var(--mute);font-size:14px;padding:26px 0;text-align:center}
+
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;
+        margin-bottom:14px;color:var(--mute);font-size:13.5px;transition:all .18s}
+  .drop.hot{border-color:var(--cyan);background:var(--cyanDim);color:var(--cyanInk)}
+  .drop b{color:var(--ink);font-size:14.5px;display:block;margin-bottom:3px}
+  .drop button{background:var(--cyanDim);border:1px solid var(--cyan);color:var(--cyanInk);
+               padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:9px}
+  .upstat{font-size:12.5px;margin-top:9px;text-align:left;
+          max-height:120px;overflow:auto;color:var(--ink2)}
+  .upstat .bad{color:var(--bad)}
+
+  .pidle{font-size:12px;margin:6px 0 2px;line-height:1.5}
+  .pidle.ok{color:var(--mute)}
+  .pidle.warn{color:var(--warn)}
+  .pidle.bad{color:var(--bad)}
+
+  .snd{font-size:12px;color:var(--mute);margin-top:3px}
+  .snd.off{color:var(--warn)}
+  .ups{font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:3px 9px}
+  .ups .ok{color:var(--good)}
+  .ups .bad{color:var(--bad)}
+  .ups .pend{color:var(--mute)}
+  .ups .sch{color:var(--cyanInk)}
+  .ups a{color:var(--cyan)}
+
+  .folderbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+             margin-bottom:14px}
+  .folderbox b{font-size:14px}
+  .folderbox .sub{margin:4px 0 10px}
+  .folderbox .row{display:flex;gap:8px;flex-wrap:wrap}
+  .folderbox input{flex:1 1 240px;min-width:0}
+  .folderbox button{background:var(--cyanDim);border:1px solid var(--cyan);
+                    color:var(--cyanInk);padding:8px 14px;border-radius:8px;
+                    cursor:pointer;font-size:13px;white-space:nowrap}
+  .folderbox button.ghost{background:transparent;border-color:var(--line);
+                          color:var(--ink2)}
+  .folderbox button[disabled]{opacity:.5;cursor:default}
+
+  .moods{display:grid;gap:10px}
+  .mood{border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .mood.empty{border-style:dashed;opacity:.72}
+  .mood .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .mood b{font-size:14px}
+  .mood .cnt{font-size:13px;color:var(--mute);white-space:nowrap}
+  .mood.empty .cnt{color:var(--warn)}
+  .mood .use{font-size:12px;color:var(--mute);margin-top:3px}
+  .mood .list{font-size:12.5px;color:var(--ink2);margin-top:6px;
+              display:flex;flex-wrap:wrap;gap:4px 10px}
+  #musicReload{background:var(--cyanDim);border:1px solid var(--cyan);color:var(--cyanInk);
+               padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+
+  /* 폼 */
+  label.fld{display:block;margin-bottom:12px}
+  label.fld span{display:block;font-size:12.5px;color:var(--mute);margin-bottom:5px}
+  input[type=text],textarea,select{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:9px 11px;font-family:inherit;font-size:14px}
+  textarea{resize:vertical;min-height:62px;font-size:13px}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--cyan);outline-offset:-1px}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+  .mode{background:var(--panel2);border:1px solid var(--line);border-radius:11px;
+        padding:11px;cursor:pointer;text-align:left}
+  .mode b{display:block;font-size:14px;margin-bottom:3px}
+  .mode small{color:var(--mute);font-size:11.5px;line-height:1.45;display:block}
+  .mode[aria-pressed=true]{background:var(--cyanDim);border-color:var(--cyan)}
+  .mode[aria-pressed=true] b{color:var(--cyanInk)}
+
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+
+  .cost{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+        padding:11px 13px;font-size:13.5px;margin:12px 0;display:flex;
+        justify-content:space-between;align-items:center}
+  .cost b{font-family:var(--disp);font-size:19px;color:var(--warn)}
+
+  .go{width:100%;background:var(--cyan);color:#04121A;border:0;border-radius:11px;
+      padding:14px;font-size:15.5px;font-weight:700;cursor:pointer;font-family:var(--disp);
+      letter-spacing:.02em}
+  .go:hover:not(:disabled){filter:brightness(1.08)}
+  .go:disabled{opacity:.4;cursor:not-allowed}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--ink2);
+         border-radius:9px;padding:9px 14px;cursor:pointer;font-size:13.5px}
+  .ghost:hover{border-color:var(--cyan);color:var(--cyanInk)}
+  .ghost.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .ghost[disabled]{opacity:.5;cursor:default}
+
+  /* 새 권장 설정 알림 */
+  .cfgbar{display:flex;gap:14px;align-items:center;justify-content:space-between;
+          flex-wrap:wrap;margin:0 auto 14px;max-width:1500px;
+          background:rgba(40,180,220,.10);border:1px solid var(--cyan);
+          border-radius:12px;padding:13px 16px;color:var(--ink)}
+  .cfgbar[hidden]{display:none}
+  .cfgtext{flex:1 1 380px;line-height:1.55;font-size:13.5px}
+  .cfgtext ul{margin:8px 0 0;padding-left:18px}
+  .cfgtext li{margin:3px 0;color:var(--ink2)}
+  .cfgtext li b{color:var(--ink)}
+  .cfgtext li s{opacity:.6}
+  .cfgacts{display:flex;gap:8px;flex-shrink:0}
+
+  /* 장면 전환에서 클립 수는 고르는 게 아니라 정해지는 값이다 */
+  .fld.fixed[hidden]{display:none}
+  .readout{border:1px dashed var(--line);border-radius:9px;padding:10px 12px;
+           color:var(--ink2);font-size:13.5px;background:rgba(255,255,255,.02)}
+  .readout.warn{border-color:var(--bad);color:var(--bad);border-style:solid}
+  #picked.bad{color:var(--bad)}
+  .go.small{padding:9px 16px;font-size:13.5px;width:auto;margin:0}
+  .ghost[disabled]:hover{border-color:var(--line);color:var(--ink2)}
+
+  /* AI 제목 제안 */
+  .suggest{margin:10px 0 4px}
+  .suggest > small{display:block;margin-top:7px;color:var(--ink2);line-height:1.5}
+  .suggest > small.bad{color:var(--bad)}
+  #suggestList{display:grid;gap:8px;margin-top:9px}
+  .sg{display:block;width:100%;text-align:left;cursor:pointer;
+      background:transparent;border:1px solid var(--line);border-radius:10px;
+      padding:10px 12px;color:var(--ink)}
+  .sg:hover{border-color:var(--cyan)}
+  .sg b{display:block;font-size:14.5px;font-weight:600}
+  .sg span{display:block;margin-top:3px;font-size:12.5px;color:var(--ink2)}
+
+  /* 진행 */
+  .prog{margin-top:14px}
+  .bar{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--hot));
+         transition:width .4s ease}
+  .plabel{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mute);margin-top:7px}
+  .log{margin-top:10px;background:#050912;border:1px solid var(--line);border-radius:9px;
+       padding:10px 12px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+       max-height:170px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+
+  /* 요약 카드 */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat .n{font-family:var(--disp);font-size:26px;font-weight:700;color:var(--cyan);
+           line-height:1.1;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:12.5px;color:var(--mute);margin-top:3px}
+  .stat.warn .n{color:var(--warn)}
+  .stat.bad .n{color:var(--bad)}
+
+  /* 스위치 */
+  .sw{display:flex;align-items:center;gap:11px;cursor:pointer;user-select:none}
+  .sw input{appearance:none;width:46px;height:26px;border-radius:99px;background:var(--panel2);
+            border:1px solid var(--line);position:relative;cursor:pointer;transition:.2s;flex:none}
+  .sw input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+                   border-radius:50%;background:var(--mute);transition:.2s}
+  .sw input:checked{background:var(--cyanDim);border-color:var(--cyan)}
+  .sw input:checked::after{left:23px;background:var(--cyan)}
+  .sw b{font-size:15px}
+
+  .checks{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
+  .checks label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
+  .checks input{accent-color:var(--cyan);width:17px;height:17px;cursor:pointer}
+
+  .hist{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+        background:#050912;border:1px solid var(--line);border-radius:9px;
+        padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap}
+
+  .quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+  .quick button, .quick a{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+        border-radius:10px;padding:12px;cursor:pointer;font-size:13.5px;text-align:center;
+        text-decoration:none;display:block;font-weight:600}
+  .quick button:hover, .quick a:hover{border-color:var(--cyan);color:var(--cyanInk)}
+
+  /* 결과 */
+  .runs{display:flex;flex-direction:column;gap:11px}
+  .run{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px;
+       display:flex;gap:12px;align-items:flex-start}
+  .run video{width:104px;border-radius:8px;background:#000;flex:none}
+  .run .meta{flex:1;min-width:0}
+  .run .t{font-weight:600;font-size:14px;margin-bottom:2px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .run .d{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+  .run .acts{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .run .acts button{font-size:12px;padding:5px 10px}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+         background:var(--panel);border:1px solid var(--cyan);color:var(--ink);
+         padding:11px 20px;border-radius:11px;font-size:14px;z-index:50;
+         box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:min(90vw,620px);
+         white-space:pre-line;text-align:left;line-height:1.55}
+  .toast.bad{border-color:var(--bad)}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">AI <span>DEOKHU</span> 작업실</div>
+  <div class="status" id="status"></div>
+</header>
+
+<div class="restart" id="restartBar">
+  최신 코드를 받았습니다. <b>검은 창을 닫고 [AI DEOKHU 작업실] 을 다시 실행하세요.</b>
+  다시 켜야 새 기능이 동작합니다.
+  <small>다시 켰는데도 이 줄이 남아 있으면, 예전 검은 창이 하나 더 떠 있는 것입니다.
+  그 창을 닫고 다시 실행하세요.</small>
+</div>
+
+<div class="cfgbar" id="cfgBar" hidden>
+  <div class="cfgtext">
+    <b>새 권장 설정이 있습니다.</b> 업데이트는 받았지만, 사용자가 바꾼 설정을
+    지키느라 아래 값은 아직 적용되지 않았습니다.
+    <ul id="cfgList"></ul>
+  </div>
+  <div class="cfgacts">
+    <button class="go small" id="cfgApply">새 설정 적용</button>
+    <button class="ghost" id="cfgSkip">그대로 두기</button>
+  </div>
+</div>
+
+<main id="main">
+  <!-- 왼쪽 -->
+  <section>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-easy" aria-selected="true">간편 모드</button>
+      <button class="tab" role="tab" id="t-home" aria-selected="false">대시보드</button>
+      <button class="tab" role="tab" id="t-make" aria-selected="false">1 · 이미지 고르기</button>
+      <button class="tab" role="tab" id="t-music" aria-selected="false">음악</button>
+      <button class="tab" role="tab" id="t-runs" aria-selected="false">2 · 완성된 영상</button>
+      <button class="tab" role="tab" id="t-auto" aria-selected="false">3 · 자동 업로드</button>
+      <button class="tab" role="tab" id="t-set" aria-selected="false">설정</button>
+    </div>
+
+    <div id="p-easy">
+      <div class="hero">
+        <div class="step" id="eStep">다음 할 일</div>
+        <div class="say" id="eSay">불러오는 중…</div>
+        <button class="big" id="eGo">오늘 영상 만들기</button>
+        <button class="big alt" id="eGo2" hidden></button>
+      </div>
+
+      <div class="pills" id="ePills"></div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>오늘 만들 영상</h2>
+        <p class="sub" id="ePlan">—</p>
+        <div id="eLatest"></div>
+      </div>
+
+      <div class="card">
+        <h2>어떻게 돌아가나요</h2>
+        <p class="sub">이 네 가지만 알면 됩니다.</p>
+        <ol class="how">
+          <li><b>이미지를 넣는다</b> — 미드저니로 뽑은 그림을 끌어다 놓으면
+              제목·설명·움직임 문구까지 자동으로 붙습니다.</li>
+          <li><b>[오늘 영상 만들기] 를 누른다</b> — 남은 이미지 중 하나를 골라
+              30초짜리 이어지는 영상을 만듭니다. 5분쯤 걸립니다.</li>
+          <li><b>확인하고 올린다</b> — 완성된 영상을 보고 유튜브·인스타에 올립니다.</li>
+          <li><b>예약을 켜두면 끝</b> — [자동 업로드] 탭에서 켜두면 매일 저녁 9시에
+              알아서 만들고 올립니다. 컴퓨터가 켜져 있어야 합니다.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div id="p-home" hidden>
+      <div class="stats" id="stats"></div>
+
+      <!-- 만들고 올리는 것까지는 되는데 뭐가 통했는지 모르면 계속 감으로
+           고르게 된다. 여기가 그 답이다. -->
+      <div class="card" style="margin-bottom:14px">
+        <h2>성적표 — 무엇이 통했나</h2>
+        <p class="sub" id="statsSub">올린 영상의 조회수를 끌어와 테마·음악·움직임별로 묶습니다.</p>
+        <div id="statsBox"><div class="empty">아직 읽은 성적이 없습니다.</div></div>
+        <button class="ghost" id="statsRefresh" style="margin-top:10px">
+          조회수 새로 가져오기</button>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>바로 하기</h2>
+        <p class="sub">자주 쓰는 동작입니다.</p>
+        <div class="quick">
+          <button id="q-make">영상 만들기</button>
+          <button id="q-batch">일주일치 만들기</button>
+          <button id="q-upload">이미지 추가</button>
+          <button id="q-auto">자동 업로드 설정</button>
+          <a href="https://studio.youtube.com/" target="_blank" rel="noopener">유튜브 스튜디오 ↗</a>
+          <a href="https://www.instagram.com/ai.deokhu/" target="_blank" rel="noopener">인스타 계정 ↗</a>
+          <a href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener">fal 잔액 ↗</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>준비 상태</h2>
+        <p class="sub">✗ 가 있으면 그 항목부터 해결하세요.</p>
+        <div id="doc"></div>
+      </div>
+    </div>
+
+    <div id="p-set" hidden>
+      <div class="card" style="margin-bottom:14px">
+        <h2>지금 연결 상태</h2>
+        <p class="sub">초록불이 켜진 것만 쓸 수 있습니다.</p>
+        <div class="pills" id="sPills" style="margin-bottom:0"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>유튜브 연결</h2>
+        <p class="sub">구글에서 받은 파일을 올리고 버튼 한 번이면 끝입니다.</p>
+        <ol class="how" style="margin-bottom:14px">
+          <li>아래 <b>구글 클라우드 콘솔</b> 에서 프로젝트를 만들고
+              <b>YouTube Data API v3</b> 를 사용 설정합니다.</li>
+          <li><b>사용자 인증 정보 → OAuth 클라이언트 ID → 데스크톱 앱</b> 으로 만들고
+              JSON 을 내려받습니다.</li>
+          <li>내려받은 파일을 아래 상자에 끌어다 놓습니다.</li>
+          <li><b>[유튜브 연결하기]</b> 를 누르고, 열리는 창에서 채널 계정으로 로그인합니다.</li>
+        </ol>
+        <div style="margin-bottom:12px">
+          <a class="lnk" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com"
+             target="_blank" rel="noopener">API 사용 설정 ↗</a>
+          <a class="lnk" href="https://console.cloud.google.com/apis/credentials"
+             target="_blank" rel="noopener">사용자 인증 정보 ↗</a>
+        </div>
+        <div class="drop" id="csDrop">client_secret_....json 을 여기에 끌어다 놓거나 클릭</div>
+        <input type="file" id="csFile" accept=".json,application/json" hidden>
+        <button class="big" id="ytConnect">유튜브 연결하기</button>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <h2>인스타그램 연결</h2>
+        <p class="sub">프로페셔널(비즈니스) 계정이어야 합니다. 토큰은 두 방식 중 아무거나 됩니다 —
+           <b>Instagram 로그인</b>(IGAA…, 페이스북 페이지 불필요) 또는
+           <b>Facebook 로그인</b>(EAA…, 페이지 필요).
+           <b>토큰만 넣고 [인스타 확인하기] 를 누르면 계정 ID 는 알아서 찾습니다.</b></p>
+        <div style="margin-bottom:12px">
+          <a class="lnk" href="https://developers.facebook.com/tools/explorer/"
+             target="_blank" rel="noopener">그래프 API 탐색기 ↗</a>
+          <a class="lnk" href="https://developers.facebook.com/apps/"
+             target="_blank" rel="noopener">앱 관리 ↗</a>
+        </div>
+        <div id="sGrp-instagram"></div>
+        <button class="big" id="igConnect">인스타 확인하기</button>
+        <!-- 장기 토큰은 60일이면 만료된다. 만료된 뒤에는 연장이 안 되고
+             처음부터 다시 발급해야 하므로, 남았을 때 눌러야 한다. -->
+        <button class="ghost" id="igRefresh" style="width:100%;margin-top:8px">
+          🔄 토큰 60일 연장</button>
+        <small class="mnote" id="igTokNote">토큰이 만료되면 인스타 업로드만 조용히 실패합니다.
+          만료 <b>전에</b> 눌러야 연장됩니다.</small>
+      </div>
+
+      <div class="card">
+        <h2>키와 값</h2>
+        <p class="sub">비밀 키는 앞뒤 네 글자만 보여줍니다. 그대로 두면 안 바뀝니다.</p>
+        <div id="sGrp-video"></div>
+        <div id="sGrp-storage"></div>
+        <button class="big alt" id="stCheck" style="margin:0 0 18px">보관함 확인하기</button>
+        <div id="sGrp-youtube"></div>
+        <div id="sGrp-budget"></div>
+        <button class="big" id="sSave">저장하기</button>
+        <p class="sub" id="sWhere" style="margin:10px 0 0"></p>
+      </div>
+    </div>
+
+    <div id="p-auto" hidden>
+      <div class="card" style="margin-bottom:14px">
+        <h2>매일 자동 업로드</h2>
+        <p class="sub" id="autoNote">불러오는 중…</p>
+
+        <label class="sw"><input type="checkbox" id="autoOn"><b>예약 켜기</b></label>
+
+        <div id="autoCfg" style="margin-top:16px">
+          <div class="row">
+            <label class="fld"><span>게시 시각</span>
+              <select id="autoTime">
+                <option value="09:00">오전 9시</option>
+                <option value="12:00">낮 12시</option>
+                <option value="18:00">저녁 6시</option>
+                <option value="21:00" selected>저녁 9시</option>
+                <option value="22:00">밤 10시</option>
+              </select>
+            </label>
+            <label class="fld"><span>영상 방식</span>
+              <select id="autoMode">
+                <option value="chain" selected>이어지는 영상</option>
+                <option value="montage">장면 전환</option>
+              </select>
+            </label>
+          </div>
+          <div class="checks">
+            <label><input type="checkbox" id="autoYt" checked> 유튜브</label>
+            <label><input type="checkbox" id="autoIg"> 인스타그램</label>
+          </div>
+          <button class="go" id="autoSave">예약 저장</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>업로드 이력</h2>
+        <p class="sub">매일 자동 실행 결과가 여기 쌓입니다.</p>
+        <div class="hist" id="hist">아직 기록이 없습니다.</div>
+      </div>
+    </div>
+
+    <div class="card" id="p-make" hidden>
+      <h2>시드 이미지</h2>
+      <p class="sub" id="seedCount">불러오는 중…</p>
+      <div class="drop" id="drop">
+        <b>이미지를 여기에 끌어다 놓으세요</b>
+        미드저니에서 받은 9:16 세로 이미지 · 제목과 프롬프트는 자동으로 작성됩니다
+        <br><button id="pick">파일 고르기</button>
+        <input type="file" id="file" accept="image/*" multiple hidden>
+        <div class="upstat" id="upstat"></div>
+      </div>
+
+      <div class="folderbox">
+        <b>폴더에서 한 번에 가져오기</b>
+        <p class="sub">미드저니 다운로드 폴더 경로를 넣어 두세요. 누를 때마다
+          <b>새로 받은 것만</b> 골라 옵니다. 이미 들여온 그림은 건너뜁니다.</p>
+        <div class="row">
+          <input id="folder" type="text" spellcheck="false"
+                 placeholder="C:\Users\내이름\Downloads\midjourney">
+          <button id="intake">가져오기</button>
+          <button id="reclass" class="ghost">전체 다시 분류</button>
+        </div>
+        <div class="upstat" id="instat"></div>
+      </div>
+
+      <div class="filters" id="filters"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="card" id="p-music" hidden>
+      <h2>배경음악</h2>
+      <p class="sub" id="musicNote">불러오는 중…</p>
+      <div class="moods" id="moods"></div>
+      <p class="sub" style="margin-top:12px">
+        곡을 넣거나 지운 뒤 <b>[다시 읽기]</b> 를 누르세요.
+        수노 프롬프트는 <code>music/PROMPTS_SUNO.md</code> 에 있습니다.
+      </p>
+      <button id="musicReload">다시 읽기</button>
+    </div>
+
+    <div class="card" id="p-runs" hidden>
+      <h2>완성된 영상</h2>
+      <p class="sub">클릭해 재생하고, 마음에 들면 업로드하세요.</p>
+      <div class="runs" id="runs"></div>
+    </div>
+  </section>
+
+  <!-- 오른쪽 -->
+  <aside>
+    <div class="card" id="mkCard">
+      <!-- 간편 모드에서는 이 묶음을 통째로 감춘다. 진행 표시줄만 남긴다. -->
+      <div id="expert">
+      <h2>영상 만들기</h2>
+      <p class="sub" id="picked">왼쪽에서 이미지를 고르세요.</p>
+
+      <div class="modes">
+        <button class="mode" id="m-chain" aria-pressed="true">
+          <b>이어지는 영상</b>
+          <small>끊김 없이 계속 전진합니다. 첨부하신 레퍼런스 방식.</small>
+        </button>
+        <button class="mode" id="m-montage" aria-pressed="false">
+          <b>장면 전환</b>
+          <small>여러 장면을 컷으로 잇습니다. <b>이미지를 2장 이상</b> 고르세요 —
+          고른 장 수가 곧 클립 수입니다.</small>
+        </button>
+      </div>
+
+      <div class="row">
+        <label class="fld" id="clipsPick"><span>클립 수</span>
+          <select id="clips">
+            <option value="3" selected>3개 (30초)</option>
+          </select>
+        </label>
+        <!-- 장면 전환에서는 고른 장 수가 곧 클립 수라 고를 것이 없다.
+             선택지 하나짜리 드롭다운을 두면 '1개밖에 못 고른다' 로 읽힌다. -->
+        <div class="fld fixed" id="clipsFixed" hidden>
+          <span>클립 수</span>
+          <div class="readout" id="clipsRead">—</div>
+        </div>
+        <label class="fld"><span>클립 길이</span>
+          <select id="duration">
+            <option value="5">5초 — 컷이 잦습니다</option>
+            <option value="10" selected>10초 — 한 장면을 오래 (권장)</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="fld"><span>제목</span><input type="text" id="title" placeholder="예: 골목을 지나"></label>
+      <label class="fld"><span>훅 — 인스타 첫 줄에 그대로 나갑니다</span>
+        <input type="text" id="hook" placeholder="예: 이 길 끝에 뭐가 있을까"></label>
+
+      <div class="suggest">
+        <button class="ghost" id="suggestBtn" type="button">✨ AI로 제목 3개 뽑기</button>
+        <small id="suggestNote"></small>
+        <div id="suggestList"></div>
+      </div>
+      <label class="fld"><span>카메라 움직임 — 고르면 아래 문장이 채워집니다</span>
+        <select id="motion">
+          <option value="">직접 쓰기</option>
+        </select></label>
+      <small class="mnote" id="motionNote"></small>
+      <label class="fld"><span>움직임 프롬프트 (비우면 기본값)</span>
+        <textarea id="prompt" placeholder="forward motion through ..."></textarea></label>
+
+      <div class="cost"><span id="costLabel">예상 비용</span><b id="cost">—</b></div>
+      <button class="go" id="go" disabled>영상 만들기</button>
+      <!-- 본편을 만들고 나서야 "이상하다" 를 알면 그 값은 이미 나간 뒤다. -->
+      <button class="ghost" id="tryFirst" disabled style="width:100%;margin-top:8px">
+        🔍 먼저 싸게 시험 — 5초 한 클립만</button>
+      <small class="mnote" id="tryNote">본편을 만들기 전에 움직임이 제대로 나오는지 봅니다.</small>
+      </div><!-- /#expert -->
+
+      <div class="prog" id="prog" hidden>
+        <div class="bar"><i id="fill"></i></div>
+        <div class="plabel"><span id="pstep">준비 중…</span><span id="ptime">0초</span></div>
+        <div class="pidle" id="pidle" hidden></div>
+        <div class="log" id="log"></div>
+        <button class="ghost danger" id="cancel" style="margin-top:10px;width:100%">중단</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let STATE = { seeds: [], runs: [] };
+let picked = [];            // 고른 이미지 이름들
+let mode = "chain";
+let activeJob = null;
+let filter = "";
+let stayHere = false;   // 간편 모드·설정에서 시작한 작업은 탭을 옮기지 않는다
+
+const toast = (msg, bad = false, ms = 4200) => {
+  const t = $("toast");
+  t.textContent = msg; t.className = "toast" + (bad ? " bad" : ""); t.hidden = false;
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, ms);
+};
+
+// 실패 이유를 로그에서 꺼낸다. "기록을 확인하세요" 만 띄우면 아무 도움이 안 된다.
+// main.py 는 치명적 오류를 "✗ ..." 로 찍고 그 아래 줄에 해결 방법을 붙인다.
+function failReason(job) {
+  const lines = (job.lines || []).map((l) => l.trimEnd()).filter(Boolean);
+  const i = lines.findIndex((l) => l.startsWith("✗"));
+  if (i >= 0) {
+    // ✗ 줄부터 이어지는 들여쓴 안내까지 같이 보여준다
+    const out = [lines[i].replace(/^✗\s*/, "")];
+    // lines 는 trimEnd 만 했으므로 들여쓰기가 남아 있다. 원본 배열을 보면
+    // 빈 줄을 걸러낸 만큼 번호가 어긋나서 안내 줄을 놓친다.
+    for (let k = i + 1; k < lines.length && k < i + 5; k++) {
+      if (!/^\s/.test(lines[k])) break;
+      out.push(lines[k].trim());
+    }
+    return out.join("\n");
+  }
+  return lines.length
+    ? `실패했습니다.\n${lines[lines.length - 1]}`
+    : "실패했습니다. 오른쪽 기록을 확인하세요.";
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `요청 실패 (${r.status})`);
+  return data;
+}
+
+// ── 상태 ────────────────────────────────────────────────────────────
+async function refresh() {
+  try {
+    const s = await api("/api/state");
+    const first = !STATE.defaults;
+    STATE = s;
+    // 처음 한 번만 설정의 기본 길이를 화면에 반영한다. 매번 하면 사용자가
+    // 방금 고른 값이 6초마다 되돌아간다.
+    if (first && s.defaults) { applyDefaults(s.defaults); syncClips(); updateCost(); }
+    // 파일은 새것인데 서버가 예전 코드로 돌고 있으면 알려준다.
+    // 안 그러면 새 버튼을 눌렀을 때 영문 모를 오류만 뜬다.
+    $("restartBar").classList.toggle("on", !!s.needs_restart);
+    renderConfigDiff(s.config_diff || []);
+    renderSeeds(); renderRuns();
+    if (s.active) {
+      activeJob = s.active.id;
+      renderJob(s.active);
+      // 폴링이 끊겨 있으면 여기서 되살린다. 안 그러면 6초 간격 새로고침도
+      // activeJob 이 있다는 이유로 건너뛰어서 화면이 영영 안 움직인다.
+      if (!polling) poll();
+    } else if (activeJob) {
+      activeJob = null; polling = false; $("prog").hidden = true; applyAside();
+    }
+  } catch (e) { /* 서버가 잠깐 멈춘 것뿐일 수 있다 */ }
+}
+
+async function loadDoctor() {
+  try {
+    const d = await api("/api/doctor");
+    const el = $("status");
+    if (!d.ok) { el.innerHTML = `<span class="chip bad">설정 오류</span>`; return; }
+    const doc = $("doc");
+    if (doc) {
+      doc.innerHTML = d.sections.map((sec) => `
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">
+            ${sec.title} ${sec.ready ? "" : '<span style="color:var(--bad)">·  미완료</span>'}
+          </div>
+          ${sec.checks.map((c) => `
+            <div style="font-size:13px;color:var(--ink2);padding-left:4px">
+              <span style="color:${c.status === "ok" ? "var(--good)" : c.status === "warn" ? "var(--warn)" : "var(--bad)"}">
+                ${c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✗"}</span>
+              ${c.name}${c.detail ? ` — ${c.detail}` : ""}
+              ${c.status !== "ok" && c.fix ? `<div style="color:var(--mute);font-size:12px;padding-left:16px">→ ${c.fix}</div>` : ""}
+            </div>`).join("")}
+        </div>`).join("");
+    }
+    const find = (t) => d.sections.find((s) => s.title.includes(t));
+    const chips = [];
+    chips.push(d.can_generate
+      ? `<span class="chip ok">제작 준비 완료</span>`
+      : `<span class="chip bad">설정 미완료</span>`);
+    const yt = find("유튜브"), ig = find("인스타");
+    if (yt) chips.push(`<span class="chip ${yt.ready ? "ok" : ""}">유튜브 ${yt.ready ? "연결됨" : "미설정"}</span>`);
+    if (ig) chips.push(`<span class="chip ${ig.ready ? "ok" : ""}">인스타 ${ig.ready ? "연결됨" : "미설정"}</span>`);
+    el.innerHTML = chips.join("");
+  } catch (e) { /* 무시 */ }
+}
+
+// ── 시드 ────────────────────────────────────────────────────────────
+function renderSeeds() {
+  const themes = [...new Set(STATE.seeds.map((s) => s.theme))].sort();
+  $("filters").innerHTML =
+    [`<button class="f" data-t="" aria-pressed="${filter === ""}">전체 ${STATE.seeds.length}</button>`]
+      .concat(themes.map((t) => {
+        const n = STATE.seeds.filter((s) => s.theme === t).length;
+        return `<button class="f" data-t="${t}" aria-pressed="${filter === t}">${t} ${n}</button>`;
+      })).join("");
+  $("filters").querySelectorAll(".f").forEach((b) =>
+    b.onclick = () => { filter = b.dataset.t; renderSeeds(); });
+
+  const list = filter ? STATE.seeds.filter((s) => s.theme === filter) : STATE.seeds;
+  $("seedCount").textContent =
+    STATE.seeds.length ? `${list.length}장 표시 중 · 클릭해서 고르세요`
+                       : "seeds 폴더가 비어 있습니다.";
+  $("grid").innerHTML = list.length ? list.map((s) => `
+    <button class="seed${s.used_by ? " done" : ""}" data-n="${s.name}"
+            aria-pressed="${picked.includes(s.name)}"
+            title="${s.used_by ? "이미 " + s.used_by + " 에서 영상으로 만들었습니다" : ""}">
+      <img src="/api/thumb?name=${encodeURIComponent(s.name)}" alt="${s.title}" loading="lazy">
+      ${s.used_by ? '<span class="used">이미 만듦</span>'
+                  : (s.has_meta ? "" : '<span class="warn">제목없음</span>')}
+      <span class="cap">${s.title || s.name}</span>
+    </button>`).join("")
+    : `<div class="empty">이미지가 없습니다.<br>seeds 폴더에 9:16 세로 이미지를 넣으세요.</div>`;
+
+  $("grid").querySelectorAll(".seed").forEach((b) => b.onclick = () => choose(b.dataset.n));
+}
+
+function choose(name) {
+  if (mode === "chain") {
+    picked = picked[0] === name ? [] : [name];
+  } else {
+    const i = picked.indexOf(name);
+    if (i >= 0) picked.splice(i, 1); else picked.push(name);
+  }
+  const first = STATE.seeds.find((s) => s.name === picked[0]);
+  if (first) {
+    $("title").value = first.title || "";
+    $("hook").value = first.hook || "";
+    $("prompt").value = first.prompt || "";
+  }
+  clearSuggest();
+  syncForm(); renderSeeds();
+}
+
+// ── 새 권장 설정 ────────────────────────────────────────────────────
+// 업데이트는 사용자 config.yaml 을 덮어쓰지 않는다 (바꿔놓은 설정이 되돌아가면
+// 안 되니까). 그래서 개선된 기본값이 안 닿는다 — 비용을 30% 낮추는 설정이
+// 적용 안 된 채로 계속 쓰이던 일이 실제로 있었다. 여기서 꺼내 보여준다.
+let cfgSkipped = false;
+
+function renderConfigDiff(changes) {
+  const bar = $("cfgBar");
+  if (cfgSkipped || !changes.length) { bar.hidden = true; return; }
+  $("cfgList").innerHTML = changes.map((c) =>
+    `<li>${esc(c.label)} — <s>${esc(c.current)}</s> → <b>${esc(c.incoming)}</b></li>`
+  ).join("");
+  bar.hidden = false;
+}
+
+$("cfgSkip").onclick = () => { cfgSkipped = true; $("cfgBar").hidden = true; };
+
+$("cfgApply").onclick = async () => {
+  const btn = $("cfgApply");
+  btn.disabled = true;
+  try {
+    const d = await api("/api/apply-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    renderConfigDiff((d.diff && d.diff.changes) || []);
+    toast(d.changed && d.changed.length
+      ? `${d.changed.length}개 설정을 적용했습니다.`
+      : "이미 최신 설정입니다.");
+    updateCost();
+    refresh();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ── AI 제목 제안 ────────────────────────────────────────────────────
+// 무료 한도(하루 50회)가 있으므로 **누를 때만** 부른다. 이미지를 무더기로
+// 들여올 때는 절대 부르지 않는다 — 272장이면 첫날에 한도가 날아간다.
+function clearSuggest(note = "") {
+  $("suggestList").innerHTML = "";
+  const el = $("suggestNote");
+  el.textContent = note;
+  el.classList.remove("bad");
+}
+
+function applySuggest(s) {
+  $("title").value = s.title || $("title").value;
+  if (s.hook) $("hook").value = s.hook;
+  clearSuggest("적용했습니다. 마음에 안 들면 다시 뽑아 보세요.");
+}
+
+$("suggestBtn").onclick = async () => {
+  if (!picked.length) { clearSuggest("먼저 왼쪽에서 이미지를 고르세요."); return; }
+  const btn = $("suggestBtn"), note = $("suggestNote");
+  btn.disabled = true;
+  btn.textContent = "생각하는 중…";
+  clearSuggest("무료 모델이라 10~30초쯤 걸립니다.");
+  try {
+    const d = await api("/api/suggest-copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0] }),
+    });
+    const list = d.suggestions || [];
+    if (!list.length) { note.textContent = "후보를 못 받았습니다. 다시 눌러 보세요."; return; }
+    note.textContent = d.status && d.status.cap
+      ? `마음에 드는 것을 누르세요. 오늘 ${d.status.used}/${d.status.cap}회 사용.`
+      : "마음에 드는 것을 누르세요.";
+    $("suggestList").innerHTML = list.map((s, i) =>
+      `<button class="sg" type="button" data-i="${i}">` +
+      `<b>${esc(s.title)}</b><span>${esc(s.hook || "")}</span></button>`).join("");
+    [...$("suggestList").querySelectorAll(".sg")]
+      .forEach((el) => { el.onclick = () => applySuggest(list[Number(el.dataset.i)]); });
+  } catch (e) {
+    $("suggestList").innerHTML = "";
+    note.textContent = e.message;
+    note.classList.add("bad");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ AI로 제목 3개 뽑기";
+  }
+};
+
+// 장면 전환은 **장면이 2장 이상**이어야 뜻이 있다. 1장으로 돌리면 같은 그림
+// 하나로 끝나는 영상이 나온다 — 예전에 실제로 나갔던 결과물이다.
+const MIN_SCENES = 2;
+
+function syncForm() {
+  const n = picked.length;
+  const short = mode === "montage" && n > 0 && n < MIN_SCENES;
+
+  $("picked").textContent = n === 0
+    ? (mode === "chain" ? "왼쪽에서 이미지 1장을 고르세요."
+                        : "왼쪽에서 장면 이미지를 2장 이상 고르세요.")
+    : short ? `장면이 ${n}장뿐입니다. 한 장 더 고르거나 [이어지는 영상] 을 쓰세요.`
+    : (mode === "chain" ? `선택: ${picked[0]}` : `장면 ${n}장 선택됨`);
+  $("picked").classList.toggle("bad", short);
+
+  // 장면 1장짜리 '장면 전환' 은 만들 수 없게 막는다. 예전에는 눌러졌고,
+  // 5초짜리 한 컷이 나와서 "이게 맞나" 하는 신고로 이어졌다.
+  $("go").disabled = n === 0 || short || activeJob !== null;
+  // 시험판은 이어지는 영상이든 장면 전환이든 첫 장 하나만 쓴다.
+  $("tryFirst").disabled = n === 0 || activeJob !== null;
+  syncClips();
+  updateCost();
+}
+
+// 이어지는 영상은 클립 수를 고르고, 장면 전환은 **고른 장 수가 곧 클립 수**다.
+// 예전에는 select 의 value 에 그냥 숫자를 넣었는데, 보기에 없는 값(5,7,9…)을
+// 넣으면 select 가 통째로 비어버린다. 그러면 Number("") 가 0 이 되고 서버가
+// 1 로 올려서, 5장을 골라도 5초짜리 한 클립만 나왔다.
+// 고를 수 있는 클립 수는 **길이에 따라 달라진다.** 총 길이를 20~50초에
+// 묶어두기 위해서다. 예전에는 [4,6,8,10] 로 고정이라 10초 클립을 고르면
+// 6개 = 60초짜리가 나왔다 — 쇼츠로는 너무 길고 값은 두 배였다.
+const TOTALS = [20, 30, 40, 50];
+
+// 기본 길이는 **config.yaml 이 정한다.** 화면에 숫자를 박아두면, 설정을
+// 20초로 내려도 작업실에서 누른 영상은 30초로 나온다 — 실제로 그랬다.
+let DEFAULTS = { mode: "chain", clips: 2, duration: 10, seconds: 20 };
+
+function applyDefaults(d) {
+  if (!d) return;
+  DEFAULTS = d;
+  const dur = $("duration");
+  if (dur && [...dur.options].some((o) => Number(o.value) === d.duration)) {
+    dur.value = String(d.duration);
+  }
+  // 고른 값을 비워야 syncClips 가 설정 기본값으로 다시 잡는다. 안 비우면
+  // 화면이 먼저 그려놓은 값(3개)이 그대로 남는다.
+  const sel = $("clips");
+  if (sel) { sel.value = ""; sel.dataset.dur = ""; }
+}
+
+function chainClips(dur) {
+  const out = TOTALS.map((s) => s / dur).filter((n) => Number.isInteger(n) && n >= 1);
+  return out.length ? out : [Math.max(1, Math.round(DEFAULTS.seconds / dur))];
+}
+
+function syncClips() {
+  const sel = $("clips"), dur = Number($("duration").value) || 5;
+
+  if (mode === "montage") {
+    // 고를 것이 없으므로 드롭다운을 감추고 정해진 값을 그냥 보여준다.
+    const n = Math.max(1, Math.min(picked.length, 20));
+    sel.innerHTML = `<option value="${n}">${n}개</option>`;
+    sel.value = String(n);
+    sel.dataset.dur = String(dur);
+    $("clipsPick").hidden = true;
+    $("clipsFixed").hidden = false;
+    const read = $("clipsRead");
+    if (picked.length < MIN_SCENES) {
+      read.textContent = "장면을 2장 이상 고르세요";
+      read.classList.add("warn");
+    } else {
+      const secs = n * dur;
+      read.textContent = `장면 ${n}장 = ${n}개 · ${secs}초`
+        + (secs > 60 ? " — 좀 깁니다" : "");
+      read.classList.toggle("warn", secs > 60);
+    }
+    return;
+  }
+
+  $("clipsPick").hidden = false;
+  $("clipsFixed").hidden = true;
+  const opts = chainClips(dur);
+  // 길이를 바꿔도 총 길이를 최대한 유지한다. 처음에는 설정의 기본 길이.
+  const wantSec = (Number(sel.value) || 0) * (Number(sel.dataset.dur) || dur)
+                  || DEFAULTS.seconds;
+  const keep = opts.reduce((a, b) =>
+    Math.abs(b * dur - wantSec) < Math.abs(a * dur - wantSec) ? b : a);
+  sel.innerHTML = opts
+    .map((c) => `<option value="${c}">${c}개 (${c * dur}초)</option>`).join("");
+  sel.value = String(keep);
+  sel.dataset.dur = String(dur);
+  sel.disabled = false;
+  sel.title = "";
+}
+
+// ── 비용 ────────────────────────────────────────────────────────────
+let costTimer;
+function updateCost() {
+  clearTimeout(costTimer);
+  costTimer = setTimeout(async () => {
+    try {
+      const d = await api(`/api/estimate?mode=${mode}&clips=${$("clips").value}&duration=${$("duration").value}`);
+      if (d.ok) {
+        $("cost").textContent = `$${d.expected.toFixed(2)}`;
+        $("costLabel").textContent = `예상 비용 · 약 ${d.seconds}초 영상`;
+      } else { $("cost").textContent = "—"; }
+    } catch (e) { $("cost").textContent = "—"; }
+  }, 180);
+}
+
+// ── 실행 ────────────────────────────────────────────────────────────
+$("go").onclick = async () => {
+  if (!picked.length) return;
+  if (mode === "montage" && picked.length < MIN_SCENES) {
+    toast("장면 전환은 이미지를 2장 이상 골라야 합니다.", true);
+    return;
+  }
+  // select 가 비어 있어도 0 을 보내지 않는다. 0 은 서버에서 1 이 된다.
+  const clips = mode === "montage"
+    ? picked.length
+    : (Number($("clips").value) || 6);
+  const cost = $("cost").textContent;
+  // 272장을 눈으로 구별할 수 없다. 같은 그림으로 두 번 만들면 값만 다시 나간다.
+  const again = picked
+    .map((n) => STATE.seeds.find((s) => s.name === n))
+    .filter((s) => s && s.used_by);
+  if (again.length && !confirm(
+      `이미 영상으로 만든 이미지가 ${again.length}장 있습니다.\n\n`
+      + again.map((s) => `· ${s.title || s.name}  (${s.used_by})`).join("\n")
+      + `\n\n같은 영상이 한 편 더 만들어지고 값도 다시 나갑니다.\n그래도 진행할까요?`)) return;
+  if (!confirm(`영상을 만듭니다.\n\n예상 비용 ${cost}\n5~10분 걸립니다.\n\n진행할까요?`)) return;
+
+  try {
+    await api("/api/save-meta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value,
+                             hook: $("hook").value, prompt: $("prompt").value,
+                             negative: motionNegative() }),
+    });
+    const d = await api("/api/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        seed: picked[0], mode, clips, duration: Number($("duration").value),
+        // 고른 순서 그대로 1번 장면부터 쓴다. 예전에는 첫 장을 빼고 보내서
+        // 첫 번째로 고른 그림이 맨 마지막 장면으로 밀렸다.
+        scenes: mode === "montage" ? picked.slice() : [],
+        title: $("title").value,
+      }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("go").disabled = true;
+    $("log").textContent = ""; toast("생성을 시작했습니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
+
+// ── 카메라 움직임 프리셋 ────────────────────────────────────────────
+// 영어 프롬프트를 직접 쓰라고 하면 안 쓰거나 잘못 쓴다. 잘못 쓰면 애니메이션이
+// 이상해지고 그 값은 이미 나간 뒤다. 검증된 문장을 골라 쓰게 한다.
+let MOTIONS = [];
+
+async function loadMotions() {
+  try {
+    const d = await api("/api/motions");
+    MOTIONS = d.motions || [];
+  } catch { return; }
+  $("motion").innerHTML = '<option value="">직접 쓰기</option>'
+    + MOTIONS.map((m) => `<option value="${m.key}">${m.label}</option>`).join("");
+}
+
+function motionNegative() {
+  const m = MOTIONS.find((x) => x.key === $("motion").value);
+  return m ? m.negative : "";
+}
+
+$("motion").onchange = () => {
+  const m = MOTIONS.find((x) => x.key === $("motion").value);
+  $("motionNote").textContent = m ? m.note : "";
+  if (m) $("prompt").value = m.prompt;
+};
+
+// ── 싸게 먼저 시험 ──────────────────────────────────────────────────
+$("tryFirst").onclick = async () => {
+  if (!picked.length) return;
+  if (!confirm("싼 모델로 5초 한 클립만 만듭니다.\n\n"
+             + "움직임이 제대로 나오는지 먼저 보고,\n괜찮을 때만 본편을 만드세요.\n\n"
+             + "진행할까요?")) return;
+  try {
+    await api("/api/save-meta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value,
+                             hook: $("hook").value, prompt: $("prompt").value,
+                             negative: motionNegative() }),
+    });
+    const d = await api("/api/preview", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: picked[0], title: $("title").value }),
+    });
+    activeJob = d.id; $("prog").hidden = false;
+    $("go").disabled = true; $("tryFirst").disabled = true;
+    $("log").textContent = ""; toast("시험판을 만듭니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
+
+$("cancel").onclick = async () => {
+  if (!activeJob || !confirm("정말 중단할까요? 이미 만든 클립 비용은 돌아오지 않습니다.")) return;
+  await api("/api/cancel", { method: "POST", headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify({ id: activeJob }) });
+  toast("중단했습니다.");
+};
+
+// 클립 하나를 만드는 동안은 몇 분씩 출력이 없다. 그게 정상인지 멈춘 것인지
+// 화면만 봐서는 알 수가 없다. 마지막 소식 이후 얼마나 지났는지 그대로 보여준다.
+function renderIdle(j) {
+  const box = $("pidle");
+  if (j.status !== "running") { box.hidden = true; return; }
+  const idle = j.idle || 0;
+  box.hidden = false;
+  const mm = Math.floor(idle / 60);
+  if (idle < 75) {
+    box.className = "pidle ok";
+    box.textContent = "정상 동작 중입니다.";
+  } else if (idle < 12 * 60) {
+    box.className = "pidle ok";
+    box.textContent = `${mm}분째 응답을 기다리는 중입니다. `
+      + "클립 하나에 1~10분 걸립니다 — 멈춘 것이 아닙니다.";
+  } else if (idle < 20 * 60) {
+    box.className = "pidle warn";
+    box.textContent = `${mm}분째 새 소식이 없습니다. `
+      + "곧 시간 초과로 넘어가거나 다시 시도합니다. 조금 더 기다려 보세요.";
+  } else {
+    box.className = "pidle bad";
+    box.textContent = `${mm}분째 멈춰 있습니다. `
+      + "[중단] 을 누르고 다시 시도하세요. 이미 만든 클립은 남습니다.";
+  }
+}
+
+function renderJob(j) {
+  $("prog").hidden = false;
+  applyAside();
+  const pct = j.total ? (j.step / j.total) * 100 : (j.status === "done" ? 100 : 6);
+  $("fill").style.width = pct + "%";
+  $("pstep").textContent = j.status === "running"
+    ? (j.total ? `클립 ${j.step} / ${j.total}` : "준비 중…")
+    : ({ done: "완료", failed: "실패", cancelled: "중단됨" }[j.status] || j.status);
+  const m = Math.floor(j.elapsed / 60), s = j.elapsed % 60;
+  $("ptime").textContent = m ? `${m}분 ${s}초` : `${s}초`;
+  renderIdle(j);
+  const log = $("log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 24;
+  log.textContent = (j.lines || []).join("\n");
+  if (atBottom) log.scrollTop = log.scrollHeight;
+  $("cancel").hidden = j.status !== "running";
+}
+
+let polling = false;      // 폴링 루프가 두 개 돌지 않게
+let pollMisses = 0;       // 연속 실패 횟수
+
+async function poll() {
+  if (!activeJob) { polling = false; return; }
+  polling = true;
+  try {
+    const j = await api(`/api/job?id=${activeJob}`);
+    pollMisses = 0;
+    renderJob(j);
+    if (j.status === "running") { setTimeout(poll, 1500); return; }
+    polling = false;
+    activeJob = null;
+    $("go").disabled = picked.length === 0;
+    $("eGo").disabled = false; $("eGo2").disabled = false;
+    const here = stayHere; stayHere = false;
+    if (j.status === "done") {
+      toast({ publish: "업로드가 끝났습니다.", connect: "연결됐습니다." }[j.kind]
+             || "영상이 완성됐습니다.");
+      if (!here) switchTab("runs");
+    } else if (j.status === "failed") {
+      toast(failReason(j), true, 9000);
+    }
+    refresh(); loadDoctor();
+    if (!$("p-easy").hidden) loadEasy();
+    if (!$("p-set").hidden) loadSettings();
+  } catch (e) {
+    // 요청 하나가 실패했다고 포기하면 안 된다. 작업은 뒤에서 계속 도는데
+    // 화면만 그 자리에 얼어붙어 "만들다 멈춘 것" 처럼 보인다. 실제로
+    // 여기서 activeJob 을 지워버려 다시는 폴링이 시작되지 않았다.
+    pollMisses += 1;
+    if (pollMisses < 20) {          // 1.5초 -> 최대 3초 간격으로 30초쯤 버틴다
+      setTimeout(poll, Math.min(3000, 1500 + pollMisses * 100));
+      return;
+    }
+    polling = false;
+    activeJob = null; stayHere = false;
+    pollMisses = 0;
+    $("go").disabled = false; $("eGo").disabled = false; $("eGo2").disabled = false;
+    toast("작업 상태를 읽지 못했습니다. 작업실을 껐다 켜 보세요.", true);
+  }
+}
+
+// ── 결과 ────────────────────────────────────────────────────────────
+function renderRuns() {
+  const ready = STATE.runs.filter((r) => r.ready);
+  $("runs").innerHTML = ready.length ? ready.map((r) => `
+    <div class="run">
+      <video src="/api/video?run=${r.id}" controls preload="metadata" playsinline></video>
+      <div class="meta">
+        <div class="t">${r.preview ? "🔍 시험판 · " : ""}${r.title || r.id}</div>
+        <div class="d">${r.id} · ${r.duration ? r.duration.toFixed(1) + "초 · " : ""}${r.size_mb}MB${r.cost ? " · $" + r.cost.toFixed(2) : ""}</div>
+        <div class="snd ${r.has_sound === false ? "off" : ""}">${soundLabel(r)}</div>
+        ${resLabel(r)}
+        <div class="ups">${uploadLabel(r)}${schedLabel(r)}</div>
+        <div class="acts">
+          <button class="ghost" data-up="${r.id}" data-tg="youtube">유튜브 업로드</button>
+          <button class="ghost" data-up="${r.id}" data-tg="instagram">인스타 업로드</button>
+          <button class="ghost" data-up="${r.id}" data-tg="both">둘 다</button>
+          <button class="ghost" data-sch="${r.id}">예약</button>
+          ${r.clips > 1 ? `<button class="ghost" data-redo="${r.id}"
+                  data-clips="${r.clips}">클립 하나만 다시</button>` : ""}
+          <button class="ghost danger" data-del="${r.id}"
+                  data-title="${(r.title || r.id).replace(/"/g, "&quot;")}"
+                  data-mb="${r.size_mb}">삭제</button>
+        </div>
+      </div>
+    </div>`).join("")
+    : `<div class="empty">아직 완성된 영상이 없습니다.</div>`;
+
+  $("runs").querySelectorAll("[data-up]").forEach((b) => b.onclick = () => publish(b.dataset.up, b.dataset.tg));
+  $("runs").querySelectorAll("[data-del]").forEach((b) =>
+    b.onclick = () => removeRun(b.dataset.del, b.dataset.title, b.dataset.mb));
+  $("runs").querySelectorAll("[data-redo]").forEach((b) =>
+    b.onclick = () => redoClip(b.dataset.redo, Number(b.dataset.clips)));
+  $("runs").querySelectorAll("[data-sch]").forEach((b) =>
+    b.onclick = () => scheduleUpload(b.dataset.sch));
+}
+
+// 한 클립만 어긋났을 때 전체를 다시 만들면 멀쩡한 클립 값까지 다시 낸다.
+// 3클립짜리에서 2번만 이상하면 $1.47 대신 $0.49 로 끝난다.
+async function redoClip(id, total) {
+  const raw = prompt(
+    `몇 번째 클립을 다시 만들까요? (1~${total})\n\n`
+    + "이어지는 영상은 그 뒤 클립도 같이 다시 만듭니다.\n"
+    + "앞 클립의 마지막 장면이 바뀌기 때문입니다.", "");
+  if (raw === null) return;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > total) {
+    toast(`1~${total} 사이 숫자를 넣어주세요.`, true);
+    return;
+  }
+  if (!confirm(`${n}번 클립부터 다시 만듭니다.\n\n`
+             + "다시 만드는 클립만큼 값이 나갑니다.\n진행할까요?")) return;
+  try {
+    const d = await api("/api/redo", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: id, clip: n }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("go").disabled = true;
+    $("log").textContent = ""; toast(`${n}번 클립을 다시 만듭니다.`);
+    poll();
+  } catch (e) { toast(e.message, true); }
+}
+
+// 화질이 어디서 깎였는지. 최종 크기만 보면 원인을 알 수 없다 —
+// 모델이 몇으로 줬는지가 같이 보여야 한다.
+function resLabel(r) {
+  const f = r.final_res, s = r.source_res;
+  if (!f) return "";
+  const size = `${f[0]}x${f[1]}`;
+  const fps = r.fps ? ` · ${r.fps}fps` : "";
+  if (!s) return `<div class="snd">${size}${fps}</div>`;
+  const up = s[0] < f[0] || s[1] < f[1];
+  if (!up) return `<div class="snd">${size}${fps} · 모델 출력 ${s[0]}x${s[1]}</div>`;
+  const pct = Math.round((1 - Math.min(s[0] / f[0], s[1] / f[1])) * 100);
+  return `<div class="snd off">${size}${fps} · 모델이 ${s[0]}x${s[1]} 로 줘서 `
+    + `${pct}% 늘림 — 여기서 화질이 깎입니다</div>`;
+}
+
+// 어디에 올라갔는지 · 실패했으면 왜인지. 토스트는 사라지지만 이건 남는다.
+const UP_NAMES = { youtube: "유튜브", instagram: "인스타" };
+
+function schedLabel(r) {
+  const q = queueOf(r.id);
+  if (!q) return "";
+  const names = q.targets.map((t) => UP_NAMES[t] || t).join("+");
+  const how = q.kind === "publish_at" ? "공개 예약" : "업로드 예약";
+  return ` <span class="sch">⏰ ${q.at.replace("T", " ")} ${names} ${how}</span>`;
+}
+
+function uploadLabel(r) {
+  const p = r.published || {};
+  const keys = Object.keys(p);
+  if (!keys.length) return `<span class="pend">아직 안 올림</span>`;
+  return keys.map((k) => {
+    const v = p[k] || {};
+    const name = UP_NAMES[k] || k;
+    const when = v.at ? ` · ${v.at.slice(5, 16).replace("T", " ")}` : "";
+    if (v.ok) {
+      const link = v.url
+        ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">보기</a>` : "";
+      return `<span class="ok">✓ ${name}${v.dry_run ? " (연습)" : ""}${when}</span>${link}`;
+    }
+    return `<span class="bad" title="${esc(v.error || "")}">✗ ${name} 실패 — `
+      + `${esc((v.error || "").split("\n")[0].slice(0, 60))}</span>`;
+  }).join(" ");
+}
+
+// 소리가 들어갔는지는 결과 파일에서 직접 확인한 값이다. 상태 파일이 아니라.
+function soundLabel(r) {
+  if (r.has_sound === false) {
+    return "🔇 무음 — music/ 폴더에 곡을 넣고 다시 만드세요";
+  }
+  if (r.has_sound === true) {
+    return r.music ? `🔊 ${r.music}` : "🔊 소리 있음";
+  }
+  return "";
+}
+
+// 지금 올리는 것 말고, 시각을 정해 두는 길.
+function queueOf(runId) {
+  return ((STATE.queue || {}).items || [])
+    .find((i) => i.run === runId && i.status === "waiting");
+}
+
+function defaultWhen() {
+  // 다음 저녁 9시. 이미 지났으면 내일.
+  const d = new Date();
+  d.setSeconds(0, 0);
+  if (d.getHours() >= 21) d.setDate(d.getDate() + 1);
+  d.setHours(21, 0);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} `
+       + `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function scheduleUpload(runId) {
+  const already = queueOf(runId);
+  if (already) {
+    if (!confirm(`이미 ${already.at.replace("T", " ")} 에 예약돼 있습니다.\n\n`
+                 + "취소할까요?")) return;
+    try {
+      const r = await api("/api/schedule-upload", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run: runId, cancel: true }),
+      });
+      toast(r.ok ? "예약을 취소했습니다." : "예약이 없습니다.");
+      refresh();
+    } catch (e) { toast(e.message, true); }
+    return;
+  }
+
+  const when = prompt("언제 공개할까요?  (예: " + defaultWhen() + ")", defaultWhen());
+  if (!when) return;
+
+  const yt = confirm("유튜브에 올릴까요?");
+  const ig = confirm("인스타그램에도 올릴까요?");
+  const targets = [];
+  if (yt) targets.push("youtube");
+  if (ig) targets.push("instagram");
+  if (!targets.length) { toast("올릴 곳을 하나 이상 고르세요.", true); return; }
+
+  // 유튜브는 '지금 올리고 그 시각에 공개' 가 된다. 그러면 그 시각에
+  // 컴퓨터가 꺼져 있어도 된다. 인스타는 그 방법이 없어 컴퓨터가 필요하다.
+  let kind = "upload_at";
+  if (yt) {
+    kind = confirm(
+      "지금 유튜브에 올려두고, 정한 시각에 자동으로 공개할까요?\n\n"
+      + "[확인] 지금 올림 → 그 시각에 유튜브가 공개\n"
+      + "         그때 컴퓨터가 꺼져 있어도 됩니다. (권장)\n\n"
+      + "[취소] 그 시각에 이 컴퓨터가 올림\n"
+      + "         그때 컴퓨터가 켜져 있고 작업실이 열려 있어야 합니다."
+    ) ? "publish_at" : "upload_at";
+  }
+  if (kind === "publish_at" && ig) {
+    alert("인스타그램은 예약 공개가 안 됩니다.\n"
+          + "정한 시각에 이 컴퓨터가 올리게 되므로, 그때 작업실이 켜져 있어야 합니다.");
+  }
+
+  try {
+    const r = await api("/api/schedule-upload", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: runId, targets, at: when.replace(" ", "T"), kind }),
+    });
+    toast(kind === "publish_at"
+      ? `지금 올리고 ${r.at.replace("T", " ")} 에 공개되도록 예약했습니다.`
+      : `${r.at.replace("T", " ")} 에 올리도록 예약했습니다.`);
+    refresh();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function removeRun(runId, title, mb) {
+  // 되돌릴 수 없다. 무엇을 지우는지 제목까지 보여주고 한 번 더 묻는다.
+  if (!confirm(`이 영상을 지웁니다.\n\n  ${title}\n  ${runId} · ${mb}MB\n\n`
+               + "되돌릴 수 없습니다. 진행할까요?")) return;
+  try {
+    const r = await api("/api/delete-run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: runId }),
+    });
+    toast(`지웠습니다. ${r.freed_mb}MB 를 비웠습니다.`);
+    refresh(); loadOverview();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function publish(runId, tg) {
+  const targets = tg === "both" ? ["youtube", "instagram"] : [tg];
+  const names = { youtube: "유튜브", instagram: "인스타그램" };
+  if (!confirm(`${targets.map((t) => names[t]).join(" + ")} 에 올립니다.\n\n진행할까요?`)) return;
+  try {
+    const d = await api("/api/publish", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ run: runId, targets }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
+    applyAside();
+    // 진행 표시줄은 오른쪽(좁은 화면에서는 아래)에 있다. 안 보이면
+    // "아무 일도 안 일어난다" 로 읽힌다. 눌렀으면 그쪽으로 데려간다.
+    $("prog").scrollIntoView({ behavior: "smooth", block: "center" });
+    toast("업로드를 시작했습니다. 진행 상황이 아래에 나옵니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── 업로드 ──────────────────────────────────────────────────────────
+const drop = $("drop"), fileInput = $("file"), upstat = $("upstat");
+$("pick").onclick = () => fileInput.click();
+fileInput.onchange = () => { if (fileInput.files.length) upload([...fileInput.files]); };
+
+["dragenter", "dragover"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("hot"); }));
+["dragleave", "drop"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("hot"); }));
+drop.addEventListener("drop", (ev) => {
+  const files = [...(ev.dataTransfer?.files || [])].filter((f) => f.type.startsWith("image/"));
+  if (files.length) upload(files);
+});
+
+const readFile = (f) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res({ name: f.name, data: r.result });
+  r.onerror = () => rej(new Error(f.name));
+  r.readAsDataURL(f);
+});
+
+async function upload(files) {
+  upstat.textContent = `${files.length}장 읽는 중…`;
+  try {
+    const CHUNK = 12;                       // 한 번에 너무 많이 보내면 느려진다
+    let added = 0; const problems = [];
+    for (let i = 0; i < files.length; i += CHUNK) {
+      const part = files.slice(i, i + CHUNK);
+      upstat.textContent = `${i + 1}~${Math.min(i + CHUNK, files.length)} / ${files.length} 올리는 중…`;
+      const payload = await Promise.all(part.map(readFile));
+      const r = await api("/api/upload", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: payload }),
+      });
+      added += r.added.length;
+      problems.push(...r.skipped);
+    }
+    upstat.innerHTML = `<div>${added}장 추가됨</div>` + (problems.length
+      ? problems.slice(0, 8).map((p) => `<div class="bad">${p.name} — ${p.reason}</div>`).join("")
+        + (problems.length > 8 ? `<div class="bad">외 ${problems.length - 8}장</div>` : "")
+      : "");
+    toast(`${added}장을 추가했습니다.` + (problems.length ? ` (${problems.length}장 제외)` : ""));
+    fileInput.value = "";
+    refresh();
+  } catch (e) {
+    upstat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  }
+}
+
+// ── 폴더에서 가져오기 · 다시 분류 ───────────────────────────────────
+const folder = $("folder"), instat = $("instat");
+const FOLDER_KEY = "aideokhu.intakeFolder";
+try { folder.value = localStorage.getItem(FOLDER_KEY) || ""; } catch (e) { /* 무시 */ }
+folder.oninput = () => { try { localStorage.setItem(FOLDER_KEY, folder.value); } catch (e) {} };
+
+function skipLines(skipped) {
+  return (skipped || []).map((s) =>
+    `<div class="bad">${s.count}장 건너뜀 — ${s.reason}</div>`).join("");
+}
+
+function busy(on) {
+  $("intake").disabled = on;
+  $("reclass").disabled = on;
+}
+
+$("intake").onclick = async () => {
+  const path = folder.value.trim();
+  if (!path) { toast("폴더 경로를 넣어 주세요.", true); folder.focus(); return; }
+  busy(true);
+  instat.textContent = "폴더를 살펴보는 중… (장수가 많으면 조금 걸립니다)";
+  try {
+    const r = await api("/api/intake", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder: path }),
+    });
+    const rows = r.added.slice(0, 10).map((a) =>
+      `<div>+ ${a.name} · ${a.title} (${Math.round(a.score)}점)</div>`).join("");
+    instat.innerHTML =
+      `<div>${r.scanned}장을 살펴봐서 ${r.added.length}장을 새로 가져왔습니다.</div>`
+      + rows + (r.added.length > 10 ? `<div>외 ${r.added.length - 10}장</div>` : "")
+      + skipLines(r.skipped);
+    toast(r.added.length ? `${r.added.length}장을 가져왔습니다.`
+                         : "새로 가져올 이미지가 없습니다.");
+    refresh();
+  } catch (e) {
+    instat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  } finally { busy(false); }
+};
+
+$("reclass").onclick = async () => {
+  busy(true);
+  instat.textContent = "seeds 폴더를 다시 살펴보는 중…";
+  try {
+    const r = await api("/api/reclassify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const moved = (r.renamed || []).map((m) =>
+      `<div>↻ ${m.was} → ${m.now}</div>`).join("");
+    instat.innerHTML =
+      `<div>${r.scanned}장을 다시 살펴봤습니다.</div>` + moved
+      + (r.fixed.length ? `<div>사이드카 ${r.fixed.length}개를 정리했습니다.</div>` : "")
+      + skipLines(r.skipped)
+      + (!r.renamed.length && !r.fixed.length
+         ? "<div>고칠 것이 없습니다. 전부 정상입니다.</div>" : "");
+    toast(`${r.scanned}장을 다시 분류했습니다.`);
+    refresh();
+  } catch (e) {
+    instat.innerHTML = `<div class="bad">${e.message}</div>`;
+    toast(e.message, true);
+  } finally { busy(false); }
+};
+
+// ── 탭 · 모드 ───────────────────────────────────────────────────────
+const TABS = ["easy", "home", "make", "music", "runs", "auto", "set"];
+function switchTab(which) {
+  TABS.forEach((t) => {
+    $(`t-${t}`).setAttribute("aria-selected", String(t === which));
+    $(`p-${t}`).hidden = t !== which;
+  });
+  if (which === "easy") loadEasy();
+  if (which === "home") { loadOverview(); loadDoctor(); loadStats(); }
+  if (which === "auto") { loadSchedule(); loadHistory(); }
+  if (which === "set") loadSettings();
+  if (which === "music") loadMusic();
+  applyAside();
+}
+
+// 간편 모드·설정에서는 오른쪽의 전문가용 양식을 감춘다.
+// 작업이 돌고 있을 때만 진행 표시줄이 남는다.
+function applyAside() {
+  const simple = !$("p-easy").hidden || !$("p-set").hidden;
+  $("expert").hidden = simple;
+  const bare = simple && $("prog").hidden;
+  $("mkCard").hidden = bare;
+  $("main").classList.toggle("solo", bare);
+}
+TABS.forEach((t) => { $(`t-${t}`).onclick = () => switchTab(t); });
+$("q-make").onclick = () => switchTab("make");
+$("q-upload").onclick = () => { switchTab("make"); setTimeout(() => $("pick").click(), 120); };
+$("q-auto").onclick = () => switchTab("auto");
+
+// ── 간편 모드 ───────────────────────────────────────────────────────
+// 초보자가 볼 화면. 지금 눌러야 할 버튼 하나만 크게 보여준다.
+let EASY = null;
+
+function pills(conn) {
+  const order = ["video", "youtube", "instagram", "storage"];
+  return order.map((k) => {
+    const c = conn[k];
+    const note = k === "youtube" && c.ready && c.channel ? c.channel
+               : c.ready ? "연결됨" : "아직";
+    return `<div class="pill ${c.ready ? "on" : ""}"><i class="dot"></i>
+      <span class="nm">${c.label}</span><span class="st">${note}</span></div>`;
+  }).join("");
+}
+
+async function loadEasy() {
+  try {
+    EASY = await api("/api/simple");
+  } catch (e) { return; }
+  const e = EASY;
+  $("ePills").innerHTML = pills(e.connections);
+  $("eSay").textContent = e.next_step.text;
+
+  const go = $("eGo"), alt = $("eGo2");
+  const canMake = e.connections.video.ready && e.seeds_left > 0;
+  go.textContent = e.next_step.action;
+  go.disabled = !!activeJob;
+  go.dataset.go = e.next_step.go;
+
+  // 다음 할 일이 '만들기'가 아니어도, 만들 수 있으면 두 번째 버튼으로 열어준다.
+  if (e.next_step.go !== "make" && canMake) {
+    alt.hidden = false; alt.textContent = "그냥 오늘 영상 만들기";
+    alt.dataset.go = "make"; alt.disabled = !!activeJob;
+  } else { alt.hidden = true; }
+
+  const pl = e.plan;
+  $("ePlan").textContent =
+    `끊김 없는 ${pl.seconds ? Math.round(pl.seconds) : 30}초 영상 · ` +
+    `클립 ${pl.clips}개 · 예상 비용 약 $${(pl.cost ?? 0).toFixed(2)} · ` +
+    `남은 이미지 ${e.seeds_left}장`;
+
+  $("eLatest").innerHTML = e.latest ? `
+    <div class="run">
+      <video src="/api/video?run=${e.latest.id}" controls preload="metadata" playsinline></video>
+      <div class="meta">
+        <div class="t">${e.latest.title || e.latest.id}</div>
+        <div class="d">가장 최근에 만든 영상입니다.</div>
+        <div class="acts">
+          <button class="ghost" id="eUpYt">유튜브에 올리기</button>
+          <button class="ghost" id="eUpBoth">유튜브 + 인스타</button>
+          <button class="ghost danger" id="eDel">삭제</button>
+        </div>
+      </div>
+    </div>`
+    : `<div class="empty">아직 만든 영상이 없습니다.</div>`;
+  if (e.latest) {
+    $("eUpYt").onclick = () => publish(e.latest.id, "youtube");
+    $("eUpBoth").onclick = () => publish(e.latest.id, "both");
+    $("eDel").onclick = () => removeRun(
+      e.latest.id, e.latest.title || e.latest.id, e.latest.size_mb ?? "?");
+  }
+}
+
+async function easyAction(go) {
+  if (go === "settings") { switchTab("set"); return; }
+  if (go === "images") { switchTab("make"); setTimeout(() => $("pick").click(), 120); return; }
+  // go === "make"
+  try {
+    const d = await api("/api/auto", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    activeJob = d.id; stayHere = true;
+    $("prog").hidden = false; $("eGo").disabled = true; $("eGo2").disabled = true;
+    $("log").textContent = "";
+    toast(`"${d.title}" 만드는 중입니다. 5분쯤 걸려요.`);
+    poll();
+  } catch (err) { toast(err.message, true); }
+}
+$("eGo").onclick = () => easyAction($("eGo").dataset.go);
+$("eGo2").onclick = () => easyAction("make");
+
+// ── 설정 ────────────────────────────────────────────────────────────
+let SETTINGS = null;
+
+const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function fieldHtml(f) {
+  return `<label class="setf ${f.filled ? "done" : ""}"><span>${esc(f.label)}</span>
+    <input type="text" data-key="${esc(f.key)}" value="${esc(f.value)}"
+           placeholder="${esc(f.placeholder)}" spellcheck="false" autocomplete="off">
+    ${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ""}
+    ${f.overridden ? `<span class="warn">! ${esc(f.override_note)}</span>` : ""}</label>`;
+}
+
+async function loadSettings() {
+  try { SETTINGS = await api("/api/settings"); } catch (e) { return; }
+  $("sPills").innerHTML = pills(SETTINGS.connections);
+  SETTINGS.groups.forEach((g) => {
+    const box = $(`sGrp-${g.id}`);
+    if (!box) return;
+    const fs = SETTINGS.fields.filter((f) => f.group === g.id);
+    box.innerHTML = `<div class="grp"><h3>${g.label}</h3>${fs.map(fieldHtml).join("")}</div>`;
+  });
+  const yt = SETTINGS.connections.youtube;
+  const drop = $("csDrop");
+  drop.className = "drop" + (yt.has_secret ? " has" : "");
+  drop.textContent = yt.has_secret
+    ? `✓ ${yt.secret_path} 준비됨 — 바꾸려면 다시 올리세요`
+    : "client_secret_....json 을 여기에 끌어다 놓거나 클릭";
+  $("sWhere").textContent = `저장 위치: ${SETTINGS.env_path}`;
+}
+
+$("sSave").onclick = async () => {
+  const values = {};
+  document.querySelectorAll("#p-set input[data-key]").forEach((el) => {
+    values[el.dataset.key] = el.value.trim();
+  });
+  try {
+    const r = await api("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+    toast(r.changed.length ? `${r.changed.length}개 항목을 저장했습니다.` : "바뀐 것이 없습니다.");
+    loadSettings(); loadDoctor();
+  } catch (e) { toast(e.message, true); }
+};
+
+// client_secret.json 받기
+function readSecretFile(file) {
+  if (!file) return;
+  if (!/\.json$/i.test(file.name)) { toast("JSON 파일을 올려주세요.", true); return; }
+  const fr = new FileReader();
+  fr.onload = async () => {
+    try {
+      const r = await api("/api/client-secret", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: fr.result }),
+      });
+      toast("파일을 저장했습니다. 이제 [유튜브 연결하기] 를 누르세요.");
+      loadSettings(); loadDoctor();
+    } catch (e) { toast(e.message, true); }
+  };
+  fr.readAsDataURL(file);
+}
+$("csDrop").onclick = () => $("csFile").click();
+$("csFile").onchange = (ev) => readSecretFile(ev.target.files[0]);
+["dragenter", "dragover"].forEach((n) => $("csDrop").addEventListener(n, (ev) => {
+  ev.preventDefault(); $("csDrop").style.borderColor = "var(--cyan)";
+}));
+$("csDrop").addEventListener("dragleave", () => { $("csDrop").style.borderColor = ""; });
+$("csDrop").addEventListener("drop", (ev) => {
+  ev.preventDefault(); $("csDrop").style.borderColor = "";
+  readSecretFile(ev.dataTransfer.files[0]);
+});
+
+async function connect(target) {
+  try {
+    const d = await api("/api/connect", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target }),
+    });
+    activeJob = d.id; stayHere = true;
+    $("prog").hidden = false; $("log").textContent = "";
+    toast(target === "youtube"
+      ? "로그인 창이 열립니다. 채널 계정으로 로그인하세요."
+      : "인스타 계정을 확인하는 중입니다.");
+    poll();
+  } catch (e) { toast(e.message, true); }
+}
+$("ytConnect").onclick = () => connect("youtube");
+// 보관함은 값을 먼저 저장해야 자식 프로세스가 그 값으로 확인할 수 있다
+$("stCheck").onclick = async () => {
+  const values = {};
+  document.querySelectorAll("#sGrp-storage input[data-key]").forEach((el) => {
+    values[el.dataset.key] = el.value.trim();
+  });
+  try {
+    await api("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+  } catch (e) { toast(e.message, true); return; }
+  connect("storage");
+};
+$("igConnect").onclick = async () => {
+  // 화면에 적어둔 값을 먼저 저장하고 확인한다. 안 그러면 방금 넣은 토큰이 안 먹는다.
+  const values = {};
+  document.querySelectorAll("#sGrp-instagram input[data-key]").forEach((el) => {
+    values[el.dataset.key] = el.value.trim();
+  });
+  try {
+    await api("/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+  } catch (e) { toast(e.message, true); return; }
+  connect("instagram");
+};
+
+// ── 배경음악 ────────────────────────────────────────────────────────
+const THEME_KO = {
+  sky_islands: "부유섬", spirit_forest: "정령의 숲", temple: "고대 유적",
+  crystal_cave: "크리스탈 동굴", ice: "얼음 왕국", magic_city: "마법 도시",
+  dragon: "용·비행", underwater: "심해", titan: "거대 존재",
+  library: "도서관", spirit_path: "영혼의 길", anime: "애니 톤",
+  night_drive: "야간 드라이브", downhill: "자전거 다운힐",
+  alley_bike: "골목·자전거", train: "기차", tunnel: "터널",
+  coast: "해안", space: "우주", misc: "기타",
+};
+
+async function loadMusic() {
+  const note = $("musicNote"), box = $("moods");
+  try {
+    const m = await api("/api/music");
+    note.innerHTML = m.total
+      ? `${m.dir} · 모두 <b>${m.total}곡</b>. 영상마다 시드 테마에 맞는 곡이 자동으로 붙습니다.`
+      : `<span style="color:var(--warn)">${m.note}</span>`;
+    box.innerHTML = m.moods.map((x) => {
+      const uses = x.themes.map((t) => THEME_KO[t] || t).join(" · ");
+      return `<div class="mood ${x.count ? "" : "empty"}">
+        <div class="top"><b>${x.label} <span style="color:var(--mute);font-weight:400">
+          music/${x.key}</span></b>
+          <span class="cnt">${x.count ? `${x.count}곡` : "비어 있음"}</span></div>
+        ${uses ? `<div class="use">${uses}</div>` : ""}
+        ${x.tracks.length ? `<div class="list">${
+          x.tracks.map((t) => `<span>${t}</span>`).join("")
+        }${x.more ? `<span>외 ${x.more}곡</span>` : ""}</div>` : ""}
+      </div>`;
+    }).join("");
+  } catch (e) {
+    note.innerHTML = `<span class="bad">${e.message}</span>`;
+  }
+}
+
+$("musicReload").onclick = () => { loadMusic(); loadOverview(); };
+
+// ── 요약 ────────────────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const o = await api("/api/overview");
+    const days = o.days_left;
+    const seedClass = days === 0 ? "bad" : days < 7 ? "warn" : "";
+    $("stats").innerHTML = `
+      <div class="stat ${seedClass}"><div class="n">${o.seeds}</div>
+        <div class="l">남은 이미지 · 약 ${days}일치</div></div>
+      <div class="stat"><div class="n">${o.videos}</div><div class="l">만든 영상</div></div>
+      <div class="stat ${o.upload_failed ? "bad" : ""}"><div class="n">${o.published}</div>
+        <div class="l">업로드 완료${
+          o.upload_failed ? ` · <b>실패 ${o.upload_failed}</b>` : ""
+        }${o.not_published ? ` · 대기 ${o.not_published}` : ""}</div></div>
+      <div class="stat ${o.music ? "" : "warn"}" title="${o.music_note || ""}">
+        <div class="n">${o.music ?? 0}</div>
+        <div class="l">${o.music ? "배경음악" : "배경음악 없음 · 무음"}</div></div>
+      ${monthTile(o)}
+      ${budgetTile(o)}`;
+    const link = $("setBudget");
+    if (link) link.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
+    renderToken(o.token);
+  } catch (e) { /* 무시 */ }
+}
+
+// 인스타 장기 토큰은 60일이면 만료된다. 만료되면 **인스타만 조용히 실패**하고
+// 유튜브는 계속 되므로 몇 주 지나서야 알아챈다. 미리 세어 보여준다.
+function renderToken(t) {
+  const box = $("stats");
+  const old = document.getElementById("tokwarn");
+  if (old) old.remove();
+  if (!t || !t.present) return;
+  const days = t.days_left;
+  if (days === null || days === undefined || days > 14) return;
+  const el = document.createElement("div");
+  el.id = "tokwarn";
+  el.className = "tokwarn";
+  el.innerHTML = days > 0
+    ? `인스타 토큰이 <b>${days}일 뒤 만료</b>됩니다. 만료되면 인스타 업로드만 `
+      + `조용히 실패합니다. <a href="#" id="tokGo">[설정]에서 60일 연장하기</a> — `
+      + `만료된 뒤에는 연장이 안 됩니다.`
+    : `인스타 토큰이 <b>만료됐습니다.</b> 연장은 안 되고 새로 발급해야 합니다. `
+      + `<a href="#" id="tokGo">[설정] 탭으로</a>`;
+  box.parentNode.insertBefore(el, box.nextSibling);
+  const go = document.getElementById("tokGo");
+  if (go) go.onclick = (ev) => { ev.preventDefault(); switchTab("set"); };
+}
+
+// ── 성적표 ──────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    renderStats(await api("/api/stats"));
+  } catch (e) { /* 무시 */ }
+}
+
+function renderStats(st) {
+  if (!st || !st.videos) {
+    $("statsBox").innerHTML =
+      '<div class="empty">아직 읽은 성적이 없습니다.<br>'
+      + '올린 영상이 있으면 아래 버튼을 눌러 조회수를 가져오세요.</div>';
+    $("statsSub").textContent =
+      "올린 영상의 조회수를 끌어와 테마·음악·움직임별로 묶습니다. API 비용은 없습니다.";
+    return;
+  }
+  $("statsSub").innerHTML =
+    `영상 <b>${st.videos}</b>편 · 총 조회 <b>${st.total_views.toLocaleString()}</b>회 · `
+    + `비용 <b>$${st.total_cost.toFixed(2)}</b>`
+    + (st.cost_per_1k !== null && st.cost_per_1k !== undefined
+        ? ` · 조회 1,000회당 <b>$${st.cost_per_1k.toFixed(2)}</b>` : "");
+
+  const order = ["theme", "motion", "mood", "hook", "loop", "grade"];
+  let html = "";
+  for (const key of order) {
+    const rows = (st.tables[key] || []).filter((r) => r.enough);
+    const thin = (st.tables[key] || []).filter((r) => !r.enough);
+    if (!rows.length && !thin.length) continue;
+    const top = Math.max(1, ...rows.map((r) => r.average));
+    html += `<div class="rank"><h4>${st.labels[key] || key}</h4>`;
+    for (const r of rows) {
+      const pct = Math.round((r.average / top) * 100);
+      html += `<div class="row"><span class="nm" title="${r.key}">${r.key}</span>`
+        + `<span class="bar"><i style="width:${pct}%"></i></span>`
+        + `<span class="vv">${Math.round(r.average).toLocaleString()}회 · ${r.videos}편</span></div>`;
+    }
+    if (thin.length) {
+      html += `<div class="thin">2편 미만이라 판단 보류: `
+        + thin.slice(0, 6).map((r) => `${r.key}(${r.videos})`).join(", ") + `</div>`;
+    }
+    html += "</div>";
+  }
+  if (st.best && st.best.length) {
+    html += `<div class="rank"><h4>가장 많이 본 영상</h4>`;
+    for (const r of st.best) {
+      html += `<div class="row"><span class="nm">${r.title || r.run}</span>`
+        + `<span class="bar"></span>`
+        + `<span class="vv">${r.views.toLocaleString()}회</span></div>`;
+    }
+    html += "</div>";
+  }
+  $("statsBox").innerHTML = html || '<div class="empty">묶을 것이 없습니다.</div>';
+}
+
+$("statsRefresh").onclick = async () => {
+  const b = $("statsRefresh");
+  b.disabled = true; b.textContent = "가져오는 중…";
+  try {
+    const d = await api("/api/refresh-stats", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    renderStats(d.stats);
+    (d.problems || []).forEach((p) => toast(p, true));
+    toast(`${d.updated}편의 조회수를 가져왔습니다.`);
+  } catch (e) { toast(e.message, true); }
+  b.disabled = false; b.textContent = "조회수 새로 가져오기";
+};
+
+$("igRefresh").onclick = async () => {
+  if (!confirm("인스타 토큰을 60일 연장합니다.\n\n"
+             + "새 토큰이 .env 에 자동으로 저장됩니다.\n진행할까요?")) return;
+  const b = $("igRefresh");
+  b.disabled = true; b.textContent = "연장하는 중…";
+  try {
+    const d = await api("/api/refresh-token", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    toast(d.message || "연장했습니다.");
+    loadSettings(); loadOverview(); loadDoctor();
+  } catch (e) { toast(e.message, true); }
+  b.disabled = false; b.textContent = "🔄 토큰 60일 연장";
+};
+
+// ── 일주일치 만들기 ─────────────────────────────────────────────────
+$("q-batch").onclick = async () => {
+  const raw = prompt(
+    "몇 편을 이어서 만들까요?\n\n"
+    + "한 편에 5~10분입니다. 7편이면 한 시간쯤 걸립니다.\n"
+    + "한 편이 실패해도 멈추지 않고 다음 편으로 넘어갑니다.", "7");
+  if (raw === null) return;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 30) {
+    toast("1~30 사이 숫자를 넣어주세요.", true);
+    return;
+  }
+  if (!confirm(`${n}편을 이어서 만듭니다.\n\n`
+             + `편당 비용이 ${n}번 나갑니다.\n진행할까요?`)) return;
+  try {
+    const d = await api("/api/batch", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: n }),
+    });
+    activeJob = d.id; $("prog").hidden = false; $("log").textContent = "";
+    switchTab("make"); applyAside();
+    toast(`${d.count}편을 이어서 만듭니다.`);
+    poll();
+  } catch (e) { toast(e.message, true); }
+};
+
+// 이번 달 상한. 1회당 상한만으로는 하루 조금씩 서른 번을 못 막는다.
+// 넘으면 생성 자체가 막히므로, 남은 예산이 보여야 한다.
+function monthTile(o) {
+  const b = o.budget;
+  if (!b || !b.cap) return "";
+  const cls = b.left <= 0 ? "bad" : b.used_pct >= 80 ? "warn" : "";
+  const per = b.videos ? b.spent / b.videos : 0;
+  const more = per > 0 ? ` · 약 ${Math.max(0, Math.floor(b.left / per))}편 더` : "";
+  return `<div class="stat ${cls}"
+    title="이번 달(${b.month}) ${b.videos}편에 $${b.spent.toFixed(2)} 썼습니다. 상한 $${b.cap.toFixed(2)}">
+    <div class="n">$${b.left.toFixed(2)}</div>
+    <div class="l">이번 달 남은 예산 (${b.used_pct}% 씀)${more}</div></div>`;
+}
+
+// 충전액을 넣어 두면 남은 금액을, 아니면 누적 비용만 보여준다.
+function budgetTile(o) {
+  if (!o.topup) {
+    return `<div class="stat"><div class="n">$${o.spent.toFixed(2)}</div>
+      <div class="l">누적 비용 · <a href="#" id="setBudget">충전액 넣기</a></div></div>`;
+  }
+  const cls = o.left <= 0 ? "bad" : o.used_pct >= 80 ? "warn" : "";
+  const more = o.runs_left != null ? ` · 약 ${o.runs_left}편 더` : "";
+  return `<div class="stat ${cls}" title="충전 $${o.topup.toFixed(2)} 중 $${o.spent.toFixed(2)} 사용">
+    <div class="n">$${o.left.toFixed(2)}</div>
+    <div class="l">남은 금액 (${o.used_pct}% 씀)${more}</div></div>`;
+}
+
+// ── 자동 업로드 ─────────────────────────────────────────────────────
+async function loadSchedule() {
+  try {
+    const s = await api("/api/schedule");
+    const note = $("autoNote"), cfg = $("autoCfg");
+    if (!s.supported) {
+      note.innerHTML = `<span style="color:var(--warn)">이 기능은 윈도우에서만 됩니다.</span>`;
+      $("autoOn").disabled = true; cfg.hidden = true; return;
+    }
+    $("autoOn").checked = s.enabled;
+    cfg.hidden = !s.enabled;
+    if (s.enabled) {
+      if (s.publish_time) $("autoTime").value = s.publish_time;
+      $("autoYt").checked = s.targets.includes("youtube");
+      $("autoIg").checked = s.targets.includes("instagram");
+      note.innerHTML = `켜져 있습니다 — 매일 <b>${s.start_time || "?"}</b> 에 시작해
+        <b>${s.publish_time || "?"}</b> 에 게시합니다.` +
+        (s.next_run ? `<br>다음 실행: ${s.next_run}` : "");
+    } else {
+      note.textContent = `꺼져 있습니다. 켜면 매일 정해진 시각에 자동으로 만들어 올립니다.`;
+    }
+  } catch (e) { $("autoNote").textContent = "상태를 읽지 못했습니다."; }
+}
+
+$("autoOn").onchange = async () => {
+  const on = $("autoOn").checked;
+  $("autoCfg").hidden = !on;
+  if (!on) {
+    try { const r = await api("/api/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }) });
+      toast(r.message || "예약을 껐습니다."); loadSchedule();
+    } catch (e) { toast(e.message, true); $("autoOn").checked = true; }
+  }
+};
+
+$("autoSave").onclick = async () => {
+  const targets = [];
+  if ($("autoYt").checked) targets.push("youtube");
+  if ($("autoIg").checked) targets.push("instagram");
+  if (!targets.length) { toast("업로드할 곳을 하나 이상 고르세요.", true); return; }
+  try {
+    const r = await api("/api/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: true, time: $("autoTime").value,
+                             mode: $("autoMode").value, targets }),
+    });
+    toast(r.message || "예약을 저장했습니다."); loadSchedule();
+  } catch (e) { toast(e.message, true); }
+};
+
+async function loadHistory() {
+  try {
+    const h = await api("/api/history");
+    $("hist").textContent = h.lines.length ? h.lines.join("\n") : "아직 기록이 없습니다.";
+  } catch (e) { /* 무시 */ }
+}
+
+function setMode(m) {
+  const was = mode;
+  mode = m;
+  $("m-chain").setAttribute("aria-pressed", m === "chain");
+  $("m-montage").setAttribute("aria-pressed", m === "montage");
+  if (m === "chain" && picked.length > 1) picked = picked.slice(0, 1);
+  // 장면 전환에서 쓰던 개수(장면 수)가 이어지는 영상으로 넘어오면, 아무것도
+  // 안 했는데 길이와 비용이 바뀐다. 30초 기준으로 되돌린다.
+  if (m === "chain" && was === "montage") {
+    $("clips").dataset.dur = "";
+    $("clips").value = "";        // 값까지 비워야 설정 기본값으로 다시 잡힌다
+  }
+  syncForm(); renderSeeds();
+}
+$("m-chain").onclick = () => setMode("chain");
+$("m-montage").onclick = () => setMode("montage");
+$("clips").onchange = updateCost;
+$("duration").onchange = () => { syncClips(); updateCost(); };
+
+// ── 시작 ────────────────────────────────────────────────────────────
+refresh(); loadDoctor(); loadOverview(); loadEasy(); syncForm(); applyAside();
+loadMotions(); loadStats();
+setInterval(() => { if (!activeJob || !polling) refresh(); }, 6000);
+setInterval(() => {
+  loadDoctor(); loadOverview();
+  if (!$("p-easy").hidden && !activeJob) loadEasy();
+}, 30000);
+</script>
+</body>
+</html>

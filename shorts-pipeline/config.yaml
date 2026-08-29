@@ -1,0 +1,310 @@
+# ══════════════════════════════════════════════════════════════════════
+#  연속 영상 자동 생성 · 업로드 파이프라인 설정
+#  분석 근거는 docs/REFERENCE_ANALYSIS.md 참고
+# ══════════════════════════════════════════════════════════════════════
+
+# ── 합성 모드 ─────────────────────────────────────────────────────────
+#  chain   : 라스트 프레임 체이닝. 끊김 없는 1개의 전진 샷.
+#            (@odysseyml, @hellopersonality 스타일)
+#  montage : 독립 장면 N개를 컷으로 이어붙이고 첫 장면으로 회귀.
+#            (@cyborg.digitalart "Infinite peace part N" 스타일)
+mode: chain
+
+# ── provider ─────────────────────────────────────────────────────────
+provider: fal              # fal | higgsfield
+# hailuo 는 **초당이 아니라 건당** 과금이라 10초 클립이 초당 단가로는 절반이다.
+# kling 6x5초 = $2.10 / hailuo 3x10초 = $1.47 — 같은 30초인데 30% 싸다.
+model: hailuo_23_pro       # providers 섹션의 키
+
+# ── 클립 파라미터 ─────────────────────────────────────────────────────
+# 레퍼런스 실측값은 5초였지만 10초로 올렸다. 이유가 둘이다.
+#   1) 시청자가 한 장면을 오래 보는 쪽을 좋아한다 — 컷이 적을수록 덜 이탈한다.
+#   2) hailuo 는 건당 과금이라 10초가 5초와 같은 값이다. 길수록 이득이다.
+clip_duration: 10          # 초. 이 모델의 상한이 10초다.
+
+# 2 x 10초 = 20초. 30초(3클립)에서 내렸다. 편당 $1.49 -> $0.99, 33% 싸다.
+#
+# **짧아진 게 아니라 레퍼런스에 맞춘 것이다.** docs/REFERENCE_ANALYSIS.md 에
+# 적어둔 실측: 참고한 릴스들의 길이가 00:16 / 00:23 / 00:28 이었다.
+# 20초는 그 한가운데다. 짧을수록 끝까지 보는 비율이 올라가고, 알고리즘이
+# 보는 것이 그 완주율이다.
+#
+# 게다가 아래 seamless_loop 를 켜면 20초가 두 번 돌아 40초 시청이 된다.
+# 30초를 한 번 보는 것보다 낫고, 값은 2/3 다.
+num_clips: 2
+
+# ── 프롬프트 ─────────────────────────────────────────────────────────
+#  [중요] chain 모드에서는 모든 클립에 동일한 프롬프트를 쓴다.
+#         카메라 속도·방향 일관성의 핵심이므로 회차 정보를 넣지 말 것.
+motion_prompt: >-
+  smooth drone camera following subject from behind, constant forward motion,
+  steady speed, no camera shake, no scene cut, cinematic, consistent lighting
+negative_prompt: >-
+  scene change, camera cut, zoom out, reverse motion, blur, text, watermark,
+  distorted geometry, morphing architecture
+
+# montage 모드에서만 사용. 장면별 프롬프트 목록.
+# 비워두면 motion_prompt 를 모든 장면에 재사용한다.
+scene_prompts: []
+
+# ── 열화 방지 ────────────────────────────────────────────────────────
+upscale_between_clips: true
+upscaler: esrgan           # providers.<provider>.upscalers 의 키
+
+# ── 합성 ─────────────────────────────────────────────────────────────
+crossfade_seconds: 0.3     # chain 모드 클립 경계
+montage_transition: cut    # montage 모드: cut | fade | fadeblack
+montage_transition_seconds: 0.25
+
+# 마지막 클립을 첫 프레임으로 되돌려 무한 루프를 만든다.
+# end_image 를 지원하는 모델에서만 동작 (supports_end_image: true).
+loop_back: false
+
+output:
+  # 1080x1920 이 유튜브 Shorts · 인스타 릴스의 기준 해상도다.
+  #
+  # 4K(2160x3840)로 올리고 싶다면: 모델이 1080p 를 주는데 4K 로 늘리면
+  # 없던 디테일이 생기지는 않는다. 실측으로 파일만 2배(4.9 -> 9.8MB),
+  # 인코딩은 3.5배 느려졌고, 다시 1080 으로 내려 원본과 비교하니 오히려
+  # 나빠졌다(PSNR 50 -> 41dB).
+  #   다만 유튜브는 1440p 이상 업로드에 더 좋은 코덱(VP9/AV1)을 쓴다.
+  #   1080p 로 봐도 이 차이는 체감된다. 그 목적이라면 2160x3840 이 의미가
+  #   있다. 인스타는 1080x1920 으로 다시 줄이므로 이득이 없다.
+  width: 1080
+  height: 1920
+  # auto = 모델이 준 클립의 프레임률을 그대로 쓴다. (권장)
+  #
+  # 예전 기본값은 30 이었다. 그런데 영상 모델은 25fps 를 주는 일이 흔하고,
+  # 25 를 30 으로 올리면 없는 장면을 만들어낼 수 없으므로 **5장마다 한 장을
+  # 복제**한다. 실측으로 150 프레임 중 25 장이 복제본이었다 — 1초에 5번
+  # 화면이 멈칫한다. 끊김 없이 앞으로 나아가는 영상에서 특히 잘 보인다.
+  # 유튜브 Shorts 도 인스타 릴스도 24~60fps 를 그대로 받는다.
+  fps: auto
+  crf: 18
+  # auto  : 시드 테마에 맞는 곡을 music/ 에서 골라 자동으로 깐다 (권장)
+  # file  : audio_file 하나만 계속 쓴다
+  # silent: 무음. 소리가 없으면 끝까지 보지 않는다.
+  audio: auto
+  audio_file: ""           # audio: file 일 때 사용할 음원 경로
+  music_dir: music         # audio: auto 일 때 곡을 찾을 폴더
+
+  # ── 아래 셋은 전부 ffmpeg 으로 끝난다. 모델을 안 부르니 비용이 0 이다 ──
+
+  # 첫 1~3초에 이탈이 결정된다. 훅 문구는 이미 쓰고 있는데 인스타 캡션에만
+  # 나가고 정작 영상 안에는 안 들어가 있었다. 앞 몇 초에 큰 글씨로 굽는다.
+  # 폭에 맞춰 줄을 나누고, 그래도 넘치면 글자 크기를 줄인다.
+  hook_overlay:
+    enabled: false         # 자막을 싫어하는 채널도 있어 기본은 꺼둠
+    seconds: 2.2
+    font: ""               # 비우면 알아서 찾는다 (윈도우 맑은 고딕 등)
+    font_size: 0           # 0 이면 화면 높이에 맞춰 자동
+
+  # 끝을 첫 장면으로 이어 붙인다. Shorts 는 반복 재생이 조회수로 잡히는데,
+  # 이음매가 보이면 거기서 나간다. 실측으로 첫↔마지막 프레임 차이가
+  # 73.3 -> 6.7 로 떨어졌다(RMSE, 느린 화면 기준).
+  # 모델로 클립을 하나 더 사는 loop_back 은 $0.49 다. 이건 0원이다.
+  seamless_loop:
+    enabled: true          # 공짜인데 시청 시간을 늘린다. 켜두는 것이 낫다
+    seconds: 0.6           # 이 길이만큼 영상이 짧아진다
+
+  # 스크롤하다가 "이 채널이구나" 가 되는 지점.
+  look:
+    grade: none            # none | warm | cool | cinema
+    logo: ""               # 예: brand/out/logo_small.png (투명 배경 png)
+    logo_height: 72
+    logo_margin: 40
+    logo_opacity: 0.55
+
+# ── 싸게 먼저 시험하기 ────────────────────────────────────────────────
+# 본편($1.47)을 만들기 전에 **싼 모델로 5초 한 클립**만 뽑아 움직임이
+# 제대로 나오는지 눈으로 본다. 세 편에 한 번만 마음에 안 들어도 값이
+# 내려간다 — 실패한 본편 하나가 시험 6번 값이다.
+#
+#   시험 1회  wan 480p 5초 = $0.25
+#   본편 1회  hailuo 3x10초 = $1.47
+preview:
+  model: wan_25_480p       # providers 섹션의 키. 싼 것을 고를 것
+  clip_duration: 5
+  upscale: false           # 한 클립뿐이라 클립 사이 보정이 필요 없다
+
+# 클립 하나를 최대 몇 초까지 기다릴지. 넘으면 **재제출하지 않고** 멈춘다.
+# 대기열이 붐빌 때 재제출하면, 먼저 낸 작업도 그대로 만들어져 값이 두 번 나간다.
+poll_timeout_seconds: 1800
+
+# ── 비용 가드레일 ────────────────────────────────────────────────────
+cost:
+  # 실패·품질 리젝으로 실제 호출은 계획보다 늘어난다. 레퍼런스 수준
+  # 결과물을 뽑으려면 1.6~2.2배가 현실적이다. 견적에 이 배수를 곱한다.
+  retry_multiplier: 1.8
+  # 한 번에 이 금액을 넘기면 --yes 가 있어도 실행을 막는다. (USD)
+  hard_cap_usd: 25.0
+  # **이번 달 누적**이 이 금액을 넘으면 막는다. 0 이면 상한 없음.
+  #
+  # 1회당 상한만으로는 하루 $2 씩 서른 번을 못 막는다. 20초 기준 편당
+  # $0.99 이므로 $30 이면 한 달에 약 30편이다. 매일 한 편씩 올리는 속도.
+  monthly_cap_usd: 30.0
+
+# ══════════════════════════════════════════════════════════════════════
+#  단가표 — 2026-08 기준. 공급사 가격은 자주 바뀌므로 주기적으로 갱신할 것.
+#  price_per_second 가 있으면 초당 과금, price_per_clip 이 있으면 건당 과금.
+# ══════════════════════════════════════════════════════════════════════
+providers:
+  fal:
+    endpoint_base: https://queue.fal.run
+    models:
+      wan_25_480p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.05
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      wan_25_720p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.10
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_25_turbo_pro:
+        endpoint: fal-ai/kling-video/v2.5-turbo/pro/image-to-video
+        price_per_second: 0.07
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_30_pro:
+        endpoint: fal-ai/kling-video/v3/pro/image-to-video
+        price_per_second: 0.112
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: true
+      hailuo_23_pro:
+        endpoint: fal-ai/minimax/hailuo-02/pro/image-to-video
+        price_per_clip: 0.49
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: false
+      veo_31_fast:
+        endpoint: fal-ai/veo3.1/fast/image-to-video
+        price_per_second: 0.10
+        max_duration: 8
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      esrgan:
+        endpoint: fal-ai/esrgan
+        price_per_image: 0.01
+      topaz:
+        endpoint: fal-ai/topaz/upscale/image
+        price_per_image: 0.10
+
+  higgsfield:
+    # 구독 크레딧 기반. 1 크레딧당 실효 단가를 plan 에서 가져온다.
+    endpoint_base: https://platform.higgsfield.ai/v1
+    plan: ultra_annual
+    plans:
+      plus_monthly:  { usd_per_month: 49,  credits_per_month: 1000 }
+      plus_annual:   { usd_per_month: 39,  credits_per_month: 1000 }
+      ultra_monthly: { usd_per_month: 129, credits_per_month: 3000 }
+      ultra_annual:  { usd_per_month: 99,  credits_per_month: 3000 }
+    models:
+      kling3_0_turbo:
+        endpoint: kling3_0_turbo
+        credits_per_clip: 6
+        max_duration: 15
+        supports_end_image: false
+        supports_negative: true
+      minimax_h3:
+        endpoint: minimax_h3
+        credits_per_clip: 12
+        max_duration: 15
+        supports_end_image: true
+        supports_negative: true
+      flux_3_video:
+        endpoint: flux_3_video
+        credits_per_clip: 15
+        max_duration: 20
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      topaz:
+        endpoint: upscale_image
+        credits_per_image: 2
+
+# ══════════════════════════════════════════════════════════════════════
+#  업로드
+# ══════════════════════════════════════════════════════════════════════
+publish:
+  # 문구 원본은 brand/BRAND.md 에 있다. 채널 소개·해시태그를 바꿀 때 함께 볼 것.
+  youtube:
+    enabled: false
+    privacy: private          # private | unlisted | public
+    category_id: "24"         # 24 = Entertainment
+    title_template: "{title} | AI DEOKHU #Shorts"
+    description_template: |
+      {description}
+
+      AI로 만든 시네마틱 루프입니다.
+      끊기지 않고 계속 앞으로 나아가는 30초.
+
+      ▶ 매일 저녁 9시 업로드
+      ▶ 인스타그램 @ai.deokhu
+
+      #Shorts #AIart #AIanimation #cinematic #shortsfeed
+    tags: [shorts, ai art, ai animation, cinematic, loop,
+           AI 영상, AI 애니메이션, 시네마틱, 힐링 영상]
+    # videos.insert 는 2026-06-01 부터 전용 버킷(일 ~100회)을 쓴다.
+    daily_upload_cap: 90
+
+  # 인스타그램은 로컬 파일을 못 받으므로 최종 mp4 를 S3 호환 스토리지에 올려
+  # 공개 URL 을 만든다. AWS S3 / Cloudflare R2 / Backblaze B2 / MinIO 공용.
+  #
+  # ── 기본값은 Cloudflare R2 무료 티어에 맞춰져 있다 ──────────────────
+  #   보관 10GB · 쓰기(Class A) 1M/월 · 읽기(Class B) 10M/월 · 이그레스 무료
+  #   12개월 체험이 아니라 매월 갱신된다.
+  #
+  #   .env 에 이 두 줄만 넣으면 된다:
+  #     S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
+  #     S3_BUCKET=<버킷명>
+  #   (S3_REGION 은 비워두면 auto 로 잡힌다 — R2 가 요구하는 값이다)
+  #
+  #   이 설정에서 릴스 1편이 쓰는 자원:
+  #     보관   발행 직후 삭제되므로 0 에 수렴 (delete_after_publish)
+  #     쓰기   1회 (단일 PUT — multipart_threshold_mb 로 멀티파트 회피)
+  #     읽기   1회 (인스타그램이 컨테이너 생성 시 1번 받아간다)
+  #     이그레스 무료
+  #   -> 월 수천 편을 올려도 무료 티어 안에 머문다.
+  #
+  #   AWS S3 를 쓰려면 endpoint_url 을 비우고 S3_REGION 을 실제 리전으로
+  #   지정하면 된다. 나머지 값은 그대로 써도 문제없다.
+  storage:
+    enabled: true
+    bucket: ""                 # 비우면 .env 의 S3_BUCKET
+    region: ""                 # 비우면 S3_REGION, 그것도 없으면 auto (R2 기본)
+    endpoint_url: ""           # 비우면 .env 의 S3_ENDPOINT_URL
+    prefix: reels
+    # presigned : 서명된 만료 URL. 버킷을 공개로 열 필요가 없다 (R2 기본 권장)
+    # public    : 영구 공개 URL. public_base_url 또는 public-read 버킷 필요
+    url_strategy: presigned
+    public_base_url: ""        # R2 커스텀 도메인 / CloudFront
+    expiry_seconds: 3600       # presigned 만료. 최소 60, 최대 604800(7일)
+    acl: ""                    # R2 는 ACL 미지원. 반드시 비워둘 것
+    # 발행 후 객체를 지운다. 보관량이 0 에 수렴해 무료 티어를 영구 유지한다.
+    # 로컬 runs/{id}/final.mp4 는 남아 있으므로 원본을 잃지 않는다.
+    delete_after_publish: true
+    # 이 크기 이하는 단일 PUT 으로 보낸다. 릴스는 보통 8~20MB 라 대부분 해당된다.
+    # 멀티파트를 피하면 R2 의 파트 크기 제약을 안 건드리고 Class A 도 1회로 끝난다.
+    multipart_threshold_mb: 100
+
+  instagram:
+    enabled: false
+    # 첫 줄만 피드에서 안 잘린다. {description} 에 훅 한 줄을 넣을 것.
+    caption_template: |
+      {description}
+
+      끝나지 않는 여행 🌌
+      AI로 만든 시네마틱 루프
+
+      #릴스 #AI영상 #AI아트 #시네마틱 #힐링영상
+      #reels #aiart #aianimation #cinematic #loop
+    share_to_feed: true
+    # /{ig-user-id}/content_publishing_limit 로 실사용량을 조회한다.
+    daily_upload_cap: 45

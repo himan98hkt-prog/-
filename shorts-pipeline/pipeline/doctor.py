@@ -1,0 +1,249 @@
+"""설정 점검. 무엇이 준비됐고 무엇이 남았는지 한 화면에 보여준다.
+
+돈을 쓰기 전에, 그리고 자동 업로드를 걸기 전에 이걸 먼저 돌린다.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+OK, WARN, FAIL = "ok", "warn", "fail"
+_MARK = {OK: "✓", WARN: "!", FAIL: "✗"}
+
+
+@dataclass
+class Check:
+    name: str
+    status: str
+    detail: str = ""
+    fix: str = ""
+
+    def render(self) -> str:
+        line = f"  {_MARK[self.status]} {self.name}"
+        if self.detail:
+            line += f" — {self.detail}"
+        if self.fix and self.status != OK:
+            line += f"\n      → {self.fix}"
+        return line
+
+
+@dataclass
+class Section:
+    title: str
+    checks: list[Check]
+    required_for: str = ""
+
+    @property
+    def ready(self) -> bool:
+        return all(c.status != FAIL for c in self.checks)
+
+
+def _env(name: str) -> str:
+    return (os.getenv(name) or "").strip()
+
+
+def _mask(value: str) -> str:
+    """점검 결과는 화면에도 뜬다. 키를 알아볼 만큼만 남긴다."""
+    from pipeline.envfile import mask
+
+    return mask(value)
+
+
+def check_core(root: Path) -> Section:
+    checks = []
+
+    py = shutil.which("python3") or shutil.which("python")
+    checks.append(Check("Python", OK if py else FAIL, py or "",
+                        "https://www.python.org/downloads/ 에서 설치"))
+
+    ff = shutil.which("ffmpeg")
+    checks.append(Check(
+        "ffmpeg", OK if ff else FAIL, ff or "없음",
+        "macOS: brew install ffmpeg / Windows: gyan.dev 에서 받아 PATH 추가"))
+
+    try:
+        import PIL, requests, yaml  # noqa: F401
+        checks.append(Check("파이썬 패키지", OK, "설치됨"))
+    except ImportError as exc:
+        checks.append(Check("파이썬 패키지", FAIL, str(exc),
+                            "pip install -r requirements.txt"))
+
+    envf = root / ".env"
+    checks.append(Check(
+        ".env 파일", OK if envf.exists() else FAIL,
+        str(envf) if envf.exists() else "없음",
+        "작업실 [설정] 탭에서 값을 넣으면 자동으로 만들어집니다"))
+
+    return Section("기본 환경", checks, "필수")
+
+
+def check_provider(root: Path, provider: str) -> Section:
+    checks = []
+    if provider == "fal":
+        key = _env("FAL_API_KEY")
+        checks.append(Check(
+            "FAL_API_KEY", OK if key else FAIL,
+            _mask(key) if key else "없음",
+            "https://fal.ai/dashboard/keys 에서 발급 후 작업실 [설정] 탭에 붙여넣기"))
+    elif provider == "higgsfield":
+        k, s = _env("HIGGSFIELD_API_KEY"), _env("HIGGSFIELD_API_SECRET")
+        checks.append(Check(
+            "HIGGSFIELD 키", OK if (k and s) else FAIL,
+            "설정됨" if (k and s) else "없음",
+            "https://cloud.higgsfield.ai/ → API keys"))
+        if not _env("S3_ENDPOINT_URL") and not _env("PUBLIC_MEDIA_BASE_URL"):
+            checks.append(Check(
+                "이미지 공개 URL", FAIL, "없음",
+                "higgsfield 는 입력 이미지를 공개 URL 로 받습니다. "
+                "S3 를 설정하거나 provider 를 fal 로 바꾸세요"))
+    return Section(f"영상 생성 ({provider})", checks, "필수")
+
+
+def check_seeds(root: Path) -> Section:
+    from .content import find_sidecar
+
+    seeds = root / "seeds"
+    checks = []
+    if not seeds.is_dir():
+        return Section("시드 이미지", [Check(
+            "seeds/ 폴더", FAIL, "없음", "mkdir seeds 후 세로 이미지를 넣으세요")], "필수")
+
+    exts = {".png", ".jpg", ".jpeg", ".webp"}
+    images = [p for p in sorted(seeds.iterdir())
+              if p.is_file() and p.suffix.lower() in exts]
+    if images:
+        checks.append(Check("시드 이미지", OK, f"{len(images)}장 대기 중"))
+    else:
+        checks.append(Check("시드 이미지", FAIL, "0장",
+                            "seeds/ 에 9:16 세로 이미지를 넣으세요"))
+
+    with_meta = sum(1 for p in images if find_sidecar(p))
+    if images:
+        status = OK if with_meta == len(images) else WARN
+        checks.append(Check(
+            "제목·설명 사이드카", status, f"{with_meta}/{len(images)}장",
+            "python main.py plan 으로 빈 양식을 만들 수 있습니다. "
+            "없으면 파일명이 제목이 됩니다"))
+
+    # 하루 1편 기준 소진 예상
+    if images:
+        checks.append(Check("소진 예상", OK if len(images) >= 7 else WARN,
+                            f"하루 1편이면 {len(images)}일치",
+                            "일주일 이상 미리 채워두면 끊기지 않습니다"))
+    return Section("시드 이미지", checks, "필수")
+
+
+def check_youtube(root: Path, cfg: dict) -> Section:
+    checks = []
+    secret = Path(_env("YOUTUBE_CLIENT_SECRET_FILE") or "secrets/client_secret.json")
+    if not secret.is_absolute():
+        secret = root / secret
+    checks.append(Check(
+        "OAuth 클라이언트", OK if secret.exists() else FAIL,
+        str(secret) if secret.exists() else "없음",
+        "Google Cloud Console → OAuth 클라이언트 ID(데스크톱 앱) JSON 을 받아 "
+        "작업실 [설정] 탭에 끌어다 놓으세요"))
+
+    token = Path(_env("YOUTUBE_TOKEN_FILE") or "secrets/youtube_token.json")
+    if not token.is_absolute():
+        token = root / token
+    checks.append(Check(
+        "인증 토큰", OK if token.exists() else WARN,
+        "발급됨" if token.exists() else "아직 없음",
+        "작업실 [설정] 탭 → [유튜브 연결하기] 를 한 번 눌러두세요. "
+        "자동 업로드는 토큰이 있어야 사람 없이 돌아갑니다"))
+
+    try:
+        import googleapiclient  # noqa: F401
+        checks.append(Check("업로드 패키지", OK, "설치됨"))
+    except ImportError:
+        checks.append(Check("업로드 패키지", FAIL, "없음",
+                            "pip install google-api-python-client google-auth-oauthlib"))
+
+    privacy = cfg.get("privacy", "private")
+    checks.append(Check(
+        "공개 설정", WARN if privacy == "private" else OK, privacy,
+        "지금은 비공개로 올라갑니다. 바로 공개하려면 config.yaml 의 "
+        "publish.youtube.privacy 를 public 으로"))
+    return Section("유튜브 업로드", checks, "선택")
+
+
+def _token_check() -> "Check":
+    """인스타 토큰 남은 기간. 네트워크가 안 되면 조용히 넘어간다."""
+    try:
+        from publish.instagram import token_status
+        st = token_status()
+    except Exception as exc:            # noqa: BLE001 — 점검이 죽으면 안 된다
+        return Check("토큰 유효기간", WARN, "확인 못 함",
+                     f"인터넷이 안 되거나 응답이 이상합니다 ({exc})")
+
+    if not st.get("ok"):
+        return Check("토큰 유효기간", FAIL, st.get("reason", "쓸 수 없음"),
+                     "[설정] 탭에서 인스타 토큰을 새로 발급해 넣으세요")
+    days = st.get("days_left")
+    if days is None:
+        return Check("토큰 유효기간", OK, st.get("note", "만료 없음"), "")
+    if days <= 0:
+        return Check("토큰 유효기간", FAIL, "만료됨",
+                     "만료된 토큰은 연장이 안 됩니다. 새로 발급해야 합니다")
+    if days <= 14:
+        return Check("토큰 유효기간", WARN, f"{days}일 남음",
+                     "[설정] 탭에서 [토큰 60일 연장] 을 누르세요. "
+                     "만료된 뒤에는 연장이 안 됩니다")
+    return Check("토큰 유효기간", OK, f"{days}일 남음", "")
+
+
+def check_instagram(root: Path) -> Section:
+    checks = []
+    uid, tok = _env("IG_USER_ID"), _env("IG_ACCESS_TOKEN")
+    checks.append(Check(
+        "IG_USER_ID", OK if uid else FAIL, uid or "없음",
+        "인스타 비즈니스 계정 ID (숫자). 작업실 [설정] 탭에서 넣습니다"))
+    checks.append(Check(
+        "IG_ACCESS_TOKEN", OK if tok else FAIL,
+        _mask(tok) if tok else "없음",
+        "Meta 개발자 앱에서 instagram_content_publish 권한으로 장기 토큰 발급 후 "
+        "작업실 [설정] 탭에 붙여넣기"))
+
+    # 장기 토큰은 60일이면 만료된다. 만료되면 **인스타만 조용히 실패**하고
+    # 유튜브는 계속 되므로 몇 주가 지나서야 알아채게 된다. 미리 센다.
+    if tok:
+        checks.append(_token_check())
+
+    bucket = _env("S3_BUCKET")
+    checks.append(Check(
+        "S3/R2 버킷", OK if bucket else FAIL, bucket or "없음",
+        "인스타는 공개 URL 만 받습니다. Cloudflare R2 무료 티어를 권합니다"))
+
+    if bucket:
+        akey = _env("AWS_ACCESS_KEY_ID")
+        checks.append(Check(
+            "스토리지 자격증명", OK if akey else FAIL,
+            "설정됨" if akey else "없음",
+            "R2 → Manage API Tokens 에서 받아 작업실 [설정] 탭에 넣으세요"))
+        try:
+            import boto3  # noqa: F401
+            checks.append(Check("boto3", OK, "설치됨"))
+        except ImportError:
+            checks.append(Check("boto3", FAIL, "없음", "pip install boto3"))
+    return Section("인스타그램 업로드", checks, "선택")
+
+
+def run_all(root: Path, cfg) -> tuple[list[Section], bool]:
+    load_dotenv(root / ".env")
+    pub = cfg.publish_cfg
+    sections = [
+        check_core(root),
+        check_provider(root, cfg.provider),
+        check_seeds(root),
+        check_youtube(root, pub.get("youtube", {})),
+        check_instagram(root),
+    ]
+    # 필수 항목만 통과하면 영상 제작은 가능하다
+    can_generate = all(s.ready for s in sections[:3])
+    return sections, can_generate

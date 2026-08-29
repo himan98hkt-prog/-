@@ -1,0 +1,23 @@
+.env
+secrets/
+
+# 실행 산출물과 시드는 추적하지 않되 폴더는 남긴다
+runs/*
+!runs/.gitkeep
+seeds/*
+!seeds/.gitkeep
+# 프롬프트 문서는 따라가야 한다. 파일명을 하나씩 적으면 새로 추가할 때
+# 조용히 빠진다 — 실제로 PROMPTS_HD.md 가 그렇게 누락됐다.
+!seeds/*.md
+
+# 음원은 용량이 커서 추적하지 않는다. 폴더 구조와 문서만 남긴다.
+music/**
+!music/**/
+!music/*.md
+!music/**/.gitkeep
+
+tests/_tmp/
+__pycache__/
+*.pyc
+.venv/
+venv/
