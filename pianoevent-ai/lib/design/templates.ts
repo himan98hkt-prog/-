@@ -269,6 +269,84 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
     needsProgram: false,
     perStudent: false,
   },
+  /* ── 밝은 판 ────────────────────────────────────────────────────
+     학원 프린터로 매번 뽑으실 것이므로 **잉크가 적게 드는** 포스터가 따로 있어야 한다.
+     넷 다 종이가 거의 흰색이라, 같은 A4 를 뽑아도 잉크가 몇 분의 일만 든다. */
+  {
+    id: 'art-bright-hall',
+    name: '흰 홀 (사진)',
+    description: '햇빛이 가득한 흰 연주홀. **잉크가 가장 적게 드는 포스터**입니다. 학원 프린터로 여러 장 뽑으실 때.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-gold-line',
+    name: '금선 한 줄',
+    description: '미색 종이에 금색 한 줄로 그린 피아노. 조용하고 값있어 보이며 잉크가 거의 들지 않습니다.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-bw-hall',
+    name: '흑백 홀 (밝은)',
+    description: '흑백 필름으로 찍은 밝은 연주홀. 색이 없어 어느 테마에나 얹히고 잉크도 적게 듭니다.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-marble-shadow',
+    name: '대리석과 그림자',
+    description: '대리석 벽에 드리운 피아노 그림자. 사진 한 장 없이도 가장 격식 있어 보입니다.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-bw-hall-dark',
+    name: '흑백 홀 (어두운)',
+    description: '창으로 빛이 들어오는 어두운 연주홀. 정기 연주회 · 콩쿠르 안내에.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  /* ── 아이 · 사랑스러운 ─────────────────────────────────────────
+     테마 108종 가운데 28종이 아이 테마인데 그림은 전부 어른스러운 것뿐이었다.
+     유아·저학년 발표회에 어울리는 수채 셋. */
+  {
+    id: 'art-kids-upright',
+    name: '아이 · 작은 피아노',
+    description: '음표가 떠오르는 작은 피아노 수채. 유아·저학년 발표회에.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-kids-balloons',
+    name: '아이 · 풍선과 축하',
+    description: '풍선과 색종이가 함께 있는 수채. 수료식 · 축하 무대에.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
+  {
+    id: 'art-kids-path',
+    name: '아이 · 꽃길이 되는 건반',
+    description: '건반이 꽃길로 이어지는 수채. 봄 발표회와 첫 무대에.',
+    category: 'poster',
+    page: 'a4-portrait',
+    needsProgram: false,
+    perStudent: false,
+  },
   {
     id: 'poster-fullbleed',
     name: '전면 사진 포스터',
@@ -783,6 +861,14 @@ const TEMPLATE_LOOK: Record<string, TemplateLook> = {
   'art-real-stage': 'real',
   'art-real-keys': 'real',
   'art-real-hands': 'real',
+  'art-bright-hall': 'real',
+  'art-bw-hall': 'real',
+  'art-bw-hall-dark': 'real',
+  'art-marble-shadow': 'real',
+  'art-gold-line': 'line',
+  'art-kids-upright': 'painted',
+  'art-kids-balloons': 'painted',
+  'art-kids-path': 'painted',
 }
 
 export function templateLook(id: string): TemplateLook | null {

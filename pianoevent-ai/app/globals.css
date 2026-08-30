@@ -100,11 +100,50 @@
    * 그림자 한 겹으로는 종이가 바닥에 붙어 보인다. 얇은 것 두 겹을 겹치면
    * 살짝 떠 있는 것처럼 보이고, 그게 화면을 한 단계 비싸 보이게 한다.
    */
+  /*
+   * 손가락으로 쓰는 기기에서는 단추가 커야 한다.
+   *
+   * 연주회 **당일**에는 태블릿을 들고 다니신다. 그때 36px 단추는 손가락 끝보다 작아
+   * 옆의 것이 눌린다. 그렇다고 PC 화면까지 키우면 한 화면에 들어가던 것이 밀려난다.
+   * 그래서 **누르는 방식이 손가락일 때만**(pointer: coarse) 44px 로 키운다.
+   * (`npm run verify:mobile` 이 화면마다 재고, 40px 미만이면 실패로 잡는다.)
+   */
+  @media (pointer: coarse) {
+    button,
+    summary,
+    [role='button'],
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    /*
+     * 링크도 마찬가지다. `min-height` 는 **줄 안에 흐르는 글자 링크에는 아무 영향이 없다**
+     * (인라인 요소에는 적용되지 않는 성질). 그래서 판처럼 놓인 링크만 커진다.
+     */
+    a {
+      min-height: 44px;
+    }
+
+    /* 체크상자는 이름표를 누르시지만, 상자 자체도 손가락에 보이게 조금 키운다 */
+    input[type='checkbox'],
+    input[type='radio'] {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
   .surface {
     @apply rounded-lg border border-border bg-card;
     box-shadow:
       0 1px 2px rgba(24, 24, 43, 0.05),
       0 2px 8px -4px rgba(24, 24, 43, 0.06);
+    /*
+     * 격자 칸 안에서 **줄어들 수 있어야 한다.**
+     *
+     * 격자 칸은 기본이 `min-width: auto` 라 안에 줄바꿈 없는 긴 것(초대장 주소 한 줄)이
+     * 하나만 있어도 카드가 통째로 화면 밖으로 밀린다. 휴대폰에서 초대장 화면이
+     * 71px 옆으로 새고 있었고, 손가락으로 옆으로 밀어야 단추가 보였다.
+     * (`npm run verify:mobile` 이 찾았다.)
+     */
+    min-width: 0;
   }
 
   /*

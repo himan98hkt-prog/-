@@ -139,9 +139,9 @@ async function groundOf(target, ink) {
   )
 }
 
-/** 한 장만 보고 싶을 때 — POSTER_ONLY=art-line-keys npm run verify:poster:all */
-const ONLY = process.env.POSTER_ONLY
-const LIST = ONLY ? ids.filter((id) => id === ONLY) : ids
+/** 몇 장만 보고 싶을 때 — POSTER_ONLY=art-line-keys,art-gold-line npm run verify:poster */
+const ONLY = process.env.POSTER_ONLY?.split(',').map((s) => s.trim()).filter(Boolean)
+const LIST = ONLY && ONLY.length > 0 ? ids.filter((id) => ONLY.includes(id)) : ids
 if (LIST.length === 0) {
   console.error(`${ONLY} 라는 양식이 없습니다`)
   process.exit(1)

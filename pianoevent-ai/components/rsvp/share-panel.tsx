@@ -78,7 +78,9 @@ export function SharePanel({
 
       <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
         <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        <code className="min-w-0 flex-1 truncate text-xs">{url}</code>
+        {/* 좁은 화면에서는 줄을 바꾼다. `truncate`(줄바꿈 금지)는 격자 칸을 통째로 밀어내
+            휴대폰에서 화면이 옆으로 샜다 — 주소는 잘리는 것보다 두 줄이 낫다 */}
+        <code className="min-w-0 flex-1 break-all text-xs sm:truncate sm:break-normal">{url}</code>
         <CopyButton text={url} label="링크 복사" variant="ghost" />
       </div>
 

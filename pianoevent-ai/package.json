@@ -35,7 +35,9 @@
     "dist:mac": "npm run desktop && electron-builder --mac",
     "verify:poster": "node scripts/verify-poster.mjs",
     "verify:poster:all": "node scripts/verify-poster.mjs --all",
-    "shots:splash": "node scripts/splash-shot.mjs"
+    "shots:splash": "node scripts/splash-shot.mjs",
+    "key:new": "node --experimental-strip-types scripts/make-keys.ts",
+    "verify:mobile": "node scripts/verify-mobile.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

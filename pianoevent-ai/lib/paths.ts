@@ -26,6 +26,11 @@ export function storeFile(): string {
   return join(dataRoot(), '.data', 'store.json')
 }
 
+/** 인증키를 넣어 두는 자리. 프로그램을 다시 깔아도 자료 폴더가 남으면 그대로 열린다 */
+export function licenseFile(): string {
+  return join(dataRoot(), '.data', 'license.json')
+}
+
 /** 자동 저장이 쌓이는 폴더 (설정 화면에서 열어 보실 수 있다) */
 export function backupRoot(dirName: string): string {
   return join(dataRoot(), dirName)

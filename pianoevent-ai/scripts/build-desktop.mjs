@@ -39,6 +39,26 @@ cpSync(join(ROOT, 'docs', 'MANUAL.md'), join(OUT, 'docs', 'MANUAL.md'))
 // 5) 설치판은 개발용 설정을 들고 다닐 이유가 없다
 for (const junk of ['.env', '.env.local']) rmSync(join(OUT, junk), { force: true })
 
+/*
+ * 6) 인증키를 확인할 때 쓰는 비밀.
+ *
+ * 저장소에는 두지 않는다 — 공개돼 있어 여기 적으면 **누구나 키를 찍어 낼 수 있다.**
+ * 설치본을 뽑을 때 넣어 주고(`RECITAL_LICENSE_SECRET`), 그것을 본체 옆에 적어 둔다.
+ * 껍데기가 서버를 켤 때 이 값을 넘겨 준다.
+ *
+ * 없이도 설치본은 만들어진다 — 다만 그 판은 **개발용 비밀**로 확인하므로,
+ * 파실 키(진짜 비밀로 만든 것)가 열리지 않는다. 그래서 크게 적어 알려 준다.
+ */
+const secret = process.env.RECITAL_LICENSE_SECRET?.trim()
+if (secret) {
+  writeFileSync(join(OUT, 'license-secret.txt'), secret, 'utf8')
+  console.log('인증키 비밀을 담았습니다.')
+} else {
+  rmSync(join(OUT, 'license-secret.txt'), { force: true })
+  console.log('\n  ⚠ RECITAL_LICENSE_SECRET 이 없습니다 — 이 설치본은 **파실 키를 열지 못합니다.**')
+  console.log('    파실 판을 뽑으실 때는 비밀을 넣어 주세요. (docs/SELLING-LICENSE.md)\n')
+}
+
 function folderSize(dir) {
   let total = 0
   const walk = (at) => {

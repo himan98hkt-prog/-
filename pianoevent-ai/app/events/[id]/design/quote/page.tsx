@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/brand'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CopyButton } from '@/components/copy-button'
@@ -122,7 +123,7 @@ export default async function QuotePage({
 
             <footer className="mt-6 border-t border-border pt-3 text-xs text-muted-foreground">
               {academy?.name}
-              {academy?.director_name ? ` · 원장 ${academy.director_name}` : ''} — PianoEvent AI
+              {academy?.director_name ? ` · 원장 ${academy.director_name}` : ''} — {BRAND.name}
             </footer>
           </article>
         </Printable>

@@ -1,5 +1,5 @@
 /**
- * 피아노이벤트 — 설치해서 쓰는 프로그램의 겉껍데기.
+ * 연주회 매니저 — 설치해서 쓰는 프로그램의 겉껍데기.
  *
  * 지금까지 원장님이 받으신 것은 사실 개발 도구였다. 압축을 풀고, 검은 명령창을 띄우고,
  * `npm install` 이 2~4분 돌기를 기다린 뒤, 브라우저 주소창에 뜬 `localhost:3000` 을 보셨다.
@@ -18,6 +18,7 @@ const { createServer } = require('node:net')
 const path = require('node:path')
 const fs = require('node:fs')
 const { splashHtml } = require('./splash.js')
+const BRAND = require('./brand.js')
 
 /** 켜져 있는 서버 (창을 닫을 때 함께 내린다) */
 let server = null
@@ -45,6 +46,36 @@ function dataDir() {
   const dir = app.getPath('userData')
   fs.mkdirSync(dir, { recursive: true })
   return dir
+}
+
+/**
+ * 껍데기가 기억해 두는 것 — 지금은 「태블릿에서 열기」 하나뿐이다.
+ *
+ * 학원 자료와 같은 폴더에 둔다. 프로그램을 다시 깔아도 설정이 남는다.
+ */
+function shellPrefs() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dataDir(), 'shell.json'), 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+function saveShellPrefs(next) {
+  try {
+    fs.writeFileSync(path.join(dataDir(), 'shell.json'), `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+  } catch {
+    /* 못 적으면 이번 판에서만 안 켜질 뿐이다 */
+  }
+}
+
+/** 인증키를 확인할 때 쓰는 비밀 (설치본을 뽑을 때 담긴다) */
+function licenseSecret() {
+  try {
+    return fs.readFileSync(path.join(appRoot(), 'license-secret.txt'), 'utf8').trim()
+  } catch {
+    return ''
+  }
 }
 
 /** 비어 있는 문(port) 하나 — 3000 이 다른 프로그램에 물려 있어도 켜져야 한다 */
@@ -82,6 +113,7 @@ async function waitForServer(port, timeoutMs = 60_000) {
  * 원장님 컴퓨터에 Node 가 있든 없든, 몇 판이든 상관없다.
  */
 async function startServer() {
+  const lanOn = shellPrefs().lan === true
   const port = await freePort()
   const entry = path.join(appRoot(), 'server.js')
   if (!fs.existsSync(entry)) throw new Error(`프로그램 본체를 찾지 못했습니다:\n${entry}`)
@@ -93,9 +125,21 @@ async function startServer() {
       ELECTRON_RUN_AS_NODE: '1',
       NODE_ENV: 'production',
       PORT: String(port),
-      HOSTNAME: '127.0.0.1',
+      /*
+       * 기본은 **이 컴퓨터 안에서만** 듣는다(127.0.0.1).
+       *
+       * 「태블릿에서 열기」를 켜신 때만 공유기 쪽으로도 문을 연다. 늘 열어 두면
+       * 학원과 함께 쓰는 와이파이에서 아이 명단이 남의 기기에도 보이게 된다.
+       * 켜고 끄는 것은 원장님이 정하시고, 바뀌면 다시 열 때 적용된다.
+       */
+      HOSTNAME: lanOn ? '0.0.0.0' : '127.0.0.1',
+      PIANOEVENT_LAN: lanOn ? '1' : '0',
       // 학원 자료는 쓸 수 있는 자리에
       PIANOEVENT_DATA_DIR: dataDir(),
+      // 설치판은 인증키를 묻는다. 상세페이지의 체험판(웹)은 묻지 않는다
+      PIANOEVENT_REQUIRE_LICENSE: '1',
+      // 키를 확인할 때 쓰는 비밀 — 설치본을 뽑을 때 본체 옆에 담아 두었다
+      ...(licenseSecret() ? { RECITAL_LICENSE_SECRET: licenseSecret() } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -128,22 +172,23 @@ function stopServer() {
  */
 let splash = null
 
-function splashImage() {
+/** 첫 화면에 넣을 그림을 data: 주소로 읽어 온다. 못 읽으면 그림 없이 띄운다 */
+function artData(name, mime) {
   for (const at of [
-    path.join(appRoot(), 'public', 'art', 'app', 'splash.jpg'),
-    path.join(__dirname, '..', 'public', 'art', 'app', 'splash.jpg'),
+    path.join(appRoot(), 'public', 'art', 'app', name),
+    path.join(__dirname, '..', 'public', 'art', 'app', name),
   ]) {
     try {
-      if (fs.existsSync(at)) return `data:image/jpeg;base64,${fs.readFileSync(at).toString('base64')}`
+      if (fs.existsSync(at)) return `data:${mime};base64,${fs.readFileSync(at).toString('base64')}`
     } catch {
-      /* 못 읽으면 그림 없이 띄운다 — 첫 화면이 못 떠서 프로그램이 안 열리면 안 된다 */
+      /* 첫 화면이 못 떠서 프로그램이 안 열리는 일은 없어야 한다 */
     }
   }
   return null
 }
 
 function showSplash() {
-  const html = splashHtml(splashImage())
+  const html = splashHtml(artData('splash.jpg', 'image/jpeg'), artData('logo.png', 'image/png'))
 
   splash = new BrowserWindow({
     width: 560,
@@ -154,7 +199,7 @@ function showSplash() {
     show: false,
     skipTaskbar: false,
     backgroundColor: '#08080a',
-    title: '피아노이벤트',
+    title: BRAND.name,
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   })
@@ -182,7 +227,7 @@ function buildMenu(port) {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
-        label: '피아노이벤트',
+        label: BRAND.name,
         submenu: [
           { label: '행사 목록', accelerator: 'CmdOrCtrl+1', click: go('/events') },
           { label: '사용설명서', accelerator: 'F1', click: go('/help') },
@@ -191,6 +236,23 @@ function buildMenu(port) {
           {
             label: '학원 자료 폴더 열기',
             click: () => shell.openPath(dataDir()),
+          },
+          {
+            label: '태블릿에서 열기',
+            type: 'checkbox',
+            checked: shellPrefs().lan === true,
+            click: (item) => {
+              saveShellPrefs({ ...shellPrefs(), lan: item.checked })
+              dialog.showMessageBox({
+                type: 'info',
+                title: BRAND.name,
+                message: item.checked ? '태블릿에서 열기를 켰습니다.' : '태블릿에서 열기를 껐습니다.',
+                detail: item.checked
+                  ? '프로그램을 닫았다가 다시 열면 켜집니다.\n그다음 [설정] 화면에 태블릿으로 비출 QR과 주소가 나옵니다.\n\n같은 와이파이에 있는 다른 기기에서도 아이 명단이 보이게 됩니다.'
+                  : '프로그램을 닫았다가 다시 열면 이 컴퓨터에서만 열립니다.',
+                buttons: ['확인'],
+              })
+            },
           },
           { type: 'separator' },
           { label: '끝내기', role: 'quit' },
@@ -233,7 +295,7 @@ function createWindow(port) {
     minHeight: 620,
     show: false,
     backgroundColor: '#faf9f6',
-    title: '피아노이벤트',
+    title: BRAND.name,
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   })
@@ -248,7 +310,7 @@ function createWindow(port) {
   // 그럴 때는 첫 화면을 치우고 무엇이 잘못됐는지 말씀드린다.
   win.webContents.on('did-fail-load', (_event, code, description) => {
     closeSplash()
-    dialog.showErrorBox('피아노이벤트를 열지 못했습니다', `${description} (${code})\n프로그램을 닫았다가 다시 열어 주세요.`)
+    dialog.showErrorBox(`${BRAND.name}를 열지 못했습니다`, `${description} (${code})\n프로그램을 닫았다가 다시 열어 주세요.`)
   })
   win.on('closed', () => {
     win = null
@@ -296,7 +358,7 @@ if (!app.requestSingleInstanceLock()) {
       })
     } catch (error) {
       closeSplash()
-      dialog.showErrorBox('피아노이벤트를 열지 못했습니다', String(error?.message ?? error))
+      dialog.showErrorBox(`${BRAND.name}를 열지 못했습니다`, String(error?.message ?? error))
       app.quit()
     }
   })

@@ -1,4 +1,5 @@
 import { ArtPoster } from '@/components/design/templates/art-poster'
+import { artIdOf } from '@/lib/design/art-template'
 import {
   BookletCover,
   BookletInner,
@@ -51,55 +52,12 @@ import type { DesignContext } from '@/lib/design/context'
  * 미리보기에서는 반복 양식(상장·이름표)을 앞부분만 그린다.
  */
 export function renderTemplate(templateId: string, ctx: DesignContext, preview = false) {
+  const artId = artIdOf(templateId)
+  if (artId) return <ArtPoster ctx={ctx} artId={artId} />
+
   switch (templateId) {
     case 'poster-modern':
       return <PosterModern ctx={ctx} />
-    case 'art-stage-piano':
-      return <ArtPoster ctx={ctx} artId="stage-piano" />
-    case 'art-oil-hall':
-      return <ArtPoster ctx={ctx} artId="oil-hall" />
-    case 'art-keys':
-      return <ArtPoster ctx={ctx} artId="keys-close" />
-    case 'art-hands':
-      return <ArtPoster ctx={ctx} artId="child-hands" />
-    case 'art-gala':
-      return <ArtPoster ctx={ctx} artId="gala-bokeh" />
-    case 'art-field':
-      return <ArtPoster ctx={ctx} artId="light-field" />
-    case 'art-watercolor':
-      return <ArtPoster ctx={ctx} artId="watercolor-piano" />
-    case 'art-blossom':
-      return <ArtPoster ctx={ctx} artId="blossom-piano" />
-    case 'art-summer':
-      return <ArtPoster ctx={ctx} artId="summer-window" />
-    case 'art-autumn':
-      return <ArtPoster ctx={ctx} artId="autumn-leaves" />
-    case 'art-christmas':
-      return <ArtPoster ctx={ctx} artId="christmas-pine" />
-    case 'art-confetti':
-      return <ArtPoster ctx={ctx} artId="confetti-night" />
-    case 'art-line-front':
-      return <ArtPoster ctx={ctx} artId="line-front" />
-    case 'art-line-keys':
-      return <ArtPoster ctx={ctx} artId="line-keys" />
-    case 'art-line-arch':
-      return <ArtPoster ctx={ctx} artId="line-arch" />
-    case 'art-ill-line':
-      return <ArtPoster ctx={ctx} artId="ill-line" />
-    case 'art-ill-engraving':
-      return <ArtPoster ctx={ctx} artId="ill-engraving" />
-    case 'art-ill-riso':
-      return <ArtPoster ctx={ctx} artId="ill-riso" />
-    case 'art-ill-ink':
-      return <ArtPoster ctx={ctx} artId="ill-ink" />
-    case 'art-ill-deco':
-      return <ArtPoster ctx={ctx} artId="ill-deco" />
-    case 'art-real-stage':
-      return <ArtPoster ctx={ctx} artId="real-stage" />
-    case 'art-real-keys':
-      return <ArtPoster ctx={ctx} artId="real-keys" />
-    case 'art-real-hands':
-      return <ArtPoster ctx={ctx} artId="real-hands" />
     case 'poster-fullbleed':
       return <PosterFullBleed ctx={ctx} />
     case 'poster-photo':

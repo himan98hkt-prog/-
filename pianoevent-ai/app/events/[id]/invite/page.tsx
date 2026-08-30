@@ -35,8 +35,8 @@ export default async function InviteAdminPage({ params }: { params: { id: string
         }}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="grid gap-5">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid min-w-0 gap-5">
           <Card>
             <CardHeader>
               <CardTitle>링크 공유</CardTitle>
@@ -57,7 +57,7 @@ export default async function InviteAdminPage({ params }: { params: { id: string
           <RsvpDashboard eventId={event.id} initialRsvps={rsvps} initialSummary={summarizeRsvps(rsvps)} />
         </div>
 
-        <aside>
+        <aside className="min-w-0">
           <Card className="sticky top-20">
             <CardHeader>
               <CardTitle>초대장 미리보기</CardTitle>

@@ -5,6 +5,7 @@ import { ErrorLog } from '@/components/support/error-log'
 import { TextSizeToggle } from '@/components/ui/text-size-toggle'
 import { UndoProvider } from '@/components/undo/undo-bar'
 import { FirstRun } from '@/components/tour/first-run'
+import { BRAND } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
 /**
@@ -57,7 +58,7 @@ export function AppShell({
               🎹
             </span>
             {/* 휴대폰에서는 이름이 두 줄로 접혀 머리띠가 무너진다 — 그림만 남긴다 */}
-            <span className="hidden sm:inline">PianoEvent AI</span>
+            <span className="hidden sm:inline">{BRAND.name}</span>
           </Link>
           <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
             {/* 눈이 편치 않으신 분이 많다. 확대하는 법을 아셔야 할 이유는 없다 */}
@@ -76,7 +77,7 @@ export function AppShell({
 
       <footer className="border-t border-border py-6 text-xs text-muted-foreground no-print">
         <div className="container flex flex-wrap items-center justify-between gap-2">
-          <span>{academyName} · PianoEvent AI</span>
+          <span>{academyName} · {BRAND.name} · {BRAND.maker}</span>
           <div className="flex gap-4">
             <Link href="/help#막히면" className="hover:text-foreground">
               막히면 여기

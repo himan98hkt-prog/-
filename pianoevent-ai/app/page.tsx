@@ -4,6 +4,8 @@ import { AppShell } from '@/components/app-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DESIGN_TEMPLATES } from '@/lib/design/templates'
+import { DESIGN_THEMES } from '@/lib/design/themes'
 import { formatEventDate } from '@/lib/format'
 import { currentAcademy } from '@/lib/session'
 import { getRepository } from '@/lib/store'
@@ -140,7 +142,7 @@ export default async function HomePage() {
               고르시기만 하면
               <br className="hidden sm:block" /> 예술회관 포스터가 나옵니다.
             </h2>
-            <p className="text-sm text-white/60">인쇄물 75종 · 테마 108종 · 전부 인터넷 없이</p>
+            <p className="text-sm text-white/60">인쇄물 {DESIGN_TEMPLATES.length}종 · 테마 {DESIGN_THEMES.length}종 · 전부 인터넷 없이</p>
           </div>
 
           <ul className="stagger mt-9 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">

@@ -4,6 +4,8 @@ import { Check, Minus, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DESIGN_TEMPLATES } from '@/lib/design/templates'
+import { DESIGN_THEMES } from '@/lib/design/themes'
 import { cn } from '@/lib/utils'
 
 /**
@@ -33,7 +35,7 @@ export function SystemCheck({ driver, ai }: { driver: 'demo' | 'supabase'; ai: b
     '연주 순서 자동 배치 · 직접 조정 · 러닝타임 계산',
     '사회자 대본 곡별 생성',
     '순서표 정밀 점검 8가지',
-    '인쇄물 75종 × 테마 108종 · 인쇄 · PDF 저장',
+    `인쇄물 ${DESIGN_TEMPLATES.length}종 × 테마 ${DESIGN_THEMES.length}종 · 인쇄 · PDF 저장`,
     '리허설 소집 시각 · 참가비 · 좌석 배치 계산',
     '학부모 안내 문자 · 리허설 소집 문자 만들기',
     '준비 체크리스트 · 당일 진행표',

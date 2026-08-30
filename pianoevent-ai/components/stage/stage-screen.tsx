@@ -309,7 +309,7 @@ export function StageScreen({
       </p>
 
       {/* 테마 · 내용 · 내려받기 */}
-      <div className="no-print grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr]">
+      <div className="no-print grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setPickerOpen((prev) => !prev)} aria-expanded={pickerOpen}>

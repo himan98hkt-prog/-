@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { splashHtml } from '../desktop/splash.js'
+import SHELL_BRAND from '../desktop/brand.js'
+import { BRAND } from '@/lib/brand'
 
 const ROOT = join(__dirname, '..')
 const MAIN = readFileSync(join(ROOT, 'desktop', 'main.js'), 'utf8')
@@ -26,14 +28,30 @@ describe('설치본 껍데기', () => {
   })
 
   it('첫 화면은 그림이 없어도 뜬다 — 그림 하나 때문에 프로그램이 안 열리면 안 된다', () => {
-    const html = splashHtml(null)
-    expect(html).toContain('피아노이벤트')
+    const html = splashHtml(null, null)
+    expect(html).toContain(BRAND.name)
+    expect(html).toContain(BRAND.maker)
     expect(html).toContain('준비하고 있습니다')
     expect(html.startsWith('<!doctype html>')).toBe(true)
   })
 
-  it('첫 화면에 그림을 넣으면 그림이 들어간다', () => {
-    expect(splashHtml('data:image/jpeg;base64,AAAA')).toContain('data:image/jpeg;base64,AAAA')
+  it('첫 화면에 무대 사진과 로고가 들어간다', () => {
+    const html = splashHtml('data:image/jpeg;base64,AAAA', 'data:image/png;base64,BBBB')
+    expect(html).toContain('data:image/jpeg;base64,AAAA')
+    expect(html).toContain('data:image/png;base64,BBBB')
+  })
+
+  it('껍데기와 본체가 같은 상품 이름을 쓴다 — 창 제목만 옛 이름으로 남으면 안 된다', () => {
+    expect(SHELL_BRAND.name).toBe(BRAND.name)
+    expect(SHELL_BRAND.nameEn).toBe(BRAND.nameEn)
+    expect(SHELL_BRAND.maker).toBe(BRAND.maker)
+    expect(SHELL_BRAND.slug).toBe(BRAND.slug)
+  })
+
+  it('설치본 파일 이름과 상품 이름이 어긋나지 않는다', () => {
+    const builder = readFileSync(join(ROOT, 'electron-builder.yml'), 'utf8')
+    expect(builder).toContain(`productName: ${BRAND.name}`)
+    expect(builder).toContain(`${BRAND.slug}-Setup-Windows`)
   })
 
   it('창을 닫으면 서버도 내린다 — 껐는데 뭔가 남아 있으면 안 된다', () => {

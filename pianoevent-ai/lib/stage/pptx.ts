@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/brand'
 import type { DesignTheme } from '@/lib/design/themes'
 import { STAGE_SLIDE_H, STAGE_SLIDE_W, type StageSlide } from '@/lib/stage/deck'
 import { DEFAULT_STAGE_BACKDROP, type StageBackdrop } from '@/lib/stage/backdrops'
@@ -952,7 +953,7 @@ export function buildPptx({
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" ` +
     `xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">` +
-    `<Application>PianoEvent</Application><Slides>${count}</Slides></Properties>`
+    `<Application>${BRAND.slug}</Application><Slides>${count}</Slides></Properties>`
 
   const entries: ZipEntry[] = [
     { name: '[Content_Types].xml', data: bytes(contentTypes) },

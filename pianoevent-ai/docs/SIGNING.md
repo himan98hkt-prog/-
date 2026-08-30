@@ -60,11 +60,11 @@ USB 를 깃허브에 꽂을 수는 없으므로, 실제로 쓸 수 있는 길은
 
 ### ③ 을 고르셨다면 (USB 토큰) — 손으로 서명하는 법
 
-깃허브에서 뽑은 `PianoEvent-Setup-Windows.exe` 를 받아, 토큰을 꽂은 윈도우에서:
+깃허브에서 뽑은 `RecitalManager-Setup-Windows.exe` 를 받아, 토큰을 꽂은 윈도우에서:
 
 ```powershell
-signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a PianoEvent-Setup-Windows.exe
-signtool verify /pa /v PianoEvent-Setup-Windows.exe
+signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a RecitalManager-Setup-Windows.exe
+signtool verify /pa /v RecitalManager-Setup-Windows.exe
 ```
 
 `signtool` 은 Windows SDK 에 들어 있습니다. 서명한 파일을 릴리스에 다시 올리시면 됩니다.

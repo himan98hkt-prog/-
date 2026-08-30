@@ -279,6 +279,92 @@ export const POSTER_ART: PosterArt[] = [
     anchor: 'top-left',
     scrim: 0.3,
   },
+  /* ── 밝은 판 ───────────────────────────────────────────────
+     A4 를 까맣게 채우면 학원 프린터의 잉크가 몇 배로 든다. 원장님이 매번 뽑으실
+     물건이므로 **밝은 포스터**가 따로 있어야 한다. 여기 넷은 종이가 거의 흰 것이다. */
+  {
+    id: 'bright-hall',
+    src: '/art/poster/bright-hall.jpg',
+    name: '흰 홀 (사진)',
+    tone: 'light',
+    anchor: 'top-center',
+    // 사진이 종이를 가득 채운다 — 위쪽 절반이 흰 벽이라 글씨가 그대로 앉는다
+    fill: 'cover',
+    scrim: 0.28,
+    scrimTone: 'light',
+  },
+  {
+    id: 'gold-line',
+    src: '/art/poster/gold-line.jpg',
+    name: '금선 한 줄',
+    tone: 'light',
+    anchor: 'top-center',
+    fill: 'cover',
+    scrim: 0.2,
+    scrimTone: 'light',
+  },
+  {
+    id: 'bw-hall',
+    src: '/art/poster/bw-hall.jpg',
+    name: '흑백 홀 (밝은)',
+    tone: 'light',
+    anchor: 'top-center',
+    fill: 'cover',
+    scrim: 0.3,
+    scrimTone: 'light',
+  },
+  {
+    id: 'marble-shadow',
+    src: '/art/poster/marble-shadow.jpg',
+    name: '대리석과 그림자',
+    tone: 'light',
+    anchor: 'top-left',
+    fill: 'cover',
+    scrim: 0.26,
+    scrimTone: 'light',
+  },
+  {
+    id: 'bw-hall-dark',
+    src: '/art/poster/bw-hall-dark.jpg',
+    name: '흑백 홀 (어두운)',
+    tone: 'dark',
+    anchor: 'top-center',
+    // 가운데 창이 밝다. 제목이 그 위에 얹히므로 막을 짙은 쪽 한계까지 깐다
+    scrim: 0.44,
+  },
+  /* ── 아이 · 사랑스러운 ──────────────────────────────────────
+     테마 108종 가운데 28종이 아이 테마인데 그림은 전부 어른스러운 것뿐이었다.
+     유아·저학년 발표회에 어울리는 수채 셋을 여기 둔다. */
+  {
+    id: 'kids-upright',
+    src: '/art/poster/kids-upright.jpg',
+    name: '아이 · 작은 피아노',
+    tone: 'light',
+    anchor: 'top-center',
+    fill: 'cover',
+    scrim: 0.32,
+    scrimTone: 'light',
+  },
+  {
+    id: 'kids-balloons',
+    src: '/art/poster/kids-balloons.jpg',
+    name: '아이 · 풍선과 축하',
+    tone: 'light',
+    anchor: 'top-right',
+    fill: 'cover',
+    scrim: 0.3,
+    scrimTone: 'light',
+  },
+  {
+    id: 'kids-path',
+    src: '/art/poster/kids-path.jpg',
+    name: '아이 · 꽃길이 되는 건반',
+    tone: 'light',
+    anchor: 'top-left',
+    fill: 'cover',
+    scrim: 0.28,
+    scrimTone: 'light',
+  },
 ]
 
 export function getPosterArt(id: string): PosterArt {
@@ -310,6 +396,13 @@ export const ORNAMENT_ART = [
   { id: 'sparkle', src: '/art/ornament/sparkle.png', name: '반짝임' },
   { id: 'cert-border', src: '/art/ornament/cert-border.png', name: '상장 테두리' },
   { id: 'piano-mark', src: '/art/ornament/piano-mark.png', name: '피아노 표식' },
+  /* ── 표식 ─────────────────────────────────────────────────
+     **로고가 없는 학원**이 많다. 지금까지는 그 자리가 비거나 학원 이름만 적혔다.
+     아래 넷은 그 자리에 들어가는 표식이고, 모양으로 쓰므로 테마 색을 그대로 입는다. */
+  { id: 'mark-piano', src: '/art/ornament/mark-piano.png', name: '피아노 모노그램' },
+  { id: 'mark-metronome', src: '/art/ornament/mark-metronome.png', name: '메트로놈' },
+  { id: 'mark-score', src: '/art/ornament/mark-score.png', name: '펼친 악보' },
+  { id: 'mark-notes', src: '/art/ornament/mark-notes.png', name: '음표 셋' },
   // 금가루는 질감 폴더에 있지만 쓰는 방식은 장식과 같다 — 검은 바탕이라 모양으로 쓴다
   { id: 'flecks', src: '/art/texture/gold-flecks.png', name: '금가루' },
 ]
@@ -345,4 +438,6 @@ export const APP_ART = {
   installerSide: '/art/app/installer-side.jpg',
   /** 켜지는 동안 보여 드릴 화면 */
   splash: '/art/app/splash.jpg',
+  /** 상품 로고 — 시작 화면과 인쇄물의 기본 로고 자리에 들어간다 */
+  logo: '/art/app/logo.png',
 } as const

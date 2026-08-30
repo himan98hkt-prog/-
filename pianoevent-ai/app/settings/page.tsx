@@ -4,6 +4,7 @@ import { BackupList } from '@/components/backup/backup-list'
 import { AcademyForm } from '@/components/settings/academy-form'
 import { AssetLibrary } from '@/components/settings/asset-library'
 import { SystemCheck } from '@/components/settings/system-check'
+import { TabletAccess } from '@/components/settings/tablet-access'
 import { DeleteAccount } from '@/components/settings/delete-account'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +33,8 @@ export default async function SettingsPage() {
         <AssetLibrary academy={academy} />
 
         <SystemCheck driver={driver} ai={ai} />
+
+        <TabletAccess />
 
         {/* 원장님이 잃으시는 경우는 사고가 아니라 평범한 하루다 */}
         <BackupList />

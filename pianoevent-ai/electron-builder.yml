@@ -3,9 +3,9 @@
 # 원장님이 받으시는 것은 "설치 프로그램" 한 개다. 두 번 눌러 다음·다음·설치를 하시면
 # 시작 메뉴와 바탕화면에 아이콘이 생기고, 프로그램 추가/제거에도 올라간다.
 # 압축을 풀 일도, 검은 명령창도, npm 도 없다.
-appId: com.accelssam.pianoevent
-productName: 피아노이벤트
-copyright: © 아첼쌤
+appId: com.accelssam.recitalmanager
+productName: 연주회 매니저
+copyright: © 아첼쌤 (accelssam.com)
 
 # 자동 갱신 서버를 두지 않는다 — 학원 컴퓨터가 밖으로 나갈 일을 만들지 않는다
 publish: null
@@ -29,6 +29,7 @@ directories:
 files:
   - desktop/main.js
   - desktop/splash.js
+  - desktop/brand.js
   - desktop/icon.png
   - desktop/app/**/*
   - package.json
@@ -49,7 +50,7 @@ win:
   #
   # 파일 이름은 영문으로 둔다. 한글 이름을 쓰면 내려받는 자리(깃허브)에서 한글이 통째로
   # 지워져 「-.exe」 가 된다. 무엇인지 알 수 없는 이름이 손에 쥐어지는 것보다는 영문이 낫다.
-  artifactName: PianoEvent-Setup-Windows.${ext}
+  artifactName: RecitalManager-Setup-Windows.${ext}
 
 nsis:
   oneClick: false                 # 다음·다음 화면을 보여 드린다 (어디에 깔리는지 아셔야 한다)
@@ -57,7 +58,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: 피아노이벤트
+  shortcutName: 연주회 매니저
   # 설치 창 왼쪽 세로 그림 — 기본 회색 그림이면 「직접 만든 프로그램」처럼 보인다
   installerSidebar: desktop/installer/sidebar.bmp
   uninstallerSidebar: desktop/installer/sidebar.bmp
@@ -70,11 +71,11 @@ mac:
   target: [dmg]
   icon: desktop/icon.png
   category: public.app-category.productivity
-  artifactName: PianoEvent-Mac.${ext}
+  artifactName: RecitalManager-Mac.${ext}
 
 linux:
   target: [AppImage]
-  synopsis: 피아노학원 연주회 준비 프로그램
+  synopsis: 피아노학원 연주회 준비 프로그램 — 연주회 매니저
   icon: desktop/icon.png
   category: Office
-  artifactName: PianoEvent-Linux.${ext}
+  artifactName: RecitalManager-Linux.${ext}

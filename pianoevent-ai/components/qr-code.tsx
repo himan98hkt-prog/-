@@ -16,22 +16,29 @@ export function QrCode({
   path,
   size = 96,
   label,
+  href,
 }: {
   /** `/events/…` 처럼 앞자리 빼고 */
   path: string
   /** 그림 한 변(px) */
   size?: number
   label?: string
+  /** 이 컴퓨터가 아닌 **다른 자리**를 가리켜야 할 때(공유기 주소 등) 통째로 준다 */
+  href?: string
 }) {
-  const [url, setUrl] = useState<string | null>(null)
+  const [url, setUrl] = useState<string | null>(href ?? null)
 
   useEffect(() => {
+    if (href) {
+      setUrl(href)
+      return
+    }
     try {
       setUrl(new URL(path, window.location.origin).toString())
     } catch {
       setUrl(null)
     }
-  }, [path])
+  }, [path, href])
 
   const matrix = url ? makeQr(url) : null
   if (!matrix) {

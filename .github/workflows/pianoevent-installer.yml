@@ -5,7 +5,7 @@
 #
 #   깃허브 → Actions → "설치본 만들기" → Run workflow
 #   끝나면 Releases 의 `installer-latest` 에서 내려받으시면 됩니다.
-name: PianoEvent 설치본 만들기
+name: 연주회 매니저 설치본 만들기
 
 on:
   # 손으로 눌러 만들기 (기본 브랜치에 들어간 뒤부터 눌립니다)
@@ -60,6 +60,11 @@ jobs:
 
       - name: 프로그램 본체 만들기
         run: npm run desktop
+        env:
+          # 인증키를 확인할 때 쓰는 비밀. 저장소에 두지 않는다 — 여기 있으면
+          # 저장소를 보는 누구나 키를 찍어 낼 수 있다.
+          # 없으면 개발용 비밀로 뽑히고, 그 판은 **파실 키를 열지 못한다.**
+          RECITAL_LICENSE_SECRET: ${{ secrets.RECITAL_LICENSE_SECRET }}
 
       # 본체가 온전한지 먼저 본다 — 빠진 채로 설치본을 뽑으면 원장님 컴퓨터에서야 안다
       - name: 본체 확인
@@ -109,7 +114,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: 피아노이벤트-설치본-${{ matrix.name }}
+          name: 연주회매니저-설치본-${{ matrix.name }}
           path: pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
           if-no-files-found: error
 
@@ -119,12 +124,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: installer-latest
-          name: 피아노이벤트 설치 프로그램
+          name: 연주회 매니저 설치 프로그램
           body: |
-            피아노학원 연주회 준비 프로그램 — 설치해서 쓰는 판입니다.
+            피아노학원 연주회 준비 프로그램 **연주회 매니저** — 설치해서 쓰는 판입니다. (아첼쌤)
 
-            · 윈도우 — **PianoEvent-Setup-Windows.exe** 를 받아 두 번 클릭하고 다음 · 다음 · 설치
-            · 맥 — **PianoEvent-Mac.dmg** 를 열고 응용 프로그램 폴더로 끌어다 놓기
+            · 윈도우 — **RecitalManager-Setup-Windows.exe** 를 받아 두 번 클릭하고 다음 · 다음 · 설치
+            · 맥 — **RecitalManager-Mac.dmg** 를 열고 응용 프로그램 폴더로 끌어다 놓기
 
             설치하면 바탕화면에 아이콘이 생깁니다. 검은 명령창도, 인터넷도 필요 없습니다.
             「Windows의 PC 보호」 파란 창이 뜨면 **추가 정보 → 실행** 을 누르세요.

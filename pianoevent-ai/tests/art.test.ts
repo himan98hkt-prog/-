@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { APP_ART, GOLD_FLECKS, GOLD_FOIL, ORNAMENT_ART, POSTER_ART, STAGE_ART, TEXTURE_ART, getPosterArt } from '@/lib/design/art'
+import { artIdOf } from '@/lib/design/art-template'
 import { DESIGN_TEMPLATES, getPack, packTemplates } from '@/lib/design/templates'
 import { STAGE_BACKDROPS } from '@/lib/stage/backdrops'
 
@@ -82,19 +83,35 @@ describe('그림 포스터 양식', () => {
   const ids = POSTER_ART.map((a) => a.id)
 
   it('그림마다 양식이 하나씩 나와 있다', () => {
-    expect(ids).toHaveLength(23)
+    expect(ids).toHaveLength(31)
     const templates = DESIGN_TEMPLATES.filter((t) => t.id.startsWith('art-'))
-    expect(templates).toHaveLength(23)
+    expect(templates).toHaveLength(31)
     for (const t of templates) {
       expect(t.category, t.id).toBe('poster')
       expect(t.page, t.id).toBe('a4-portrait')
     }
   })
 
+  it('양식마다 진짜 그림이 붙는다 — 빠지면 조용히 다른 그림이 뽑힌다', () => {
+    // 예전에는 양식 id 를 `switch` 에 한 줄씩 적었다. 한 줄을 빠뜨리면 원장님이 고르신 것과
+    // **다른 포스터**가 뽑히는데, 화면에서는 그것이 잘못이라는 표시가 전혀 없다.
+    for (const t of DESIGN_TEMPLATES.filter((x) => x.id.startsWith('art-'))) {
+      const artId = artIdOf(t.id)
+      expect(artId, t.id).toBeTruthy()
+      expect(POSTER_ART.some((a) => a.id === artId), `${t.id} → ${artId}`).toBe(true)
+    }
+  })
+
+  it('그림 포스터가 아닌 양식은 그림으로 새지 않는다', () => {
+    for (const t of DESIGN_TEMPLATES.filter((x) => !x.id.startsWith('art-'))) {
+      expect(artIdOf(t.id), t.id).toBeNull()
+    }
+  })
+
   it('포스터 갈래 앞쪽에 온다 — 뒤에 묻히면 고르실 일이 없다', () => {
     const posters = DESIGN_TEMPLATES.filter((t) => t.category === 'poster').map((t) => t.id)
     for (const t of posters.filter((id) => id.startsWith('art-'))) {
-      expect(posters.indexOf(t), t).toBeLessThan(27)
+      expect(posters.indexOf(t), t).toBeLessThan(35)
     }
   })
 

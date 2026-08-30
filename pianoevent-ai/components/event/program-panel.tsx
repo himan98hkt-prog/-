@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHint, Input, Label } from '@/components/ui/field'
+import { DESIGN_TEMPLATES } from '@/lib/design/templates'
 import { formatWallClock } from '@/lib/format'
 import { NextHere } from '@/components/flow/next-here'
 import { useUndo } from '@/components/undo/undo-bar'
@@ -372,7 +373,7 @@ function OrderEditor({
             {saved && !dirty && <span className="text-xs text-accent">저장했습니다. 시각이 다시 계산됩니다.</span>}
             {dirty && (
               <span className="text-xs text-muted-foreground">
-                저장하면 연주 시각과 인쇄물 75종이 함께 바뀝니다.
+                저장하면 연주 시각과 인쇄물 {DESIGN_TEMPLATES.length}종이 함께 바뀝니다.
               </span>
             )}
           </div>

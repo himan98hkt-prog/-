@@ -941,7 +941,7 @@ export function VideoStudio({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="grid min-w-0 content-start gap-3">
         {/* 미리보기는 화면에 붙여 둔다 — 아래에서 템플릿을 고르는 동안에도 늘 보여야 한다.
             예전에는 고르러 내려가면 화면이 위로 사라져, 무엇이 바뀌었는지 볼 수가 없었다. */}

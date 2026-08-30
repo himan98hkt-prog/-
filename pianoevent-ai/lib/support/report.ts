@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/brand'
 /**
  * "막히면 여기" — 원장님이 저희에게 보내실 쪽지를 만들어 준다.
  *
@@ -86,7 +87,7 @@ export function scrubError(line: string): string {
 export function buildReport(input: ReportInput): string {
   const at = input.now ?? new Date().toISOString()
   const lines = [
-    '[PianoEvent AI — 막힌 자리]',
+    `[${BRAND.name} — 막힌 자리]`,
     `때 : ${at.slice(0, 16).replace('T', ' ')}`,
     `화면 : ${scrubPath(input.path)}`,
     `판 : ${input.version}`,

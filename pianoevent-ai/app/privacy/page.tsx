@@ -1,3 +1,4 @@
+import { BRAND } from '@/lib/brand'
 import { AppShell } from '@/components/app-shell'
 import { currentAcademy } from '@/lib/session'
 
@@ -85,7 +86,7 @@ export default async function PrivacyPage() {
       <article className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold tracking-tight">개인정보처리방침</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          PianoEvent AI(이하 &lsquo;서비스&rsquo;)는 이용자의 개인정보를 중요하게 생각하며, 「개인정보 보호법」 등 관련
+          {BRAND.name}(이하 &lsquo;서비스&rsquo;)는 이용자의 개인정보를 중요하게 생각하며, 「개인정보 보호법」 등 관련
           법령을 준수합니다.
         </p>
 
