@@ -55,6 +55,15 @@ jobs:
           cache: npm
           cache-dependency-path: pianoevent-ai/package-lock.json
 
+      # 인증키 비밀이 없으면 여기서 멈춘다. 5분 걸리는 빌드 앞에 둔다.
+      #
+      # 예전에는 경고만 하고 그대로 뽑았다. 그러면 **파실 키를 열지 못하는 설치본**이
+      # 받는 자리에 조용히 올라간다. 파는 물건에서 이것보다 나쁜 실패는 없다.
+      - name: 인증키 비밀 확인
+        env:
+          RECITAL_LICENSE_SECRET: ${{ secrets.RECITAL_LICENSE_SECRET }}
+        run: node --experimental-strip-types scripts/check-license-secret.mjs
+
       - name: 꾸러미 받기
         run: npm ci
 
@@ -63,7 +72,7 @@ jobs:
         env:
           # 인증키를 확인할 때 쓰는 비밀. 저장소에 두지 않는다 — 여기 있으면
           # 저장소를 보는 누구나 키를 찍어 낼 수 있다.
-          # 없으면 개발용 비밀로 뽑히고, 그 판은 **파실 키를 열지 못한다.**
+          # 없으면 위 「인증키 비밀 확인」에서 이미 멈춰 여기까지 오지 않는다.
           RECITAL_LICENSE_SECRET: ${{ secrets.RECITAL_LICENSE_SECRET }}
 
       # 본체가 온전한지 먼저 본다 — 빠진 채로 설치본을 뽑으면 원장님 컴퓨터에서야 안다

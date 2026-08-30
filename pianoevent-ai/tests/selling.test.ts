@@ -14,6 +14,7 @@ const packer = readFileSync('scripts/pack-web.mjs', 'utf8')
 const download = readFileSync('web/download/index.html', 'utf8')
 const guide = readFileSync('web/download/guide.html', 'utf8')
 const curriculum = readFileSync('web/커리큘럼-붙여넣기.html', 'utf8')
+const workflow = readFileSync('../.github/workflows/pianoevent-installer.yml', 'utf8')
 
 describe('인증키 발급기', () => {
   it('저장소에 있는 판에는 비밀값이 들어 있지 않다', () => {
@@ -32,6 +33,43 @@ describe('인증키 발급기', () => {
 
   it('올리지 말라는 경고가 들어 있다', () => {
     expect(keygen).toMatch(/절대 (공유|올리)/)
+  })
+
+  it('설치본과 대조할 지문을 띄운다', () => {
+    // 프로그램의 secretFingerprint() 와 같은 셈이라야 두 지문이 맞는다
+    expect(keygen).toContain('recital-fingerprint|')
+    expect(keygen).toContain('id="fp"')
+  })
+})
+
+describe('비밀 없이 뽑히는 설치본', () => {
+  it('설치본 만들기가 비밀을 먼저 확인한다', () => {
+    expect(workflow).toContain('scripts/check-license-secret.mjs')
+    // 확인이 빌드보다 **앞에** 있어야 5분을 버리지 않는다
+    expect(workflow.indexOf('check-license-secret')).toBeLessThan(workflow.indexOf('npm run desktop'))
+  })
+
+  it('비밀이 없으면 멈춘다 (경고만 하고 넘어가지 않는다)', async () => {
+    const { usingDevSecret } = await import('../lib/license/key.ts')
+    const before = process.env.RECITAL_LICENSE_SECRET
+    delete process.env.RECITAL_LICENSE_SECRET
+    expect(usingDevSecret()).toBe(true)
+    process.env.RECITAL_LICENSE_SECRET = 'x'
+    expect(usingDevSecret()).toBe(false)
+    if (before === undefined) delete process.env.RECITAL_LICENSE_SECRET
+    else process.env.RECITAL_LICENSE_SECRET = before
+  })
+
+  it('지문은 비밀이 다르면 달라진다', async () => {
+    const { secretFingerprint } = await import('../lib/license/key.ts')
+    const before = process.env.RECITAL_LICENSE_SECRET
+    process.env.RECITAL_LICENSE_SECRET = 'aaa'
+    const a = secretFingerprint()
+    process.env.RECITAL_LICENSE_SECRET = 'bbb'
+    expect(secretFingerprint()).not.toBe(a)
+    expect(a).toMatch(/^[0-9A-F]{8}$/)
+    if (before === undefined) delete process.env.RECITAL_LICENSE_SECRET
+    else process.env.RECITAL_LICENSE_SECRET = before
   })
 })
 

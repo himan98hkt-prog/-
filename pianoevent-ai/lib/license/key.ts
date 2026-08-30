@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 /**
  * 인증키.
@@ -57,6 +57,22 @@ export interface LicenseFields {
  */
 function secret(): string {
   return process.env.RECITAL_LICENSE_SECRET?.trim() || 'recital-manager-dev-secret'
+}
+
+/** 개발용 비밀을 쓰고 있는가 — 이 판으로 뽑은 설치본은 파실 키를 열지 못한다 */
+export function usingDevSecret(): boolean {
+  return !process.env.RECITAL_LICENSE_SECRET?.trim()
+}
+
+/**
+ * 비밀의 **지문** — 여덟 글자.
+ *
+ * 비밀 자체는 어디에도 내보일 수 없지만, 지문은 내보여도 안전하다(되돌릴 수 없다).
+ * 설치본을 뽑을 때 찍히는 지문과 발급기에 뜨는 지문이 같으면,
+ * **그 발급기로 만든 키가 그 설치본에서 열린다**는 뜻이다. 설치해 보지 않고도 확인된다.
+ */
+export function secretFingerprint(): string {
+  return createHash('sha256').update(`recital-fingerprint|${secret()}`).digest('hex').slice(0, 8).toUpperCase()
 }
 
 function toBits(value: number, width: number): string {

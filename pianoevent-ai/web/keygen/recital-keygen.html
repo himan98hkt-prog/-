@@ -24,6 +24,11 @@ header p{color:var(--ink60);font-size:14.5px;margin-top:10px}
 .warn{background:#FDF4F3;border:1px solid #EFD5D2;border-left:4px solid var(--red);
   border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.75;margin-bottom:26px}
 .warn b{color:var(--red)}
+.fp{margin:14px 0 0;padding:10px 14px;border:1px dashed rgba(197,160,89,.45);border-radius:10px;
+  font-size:13px;color:#b9ab8c;line-height:1.7}
+.fp b{font-family:ui-monospace,Consolas,monospace;font-size:15px;letter-spacing:.12em;color:var(--gold)}
+.fp span{display:block;color:#8d8371}
+
 .tabs{display:flex;gap:8px;background:#F1EBE0;border-radius:14px;padding:6px;margin-bottom:22px}
 .tabs button{flex:1;height:48px;border:0;border-radius:10px;background:transparent;
   font-family:inherit;font-size:15px;font-weight:800;color:var(--ink60);cursor:pointer}
@@ -81,6 +86,11 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--gold);box-s
   홈페이지에 올리시면 누구나 키를 만들 수 있게 됩니다.
   본인 컴퓨터와 개인 클라우드 두 곳에만 보관하세요.<br>
   <b>관리노트 발급기와는 키가 다릅니다.</b> 연주회 매니저 키는 반드시 이 도구로 만드세요.
+</div>
+
+<div class="fp">
+  이 발급기의 지문 <b id="fp">…</b>
+  <span>— 설치본을 뽑을 때 찍힌 지문과 같으면, 이 발급기의 키가 그 설치본에서 열립니다.</span>
 </div>
 
 <div class="tabs">
@@ -209,6 +219,16 @@ const PLAN_NAME = { 0:"평생 이용", 1:"1년 이용", 2:"체험" };
 const EPOCH = Date.UTC(2026,0,1), DAY = 86400000;
 
 const bits = (v,w) => v.toString(2).padStart(w,"0");
+
+/* 비밀의 지문 여덟 글자 — 프로그램의 secretFingerprint() 와 같은 셈이다.
+   비밀 자체는 되돌릴 수 없으므로 화면에 띄워도 안전하다. */
+(async function(){
+  try{
+    const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("recital-fingerprint|" + SECRET));
+    document.getElementById("fp").textContent =
+      Array.from(new Uint8Array(d)).slice(0,4).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+  }catch(e){ document.getElementById("fp").textContent = "확인 불가"; }
+})();
 const enc = new TextEncoder();
 
 async function hmacBytes(msg){
