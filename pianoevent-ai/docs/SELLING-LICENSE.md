@@ -10,13 +10,15 @@
 
 ### 팔기 전에 이것만 되어 있으면 됩니다
 
-- [ ] 깃허브 Secrets 에 `RECITAL_LICENSE_SECRET` 을 넣었다
+- [x] 깃허브 Secrets 에 `RECITAL_LICENSE_SECRET` 을 넣었다
       ([바로 가기](https://github.com/himan98hkt-prog/-/settings/secrets/actions/new))
-- [ ] 그 비밀값을 넣고 설치본을 **다시 뽑았다** (Actions → Run workflow)
-- [ ] `npm run keygen:build` 로 `배포/인증키-발급기.html` 을 만들어 두었다
-- [ ] **발급기 지문과 설치본 지문 여덟 글자가 같다**
+- [x] 그 비밀값을 넣고 설치본을 **다시 뽑았다** (2026-08-30 · 윈도우 · 맥 둘 다)
+- [x] `npm run keygen:build` 로 `배포/인증키-발급기.html` 을 만들어 두었다
+- [x] **발급기 지문과 설치본 지문 여덟 글자가 같다** — `463D323F`
 - [ ] `npm run pack:web` 으로 나온 압축을 `public_html/download` 안에서 풀었다
 - [ ] 상품 상세페이지·커리큘럼에 코드를 붙여 넣었다
+
+앞의 넷은 끝났습니다. 남은 둘은 워드프레스에서 하시는 일입니다.
 
 ---
 
