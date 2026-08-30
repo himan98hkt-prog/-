@@ -66,11 +66,11 @@ export default async function EventsPage() {
           </CardContent>
         </Card>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="stagger grid gap-3">
           {events.map((event, index) => (
             <li key={event.id}>
               <Link href={`/events/${event.id}`}>
-                <Card className="transition-shadow hover:shadow-md">
+                <Card interactive className="press">
                   <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

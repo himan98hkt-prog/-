@@ -1351,6 +1351,75 @@ try {
   check('그렇다고 쪽지에 적어 준다', ticket.includes('아이 이름·사진·연락처가 들어 있지 않습니다'))
   await page.screenshot({ path: join(OUT, 'ticket.jpg'), type: 'jpeg', quality: 82 })
 
+  /* ── 눌렀는지 알 수 있는가 ─────────────────────────────────────
+     원장님께 가장 많이 들은 말이 「눌렀는지 모르겠다」였다. 단추에 `:active` 가
+     아예 없어서 눌러도 화면이 그대로였기 때문이다. 다시 사라지지 않게 여기서 잰다.
+     "있어 보인다" 가 아니라 **누른 순간 값이 실제로 달라지는가**를 본다. */
+  await page.goto(`${BASE}/events/${EVENT_ID}/design`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  const pressTarget = page.locator('main button:visible').first()
+  const ringTarget = page.locator('main button.press:visible').first()
+  const pressBox = await pressTarget.boundingBox()
+  const restStyle = await pressTarget.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return { transform: s.transform, shadow: s.boxShadow }
+  })
+  await page.mouse.move(pressBox.x + pressBox.width / 2, pressBox.y + pressBox.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(200)
+  const pressStyle = await pressTarget.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return { transform: s.transform, shadow: s.boxShadow }
+  })
+  await page.mouse.up()
+  check(
+    '누르면 단추가 움직인다',
+    restStyle.transform !== pressStyle.transform,
+    `${restStyle.transform} → ${pressStyle.transform}`,
+  )
+  const ringBox = await ringTarget.boundingBox()
+  const ringRest = await ringTarget.evaluate((el) => getComputedStyle(el).boxShadow)
+  await page.mouse.move(ringBox.x + ringBox.width / 2, ringBox.y + ringBox.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(200)
+  const ringPress = await ringTarget.evaluate((el) => getComputedStyle(el).boxShadow)
+  await page.mouse.up()
+  check('누르면 둘레에 테가 번진다', ringRest !== ringPress)
+  await page.screenshot({ path: join(OUT, 'press.jpg'), type: 'jpeg', quality: 82 })
+
+  /* 단추 글씨가 실제로 보이는가.
+     `bg-gradient-to-b` 를 유틸리티로 붙였다가 `tailwind-merge` 가 `bg-primary` 를
+     지워 버려, 첫 화면의 「연주회 만들기」가 **글씨도 배경도 없는 흰 상자**가 된 적이 있다.
+     이름으로 찾는 검사는 전부 통과했다 — 글씨는 DOM 에 있었으니까.
+     그래서 눈에 보이는지를 색으로 잰다. */
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  const faint = await page.evaluate(() => {
+    const lum = (rgb) => {
+      const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).slice(0, 3).map((n) => Number(n) / 255)
+      const f = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    }
+    const bad = []
+    for (const el of document.querySelectorAll('main button, main a > button')) {
+      const st = getComputedStyle(el)
+      if (!el.textContent.trim() || el.offsetParent === null) continue
+      // 배경이 투명한 단추(ghost·link)는 종이 위 글씨라 따로 재지 않는다
+      if (st.backgroundColor.includes('rgba(0, 0, 0, 0)')) continue
+      const [a, b] = [lum(st.color), lum(st.backgroundColor)].sort((x, y) => y - x)
+      const ratio = (a + 0.05) / (b + 0.05)
+      if (ratio < 4.5) bad.push(`${el.textContent.trim().slice(0, 14)} ${ratio.toFixed(2)}:1`)
+    }
+    return bad
+  })
+  check('단추 글씨가 바탕 위에서 읽힌다 — 4.5:1 이상', faint.length === 0, faint.join(' · '))
+
+  // 지금 어느 화면인지 머리띠가 알려 준다 — 다섯 칸이 다 회색이면 짐작하셔야 한다
+  await page.goto(`${BASE}/events`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(500)
+  const marked = await page.locator('header [aria-current="page"]').count()
+  check('머리띠가 지금 화면을 표시한다', marked === 1, `표시된 칸 ${marked}개`)
+
   await ctx.close()
 } catch (error) {
   failures.push(`검사 도중 멈춤: ${error.message}`)

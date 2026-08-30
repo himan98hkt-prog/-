@@ -757,7 +757,7 @@ export const DESIGN_THEMES: DesignTheme[] = [
       paperAlt: '#f5e8e0',
       ink: '#3a2a26',
       muted: '#8a6f66',
-      accent: '#ad6f5c',
+      accent: '#a8763f',
       accentSoft: '#f3e0d7',
       line: '#e6d3c8',
       band: '#8f5645',

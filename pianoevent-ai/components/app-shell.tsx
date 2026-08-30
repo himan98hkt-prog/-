@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AutoBackup } from '@/components/backup/auto-backup'
+import { NavLink } from '@/components/nav-link'
 import { ErrorLog } from '@/components/support/error-log'
 import { TextSizeToggle } from '@/components/ui/text-size-toggle'
 import { UndoProvider } from '@/components/undo/undo-bar'
@@ -41,7 +42,7 @@ export function AppShell({
         <div className="container flex h-14 items-center justify-between gap-3">
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-tight"
+            className="press flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-1 py-1 font-semibold tracking-tight"
           >
             <span aria-hidden className="text-lg">
               🎹
@@ -53,14 +54,7 @@ export function AppShell({
             {/* 눈이 편치 않으신 분이 많다. 확대하는 법을 아셔야 할 이유는 없다 */}
             <TextSizeToggle />
             {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="whitespace-nowrap rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:px-3"
-              >
-                <span className="sm:hidden">{item.short}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-              </Link>
+              <NavLink key={item.href} href={item.href} label={item.label} short={item.short} />
             ))}
           </nav>
         </div>

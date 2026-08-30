@@ -37,7 +37,7 @@ export function EventHub({ eventId, state }: { eventId: string; state: FlowState
         </p>
       </div>
 
-      <ol className="grid gap-3 sm:grid-cols-3" data-testid="event-hub">
+      <ol className="stagger grid gap-3 sm:grid-cols-3" data-testid="event-hub">
         {REQUIRED_STEPS.map((step) => {
           const finished = isDone(step.key, state)
           const now = bar.next?.key === step.key
@@ -47,7 +47,7 @@ export function EventHub({ eventId, state }: { eventId: string; state: FlowState
               <Link
                 href={stepHref(step.key, eventId)}
                 className={cn(
-                  'flex h-full flex-col rounded-xl border p-4 transition-shadow hover:shadow-md',
+                  'surface-lift press nudge flex h-full flex-col rounded-xl border p-4',
                   now && 'shadow-md ring-2',
                 )}
                 style={{
@@ -106,7 +106,7 @@ export function EventHub({ eventId, state }: { eventId: string; state: FlowState
               <li key={step.key}>
                 <Link
                   href={stepHref(step.key, eventId)}
-                  className="flex h-full flex-col rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-secondary"
+                  className="surface-lift press flex h-full flex-col rounded-lg border border-border px-3 py-2.5 hover:bg-secondary"
                   data-testid={`extra-${step.key}`}
                   data-done={finished ? 'yes' : 'no'}
                 >

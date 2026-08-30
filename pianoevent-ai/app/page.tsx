@@ -68,7 +68,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="stagger mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((step) => (
           <Card key={step.title}>
             <CardContent className="py-5">
@@ -83,8 +83,11 @@ export default async function HomePage() {
       <section className="mt-10">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">진행 중인 행사</h2>
-          <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground">
-            전체 보기 →
+          <Link
+            href="/events"
+            className="nudge press inline-flex items-center gap-1 rounded-md px-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            전체 보기 <span className="arrow">→</span>
           </Link>
         </div>
 
@@ -98,10 +101,10 @@ export default async function HomePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="stagger grid gap-3 md:grid-cols-3">
             {upcoming.map((event) => (
               <Link key={event.id} href={`/events/${event.id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
+                <Card interactive className="press h-full">
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="truncate">{event.title}</CardTitle>

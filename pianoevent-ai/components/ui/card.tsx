@@ -1,8 +1,15 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('surface', className)} {...props} />
+export function Card({
+  className,
+  interactive,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & {
+  /** 눌러서 어디론가 가는 카드 — 얹으면 떠오르고 누르면 내려앉는다 */
+  interactive?: boolean
+}) {
+  return <div className={cn('surface', interactive && 'surface-lift', className)} {...props} />
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

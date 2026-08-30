@@ -601,3 +601,167 @@ https://github.com/himan98hkt-prog/-/releases/new
 
 **아직 안 만드신 것** — E(밝은 판 4) · F(아이 3) · I(무대 화면 4) · J(SNS 2),
 그리고 다시 뽑기로 한 A4(빈 콘서트홀) · A7(겨울). 위 프롬프트 그대로 있습니다.
+
+
+---
+
+# 3차 — 아직 안 만드신 것 + 더 만들면 좋을 것
+
+## 아직 안 만드신 것 (2차 때 남긴 것)
+
+| 묶음 | 장수 | 무엇이 늘어나나 |
+|---|---|---|
+| **E · 밝은 판** | 4 | 포스터 4종. A4 를 까맣게 안 뽑아도 되니 **잉크값이 몇 배 줄어듭니다** |
+| **F · 아이 · 사랑스러운** | 3 | 포스터 3종. 유아·저학년 발표회에 쓸 그림이 아직 벚꽃 하나뿐입니다 |
+| **I · 무대 화면** | 4 | 무대 배경 14 → 18종 |
+| **J · SNS** | 2 | 인스타 카드·스토리 |
+| **A4 다시** | 4 | 빈 콘서트홀. 1차에서 만화 선화로 나왔습니다 |
+| **A7 다시** | 4 | 겨울. 1차에서 청록색 방으로 나왔습니다 |
+
+프롬프트는 위 「A. 포스터 주 그림」 · 「E」 · 「F」 · 「I」 · 「J」 절과
+「다시 뽑아야 하는 둘」 절에 그대로 있습니다. 복사해 쓰시면 됩니다.
+
+---
+
+# 더 만들면 좋을 것 — K · L · M · N
+
+지금 그림이 **포스터에만 몰려 있습니다.** 입장권·프로그램 표지·상장·무대 화면에는
+쓸 그림이 거의 없습니다. 아래 넷이 그 자리를 메웁니다.
+
+## 우선순위
+
+| 순서 | 묶음 | 장수 | 왜 |
+|---|---|---|---|
+| **1** | M · 질감 2차 | 4 | 은박이 들어오면 **금박 한 줄만 있던 고급 라인이 두 줄**이 됩니다 |
+| **2** | N · 표식 | 4 | **로고 없는 학원**이 많습니다. 기본 표식이 그 자리를 채웁니다 |
+| 3 | K · 인쇄물 조각 | 3 | 입장권·프로그램 표지·X배너 |
+| 4 | L · 무대 장면 | 3 | 대기 화면과 마지막 인사 화면 |
+
+---
+
+## M. 질감 2차 (`--ar 5:7`, 장식은 `--ar 1:1`)
+
+### M1 · 은박 — 금박과 짝이 됩니다
+```
+a sheet of real silver leaf foil, crinkled metallic surface with cool bright highlights and
+darker folds, macro texture, rich and even across the whole frame
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, objects
+```
+
+### M2 · 크라프트 종이 — 아이·자연 느낌 테마에
+```
+warm kraft paper texture, soft fibre grain, even lighting, extremely subtle and low
+contrast, almost plain, nothing in the centre
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+### M3 · 파스텔 종이 — 유아·저학년 인쇄물에
+```
+very pale blush pink paper with the faintest cloudlike gradient, soft and clean, extremely
+low contrast, almost plain, nothing in the centre
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+### M4 · 고운 리넨 — 1차 리넨은 결이 굵어 글씨를 방해했습니다
+```
+finely woven pale ivory linen, very tight even weave, soft diffused light, extremely subtle,
+almost plain, no visible threads standing out
+--ar 5:7 --v 7 --style raw --stylize 100 --no text, letters, words, watermark, signature, objects, shadows
+```
+
+---
+
+## N. 표식 (`--ar 1:1`, 순검정 바탕)
+
+**로고가 없는 학원이 많습니다.** 지금은 빈자리로 두거나 학원 이름만 적힙니다.
+아래 표식이 그 자리에 들어가면 인쇄물이 완성돼 보입니다.
+
+### N1 · 피아노 모노그램 — 기본 로고 자리를 채웁니다
+```
+an elegant minimal monogram mark, a grand piano silhouette enclosed in a thin circle, fine
+gold line art, perfectly centred with generous empty space, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, gradient background
+```
+
+### N2 · 메트로놈
+```
+an elegant metronome drawn in fine gold line art as a single simple icon, centred with
+generous empty space, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, gradient background
+```
+
+### N3 · 펼친 악보
+```
+an open sheet music book drawn in fine gold line art, simple and symmetrical, centred, on a
+pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, notes on the staff, gradient background
+```
+
+### N4 · 음표 세 개
+```
+three simple musical notes in fine gold line art, sparse and elegant, arranged loosely in
+the centre with empty space around, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 120 --no text, letters, words, watermark, signature, gradient background
+```
+
+---
+
+## K. 인쇄물 조각
+
+### K1 · 입장권 띠 (`--ar 3:1`)
+```
+a slim horizontal band of dark polished piano wood with a single thin gold pinstripe running
+along its length, extremely simple and elegant, nothing in the centre
+--ar 3:1 --v 7 --style raw --stylize 150 --no text, letters, words, watermark, signature, people, faces
+```
+
+### K2 · 프로그램 표지 (`--ar 5:7`)
+포스터와 달라야 합니다. 표지는 **물건 하나**가 조용히 놓여 있어야 합니다.
+```
+a closed grand piano lid seen from directly above, polished black lacquer with one soft
+reflected highlight, minimal and abstract, the upper half is deep even darkness
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### K3 · X배너 (`--ar 1:3`)
+```
+a very tall narrow composition, a grand piano at the very bottom under a single warm
+spotlight, the upper two thirds is deep empty darkness
+--ar 1:3 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## L. 무대 장면 (`--ar 16:9`)
+
+### L1 · 대기 화면 — 연주회 시작 전 스크린에 띄웁니다
+```
+closed theatre curtains in deep burgundy seen straight on, warm footlights glowing along the
+bottom edge, calm and symmetrical, the centre of the frame is even and unobstructed
+--ar 16:9 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### L2 · 마지막 인사 — 폐회 화면
+```
+an empty stage after a performance, a single bouquet of flowers left on the piano bench,
+warm fading light, tender and quiet, the centre of the frame calm
+--ar 16:9 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### L3 · 봄 (사진) — 봄은 아직 수채 하나뿐입니다 (`--ar 5:7`)
+```
+a black grand piano beside a window with cherry blossom branches just outside, soft pink
+morning light, fresh and gentle, the upper third of the frame is bright and empty
+--ar 5:7 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## 보내실 때
+
+**파일 이름은 미드저니가 붙인 그대로 두시는 게 가장 좋습니다.** 2차 때 확인했는데,
+프롬프트 내용이 이름에 들어 있어서 제가 자동으로 갈라 담습니다. 바꾸실 것 없습니다.
+
+압축해서 릴리스에 올려 주세요. 태그만 `art3` 으로 새로 하나 만드시면 됩니다.
+
+https://github.com/himan98hkt-prog/-/releases/new

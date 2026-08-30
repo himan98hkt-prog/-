@@ -41,6 +41,46 @@
     --screen-bg: hsl(var(--background));
   }
 
+  /*
+   * 누른 느낌은 **모든 단추**에 걸린다.
+   *
+   * 공용 부품(`Button`)에만 넣었더니, 그 부품을 안 쓰고 직접 쓴 `<button>` 들이
+   * 그대로 죽은 채 남았다. 화면에 따라 어떤 것은 반응하고 어떤 것은 안 하면
+   * 「이건 눌리는 건가?」를 매번 생각하셔야 한다. 그래서 바탕에서 한 번에 건다.
+   *
+   * 강조색 테까지 두르는 것은 `.press` 를 붙인 진짜 단추만이다(`@layer components`).
+   */
+  button,
+  summary,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 110ms ease,
+      box-shadow 110ms ease,
+      background-color 140ms ease,
+      color 140ms ease;
+  }
+
+  button:active:not(:disabled),
+  summary:active,
+  [role='button']:active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    summary,
+    [role='button'] {
+      transition-duration: 0.01ms;
+    }
+
+    button:active:not(:disabled),
+    summary:active,
+    [role='button']:active {
+      transform: none;
+    }
+  }
+
   /* 어느 화면인지 색으로 먼저 안다 — 글로 적어 두면 안 읽으신다 */
   .app-shell {
     background: var(--screen-bg);
@@ -54,8 +94,179 @@
 }
 
 @layer components {
+  /*
+   * 판.
+   *
+   * 그림자 한 겹으로는 종이가 바닥에 붙어 보인다. 얇은 것 두 겹을 겹치면
+   * 살짝 떠 있는 것처럼 보이고, 그게 화면을 한 단계 비싸 보이게 한다.
+   */
   .surface {
-    @apply rounded-lg border border-border bg-card shadow-[0_1px_2px_rgba(20,20,43,.04)];
+    @apply rounded-lg border border-border bg-card;
+    box-shadow:
+      0 1px 2px rgba(24, 24, 43, 0.05),
+      0 2px 8px -4px rgba(24, 24, 43, 0.06);
+  }
+
+  /*
+   * 누를 수 있는 판.
+   *
+   * 카드가 링크인데 눌러도 아무 반응이 없으면 **누를 수 있는 줄 모르신다.**
+   * 얹으면 살짝 떠오르고, 누르면 도로 내려앉는다.
+   */
+  .surface-lift {
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      border-color 140ms ease;
+  }
+
+  @media (hover: hover) {
+    .surface-lift:hover {
+      transform: translateY(-2px);
+      border-color: hsl(var(--accent) / 0.45);
+      box-shadow:
+        0 2px 4px rgba(24, 24, 43, 0.06),
+        0 12px 24px -12px rgba(24, 24, 43, 0.18);
+    }
+  }
+
+  .surface-lift:active {
+    transform: translateY(0);
+    box-shadow:
+      0 1px 2px rgba(24, 24, 43, 0.08),
+      inset 0 1px 3px rgba(24, 24, 43, 0.06);
+  }
+
+  /*
+   * 누른 느낌.
+   *
+   * 이 프로그램에서 가장 자주 들은 말이 「눌렀는지 모르겠다」였다.
+   * 단추에 `:active` 가 아예 없어서 눌러도 화면이 그대로였다.
+   *
+   * 셋을 한꺼번에 준다 — 1px 내려앉고, 아주 살짝 줄고, 둘레에 테가 번진다.
+   * 하나만으로는 눈이 편치 않은 분께 안 보인다. 셋이면 못 보고 지나칠 수 없다.
+   */
+  .press {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 110ms ease,
+      box-shadow 110ms ease,
+      background-color 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease;
+  }
+
+  .press:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    box-shadow:
+      0 0 0 3px hsl(var(--ring) / 0.28),
+      inset 0 2px 4px rgba(24, 24, 43, 0.18);
+  }
+
+  /*
+   * 채워진 단추의 윗면 광택 — 금속처럼 도톰해 보인다.
+   *
+   * 이것을 `bg-gradient-to-b` 유틸리티로 붙이면 안 된다. `tailwind-merge` 가
+   * 배경색과 같은 갈래로 보고 `bg-primary` 를 지워 버린다(단추가 하얘진다).
+   */
+  .press-filled {
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 62%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 1px 2px rgba(24, 24, 43, 0.16),
+      0 2px 6px -3px rgba(24, 24, 43, 0.28);
+  }
+
+  @media (hover: hover) {
+    .press-filled:hover:not(:disabled) {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 2px 4px rgba(24, 24, 43, 0.18),
+        0 6px 14px -6px rgba(24, 24, 43, 0.32);
+    }
+  }
+
+  /* 화살표는 얹으면 조금 나아간다 — 「눌러서 가는 곳」이라는 신호 */
+  .nudge svg,
+  .nudge .arrow {
+    transition: transform 160ms ease;
+  }
+
+  @media (hover: hover) {
+    .nudge:hover svg,
+    .nudge:hover .arrow {
+      transform: translateX(3px);
+    }
+  }
+
+  /* 지금 보고 계신 화면 — 머리띠에서 금색 밑줄로 표시한다 */
+  .nav-here {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+  }
+
+  .nav-here::after {
+    content: '';
+    display: block;
+    height: 2px;
+    margin-top: 3px;
+    border-radius: 2px;
+    background: hsl(var(--accent));
+  }
+
+  /*
+   * 줄줄이 나타나기.
+   *
+   * 카드가 한꺼번에 뜨면 어디부터 볼지 모르신다. 왼쪽부터 차례로 뜨면
+   * 눈이 저절로 그 순서를 따라간다. 아주 짧게(0.35초 안에) 끝난다.
+   */
+  .stagger > * {
+    animation: fade-up 0.38s ease-out both;
+  }
+
+  .stagger > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .stagger > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .stagger > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  .stagger > *:nth-child(n + 5) {
+    animation-delay: 240ms;
+  }
+}
+
+/*
+ * 움직임을 꺼 두신 분께는 움직이지 않는다.
+ * 어지럼증이 있는 분께 움직이는 화면은 쓸 수 없는 화면이다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .surface-lift,
+  .press,
+  .nudge svg,
+  .nudge .arrow {
+    transition-duration: 0.01ms !important;
+  }
+
+  .surface-lift:hover,
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+
+  .stagger > *,
+  .animate-fade-up {
+    animation: none !important;
+  }
+}
+
+@media print {
+  .surface {
+    box-shadow: none !important;
   }
 }
 
