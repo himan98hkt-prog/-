@@ -1395,18 +1395,42 @@ try {
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(900)
   const faint = await page.evaluate(() => {
-    const lum = (rgb) => {
-      const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).slice(0, 3).map((n) => Number(n) / 255)
-      const f = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    const parse = (c) => {
+      const n = (c.match(/[\d.]+/g) ?? []).map(Number)
+      return { r: n[0] ?? 0, g: n[1] ?? 0, b: n[2] ?? 0, a: n[3] ?? 1 }
+    }
+    /* 반투명한 색은 뒤가 비친다. 불투명한 조상을 만날 때까지 올라가서 겹쳐 계산한다.
+       이걸 안 하면 **배경이 아예 없는 단추**(bg-primary 가 지워진 그 버그)를
+       "투명하니 건너뛴다" 로 놓친다 — 실제로 처음 쓴 검사가 그랬다. */
+    const ground = (el) => {
+      const stack = []
+      for (let node = el; node; node = node.parentElement) {
+        const c = parse(getComputedStyle(node).backgroundColor)
+        if (c.a > 0) stack.push(c)
+        if (c.a >= 0.999) break
+      }
+      stack.push({ r: 255, g: 255, b: 255, a: 1 })
+      let out = stack.pop()
+      while (stack.length) {
+        const top = stack.pop()
+        out = {
+          r: top.r * top.a + out.r * (1 - top.a),
+          g: top.g * top.a + out.g * (1 - top.a),
+          b: top.b * top.a + out.b * (1 - top.a),
+          a: 1,
+        }
+      }
+      return out
+    }
+    const lum = ({ r, g, b }) => {
+      const f = (c) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4)
       return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
     }
     const bad = []
-    for (const el of document.querySelectorAll('main button, main a > button')) {
-      const st = getComputedStyle(el)
+    for (const el of document.querySelectorAll('main button')) {
       if (!el.textContent.trim() || el.offsetParent === null) continue
-      // 배경이 투명한 단추(ghost·link)는 종이 위 글씨라 따로 재지 않는다
-      if (st.backgroundColor.includes('rgba(0, 0, 0, 0)')) continue
-      const [a, b] = [lum(st.color), lum(st.backgroundColor)].sort((x, y) => y - x)
+      const ink = parse(getComputedStyle(el).color)
+      const [a, b] = [lum(ink), lum(ground(el))].sort((x, y) => y - x)
       const ratio = (a + 0.05) / (b + 0.05)
       if (ratio < 4.5) bad.push(`${el.textContent.trim().slice(0, 14)} ${ratio.toFixed(2)}:1`)
     }

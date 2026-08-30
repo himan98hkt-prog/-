@@ -765,3 +765,104 @@ morning light, fresh and gentle, the upper third of the frame is bright and empt
 압축해서 릴리스에 올려 주세요. 태그만 `art3` 으로 새로 하나 만드시면 됩니다.
 
 https://github.com/himan98hkt-prog/-/releases/new
+
+
+---
+
+# 4차 — 프로그램 화면용 그림 (P)
+
+점검해 보니 **한 범주가 통째로 비어 있습니다.** 지금까지 만든 31장은 전부
+**인쇄물·무대용**입니다. 프로그램 화면 자체를 위한 그림은 하나도 없습니다.
+
+첫 화면을 웹사이트처럼 다시 짜면서 무대 배경(`stage/keys-wide.jpg`)을 빌려 썼는데,
+그건 16:9 라 넓은 모니터에서 위아래가 잘립니다. 제자리 그림이 필요합니다.
+
+그리고 **프로그램 아이콘이 아직 제가 코드로 그린 3KB 짜리**입니다. 바탕화면에 놓이는
+그 아이콘이 제품의 첫인상인데, 지금은 거기서 티가 납니다.
+
+| 순서 | 무엇 | 왜 |
+|---|---|---|
+| **1** | P6 앱 아이콘 | **바탕화면·시작 메뉴·작업 표시줄**에 놓입니다. 제품의 첫인상입니다 |
+| **2** | P1 초광각 히어로 | 첫 화면. 지금은 16:9 를 늘려 쓰는 중입니다 |
+| **3** | P7 설치 화면 배너 | 설치할 때 왼쪽에 세로로 들어갑니다. 지금은 회색 기본 그림입니다 |
+| 4 | P8 시작 화면 | 프로그램이 켜지는 20초 동안 보여 드립니다. 지금은 빈 창입니다 |
+| 5 | P2 · P3 히어로 | 밝은 판 · 시즌 특강 화면 |
+| 6 | P4 · P5 | 「행사가 없습니다」 화면과 완료 축하 화면 |
+
+---
+
+### P6 · 앱 아이콘 — 가장 급합니다
+작게 줄여도 알아볼 수 있어야 합니다. 가는 선과 잔 무늬는 32px 에서 뭉개집니다.
+```
+a flat vector app icon, one simple grand piano silhouette in warm gold centred on a deep
+navy rounded square, extremely simple bold shapes, no gradients, no fine detail, designed
+to stay readable at 32 pixels, generous margin around the shape
+--ar 1:1 --v 7 --style raw --stylize 80 --no text, letters, words, watermark, signature, photorealism, thin lines, small details, drop shadow
+```
+
+### P1 · 초광각 히어로 (어두움)
+```
+an ultra wide cinematic view of a grand piano on a dark concert stage, warm side light,
+deep shadows, the left half is vast empty dark space, quiet and premium
+--ar 21:9 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P7 · 설치 화면 세로 배너
+```
+a tall narrow vertical banner, deep navy background with a soft warm glow rising from the
+bottom and a small grand piano silhouette near the bottom edge, the top two thirds is calm
+empty dark space
+--ar 1:2 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P8 · 시작 화면 (프로그램이 켜지는 동안)
+```
+a calm dark image, a single warm spotlight falling on a closed grand piano seen from a
+distance, very simple, the piano sits in the lower third and everything above is quiet
+darkness
+--ar 4:3 --v 7 --style raw --stylize 220 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P2 · 초광각 히어로 (밝음)
+```
+an ultra wide bright airy music room, a black grand piano on the right, tall windows with
+white curtains, soft daylight, the left half is bright and almost empty
+--ar 21:9 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P3 · 시즌 특강 히어로
+```
+an ultra wide warm view of a small piano classroom in soft afternoon light, an upright piano
+on the right, simple and inviting, the left half quiet and empty
+--ar 21:9 --v 7 --style raw --stylize 250 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P4 · 「아직 행사가 없습니다」 화면
+```
+a simple elegant watercolour of an empty piano bench beside a closed piano, plenty of
+untouched white paper, gentle and hopeful, plain white background
+--ar 4:3 --v 7 --style raw --stylize 200 --no text, letters, words, watermark, signature, people, faces
+```
+
+### P5 · 완료 축하 화면
+```
+a watercolour of a grand piano with a few soft golden sparkles rising from it, celebratory
+but restrained, plain white background, plenty of empty space
+--ar 4:3 --v 7 --style raw --stylize 220 --no text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## 지금까지 남아 있는 것 정리
+
+| 묶음 | 장수 | 상태 |
+|---|---|---|
+| A1 · A2 · A3 · A5 · A6 · A8 | 8 | ✅ 들어감 |
+| B · C | 7 | ✅ 들어감 |
+| D · G · H | 16 | ✅ 들어감 |
+| **A4 · A7 다시** | 8 | ⏳ 프롬프트 고쳐 드렸습니다 |
+| **E · F · I · J** | 13 | ⏳ |
+| **K · L · M · N** | 14 | ⏳ |
+| **P** | 8 | ⏳ 새로 제안 |
+
+전부 하실 것 없습니다. **P6(앱 아이콘) 한 장만 해도** 바탕화면에서 티가 납니다.

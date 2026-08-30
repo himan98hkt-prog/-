@@ -28,12 +28,21 @@ export function AppShell({
   academyName,
   className,
   eventId,
+  bleed = false,
 }: {
   children: React.ReactNode
   academyName: string
   className?: string
   /** 이 화면이 어느 행사의 것인가 — 되돌리기가 행사를 넘어가지 않게 */
   eventId?: string
+  /**
+   * 가장자리까지 꽉 채우는 화면(첫 화면).
+   *
+   * 여느 화면은 가운데 통(`container`)에 담긴다. 그런데 첫 화면의 큰 사진은
+   * 화면 끝까지 닿아야 한다 — 양옆이 비면 **웹사이트가 아니라 문서처럼 보인다.**
+   * 이때는 통을 벗기고, 각 마디가 알아서 통을 두른다.
+   */
+  bleed?: boolean
 }) {
   return (
     // 바탕색은 화면(단계)마다 다르다 — ScreenHeader 가 --screen-bg 를 바꿔 준다
@@ -61,7 +70,7 @@ export function AppShell({
       </header>
 
       {/* 되돌리기는 화면 위 한 자리에만 둔다 — 자리마다 있으면 자리마다 배우셔야 한다 */}
-      <main className={cn('container py-8', className)}>
+      <main className={cn(bleed ? 'pb-10' : 'container py-8', className)}>
         <UndoProvider eventId={eventId}>{children}</UndoProvider>
       </main>
 
