@@ -16,11 +16,15 @@ import {
   PAGE_PX,
   PRINT_PACKS,
   getTemplate,
+  LOOK_LABEL,
+  looksIn,
   packTemplates,
   sheetCount,
+  templateLook,
   templatesByCategory,
   type TemplateCategory,
   type TemplateDef,
+  type TemplateLook,
 } from '@/lib/design/templates'
 import {
   DESIGN_THEMES,
@@ -111,6 +115,8 @@ export function DesignStudio({
   const [picking, setPicking] = useState(false)
   // 양식 75종·테마 108종을 한 목록에 늘어놓으면 고를 수가 없다. 묶음을 먼저 고른다.
   const [category, setCategory] = useState<TemplateCategory>(getTemplate(opening.templateId).category)
+  /** 포스터처럼 가짓수가 많은 갈래에서 결로 한 번 더 좁힌다. null 이면 전부 보여 준다 */
+  const [look, setLook] = useState<TemplateLook | null>(null)
   const [themeQuery, setThemeQuery] = useState('')
   const [family, setFamily] = useState<ThemeFamily>(getTheme(opening.themeId).family)
 
@@ -178,8 +184,12 @@ export function DesignStudio({
   const sheets = sheetCount(templateId, plan.items.length)
   /** 한 벌이 종이 몇 장인지 — 고르시는 자리에서 아셔야 한다 */
   const packSheets = (pack: (typeof PRINT_PACKS)[number]) =>
-    packTemplates(pack).reduce((sum, item) => sum + sheetCount(item.id, plan.items.length), 0)
+    packTemplates(pack, templateId).reduce((sum, item) => sum + sheetCount(item.id, plan.items.length), 0)
   const blocked = template.needsProgram && plan.items.length === 0
+  /** 지금 갈래에 든 양식과, 결로 한 번 더 좁힌 것 */
+  const inCategory = templatesByCategory().find((g) => g.category === category)?.items ?? []
+  const looks = looksIn(inCategory)
+  const shown = look ? inCategory.filter((t) => templateLook(t.id) === look) : inCategory
 
   async function save() {
     setSaving(true)
@@ -238,6 +248,7 @@ export function DesignStudio({
                     setTemplateId(choice.templateId)
                     setFamily(getTheme(choice.themeId).family)
                     setCategory(getTemplate(choice.templateId).category)
+                    setLook(null)
                   }}
                   aria-pressed={chosen}
                   title={choice.why}
@@ -282,7 +293,7 @@ export function DesignStudio({
             {PRINT_PACKS.map((pack) => (
               <a
                 key={pack.id}
-                href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}`}
+                href={`/events/${event.id}/design/print?pack=${pack.id}&theme=${themeId}&template=${templateId}`}
                 target="_blank"
                 rel="noreferrer"
                 className="min-w-0"
@@ -337,7 +348,10 @@ export function DesignStudio({
                 <button
                   key={group.category}
                   type="button"
-                  onClick={() => setCategory(group.category)}
+                  onClick={() => {
+                    setCategory(group.category)
+                    setLook(null)
+                  }}
                   aria-pressed={group.category === category}
                   className={cn(
                     'rounded-full border px-3 py-1 text-xs transition-colors',
@@ -352,11 +366,51 @@ export function DesignStudio({
             </div>
 
             {/*
+              포스터만 30종이라 축소 그림이 열 줄 늘어선다. 「그림이냐 사진이냐」로 한 번 더
+              좁혀 드린다 — 나눌 것이 없는 갈래에서는 이 줄이 아예 나오지 않는다.
+            */}
+            {looks.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="look-chips">
+                {/* 갈래 칸과 생김새가 같으면 두 줄이 같은 것으로 보인다. 무엇을 나누는 줄인지 적어 둔다 */}
+                <span className="mr-0.5 text-xs text-muted-foreground">결</span>
+                <button
+                  type="button"
+                  onClick={() => setLook(null)}
+                  aria-pressed={look === null}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs transition-colors',
+                    look === null
+                      ? 'border-accent bg-accent/10 font-medium text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-secondary',
+                  )}
+                >
+                  전체 {inCategory.length}
+                </button>
+                {looks.map((one) => (
+                  <button
+                    key={one}
+                    type="button"
+                    onClick={() => setLook(one)}
+                    aria-pressed={look === one}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-xs transition-colors',
+                      look === one
+                        ? 'border-accent bg-accent/10 font-medium text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary',
+                    )}
+                  >
+                    {LOOK_LABEL[one]} {inCategory.filter((t) => templateLook(t.id) === one).length}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/*
               **이름으로는 못 고르신다.** "3단 접지 프로그램" 이 어떤 종이인지는 봐야 안다.
               지금 고르신 테마로 그린 축소 그림을 늘어놓는다 — 가짓수는 그대로 75종이다.
             */}
             <div className="grid grid-cols-3 gap-2" data-testid="template-grid">
-              {(templatesByCategory().find((g) => g.category === category)?.items ?? []).map((item: TemplateDef) => {
+              {shown.map((item: TemplateDef) => {
                 const active = item.id === templateId
                 const needsProgram = item.needsProgram && plan.items.length === 0
                 return (

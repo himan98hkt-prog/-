@@ -22,8 +22,12 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
+import { requireFreePort, requireFreshBuild } from './lib/fresh-build.mjs'
 
 const PORT = 3993
+
+// 남이 물고 있는 문이면 **남의(낡은) 서버를 재게 된다**
+await requireFreePort(PORT)
 const BASE = `http://127.0.0.1:${PORT}`
 const EVENT = 'demo-event'
 
@@ -55,6 +59,8 @@ async function waitForServer(ms = 90000) {
   }
   return false
 }
+
+requireFreshBuild()
 
 const server = spawn(process.execPath,
   ['node_modules/next/dist/bin/next', 'start', '-p', String(PORT)],

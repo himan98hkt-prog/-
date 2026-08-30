@@ -1362,7 +1362,7 @@ https://github.com/himan98hkt-prog/-/releases/new
 | 프로그램 | `app/hero-wide.jpg` | P1-1 · 첫 화면 |
 | 프로그램 | `app/icon.png` | P6-2 · **앱 아이콘** |
 | 프로그램 | `app/installer-side.jpg` | P7-2 · 설치 창 왼쪽 |
-| 프로그램 | `app/splash.jpg` | P8-2 · 켜지는 동안 (아직 화면에는 안 붙였습니다) |
+| 프로그램 | `app/splash.jpg` | P8-2 · **켜지는 동안 뜨는 첫 화면에 붙였습니다** (아래쪽 60px 은 흐릿한 글씨 자국이 있어 잘라 냈습니다) |
 
 **해상도가 1648×2944 로 왔습니다** — 업스케일까지 해 주셔서 A4 199dpi 입니다.
 인쇄소에 넘기셔도 됩니다.

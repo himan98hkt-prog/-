@@ -28,6 +28,7 @@ directories:
 # 146MB 가 붙는다.
 files:
   - desktop/main.js
+  - desktop/splash.js
   - desktop/icon.png
   - desktop/app/**/*
   - package.json

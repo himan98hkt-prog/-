@@ -33,7 +33,8 @@ export default async function DesignPrintPage({
 
   const { plan } = resolvePlan(students)
   const pack = getPack(searchParams.pack)
-  const templates = pack ? packTemplates(pack) : [getTemplate(searchParams.template ?? event.design_template)]
+  const chosen = searchParams.template ?? event.design_template
+  const templates = pack ? packTemplates(pack, chosen) : [getTemplate(chosen)]
   const template = templates[0]
   const theme = getTheme(searchParams.theme ?? event.design_theme ?? academy.design_theme)
   const base = defaultCopy(academy, event)

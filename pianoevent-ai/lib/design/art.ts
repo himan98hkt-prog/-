@@ -310,6 +310,8 @@ export const ORNAMENT_ART = [
   { id: 'sparkle', src: '/art/ornament/sparkle.png', name: '반짝임' },
   { id: 'cert-border', src: '/art/ornament/cert-border.png', name: '상장 테두리' },
   { id: 'piano-mark', src: '/art/ornament/piano-mark.png', name: '피아노 표식' },
+  // 금가루는 질감 폴더에 있지만 쓰는 방식은 장식과 같다 — 검은 바탕이라 모양으로 쓴다
+  { id: 'flecks', src: '/art/texture/gold-flecks.png', name: '금가루' },
 ]
 
 /**

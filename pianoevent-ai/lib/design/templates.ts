@@ -729,6 +729,73 @@ export const DESIGN_TEMPLATES: TemplateDef[] = [
   },
 ]
 
+/**
+ * 포스터의 **결**.
+ *
+ * 포스터가 30종이 되니 축소 그림 30개가 세로로 열 줄 늘어선다. 고르시라고 늘린 것이
+ * 오히려 고르기 어려워졌다. 그래서 「그림이냐 사진이냐 글자냐」로 한 겹 더 나눈다 —
+ * 원장님이 실제로 하시는 생각의 순서다.
+ *
+ * 양식 정의에 넣지 않고 여기 따로 두는 것은, 결이 **고르는 화면에서만** 쓰이는
+ * 분류라서다. 인쇄에는 아무 영향이 없다.
+ */
+export type TemplateLook = 'photo' | 'painted' | 'line' | 'real' | 'type'
+
+export const LOOK_LABEL: Record<TemplateLook, string> = {
+  painted: '그림',
+  line: '선화 · 판화',
+  real: '사진 (실사)',
+  photo: '우리 학원 사진',
+  type: '글자만',
+}
+
+/** 결을 보여 주는 차례 — 가장 많이 고르시는 것부터 */
+export const LOOK_ORDER: TemplateLook[] = ['painted', 'real', 'line', 'photo', 'type']
+
+const TEMPLATE_LOOK: Record<string, TemplateLook> = {
+  'poster-classic': 'type',
+  'poster-modern': 'type',
+  'poster-typographic': 'type',
+  'poster-photo': 'photo',
+  'poster-fullbleed': 'photo',
+  'poster-duo': 'photo',
+  'poster-program': 'photo',
+  'art-stage-piano': 'painted',
+  'art-oil-hall': 'painted',
+  'art-keys': 'painted',
+  'art-hands': 'painted',
+  'art-gala': 'painted',
+  'art-field': 'painted',
+  'art-watercolor': 'painted',
+  'art-blossom': 'painted',
+  'art-summer': 'painted',
+  'art-autumn': 'painted',
+  'art-christmas': 'painted',
+  'art-confetti': 'painted',
+  'art-line-front': 'line',
+  'art-line-keys': 'line',
+  'art-line-arch': 'line',
+  'art-ill-line': 'line',
+  'art-ill-engraving': 'line',
+  'art-ill-riso': 'line',
+  'art-ill-ink': 'line',
+  'art-ill-deco': 'line',
+  'art-real-stage': 'real',
+  'art-real-keys': 'real',
+  'art-real-hands': 'real',
+}
+
+export function templateLook(id: string): TemplateLook | null {
+  return TEMPLATE_LOOK[id] ?? null
+}
+
+/** 이 갈래를 결로 더 나눌 수 있는가 — 나눌 것이 없으면 칸을 만들지 않는다 */
+export function looksIn(items: TemplateDef[]): TemplateLook[] {
+  const found = new Set(items.map((t) => templateLook(t.id)).filter(Boolean) as TemplateLook[])
+  if (found.size < 2) return []
+  return LOOK_ORDER.filter((look) => found.has(look))
+}
+
 export const DEFAULT_TEMPLATE_ID = 'poster-classic'
 
 export function getTemplate(id: string | null | undefined): TemplateDef {
@@ -845,9 +912,20 @@ export function getPack(id: string | null | undefined): PrintPack | null {
   return PRINT_PACKS.find((p) => p.id === id) ?? null
 }
 
-/** 한 벌 안에서 실제로 인쇄할 양식 — 첫 양식과 용지가 같은 것만 남긴다 */
-export function packTemplates(pack: PrintPack): TemplateDef[] {
-  const defs = pack.templates.map((id) => getTemplate(id))
+/**
+ * 한 벌 안에서 실제로 인쇄할 양식 — 첫 양식과 용지가 같은 것만 남긴다.
+ *
+ * `chosen` 은 원장님이 지금 고르신 양식이다. 한 벌에 든 포스터는 **그것으로 바꿔 끼운다.**
+ * 아르데코 포스터를 골라 두고 「관객용 한 벌」을 누르셨는데 기본 포스터가 나오면
+ * 고른 것이 무시된 셈이라 당황하신다. 용지가 같을 때만 바꾼다.
+ */
+export function packTemplates(pack: PrintPack, chosen?: string | null): TemplateDef[] {
+  const swap = chosen ? getTemplate(chosen) : null
+  const defs = pack.templates.map((id) => {
+    const def = getTemplate(id)
+    if (swap && def.category === 'poster' && swap.category === 'poster' && swap.page === def.page) return swap
+    return def
+  })
   const page = defs[0]?.page
   return defs.filter((def) => def.page === page)
 }

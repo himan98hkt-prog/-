@@ -1,3 +1,4 @@
+import { ArtOrnament } from '@/components/design/art-ornament'
 import type { OrnamentId } from '@/lib/design/themes'
 
 /**
@@ -6,10 +7,33 @@ import type { OrnamentId } from '@/lib/design/themes'
  */
 
 /** 제목 아래 들어가는 가로 장식 */
+/**
+ * 밖에서 만들어 넣은 금박 그림을 쓰는 장식.
+ *
+ * 손으로 그린 SVG 보다 훨씬 곱다. 색이 아니라 **모양**으로 쓰므로(`ArtOrnament`)
+ * 테마 강조색을 그대로 입는다 — 남색 테마에서는 남색 구분선이 된다.
+ */
+const ART_DIVIDER: Partial<Record<OrnamentId, { id: string; ratio: number }>> = {
+  foil: { id: 'divider', ratio: 0.3 },
+  // 정사각 그림은 세로가 크기를 정한다. 크게 잡았더니 높은음자리표가 242px 로 나와
+  // 종이를 차지하고 아래쪽 것은 잘려 나갔다 — 장식은 글을 받쳐야지 밀어내면 안 된다
+  lyre: { id: 'clef', ratio: 0.4 },
+  keys: { id: 'piano-mark', ratio: 0.4 },
+}
+
 export function OrnamentDivider({ id, width = 220 }: { id: OrnamentId; width?: number }) {
   const stroke = 'var(--d-accent)'
 
   if (id === 'none') return null
+
+  const art = ART_DIVIDER[id]
+  if (art) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <ArtOrnament id={art.id} width={width} height={Math.round(width * art.ratio)} opacity={0.9} />
+      </div>
+    )
+  }
 
   if (id === 'keys') {
     return (
@@ -306,6 +330,21 @@ export function OrnamentCorner({
   position: 'tl' | 'tr' | 'bl' | 'br'
   size?: number
 }) {
+  // 금박 모서리 그림은 **오른쪽 아래**에 그려져 있다. 나머지 세 자리는 돌려서 쓴다
+  if (id === 'deco' || id === 'foil') {
+    const spin = { br: 0, bl: 90, tl: 180, tr: 270 }[position]
+    const place = {
+      tl: { top: 0, left: 0 },
+      tr: { top: 0, right: 0 },
+      bl: { bottom: 0, left: 0 },
+      br: { bottom: 0, right: 0 },
+    }[position]
+    return (
+      <div aria-hidden style={{ position: 'absolute', ...place, transform: `rotate(${spin}deg)`, pointerEvents: 'none' }}>
+        <ArtOrnament id="corner" width={size * 1.6} opacity={0.75} />
+      </div>
+    )
+  }
   if (id === 'none' || id === 'wave') return null
 
   const rotate = { tl: 0, tr: 90, br: 180, bl: 270 }[position]
@@ -353,16 +392,6 @@ export function OrnamentCorner({
             <path d="M24 26c0-6 4-10 8-10s8 4 8 10-4 10-8 10-8-4-8-10Z" fill={stroke} fillOpacity="0.7" />
             <circle cx="20" cy="34" r="2.6" fill={stroke} />
             <circle cx="42" cy="20" r="2.6" fill={stroke} />
-          </>
-        )
-      case 'foil':
-        return (
-          <>
-            <path d="M8 52V8h44" stroke={stroke} strokeOpacity="0.9" fill="none" />
-            <path d="M13 52V13h39" stroke={stroke} strokeOpacity="0.45" fill="none" />
-            <circle cx="8" cy="8" r="2.6" fill={stroke} />
-            <circle cx="52" cy="8" r="1.6" fill={stroke} fillOpacity="0.6" />
-            <circle cx="8" cy="52" r="1.6" fill={stroke} fillOpacity="0.6" />
           </>
         )
       case 'lyre':
@@ -572,7 +601,24 @@ export function OrnamentCorner({
 }
 
 /** 배경 연출 — 스포트라이트·별가루 등 전면 효과 */
+/** 종이 전체에 아주 옅게 까는 그림 — 눈에 띄면 글씨를 방해한다 */
+const ART_BACKDROP: Partial<Record<OrnamentId, { id: string; opacity: number }>> = {
+  note: { id: 'staff', opacity: 0.1 },
+  stars: { id: 'sparkle', opacity: 0.1 },
+  // 금박 테마에는 금가루를 아주 옅게 뿌린다. 검은 종이 위에서 벨벳 위 금가루처럼 보인다
+  foil: { id: 'flecks', opacity: 0.08 },
+}
+
 export function OrnamentBackdrop({ id }: { id: OrnamentId }) {
+  const art = ART_BACKDROP[id]
+  if (art) {
+    return (
+      <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <ArtOrnament id={art.id} width="100%" height="100%" opacity={art.opacity} fit="cover" />
+      </div>
+    )
+  }
+
   if (id === 'spotlight') {
     return (
       <div

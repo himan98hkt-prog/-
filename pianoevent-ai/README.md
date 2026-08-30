@@ -20,7 +20,7 @@ npm run dist     # 리눅스 AppImage        · 배포/설치본/
 npm run dist:win # 윈도우 설치 프로그램    · 윈도우에서 실행해야 합니다
 npm run dist:mac # 맥 dmg                 · 맥에서 실행해야 합니다
 npm run carousel # 상품 캐러셀 15장 (1080×1080 PNG)
-npm test         # 순수 로직 단위 테스트 680건
+npm test         # 순수 로직 단위 테스트 857건
 npm run manual:shots             # 사용설명서에 넣을 화면 그림 10장 다시 찍기
 npm run build && npm run smoke   # 실제 서버를 띄워 원장 작업 흐름 152건 검증
 npm run verify:easy              # 화면 구조 · 엑셀 · 되돌리기 · 인쇄 · 자동 저장 · 구경용 행사 (328건)
@@ -28,6 +28,7 @@ npm run verify:simple            # 화면마다 눌러 볼 것 · 첫 판 · 길
 npm run verify:live              # 당일 진행 · 명단 안내 · 사용설명서 · 사진 (103건)
 npm run verify:stage             # 화면 모양·배경 · 넘침 · 테마 · PDF · 파워포인트 검사 (91건)
 npm run verify:video             # 템플릿 20종 · 콘티 · 실제 영상 파일 검사 (52건)
+npm run verify:poster            # 그림 포스터 23종 × 테마 4종 — 글씨가 그림 위에서 읽히는지 대비를 잽니다 (184자리)
 ```
 
 > **인터넷도 AI 키도 없이 전부 동작합니다.** 인터넷이 필요한 건 학부모가 초대장 링크를 여는 것 하나뿐입니다.

@@ -6,8 +6,12 @@ import {
   PAGE_PX,
   PRINT_PACKS,
   getTemplate,
+  LOOK_LABEL,
+  LOOK_ORDER,
+  looksIn,
   packTemplates,
   sheetCount,
+  templateLook,
   templatesByCategory,
 } from '@/lib/design/templates'
 import {
@@ -254,6 +258,23 @@ describe('디자인 확장 — 테마 108종 · 양식 75종', () => {
     }
   })
 
+  it('포스터는 모두 결이 정해져 있다 — 하나라도 빠지면 그 한 장이 어느 칸에도 안 나온다', () => {
+    const posters = DESIGN_TEMPLATES.filter((t) => t.category === 'poster')
+    for (const t of posters) expect(templateLook(t.id), t.id).not.toBeNull()
+    // 결로 나눈 것을 다 더하면 포스터 전체가 된다
+    const sum = LOOK_ORDER.reduce((n, look) => n + posters.filter((t) => templateLook(t.id) === look).length, 0)
+    expect(sum).toBe(posters.length)
+    for (const look of LOOK_ORDER) expect(LOOK_LABEL[look]).toBeTruthy()
+  })
+
+  it('나눌 것이 없는 갈래에서는 결 칸을 만들지 않는다', () => {
+    for (const group of templatesByCategory()) {
+      const looks = looksIn(group.items)
+      if (group.category === 'poster') expect(looks.length).toBeGreaterThanOrEqual(3)
+      else expect(looks, group.category).toEqual([])
+    }
+  })
+
   it('행사 달에 맞는 계절 테마를 추천한다', () => {
     for (const month of [1, 4, 7, 10]) {
       const ids = seasonalThemeIds(month)
@@ -283,6 +304,31 @@ describe('한 벌 인쇄', () => {
   it('한 벌이 실제로 두 장 이상을 묶는다 — 한 장짜리면 묶을 이유가 없다', () => {
     for (const pack of PRINT_PACKS) {
       expect(packTemplates(pack).length, pack.id).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('고른 포스터가 한 벌에 그대로 들어간다', () => {
+    // 아르데코 포스터를 골라 두고 「관객용 한 벌」을 누르셨는데 기본 포스터가 나오면
+    // 고른 것이 무시된 셈이라, 원장님은 프로그램이 제 말을 안 듣는다고 느끼신다
+    const pack = PRINT_PACKS.find((p) => p.id === 'audience')!
+    const picked = packTemplates(pack, 'art-ill-deco')
+    expect(picked[0].id).toBe('art-ill-deco')
+    expect(picked.filter((t) => t.category === 'poster')).toHaveLength(1)
+    // 나머지는 그대로다
+    expect(picked.slice(1).map((t) => t.id)).toEqual(pack.templates.slice(1))
+  })
+
+  it('포스터가 아닌 것을 고르셨으면 한 벌은 그대로 둔다', () => {
+    const pack = PRINT_PACKS.find((p) => p.id === 'audience')!
+    expect(packTemplates(pack, 'cue-sheet').map((t) => t.id)).toEqual(packTemplates(pack).map((t) => t.id))
+  })
+
+  it('바꿔 끼워도 한 벌의 용지는 하나다', () => {
+    for (const pack of PRINT_PACKS) {
+      for (const poster of DESIGN_TEMPLATES.filter((t) => t.category === 'poster')) {
+        const pages = new Set(packTemplates(pack, poster.id).map((t) => t.page))
+        expect(pages.size, `${pack.id} · ${poster.id}`).toBe(1)
+      }
     }
   })
 

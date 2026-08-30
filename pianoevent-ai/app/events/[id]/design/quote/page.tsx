@@ -30,9 +30,8 @@ export default async function QuotePage({
 
   const [academy, students] = await Promise.all([repo.getAcademy(event.academy_id), repo.listStudents(event.id)])
   const pack = getPack(searchParams.pack)
-  const templates = pack
-    ? packTemplates(pack)
-    : [getTemplate(searchParams.template ?? event.design_template)]
+  const chosen = searchParams.template ?? event.design_template
+  const templates = pack ? packTemplates(pack, chosen) : [getTemplate(chosen)]
 
   const copies = Math.max(1, Math.min(2000, Number(searchParams.copies) || 40))
   const rows = quoteRows(templates, students.length, copies)

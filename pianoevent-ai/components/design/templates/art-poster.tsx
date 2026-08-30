@@ -16,7 +16,22 @@ import { fitTitle } from '@/lib/design/fit'
  * 그림을 더 넣으실 때 이 파일은 건드리실 것이 없다.
  */
 
-/** 어두운 그림 위에서는 글씨 색을 테마에서 끌어오지 않는다 — 밝은 테마에서 글씨가 사라진다 */
+/**
+ * 글씨 색.
+ *
+ * **바탕이 무엇인가로 정한다. 테마가 무엇인가로 정하지 않는다.**
+ * 이걸 헷갈려서 두 번 사고가 났다 — 밝은 그림을 어두운 테마에 얹었더니 흰 글씨가
+ * 밝은 그림 위에 얹혀 대비 1.0:1 로 **아예 안 보였다.** 눈으로는 못 찾았고
+ * `npm run verify:poster` 가 2484가지 조합을 재서 찾아냈다.
+ *
+ *   · 어두운 사진이 바탕 → 늘 밝은 상아색 글씨
+ *   · 밝은 그림이 바탕(가득 채움) → 늘 어두운 먹빛 글씨
+ *   · 흰 종이에 그린 수채(담아 넣음) → 바탕이 **테마 종이**다. 테마 글씨색이 맞다
+ *   · 선화 → 바탕이 테마 종이다. 테마 색 그대로
+ *
+ * 작은 글씨(출연진·주최)에는 `--d-muted` 를 쓰지 않는다. 그 색은 종이 대비 3:1 만
+ * 지키면 되는 색이라, 11px 이름에는 모자란다(4.5:1 이 필요하다).
+ */
 function palette(art: PosterArt) {
   if (art.tone === 'dark') {
     return {
@@ -28,31 +43,37 @@ function palette(art: PosterArt) {
       eyebrow: undefined as string | undefined,
     }
   }
-  // 선화는 테마 종이 위에 테마 강조색으로 칠한 것이다. 글씨도 테마 색을 그대로 쓴다
+
   if (art.tone === 'line') {
-    return {
-      ink: 'var(--d-ink)',
-      dim: 'var(--d-muted)',
-      accent: 'var(--d-accent)',
-      rule: 'var(--d-line)',
-    }
-  }
-  // 밝은 **사진** 위에서는 흐린 색이 사진에 먹힌다. 보조 글씨도 본문 색으로 올린다
-  if (art.fill === 'cover') {
+    // 선화는 테마 종이 위에 테마 강조색으로 칠한 것이다. 글씨도 테마 색을 그대로 쓴다.
+    // 다만 학원 이름만은 **먹빛**으로 둔다 — 그림과 같은 색이라 선 위에 얹히면 묻힌다
     return {
       ink: 'var(--d-ink)',
       dim: 'var(--d-ink)',
       accent: 'var(--d-accent)',
       rule: 'var(--d-line)',
-      eyebrow: 'var(--d-ink)',
+      eyebrow: 'var(--d-ink)' as string | undefined,
     }
   }
-  // 밝은 그림은 흰 종이에 그린 것이라 테마 색이 그대로 산다
+
+  if (art.fill === 'cover') {
+    // 밝은 그림이 종이를 가득 채운다. 바탕은 늘 밝으므로 글씨는 늘 어둡다
+    return {
+      ink: '#1b1712',
+      dim: 'rgba(27,23,18,0.82)',
+      accent: 'color-mix(in srgb, var(--d-accent) 45%, #4a3618)',
+      rule: 'rgba(27,23,18,0.32)',
+      eyebrow: '#1b1712' as string | undefined,
+    }
+  }
+
+  // 흰 종이에 그린 수채를 담아 넣은 것 — 바탕은 테마 종이다
   return {
     ink: 'var(--d-ink)',
-    dim: 'var(--d-muted)',
+    dim: 'var(--d-ink)',
     accent: 'var(--d-accent)',
     rule: 'var(--d-line)',
+    eyebrow: undefined as string | undefined,
   }
 }
 
@@ -117,6 +138,25 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
             mask: `url(${art.src}) center / contain no-repeat`,
             maskMode: 'luminance',
             ['WebkitMaskMode' as string]: 'luminance',
+          }}
+        />
+      ) : null}
+
+      {/*
+        선화 아래쪽에 **종이색 여울**을 깐다.
+        선화는 종이를 가득 채우므로 맨 아래 출연진 이름이 그림 위에 얹힌다. 강조색이 진한
+        테마(레인보우 플레이)에서 이름 대비가 3.06:1 까지 떨어졌다 — 11px 이름에는 모자란다.
+        (`npm run verify:poster` 가 찾았다.)
+        그림을 종이색으로 서서히 지우면 이름은 늘 깨끗한 종이 위에 앉는다.
+      */}
+      {art.tone === 'line' ? (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(to top, var(--d-paper) 0%, var(--d-paper) 12%, transparent 30%)',
           }}
         />
       ) : null}

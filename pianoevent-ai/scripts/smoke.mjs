@@ -11,8 +11,15 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, renameSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { requireFreePort, requireFreshBuild } from './lib/fresh-build.mjs'
+
+// 낡은 빌드를 재면 고쳐진 문제도 실패로 나온다
+requireFreshBuild()
 
 const PORT = Number(process.env.SMOKE_PORT ?? 3987)
+
+// 남이 물고 있는 문이면 **남의(낡은) 서버를 재게 된다**
+await requireFreePort(PORT)
 const BASE = `http://127.0.0.1:${PORT}`
 const DATA = join(process.cwd(), '.data')
 const SPARE = mkdtempSync(join(tmpdir(), 'pianoevent-smoke-'))

@@ -20,17 +20,21 @@ export function ArtOrnament({
   height,
   color = 'var(--d-accent)',
   opacity = 0.85,
+  fit = 'contain',
 }: {
   id: string
-  width: number
+  /** 숫자는 px 다. 종이 크기를 따라가야 하면 '100%' 처럼 CSS 값을 준다 */
+  width: number | string
   /** 정사각이 아닌 것(상장 테두리)만 따로 준다 */
-  height?: number
+  height?: number | string
   color?: string
   opacity?: number
+  /** 종이 전체에 까는 그림은 cover 로 채운다 — A4·A5·가로에서 여백이 생기지 않게 */
+  fit?: 'contain' | 'cover'
 }) {
   const art = ORNAMENT_ART.find((o) => o.id === id)
   if (!art) return null
-  const mask = `url(${art.src}) center / contain no-repeat`
+  const mask = `url(${art.src}) center / ${fit} no-repeat`
 
   return (
     <div

@@ -17,6 +17,7 @@ const { spawn } = require('node:child_process')
 const { createServer } = require('node:net')
 const path = require('node:path')
 const fs = require('node:fs')
+const { splashHtml } = require('./splash.js')
 
 /** 켜져 있는 서버 (창을 닫을 때 함께 내린다) */
 let server = null
@@ -116,6 +117,61 @@ function stopServer() {
 }
 
 /**
+ * 첫 화면 — 서버가 켜지는 동안 보여 드리는 창.
+ *
+ * 안에 든 서버가 뜨기까지 학원 컴퓨터에서는 10~25초가 걸린다. 그 동안 화면에 아무것도
+ * 없으면 원장님은 **안 켜진 줄 알고 다시 두 번 누르신다.** (두 개가 뜨는 것은 막아 두었지만
+ * 「눌렀는데 아무 일도 없다」는 느낌 자체가 이미 실패다.)
+ *
+ * 그래서 누르시는 즉시 무대 사진 한 장과 「준비하고 있습니다」를 띄운다. 기다림은 같지만
+ * **기다리고 있다는 것을 아신다.** 전문 프로그램은 모두 이렇게 한다.
+ */
+let splash = null
+
+function splashImage() {
+  for (const at of [
+    path.join(appRoot(), 'public', 'art', 'app', 'splash.jpg'),
+    path.join(__dirname, '..', 'public', 'art', 'app', 'splash.jpg'),
+  ]) {
+    try {
+      if (fs.existsSync(at)) return `data:image/jpeg;base64,${fs.readFileSync(at).toString('base64')}`
+    } catch {
+      /* 못 읽으면 그림 없이 띄운다 — 첫 화면이 못 떠서 프로그램이 안 열리면 안 된다 */
+    }
+  }
+  return null
+}
+
+function showSplash() {
+  const html = splashHtml(splashImage())
+
+  splash = new BrowserWindow({
+    width: 560,
+    height: 340,
+    frame: false,
+    resizable: false,
+    center: true,
+    show: false,
+    skipTaskbar: false,
+    backgroundColor: '#08080a',
+    title: '피아노이벤트',
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  })
+  splash.once('ready-to-show', () => splash?.show())
+  void splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+}
+
+function closeSplash() {
+  try {
+    splash?.destroy()
+  } catch {
+    /* 이미 닫혔으면 그대로 */
+  }
+  splash = null
+}
+
+/**
  * 메뉴.
  *
  * 영어로 된 기본 메뉴(File · Edit · View · Window)를 그대로 두면 그것부터 낯설다.
@@ -182,7 +238,18 @@ function createWindow(port) {
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   })
 
-  win.once('ready-to-show', () => win.show())
+  // 본 창이 뜨는 순간 첫 화면을 치운다 — 둘이 겹쳐 보이면 그것대로 어수선하다
+  win.once('ready-to-show', () => {
+    closeSplash()
+    win?.show()
+  })
+
+  // 본 창이 끝내 못 뜨면 첫 화면만 남아 영원히 「준비하고 있습니다」가 된다.
+  // 그럴 때는 첫 화면을 치우고 무엇이 잘못됐는지 말씀드린다.
+  win.webContents.on('did-fail-load', (_event, code, description) => {
+    closeSplash()
+    dialog.showErrorBox('피아노이벤트를 열지 못했습니다', `${description} (${code})\n프로그램을 닫았다가 다시 열어 주세요.`)
+  })
   win.on('closed', () => {
     win = null
   })
@@ -212,6 +279,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     try {
+      showSplash()
       const port = await startServer()
       buildMenu(port)
       createWindow(port)
@@ -227,6 +295,7 @@ if (!app.requestSingleInstanceLock()) {
         if (BrowserWindow.getAllWindows().length === 0) createWindow(port)
       })
     } catch (error) {
+      closeSplash()
       dialog.showErrorBox('피아노이벤트를 열지 못했습니다', String(error?.message ?? error))
       app.quit()
     }

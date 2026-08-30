@@ -32,7 +32,9 @@
     "desktop:dev": "node scripts/build-desktop.mjs && electron .",
     "dist": "npm run desktop && electron-builder --linux",
     "dist:win": "npm run desktop && electron-builder --win",
-    "dist:mac": "npm run desktop && electron-builder --mac"
+    "dist:mac": "npm run desktop && electron-builder --mac",
+    "verify:poster": "node scripts/verify-poster.mjs",
+    "shots:splash": "node scripts/splash-shot.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
