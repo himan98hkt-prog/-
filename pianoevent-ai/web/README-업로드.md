@@ -14,13 +14,14 @@
 1. 방금 만든 **`download` 폴더를 더블클릭해서 들어갑니다** ← 중요
 2. 도구막대 **업로드** → **`recital-upload.zip`** (435KB)
 3. 올라온 zip을 **오른쪽 클릭 → 압축 풀기(Extract)**
-4. 파일 네 개가 그 자리에 나옵니다. **zip 과 `READ-ME-FIRST.txt` 는 지우세요**
+4. 파일 다섯 개가 그 자리에 나옵니다. **zip 과 `READ-ME-FIRST.txt` 는 지우세요**
 
 압축 안에 **폴더가 없습니다.** 푸신 자리에 그대로 풀립니다.
 
 ```
 public_html/download/
   index.html                    ← 받는 자리
+  guide.html                    ← 사용설명서
   recital-manager-detail.html   ← 상품 상세페이지
   .htaccess
 ```
@@ -29,6 +30,7 @@ public_html/download/
 
 **https://accelssam.com/download/** 를 엽니다.
 1.4초 뒤 내려받기가 시작되면 성공입니다.
+**https://accelssam.com/download/guide.html** 도 함께 열어 보십시오 — 사용설명서입니다.
 
 > **설치 파일은 어디에 있나요?**
 > 이 페이지는 **같은 폴더에 설치 파일이 있으면 그것을**, 없으면 **깃허브에 있는 것을** 자동으로 씁니다.
@@ -102,9 +104,11 @@ public_html/download/
 — 아첼쌤
 ```
 
-인증키는 주문마다 따로 만드십니다 —
-`RECITAL_LICENSE_SECRET='정하신값' npm run key:new -- --plan year --count 1`
-(자세한 것은 `docs/SELLING-LICENSE.md`)
+인증키는 주문마다 따로 만드십니다. **`배포/인증키-발급기.html`** 을 두 번 클릭해 여시고
+학원 이름을 넣으면 키와 안내 문자가 통째로 나옵니다
+(발급기 만드는 법과 파는 절차 전체는 `docs/SELLING-LICENSE.md`).
+
+> 발급기는 **홈페이지에 올리지 마세요.** 사장님 컴퓨터에만 두시는 파일입니다.
 
 ---
 
@@ -114,7 +118,7 @@ public_html/download/
 
 | 올리는 것 (영문) | 안 올리는 것 (한글 · 붙여넣기용) |
 |---|---|
-| `recital-upload.zip` → 풀면 세 파일 | `커리큘럼-붙여넣기.html` |
+| `recital-upload.zip` → 풀면 네 파일 | `커리큘럼-붙여넣기.html` |
 | (나중에) `RecitalManager-Setup-Windows.exe` | `다운로드-워드프레스-블록.html` |
 
 ## 안 될 때

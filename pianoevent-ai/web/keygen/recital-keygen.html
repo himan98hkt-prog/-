@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연주회 매니저 인증키 발급기 · 판매자 전용</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#171411;--ink60:#6B635A;--ink40:#9A9188;--line:#E7E0D4;
+  --paper:#FBF9F4;--ivory:#FFFDF9;--gold:#C5A059;--gold-d:#A8843F;--gold-s:#F0E5CC;
+  --green:#2F7D5B;--red:#B3413A;
+  --serif:"Nanum Myeongjo",serif;--sans:"Pretendard",-apple-system,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.75;word-break:keep-all;padding:0 0 60px}
+.gold-line{height:3px;background:linear-gradient(90deg,var(--gold-d),var(--gold) 30%,#F5E9CC 50%,var(--gold) 70%,var(--gold-d))}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+header{text-align:center;padding:44px 0 30px}
+header .eb{font-size:11.5px;font-weight:800;letter-spacing:.22em;color:var(--gold-d)}
+header h1{font-family:var(--serif);font-size:clamp(26px,4.6vw,36px);font-weight:800;
+  margin-top:12px;letter-spacing:-.03em}
+header p{color:var(--ink60);font-size:14.5px;margin-top:10px}
+.warn{background:#FDF4F3;border:1px solid #EFD5D2;border-left:4px solid var(--red);
+  border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.75;margin-bottom:26px}
+.warn b{color:var(--red)}
+.tabs{display:flex;gap:8px;background:#F1EBE0;border-radius:14px;padding:6px;margin-bottom:22px}
+.tabs button{flex:1;height:48px;border:0;border-radius:10px;background:transparent;
+  font-family:inherit;font-size:15px;font-weight:800;color:var(--ink60);cursor:pointer}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 2px 8px -4px rgba(0,0,0,.25)}
+.panel{display:none}.panel.on{display:block}
+.card{background:var(--ivory);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+label{display:block;font-size:13.5px;font-weight:800;margin-bottom:8px}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:14px;
+  font-family:inherit;font-size:16px;background:#fff;color:var(--ink)}
+textarea{min-height:150px;resize:vertical;line-height:1.8}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 4px rgba(197,160,89,.15)}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.btn{width:100%;height:54px;border:0;border-radius:12px;background:var(--ink);color:var(--gold);
+  font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px}
+.btn.g{background:linear-gradient(160deg,#E0C98C,var(--gold-d));color:#171310}
+.btn.o{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.res{background:linear-gradient(160deg,#232323,#141210);border:1px solid rgba(197,160,89,.35);
+  border-radius:16px;padding:26px;text-align:center;margin-top:16px;display:none}
+.res.on{display:block}
+.res .k{font-family:var(--serif);font-size:clamp(20px,4.4vw,30px);font-weight:800;
+  color:var(--gold);letter-spacing:.05em;word-break:break-all}
+.res .n{color:#A79E92;font-size:14px;margin-top:10px}
+.res .cp{margin-top:16px;background:var(--gold);color:#171310;border:0;border-radius:10px;
+  height:44px;padding:0 26px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer}
+.list{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:12px;
+  background:#fff;margin-top:14px;display:none}
+.list.on{display:block}
+.list table{width:100%;border-collapse:collapse;font-size:14px}
+.list td{padding:11px 14px;border-bottom:1px solid #F2ECE2}
+.list tr:last-child td{border-bottom:none}
+.list td.k{font-family:var(--serif);font-weight:800;color:var(--gold-d);letter-spacing:.03em;
+  white-space:nowrap;text-align:right}
+.list td.i{color:var(--ink40);width:52px;font-size:13px}
+.hint{font-size:13px;color:var(--ink40);margin-top:10px;line-height:1.7}
+.ok{color:var(--green);font-weight:800}.no{color:var(--red);font-weight:800}
+.sec{font-family:var(--serif);font-size:19px;font-weight:800;margin:30px 0 12px}
+.note{background:#FCF8EE;border:1px solid var(--gold-s);border-left:4px solid var(--gold);
+  border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.8;margin-top:14px}
+.msg{white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:12px;
+  padding:16px;font-size:14px;line-height:1.85;margin-top:12px;display:none}
+.msg.on{display:block}
+</style>
+</head>
+<body>
+<div class="gold-line"></div>
+<div class="wrap">
+<header>
+  <div class="eb">SELLER ONLY</div>
+  <h1>인증키 발급기</h1>
+  <p>연주회 매니저 · 판매자 전용 도구</p>
+</header>
+
+<div class="warn">
+  <b>이 파일을 절대 공유하지 마세요.</b><br>
+  홈페이지에 올리시면 누구나 키를 만들 수 있게 됩니다.
+  본인 컴퓨터와 개인 클라우드 두 곳에만 보관하세요.<br>
+  <b>관리노트 발급기와는 키가 다릅니다.</b> 연주회 매니저 키는 반드시 이 도구로 만드세요.
+</div>
+
+<div class="tabs">
+  <button id="t1" class="on">학원명으로 발급</button>
+  <button id="t2">키 미리 만들기</button>
+  <button id="t3">키 확인하기</button>
+</div>
+
+<!-- ── 학원명 방식 ── -->
+<div class="panel on" id="p1">
+  <div class="card">
+    <label for="one">학원명</label>
+    <input type="text" id="one" placeholder="예: 하모니 피아노학원" autocomplete="off">
+    <div class="row" style="margin-top:16px">
+      <div>
+        <label for="plan1">이용 형태</label>
+        <select id="plan1">
+          <option value="year">1년 이용</option>
+          <option value="life">평생 이용</option>
+          <option value="trial">체험 (1개월)</option>
+        </select>
+      </div>
+      <div>
+        <label for="mon1">기간 (개월)</label>
+        <input type="number" id="mon1" value="12" min="0" max="120">
+      </div>
+    </div>
+    <button class="btn g" id="go1">키 만들기</button>
+    <div class="hint">같은 학원명 · 같은 형태 · 같은 기간이면 <b>언제나 같은 키</b>가 나옵니다.
+      고객이 키를 잃어버려도 학원명만 다시 넣으면 됩니다.<br>
+      평생 이용은 기간을 0으로 두세요.</div>
+  </div>
+  <div class="res" id="r1"><div class="k" id="k1"></div><div class="n" id="n1"></div>
+    <button class="cp" id="c1">키 복사</button>
+    <button class="cp" id="c1m" style="margin-left:8px;background:transparent;color:var(--gold);border:1px solid rgba(197,160,89,.5)">안내 문자 통째로 복사</button></div>
+  <div class="msg" id="m1"></div>
+
+  <div class="card">
+    <label for="many">여러 학원 한 번에 (한 줄에 하나씩)</label>
+    <textarea id="many" placeholder="하모니 피아노학원&#10;가온피아노학원&#10;서울음악학원"></textarea>
+    <button class="btn" id="go2">한 번에 만들기</button>
+    <button class="btn o" id="cp2">표로 복사 (엑셀 붙여넣기)</button>
+  </div>
+  <div class="list" id="l2"></div>
+</div>
+
+<!-- ── 미리 만들기 ── -->
+<div class="panel" id="p2">
+  <div class="note">
+    <b>학원명 없이 미리 만들어 두는 키입니다.</b><br>
+    결제가 들어올 때마다 하나씩 배정해 보내시면 됩니다.
+    키 안에 <b>이용 형태와 만료일, 검증코드</b>가 들어 있어 인터넷 없이도 진짜인지 확인됩니다.
+  </div>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="plan3">이용 형태</label>
+        <select id="plan3">
+          <option value="year">1년 이용</option>
+          <option value="life">평생 이용</option>
+          <option value="trial">체험 (1개월)</option>
+        </select>
+      </div>
+      <div>
+        <label for="mon3">기간 (개월)</label>
+        <input type="number" id="mon3" value="12" min="0" max="120">
+      </div>
+      <div>
+        <label for="cnt">몇 개</label>
+        <input type="number" id="cnt" value="50" min="1" max="2000">
+      </div>
+    </div>
+    <label for="ser" style="margin-top:16px">시작 일련번호</label>
+    <input type="number" id="ser" value="1" min="1" max="1048000">
+    <div class="hint">누구에게 몇 번을 드렸는지 적어 두시면 나중에 찾기 쉽습니다.
+      이어서 만드실 때는 마지막 번호 다음부터 넣으세요.</div>
+    <button class="btn g" id="go3">키 만들기</button>
+    <button class="btn o" id="cp3">전부 복사</button>
+    <button class="btn o" id="dl3">장부로 내려받기 (.csv)</button>
+  </div>
+  <div class="list" id="l3"></div>
+</div>
+
+<!-- ── 키 확인 ── -->
+<div class="panel" id="p3">
+  <div class="card">
+    <label for="chk">확인할 키</label>
+    <input type="text" id="chk" placeholder="예: RM-2415W-00033-EN0BQ-2FT1B" autocomplete="off">
+    <button class="btn g" id="go4">확인하기</button>
+    <div class="hint" id="h4"></div>
+  </div>
+</div>
+
+<div class="sec">이 도구 사용법</div>
+<div class="note">
+  <b>학원명으로 발급</b> — 고객이 학원명을 알려주시면 그 이름으로 키를 만들어 보냅니다.
+  같은 이름이면 늘 같은 키라, 나중에 잃어버리셔도 다시 만들어 드릴 수 있습니다.<br><br>
+  <b>키 미리 만들기</b> — 학원명을 몰라도 되는 키입니다. 미리 50개쯤 만들어 두고
+  결제 순서대로 하나씩 보내세요. 장부(.csv)로 내려받아 누구에게 보냈는지 적어 두시면 됩니다.<br><br>
+  <b>키 확인하기</b> — 고객이 「키가 안 맞는다」고 하실 때, 그 키가 진짜인지 여기서 확인하세요.
+  이용 형태와 만료일까지 보여 드립니다.
+</div>
+
+<div class="note" style="border-left-color:var(--red);background:#FDF4F3;border-color:#EFD5D2">
+  <b>비밀이 맞아야 열립니다.</b><br>
+  이 도구의 비밀과 <b>설치본을 만들 때 넣은 비밀</b>이 같아야 고객 컴퓨터에서 키가 열립니다.
+  비밀을 바꾸시면 <b>이미 파신 키가 전부 안 열립니다</b> — 한 번 정하면 바꾸지 마세요.
+</div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   ▼▼▼ 비밀 — 설치본을 만들 때 넣은 것과 **똑같아야** 합니다 ▼▼▼
+   (깃허브 저장소 Secrets 의 RECITAL_LICENSE_SECRET 과 같은 값)
+   ══════════════════════════════════════════════════════════════════ */
+const SECRET = "__RECITAL_LICENSE_SECRET__";
+/* ▲▲▲ 여기까지 ▲▲▲ */
+
+/* 프로그램 안(lib/license/key.ts)과 **같은 규칙**입니다. 한 글자도 달라지면 안 됩니다.
+   판(4비트) + 이용형태(4) + 만료일수(16) + 일련번호(20) = 44비트,
+   여기에 HMAC-SHA256 앞 7바이트(56비트)를 붙여 100비트 → 크록포드 base32 20글자. */
+const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const FIX = { I:"1", L:"1", O:"0", U:"V" };
+const PLAN_CODE = { life:0, year:1, trial:2 };
+const PLAN_NAME = { 0:"평생 이용", 1:"1년 이용", 2:"체험" };
+const EPOCH = Date.UTC(2026,0,1), DAY = 86400000;
+
+const bits = (v,w) => v.toString(2).padStart(w,"0");
+const enc = new TextEncoder();
+
+async function hmacBytes(msg){
+  const key = await crypto.subtle.importKey("raw", enc.encode(SECRET),
+    { name:"HMAC", hash:"SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(msg)));
+}
+async function macBits(payload){
+  const m = await hmacBytes(payload);
+  let out = "";
+  for (let i=0;i<7;i++) out += bits(m[i],8);
+  return out;
+}
+function bitsToKey(b){
+  let out = "";
+  for (let i=0;i<b.length;i+=5) out += ALPHABET[parseInt(b.slice(i,i+5),2)];
+  return "RM-" + (out.match(/.{1,5}/g)||[]).join("-");
+}
+function expiresAt(months){
+  if (!months || months <= 0) return null;
+  const t = new Date();
+  return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth()+Number(months), t.getUTCDate()));
+}
+async function makeKey(plan, months, serial){
+  const at = expiresAt(months);
+  const days = at ? Math.round((at.getTime()-EPOCH)/DAY) : 0;
+  if (days < 0 || days > 0xffff) throw new Error("기간이 너무 깁니다");
+  if (serial < 0 || serial > 0xfffff) throw new Error("일련번호가 범위를 벗어났습니다");
+  const payload = bits(1,4)+bits(PLAN_CODE[plan],4)+bits(days,16)+bits(serial,20);
+  return { key: bitsToKey(payload + await macBits(payload)),
+           expires: at ? at.toISOString().slice(0,10) : "" };
+}
+/* 학원명 → 일련번호. 같은 이름이면 늘 같은 번호가 나와, 같은 키가 다시 만들어진다 */
+function normName(s){ return String(s||"").replace(/\s+/g,"").replace(/[()（）·.,\-]/g,"").toLowerCase(); }
+async function serialOf(name){
+  const m = await hmacBytes("name|" + normName(name));
+  return ((m[0]<<12) | (m[1]<<4) | (m[2]>>4)) & 0xfffff;
+}
+async function checkKey(input){
+  const up = String(input||"").toUpperCase().replace(/[^0-9A-Z]/g,"");
+  const body0 = up.startsWith("RM") ? up.slice(2) : up;
+  const body = [...body0].map(c => FIX[c] ?? c).join("");
+  if (body.length !== 20) return { ok:false, why:"키는 스무 글자입니다." };
+  let b = "";
+  for (const ch of body){
+    const at = ALPHABET.indexOf(ch);
+    if (at < 0) return { ok:false, why:"키에 쓸 수 없는 글자가 있습니다." };
+    b += bits(at,5);
+  }
+  const payload = b.slice(0,44), mac = b.slice(44);
+  if (await macBits(payload) !== mac) return { ok:false, why:"이 비밀로 만든 키가 아닙니다." };
+  if (parseInt(payload.slice(0,4),2) !== 1) return { ok:false, why:"더 새로운 판의 키입니다." };
+  const plan = PLAN_NAME[parseInt(payload.slice(4,8),2)];
+  const days = parseInt(payload.slice(8,24),2);
+  const serial = parseInt(payload.slice(24),2);
+  const at = days === 0 ? null : new Date(EPOCH + days*DAY);
+  return { ok:true, plan, serial, expires: at ? at.toISOString().slice(0,10) : "만료 없음",
+           over: at ? at.getTime() < Date.now() : false };
+}
+
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function copy(t, btn, txt){
+  try { await navigator.clipboard.writeText(t);
+    const o = btn.textContent; btn.textContent = txt || "복사됨";
+    setTimeout(() => btn.textContent = o, 1500);
+  } catch(e){ prompt("아래 내용을 복사하세요", t); }
+}
+function messageFor(key){
+  return "[연주회 매니저] 결제해 주셔서 감사합니다.\n\n" +
+    "1) 아래 주소를 누르시면 프로그램이 자동으로 내려받아집니다.\n" +
+    "   https://accelssam.com/download/\n\n" +
+    "2) 받은 파일을 두 번 클릭 → 다음 · 다음 · 설치\n" +
+    "   (「Windows의 PC 보호」 창이 뜨면 추가 정보 → 실행)\n\n" +
+    "3) 바탕화면의 「연주회 매니저」 아이콘을 누르시고,\n" +
+    "   아래 인증키를 붙여넣어 주세요.\n\n" +
+    "   인증키: " + key + "\n\n" +
+    "한 번만 넣으시면 그 컴퓨터에서 계속 쓰십니다.\n" +
+    "인터넷이 없어도 열리고, 아이 명단과 사진은 원장님 컴퓨터를 벗어나지 않습니다.\n\n" +
+    "사용법: https://accelssam.com/download/guide.html\n\n— 아첼쌤";
+}
+
+[["t1","p1"],["t2","p2"],["t3","p3"]].forEach(([t,p]) => {
+  el(t).addEventListener("click", () => {
+    ["t1","t2","t3"].forEach(x => el(x).classList.toggle("on", x===t));
+    ["p1","p2","p3"].forEach(x => el(x).classList.toggle("on", x===p));
+  });
+});
+el("plan1").addEventListener("change", e => {
+  el("mon1").value = e.target.value === "life" ? 0 : e.target.value === "trial" ? 1 : 12;
+});
+el("plan3").addEventListener("change", e => {
+  el("mon3").value = e.target.value === "life" ? 0 : e.target.value === "trial" ? 1 : 12;
+});
+
+async function one(){
+  const v = el("one").value.trim();
+  if (!v){ el("r1").classList.remove("on"); el("m1").classList.remove("on"); return; }
+  const { key, expires } = await makeKey(el("plan1").value, el("mon1").value, await serialOf(v));
+  el("k1").textContent = key;
+  el("n1").textContent = v + " · " + el("plan1").selectedOptions[0].text + (expires ? " · " + expires + " 까지" : "");
+  el("r1").classList.add("on");
+  el("m1").textContent = messageFor(key);
+  el("m1").classList.add("on");
+}
+el("go1").addEventListener("click", one);
+el("one").addEventListener("keydown", e => { if (e.key==="Enter") one(); });
+el("c1").addEventListener("click", e => copy(el("k1").textContent, e.target, "키 복사됨"));
+el("c1m").addEventListener("click", e => copy(el("m1").textContent, e.target, "문자 복사됨"));
+
+let rows = [];
+el("go2").addEventListener("click", async () => {
+  const names = el("many").value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  rows = [];
+  for (const n of names){
+    const { key } = await makeKey(el("plan1").value, el("mon1").value, await serialOf(n));
+    rows.push([n, key]);
+  }
+  el("l2").innerHTML = "<table>" + rows.map(([n,k],i) =>
+    `<tr><td class="i">${i+1}</td><td>${esc(n)}</td><td class="k">${k}</td></tr>`).join("") + "</table>";
+  el("l2").classList.toggle("on", rows.length > 0);
+});
+el("cp2").addEventListener("click", e => {
+  if (!rows.length){ alert("먼저 '한 번에 만들기'를 눌러주세요."); return; }
+  copy(rows.map(([n,k]) => n + "\t" + k).join("\n"), e.target, "표 복사됨");
+});
+
+let pool = [];
+el("go3").addEventListener("click", async () => {
+  const n = Math.min(2000, Math.max(1, parseInt(el("cnt").value) || 50));
+  let s = Math.max(1, parseInt(el("ser").value) || 1);
+  pool = [];
+  for (let i=0;i<n;i++){
+    const { key, expires } = await makeKey(el("plan3").value, el("mon3").value, s);
+    pool.push({ serial:s, key, expires });
+    s += 1;
+  }
+  el("l3").innerHTML = "<table>" + pool.map(r =>
+    `<tr><td class="i">${r.serial}</td><td class="k" style="text-align:left">${r.key}</td></tr>`).join("") + "</table>";
+  el("l3").classList.add("on");
+  el("ser").value = s;
+});
+el("cp3").addEventListener("click", e => {
+  if (!pool.length){ alert("먼저 '키 만들기'를 눌러주세요."); return; }
+  copy(pool.map(r => r.key).join("\n"), e.target, "전부 복사됨");
+});
+el("dl3").addEventListener("click", () => {
+  if (!pool.length){ alert("먼저 '키 만들기'를 눌러주세요."); return; }
+  const plan = el("plan3").selectedOptions[0].text;
+  const csv = "일련번호,이용형태,만료일,인증키,판매일,받으신 분\n" +
+    pool.map(r => `${r.serial},${plan},${r.expires},${r.key},,`).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8" }));
+  a.download = `연주회매니저_인증키_${pool.length}개_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
+el("go4").addEventListener("click", async () => {
+  const k = el("chk").value.trim();
+  if (!k){ el("h4").innerHTML = ""; return; }
+  const r = await checkKey(k);
+  if (r.ok && !r.over){
+    el("h4").innerHTML = '<span class="ok">✓ 진짜 키입니다</span> · ' + r.plan +
+      ' · ' + r.expires + ' · 일련번호 ' + r.serial;
+  } else if (r.ok && r.over){
+    el("h4").innerHTML = '<span class="no">✗ 기간이 지난 키입니다</span> · ' + r.plan +
+      ' · ' + r.expires + ' 까지였습니다 · 일련번호 ' + r.serial;
+  } else {
+    el("h4").innerHTML = '<span class="no">✗ 확인되지 않는 키입니다</span><br>' + esc(r.why);
+  }
+});
+el("chk").addEventListener("keydown", e => { if (e.key==="Enter") el("go4").click(); });
+</script>
+</body>
+</html>

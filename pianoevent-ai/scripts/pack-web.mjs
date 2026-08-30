@@ -23,16 +23,18 @@ mkdirSync(STAGE, { recursive: true })
 cpSync(join('web', 'download', 'index.html'), join(STAGE, 'index.html'))
 cpSync(join('web', 'download', '.htaccess'), join(STAGE, '.htaccess'))
 cpSync(join('web', 'download', 'recital-manager-detail.html'), join(STAGE, 'recital-manager-detail.html'))
+cpSync(join('web', 'download', 'guide.html'), join(STAGE, 'guide.html'))
 
 writeFileSync(
   join(STAGE, 'READ-ME-FIRST.txt'),
   `연주회 매니저 — accelssam.com 업로드용
 
 이 압축은 public_html/download 폴더 **안에서** 푸세요.
-폴더가 들어 있지 않으므로, 푼 자리에 아래 세 파일이 그대로 나옵니다.
+폴더가 들어 있지 않으므로, 푼 자리에 아래 네 파일이 그대로 나옵니다.
 
   index.html                      받는 자리       → accelssam.com/download/
   recital-manager-detail.html     상품 상세페이지  → accelssam.com/download/recital-manager-detail.html
+  guide.html                      사용설명서       → accelssam.com/download/guide.html
   .htaccess                       설치 파일이 열리지 않고 내려받아지게 함
 
 설치 파일(.exe)은 올리지 않으셔도 됩니다.
@@ -49,7 +51,7 @@ writeFileSync(
 
 rmSync(OUT, { force: true })
 // -j 는 폴더 없이 파일만 담는다. 숨은 파일(.htaccess)도 이름을 적어 함께 담는다
-execFileSync('zip', ['-q', '-j', join('..', '..', OUT), 'index.html', 'recital-manager-detail.html', '.htaccess', 'READ-ME-FIRST.txt'], {
+execFileSync('zip', ['-q', '-j', join('..', '..', OUT), 'index.html', 'guide.html', 'recital-manager-detail.html', '.htaccess', 'READ-ME-FIRST.txt'], {
   cwd: STAGE,
 })
 if (!existsSync(OUT)) {

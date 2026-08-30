@@ -38,7 +38,9 @@
     "shots:splash": "node scripts/splash-shot.mjs",
     "key:new": "node --experimental-strip-types scripts/make-keys.ts",
     "verify:mobile": "node scripts/verify-mobile.mjs",
-    "pack:web": "node scripts/pack-web.mjs"
+    "pack:web": "node scripts/pack-web.mjs",
+    "verify:web": "node scripts/verify-web.mjs",
+    "keygen:build": "node scripts/make-keygen.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
