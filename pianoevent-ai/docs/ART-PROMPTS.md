@@ -1157,3 +1157,186 @@ completely empty
 **R1·R2·R3 세 장만 먼저 보내 주셔도** 차이를 바로 보실 수 있습니다.
 그 셋을 보고 나서 나머지를 뽑으시는 편이, 스물두 장을 한 번에 뽑고 나서
 「전부 다시」가 되는 것보다 낫습니다.
+
+
+---
+
+# 6차 — 일러스트 컨셉 (V · W)
+
+지금 포스터 그림 12장 중 **일러스트는 3장뿐**입니다(수채 둘, 밝은 사진 하나).
+사진 쪽이 아홉 장이라 한쪽으로 크게 기울어 있습니다.
+
+일러스트는 사진과 달리 **AI 티가 원천적으로 안 납니다.** 사람이 그린 것과 구분할
+이유가 없기 때문입니다. 그래서 실사와 함께 가는 반대편 기둥으로 세우면 좋습니다.
+
+아래 열둘은 **서로 확실히 다른 그림체**입니다. 한 컨셉이 곧 한 갈래의 얼굴이 됩니다.
+
+공통 꼬리표:
+
+```
+[일러] = --ar 5:7 --v 7 --style raw --stylize 180
+--no photo, photograph, photorealistic, 3d, render, cgi, text, letters, words,
+watermark, signature, people, faces
+```
+
+---
+
+## W. 테마 색을 입는 선화 — 이것부터 하세요
+
+**한 장이 테마 108종 색으로 다 나옵니다.**
+
+검은 바탕에 금선으로 그리면, 프로그램이 검정을 뚫어 내고 **그 자리를 테마 강조색으로
+칠합니다.** 남색 테마에서는 남색 피아노가, 버건디 테마에서는 버건디 피아노가 됩니다.
+상장 월계관에 이미 쓰고 있는 방식인데, 포스터 크기로 키우면 훨씬 큽니다.
+
+```
+[테마색] = --ar 5:7 --v 7 --style raw --stylize 120
+--no text, letters, words, watermark, signature, gradient background, photo, 3d,
+shading, colour fill, people, faces
+```
+
+### W1 · 그랜드피아노 정면
+```
+a large elegant grand piano drawn in fine gold line art seen from the front, symmetrical,
+occupying the lower half of the frame, on a pure solid black background, the upper half
+completely empty black
+[테마색]
+```
+
+### W2 · 건반과 흐르는 음표
+```
+a piano keyboard drawn in fine gold line art running across the lower third of the frame,
+a few musical notes drifting upward from it, on a pure solid black background, the upper
+two thirds completely empty black
+[테마색]
+```
+
+### W3 · 아치와 피아노
+```
+a tall classical arch drawn in fine gold line art framing an empty space, a small grand
+piano in the same fine gold line at its base, on a pure solid black background, everything
+inside the arch is empty black
+[테마색]
+```
+
+---
+
+## V. 일러스트 컨셉 열둘
+
+대부분 **흰 바탕**으로 그리게 했습니다. 흰 바탕이면 프로그램이 종이색을 비쳐 보이게
+겹칠 수 있어서, 미색 테마에서는 미색 종이에 그린 것처럼 나옵니다.
+
+### V1 · 한 줄 선화
+```
+a single continuous line drawing of a grand piano, one unbroken elegant black line, no
+shading and no fill, on a plain white background, the piano sits low in the frame with
+generous empty space above
+[일러] --stylize 100
+```
+
+### V2 · 펜화 해칭
+```
+a detailed pen and ink drawing of a grand piano with fine cross hatching, black ink on
+white paper, engraving style linework, no colour, the piano in the lower half, plain empty
+white above
+[일러]
+```
+
+### V3 · 빈티지 동판화
+```
+a nineteenth century copperplate engraving of a grand piano, fine parallel line shading,
+sepia ink on aged cream paper, antique concert programme illustration, the piano centred
+low, plain empty space above
+[일러]
+```
+
+### V4 · 아르데코 (1920년대 공연 포스터)
+```
+a 1920s art deco concert poster illustration of a grand piano, flat geometric shapes, only
+three colours — deep navy, gold and cream, strong symmetry, bold simple forms, a generous
+empty band across the top
+[일러] --stylize 220
+```
+
+### V5 · 아르누보
+```
+an art nouveau illustration of a grand piano framed by flowing organic lines and stylised
+lilies, muted olive gold and cream, elegant curved border, flat colour, empty space at the
+top
+[일러] --stylize 220
+```
+
+### V6 · 리소그래프 2도 인쇄
+```
+a two colour risograph print of a grand piano, warm red and deep blue inks slightly
+misregistered, visible paper grain and ink texture, flat simple shapes, plain paper
+background, empty space above
+[일러]
+```
+
+### V7 · 미니멀 기하 (바우하우스)
+```
+a minimal geometric illustration of a grand piano built from simple flat shapes, bauhaus
+style, three flat colours on a plain off white background, no gradients and no outlines, a
+large empty area at the top
+[일러] --stylize 150
+```
+
+### V8 · 수묵담채 — 우리 시장에서 가장 차별됩니다
+```
+a korean ink wash painting of a grand piano, soft grey brush strokes with a single touch of
+pale colour, wet brush bleeding into rice paper, plenty of untouched white paper, minimal
+and calm
+[일러] --no black outline, cartoon, heavy detail
+```
+
+### V9 · 종이 오리기
+```
+a layered paper cut illustration of a grand piano, cream and soft gold papers with subtle
+shadows between the layers, clean cut edges, plain white background, empty space at the top
+[일러]
+```
+
+### V10 · 크레용 (유아·저학년)
+```
+a children's crayon and coloured pencil drawing of a small piano with a few notes floating
+above it, waxy crayon texture, soft pastel colours, plain cream paper, simple and warm,
+empty space at the top
+[일러]
+```
+
+### V11 · 스테인드글라스
+```
+a stained glass window design showing a grand piano, bold black leading lines and jewel
+toned glass in amber blue and green, symmetrical, completely flat, plain dark surround
+[일러] --stylize 220
+```
+
+### V12 · 보태니컬 라인
+```
+a botanical illustration of a grand piano surrounded by delicately line drawn leaves and
+small flowers, fine ink lines with soft muted watercolour washes, plain white background,
+empty space at the top
+[일러]
+```
+
+---
+
+## 우선순위
+
+| 순서 | 무엇 | 왜 |
+|---|---|---|
+| **1** | **W1 · W2 · W3** | **한 장이 테마 108종 색으로 나옵니다.** 장당 효과가 압도적입니다 |
+| **2** | V1 · V3 · V8 | 서로 가장 멀리 떨어진 셋 — 현대 선화 / 고전 동판화 / 수묵 |
+| **3** | V4 · V6 · V10 | 아르데코(격식) · 리소(트렌디) · 크레용(아이) |
+| 4 | V2 · V5 · V7 · V9 · V11 · V12 | 갈래가 더 필요할 때 |
+
+**W 셋만 먼저** 보내 주셔도 좋습니다. 테마를 바꿀 때마다 포스터 색이 같이 바뀌는 것을
+보시면, 나머지를 어디에 쓸지 감이 훨씬 빨리 잡히실 겁니다.
+
+## 보내실 때
+
+지금까지와 같습니다. **파일 이름은 미드저니가 붙인 그대로** 두시고, 압축해서 릴리스에
+`art4` 같은 새 태그로 올려 주세요. 이름에 프롬프트가 들어 있어 제가 자동으로 갈라 담습니다.
+
+https://github.com/himan98hkt-prog/-/releases/new
