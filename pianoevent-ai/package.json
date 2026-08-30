@@ -41,7 +41,8 @@
     "pack:web": "node scripts/pack-web.mjs",
     "verify:web": "node scripts/verify-web.mjs",
     "keygen:build": "node scripts/make-keygen.mjs",
-    "secret:check": "node --experimental-strip-types scripts/check-license-secret.mjs"
+    "secret:check": "node --experimental-strip-types scripts/check-license-secret.mjs",
+    "product:image": "node scripts/make-product-image.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

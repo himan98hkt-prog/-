@@ -25,3 +25,6 @@ desktop/app
 
 # 업로드용 묶음은 만들어 쓰는 것이라 저장소에 두지 않는다 (npm run pack:web)
 web/recital-upload.zip
+
+# 상품 이미지 찍을 때 받아 쓰는 한글 글꼴 — 26MB 라 저장소에 두지 않는다
+.fontcache
