@@ -22,7 +22,7 @@
     "pack": "node scripts/pack.mjs",
     "demo:build": "vite build --config demo/vite.config.ts && node scripts/build-artifact.mjs",
     "demo:verify": "node scripts/verify-demo.mjs",
-    "carousel": "python3 scripts/build-carousel.py && node scripts/carousel-shot.mjs",
+    "carousel": "node scripts/make-carousel.mjs",
     "verify:live": "node scripts/verify-live.mjs",
     "verify:easy": "node scripts/verify-easy.mjs",
     "manual:shots": "node scripts/manual-shots.mjs",
