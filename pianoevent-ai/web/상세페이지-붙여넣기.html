@@ -1,0 +1,48 @@
+<!-- ══════════════════════════════════════════════════════════════
+     연주회 매니저 — 상품 상세페이지 (가운데 정렬판)
+
+     상품 편집 → 「설명」란 → 오른쪽 위 ⋮ → 코드 편집기(또는 텍스트/HTML 모드)
+     → 아래를 통째로 붙여넣으세요.
+
+     폭을 바꾸고 싶으시면 아래 MAX 의 숫자 하나만 고치시면 됩니다.
+       1080 …  지금 값. 상품 본문과 비슷한 폭 (권장)
+       960  …  조금 더 좁게, 책처럼
+       1200 …  조금 더 넓게
+     ══════════════════════════════════════════════════════════════ -->
+
+<div id="recital-detail-box"
+     style="max-width:1080px;margin:0 auto;padding:0 12px;box-sizing:border-box">
+  <iframe id="recital-detail"
+    src="https://accelssam.com/download/recital-manager-detail.html"
+    style="display:block;border:0;width:100%;min-height:600px;
+           border-radius:18px;overflow:hidden;
+           box-shadow:0 10px 40px rgba(83,62,38,.10)"
+    scrolling="no" title="연주회 매니저 상세페이지"></iframe>
+</div>
+
+<script>
+(function(){
+  var MAX = 1080;                                   // ← 폭은 여기 한 곳만 고치세요
+  var box = document.getElementById('recital-detail-box');
+  var f   = document.getElementById('recital-detail');
+  if(!box || !f) return;
+
+  box.style.maxWidth = MAX + 'px';
+
+  /* 상세페이지 안쪽에서 「나 이만큼 길어요」를 알려 주면 그 높이로 맞춘다.
+     iframe 은 안쪽 길이를 스스로 모르기 때문에 이 신호가 없으면 잘리거나
+     스크롤바가 생긴다. */
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'accel-recital-height'){
+      f.style.height = e.data.height + 'px';
+    }
+  });
+
+  /* 폭이 바뀌면 안쪽 줄바꿈이 달라져 길이도 달라진다. 다시 물어본다. */
+  function nudge(){
+    try{ f.contentWindow.postMessage({type:'accel-recital-measure'}, '*'); }catch(err){}
+  }
+  window.addEventListener('resize', nudge);
+  f.addEventListener('load', nudge);
+})();
+</script>

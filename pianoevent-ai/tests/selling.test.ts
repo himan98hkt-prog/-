@@ -15,6 +15,8 @@ const download = readFileSync('web/download/index.html', 'utf8')
 const guide = readFileSync('web/download/guide.html', 'utf8')
 const curriculum = readFileSync('web/커리큘럼-붙여넣기.html', 'utf8')
 const workflow = readFileSync('../.github/workflows/pianoevent-installer.yml', 'utf8')
+const embed = readFileSync('web/상세페이지-붙여넣기.html', 'utf8')
+const detail = readFileSync('web/download/recital-manager-detail.html', 'utf8')
 
 describe('인증키 발급기', () => {
   it('저장소에 있는 판에는 비밀값이 들어 있지 않다', () => {
@@ -98,6 +100,20 @@ describe('고객이 보는 쪽', () => {
     for (const part of ['설치하기', '인증키 넣기', '이럴 때는 이렇게', 'RM-XXXXX-XXXXX-XXXXX-XXXXX']) {
       expect(guide).toContain(part)
     }
+  })
+
+  it('상세페이지가 화면 끝까지 늘어나지 않고 가운데 선다', () => {
+    // 예전 코드가 clientWidth 로 늘리고 음수 여백으로 당겨 1920px 에서 글이 퍼졌다
+    expect(embed).not.toContain('clientWidth')
+    expect(embed).not.toContain('marginLeft')
+    expect(embed).toContain('margin:0 auto')
+    expect(embed).toContain('max-width')
+  })
+
+  it('폭이 바뀌면 상세페이지가 높이를 다시 알려 준다', () => {
+    // 이 신호가 없으면 폭을 좁혔을 때 아래가 잘린다
+    expect(embed).toContain('accel-recital-measure')
+    expect(detail).toContain('accel-recital-measure')
   })
 
   it('커리큘럼에 받는 단추와 설명서 링크가 있다', () => {

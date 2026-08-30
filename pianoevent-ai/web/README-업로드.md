@@ -49,39 +49,36 @@ public_html/download/
 
 상품 편집 → **설명**란 → 오른쪽 위 **⋮ → 코드 편집기**(또는 텍스트/HTML 모드) → 아래를 붙여넣기
 
-```html
-<iframe id="recital-detail"
-  src="https://accelssam.com/download/recital-manager-detail.html"
-  style="display:block;border:0;width:100%;max-width:none;min-height:600px;position:relative;z-index:9;"
-  scrolling="no" title="연주회 매니저 상세페이지"></iframe>
-<script>
-(function(){
-  var f = document.getElementById('recital-detail');
-  function fit(){
-    f.style.maxWidth = 'none';
-    f.style.width = document.documentElement.clientWidth + 'px';
-    f.style.marginLeft = '0px';
-    f.style.marginLeft = (-f.getBoundingClientRect().left) + 'px';
-  }
-  window.addEventListener('load', fit);
-  window.addEventListener('resize', fit);
-  fit();
-  window.addEventListener('message', function(e){
-    if(e.data && e.data.type === 'accel-recital-height'){
-      f.style.height = e.data.height + 'px';
-      fit();
-    }
-  });
-})();
-</script>
-```
+`web/상세페이지-붙여넣기.html` 의 내용을 그대로 쓰시면 됩니다.
+
+**폭은 `MAX` 한 곳만 고치시면 됩니다** — 1080 이 기본이고, 960 이면 더 좁게,
+1200 이면 더 넓게 나옵니다. 화면 좌우 끝까지 꽉 차게 하고 싶으시면 3000 처럼 큰 수를 넣으세요.
+
+> **좌우로 꽉 차던 것을 가운데로 바꾼 이유**
+> 예전 코드에는 `f.style.width = document.documentElement.clientWidth + 'px'` 와
+> 음수 왼쪽 여백이 들어 있었습니다. 상세페이지를 **일부러 화면 폭까지 늘리는** 줄이라,
+> 1920px 모니터에서는 글이 너무 넓게 퍼져 읽기 어려웠습니다. 두 줄을 빼고
+> `max-width` + `margin:0 auto` 로 바꿨습니다.
+
+  · 1920px → 1056px 폭, 좌우 여백 432px씩 (가운데)
+  · 1440px → 1056px 폭, 좌우 192px씩
+  ·  768px →  704px 폭 / 390px → 326px 폭 — 좁은 화면에서는 알아서 꽉 찹니다
 
 ## ② 커리큘럼 탭
 
 `커리큘럼-붙여넣기.html` 을 메모장으로 열어 **전체 선택(Ctrl+A) → 복사** 한 뒤,
 상품 편집 → **커리큘럼** 탭 → **텍스트(HTML) 모드**에 붙여넣으세요.
 
-## ③ 결제 후 안내 문구
+## ③ 상품 요약 설명
+
+가격과 구매 단추 **바로 옆**에 뜨는 짧은 글입니다. 여기서 살지 말지가 갈립니다.
+
+상품 편집 → **상품 요약 설명** 칸 → 오른쪽 위 **「코드」 탭**을 누르고
+`상품요약설명-붙여넣기.html` 의 내용을 붙여넣으세요.
+
+> 「비주얼」 탭에 붙이면 `<p>` 같은 태그가 글자 그대로 보입니다. **반드시 「코드」 탭**입니다.
+
+## ④ 결제 후 안내 문구
 
 우커머스 → **설정 → 결제 완료 안내**, 그리고 **주문 완료 메일** 본문에.
 

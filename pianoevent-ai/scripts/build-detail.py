@@ -378,6 +378,15 @@ start, end = out.index('<body>'), out.index('<script>')
 out = out[:start] + BODY.format(**IMG) + '\n' + out[end:]
 out = out.replace('accel-toccata-height', 'accel-recital-height')
 
+# 상품 쪽에서 폭을 바꾸면 안쪽 줄바꿈이 달라져 길이도 달라진다.
+# 「다시 재 달라」는 부탁을 받으면 그 자리에서 다시 알려 준다.
+anchor = "window.addEventListener('load', sendHeight);"
+assert out.count(anchor) == 1, '높이 알림 자리를 못 찾았습니다'
+out = out.replace(anchor, anchor + """
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'accel-recital-measure') sendHeight();
+  });""")
+
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(out, encoding='utf-8')
 print(f'{OUT} · {len(out.encode())/1024:.0f}KB')

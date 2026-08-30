@@ -758,6 +758,9 @@ document.documentElement.classList.add('js');
     new ResizeObserver(sendHeight).observe(document.body);
   }
   window.addEventListener('load', sendHeight);
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'accel-recital-measure') sendHeight();
+  });
   window.addEventListener('resize', sendHeight);
   setTimeout(sendHeight, 800);
 })();
