@@ -39,19 +39,29 @@ EXTRA_CSS = """
      색과 글자는 위 규칙을 그대로 쓴다. */
   .profile-photo.mark{padding:12%;background:transparent;}
 
-  .gal{display:grid;gap:clamp(.9rem,2.2vw,1.5rem);margin-top:clamp(1.6rem,3.5vw,2.4rem);
-    grid-template-columns:repeat(auto-fit,minmax(min(100%,168px),1fr));}
-  .gal.two{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));}
+  .gal{display:grid;gap:clamp(1rem,2.4vw,1.7rem);margin-top:clamp(1.4rem,3vw,2rem);
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));}
+  .gal.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));}
+  .gal.trio{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));}
   .gal figure{margin:0;}
-  .gal img{display:block;width:100%;height:auto;border-radius:12px;background:#fff;
-    box-shadow:0 10px 30px rgba(52,38,15,.15);}
-  .gal figcaption{margin-top:.6em;font-size:clamp(.92rem,.88rem + .2vw,1rem);
-    color:var(--ink-soft);text-align:center;}
-  .gal figcaption b{display:block;color:var(--ink);font-weight:700;margin-bottom:.1em;}
-  .gal-note{margin-top:clamp(1.4rem,3vw,2rem);font-size:var(--fs-body);color:var(--ink-soft);
+  /* 종이가 바닥에 붙어 보이지 않게 — 액자처럼 살짝 띄운다 */
+  .gal img{display:block;width:100%;height:auto;border-radius:10px;background:#fff;
+    box-shadow:0 2px 6px rgba(52,38,15,.14), 0 18px 40px -12px rgba(52,38,15,.42);
+    transition:transform .5s cubic-bezier(.22,.61,.36,1);}
+  .gal figure:hover img{transform:translateY(-6px) scale(1.012);}
+  .gal figcaption{margin-top:.75em;font-size:clamp(.92rem,.88rem + .2vw,1rem);
+    color:var(--ink-soft);text-align:center;line-height:1.6;}
+  .gal figcaption b{display:block;color:var(--ink);font-weight:700;margin-bottom:.12em;
+    font-size:1.03em;}
+  .gal-note{margin-top:clamp(1.6rem,3.4vw,2.4rem);font-size:var(--fs-body);color:var(--ink-soft);
     text-align:center;}
   .gal-note b{color:var(--burgundy);}
-
+  /* 묶음 제목 — 갤러리 안을 나누는 작은 머리말 */
+  .gal-head{margin-top:clamp(2.2rem,4.5vw,3.2rem);display:flex;align-items:center;gap:.9em;
+    font-size:clamp(1rem,.95rem + .35vw,1.18rem);font-weight:700;color:var(--ink);}
+  .gal-head::after{content:'';flex:1 1 auto;height:1px;
+    background:linear-gradient(90deg,rgba(160,124,44,.45),transparent);}
+  .gal-head span{font-size:.8em;font-weight:500;color:var(--gold);letter-spacing:.02em;}
   .shot-grid{display:grid;gap:clamp(1rem,2.4vw,1.6rem);margin-top:clamp(1.6rem,3.5vw,2.4rem);
     grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));}
   .shot{background:var(--white);border-radius:20px;overflow:hidden;
@@ -159,41 +169,48 @@ BODY = """<body>
   <div class="inner">
     <p class="eyebrow reveal"><span class="num">02 /</span> 실제로 이렇게 나옵니다</p>
     <h2 class="reveal" style="--d:0.1s">아래는 <span class="accent">전부 프로그램이 만든 것</span>입니다</h2>
-    <p class="sub reveal" style="--d:0.18s">따로 그리거나 편집한 것이 하나도 없습니다. 명단을 넣고 테마 하나를 고른 결과입니다.</p>
+    <p class="sub reveal" style="--d:0.18s">디자이너가 손댄 것이 하나도 없습니다. <strong>명단을 넣고 테마 하나를 고른 결과</strong>를 그대로 뽑은 것입니다.</p>
 
-    <p class="eyebrow reveal" style="margin-top:2.4em">포스터 &mdash; 31종 가운데 넷</p>
+    <p class="gal-head reveal">포스터 <span>· 31종 가운데 여덟</span></p>
     <div class="gal">
-      <figure class="reveal"><img src="{poster_gala}" alt="무대 위 피아노 포스터"><figcaption><b>무대 위 피아노</b>정기 연주회</figcaption></figure>
-      <figure class="reveal" style="--d:.08s"><img src="{poster_bright}" alt="흰 홀 포스터"><figcaption><b>흰 홀</b>잉크가 적게 듭니다</figcaption></figure>
-      <figure class="reveal" style="--d:.16s"><img src="{poster_kids}" alt="아이 테마 포스터"><figcaption><b>꽃길이 되는 건반</b>유아·저학년</figcaption></figure>
-      <figure class="reveal" style="--d:.24s"><img src="{poster_deco}" alt="아르데코 포스터"><figcaption><b>아르데코</b>예술회관 느낌</figcaption></figure>
+      <figure class="reveal"><img src="{po_real_stage}" alt="실사 무대 포스터"><figcaption><b>무대 (사진)</b>정기 연주회 · 콩쿠르</figcaption></figure>
+      <figure class="reveal" style="--d:.06s"><img src="{po_oil}" alt="유화 무대 포스터"><figcaption><b>유화 무대</b>인쇄했을 때 가장 값있어 보입니다</figcaption></figure>
+      <figure class="reveal" style="--d:.12s"><img src="{po_deco}" alt="아르데코 포스터"><figcaption><b>아르데코</b>1920년대 공연 포스터</figcaption></figure>
+      <figure class="reveal" style="--d:.18s"><img src="{po_engraving}" alt="고전 동판화 포스터"><figcaption><b>고전 동판화</b>격식 있는 무대에</figcaption></figure>
+      <figure class="reveal" style="--d:.24s"><img src="{po_ink}" alt="수묵 포스터"><figcaption><b>수묵</b>다른 학원과 가장 다릅니다</figcaption></figure>
+      <figure class="reveal" style="--d:.3s"><img src="{po_real_keys}" alt="실사 건반 포스터"><figcaption><b>건반 (사진)</b>얕은 심도로 담은 실사</figcaption></figure>
+      <figure class="reveal" style="--d:.36s"><img src="{po_bright}" alt="흰 홀 포스터"><figcaption><b>흰 홀</b>잉크가 가장 적게 듭니다</figcaption></figure>
+      <figure class="reveal" style="--d:.42s"><img src="{po_kids}" alt="아이 테마 포스터"><figcaption><b>꽃길이 되는 건반</b>유아 · 저학년 발표회</figcaption></figure>
     </div>
 
-    <p class="eyebrow reveal" style="margin-top:2.6em">관객에게 나가는 것</p>
+    <p class="gal-head reveal">테마만 바꾸면 <span>· 같은 포스터, 색이 통째로</span></p>
+    <div class="gal trio">
+      <figure class="reveal"><img src="{th_1}" alt="금박 테마"><figcaption><b>느와르 골드</b>격식 있는 정기 연주회</figcaption></figure>
+      <figure class="reveal" style="--d:.1s"><img src="{th_2}" alt="아이 테마"><figcaption><b>레인보우 플레이</b>밝고 활발한 무대</figcaption></figure>
+      <figure class="reveal" style="--d:.2s"><img src="{th_3}" alt="봄 테마"><figcaption><b>체리 스프링</b>봄 발표회</figcaption></figure>
+    </div>
+    <p class="gal-note reveal" style="margin-top:1.2rem">선화는 <strong>색이 정해져 있지 않습니다.</strong> 테마를 고르시면 그 색으로 그려집니다 — 한 장이 <strong>108가지 색</strong>으로 나옵니다.</p>
+
+    <p class="gal-head reveal">관객에게 나가는 것 <span>· 같은 테마로 한 벌</span></p>
     <div class="gal">
-      <figure class="reveal"><img src="{program_cover}" alt="프로그램 표지"><figcaption><b>프로그램 표지</b>같은 테마로 맞춰집니다</figcaption></figure>
-      <figure class="reveal" style="--d:.08s"><img src="{program_inner}" alt="연주 순서지"><figcaption><b>연주 순서지</b>이름·곡·시각 자동</figcaption></figure>
-      <figure class="reveal" style="--d:.16s"><img src="{ticket}" alt="입장권"><figcaption><b>입장권</b>한 장에 여러 매</figcaption></figure>
-      <figure class="reveal" style="--d:.24s"><img src="{nametag}" alt="좌석 이름표"><figcaption><b>좌석 이름표</b>오려서 붙이면 끝</figcaption></figure>
+      <figure class="reveal"><img src="{doc_cover}" alt="프로그램 표지"><figcaption><b>프로그램 표지</b>벨벳 결과 금테</figcaption></figure>
+      <figure class="reveal" style="--d:.06s"><img src="{doc_inner}" alt="연주 순서지"><figcaption><b>연주 순서지</b>이름 · 곡 · 시각 자동</figcaption></figure>
+      <figure class="reveal" style="--d:.12s"><img src="{doc_ticket}" alt="입장권"><figcaption><b>입장권</b>한 장에 세 매 · 잘라 쓰기</figcaption></figure>
+      <figure class="reveal" style="--d:.18s"><img src="{doc_invite_card}" alt="초대장 카드"><figcaption><b>초대장 카드</b>참석 회신 QR이 함께</figcaption></figure>
     </div>
 
-    <p class="eyebrow reveal" style="margin-top:2.6em">원장님과 스태프가 쓰는 것</p>
+    <p class="gal-head reveal">원장님과 스태프가 쓰는 것</p>
     <div class="gal">
-      <figure class="reveal"><img src="{mc_script}" alt="사회자 대본"><figcaption><b>사회자 대본</b>곡 소개까지 채워져 나옵니다</figcaption></figure>
-      <figure class="reveal" style="--d:.08s"><img src="{cue_sheet}" alt="당일 진행표"><figcaption><b>당일 진행표</b>분 단위 시각</figcaption></figure>
-      <figure class="reveal" style="--d:.16s"><img src="{certificate}" alt="상장"><figcaption><b>상장</b>아이 수만큼 자동</figcaption></figure>
-      <figure class="reveal" style="--d:.24s"><img src="{seating}" alt="좌석 배치도"><figcaption><b>좌석 배치도</b>회신 인원으로 계산</figcaption></figure>
+      <figure class="reveal"><img src="{doc_mc}" alt="사회자 대본"><figcaption><b>사회자 대본</b>곡 소개까지 채워져 나옵니다</figcaption></figure>
+      <figure class="reveal" style="--d:.06s"><img src="{doc_cue}" alt="당일 진행표"><figcaption><b>당일 진행표</b>분 단위 시각</figcaption></figure>
+      <figure class="reveal" style="--d:.12s"><img src="{doc_cert}" alt="상장"><figcaption><b>상장</b>아이 수만큼 자동</figcaption></figure>
+      <figure class="reveal" style="--d:.18s"><img src="{invite}" alt="모바일 초대장"><figcaption><b>모바일 초대장</b>링크 하나 · 로그인 없이</figcaption></figure>
     </div>
 
-    <p class="eyebrow reveal" style="margin-top:2.6em">화면으로 나가는 것</p>
-    <div class="gal two">
-      <figure class="reveal"><img src="{stage}" alt="무대 화면"><figcaption><b>무대 스크린</b>빔프로젝터에 그대로 · 파워포인트 저장</figcaption></figure>
+    <p class="gal-head reveal">화면으로 나가는 것</p>
+    <div class="gal wide">
+      <figure class="reveal"><img src="{stage}" alt="무대 화면"><figcaption><b>무대 스크린</b>빔프로젝터에 그대로 · 파워포인트로도 저장</figcaption></figure>
       <figure class="reveal" style="--d:.1s"><img src="{video}" alt="감동영상 편집기"><figcaption><b>감동영상</b>아이들 사진으로 · 마지막 순서에</figcaption></figure>
-    </div>
-
-    <p class="eyebrow reveal" style="margin-top:2.6em">학부모 휴대폰에 가는 것</p>
-    <div class="gal">
-      <figure class="reveal"><img src="{invite}" alt="모바일 초대장"><figcaption><b>모바일 초대장</b>링크 하나 · 로그인 없이</figcaption></figure>
     </div>
 
     <p class="gal-note reveal"><b>여기 보이는 것이 전부가 아닙니다.</b> 인쇄물은 83종, 테마는 108종입니다.<br>
