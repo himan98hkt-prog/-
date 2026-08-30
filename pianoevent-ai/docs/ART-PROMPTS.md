@@ -866,3 +866,294 @@ but restrained, plain white background, plenty of empty space
 | **P** | 8 | ⏳ 새로 제안 |
 
 전부 하실 것 없습니다. **P6(앱 아이콘) 한 장만 해도** 바탕화면에서 티가 납니다.
+
+
+---
+
+# 5차 — 실사 (R · T · U · S)
+
+## 왜 AI 티가 났나 — 제 프롬프트 탓입니다
+
+지금까지 드린 프롬프트를 세어 봤습니다.
+
+| 무엇 | 몇 번 | 왜 문제인가 |
+|---|---|---|
+| `--stylize 250` | 23번 | 미드저니 기본값은 **100**입니다. 250 은 「예쁘게 꾸며라」를 두 배 반으로 올린 것입니다 |
+| `--stylize 300` 이상 | 8번 | 더 심합니다 |
+| `cinematic` `painterly` `glowing` `volumetric` | 12번 | 미드저니가 이 말들을 **「그림처럼 그려라」**로 받습니다 |
+
+「고급스럽게」를 노리고 올린 값이 그대로 「AI 그림처럼」이 됐습니다.
+
+---
+
+## 실사 공식
+
+실사는 **꾸미는 말을 빼고, 사진 찍는 말을 넣는 것**입니다.
+
+```
+[무엇이 어디에] , [어떤 빛],
+shot on [카메라] with [렌즈], [필름], available light only, unretouched,
+fine natural grain, [빈자리 지시]
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, digital art, painting, drawing, render, 3d, cgi, hdr,
+oversaturated, glow, bloom, halo, plastic, airbrushed, text, letters, words,
+watermark, signature, people, faces
+```
+
+**바꿔 쓸 말**
+
+| 쓰지 마세요 | 대신 이렇게 |
+|---|---|
+| cinematic | documentary photograph · editorial photograph |
+| painterly · artistic | shot on Kodak Portra 400 · colour negative scan |
+| glowing · volumetric light | soft window light · late afternoon sun through a window |
+| beautiful · stunning · epic | quiet · ordinary · plain |
+| dramatic lighting | one lamp, available light only |
+| perfect · flawless | unretouched · slight dust on the lid |
+
+**세 가지 설정**
+
+- `--stylize 50` (실사) · `--stylize 100` (약간 다듬음). **250 이상은 쓰지 마세요**
+- `--style raw` 는 반드시 붙입니다 — 미드저니의 기본 「예쁨」을 끕니다
+- **개인화(personalization, `--p`)가 켜져 있으면 끄세요.** 켜져 있으면 취향 쪽으로 끌려갑니다
+
+**업스케일** — 뽑은 뒤 업스케일하실 때 **Subtle** 쪽을 쓰세요. Creative 는 없던
+무늬를 만들어 넣어서 다시 AI 티가 납니다.
+
+**`--sref` 주의** — 지금 들어가 있는 A1-4 를 `--sref` 로 쓰면 **그 AI 느낌이 그대로
+따라옵니다.** 실사 세트는 R 중에서 가장 마음에 드는 것 하나를 골라 그것을 새 `--sref`
+로 쓰세요.
+
+**건반 요령** — 미드저니가 가장 자주 틀리는 것이 검은건반 묶음입니다. 건반을 **비스듬히,
+또는 얕은 심도로 흐리게, 또는 화면 밖으로 잘리게** 두면 틀려도 티가 안 납니다.
+정면에서 또렷하게 찍는 구도는 피하세요.
+
+---
+
+## R. 실사 포스터 (`--ar 5:7`)
+
+기존 그림을 **버리는 게 아닙니다.** 수채·유화는 그 나름대로 쓸 자리가 있습니다.
+실사판이 들어오면 「사진 쪽 / 그림 쪽」을 고르실 수 있게 됩니다.
+
+공통 꼬리표를 `[실사]` 로 줄여 적습니다. 실제로는 이걸 붙이세요:
+
+```
+[실사] = --ar 5:7 --v 7 --style raw --stylize 50 --no illustration, digital art, painting, drawing, render, 3d, cgi, hdr, oversaturated, glow, bloom, halo, plastic, airbrushed, text, letters, words, watermark, signature, people, faces
+```
+
+### R1 · 무대 위 피아노
+```
+a grand piano standing alone on an empty concert hall stage, one stage light on from
+above, the rest of the hall dark, shot on Canon EOS R5 with a 35mm f/1.4 lens at f/2,
+available light only, unretouched, fine natural grain, the upper half of the frame is
+plain darkness
+[실사]
+```
+
+### R2 · 건반 (비스듬히, 얕은 심도)
+```
+close up of piano keys photographed from a low oblique angle, only a few keys in focus and
+the rest falling out of focus, warm lamp light from the side, shot on Leica M11 with a 50mm
+lens at f/1.4, Kodak Portra 400, unretouched, the top of the frame is plain dark wood
+[실사]
+```
+
+### R3 · 아이의 손 (얼굴 없음)
+```
+a child's hands resting on piano keys photographed from behind and above, plain knitted
+sleeve, afternoon window light only, shot on Fujifilm X-T5 with a 56mm lens at f/1.8,
+Fujifilm Pro 400H, unretouched, no face in frame, soft empty area at the top
+[실사] --no faces
+```
+
+### R4 · 빈 콘서트홀 — 1차·2차에서 계속 만화로 나왔던 것
+```
+the inside of an ordinary community concert hall photographed from the edge of the stage,
+rows of empty seats, house lights half on, plain and undramatic, shot on Sony A7 IV with a
+24mm lens at f/4, available light only, unretouched, slight noise in the shadows, the
+ceiling area at the top is plain and empty
+[실사]
+```
+
+### R5 · 무대 옆 커튼 틈
+```
+a gap between heavy stage curtains seen from the wings, a sliver of the lit stage beyond,
+dust in the still air, shot on Canon EOS R5 with a 50mm lens at f/2, available light only,
+unretouched, the left two thirds is plain dark fabric
+[실사]
+```
+
+### R6 · 악보와 연필 (정물)
+```
+an open sheet music book on a piano music desk with a pencil laid across it, worn paper,
+plain daylight from a window on the left, shot on Hasselblad 907X with an 80mm lens at
+f/4, unretouched, quiet and ordinary, generous empty space above
+[실사] --no notes on the staff, printed text
+```
+
+### R7 · 피아노 위 꽃다발
+```
+a small bunch of white flowers laid on the closed lid of a black upright piano, plain
+daylight from a window, shot on Canon EOS R5 with an 85mm lens at f/2, Kodak Portra 400,
+unretouched, the upper half of the frame is plain dark wall
+[실사]
+```
+
+### R8 · 겨울 창가 — 1차에서 청록색 방으로 나왔던 것
+```
+a black upright piano beside a window on a winter afternoon, bare branches and snow
+outside the glass, one warm lamp on in the room, plain white wall, shot on Sony A7 IV with
+a 35mm lens at f/2, available light only, unretouched, the upper half is plain wall
+[실사] --no green walls, ivy, vines, christmas decorations
+```
+
+### R9 · 여름 창가
+```
+a black grand piano beside an open window on a summer morning, thin white curtain moving,
+green leaves outside, plain bright room, shot on Fujifilm X-T5 with a 23mm lens at f/2.8,
+Fujifilm Pro 400H, available light only, unretouched, the upper third is bright and plain
+[실사]
+```
+
+### R10 · 가을 오후
+```
+an upright piano in a plain room in late autumn afternoon light, a few dry leaves on the
+floor near the window, long ordinary shadows, shot on Leica M11 with a 35mm lens at f/2,
+Kodak Portra 400, unretouched, the upper half is plain wall in shadow
+[실사]
+```
+
+---
+
+## T. 실사 무대·영상 배경 (`--ar 16:9`)
+
+가운데는 아이 사진과 이름 자리라 **비어 있어야** 합니다.
+
+```
+[실사16] = --ar 16:9 --v 7 --style raw --stylize 50 --no illustration, digital art, painting, render, 3d, cgi, hdr, oversaturated, glow, bloom, text, letters, words, watermark, signature, people, faces
+```
+
+### T1 · 무대 커튼 (실사)
+```
+heavy dark red stage curtains photographed straight on from the auditorium, house lights
+low, plain and still, shot on Sony A7 IV with a 35mm lens at f/4, available light only,
+unretouched, the centre of the frame is plain and unobstructed
+[실사16]
+```
+
+### T2 · 건반 파노라마 (실사)
+```
+a piano keyboard running along the bottom of a wide frame, photographed from above at a
+shallow angle so most keys fall out of focus, one warm lamp, shot on Canon EOS R5 with a
+50mm lens at f/1.8, unretouched, everything above the keys is plain dark
+[실사16]
+```
+
+### T3 · 객석 (실사)
+```
+rows of empty auditorium seats photographed from the stage, house lights half on, plain
+and ordinary, shot on Sony A7 IV with a 24mm lens at f/4, available light only,
+unretouched, the centre of the frame is calm
+[실사16]
+```
+
+### T4 · 흰 벽과 빛 (밝은 화면용)
+```
+a plain white plastered wall with soft daylight falling across it from the left, nothing
+else in the frame, shot on Hasselblad 907X with an 80mm lens at f/5.6, available light
+only, unretouched, extremely simple
+[실사16]
+```
+
+---
+
+## U. 실사 정물 — 상장 · 입장권 · 프로그램 표지에 씁니다 (`--ar 5:7` 또는 `1:1`)
+
+### U1 · 메트로놈 (정물)
+```
+an old wooden metronome standing on a plain wooden surface, plain grey wall behind, soft
+daylight from the left, shot on Hasselblad 907X with an 80mm lens at f/5.6, unretouched,
+generous empty space above
+[실사]
+```
+
+### U2 · 피아노 페달 (발치)
+```
+the three brass pedals of a grand piano photographed close from the floor, worn brass and
+dark wood, plain floor, one lamp, shot on Canon EOS R5 with a 50mm lens at f/2.8,
+unretouched, the upper half is plain dark
+[실사]
+```
+
+### U3 · 닫힌 피아노 뚜껑 (프로그램 표지용)
+```
+the closed lid of a black grand piano photographed from directly above, one soft reflection
+of a window on the lacquer, nothing else, shot on Hasselblad 907X with an 80mm lens at f/8,
+available light only, unretouched, extremely plain
+[실사]
+```
+
+### U4 · 현과 해머 (안쪽)
+```
+the strings and hammers inside an open grand piano photographed from above, plain and
+technical, one lamp, shot on Canon EOS R5 with a 100mm macro lens at f/5.6, unretouched,
+no dramatic light
+[실사] --ar 1:1
+```
+
+---
+
+## S. 목업 — 상세페이지용 (있으면 좋은 것)
+
+**빈 종이를 찍은 사진**입니다. 그 위에 우리가 만든 포스터를 제가 얹습니다.
+「이렇게 나옵니다」를 평평한 JPG 로 보여 주는 것보다 **벽에 붙은 사진**이 훨씬 팔립니다.
+
+프롬프트에서 가장 중요한 것은 **종이가 완전히 비어 있어야 한다**는 것입니다.
+
+### S1 · 벽에 붙은 빈 A4
+```
+a completely blank white A4 sheet of paper taped flat on a plain painted wall,
+photographed straight on, soft even daylight, shot on Sony A7 IV with a 50mm lens at f/5.6,
+unretouched, the paper is empty white with nothing printed on it
+--ar 4:5 --v 7 --style raw --stylize 50 --no text, letters, words, printing, pattern, illustration, drawing, watermark, signature, people
+```
+
+### S2 · 이젤 위 빈 액자
+```
+a plain wooden easel holding a simple frame with a completely blank white sheet inside,
+standing in a plain room, soft daylight, shot on Canon EOS R5 with a 35mm lens at f/2.8,
+unretouched, the sheet is empty white
+--ar 4:5 --v 7 --style raw --stylize 50 --no text, letters, words, printing, pattern, illustration, drawing, watermark, signature, people
+```
+
+### S3 · 손에 든 빈 책자
+```
+two hands holding an open blank white booklet, plain background, soft daylight, shot on
+Canon EOS R5 with a 50mm lens at f/2.8, unretouched, both pages are completely empty white
+--ar 4:5 --v 7 --style raw --stylize 50 --no text, letters, words, printing, faces, illustration, watermark, signature
+```
+
+### S4 · 좌석 위에 놓인 빈 종이
+```
+a single blank white sheet of paper resting on a red auditorium seat, house lights low,
+shot on Sony A7 IV with a 35mm lens at f/2, available light only, unretouched, the paper is
+completely empty
+--ar 4:5 --v 7 --style raw --stylize 50 --no text, letters, words, printing, pattern, illustration, watermark, signature, people
+```
+
+---
+
+## 우선순위
+
+| 순서 | 묶음 | 장수 | 왜 |
+|---|---|---|---|
+| **1** | R1 · R2 · R3 | 3 | 가장 많이 쓰이는 세 장의 실사판. 이것만으로 「사진 쪽」 포스터 세 종이 생깁니다 |
+| **2** | R4 · R8 | 2 | 두 번 실패한 것들입니다. 실사 공식이면 나옵니다 |
+| **3** | T1 · T2 | 2 | 무대 화면이 사진이 되면 연주회장 스크린에서 확 다릅니다 |
+| 4 | R5~R7 · R9 · R10 | 5 | 포스터 다섯 종 더 |
+| 5 | U1~U4 | 4 | 상장 · 입장권 · 프로그램 표지 |
+| 6 | S1~S4 | 4 | 상세페이지 목업 |
+
+**R1·R2·R3 세 장만 먼저 보내 주셔도** 차이를 바로 보실 수 있습니다.
+그 셋을 보고 나서 나머지를 뽑으시는 편이, 스물두 장을 한 번에 뽑고 나서
+「전부 다시」가 되는 것보다 낫습니다.
