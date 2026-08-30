@@ -41,7 +41,11 @@ win:
     - target: nsis
       arch: [x64]
   icon: desktop/icon.png
-  # 서명서가 없어 "Windows의 PC 보호" 창이 뜰 수 있다 — 안내문에 적어 두었다
+  # 서명서가 없으면 "Windows의 PC 보호" 창이 뜬다.
+  #
+  # 서명은 **환경변수로** 붙인다 — `CSC_LINK`(서명서를 base64 로 바꾼 글자)와
+  # `CSC_KEY_PASSWORD` 가 있으면 electron-builder 가 알아서 서명한다. 여기 적을 것이 없다.
+  # 깃허브 비밀에 넣는 법과 어떤 서명서를 사야 하는지는 docs/SIGNING.md 에 적어 두었다.
   #
   # 파일 이름은 영문으로 둔다. 한글 이름을 쓰면 내려받는 자리(깃허브)에서 한글이 통째로
   # 지워져 「-.exe」 가 된다. 무엇인지 알 수 없는 이름이 손에 쥐어지는 것보다는 영문이 낫다.

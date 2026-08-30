@@ -29,6 +29,7 @@ npm run verify:live              # 당일 진행 · 명단 안내 · 사용설�
 npm run verify:stage             # 화면 모양·배경 · 넘침 · 테마 · PDF · 파워포인트 검사 (91건)
 npm run verify:video             # 템플릿 20종 · 콘티 · 실제 영상 파일 검사 (52건)
 npm run verify:poster            # 그림 포스터 23종 × 테마 4종 — 글씨가 그림 위에서 읽히는지 대비를 잽니다 (184자리)
+npm run verify:poster:all        # 위와 같되 테마 108종 전수 (2484자리) — 판매 직전에 한 번
 ```
 
 > **인터넷도 AI 키도 없이 전부 동작합니다.** 인터넷이 필요한 건 학부모가 초대장 링크를 여는 것 하나뿐입니다.
@@ -429,6 +430,8 @@ npm run shots  # 주요 화면을 screenshots/ 에 캡처 (Playwright)
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — 연주회 운영 병목 분석과 반영 내역
 - [docs/DEPLOY.md](docs/DEPLOY.md) — Vercel 배포, Supabase 연결, 도메인·환경변수 체크리스트
 - [docs/PLAY_COMPLIANCE.md](docs/PLAY_COMPLIANCE.md) — Google Play 필수 정책 대응 현황과 남은 작업
+- [docs/SIGNING.md](docs/SIGNING.md) — 설치본에 코드 서명 넣기 (「Windows의 PC 보호」 창 없애기)
+- [docs/ART-PROMPTS.md](docs/ART-PROMPTS.md) — 그림 만드는 미드저니 프롬프트와 결과 기록
 
 핵심 보안 원칙: **`GEMINI_API_KEY` 는 어떤 경우에도 클라이언트로 나가지 않습니다.**
 웹은 서버 API Route 가, 모바일 앱은 `supabase/functions/gemini-proxy` 가 키를 대신 들고 호출합니다.

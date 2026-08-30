@@ -1370,3 +1370,412 @@ https://github.com/himan98hkt-prog/-/releases/new
 **만들면서 배운 것** — 일러스트를 「담아서」 넣었더니 그림의 종이 질감 때문에
 **네모 이음매**가 보였습니다. 흰색으로 밀어 봐도 남아서, 결국 **통째로 채우는** 쪽으로
 바꿨습니다. 그림의 종이가 곧 포스터 종이가 되고 글 자리만 흰 막으로 눌러 줍니다.
+
+---
+
+# 6차 — 아직 안 만든 것을 **고친 설정으로** 다시 드립니다
+
+5차에서 알아낸 것이 있습니다. **AI 티가 난 원인은 제 프롬프트의 `--stylize` 값**이었습니다.
+그런데 E·F·I·J·K·L·M·N·P 는 그것을 알기 **전에** 드린 것이라, 그대로 만드시면
+지금 들어가 있는 실사 그림들과 결이 안 맞습니다.
+
+그래서 남은 것을 전부 **고친 설정으로 다시 적었습니다.** 아래 것만 쓰시면 됩니다.
+(위쪽 옛 프롬프트는 기록으로 남겨 둡니다 — 무엇을 왜 바꿨는지 보시라고.)
+
+**무엇이 바뀌었나**
+
+| 전 | 후 | 왜 |
+|---|---|---|
+| `--stylize 250` | `--stylize 50~120` | 250 은 「예쁘게 꾸며라」를 두 배 반으로 올린 값입니다 |
+| (없음) | `shot on … with … lens`, `available light only`, `unretouched` | 사진 찍는 말이 들어가야 사진이 나옵니다 |
+| `--no text, …, faces` | `--no` 에 `illustration, render, 3d, cgi, glow, bloom, plastic` 추가 | 「그림처럼」으로 새는 길을 막습니다 |
+
+---
+
+## 남은 것 한눈에
+
+| 묶음 | 몇 장 | 어디에 쓰이는가 | 급한 정도 |
+|---|---|---|---|
+| **E** 밝은 판 | 4 | 잉크 적게 드는 포스터 — 원장님 인쇄비가 줄어듭니다 | ★★★ |
+| **F** 아이·사랑스러운 | 3 | 아이 테마 28종이 쓸 그림 (지금은 어른스러운 그림뿐) | ★★★ |
+| **N** 표식 | 4 | **로고 없는 학원**의 로고 자리 | ★★★ |
+| **M** 질감 | 4 | 한 장이 테마 108종을 바꿉니다 | ★★ |
+| **L** 무대 장면 | 3 | 시작 전 대기 화면 · 폐회 화면 | ★★ |
+| **I** 무대 화면 배경 | 4 | 감동영상·무대 화면 (가운데는 아이 사진 자리) | ★★ |
+| **K** 인쇄물 조각 | 3 | 입장권 띠 · 프로그램 표지 · X배너 | ★★ |
+| **J** SNS | 2 | 정사각 카드 · 스토리 | ★ |
+| **P2~P5** 프로그램 화면 | 4 | 밝은 히어로 · 시즌 특강 · 빈 화면 · 축하 화면 | ★ |
+| **R4~R10** 실사 포스터 | 7 | 5차 프롬프트 그대로 쓰시면 됩니다 (이미 고친 설정) | ★★ |
+| **T · U · S** 실사 배경·정물·목업 | 12 | 5차 프롬프트 그대로 | ★ |
+| **V2·V5·V7·V9~V12** 일러스트 | 7 | 4차 프롬프트 그대로 | ★ |
+
+전부 하실 것 없습니다. **★★★ 열한 장만** 만드셔도 지금 비어 있는 자리가 다 찹니다.
+
+---
+
+## E. 밝은 판 — 잉크를 아끼는 포스터 (고친 판)
+
+A4 를 까맣게 채우면 학원 프린터의 잉크가 몇 배로 듭니다. 밝은 포스터가 필요한 진짜 이유입니다.
+
+### E1 · 흰 홀 → `poster/bright-hall.jpg`
+```
+a black grand piano alone in a bright white minimalist concert hall, tall windows, plain
+white walls, the piano sits low in the frame, the upper half is plain and empty,
+shot on Canon EOS R5 with 35mm lens, colour negative scan, available light only, unretouched,
+fine natural grain
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, digital art, painting, drawing, render, 3d, cgi, hdr, oversaturated,
+glow, bloom, halo, plastic, airbrushed, text, letters, words, watermark, signature, people, faces
+```
+
+### E2 · 금색 한 줄 그림 → `poster/gold-line.jpg`
+```
+a single continuous fine gold line drawing of a grand piano, minimal one line art, placed
+low and centred on a plain ivory paper background, vast empty space above
+--ar 5:7 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, shading, colour fill, gradient, 3d, render
+```
+
+### E3 · 흑백 사진 → `poster/bw-hall.jpg`
+```
+a black and white photograph of a grand piano in an empty hall, high key, mostly white, the
+piano small in the lower third, vast empty space above,
+shot on Leica M6 with 50mm lens, Kodak Tri-X 400, available light only, unretouched,
+visible film grain
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, digital art, painting, render, 3d, cgi, hdr, glow, bloom, plastic,
+text, letters, words, watermark, signature, people, faces
+```
+
+### E4 · 대리석과 그림자 → `poster/marble-shadow.jpg`
+```
+a pale marble surface with faint grey veining, the soft shadow of a grand piano falling
+across the lower half, quiet and plain, the upper half almost empty,
+shot on Hasselblad with 80mm lens, soft window light, available light only, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, gold veins, hdr, glow, bloom,
+text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## F. 아이 · 사랑스러운 (고친 판) — 아이 테마 28종이 이것을 씁니다
+
+여기는 **일부러 그림**입니다. 실사로 가면 아이 테마가 아니게 됩니다.
+다만 `--stylize` 는 내렸습니다 — 250 이면 그림체가 제멋대로 화려해집니다.
+
+### F1 · 작은 피아노와 음표 → `poster/kids-upright.jpg`
+```
+a warm children's book watercolour of a small upright piano with a few musical notes
+floating above it, soft pastel palette, hand painted with visible paper texture, plain cream
+background, plenty of empty space at the top
+--ar 5:7 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, people, faces, 3d, render, digital gloss,
+neon colours, heavy outlines
+```
+
+### F2 · 풍선과 축하 → `poster/kids-balloons.jpg`
+```
+a cheerful watercolour of a grand piano with a few colourful balloons and paper streamers,
+soft pastel colours, hand painted, plain white background, empty space at the top
+--ar 5:7 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, people, faces, 3d, render, neon colours,
+heavy outlines, cluttered
+```
+
+### F3 · 꽃길이 되는 건반 → `poster/kids-path.jpg`
+```
+a soft watercolour of a piano keyboard turning into a winding path of small flowers and
+stars, gentle and whimsical, pastel palette, plain white background, empty space at the top
+--ar 5:7 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, people, faces, 3d, render, neon colours,
+heavy outlines
+```
+
+---
+
+## N. 표식 — **로고 없는 학원**의 로고 자리 (`--ar 1:1`, 순검정 바탕)
+
+로고가 없는 학원이 많습니다. 지금은 그 자리가 비거나 학원 이름만 적힙니다.
+검은 바탕에 금선으로 그려 주시면 프로그램이 **테마 색으로 칠해서** 씁니다 —
+남색 테마에서는 남색 표식이 됩니다. 한 장이 108종에서 다 쓰입니다.
+
+### N1 · 피아노 모노그램 → `ornament/mark-piano.png`
+```
+an elegant minimal monogram, a grand piano silhouette enclosed in a thin circle, fine gold
+line art, perfectly centred with generous empty space, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, gradient background, glow, bloom, 3d, render
+```
+
+### N2 · 메트로놈 → `ornament/mark-metronome.png`
+```
+an elegant metronome as a single simple icon in fine gold line art, centred with generous
+empty space, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, gradient background, glow, bloom, 3d, render
+```
+
+### N3 · 펼친 악보 → `ornament/mark-score.png`
+```
+an open sheet music book in fine gold line art, simple and symmetrical, centred, on a pure
+solid black background
+--ar 1:1 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, notes on the staff, gradient background,
+glow, bloom, 3d, render
+```
+
+### N4 · 음표 세 개 → `ornament/mark-notes.png`
+```
+three simple musical notes in fine gold line art, sparse and elegant, loosely arranged in
+the centre with empty space around, on a pure solid black background
+--ar 1:1 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, gradient background, glow, bloom, 3d, render
+```
+
+> **검은 바탕이 진짜 검정이어야 합니다.** 회색빛이 돌면 테마 색으로 칠할 때 네모가 비칩니다.
+> `--no gradient background` 를 꼭 붙여 주세요.
+
+---
+
+## M. 질감 — 한 장이 테마 108종을 바꿉니다 (`--ar 5:7`, M1 만 `1:1`)
+
+### M1 · 은박 → `texture/silver-foil.jpg`
+```
+a sheet of real silver leaf foil, crinkled metallic surface with cool highlights and darker
+folds, macro texture, even across the whole frame,
+shot on macro lens, soft diffused light, unretouched
+--ar 1:1 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, hdr, oversaturated, text, letters, words, watermark,
+signature, objects
+```
+
+### M2 · 크라프트 종이 → `texture/paper-kraft.jpg`
+```
+warm kraft paper, soft fibre grain, even lighting, extremely subtle and low contrast, almost
+plain, nothing in the centre,
+shot on macro lens, available light only, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, hdr, text, letters, words, watermark, signature,
+objects, shadows, vignette
+```
+
+### M3 · 파스텔 종이 → `texture/paper-pastel.jpg`
+```
+very pale blush pink paper with the faintest cloudlike variation, soft and clean, extremely
+low contrast, almost plain, nothing in the centre,
+shot on macro lens, available light only, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, hdr, saturated pink, text, letters, words, watermark,
+signature, objects, shadows, vignette
+```
+
+### M4 · 고운 리넨 → `texture/linen-fine.jpg`
+```
+finely woven pale ivory linen, very tight even weave, extremely subtle, almost plain, no
+single thread standing out,
+shot on macro lens, soft diffused light, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, hdr, coarse weave, text, letters, words, watermark,
+signature, objects, shadows, vignette
+```
+
+> 질감은 **눈에 띄면 실패**입니다. 프로그램이 10~16% 로만 겹칩니다.
+> 뽑으신 것 중 **가장 심심해 보이는 것**을 고르세요.
+
+---
+
+## L. 무대 장면 (`--ar 16:9`) — 시작 전과 끝난 뒤 스크린
+
+### L1 · 대기 화면 → `stage/waiting.jpg`
+```
+closed theatre curtains in deep burgundy seen straight on, warm footlights along the bottom
+edge, calm and symmetrical, the centre of the frame even and unobstructed,
+shot on Sony A7 IV with 35mm lens, available light only, unretouched, fine natural grain
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, halo, text, letters, words,
+watermark, signature, people, faces
+```
+
+### L2 · 마지막 인사 → `stage/farewell.jpg`
+```
+an empty stage after a performance, one bouquet of flowers left on the piano bench, warm
+fading light, quiet, the centre of the frame calm,
+shot on Canon EOS R6 with 50mm lens, Kodak Portra 400, available light only, unretouched
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, text, letters, words,
+watermark, signature, people, faces
+```
+
+### L3 · 봄 (`--ar 5:7`) → `poster/spring-window.jpg`
+```
+a black grand piano beside a window with cherry blossom branches just outside, soft morning
+light, the upper third of the frame bright and empty,
+shot on Nikon Z6 with 35mm lens, Fujifilm Pro 400H, available light only, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, oversaturated pink, glow, bloom,
+text, letters, words, watermark, signature, people, faces
+```
+
+---
+
+## I. 무대 화면 배경 (`--ar 16:9`) — 가운데는 아이 사진 자리라 조용해야 합니다
+
+### I1 · 별밤 → `stage/starry.jpg`
+```
+a deep navy night sky with tiny scattered stars and a very soft glow near the horizon,
+minimal and quiet, the centre of the frame calm and even,
+long exposure photograph, available light only, unretouched, fine natural grain
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, bloom, halo, milky way, nebula,
+text, letters, words, watermark, signature, people, faces
+```
+
+### I2 · 흰 홀 → `stage/white-hall.jpg`
+```
+a bright white minimalist concert hall interior, soft even daylight, pale grey and white,
+very calm, nothing in the centre of the frame,
+shot on Canon EOS R5 with 24mm lens, available light only, unretouched
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, text, letters, words,
+watermark, signature, people, faces
+```
+
+### I3 · 객석에서 본 무대 → `stage/from-seats.jpg`
+```
+an empty stage seen from the middle of a dark auditorium, warm light washing the stage floor,
+audience seats in silhouette along the bottom edge, the centre open,
+shot on Sony A7 IV with 35mm lens, available light only, unretouched, fine natural grain
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, light rays, text, letters,
+words, watermark, signature, people, faces
+```
+
+### I4 · 은은한 그라데이션 → `stage/gradient.jpg`
+```
+a smooth deep gradient from midnight blue to warm gold along the bottom edge, completely
+abstract, no objects, very subtle grain, even across the centre
+--ar 16:9 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, banding, text, letters, words, watermark, signature,
+objects, stars, light rays
+```
+
+---
+
+## K. 인쇄물 조각
+
+### K1 · 입장권 띠 (`--ar 3:1`) → `ornament/ticket-band.jpg`
+```
+a slim horizontal band of dark polished piano wood with one thin brass pinstripe along its
+length, extremely simple, nothing in the centre,
+shot on macro lens, soft even light, unretouched
+--ar 3:1 --v 7 --style raw --stylize 50
+--no illustration, render, 3d, cgi, hdr, glow, text, letters, words, watermark, signature,
+people, faces
+```
+
+### K2 · 프로그램 표지 (`--ar 5:7`) → `poster/lid-above.jpg`
+포스터와 달라야 합니다. 표지는 **물건 하나**가 조용히 놓여 있어야 합니다.
+```
+a closed grand piano lid seen from directly above, polished black lacquer with one soft
+reflected highlight, minimal and abstract, the upper half deep even darkness,
+shot on Hasselblad with 80mm lens, one soft light, available light only, unretouched
+--ar 5:7 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, text, letters, words,
+watermark, signature, brand name, logo, people, faces
+```
+
+### K3 · X배너 (`--ar 1:3`) → `poster/banner-tall.jpg`
+```
+a very tall narrow frame, a grand piano at the very bottom under one warm spotlight, the
+upper two thirds deep empty darkness,
+shot on Canon EOS R6 with 35mm lens, available light only, unretouched, fine natural grain
+--ar 1:3 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, light rays, text, letters,
+words, watermark, signature, people, faces
+```
+
+---
+
+## J. SNS
+
+### J1 · 정사각 카드 (`--ar 1:1`) → `poster/sns-square.jpg`
+```
+a black grand piano in warm stage light on a deep dark background, the piano in the lower
+half, the upper half dark and empty,
+shot on Canon EOS R6 with 50mm lens, available light only, unretouched, fine natural grain
+--ar 1:1 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, halo, text, letters, words,
+watermark, signature, people, faces
+```
+
+### J2 · 스토리 (`--ar 9:16`) → `poster/sns-story.jpg`
+```
+a black grand piano in warm stage light on a deep dark background, tall vertical frame, the
+piano near the bottom, the upper two thirds dark and empty,
+shot on Canon EOS R6 with 35mm lens, available light only, unretouched, fine natural grain
+--ar 9:16 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, halo, text, letters, words,
+watermark, signature, people, faces
+```
+
+---
+
+## P2~P5 · 프로그램 화면
+
+### P2 · 밝은 히어로 (`--ar 21:9`) → `app/hero-bright.jpg`
+```
+an ultra wide bright airy music room, a black grand piano on the right, tall windows with
+white curtains, soft daylight, the left half bright and almost empty,
+shot on Sony A7 IV with 24mm lens, available light only, unretouched
+--ar 21:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, text, letters, words,
+watermark, signature, people, faces
+```
+
+### P3 · 시즌 특강 히어로 (`--ar 21:9`) → `app/hero-season.jpg`
+```
+an ultra wide view of a small piano classroom in afternoon light, an upright piano on the
+right, plain and inviting, the left half quiet and empty,
+shot on Sony A7 IV with 24mm lens, available light only, unretouched, fine natural grain
+--ar 21:9 --v 7 --style raw --stylize 50
+--no illustration, painting, render, 3d, cgi, hdr, glow, bloom, clutter, text, letters,
+words, watermark, signature, people, faces
+```
+
+### P4 · 「아직 행사가 없습니다」 화면 (`--ar 4:3`) → `app/empty.jpg`
+```
+a simple watercolour of an empty piano bench beside a closed piano, plenty of untouched
+white paper, gentle, plain white background
+--ar 4:3 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, people, faces, 3d, render, heavy outlines
+```
+
+### P5 · 완료 축하 화면 (`--ar 4:3`) → `app/done.jpg`
+```
+a watercolour of a grand piano with a few soft golden sparkles rising from it, restrained,
+plain white background, plenty of empty space
+--ar 4:3 --v 7 --style raw --stylize 100
+--no text, letters, words, watermark, signature, people, faces, 3d, render, confetti,
+heavy outlines
+```
+
+---
+
+## 그대로 쓰시면 되는 것 (이미 고친 설정입니다)
+
+아래는 5차·4차에 드린 것이라 손댈 것이 없습니다. 위쪽에서 찾아 쓰세요.
+
+- **R4~R10** — 빈 콘서트홀 · 커튼 틈 · 악보와 연필 · 꽃다발 · 겨울 창가 · 여름 창가 · 가을 오후
+- **T1~T4** — 실사 무대 배경 (감동영상)
+- **U1~U4** — 실사 정물 (상장 · 입장권 · 표지)
+- **S1~S4** — 목업 (상세페이지용)
+- **V2 · V5 · V7 · V9~V12** — 펜화 해칭 · 아르누보 · 바우하우스 · 종이 오리기 · 크레용 · 스테인드글라스 · 보태니컬
+
+---
+
+## 보내실 때 (그대로입니다)
+
+1. 파일 이름은 **프롬프트 번호 그대로** 두세요 — `E1-1.png`, `E1-2.png` … 이면 제가 알아봅니다
+2. 깃허브 **Releases** 에 올리시고 알려 주시면 됩니다
+3. **한 벌씩 나눠 올리셔도 됩니다.** 열한 장(★★★)만 먼저 올리셔도 그만큼 바로 들어갑니다

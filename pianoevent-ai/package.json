@@ -34,6 +34,7 @@
     "dist:win": "npm run desktop && electron-builder --win",
     "dist:mac": "npm run desktop && electron-builder --mac",
     "verify:poster": "node scripts/verify-poster.mjs",
+    "verify:poster:all": "node scripts/verify-poster.mjs --all",
     "shots:splash": "node scripts/splash-shot.mjs"
   },
   "dependencies": {

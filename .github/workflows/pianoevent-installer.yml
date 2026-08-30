@@ -70,10 +70,42 @@ jobs:
           done
           echo "본체 확인 완료"
 
+      # 서명서가 저장소 비밀(Secrets)에 들어 있으면 **서명해서** 뽑는다.
+      #
+      # 서명이 없으면 설치할 때 「Windows의 PC 보호」 파란 창이 뜬다. 원장님은 그 창에서
+      # 「이건 이상한 프로그램인가」 하고 멈추신다 — 돈 받고 파는 물건에서 이게 가장 아깝다.
+      # 서명서를 넣으시는 방법은 docs/SIGNING.md 에 적어 두었다.
+      #
+      # 없으면 지금까지와 똑같이(서명 없이) 뽑는다 — 넣기 전에도 설치본은 계속 나온다.
+      - name: 서명서 준비 (있을 때만)
+        shell: bash
+        env:
+          WIN_CERT: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          WIN_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+          MAC_CERT: ${{ secrets.MAC_CERT_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          cert=""
+          pass=""
+          if [ "${{ matrix.target }}" = "win" ]; then cert="$WIN_CERT"; pass="$WIN_CERT_PASSWORD"; fi
+          if [ "${{ matrix.target }}" = "mac" ]; then cert="$MAC_CERT"; pass="$MAC_CERT_PASSWORD"; fi
+          if [ -n "$cert" ]; then
+            printf 'CSC_LINK=%s\n' "$cert" >> "$GITHUB_ENV"
+            printf 'CSC_KEY_PASSWORD=%s\n' "$pass" >> "$GITHUB_ENV"
+            echo "서명서가 있습니다 — 서명해서 뽑습니다"
+          else
+            echo "서명서가 없습니다 — 서명 없이 뽑습니다 (지금까지와 같습니다)"
+          fi
+
       - name: 설치본 뽑기
         run: npx electron-builder --${{ matrix.target }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 맥은 서명만으로는 모자라고 애플에 공증(notarize)까지 받아야 경고가 사라진다.
+          # 셋이 다 들어 있을 때만 electron-builder 가 공증을 시도한다.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -96,6 +128,7 @@ jobs:
 
             설치하면 바탕화면에 아이콘이 생깁니다. 검은 명령창도, 인터넷도 필요 없습니다.
             「Windows의 PC 보호」 파란 창이 뜨면 **추가 정보 → 실행** 을 누르세요.
+            (서명서를 넣으면 이 창이 사라집니다 — docs/SIGNING.md)
           files: pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
           fail_on_unmatched_files: true
         env:
