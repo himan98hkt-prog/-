@@ -378,14 +378,56 @@ start, end = out.index('<body>'), out.index('<script>')
 out = out[:start] + BODY.format(**IMG) + '\n' + out[end:]
 out = out.replace('accel-toccata-height', 'accel-recital-height')
 
-# 상품 쪽에서 폭을 바꾸면 안쪽 줄바꿈이 달라져 길이도 달라진다.
+# ── 높이를 **스스로** 맞춘다 ─────────────────────────────────────────
+#
+# 원래는 상품 페이지 쪽에 붙인 <script> 가 이 쪽에서 온 높이를 받아 iframe 을
+# 늘려 주는 구조였다. 그런데 워드프레스가 붙여넣은 <script> 를 지워 버리는 일이
+# 잦다(보안 플러그인·unfiltered_html 제한). 그러면 상세페이지가 600px 에서
+# **잘린 채로 팔린다.** 실제로 그렇게 잘려 나왔다.
+#
+# 상세페이지와 상품 페이지는 둘 다 accelssam.com 이라 **같은 출처**다.
+# 그래서 이 쪽에서 `window.frameElement` 로 자기를 담고 있는 iframe 을 직접
+# 잡아 높이를 넣을 수 있다. 상품 페이지에는 스크립트가 한 줄도 필요 없어진다.
+#
+# postMessage 도 그대로 둔다 — 다른 도메인에 넣으실 때를 위한 길이다.
+OLD_SEND = """  function sendHeight(){
+    var h = document.documentElement.scrollHeight;
+    try{ parent.postMessage({type:'accel-recital-height', height:h}, '*'); }catch(e){}
+  }"""
+NEW_SEND = """  function measure(){
+    /* scrollHeight 는 **틀 높이만큼 따라 커진다.** 그것으로 재면 한 번 크게 잡힌
+       높이가 영영 줄지 않는다(아래에 빈 자리가 남는다). 그래서 마지막 칸이
+       실제로 끝나는 자리를 잰다. */
+    var bottom = 0, kids = document.body.children;
+    for(var i = 0; i < kids.length; i++){
+      var b = kids[i].offsetTop + kids[i].offsetHeight;
+      if(b > bottom) bottom = b;
+    }
+    return Math.ceil(Math.max(bottom, document.body.offsetHeight)) + 2;
+  }
+  function sendHeight(){
+    var h = measure();
+    /* 같은 도메인이면 나를 담은 틀을 직접 늘린다 — 상품 쪽 스크립트가 필요 없다 */
+    try{
+      var el = window.frameElement;
+      if(el && el.style.height !== h + 'px'){ el.style.height = h + 'px'; }
+    }catch(e){}
+    /* 다른 도메인에 넣으셨을 때를 위한 길 */
+    try{ parent.postMessage({type:'accel-recital-height', height:h}, '*'); }catch(e){}
+  }"""
+assert out.count(OLD_SEND) == 1, '높이 알림 자리를 못 찾았습니다'
+out = out.replace(OLD_SEND, NEW_SEND)
+
+# 폭이 바뀌면 안쪽 줄바꿈이 달라져 길이도 달라진다.
 # 「다시 재 달라」는 부탁을 받으면 그 자리에서 다시 알려 준다.
 anchor = "window.addEventListener('load', sendHeight);"
-assert out.count(anchor) == 1, '높이 알림 자리를 못 찾았습니다'
+assert out.count(anchor) == 1
 out = out.replace(anchor, anchor + """
   window.addEventListener('message', function(e){
     if(e.data && e.data.type === 'accel-recital-measure') sendHeight();
-  });""")
+  });
+  /* 사진이 뒤늦게 뜨면 길이가 늘어난다. 처음 몇 초는 자주 다시 잰다 */
+  [200, 500, 1200, 2500, 4000].forEach(function(t){ setTimeout(sendHeight, t); });""")
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(out, encoding='utf-8')

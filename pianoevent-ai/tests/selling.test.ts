@@ -110,9 +110,17 @@ describe('고객이 보는 쪽', () => {
     expect(embed).toContain('max-width')
   })
 
-  it('폭이 바뀌면 상세페이지가 높이를 다시 알려 준다', () => {
-    // 이 신호가 없으면 폭을 좁혔을 때 아래가 잘린다
-    expect(embed).toContain('accel-recital-measure')
+  it('붙여넣을 코드에 스크립트가 없다', () => {
+    // 워드프레스가 <script> 를 지워서 상세페이지가 600px 에서 잘린 적이 있다.
+    // 주석 안의 <script> 는 설명글이므로 빼고 본다
+    expect(embed.replace(/<!--[\s\S]*?-->/g, '')).not.toMatch(/<script/i)
+  })
+
+  it('상세페이지가 제 높이를 스스로 맞춘다', () => {
+    // 같은 도메인이라 자기를 담은 틀을 직접 잡을 수 있다 — 상품 쪽 코드가 필요 없다
+    expect(detail).toContain('window.frameElement')
+    // 틀 높이를 따라 커지는 scrollHeight 로 재면 한 번 커진 높이가 안 줄어든다
+    expect(detail).toContain('kids[i].offsetTop')
     expect(detail).toContain('accel-recital-measure')
   })
 

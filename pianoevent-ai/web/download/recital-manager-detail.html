@@ -750,8 +750,25 @@ document.documentElement.classList.add('js');
 /* iframe으로 불러올 때 부모 페이지에 높이를 알려주어
    기기와 상관없이 세로 스크롤 없이 자연스럽게 보이도록 함 */
 (function(){
+  function measure(){
+    /* scrollHeight 는 **틀 높이만큼 따라 커진다.** 그것으로 재면 한 번 크게 잡힌
+       높이가 영영 줄지 않는다(아래에 빈 자리가 남는다). 그래서 마지막 칸이
+       실제로 끝나는 자리를 잰다. */
+    var bottom = 0, kids = document.body.children;
+    for(var i = 0; i < kids.length; i++){
+      var b = kids[i].offsetTop + kids[i].offsetHeight;
+      if(b > bottom) bottom = b;
+    }
+    return Math.ceil(Math.max(bottom, document.body.offsetHeight)) + 2;
+  }
   function sendHeight(){
-    var h = document.documentElement.scrollHeight;
+    var h = measure();
+    /* 같은 도메인이면 나를 담은 틀을 직접 늘린다 — 상품 쪽 스크립트가 필요 없다 */
+    try{
+      var el = window.frameElement;
+      if(el && el.style.height !== h + 'px'){ el.style.height = h + 'px'; }
+    }catch(e){}
+    /* 다른 도메인에 넣으셨을 때를 위한 길 */
     try{ parent.postMessage({type:'accel-recital-height', height:h}, '*'); }catch(e){}
   }
   if('ResizeObserver' in window){
@@ -761,6 +778,8 @@ document.documentElement.classList.add('js');
   window.addEventListener('message', function(e){
     if(e.data && e.data.type === 'accel-recital-measure') sendHeight();
   });
+  /* 사진이 뒤늦게 뜨면 길이가 늘어난다. 처음 몇 초는 자주 다시 잰다 */
+  [200, 500, 1200, 2500, 4000].forEach(function(t){ setTimeout(sendHeight, t); });
   window.addEventListener('resize', sendHeight);
   setTimeout(sendHeight, 800);
 })();
