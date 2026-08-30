@@ -112,6 +112,19 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      # 압축본도 함께 올린다.
+      #
+      # 워드프레스 파일 관리자는 보안 때문에 `.exe` 업로드를 막는 일이 잦다.
+      # 그때는 압축본을 올려 그 자리에서 풀면 된다. 두 파일은 늘 같은 판이다.
+      - name: 압축본 만들기 (윈도우)
+        if: matrix.target == 'win'
+        shell: pwsh
+        run: Compress-Archive -Path '배포/설치본/*.exe' -DestinationPath '배포/설치본/RecitalManager-Setup-Windows.zip' -Force
+
+      - name: 압축본 만들기 (맥)
+        if: matrix.target == 'mac'
+        run: cd 배포/설치본 && zip -q RecitalManager-Mac.zip *.dmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: 연주회매니저-설치본-${{ matrix.name }}
@@ -129,12 +142,15 @@ jobs:
             피아노학원 연주회 준비 프로그램 **연주회 매니저** — 설치해서 쓰는 판입니다. (아첼쌤)
 
             · 윈도우 — **RecitalManager-Setup-Windows.exe** 를 받아 두 번 클릭하고 다음 · 다음 · 설치
+            · `.zip` 은 홈페이지에 올릴 때만 쓰세요 (`.exe` 업로드가 막힐 때)
             · 맥 — **RecitalManager-Mac.dmg** 를 열고 응용 프로그램 폴더로 끌어다 놓기
 
             설치하면 바탕화면에 아이콘이 생깁니다. 검은 명령창도, 인터넷도 필요 없습니다.
             「Windows의 PC 보호」 파란 창이 뜨면 **추가 정보 → 실행** 을 누르세요.
             (서명서를 넣으면 이 창이 사라집니다 — docs/SIGNING.md)
-          files: pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
+          files: |
+            pianoevent-ai/배포/설치본/*.${{ matrix.ext }}
+            pianoevent-ai/배포/설치본/*.zip
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

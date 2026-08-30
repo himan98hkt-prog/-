@@ -37,7 +37,8 @@
     "verify:poster:all": "node scripts/verify-poster.mjs --all",
     "shots:splash": "node scripts/splash-shot.mjs",
     "key:new": "node --experimental-strip-types scripts/make-keys.ts",
-    "verify:mobile": "node scripts/verify-mobile.mjs"
+    "verify:mobile": "node scripts/verify-mobile.mjs",
+    "pack:web": "node scripts/pack-web.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

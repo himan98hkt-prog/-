@@ -1,58 +1,59 @@
-# accelssam.com 에 올리는 법 (WP 파일 관리자)
+# accelssam.com 에 올리는 법 (전부 홈페이지 안에 두는 판)
 
-이 폴더의 것을 그대로 올리시면 **결제 → 링크 클릭 → 자동 내려받기 → 설치 → 인증키** 가 됩니다.
+올리고 나면 이렇게 됩니다.
 
 ```
 public_html/
   download/
-    index.html                          ← 이 폴더의 web/download/index.html
-    .htaccess                           ← 이 폴더의 web/download/.htaccess
-    RecitalManager-Setup-Windows.exe    ← 깃허브 Releases 에서 받아 올리기
-    RecitalManager-Mac.dmg              ← (맥 손님이 있으실 때만)
+    index.html                          ← 받는 자리  accelssam.com/download/
+    .htaccess
+    RecitalManager-Setup-Windows.exe    ← 92MB
+    RecitalManager-Mac.dmg              ← 110MB (맥 손님이 계실 때만)
   pages/
-    recital-manager-detail.html         ← 이 폴더의 web/pages/…
+    recital-manager-detail.html         ← 상품 상세페이지
 ```
+
+**올리는 파일 이름은 전부 영문입니다.** 한글 이름은 서버에서 깨질 수 있어 쓰지 않습니다.
+(제가 드린 것 중 `커리큘럼-붙여넣기.html` · `다운로드-워드프레스-블록.html` 은 **올리는 파일이 아니라
+붙여넣기용**이니 컴퓨터에만 두세요.)
 
 ---
 
-## 1. 설치 파일 올리기
+## 1단계 · 묶음 올리고 풀기 (2분)
 
-1. 깃허브 → **Releases → installer-latest** 에서 `RecitalManager-Setup-Windows.exe` 를 받습니다
-2. WP 파일 관리자 → `public_html` → **새 폴더** → 이름 `download`
-3. 그 안으로 들어가 **업로드** → 받은 `.exe` 를 끌어다 놓습니다 (80MB 안팎이라 1~2분 걸립니다)
+1. WP 파일 관리자 → 왼쪽 **public_html** 클릭
+2. 위 도구막대 **업로드** → `accelssam-upload.zip` 올리기 (235KB, 금방 끝납니다)
+3. 올라온 `accelssam-upload.zip` 을 **오른쪽 클릭 → 압축 풀기(Extract)**
+4. `download` 폴더와 `pages` 폴더가 생겼는지 확인하고, **zip 파일은 지웁니다**
 
-> **`.exe` 업로드가 막히면** — 보안 플러그인(NinjaFirewall 등)이 실행 파일을 막을 수 있습니다.
-> 그때는 `.exe` 를 **압축(zip)** 해서 `RecitalManager-Setup-Windows.zip` 으로 올리시고,
-> `download/index.html` 안의 `RecitalManager-Setup-Windows.exe` 를 `.zip` 으로 두 군데 고치시면 됩니다.
-> (원장님은 압축을 푼 뒤 두 번 클릭하시면 됩니다 — 안내 문구도 한 줄 늘려 주세요.)
+> 압축 풀기를 눌렀을 때 「어디에 풀까요」를 물으면 **현재 폴더(public_html)** 를 고르세요.
 
-## 2. 안내 페이지 — 두 가지 길 중 하나
+## 2단계 · 설치 파일 올리기 (5~10분)
 
-### (가) 파일을 못 올리실 때 &mdash; **워드프레스 페이지로 만들기** (권장)
+1. 아래 주소에서 설치본을 받습니다
+   **https://github.com/himan98hkt-prog/-/releases/tag/installer-latest**
+   - 윈도우: `RecitalManager-Setup-Windows.exe` (92MB)
+   - 맥: `RecitalManager-Mac.dmg` (110MB) — 맥 손님이 계실 때만
+2. 파일 관리자에서 **download 폴더로 들어갑니다** (더블클릭)
+3. **업로드** → 받은 `.exe` 를 올립니다 (2~5분 걸립니다. 창을 닫지 마세요)
 
-파일 관리자가 `.html` 업로드를 막는 경우가 많습니다(보안 플러그인 &middot; 허용 확장자 제한).
-그럴 때는 **파일을 아예 올리지 않고** 워드프레스 페이지 하나로 만드시면 됩니다.
+**`.exe` 업로드가 막히면** — 같은 릴리스에 있는 `RecitalManager-Setup-Windows.zip` 을 올리시고
+**오른쪽 클릭 → 압축 풀기** 하시면 `.exe` 가 나옵니다. 그다음 zip 은 지우세요.
 
-1. 알림판 → **페이지 → 새로 추가**
-2. 제목: `프로그램 받기` (주소가 `/프로그램-받기/` 가 됩니다. 영문으로 하시려면 슬러그를 `download` 로)
-3. 본문에서 **+ → 「사용자 정의 HTML」** 블록을 넣고, `web/다운로드-워드프레스-블록.html` 의 내용을 **통째로** 붙여넣기
-4. **공개** 를 누르면 끝입니다
+> 파일 이름을 바꾸지 마세요. 받는 자리의 단추가 이 이름을 찾습니다.
 
-### (나) 파일로 올리실 때
+## 3단계 · 확인 (30초)
 
-## 2-1. 안내 페이지 파일 올리기
+브라우저에서 **https://accelssam.com/download/** 를 엽니다.
+1.4초 뒤 내려받기가 저절로 시작되면 성공입니다.
 
-같은 `download` 폴더에 `index.html` 과 `.htaccess` 를 올립니다.
-`.htaccess` 는 **브라우저에서 열리지 않고 내려받아지게** 하고, 폴더 목록이 보이지 않게 막습니다.
+파일이 제대로 올라갔는지만 보시려면 주소창에 이렇게 쳐 보세요 —
+`https://accelssam.com/download/RecitalManager-Setup-Windows.exe`
+바로 내려받기가 시작되면 된 것입니다.
 
-주소: **https://accelssam.com/download/**
+## 4단계 · 상품 상세페이지 붙이기 (2분)
 
-이 주소를 열면 1.4초 뒤 자동으로 내려받기가 시작되고, 아래에 설치 3단계와 인증키 넣는 법이 나옵니다.
-
-## 3. 상세페이지 올리기
-
-`public_html/pages/` 에 `recital-manager-detail.html` 을 올린 뒤,
-상품 편집 → **설명란을 텍스트(HTML) 모드**로 바꾸고 아래를 붙여넣습니다.
+상품 편집 → 설명란을 **텍스트(HTML) 모드**로 바꾸고 아래를 붙여넣습니다.
 
 ```html
 <iframe id="recital-detail"
@@ -81,14 +82,11 @@ public_html/
 </script>
 ```
 
-**커리큘럼 탭**에는 `web/커리큘럼-붙여넣기.html` 의 내용을 그대로 붙여넣으시면 됩니다.
+**커리큘럼 탭**에는 `커리큘럼-붙여넣기.html` 의 내용을 그대로 붙여넣습니다.
 
-## 4. 결제 후 안내 붙이기 (가장 중요)
+## 5단계 · 결제 후 안내 문구
 
-원장님이 결제하시면 **받는 주소**와 **인증키**가 함께 가야 합니다.
-
-- **주문 완료 화면** (우커머스 → 설정 → 결제 완료 안내) 에 넣을 문구
-- **자동 발송 메일** (주문 완료 메일 본문) 에도 같은 내용
+우커머스 → **설정 → 결제 완료 안내**, 그리고 **주문 완료 메일**에 넣으세요.
 
 ```
 결제해 주셔서 감사합니다.
@@ -109,11 +107,22 @@ public_html/
 — 아첼쌤
 ```
 
-> 인증키는 **주문마다 다릅니다.** 결제가 들어오면
-> `RECITAL_LICENSE_SECRET='정하신값' npm run key:new -- --plan year --count 1`
-> 로 한 개 만들어 문자·메일로 보내 주세요. 자세한 것은 `docs/SELLING-LICENSE.md`.
+인증키는 주문마다 따로 만드셔야 합니다 —
+`RECITAL_LICENSE_SECRET='정하신값' npm run key:new -- --plan year --count 1`
+(자세한 것은 `docs/SELLING-LICENSE.md`)
 
-## 5. 판올림할 때
+---
 
-새 설치본이 나오면 `download` 폴더의 `.exe` 만 **같은 이름으로 덮어쓰시면** 됩니다.
-안내 페이지도, 상세페이지도 고치실 것이 없습니다.
+## 판올림할 때
+
+새 설치본이 나오면 **`download` 폴더의 `.exe` 만 같은 이름으로 덮어쓰시면** 됩니다.
+받는 자리도, 상세페이지도 고치실 것이 없습니다.
+
+## 파일이 안 올라갈 때
+
+| 증상 | 이렇게 해 보세요 |
+|---|---|
+| `.html` · `.exe` 가 안 올라감 | 플러그인 → **NinjaFirewall 잠시 비활성화** → 업로드 → 다시 활성화 |
+| 그래도 안 됨 | **zip 으로 올리고 파일 관리자에서 압축 풀기** (확장자 검사를 피해 갑니다) |
+| 끌어다 놓기가 안 먹음 | 도구막대의 **업로드 아이콘 → 파일 선택** 으로 |
+| 큰 파일에서 멈춤 | 호스팅의 업로드 한도 문제입니다. FTP(파일질라)로 올리시거나, 받는 자리를 깃허브 주소로 두세요 |

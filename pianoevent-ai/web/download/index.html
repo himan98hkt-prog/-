@@ -113,15 +113,17 @@
 /* ══════════════════════════════════════════════════════════════════
    ▼▼▼ 설치 파일이 어디에 있는지, 이 두 줄만 고치시면 됩니다 ▼▼▼
 
-   지금은 깃허브에 올려 둔 설치 파일을 가리킵니다. 그대로 두셔도 잘 됩니다.
-   (내려받기만으로는 프로그램이 열리지 않습니다 — 인증키가 있어야 열립니다.)
+   지금은 accelssam.com 의 download 폴더를 가리킵니다.
+   **설치 파일을 그 폴더에 먼저 올리셔야** 이 단추가 동작합니다.
 
-   나중에 accelssam.com 안에 파일을 올리셨다면 아래처럼 바꾸세요.
-     var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.exe';
-     var MAC_URL = 'https://accelssam.com/download/RecitalManager-Mac.dmg';
+   압축(zip)으로 올리셨다면 .exe 를 .zip 으로 바꾸세요.
+     var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.zip';
+
+   깃허브에 있는 것을 그대로 쓰시려면 이렇게 두셔도 됩니다.
+     var WIN_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Setup-Windows.exe';
    ══════════════════════════════════════════════════════════════════ */
-var WIN_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Setup-Windows.exe';
-var MAC_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Mac.dmg';
+var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.exe';
+var MAC_URL = 'https://accelssam.com/download/RecitalManager-Mac.dmg';
 /* ▲▲▲ 여기까지 ▲▲▲ */
 
 /* 윈도우에서 여셨으면 윈도우 파일이, 맥이면 dmg 가 저절로 내려오게 한다.
