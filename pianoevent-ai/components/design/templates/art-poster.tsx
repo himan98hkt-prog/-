@@ -28,6 +28,15 @@ function palette(art: PosterArt) {
       eyebrow: undefined as string | undefined,
     }
   }
+  // 선화는 테마 종이 위에 테마 강조색으로 칠한 것이다. 글씨도 테마 색을 그대로 쓴다
+  if (art.tone === 'line') {
+    return {
+      ink: 'var(--d-ink)',
+      dim: 'var(--d-muted)',
+      accent: 'var(--d-accent)',
+      rule: 'var(--d-line)',
+    }
+  }
   // 밝은 **사진** 위에서는 흐린 색이 사진에 먹힌다. 보조 글씨도 본문 색으로 올린다
   if (art.fill === 'cover') {
     return {
@@ -88,7 +97,32 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
         글씨가 그림 위에 얹힌다. 그래서 위아래를 비워 두고 그 안에 담는다(contain).
         비운 자리는 테마 종이색이 그대로 보인다.
       */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {art.tone === 'line' ? (
+        /*
+         * 선화는 **색이 아니라 모양으로** 쓴다.
+         * 밝은 곳(금선)만 남기고 검은 곳은 뚫어 낸 뒤, 그 자리를 테마 강조색으로 칠한다.
+         * 그래서 한 장이 테마 108종 색으로 다 나온다 — 종이색도 테마 것 그대로다.
+         *
+         * `mask-mode: luminance` 를 모르는 브라우저에서는 그림이 안 나오고 글씨만 남는다.
+         * 깨진 네모를 보여 드리는 것보다 낫다.
+         */
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'var(--d-accent)',
+            opacity: 0.88,
+            WebkitMask: `url(${art.src}) center / contain no-repeat`,
+            mask: `url(${art.src}) center / contain no-repeat`,
+            maskMode: 'luminance',
+            ['WebkitMaskMode' as string]: 'luminance',
+          }}
+        />
+      ) : null}
+
+      {art.tone !== 'line' ? (
+      /* eslint-disable-next-line @next/next/no-img-element */
       <img
         src={art.src}
         alt=""
@@ -110,6 +144,7 @@ export function ArtPoster({ ctx, artId }: { ctx: DesignContext; artId: string })
               }
         }
       />
+      ) : null}
 
       {art.scrim > 0 && (
         <div

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { GOLD_FLECKS, GOLD_FOIL, ORNAMENT_ART, POSTER_ART, STAGE_ART, TEXTURE_ART, getPosterArt } from '@/lib/design/art'
+import { APP_ART, GOLD_FLECKS, GOLD_FOIL, ORNAMENT_ART, POSTER_ART, STAGE_ART, TEXTURE_ART, getPosterArt } from '@/lib/design/art'
 import { DESIGN_TEMPLATES, getPack, packTemplates } from '@/lib/design/templates'
 import { STAGE_BACKDROPS } from '@/lib/stage/backdrops'
 
@@ -30,13 +30,21 @@ describe('연주회 그림', () => {
     expect(getPosterArt('없는그림').id).toBe(POSTER_ART[0].id)
   })
 
-  it('어두운 그림과 밝은 그림이 모두 있다', () => {
-    expect(POSTER_ART.some((a) => a.tone === 'dark')).toBe(true)
-    expect(POSTER_ART.some((a) => a.tone === 'light')).toBe(true)
+  it('사진 · 일러스트 · 선화 세 갈래가 모두 있다', () => {
+    // 한쪽으로 쏠리면 고르는 뜻이 없다. 사진만 있으면 AI 티가 나고, 그림만 있으면 가볍다
+    expect(POSTER_ART.filter((a) => a.tone === 'dark').length).toBeGreaterThanOrEqual(5)
+    expect(POSTER_ART.filter((a) => a.tone === 'light').length).toBeGreaterThanOrEqual(5)
+    expect(POSTER_ART.filter((a) => a.tone === 'line').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('선화는 테마 색으로 칠할 것이라 PNG 다 — JPEG 는 검정이 뭉개져 마스크가 지저분해진다', () => {
+    for (const art of POSTER_ART.filter((a) => a.tone === 'line')) {
+      expect(art.src.endsWith('.png'), art.id).toBe(true)
+    }
   })
 
   it('막은 얇게 — 두꺼우면 그림을 고른 뜻이 없다', () => {
-    for (const art of POSTER_ART.filter((a) => a.scrimTone !== 'light')) {
+    for (const art of POSTER_ART.filter((a) => a.scrimTone !== 'light' && a.tone !== 'line')) {
       expect(art.scrim, art.id).toBeGreaterThanOrEqual(0)
       expect(art.scrim, art.id).toBeLessThanOrEqual(0.45)
     }
@@ -74,9 +82,9 @@ describe('그림 포스터 양식', () => {
   const ids = POSTER_ART.map((a) => a.id)
 
   it('그림마다 양식이 하나씩 나와 있다', () => {
-    expect(ids).toHaveLength(12)
+    expect(ids).toHaveLength(23)
     const templates = DESIGN_TEMPLATES.filter((t) => t.id.startsWith('art-'))
-    expect(templates).toHaveLength(12)
+    expect(templates).toHaveLength(23)
     for (const t of templates) {
       expect(t.category, t.id).toBe('poster')
       expect(t.page, t.id).toBe('a4-portrait')
@@ -86,7 +94,7 @@ describe('그림 포스터 양식', () => {
   it('포스터 갈래 앞쪽에 온다 — 뒤에 묻히면 고르실 일이 없다', () => {
     const posters = DESIGN_TEMPLATES.filter((t) => t.category === 'poster').map((t) => t.id)
     for (const t of posters.filter((id) => id.startsWith('art-'))) {
-      expect(posters.indexOf(t), t).toBeLessThan(16)
+      expect(posters.indexOf(t), t).toBeLessThan(27)
     }
   })
 
@@ -94,6 +102,21 @@ describe('그림 포스터 양식', () => {
     const pack = getPack('art')
     expect(pack).toBeTruthy()
     expect(packTemplates(pack!)).toHaveLength(pack!.templates.length)
+  })
+})
+
+describe('프로그램 화면용 그림', () => {
+  it('네 장이 모두 들어 있다 — 히어로 · 아이콘 · 설치 배너 · 시작 화면', () => {
+    for (const src of Object.values(APP_ART)) {
+      expect(src.startsWith('/art/app/'), src).toBe(true)
+      expect(existsSync(join(PUBLIC, src)), src).toBe(true)
+    }
+  })
+
+  it('프로그램 아이콘이 설치본에도 같이 들어간다', () => {
+    // 바탕화면에 놓이는 아이콘이 제품의 첫인상이다
+    expect(existsSync(join(process.cwd(), 'desktop', 'icon.png'))).toBe(true)
+    expect(existsSync(join(process.cwd(), 'desktop', 'installer', 'sidebar.bmp'))).toBe(true)
   })
 })
 

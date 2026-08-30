@@ -10,7 +10,18 @@
  */
 
 /** 그림의 밝기 — 글씨 색을 여기서 가른다 */
-export type ArtTone = 'dark' | 'light'
+export type ArtTone =
+  | 'dark'
+  /** 흰 종이에 그린 것 — 종이색이 비쳐 보이게 곱해서 겹친다 */
+  | 'light'
+  /**
+   * 검은 바탕에 금선으로 그린 것.
+   *
+   * 색을 그대로 쓰지 않는다. **모양(마스크)으로 써서 테마 강조색으로 칠한다.**
+   * 남색 테마에서는 남색 피아노가, 버건디 테마에서는 버건디 피아노가 된다.
+   * 한 장이 테마 108종 색으로 다 나오는 셈이다.
+   */
+  | 'line'
 
 /** 글이 앉을 자리. 그림마다 비어 있는 쪽이 다르다 */
 export type ArtAnchor = 'top-left' | 'top-right' | 'top-center'
@@ -157,6 +168,117 @@ export const POSTER_ART: PosterArt[] = [
     anchor: 'top-left',
     scrim: 0.24,
   },
+  /* ── 테마 색을 입는 선화 ───────────────────────────────────────
+     한 장이 테마 108종 색으로 나온다. 종이도 테마 종이색 그대로다. */
+  {
+    id: 'line-front',
+    src: '/art/line/piano-front.png',
+    name: '선화 · 피아노',
+    tone: 'line',
+    anchor: 'top-center',
+    scrim: 0,
+  },
+  {
+    id: 'line-keys',
+    src: '/art/line/keys-notes.png',
+    name: '선화 · 건반과 음표',
+    tone: 'line',
+    anchor: 'top-left',
+    scrim: 0,
+  },
+  {
+    id: 'line-arch',
+    src: '/art/line/arch.png',
+    name: '선화 · 무대 아치',
+    tone: 'line',
+    anchor: 'top-center',
+    scrim: 0,
+  },
+  /* ── 일러스트 ─────────────────────────────────────────────── */
+  {
+    id: 'ill-line',
+    src: '/art/poster/line-piano.jpg',
+    name: '한 줄 선화',
+    tone: 'light',
+    anchor: 'top-center',
+    // 그림에 제 종이 질감이 있어 담으면 네모 이음매가 보인다. 통째로 채운다 —
+    // 그림의 종이가 곧 포스터 종이가 되고, 글 자리는 흰 막으로 눌러 준다
+    fill: 'cover',
+    scrim: 0.4,
+    scrimTone: 'light',
+  },
+  {
+    id: 'ill-engraving',
+    src: '/art/poster/engraving.jpg',
+    name: '고전 동판화',
+    tone: 'light',
+    anchor: 'top-center',
+    // 그림에 제 종이 질감이 있어 담으면 네모 이음매가 보인다. 통째로 채운다 —
+    // 그림의 종이가 곧 포스터 종이가 되고, 글 자리는 흰 막으로 눌러 준다
+    fill: 'cover',
+    scrim: 0.62,
+    scrimTone: 'light',
+  },
+  {
+    id: 'ill-riso',
+    src: '/art/poster/riso.jpg',
+    name: '2도 인쇄',
+    tone: 'light',
+    anchor: 'top-left',
+    // 그림에 제 종이 질감이 있어 담으면 네모 이음매가 보인다. 통째로 채운다 —
+    // 그림의 종이가 곧 포스터 종이가 되고, 글 자리는 흰 막으로 눌러 준다
+    fill: 'cover',
+    scrim: 0.34,
+    scrimTone: 'light',
+  },
+  {
+    id: 'ill-ink',
+    src: '/art/poster/ink-wash.jpg',
+    name: '수묵',
+    tone: 'light',
+    anchor: 'top-center',
+    // 그림에 제 종이 질감이 있어 담으면 네모 이음매가 보인다. 통째로 채운다 —
+    // 그림의 종이가 곧 포스터 종이가 되고, 글 자리는 흰 막으로 눌러 준다
+    fill: 'cover',
+    scrim: 0.4,
+    scrimTone: 'light',
+  },
+  {
+    id: 'ill-deco',
+    src: '/art/poster/deco.jpg',
+    name: '아르데코',
+    tone: 'light',
+    anchor: 'top-right',
+    // 왼쪽은 그림이 꽉 차 있고 오른쪽 한 칸이 비어 있다. 사진처럼 가득 채운다
+    fill: 'cover',
+    scrim: 0.42,
+    scrimTone: 'light',
+  },
+  /* ── 실사 ─────────────────────────────────────────────────── */
+  {
+    id: 'real-stage',
+    src: '/art/poster/real-stage.jpg',
+    name: '무대 (사진)',
+    tone: 'dark',
+    anchor: 'top-center',
+    scrim: 0.16,
+  },
+  {
+    id: 'real-keys',
+    src: '/art/poster/real-keys.jpg',
+    name: '건반 (사진)',
+    tone: 'dark',
+    anchor: 'top-left',
+    scrim: 0.34,
+  },
+  {
+    id: 'real-hands',
+    src: '/art/poster/real-hands.jpg',
+    name: '아이의 손 (사진)',
+    tone: 'dark',
+    anchor: 'top-left',
+    scrim: 0.3,
+  },
 ]
 
 export function getPosterArt(id: string): PosterArt {
@@ -210,3 +332,15 @@ export const GOLD_FOIL = '/art/texture/gold-foil.jpg'
 
 /** 금가루. 검은 바탕에 금점이라 마스크로 뿌린다 */
 export const GOLD_FLECKS = '/art/texture/gold-flecks.png'
+
+/** 프로그램 화면에 쓰는 그림 — 인쇄물이 아니라 앱 자신을 위한 것 */
+export const APP_ART = {
+  /** 첫 화면 히어로 (21:9) */
+  hero: '/art/app/hero-wide.jpg',
+  /** 프로그램 아이콘 */
+  icon: '/art/app/icon.png',
+  /** 설치 화면 왼쪽 세로 배너 */
+  installerSide: '/art/app/installer-side.jpg',
+  /** 켜지는 동안 보여 드릴 화면 */
+  splash: '/art/app/splash.jpg',
+} as const

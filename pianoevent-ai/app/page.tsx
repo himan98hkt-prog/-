@@ -53,11 +53,11 @@ const STEPS = [
 
 /** 첫 화면에 늘어놓는 실제 인쇄물 그림 — 「이런 것이 나옵니다」를 말 대신 보여 준다 */
 const SHOWCASE = [
-  { src: '/art/poster/stage-piano.jpg', name: '무대 위 피아노' },
-  { src: '/art/poster/gala-bokeh.jpg', name: '빛과 실루엣' },
-  { src: '/art/poster/watercolor-piano.jpg', name: '수채 피아노' },
+  { src: '/art/poster/ink-wash.jpg', name: '수묵' },
+  { src: '/art/poster/deco.jpg', name: '아르데코' },
+  { src: '/art/poster/engraving.jpg', name: '고전 동판화' },
   { src: '/art/poster/blossom-piano.jpg', name: '꽃과 피아노' },
-  { src: '/art/poster/christmas-pine.jpg', name: '크리스마스' },
+  { src: '/art/poster/real-stage.jpg', name: '무대 (사진)' },
 ]
 
 export default async function HomePage() {
@@ -71,7 +71,7 @@ export default async function HomePage() {
       <section className="hero-band relative isolate overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/art/stage/keys-wide.jpg"
+          src="/art/app/hero-wide.jpg"
           alt=""
           aria-hidden
           className="hero-photo absolute inset-0 h-full w-full object-cover"
@@ -140,7 +140,7 @@ export default async function HomePage() {
               고르시기만 하면
               <br className="hidden sm:block" /> 예술회관 포스터가 나옵니다.
             </h2>
-            <p className="text-sm text-white/60">인쇄물 64종 · 테마 108종 · 전부 인터넷 없이</p>
+            <p className="text-sm text-white/60">인쇄물 75종 · 테마 108종 · 전부 인터넷 없이</p>
           </div>
 
           <ul className="stagger mt-9 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">

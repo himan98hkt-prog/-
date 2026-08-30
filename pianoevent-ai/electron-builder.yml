@@ -53,6 +53,9 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: 피아노이벤트
+  # 설치 창 왼쪽 세로 그림 — 기본 회색 그림이면 「직접 만든 프로그램」처럼 보인다
+  installerSidebar: desktop/installer/sidebar.bmp
+  uninstallerSidebar: desktop/installer/sidebar.bmp
   installerLanguages: [ko-KR]
   language: '1042'                # 한국어
   deleteAppDataOnUninstall: false # 지운다고 학원 명단까지 지우면 안 된다

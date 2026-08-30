@@ -1340,3 +1340,33 @@ empty space at the top
 `art4` 같은 새 태그로 올려 주세요. 이름에 프롬프트가 들어 있어 제가 자동으로 갈라 담습니다.
 
 https://github.com/himan98hkt-prog/-/releases/new
+
+
+---
+
+## 4차 결과 — 63장 중 15장
+
+| 자리 | 파일 | 고른 것 · 이유 |
+|---|---|---|
+| 선화 | `line/piano-front.png` | W1-3 · 위 38% 가 비어 제목이 앉습니다 |
+| 선화 | `line/keys-notes.png` | W2-1 · W2-4 는 가짜 서명이 있어 뺐습니다 |
+| 선화 | `line/arch.png` | W3-1 · 아치 안이 통째로 비어 제목이 그 안에 들어갑니다 |
+| 일러스트 | `poster/line-piano.jpg` | V1-1 |
+| 일러스트 | `poster/engraving.jpg` | V3-1 · 19세기 동판화. 악보가 비어 있어 글자 걱정이 없습니다 |
+| 일러스트 | `poster/riso.jpg` | V6-2 |
+| 일러스트 | `poster/ink-wash.jpg` | V8-2 · **V8-1·3·4 는 가짜 한글 낙관**(「일러스코툴」)이 찍혀 뺐습니다 |
+| 일러스트 | `poster/deco.jpg` | V4-1 · V4-2 에는 피아노에 실제 상표명이 읽혀 뺐습니다 |
+| 사진 | `poster/real-stage.jpg` | R1-2 |
+| 사진 | `poster/real-keys.jpg` | R2-2 |
+| 사진 | `poster/real-hands.jpg` | R3-1 |
+| 프로그램 | `app/hero-wide.jpg` | P1-1 · 첫 화면 |
+| 프로그램 | `app/icon.png` | P6-2 · **앱 아이콘** |
+| 프로그램 | `app/installer-side.jpg` | P7-2 · 설치 창 왼쪽 |
+| 프로그램 | `app/splash.jpg` | P8-2 · 켜지는 동안 (아직 화면에는 안 붙였습니다) |
+
+**해상도가 1648×2944 로 왔습니다** — 업스케일까지 해 주셔서 A4 199dpi 입니다.
+인쇄소에 넘기셔도 됩니다.
+
+**만들면서 배운 것** — 일러스트를 「담아서」 넣었더니 그림의 종이 질감 때문에
+**네모 이음매**가 보였습니다. 흰색으로 밀어 봐도 남아서, 결국 **통째로 채우는** 쪽으로
+바꿨습니다. 그림의 종이가 곧 포스터 종이가 되고 글 자리만 흰 막으로 눌러 줍니다.
