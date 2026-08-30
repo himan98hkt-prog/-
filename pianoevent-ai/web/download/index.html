@@ -110,35 +110,50 @@
 </div>
 
 <script>
-/* ══════════════════════════════════════════════════════════════════
-   ▼▼▼ 설치 파일이 어디에 있는지, 이 두 줄만 고치시면 됩니다 ▼▼▼
+/* ══════════════════════════════════════════════════════════════
+   설치 파일을 어디서 가져올까
 
-   지금은 accelssam.com 의 download 폴더를 가리킵니다.
-   **설치 파일을 그 폴더에 먼저 올리셔야** 이 단추가 동작합니다.
+   ① 이 페이지와 **같은 폴더**에 설치 파일이 있으면 그것을 씁니다.
+      (public_html/download/ 에 .exe 를 올리신 경우)
+   ② 없으면 깃허브에 올려 둔 것을 씁니다. 그대로 두셔도 잘 됩니다.
 
-   압축(zip)으로 올리셨다면 .exe 를 .zip 으로 바꾸세요.
-     var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.zip';
-
-   깃허브에 있는 것을 그대로 쓰시려면 이렇게 두셔도 됩니다.
-     var WIN_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Setup-Windows.exe';
-   ══════════════════════════════════════════════════════════════════ */
-var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.exe';
-var MAC_URL = 'https://accelssam.com/download/RecitalManager-Mac.dmg';
-/* ▲▲▲ 여기까지 ▲▲▲ */
+   그래서 **설치 파일을 올리시든 안 올리시든 이 페이지는 동작합니다.**
+   나중에 .exe 를 올리시면 그때부터 저절로 그쪽을 씁니다. 고치실 것이 없습니다.
+   ══════════════════════════════════════════════════════════════ */
+var WIN_FILE = 'RecitalManager-Setup-Windows.exe';
+var MAC_FILE = 'RecitalManager-Mac.dmg';
+var WIN_BACKUP = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Setup-Windows.exe';
+var MAC_BACKUP = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Mac.dmg';
 
 /* 윈도우에서 여셨으면 윈도우 파일이, 맥이면 dmg 가 저절로 내려오게 한다.
    컴맹 원장님께는 「눌러야 할 것이 하나 더 있다」는 것 자체가 걸림돌이다. */
 (function(){
-  document.getElementById('win').href = WIN_URL;
-  document.getElementById('mac').href = MAC_URL;
-  var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  var target = document.getElementById(mac ? 'mac' : 'win');
-  if (mac) { var w = document.getElementById('win'), m = document.getElementById('mac');
-    w.className = 'btn ghost'; m.className = 'btn'; m.parentNode.insertBefore(m, w); }
-  setTimeout(function(){
-    try { var a = document.createElement('a'); a.href = target.getAttribute('href');
-      a.setAttribute('download',''); document.body.appendChild(a); a.click(); a.remove(); } catch(e){}
-  }, 1400);
+  var win = document.getElementById('win'), mac = document.getElementById('mac');
+  var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+  /** 같은 폴더에 파일이 있는지 물어보고, 없으면 깃허브 쪽을 준다 */
+  function pick(file, backup){
+    return fetch(file, { method: 'HEAD' })
+      .then(function(r){ return r.ok ? file : backup; })
+      .catch(function(){ return backup; });
+  }
+
+  Promise.all([pick(WIN_FILE, WIN_BACKUP), pick(MAC_FILE, MAC_BACKUP)]).then(function(url){
+    win.href = url[0];
+    mac.href = url[1];
+    if (isMac) {
+      win.className = 'btn ghost'; mac.className = 'btn';
+      mac.parentNode.insertBefore(mac, win);
+    }
+    setTimeout(function(){
+      try {
+        var a = document.createElement('a');
+        a.href = isMac ? url[1] : url[0];
+        a.setAttribute('download','');
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch(e){}
+    }, 1400);
+  });
 })();
 </script>
 </body>

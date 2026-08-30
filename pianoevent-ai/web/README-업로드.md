@@ -1,63 +1,55 @@
-# accelssam.com 에 올리는 법 (전부 홈페이지 안에 두는 판)
+# accelssam.com 에 올리기 — **한 번에 끝납니다**
 
-올리고 나면 이렇게 됩니다.
-
-```
-public_html/
-  download/
-    index.html                          ← 받는 자리  accelssam.com/download/
-    .htaccess
-    RecitalManager-Setup-Windows.exe    ← 92MB
-    RecitalManager-Mac.dmg              ← 110MB (맥 손님이 계실 때만)
-  pages/
-    recital-manager-detail.html         ← 상품 상세페이지
-```
-
-**올리는 파일 이름은 전부 영문입니다.** 한글 이름은 서버에서 깨질 수 있어 쓰지 않습니다.
-(제가 드린 것 중 `커리큘럼-붙여넣기.html` · `다운로드-워드프레스-블록.html` 은 **올리는 파일이 아니라
-붙여넣기용**이니 컴퓨터에만 두세요.)
+올릴 것은 **압축 파일 하나**입니다. 설치 파일(.exe)은 올리지 않으셔도 됩니다.
 
 ---
 
-## 1단계 · 묶음 올리고 풀기 (2분)
+## 1단계 · 폴더 만들기 (30초)
 
-1. WP 파일 관리자 → 왼쪽 **public_html** 클릭
-2. 위 도구막대 **업로드** → `accelssam-upload.zip` 올리기 (235KB, 금방 끝납니다)
-3. 올라온 `accelssam-upload.zip` 을 **오른쪽 클릭 → 압축 풀기(Extract)**
-4. `download` 폴더와 `pages` 폴더가 생겼는지 확인하고, **zip 파일은 지웁니다**
+1. WP 파일 관리자 → 왼쪽 **`public_html`** 클릭
+2. 도구막대의 **새 폴더** → 이름 **`download`** → 확인
 
-> 압축 풀기를 눌렀을 때 「어디에 풀까요」를 물으면 **현재 폴더(public_html)** 를 고르세요.
+## 2단계 · 압축 하나 올리고 풀기 (1분)
 
-## 2단계 · 설치 파일 올리기 (5~10분)
+1. 방금 만든 **`download` 폴더를 더블클릭해서 들어갑니다** ← 중요
+2. 도구막대 **업로드** → **`recital-upload.zip`** (435KB)
+3. 올라온 zip을 **오른쪽 클릭 → 압축 풀기(Extract)**
+4. 파일 네 개가 그 자리에 나옵니다. **zip 과 `READ-ME-FIRST.txt` 는 지우세요**
 
-1. 아래 주소에서 설치본을 받습니다
-   **https://github.com/himan98hkt-prog/-/releases/tag/installer-latest**
-   - 윈도우: `RecitalManager-Setup-Windows.exe` (92MB)
-   - 맥: `RecitalManager-Mac.dmg` (110MB) — 맥 손님이 계실 때만
-2. 파일 관리자에서 **download 폴더로 들어갑니다** (더블클릭)
-3. **업로드** → 받은 `.exe` 를 올립니다 (2~5분 걸립니다. 창을 닫지 마세요)
+압축 안에 **폴더가 없습니다.** 푸신 자리에 그대로 풀립니다.
 
-**`.exe` 업로드가 막히면** — 같은 릴리스에 있는 `RecitalManager-Setup-Windows.zip` 을 올리시고
-**오른쪽 클릭 → 압축 풀기** 하시면 `.exe` 가 나옵니다. 그다음 zip 은 지우세요.
-
-> 파일 이름을 바꾸지 마세요. 받는 자리의 단추가 이 이름을 찾습니다.
+```
+public_html/download/
+  index.html                    ← 받는 자리
+  recital-manager-detail.html   ← 상품 상세페이지
+  .htaccess
+```
 
 ## 3단계 · 확인 (30초)
 
-브라우저에서 **https://accelssam.com/download/** 를 엽니다.
-1.4초 뒤 내려받기가 저절로 시작되면 성공입니다.
+**https://accelssam.com/download/** 를 엽니다.
+1.4초 뒤 내려받기가 시작되면 성공입니다.
 
-파일이 제대로 올라갔는지만 보시려면 주소창에 이렇게 쳐 보세요 —
-`https://accelssam.com/download/RecitalManager-Setup-Windows.exe`
-바로 내려받기가 시작되면 된 것입니다.
+> **설치 파일은 어디에 있나요?**
+> 이 페이지는 **같은 폴더에 설치 파일이 있으면 그것을**, 없으면 **깃허브에 있는 것을** 자동으로 씁니다.
+> 그래서 올리지 않으셔도 지금 바로 팔 수 있습니다.
+>
+> 나중에 홈페이지 안에 두고 싶으시면, 같은 `download` 폴더에 아래 두 파일을 올리시면 됩니다.
+> 올리는 순간부터 저절로 그쪽을 씁니다. **고치실 것이 없습니다.**
+> `RecitalManager-Setup-Windows.exe` · `RecitalManager-Mac.dmg`
+> (받는 곳: https://github.com/himan98hkt-prog/-/releases/tag/installer-latest)
 
-## 4단계 · 상품 상세페이지 붙이기 (2분)
+---
 
-상품 편집 → 설명란을 **텍스트(HTML) 모드**로 바꾸고 아래를 붙여넣습니다.
+# 퍼널모아 상품에 넣을 코드
+
+## ① 상품 설명 (상세페이지)
+
+상품 편집 → **설명**란 → 오른쪽 위 **⋮ → 코드 편집기**(또는 텍스트/HTML 모드) → 아래를 붙여넣기
 
 ```html
 <iframe id="recital-detail"
-  src="https://accelssam.com/pages/recital-manager-detail.html"
+  src="https://accelssam.com/download/recital-manager-detail.html"
   style="display:block;border:0;width:100%;max-width:none;min-height:600px;position:relative;z-index:9;"
   scrolling="no" title="연주회 매니저 상세페이지"></iframe>
 <script>
@@ -82,11 +74,14 @@ public_html/
 </script>
 ```
 
-**커리큘럼 탭**에는 `커리큘럼-붙여넣기.html` 의 내용을 그대로 붙여넣습니다.
+## ② 커리큘럼 탭
 
-## 5단계 · 결제 후 안내 문구
+`커리큘럼-붙여넣기.html` 을 메모장으로 열어 **전체 선택(Ctrl+A) → 복사** 한 뒤,
+상품 편집 → **커리큘럼** 탭 → **텍스트(HTML) 모드**에 붙여넣으세요.
 
-우커머스 → **설정 → 결제 완료 안내**, 그리고 **주문 완료 메일**에 넣으세요.
+## ③ 결제 후 안내 문구
+
+우커머스 → **설정 → 결제 완료 안내**, 그리고 **주문 완료 메일** 본문에.
 
 ```
 결제해 주셔서 감사합니다.
@@ -107,22 +102,31 @@ public_html/
 — 아첼쌤
 ```
 
-인증키는 주문마다 따로 만드셔야 합니다 —
+인증키는 주문마다 따로 만드십니다 —
 `RECITAL_LICENSE_SECRET='정하신값' npm run key:new -- --plan year --count 1`
 (자세한 것은 `docs/SELLING-LICENSE.md`)
 
 ---
 
+## 파일 이름에 대해
+
+**올리는 파일은 전부 영문**입니다. 한글 이름은 서버에서 깨질 수 있습니다.
+
+| 올리는 것 (영문) | 안 올리는 것 (한글 · 붙여넣기용) |
+|---|---|
+| `recital-upload.zip` → 풀면 세 파일 | `커리큘럼-붙여넣기.html` |
+| (나중에) `RecitalManager-Setup-Windows.exe` | `다운로드-워드프레스-블록.html` |
+
+## 안 될 때
+
+| 증상 | 이렇게 |
+|---|---|
+| zip 이 안 올라감 | 플러그인 → **NinjaFirewall 잠시 비활성화** → 업로드 → 다시 활성화 |
+| 압축 풀기가 없음 | zip 을 **선택한 뒤** 오른쪽 클릭하세요. 도구막대에 압축 아이콘이 따로 있기도 합니다 |
+| 끌어다 놓기가 안 먹음 | 도구막대 **업로드 아이콘 → 파일 선택** |
+| 상세페이지가 왼쪽에 좁게 나옴 | 위 iframe 코드의 `<script>` 부분까지 **전부** 붙여넣으셨는지 확인해 주세요 |
+
 ## 판올림할 때
 
-새 설치본이 나오면 **`download` 폴더의 `.exe` 만 같은 이름으로 덮어쓰시면** 됩니다.
-받는 자리도, 상세페이지도 고치실 것이 없습니다.
-
-## 파일이 안 올라갈 때
-
-| 증상 | 이렇게 해 보세요 |
-|---|---|
-| `.html` · `.exe` 가 안 올라감 | 플러그인 → **NinjaFirewall 잠시 비활성화** → 업로드 → 다시 활성화 |
-| 그래도 안 됨 | **zip 으로 올리고 파일 관리자에서 압축 풀기** (확장자 검사를 피해 갑니다) |
-| 끌어다 놓기가 안 먹음 | 도구막대의 **업로드 아이콘 → 파일 선택** 으로 |
-| 큰 파일에서 멈춤 | 호스팅의 업로드 한도 문제입니다. FTP(파일질라)로 올리시거나, 받는 자리를 깃허브 주소로 두세요 |
+설치 파일을 홈페이지에 두셨다면 `.exe` 만 같은 이름으로 덮어쓰시면 됩니다.
+깃허브 쪽을 쓰신다면 **아무것도 하실 것이 없습니다** — 새 판이 자동으로 나갑니다.

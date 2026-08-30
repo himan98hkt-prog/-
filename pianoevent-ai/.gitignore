@@ -24,4 +24,4 @@ desktop/app
 배포/설치본
 
 # 업로드용 묶음은 만들어 쓰는 것이라 저장소에 두지 않는다 (npm run pack:web)
-web/accelssam-upload.zip
+web/recital-upload.zip
