@@ -75,8 +75,8 @@
   </header>
 
   <div class="card">
-    <a class="btn" id="win" href="RecitalManager-Setup-Windows.exe" download>윈도우용 내려받기</a>
-    <a class="btn ghost" id="mac" href="RecitalManager-Mac.dmg" download>맥용 내려받기 (dmg)</a>
+    <a class="btn" id="win" href="#" download>윈도우용 내려받기</a>
+    <a class="btn ghost" id="mac" href="#" download>맥용 내려받기 (dmg)</a>
     <p class="meta">내려받기가 시작되지 않으면 단추를 한 번 더 눌러 주세요.</p>
   </div>
 
@@ -110,9 +110,25 @@
 </div>
 
 <script>
+/* ══════════════════════════════════════════════════════════════════
+   ▼▼▼ 설치 파일이 어디에 있는지, 이 두 줄만 고치시면 됩니다 ▼▼▼
+
+   지금은 깃허브에 올려 둔 설치 파일을 가리킵니다. 그대로 두셔도 잘 됩니다.
+   (내려받기만으로는 프로그램이 열리지 않습니다 — 인증키가 있어야 열립니다.)
+
+   나중에 accelssam.com 안에 파일을 올리셨다면 아래처럼 바꾸세요.
+     var WIN_URL = 'https://accelssam.com/download/RecitalManager-Setup-Windows.exe';
+     var MAC_URL = 'https://accelssam.com/download/RecitalManager-Mac.dmg';
+   ══════════════════════════════════════════════════════════════════ */
+var WIN_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Setup-Windows.exe';
+var MAC_URL = 'https://github.com/himan98hkt-prog/-/releases/download/installer-latest/RecitalManager-Mac.dmg';
+/* ▲▲▲ 여기까지 ▲▲▲ */
+
 /* 윈도우에서 여셨으면 윈도우 파일이, 맥이면 dmg 가 저절로 내려오게 한다.
    컴맹 원장님께는 「눌러야 할 것이 하나 더 있다」는 것 자체가 걸림돌이다. */
 (function(){
+  document.getElementById('win').href = WIN_URL;
+  document.getElementById('mac').href = MAC_URL;
   var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var target = document.getElementById(mac ? 'mac' : 'win');
   if (mac) { var w = document.getElementById('win'), m = document.getElementById('mac');

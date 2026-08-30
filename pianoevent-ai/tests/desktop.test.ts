@@ -48,6 +48,14 @@ describe('설치본 껍데기', () => {
     expect(SHELL_BRAND.slug).toBe(BRAND.slug)
   })
 
+  it('첨부물 청소기가 지금 상품의 설치본을 지키게 되어 있다', () => {
+    // 여기 이름을 손으로 적어 두었더니, 상품 이름을 바꾼 날 **새로 올린 설치본을**
+    // 옛것으로 보고 지워 버렸다. 빌드는 전부 성공인데 받는 자리에는 옛 파일만 남았다.
+    const cleaner = readFileSync(join(ROOT, 'scripts', 'clean-release-assets.mjs'), 'utf8')
+    expect(cleaner).toContain('BRAND.slug')
+    expect(cleaner).not.toMatch(/startsWith\('[A-Za-z]+-'\)/)
+  })
+
   it('설치본 파일 이름과 상품 이름이 어긋나지 않는다', () => {
     const builder = readFileSync(join(ROOT, 'electron-builder.yml'), 'utf8')
     expect(builder).toContain(`productName: ${BRAND.name}`)
