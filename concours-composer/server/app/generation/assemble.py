@@ -16,10 +16,16 @@ from music21 import (
     key,
     layout,
     metadata,
-    meter as m21meter,
-    note as m21note,
     spanner,
     stream,
+)
+from music21 import (
+    meter as m21meter,
+)
+from music21 import (
+    note as m21note,
+)
+from music21 import (
     tempo as m21tempo,
 )
 

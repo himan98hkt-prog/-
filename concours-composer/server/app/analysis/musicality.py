@@ -248,7 +248,7 @@ _ROMAN_DEGREE = {
 
 def _roman_chord_tones(roman: str, tonic_midi: int) -> set[int]:
     """로마숫자 → 화음 구성음 pitch class 집합. 7화음·전위 표기는 삼화음으로 축약한다."""
-    core = roman.split("/")[0].strip()
+    core = roman.split("/", maxsplit=1)[0].strip()
     body = "".join(ch for ch in core if ch.isalpha() or ch in "#b")
     body = body.replace("o", "").replace("°", "").replace("ø", "")
     deg_key = "".join(ch for ch in body if ch in "IViv")

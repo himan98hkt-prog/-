@@ -1,8 +1,6 @@
 """§7.4 음악성 지표 — 지표가 실제로 '이상한 곡'을 구별하는지."""
 from __future__ import annotations
 
-from helpers import simple_measure
-
 from app.analysis.musicality import (
     WEIGHTS,
     evaluate,
@@ -24,6 +22,7 @@ from app.schemas.music import (
     SectionPlan,
     Voice,
 )
+from helpers import simple_measure
 
 
 def test_weights_sum_to_one():
@@ -105,7 +104,6 @@ def test_motif_consistency_accepts_inversion_and_retrograde():
 
 
 def test_repetition_balance_punishes_both_extremes():
-    plan = _plan()
     identical = [simple_measure(i, ["C5", "D5", "E5", "G5"], ["C3"]) for i in range(1, 9)]
     tops = ["C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"]
     all_different = [simple_measure(i, [tops[i - 1], "D5", "E5", "G5"], ["C3"]) for i in range(1, 9)]

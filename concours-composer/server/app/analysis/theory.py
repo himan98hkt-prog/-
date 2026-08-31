@@ -40,7 +40,7 @@ def spell(midi: int, key: str) -> str:
 
 def _degree_index(roman: str) -> tuple[int, bool, bool]:
     """로마숫자 → (음계도 인덱스 0~6, 단화음 여부, 7화음 여부)."""
-    core = roman.split("/")[0].strip()
+    core = roman.split("/", maxsplit=1)[0].strip()
     letters = "".join(ch for ch in core if ch in "IViv")
     if not letters:
         return 0, False, False
@@ -101,7 +101,8 @@ def transpose_name(name: str, semitones: int, key: str) -> str:
 
 
 __all__ = [
-    "chord_pitch_classes", "in_key_pitch_classes", "is_minor", "key_tonic", "midi_to_pitch", "nearest_chord_tone",
+    "chord_pitch_classes", "count_accidentals", "in_key_pitch_classes", "is_accidental",
+    "is_minor", "key_tonic", "midi_to_pitch", "nearest_chord_tone",
     "nearest_scale_tone", "scale_pitch_classes", "spell", "transpose_name", "triad_above",
 ]
 

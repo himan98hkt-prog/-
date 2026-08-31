@@ -39,6 +39,7 @@ class PlanRejected(RuntimeError):
 
 @dataclass
 class CompositionResult:
+    request_id: str
     measures: list[Measure]
     plan: CompositionPlan
     motif: MotifCandidate
@@ -168,6 +169,21 @@ class CompositionPipeline:
         return [produced[n] for n in sorted(produced)], failures
 
     # ── Stage 5 ──────────────────────────────────────────────────────────
+    def soft_warnings(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan
+    ) -> list[str]:
+        """검증기의 소프트 규칙 위반. 저장은 막지 않지만 음악적으로는 흠이다.
+
+        비평가에게 넘기지 않으면 아무도 고치지 않는다 — 병행 5·8도가 매 곡 대여섯 건씩
+        남아 있던 이유가 이것이었다.
+        """
+        report = validate_score(
+            measures, ctx.student, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key,
+            plan=plan, competition=ctx.competition,
+            max_accidental_ratio=ctx.hard.max_accidental_ratio,
+        )
+        return [f"[{i.rule}] {i.message}" for i in report.warnings]
+
     def evaluate(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
         motif: MotifCandidate,
@@ -175,7 +191,8 @@ class CompositionPipeline:
         musicality = musicality_mod.evaluate(
             measures, motif=motif, plan=plan, max_span_semitones=ctx.hard.max_span_semitones
         ).as_dict()
-        critic = self.engine.critique(ctx, measures, plan, motif, musicality)
+        warnings = self.soft_warnings(ctx, measures, plan)
+        critic = self.engine.critique(ctx, measures, plan, motif, musicality, warnings)
         return musicality, critic
 
     def _combined(self, musicality: dict, critic: CriticReport) -> float:
@@ -228,6 +245,104 @@ class CompositionPipeline:
 
         return [by_number[n] for n in sorted(by_number)]
 
+    # 검증기 경고에서 나온 수정 지시인지 판별하는 표식(스텁·Claude 공통 어휘)
+    _WARNING_ISSUES = ("병행", "다이내믹 대비", "마무리", "클라이맥스 위치")
+
+    def _polish(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
+        motif: MotifCandidate, critic: CriticReport, combined: float,
+    ) -> tuple[list[Measure], tuple[dict, CriticReport, float] | None]:
+        """마무리 다듬기 — 검증기 경고를 겨냥한 수정만 실행한다.
+
+        점수가 떨어지거나 경고가 줄지 않으면 **원본을 유지한다**. 다듬기가 곡을
+        나쁘게 만드는 일은 없어야 한다.
+        """
+        targeted = [
+            rr for rr in critic.revision_requests
+            if any(tok in rr.issue for tok in self._WARNING_ISSUES)
+        ]
+        if not targeted:
+            return measures, None
+
+        before = len(self.soft_warnings(ctx, measures, plan))
+        trimmed = critic.model_copy(update={"revision_requests": targeted})
+        self.progress("polish", 0.5, f"검증기 경고 {before}건을 겨냥해 다듬는 중")
+
+        candidate = self.revise(ctx, measures, plan, motif, trimmed)
+        new_musicality, new_critic = self.evaluate(ctx, candidate, plan, motif)
+        new_combined = self._combined(new_musicality, new_critic)
+        after = len(self.soft_warnings(ctx, candidate, plan))
+
+        if new_combined < combined or after >= before:
+            self.progress(
+                "polish", 1.0,
+                f"다듬기 폐기 (경고 {before}→{after}, 점수 {combined:.2f}→{new_combined:.2f})",
+            )
+            return measures, None
+
+        self.progress(
+            "polish", 1.0,
+            f"다듬기 채택 (경고 {before}→{after}, 점수 {combined:.2f}→{new_combined:.2f})",
+        )
+        return candidate, (new_musicality, new_critic, new_combined)
+
+    # ── 3안 생성 (§7.9 원칙 5) ───────────────────────────────────────────
+    def compose_candidates(
+        self,
+        ctx: ComposerContext,
+        motif: MotifCandidate,
+        plan: CompositionPlan | None = None,
+        *,
+        n: int = 1,
+        corpus_ngrams: set[tuple[int, ...]] | None = None,
+        title: str = "",
+    ) -> list[CompositionResult]:
+        """같은 모티브·설계로 여러 안을 만들고 **종합 점수 내림차순**으로 돌려준다.
+
+        §7.9 원칙 5: 3안 생성 후 최고 점수안을 기본 표시하고 나머지는 비교 청취.
+        안마다 설계를 새로 뽑는 게 아니라 **같은 잠긴 모티브**를 공유한다 — 모티브가
+        바뀌면 비교가 성립하지 않는다.
+        """
+        n = max(1, min(3, n))
+        results: list[CompositionResult] = []
+        for i in range(n):
+            self.progress("candidates", (i + 1) / n, f"{i + 1}/{n} 안 생성")
+            # 안마다 Plan 을 새로 뽑으면 형식이 달라져 비교가 어렵다. 첫 안의 Plan 을
+            # 공유하되, 두 번째 안부터는 텍스처 지시를 바꿔 실제로 다른 곡이 나오게 한다.
+            variant_plan = plan if i == 0 else self._variant_plan(plan, i)
+            try:
+                res = self.compose(
+                    ctx, motif, variant_plan, corpus_ngrams=corpus_ngrams, title=title
+                )
+            except (PlanRejected, PhraseTooLongError) as e:
+                log.warning("%d번째 안 실패: %s", i + 1, e)
+                continue
+            results.append(res)
+            if plan is None:
+                plan = res.plan       # 첫 안의 Plan 을 이후 안이 공유한다
+
+        if not results:
+            raise PlanRejected("어떤 안도 만들지 못했다")
+        results.sort(key=lambda r: (r.savable, r.quality.combined_score), reverse=True)
+        return results
+
+    @staticmethod
+    def _variant_plan(plan: CompositionPlan | None, index: int) -> CompositionPlan | None:
+        """두 번째 안부터 텍스처와 모티브 처리를 돌려 다른 성격의 곡을 만든다."""
+        if plan is None:
+            return None
+        rotations = [
+            ("분산화음 반주(알베르티), 4분음표 단위", "지속 화음 + 저음역 이동, 온음표 단위"),
+            ("지속 화음 + 저음역 이동, 온음표 단위", "분산화음 반주, 마지막 4마디는 화음 두껍게"),
+        ]
+        src, dst = rotations[(index - 1) % len(rotations)]
+        form = [s.model_copy(deep=True) for s in plan.form]
+        for sec in form:
+            for ph in sec.phrases:
+                if ph.texture_lh == src:
+                    ph.texture_lh = dst
+        return plan.model_copy(update={"form": form})
+
     # ── 전체 ─────────────────────────────────────────────────────────────
     def compose(
         self,
@@ -254,8 +369,11 @@ class CompositionPipeline:
 
         while combined < self.settings.quality_threshold and rounds < self.settings.max_revision_rounds:
             rounds += 1
-            self.progress("critic", rounds / (self.settings.max_revision_rounds + 1),
-                          f"{rounds}라운드 수정 — 현재 {combined:.2f} / 문턱 {self.settings.quality_threshold}")
+            self.progress(
+                "critic",
+                rounds / (self.settings.max_revision_rounds + 1),
+                f"{rounds}라운드 수정 — 현재 {combined:.2f} / 문턱 {self.settings.quality_threshold}",
+            )
             measures = self.revise(ctx, measures, plan, motif, critic)
             musicality, critic = self.evaluate(ctx, measures, plan, motif)
             new_combined = self._combined(musicality, critic)
@@ -264,6 +382,14 @@ class CompositionPipeline:
                 combined = new_combined
                 break
             combined = new_combined
+
+        # 문턱을 넘었더라도 검증기가 잡아낸 흠(병행 5·8도, 밋밋한 첫 8마디, 약한 마무리)이
+        # 남아 있으면 한 번 더 다듬는다. 문턱 통과가 '고칠 게 없다' 는 뜻은 아니다.
+        if rounds < self.settings.max_revision_rounds:
+            measures, polished = self._polish(ctx, measures, plan, motif, critic, combined)
+            if polished is not None:
+                musicality, critic, combined = polished
+                rounds += 1
 
         validation = validate_score(
             measures, ctx.student,
@@ -301,6 +427,7 @@ class CompositionPipeline:
                       f"완료 · 검증 {validation.summary()} · 품질 {combined:.2f} · 난이도 {diff.score}")
 
         return CompositionResult(
+            request_id=ctx.request.id,
             measures=measures, plan=plan, motif=motif, musicxml=xml,
             validation=validation, quality=quality, difficulty=diff.score,
             engine=getattr(self.engine, "name", "unknown"),

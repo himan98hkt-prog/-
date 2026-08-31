@@ -9,7 +9,7 @@ SoT 두 개(CLAUDE.md):
 """
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -96,7 +96,7 @@ class ScoreEvent(BaseModel):
     @classmethod
     def _pitch_names(cls, v: list[str]) -> list[str]:
         for p in v:
-            if not p or not p[0].upper() in "ABCDEFG":
+            if not p or p[0].upper() not in "ABCDEFG":
                 raise ValueError(f"잘못된 음이름: {p!r}")
         return v
 
@@ -142,7 +142,7 @@ class PhraseRealization(BaseModel):
 # ── 모티브 ───────────────────────────────────────────────────────────────────
 
 
-class MotifSource(str, Enum):
+class MotifSource(StrEnum):
     ai = "ai"
     drawn = "drawn"
     transcribed = "transcribed"

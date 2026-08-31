@@ -34,12 +34,11 @@ def judge(composition_id: str, store: Store = Depends(get_store)) -> JudgeRespon
     if composition_id not in store.compositions:
         raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
     res = store.compositions[composition_id]
-    request_id = next(
-        (rid for rid, e in store.plans.items() if e["plan"] is res.plan), None
-    )
-    if request_id is None:
-        raise HTTPException(409, "이 곡의 생성 요청을 찾을 수 없다")
-    ctx = build_context(store.requests[request_id])
+    # 곡이 자기 요청 id 를 들고 있다. 예전에는 Plan 객체 동일성으로 찾았는데,
+    # 원장이 Plan 을 수정하면 객체가 바뀌어 심사가 409 로 막혔다.
+    if res.request_id not in store.requests:
+        raise HTTPException(409, f"이 곡의 생성 요청을 찾을 수 없다: {res.request_id}")
+    ctx = build_context(store.requests[res.request_id])
 
     s = get_settings()
     if s.has_api_key:

@@ -130,6 +130,31 @@ def check_feasibility(request: CompositionRequest, hard: HardConstraints) -> str
     return feas.message(request.target_difficulty)
 
 
+def search_corpus_entries(
+    request: CompositionRequest, corpus: Any, *, target_difficulty: float | None = None
+) -> list[CorpusEntry]:
+    """§7.8 RAG 검색 — 요청과 비슷한 참고곡을 골라 프롬프트용 항목으로 만든다.
+
+    요청에는 아직 악보가 없으므로, **요청 자체를 StyleProfile 형태로 흉내 내** 검색한다
+    (목표 난이도·템포·조성·손 스팬이 곧 원하는 곡의 지문이다).
+    """
+    from app.analysis.style_profile import StyleProfile
+
+    target = StyleProfile(
+        key=(request.key_preference or ["C"])[0],
+        meter=request.meter,
+        tempo=request.tempo,
+        difficulty_score=target_difficulty or request.target_difficulty,
+    )
+    results = corpus.search(
+        target,
+        difficulty=target_difficulty or request.target_difficulty,
+        division=request.competition.division if request.competition else "",
+        pinned_ids=request.reference_style_ids,
+    )
+    return corpus.entries_for_prompt(results)
+
+
 def build_context(
     request: CompositionRequest,
     *,

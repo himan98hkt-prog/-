@@ -80,6 +80,9 @@
       <div><label>형식</label>
         <select id="form"><option>ABA</option><option>AB</option><option>rondo</option>
           <option>sonatina</option><option>variations</option></select></div>
+      <div><label>생성할 안 개수</label>
+        <select id="ncand"><option value="1">1안</option><option value="2">2안</option>
+          <option value="3">3안 (비교 청취)</option></select></div>
     </div>
     <div style="margin-top:12px"><label>분위기·필수 요소</label>
       <textarea id="mood">밝고 활기찬 알레그로, 중간에 서정적 대비, 마지막은 화려하게</textarea></div>
@@ -111,11 +114,18 @@
     <table id="metrics"></table>
     <h3 style="font-size:14px;margin:18px 0 8px">비평가의 수정 지시</h3>
     <table id="revisions"></table>
+    <div id="candidateBox" class="hidden">
+      <h3 style="font-size:14px;margin:18px 0 8px">생성된 안 비교 (§7.9 원칙 5)</h3>
+      <table id="candidates"></table>
+    </div>
     <div class="row">
       <button class="ghost" id="btnJudge">모의 심사 3인</button>
-      <button class="ghost" id="btnXml">MusicXML 내려받기</button>
+      <button class="ghost" id="btnGuide">연주법 해설</button>
+      <button class="ghost" id="btnXml">MusicXML</button>
+      <button class="ghost" id="btnMidi">MIDI</button>
     </div>
     <div id="judgeOut"></div>
+    <div id="guideOut"></div>
   </section>
 </main>
 
@@ -165,7 +175,7 @@ $("btnRequest").onclick = async () => {
       target_difficulty: num("difficulty"), mood: val("mood"), form: val("form"),
       key_preference: [val("key")], meter: val("meter"), tempo: num("tempo"),
       total_measures: null, reference_style_ids: [], texture_options: [],
-      must_include: "", n_candidates: 1,
+      must_include: "", n_candidates: Number($("ncand").value),
     })});
     requestId = body.request_id;
     const c = body.constraints;
@@ -186,19 +196,81 @@ async function loadMotifs(feedback = "") {
     const body = await api(`/api/requests/${requestId}/motifs`,
       { method: "POST", body: JSON.stringify({ n: 4, feedback }) });
     $("motifs").innerHTML = "";
+    const previews = Object.fromEntries((body.previews || []).map(p => [p.motif.id, p.midi_base64]));
     body.candidates.forEach(m => {
       const el = document.createElement("div");
       el.className = "card";
       el.innerHTML = `<h3>${m.character_label}</h3>
         <p>${m.key} · ${m.meter} · ${m.tempo}bpm · ${m.measures.length}마디</p>
-        <p style="margin-top:8px">${m.why_it_works || ""}</p>`;
-      el.onclick = () => selectMotif(m, el);
+        <p style="margin-top:8px">${m.why_it_works || ""}</p>
+        <div class="row" style="margin-top:10px">
+          <button class="ghost play" type="button">▶ 들어보기</button>
+          <button class="ghost pick" type="button">이 모티브로 설계</button>
+        </div>`;
+      el.querySelector(".play").onclick = (ev) => {
+        ev.stopPropagation();
+        playMotif(m, previews[m.id]);
+      };
+      el.querySelector(".pick").onclick = (ev) => { ev.stopPropagation(); selectMotif(m, el); };
       $("motifs").appendChild(el);
     });
   } catch (e) { $("motifs").innerHTML = `<div class="msg bad">${e.message}</div>`; }
 }
 
 $("btnMore").onclick = () => loadMotifs("다른 성격으로 더");
+
+// ── 모티브 미리듣기 ────────────────────────────────────────────────────────
+// §7.3 Stage 1 은 "들어본 뒤 고른다" 가 핵심이다. 서버가 준 MIDI 를 그대로 쓰지 않고
+// 마디 JSON 에서 음을 읽어 Web Audio 로 낸다 — 외부 라이브러리 없이 즉시 소리가 난다.
+let audioCtx = null;
+
+const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function pitchToFreq(name) {
+  const m = /^([A-Ga-g])([#b\-x]*)(-?\d+)$/.exec(name.trim());
+  if (!m) return 440;
+  let alter = 0;
+  for (const ch of m[2]) alter += ch === "#" ? 1 : ch === "x" ? 2 : -1;
+  const midi = (parseInt(m[3], 10) + 1) * 12 + STEP[m[1].toUpperCase()] + alter;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function playMotif(motif, _midiBase64) {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = audioCtx;
+  const secPerBeat = 60 / motif.tempo;
+  let t = ctx.currentTime + 0.05;
+
+  for (const measure of motif.measures) {
+    for (const [hand, voices] of [["rh", measure.rh], ["lh", measure.lh]]) {
+      let offset = 0;
+      for (const v of voices) {
+        offset = 0;
+        for (const ev of v.events) {
+          const dur = ev.dur * secPerBeat;
+          for (const p of ev.pitches) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.value = pitchToFreq(p);
+            // 피아노에 가깝게 — 빠른 어택, 지수 감쇠
+            const start = t + offset;
+            const peak = hand === "rh" ? 0.22 : 0.13;
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + Math.max(0.12, dur * 0.95));
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + Math.max(0.14, dur));
+          }
+          offset += dur;
+        }
+      }
+    }
+    t += motif.measures[0].rh.reduce(
+      (acc, v) => Math.max(acc, v.events.reduce((a, e) => a + e.dur, 0)), 0,
+    ) * secPerBeat;
+  }
+}
 
 async function selectMotif(m, el) {
   document.querySelectorAll("#motifs .card").forEach(c => c.classList.remove("sel"));
@@ -269,6 +341,19 @@ function renderResult(b) {
   });
   $("metrics").innerHTML = rows;
 
+  const cands = b.candidates || [];
+  if (cands.length > 1) {
+    $("candidateBox").classList.remove("hidden");
+    $("candidates").innerHTML =
+      "<tr><th></th><th>종합</th><th>musicality</th><th>난이도</th><th>수정 라운드</th><th></th></tr>" +
+      cands.map((c, i) => `<tr><td>${i === 0 ? "<strong>기본</strong>" : i + 1 + "안"}</td>
+        <td>${c.combined_score}</td><td>${c.musicality}</td><td>${c.difficulty}</td>
+        <td>${c.revision_rounds}</td>
+        <td>${c.savable ? "" : "<span class='tag bad'>저장 불가</span>"}</td></tr>`).join("");
+  } else {
+    $("candidateBox").classList.add("hidden");
+  }
+
   const rr = (q.critic && q.critic.revision_requests) || [];
   $("revisions").innerHTML = rr.length
     ? "<tr><th>마디</th><th>문제</th><th>지시</th></tr>" + rr.map(r =>
@@ -287,6 +372,27 @@ $("btnJudge").onclick = async () => {
         ${v.fix_in_practice.map(f => `<p>· [연습] ${f}</p>`).join("")}</div>`).join("") +
       (b.consensus_fixes.length ? `<div class="msg warn">둘 이상이 지적: ${b.consensus_fixes.join(" / ")}</div>` : "");
   } catch (e) { $("judgeOut").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+};
+
+$("btnGuide").onclick = async () => {
+  $("guideOut").innerHTML = "<p class='hint'>해설을 쓰는 중…</p>";
+  try {
+    const g = await api(`/api/compositions/${compositionId}/guide`, { method: "POST" });
+    $("guideOut").innerHTML = `<div class="card" style="cursor:default;margin-top:14px">
+      <h3>연주법 해설</h3><p>${g.overview}</p>
+      ${g.sections.map(s => `<p><strong>${s.measures[0]}-${s.measures[1]}마디 ${s.title}</strong><br>
+        ${s.points.join("<br>")}</p>`).join("")}
+      <p><strong>4주 연습 계획</strong><br>${g.practice_plan.map(w =>
+        `${w.week}주차 · ${w.goal} — ${w.method} (♩=${w.metronome_bpm})`).join("<br>")}</p>
+      <p><strong>무대에서</strong><br>${g.competition_tips.join("<br>")}</p>
+      ${g.memorization_map.length ? `<p><strong>암보 구획</strong><br>${g.memorization_map.map(c =>
+        `${c.measures[0]}-${c.measures[1]}마디: ${c.cue}`).join("<br>")}</p>` : ""}
+    </div>`;
+  } catch (e) { $("guideOut").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+};
+
+$("btnMidi").onclick = () => {
+  window.location.href = `${API}/api/compositions/${compositionId}/midi`;
 };
 
 $("btnXml").onclick = async () => {

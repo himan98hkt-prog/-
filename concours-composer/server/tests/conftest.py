@@ -12,7 +12,6 @@ if str(SERVER) not in sys.path:
 from app.generation.context import ComposerContext, build_context  # noqa: E402
 from app.generation.engines.stub import StubComposerEngine  # noqa: E402
 from app.generation.pipeline import CompositionPipeline  # noqa: E402
-from app.schemas.music import Measure, ScoreEvent, Voice  # noqa: E402
 from app.schemas.student import (  # noqa: E402
     CompetitionProfile,
     CompositionRequest,

@@ -11,10 +11,9 @@ import os
 from datetime import UTC, datetime
 
 import pytest
-from golden_specs import make_context
-
 from app.generation.engines.stub import StubComposerEngine
 from app.generation.pipeline import CompositionPipeline
+from golden_specs import make_context
 
 # 파이프라인이 보장하는 것 — 엔진과 무관하게 항상 성립해야 한다.
 MIN_PHRASE_COMPLETION = 1.0          # Plan 이 설계한 마디는 전부 실현된다

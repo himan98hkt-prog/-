@@ -31,7 +31,7 @@ class PhraseRequest:
         self.instruction = instruction
 
     @property
-    def phrase(self):  # noqa: ANN201
+    def phrase(self):
         return self.plan.phrases()[self.phrase_index]
 
     @property
@@ -67,7 +67,12 @@ class ComposerEngine(Protocol):
 
     def critique(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
-        motif: MotifCandidate, musicality: dict,
+        motif: MotifCandidate, musicality: dict, warnings: list[str] | None = None,
     ) -> CriticReport:
-        """Stage 5 — 비평. 작곡과 별도 호출·별도 프롬프트(절대 규칙 10)."""
+        """Stage 5 — 비평. 작곡과 별도 호출·별도 프롬프트(절대 규칙 10).
+
+        `warnings` 는 검증기의 소프트 규칙 위반(병행 5·8도, 첫 8마디, 종지)이다.
+        코드가 잡아냈지만 저장을 막지는 않는 것들이라, 비평가가 보고 고치라고 해야
+        실제로 고쳐진다.
+        """
         ...

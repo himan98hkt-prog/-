@@ -160,7 +160,7 @@ def _check_duration(measures: list[Measure], tempo: int, meter: str,
     return seconds
 
 
-def _check_cadence(measures: list[Measure], plan: CompositionPlan | None, r: ValidationReport) -> None:
+def _check_cadence(measures: list[Measure], r: ValidationReport) -> None:
     """마지막 마디가 긴 음/화음으로 끝나는가 — 종지의 확신."""
     if not measures:
         return
@@ -279,7 +279,7 @@ def validate_score(
     _check_hand_crossing(measures, r)
     _check_repeat_limit(measures, r)
     _check_duration(measures, tempo, meter, competition, r)
-    _check_cadence(measures, plan, r)
+    _check_cadence(measures, r)
     _check_accidental_ratio(measures, max_accidental_ratio, key_sig, r)
     _check_competition_rules(measures, competition, r)
     _check_soft_first_eight(measures, r)

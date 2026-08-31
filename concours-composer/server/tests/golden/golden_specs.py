@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 from app.generation.context import build_context
 from app.schemas.student import CompetitionProfile, CompositionRequest, HandSpan, Student
 

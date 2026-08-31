@@ -33,6 +33,8 @@ Stage 7  원장 편곡           ★   구간 재생성·직접 편집
 | **비평 루프**(§7.5) | 작곡가와 **다른 프롬프트·다른 호출**의 비평가가 10항목으로 채점하고 마디 범위별 수정 지시를 낸다. 문턱 미달이면 최대 2회 다시 쓴다 |
 | **모의 심사**(§6.13) | 성향이 다른 심사위원 3인이 채점하고 "곡에서 고칠 점"과 "연습에서 보완할 점"을 분리해 준다 |
 | **골든 회귀**(§7.8) | 요청 20건에 대해 검증 통과율·음악성·비평 총점을 기록. 프롬프트를 바꾸면 이 결과를 비교한다 |
+| **3안 비교**(§7.9 원칙 5) | 같은 모티브로 최대 3안을 만들어 종합점수 최고안을 기본 표시하고 나머지는 비교 청취 |
+| **자기 코퍼스**(§6.1 §7.8) | 원장이 올린 콩쿨 명곡·교재에서 StyleProfile 을 뽑아 요청마다 비슷한 곡을 찾아 주입. 저작권곡은 통계만 쓰고 음표열은 **보관조차 하지 않는다** |
 
 ## 빠르게 돌려보기
 
@@ -67,6 +69,13 @@ POST /api/requests/{id}/realize                     Stage 3~5 실현·채점·�
 GET  /api/compositions/{id}/musicxml|quality|measures
 POST /api/compositions/{id}/judge                   모의 심사 3인
 POST /api/recitals                                  연주회 순서·대비 검사·러닝타임
+
+POST /api/corpus                                    참고 악보 업로드(MusicXML/MIDI) → StyleProfile
+GET  /api/corpus · GET /api/corpus/{id}/profile     라이브러리 · 특징 벡터
+POST /api/corpus/search?request_id=...              이 요청에 붙을 참고곡 미리보기
+POST /api/compositions/{id}/guide                   §6.6 연주법 해설(4주 연습 계획·암보 구획)
+POST /api/compositions/{id}/title                   제목 후보 3 + 추천
+GET  /api/compositions/{id}/midi                    손별 트랙이 나뉜 MIDI
 ```
 
 워크플로 순서는 URL 로 강제된다 — 모티브 없이 설계할 수 없고, 승인되지 않은 설계로

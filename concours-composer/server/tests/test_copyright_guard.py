@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from app.generation.context import build_context
 from app.generation.copyright_guard import (
     MAX_EXCERPT_MEASURES,

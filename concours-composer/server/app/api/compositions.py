@@ -5,14 +5,16 @@
 """
 from __future__ import annotations
 
+import base64
 import logging
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.api.deps import Store, get_pipeline, get_store
 from app.generation.context import InfeasibleRequest, build_context, check_feasibility
 from app.generation.pipeline import CompositionPipeline, PlanRejected
+from app.schemas.guide import Guide, TitleSuggestion
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate
 from app.schemas.student import CompositionRequest
 
@@ -26,9 +28,17 @@ class RequestCreated(BaseModel):
     constraints: dict
 
 
+class MotifPreview(BaseModel):
+    """모티브 하나와 그 미리듣기 MIDI. 원장은 들어보고 고른다(§7.3 Stage 1)."""
+
+    motif: MotifCandidate
+    midi_base64: str = Field(description="브라우저가 바로 재생할 수 있는 MIDI")
+
+
 class MotifResponse(BaseModel):
     request_id: str
     candidates: list[MotifCandidate]
+    previews: list[MotifPreview] = Field(default_factory=list)
     engine: str
 
 
@@ -37,6 +47,15 @@ class PlanResponse(BaseModel):
     plan: CompositionPlan
     passed: bool
     issues: list[dict]
+
+
+class CandidateSummary(BaseModel):
+    composition_id: str
+    combined_score: float
+    musicality: float
+    difficulty: float
+    savable: bool
+    revision_rounds: int
 
 
 class ComposeResponse(BaseModel):
@@ -51,12 +70,39 @@ class ComposeResponse(BaseModel):
     revision_rounds: int
     cost: dict
     musicxml_bytes: int
+    candidates: list[CandidateSummary] = Field(
+        default_factory=list,
+        description="3안 생성 시 전체 안. 첫 항목이 최고 점수안이며 위 필드들이 그 안의 값이다.",
+    )
 
 
 def _ctx(store: Store, request_id: str):
+    """Stage 0 컨텍스트. 코퍼스 검색 결과와 학원 실전 데이터를 함께 싣는다."""
     if request_id not in store.requests:
         raise HTTPException(404, f"요청을 찾을 수 없다: {request_id}")
-    return build_context(store.requests[request_id])
+    req = store.requests[request_id]
+
+    from app.api.corpus import get_corpus
+    from app.generation.context import search_corpus_entries
+    from app.recital.learning import summarize_results
+
+    corpus = get_corpus()
+    entries = search_corpus_entries(req, corpus) if corpus.scores else []
+    academy = summarize_results(
+        store.jobs.get("competition_results", []), store.compositions
+    )
+    return build_context(req, corpus=entries, academy_data=academy)
+
+
+def _previews(motifs: list[MotifCandidate]) -> list[MotifPreview]:
+    """후보마다 미리듣기 MIDI 를 붙인다. 듣지 않고 고르면 공동 작곡의 첫 단추가 어긋난다."""
+    from app.export.midi import measures_to_midi
+
+    out: list[MotifPreview] = []
+    for m in motifs:
+        midi = measures_to_midi(list(m.measures), m.tempo, m.meter)
+        out.append(MotifPreview(motif=m, midi_base64=base64.b64encode(midi).decode("ascii")))
+    return out
 
 
 def _issues(report) -> list[dict]:
@@ -95,7 +141,7 @@ def create_motifs(
         raise HTTPException(422, "학생 제약을 지키는 모티브 후보를 만들지 못했다")
     store.motifs[request_id] = candidates
     return MotifResponse(
-        request_id=request_id, candidates=candidates,
+        request_id=request_id, candidates=candidates, previews=_previews(candidates),
         engine=getattr(pipeline.engine, "name", "unknown"),
     )
 
@@ -105,7 +151,6 @@ def custom_motif(
     request_id: str,
     motif: MotifCandidate,
     store: Store = Depends(get_store),
-    pipeline: CompositionPipeline = Depends(get_pipeline),
 ) -> MotifResponse:
     """원장이 직접 그린 모티브(피아노롤 4마디)를 후보에 넣는다."""
     ctx = _ctx(store, request_id)
@@ -119,7 +164,10 @@ def custom_motif(
         raise HTTPException(422, {"message": "모티브가 학생 제약을 벗어난다", "issues": _issues(rep)})
     existing = store.motifs.setdefault(request_id, [])
     existing.append(motif)
-    return MotifResponse(request_id=request_id, candidates=existing, engine="director")
+    return MotifResponse(
+        request_id=request_id, candidates=existing, previews=_previews(existing),
+        engine="director",
+    )
 
 
 @router.post("/requests/{request_id}/motifs/{motif_id}/select", response_model=PlanResponse)
@@ -154,7 +202,6 @@ def edit_plan(
     request_id: str,
     plan: CompositionPlan,
     store: Store = Depends(get_store),
-    store_: Store = Depends(get_store),
 ) -> PlanResponse:
     """원장이 고친 Plan 을 다시 규칙 검사한다(예: 'B 부분을 8마디로 늘려')."""
     entry = store.plans.get(request_id)
@@ -185,16 +232,38 @@ def realize(
         raise HTTPException(409, "Plan 이 규칙 검사를 통과하지 못했다 — 수정 후 다시 시도하라")
 
     ctx = _ctx(store, request_id)
+    n = store.requests[request_id].n_candidates
+
+    # 표절 검사(§7.6)는 코퍼스가 있어야 의미가 있다. 지금까지 항상 비어 있었다.
+    from app.api.corpus import get_corpus
+
+    ngrams = get_corpus().ngram_index() or None
+
     try:
-        res = pipeline.compose(ctx, entry["motif"], entry["plan"])
+        results = pipeline.compose_candidates(
+            ctx, entry["motif"], entry["plan"], n=n, corpus_ngrams=ngrams
+        )
     except PlanRejected as e:
         raise HTTPException(422, str(e)) from e
     except InfeasibleRequest as e:
         raise HTTPException(422, str(e)) from e
 
-    cid = store.next_id("comp", store.compositions)
-    store.compositions[cid] = res
-    store.versions.setdefault(cid, []).append(res)
+    # 종합 점수 내림차순이므로 첫 항목이 기본 표시안이다(§7.9 원칙 5).
+    summaries: list[CandidateSummary] = []
+    for r in results:
+        rid_ = store.next_id("comp", store.compositions)
+        store.compositions[rid_] = r
+        store.versions.setdefault(rid_, []).append(r)
+        summaries.append(CandidateSummary(
+            composition_id=rid_,
+            combined_score=r.quality.combined_score,
+            musicality=float(r.quality.musicality["score_10"]),
+            difficulty=r.difficulty,
+            savable=r.savable,
+            revision_rounds=r.revision_rounds,
+        ))
+    res = results[0]
+    cid = summaries[0].composition_id
 
     return ComposeResponse(
         composition_id=cid,
@@ -212,6 +281,7 @@ def realize(
         revision_rounds=res.revision_rounds,
         cost=res.cost,
         musicxml_bytes=len(res.musicxml),
+        candidates=summaries,
     )
 
 
@@ -243,3 +313,61 @@ def get_measures(composition_id: str, store: Store = Depends(get_store)) -> list
     if composition_id not in store.compositions:
         raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
     return store.compositions[composition_id].measures
+
+
+@router.get("/compositions/{composition_id}/midi")
+def get_midi(composition_id: str, store: Store = Depends(get_store)) -> Response:
+    """재생·외부 편집기용 MIDI. 손별로 트랙이 나뉘어 손 분리 연습에 쓸 수 있다."""
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+    from app.export.midi import measures_to_midi
+
+    data = measures_to_midi(res.measures, res.plan.tempo, res.plan.meter)
+    return Response(
+        content=data,
+        media_type="audio/midi",
+        headers={"Content-Disposition": f'attachment; filename="{composition_id}.mid"'},
+    )
+
+
+@router.post("/compositions/{composition_id}/guide", response_model=Guide)
+def make_guide(composition_id: str, store: Store = Depends(get_store)) -> Guide:
+    """§6.6 연주법 해설. 모든 마디 참조가 곡 안에 있어야 통과한다."""
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+    if res.request_id not in store.requests:
+        raise HTTPException(409, f"이 곡의 생성 요청을 찾을 수 없다: {res.request_id}")
+
+    from app.guide.writer import GuideAnchorError, write_guide
+
+    ctx = build_context(store.requests[res.request_id])
+    try:
+        guide = write_guide(ctx, res.measures, res.plan)
+    except GuideAnchorError as e:
+        raise HTTPException(422, str(e)) from e
+    store.jobs.setdefault("guides", {})[composition_id] = guide
+    return guide
+
+
+@router.get("/compositions/{composition_id}/guide", response_model=Guide)
+def get_guide(composition_id: str, store: Store = Depends(get_store)) -> Guide:
+    guide = store.jobs.get("guides", {}).get(composition_id)
+    if guide is None:
+        raise HTTPException(404, "해설이 아직 만들어지지 않았다 — POST 로 먼저 생성하라")
+    return guide
+
+
+@router.post("/compositions/{composition_id}/title", response_model=TitleSuggestion)
+def make_title(composition_id: str, store: Store = Depends(get_store)) -> TitleSuggestion:
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+    if res.request_id not in store.requests:
+        raise HTTPException(409, f"이 곡의 생성 요청을 찾을 수 없다: {res.request_id}")
+
+    from app.guide.writer import suggest_title
+
+    ctx = build_context(store.requests[res.request_id])
+    return suggest_title(ctx, res.measures, res.plan)

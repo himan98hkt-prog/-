@@ -1,10 +1,9 @@
 """§7.6 검증기 — 하드 규칙은 하나라도 깨지면 저장 불가."""
 from __future__ import annotations
 
-from helpers import simple_measure
-
 from app.schemas.music import Measure, ScoreEvent, Voice
 from app.validate.validator import validate_score
+from helpers import simple_measure
 
 
 def test_valid_score_passes(student):

@@ -23,7 +23,7 @@ OK, WARN, FAIL = "OK", "WARN", "FAIL"
 
 def _run(cmd: list[str], timeout: int = TIMEOUT) -> tuple[int, str]:
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
         return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
     except FileNotFoundError:
         return 127, f"{cmd[0]} 없음"

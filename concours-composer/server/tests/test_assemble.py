@@ -4,15 +4,14 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 
-from helpers import simple_measure
-from music21 import converter
-
 from app.generation.assemble import (
     AssembleOptions,
     measures_to_musicxml,
     measures_to_note_events,
 )
 from app.schemas.music import Measure, ScoreEvent, Voice
+from helpers import simple_measure
+from music21 import converter
 
 
 def _measures() -> list[Measure]:

@@ -53,7 +53,7 @@ def main() -> int:
     if warning:
         print(f"경고: {warning}")
 
-    pipe = CompositionPipeline(engine, progress=lambda st, p, m: print(f"  [{st:8s}] {m}"))
+    pipe = CompositionPipeline(engine, progress=lambda st, _pct, m: print(f"  [{st:8s}] {m}"))
 
     print("\n── Stage 1 · 모티브 후보 ──")
     motifs = pipe.motifs(ctx, 4)
@@ -82,7 +82,7 @@ def main() -> int:
     print("\n── Stage 3~5 · 실현 · 채점 · 비평 ──")
     res = pipe.compose(ctx, chosen, plan)
 
-    print(f"\n── 결과 ──")
+    print("\n── 결과 ──")
     print(f"  마디 {len(res.measures)} · 난이도 {res.difficulty} (목표 {ctx.hard.target_difficulty})")
     print(f"  검증: {res.validation.summary()}")
     for i in res.validation.hard_failures:

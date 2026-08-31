@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.deps import Store, get_store
-from app.recital.program import ContrastWarning, build_program
+from app.recital.program import build_program
 
 router = APIRouter(prefix="/api", tags=["recitals"])
 

@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import pytest
-
 from app.generation.engines.base import PhraseRequest
 from app.generation.pipeline import MAX_PHRASE_MEASURES, PhraseTooLongError, PlanRejected
 from app.schemas.music import Measure, PhraseRealization, ScoreEvent, Voice
-
 
 # ── 원칙 1·2: 모티브를 먼저 잠그고 프레이즈 단위로만 생성 ──────────────────
 

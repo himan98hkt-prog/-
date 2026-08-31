@@ -33,9 +33,11 @@ def load_prompt(name: str) -> str:
 def prompt_version(name: str) -> str:
     """프롬프트 첫 줄의 version 태그. 골든 회귀 리포트에 남긴다."""
     head = load_prompt(name).splitlines()[0]
-    if "version:" in head:
-        return head.split("version:")[1].split("·")[0].strip(" ->-")
-    return "untagged"
+    if "version:" not in head:
+        return "untagged"
+    # 예: "<!-- version: motif-v3.1 · Stage 1 · COMPOSER_MODEL -->"
+    tag = head.split("version:", 1)[1].split("·", 1)[0]
+    return tag.replace("-->", "").strip()
 
 
 class MotifBatch(BaseModel):
@@ -129,7 +131,7 @@ class ClaudeComposerEngine:
     # ── Stage 5 ──────────────────────────────────────────────────────────
     def critique(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
-        motif: MotifCandidate, musicality: dict,
+        motif: MotifCandidate, musicality: dict, warnings: list[str] | None = None,
     ) -> CriticReport:
         payload = {
             "score_text": score_to_text(measures, plan),
@@ -138,6 +140,7 @@ class ClaudeComposerEngine:
             "student": ctx.prompt_payload()["student"],
             "constraints": ctx.hard.as_dict(),
             "rule_based_musicality": musicality,
+            "validator_warnings": warnings or [],
             "total_measures": len(measures),
         }
         return self.client.parse(

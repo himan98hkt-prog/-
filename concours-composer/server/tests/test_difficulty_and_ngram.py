@@ -1,11 +1,10 @@
 """§7.7 난이도 · 표절 n-gram."""
 from __future__ import annotations
 
-from helpers import simple_measure
-
 from app.analysis.difficulty import difficulty_score
 from app.analysis.ngram import DEFAULT_N, build_corpus_index, find_plagiarism, interval_ngrams
 from app.schemas.music import Measure, ScoreEvent, Voice
+from helpers import simple_measure
 
 
 def _easy() -> list[Measure]:

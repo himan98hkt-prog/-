@@ -11,6 +11,8 @@
 """
 from __future__ import annotations
 
+from typing import ClassVar
+
 from music21 import meter as m21meter
 
 from app.analysis import theory
@@ -95,7 +97,7 @@ class TextureLevel:
         self.leap_every = 0 if target < 6.0 else (4 if target < 8.0 else 3)
 
     # 2등분만 반복해 쪼갠다 — 3등분은 셋잇단 표기가 필요해 MusicXML 로 못 적는다.
-    _SPLITS = {1: (1, 1), 2: (2, 1), 3: (2, 4), 4: (4, 2)}
+    _SPLITS: ClassVar[dict[int, tuple[int, int]]] = {1: (1, 1), 2: (2, 1), 3: (2, 4), 4: (4, 2)}
 
     def coarsen_rhythm(self, durs: list[float], bar: float) -> list[float]:
         """이웃한 짧은 음을 합쳐 성기게 만든다 — 유치·초등 저학년 난이도를 위해."""
@@ -130,6 +132,21 @@ class TextureLevel:
         return _fit_rhythm(out, bar)
 
 
+def _climax_measure(total: int) -> int:
+    """클라이맥스를 전체의 60~80% 안에 놓되 프레이즈 시작에 맞춘다.
+
+    프레이즈 경계로만 반올림하면 짧은 곡(16마디)에서 대역 밖으로 밀린다 —
+    먼저 프레이즈 시작 후보를 모으고, 그중 대역 안에 있는 것을 고른다.
+    """
+    lo, hi = total * 0.60, total * 0.80
+    starts = [m for m in range(1, total + 1, 4) if lo <= m <= hi]
+    if starts:
+        # 대역 안 후보 중 72% 지점에 가장 가까운 것
+        return min(starts, key=lambda m: abs(m - total * 0.72))
+    # 프레이즈 시작이 대역에 하나도 없으면(아주 짧은 곡) 마디 단위로 맞춘다.
+    return max(1, min(total - 1, round(total * 0.70)))
+
+
 def _bar_ql(meter: str) -> float:
     return float(m21meter.TimeSignature(meter).barDuration.quarterLength)
 
@@ -148,8 +165,8 @@ def _fit_rhythm(rhythm: list[float], bar: float) -> list[float]:
     """
     out: list[float] = []
     total = 0.0
-    for d in rhythm:
-        d = _snap_notatable(round(d, 6))
+    for raw in rhythm:
+        d = _snap_notatable(round(raw, 6))
         if total + d >= bar - 1e-9:
             rest = round(bar - total, 6)
             if rest > 1e-9:
@@ -322,12 +339,14 @@ class StubComposerEngine:
             elif h.measure == total:
                 h.roman = "I"
 
-        climax_measure = max(1, min(total - 2, int(total * 0.72) // 4 * 4 + 1))
+        climax_measure = _climax_measure(total)
 
         showcase: list[Showcase] = []
         if ctx.student.strengths:
             lo = min(total - 3, climax_measure - 4) if climax_measure > 5 else 5
-            showcase.append(Showcase(range=[max(1, lo), max(1, lo) + 3], strength_used=ctx.student.strengths[0]))
+            showcase.append(
+                Showcase(range=[max(1, lo), max(1, lo) + 3], strength_used=ctx.student.strengths[0])
+            )
 
         dyn_curve = [
             DynamicPoint(measure=1, dyn="mp"),
@@ -336,9 +355,12 @@ class StubComposerEngine:
             DynamicPoint(measure=climax_measure, dyn="f"),
             DynamicPoint(measure=total - 3, dyn="mf"),
         ]
-        seen = set()
-        dyn_curve = [d for d in sorted(dyn_curve, key=lambda x: x.measure)
-                     if d.measure <= total and not (d.measure in seen or seen.add(d.measure))]
+        # 같은 마디에 두 번 표기하지 않는다.
+        deduped: dict[int, DynamicPoint] = {}
+        for d in sorted(dyn_curve, key=lambda x: x.measure):
+            if d.measure <= total:
+                deduped.setdefault(d.measure, d)
+        dyn_curve = list(deduped.values())
 
         return CompositionPlan(
             title_candidates=["작은 행진", "봄날의 문답", "노래하는 손"],
@@ -374,10 +396,11 @@ class StubComposerEngine:
         ivs, rhythm = self._apply_treatment(phrase.motif_treatment, head_ivs, head_rhythm)
 
         # 직전 마디 마지막 음에서 이어받는다.
-        start = self._continue_from(req.previous_measures, motif, key, ctx)
+        start = self._continue_from(req.previous_measures, motif, ctx)
 
         measures: list[Measure] = []
         cur = start
+        prev_frame = self._frame_of(req.previous_measures)
         for offset, number in enumerate(range(lo, hi + 1)):
             roman = harmony.get(number, "I")
             durs = _fit_rhythm(list(rhythm), bar)
@@ -421,16 +444,23 @@ class StubComposerEngine:
                 (pitch_to_midi(p) for e in events for p in e.pitches),
                 default=cur,
             )
-            lh = self._realize_lh(roman, key, bar, phrase.texture_lh, ctx, rh_min, level)
-            measures.append(
-                Measure(
-                    number=number,
-                    rh=[Voice(events=events)],
-                    lh=[Voice(events=lh)],
-                    dynamics=phrase.dynamic if offset == 0 else None,
-                    pedal=True,
-                )
+            # 검증기와 같은 기준: 이 마디 오른손 '첫 음' 의 최고음
+            first_rh = next((e for e in events if e.pitches), None)
+            rh_first_top = (
+                max(pitch_to_midi(p) for p in first_rh.pitches) if first_rh else cur
             )
+            lh = self._realize_lh(
+                roman, key, bar, phrase.texture_lh, ctx, rh_min, level, prev_frame, rh_first_top
+            )
+            made = Measure(
+                number=number,
+                rh=[Voice(events=events)],
+                lh=[Voice(events=lh)],
+                dynamics=phrase.dynamic if offset == 0 else None,
+                pedal=True,
+            )
+            measures.append(made)
+            prev_frame = self._first_note_frame(made) or prev_frame
         return PhraseRealization(measures=measures)
 
     def _rh_pitches(
@@ -494,7 +524,7 @@ class StubComposerEngine:
         return ivs, rhythm
 
     def _continue_from(
-        self, previous: list[Measure], motif: MotifCandidate, key: str, ctx: ComposerContext
+        self, previous: list[Measure], motif: MotifCandidate, ctx: ComposerContext
     ) -> int:
         for m in sorted(previous, key=lambda x: -x.number):
             for v in reversed(m.rh):
@@ -508,6 +538,69 @@ class StubComposerEngine:
                         return self._keep_in_range(pitch_to_midi(e.pitches[0]), ctx)
         return 72
 
+    @staticmethod
+    def _first_note_frame(m: Measure) -> tuple[int, int] | None:
+        """한 마디의 골격 = (왼손 첫 음의 최저음, 오른손 첫 음의 최고음).
+
+        검증기(§7.6 `_check_parallels`)가 보는 것과 **정확히 같은 두 음**이다.
+        생성기가 다른 음으로 병행을 피하면 경고는 그대로 남는다.
+        """
+        tops = [max(pitch_to_midi(p) for p in e.pitches)
+                for v in m.rh for e in v.events if e.pitches]
+        bots = [min(pitch_to_midi(p) for p in e.pitches)
+                for v in m.lh for e in v.events if e.pitches]
+        if tops and bots:
+            return (bots[0], tops[0])
+        return None
+
+    @classmethod
+    def _frame_of(cls, measures: list[Measure]) -> tuple[int, int] | None:
+        for m in sorted(measures, key=lambda x: -x.number):
+            frame = cls._first_note_frame(m)
+            if frame is not None:
+                return frame
+        return None
+
+    @staticmethod
+    def _is_parallel(prev: tuple[int, int] | None, bass: int, top: int) -> bool:
+        """직전 골격에서 이 골격으로 갈 때 병행 5도·8도가 생기는가.
+
+        검증기(§7.6 소프트 규칙)와 같은 판정을 쓴다 — 생성기가 검증기와 다른 기준으로
+        피하면 경고는 그대로 남는다.
+        """
+        if prev is None:
+            return False
+        p_bass, p_top = prev
+        if p_top == top or p_bass == bass:
+            return False
+        if (top - p_top) * (bass - p_bass) <= 0:      # 반진행·사진행은 병행이 아니다
+            return False
+        return (p_top - p_bass) % 12 == (top - bass) % 12 and (top - bass) % 12 in (0, 7)
+
+    def _choose_bass(
+        self, roman: str, key: str, ctx: ComposerContext, rh_lowest: int,
+        prev_frame: tuple[int, int] | None, rh_top: int,
+    ) -> int:
+        """병행 5·8도를 만들지 않는 베이스를 고른다.
+
+        화음 구성음(근음·3음·5음)을 옥타브별로 훑어 첫 번째로 병행이 나지 않는 것을 쓴다.
+        전부 병행이면 근음을 쓴다 — 화성을 깨느니 경고 하나를 남기는 편이 낫다.
+        """
+        tones = theory.chord_pitch_classes(roman, key)
+        candidates: list[int] = []
+        for pc in tones:                       # 근음 우선, 그다음 3음·5음(자리바꿈)
+            for octave_base in (36, 48, 24):
+                n = octave_base + ((pc - octave_base) % 12)
+                while n >= min(rh_lowest, rh_top) - 2:
+                    n -= 12
+                if n >= ctx.hard.lowest_midi:
+                    candidates.append(n)
+        ordered = list(dict.fromkeys(candidates))
+        for cand in ordered:
+            if not self._is_parallel(prev_frame, cand, rh_top):
+                return cand
+        return ordered[0] if ordered else max(ctx.hard.lowest_midi, 36)
+
     def _keep_in_range(self, midi: int, ctx: ComposerContext) -> int:
         lo = max(ctx.hard.lowest_midi, 60)      # 오른손은 중앙 도 위에서
         hi = min(ctx.hard.highest_midi, 96)
@@ -517,12 +610,33 @@ class StubComposerEngine:
             midi += 12
         return midi
 
+    @staticmethod
+    def _clamp_lh(midis: list[int], ctx: ComposerContext, rh_lowest: int) -> list[int]:
+        """왼손 음을 학생 음역 안에 가둔다.
+
+        자리바꿈을 고르다 보면 저음이 학생 음역 아래로 새기 쉽다. 음역 이탈은 하드 규칙이라
+        (§7.6) 프레이즈가 통째로 폐기되므로, 만들어낸 직후 여기서 반드시 걸러야 한다.
+        """
+        out: list[int] = []
+        ceiling = max(ctx.hard.lowest_midi, rh_lowest - 1)
+        for m in midis:
+            n = m
+            while n < ctx.hard.lowest_midi:
+                n += 12
+            while n > ceiling and n - 12 >= ctx.hard.lowest_midi:
+                n -= 12
+            out.append(max(ctx.hard.lowest_midi, min(n, ceiling)))
+        return out
+
     def _fit_below(self, midis: list[int], rh_lowest: int, ctx: ComposerContext) -> list[int]:
         """왼손 음들을 통째로 옥타브 내려 오른손 최저음 아래에 둔다(손 교차 금지)."""
         if not midis:
             return midis
         shift = 0
-        while max(m + shift for m in midis) >= rh_lowest and min(m + shift for m in midis) - 12 >= ctx.hard.lowest_midi:
+        while (
+            max(m + shift for m in midis) >= rh_lowest
+            and min(m + shift for m in midis) - 12 >= ctx.hard.lowest_midi
+        ):
             shift -= 12
         out = [m + shift for m in midis]
         # 그래도 걸리면 개별 음을 내린다.
@@ -530,59 +644,77 @@ class StubComposerEngine:
 
     def _realize_lh(
         self, roman: str, key: str, bar: float, texture: str, ctx: ComposerContext,
-        rh_lowest: int, level: "TextureLevel | None" = None,
+        rh_lowest: int, level: TextureLevel | None = None,
+        prev_frame: tuple[int, int] | None = None, rh_top: int | None = None,
     ) -> list[ScoreEvent]:
-        """왼손. 오른손 최저음 아래로 유지해 손 교차를 만들지 않는다."""
+        """왼손. 오른손 최저음 아래로 유지해 손 교차를 만들지 않고, 병행 5·8도를 피한다."""
         level = level or TextureLevel(4.0)
-        tones = theory.chord_pitch_classes(roman, key)
-        root = 48 + ((tones[0] - 48) % 12)
-        while root >= min(rh_lowest - 4, 60):
-            root -= 12
-        while root < ctx.hard.lowest_midi:
-            root += 12
+        if rh_top is not None:
+            root = self._choose_bass(roman, key, ctx, rh_lowest, prev_frame, rh_top)
+        else:
+            tones = theory.chord_pitch_classes(roman, key)
+            root = 48 + ((tones[0] - 48) % 12)
+            while root >= min(rh_lowest - 4, 60):
+                root -= 12
+            while root < ctx.hard.lowest_midi:
+                root += 12
         span = ctx.hard.max_span_semitones
 
+        def names(midis: list[int]) -> list[str]:
+            clamped = self._clamp_lh(midis, ctx, rh_lowest)
+            return [theory.spell(p, key) for p in dict.fromkeys(sorted(clamped))]
+
         if "지속" in texture or "온음표" in texture:
-            notes = self._fit_below([root, root + 7], rh_lowest, ctx)
-            if notes[1] - notes[0] > span:
+            notes = self._clamp_lh(self._fit_below([root, root + 7], rh_lowest, ctx), ctx, rh_lowest)
+            if len(notes) > 1 and notes[1] - notes[0] > span:
                 notes = notes[:1]
-            return [ScoreEvent(dur=bar, pitches=[theory.spell(p, key) for p in dict.fromkeys(notes)])]
+            return [ScoreEvent(dur=bar, pitches=names(notes))]
 
         if "두껍" in texture:
-            triad = self._fit_below(theory.triad_above(root, roman, key), rh_lowest, ctx)
+            triad = self._clamp_lh(
+                self._fit_below(theory.triad_above(root, roman, key), rh_lowest, ctx),
+                ctx, rh_lowest,
+            )
             triad = [p for p in triad if p - min(triad) <= span] or [min(triad)]
-            names = [theory.spell(p, key) for p in dict.fromkeys(sorted(triad))]
             half = bar / 2
-            return [ScoreEvent(dur=half, pitches=names), ScoreEvent(dur=half, pitches=names)]
+            chord = names(triad)
+            return [ScoreEvent(dur=half, pitches=chord), ScoreEvent(dur=half, pitches=chord)]
 
-        triad = self._fit_below(theory.triad_above(root, roman, key), rh_lowest, ctx)
+        triad = self._clamp_lh(
+            self._fit_below(theory.triad_above(root, roman, key), rh_lowest, ctx), ctx, rh_lowest
+        )
+        step = bar / 4
 
         if level.lh_style == "sustain":
-            return [ScoreEvent(dur=bar, pitches=[theory.spell(triad[0], key)])]
+            return [ScoreEvent(dur=bar, pitches=names([triad[0]]))]
 
         if level.lh_style == "leaping":
             # 저음 근음 ↔ 위쪽 화음 — 손 이동 거리를 키운다(난이도 특징 lh_texture).
             low = max(ctx.hard.lowest_midi, triad[0] - 12)
-            step = bar / 4
             seq = [low, triad[2], triad[1], triad[2]]
-            return [ScoreEvent(dur=step, pitches=[theory.spell(p, key)]) for p in seq]
-
-        if level.lh_style == "wide":
+        elif level.lh_style == "wide":
             low = max(ctx.hard.lowest_midi, triad[0] - 12)
             high = min(rh_lowest - 1, triad[0] + 7)
-            step = bar / 4
             seq = [low, high, triad[1], high]
-            return [ScoreEvent(dur=step, pitches=[theory.spell(p, key)]) for p in seq]
+        else:
+            # 기본: 알베르티 저음 (근음-5도-3도-5도)
+            seq = [triad[0], triad[2], triad[1], triad[2]]
 
-        # 기본: 알베르티 저음 (근음-5도-3도-5도)
-        pattern = [triad[0], triad[2], triad[1], triad[2]]
-        step = bar / 4
-        return [ScoreEvent(dur=step, pitches=[theory.spell(p, key)]) for p in pattern]
+        seq = self._clamp_lh(seq, ctx, rh_lowest)
+        # 병행을 피하려고 고른 베이스가 반드시 첫 음이어야 판정이 맞는다.
+        if seq:
+            seq[0] = self._clamp_lh([root], ctx, rh_lowest)[0]
+        return [ScoreEvent(dur=step, pitches=[theory.spell(p, key)]) for p in seq]
 
     # ── Stage 5 ──────────────────────────────────────────────────────────
     def critique(
-        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
-        motif: MotifCandidate, musicality: dict,
+        self,
+        ctx: ComposerContext,  # noqa: ARG002 - ComposerEngine Protocol 시그니처를 지킨다
+        measures: list[Measure],  # noqa: ARG002
+        plan: CompositionPlan,
+        motif: MotifCandidate,  # noqa: ARG002
+        musicality: dict,
+        warnings: list[str] | None = None,
     ) -> CriticReport:
         """규칙 지표를 루브릭 점수로 옮긴다. 실제 비평가(Claude)의 대역."""
         met = musicality.get("metrics", {})
@@ -612,12 +744,70 @@ class StubComposerEngine:
             rng, issue, how = self._revision_for(key, plan, total)
             requests.append(RevisionRequest(measures=rng, issue=issue, instruction=how))
 
+        # 검증기의 소프트 경고도 수정 지시로 옮긴다. 경고를 비평가가 보지 않으면
+        # 병행 5·8도 같은 흠은 영원히 남는다.
+        for w in self._warning_revisions(warnings or [], total):
+            requests.append(w)
+
+        # 성부 진행 점수는 병행 경고 수에 따라 깎는다 — 지표만으로는 안 보인다.
+        parallel_count = sum(1 for w in (warnings or []) if "parallels" in w)
+        if parallel_count:
+            scores["voice_leading"] = max(
+                0.0, scores["voice_leading"] - min(4.0, parallel_count * 0.6)
+            )
+
         return CriticReport(
             scores=RubricScores(**scores),
             strengths=["모티브의 윤곽이 분명하다", "프레이즈 길이가 고르다"],
             revision_requests=requests[:5],
             overall_comment="규칙 기반 대역 비평 — 실제 심사 판단은 COMPOSER_MODEL 비평가가 한다.",
         )
+
+    @staticmethod
+    def _warning_revisions(warnings: list[str], total: int) -> list[RevisionRequest]:
+        """검증기 경고 문자열에서 마디 번호를 뽑아 구체적 수정 지시로 만든다."""
+        import re
+
+        by_rule: dict[str, list[int]] = {}
+        for w in warnings:
+            rule_match = re.match(r"\[(\w+)\]", w)
+            if not rule_match:
+                continue
+            rule = rule_match.group(1)
+            nums = [int(n) for n in re.findall(r"(\d+)마디", w)]
+            by_rule.setdefault(rule, []).extend(n for n in nums if 1 <= n <= total)
+
+        table = {
+            "parallels": (
+                "병행 5·8도가 남아 있다",
+                "해당 마디의 왼손 최저음과 오른손 최고음이 같은 방향으로 5도·8도를 이루지 않게 "
+                "왼손 화음의 자리바꿈을 바꾸거나 반진행으로 처리한다",
+            ),
+            "first_eight": (
+                "첫 8마디에 다이내믹 대비가 없다",
+                "1~8마디 안에서 최소 한 번 다이내믹을 바꾸어 심사위원의 첫인상을 만든다",
+            ),
+            "cadence": (
+                "마무리가 약하다",
+                "마지막 마디의 오른손을 2박 이상 긴 음으로 정리하고 왼손에 으뜸화음을 채운다",
+            ),
+            "climax_position": (
+                "클라이맥스 위치가 권장 대역 밖이다",
+                "클라이맥스 마디에 곡 전체의 최고음과 가장 두꺼운 텍스처가 오도록 조정한다",
+            ),
+        }
+
+        out: list[RevisionRequest] = []
+        for rule, (issue, how) in table.items():
+            nums = sorted(set(by_rule.get(rule, [])))
+            if not nums:
+                continue
+            lo, hi = nums[0], min(total, max(nums))
+            detail = f" (해당 마디 {nums[:8]})" if len(nums) > 1 else ""
+            out.append(
+                RevisionRequest(measures=[lo, max(lo, hi)], issue=issue + detail, instruction=how)
+            )
+        return out
 
     def _revision_for(
         self, key: str, plan: CompositionPlan, total: int

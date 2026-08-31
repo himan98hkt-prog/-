@@ -39,7 +39,10 @@ def check_plan(
               f"프레이즈가 덮지 않는 마디 {len(missing)}개 (예: {sorted(missing)[:6]})", [lo])
     extra = covered - set(range(1, plan.total_measures + 1))
     if extra:
-        r.add("plan_coverage", "hard", f"total_measures({plan.total_measures}) 를 넘는 마디 {sorted(extra)[:6]}")
+        r.add(
+            "plan_coverage", "hard",
+            f"total_measures({plan.total_measures}) 를 넘는 마디 {sorted(extra)[:6]}",
+        )
 
     # 2. 제한 시간 (§7.6 과 같은 95% 기준)
     bar_ql = float(m21meter.TimeSignature(plan.meter).barDuration.quarterLength)
@@ -52,7 +55,7 @@ def check_plan(
                   f"마디 수를 {int(limit / (bar_ql * 60.0 / plan.tempo))} 이하로 줄여라")
 
     # 3. 종지
-    elo, ehi = plan.ending.measures
+    ehi = plan.ending.measures[1]
     if ehi != plan.total_measures:
         r.add("plan_ending", "hard",
               f"ending 이 마지막 마디({plan.total_measures})에서 끝나지 않는다: {plan.ending.measures}")
