@@ -1,0 +1,119 @@
+{
+  "musicality": {
+    "score": 0.8267,
+    "score_10": 8.27,
+    "metrics": {
+      "motif_consistency": {
+        "value": 1.0,
+        "target": 0.7,
+        "met": true,
+        "detail": "6/6 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-12:fragment_head, 13-16:fragment_tail, 17-20:statement, 21-24:fragment_head"
+      },
+      "repetition_balance": {
+        "value": 0.2083,
+        "target": 0.6,
+        "met": false,
+        "detail": "정확 반복 4% (권장 20~45%)"
+      },
+      "melodic_contour": {
+        "value": 0.6545,
+        "target": 0.6,
+        "met": true,
+        "detail": "도약 6% (권장 15~35%) · 최고음 17마디 / 클라이맥스 17마디"
+      },
+      "harmonic_consistency": {
+        "value": 0.7654,
+        "target": 0.85,
+        "met": false,
+        "detail": "코드톤 비율 77%"
+      },
+      "phrase_balance": {
+        "value": 1.0,
+        "target": 0.8,
+        "met": true,
+        "detail": "6/6 프레이즈가 호흡으로 끝난다"
+      },
+      "dynamic_curve": {
+        "value": 1.0,
+        "target": 0.7,
+        "met": true,
+        "detail": "Plan 대비 상관 1.00 (6개 지점)"
+      },
+      "texture_contrast": {
+        "value": 1.0,
+        "target": 0.5,
+        "met": true,
+        "detail": "A→B: 동시음·음역·리듬; B→A': 동시음·리듬"
+      },
+      "playability": {
+        "value": 0.95,
+        "target": 0.7,
+        "met": true,
+        "detail": "스팬 초과 0회 · 평균 이동 3.2반음 · 연속 도약 최대 1회"
+      }
+    },
+    "unmet": [
+      "repetition_balance",
+      "harmonic_consistency"
+    ]
+  },
+  "critic": {
+    "scores": {
+      "motif_development": 8.0,
+      "form_clarity": 8.5,
+      "harmony": 7.0,
+      "voice_leading": 8.5,
+      "phrasing": 6.5,
+      "climax_ending": 7.5,
+      "student_fit": 8.5,
+      "competition_effect": 7.0,
+      "notation": 8.5,
+      "originality": 6.5
+    },
+    "strengths": [
+      "계단 모티브가 여섯 프레이즈 전부에 살아 있고, 단조 색 바꾸기(9~12)와 뒤집기(13~16)로 실제 '발전' 을 한다. 재현부에서 옥타브 위로 되살아날 때 귀가 반가워한다.",
+      "병행 5·8도가 하나도 없고 왼손이 오른손 아래를 지켜, 초2 가 손 위치를 헷갈릴 자리가 없다. 임시표도 없어 독보 부담이 적다."
+    ],
+    "revision_requests": [
+      {
+        "measures": [
+          21,
+          22
+        ],
+        "issue": "곡 전체에 '똑같이 다시 나오는' 자리가 하나도 없다. 5~6마디는 2도 위 동형진행, 17~18마디는 옥타브 위 이조라 전부 조금씩 다르다. 초2 학생에게는 귀가 쉬고 손이 외울 자리가 필요하다.",
+        "instruction": "21~22마디를 1~2마디와 음까지 똑같이 재현하라(왼손 포함). 그러면 23마디의 변형이 오히려 도드라지고, 암보 구획도 A=A' 로 단순해진다."
+      },
+      {
+        "measures": [
+          5,
+          6
+        ],
+        "issue": "ii 화음이 두 마디 연속이라 화성이 제자리걸음이고, 5마디 선율의 E·G 와 6마디의 G 가 화음 밖이라 무슨 화음인지 귀에 흐릿하다.",
+        "instruction": "6마디를 V7 으로 바꾸고 왼손을 G2+D3 로 놓아라. 오른손 첫 음 F5 는 그대로 두면 7음이 되어 오히려 또렷해지고, 7마디 V7 으로 이어지는 흐름도 자연스러워진다."
+      },
+      {
+        "measures": [
+          13,
+          16
+        ],
+        "issue": "여섯 프레이즈가 모두 정확히 4마디로 끊겨 숨이 기계적이다. 특히 B 섹션이 A 와 같은 호흡이라 대비가 텍스처에만 있고 프레이즈 길이에는 없다.",
+        "instruction": "14마디 끝과 15마디 끝에 4분쉼표를 넣어 B 안에서만 짧게 두 번 숨을 쉬고, 16마디에서 길게 늘여 A' 를 부르면 B 가 다른 호흡으로 들린다."
+      },
+      {
+        "measures": [
+          17,
+          20
+        ],
+        "issue": "클라이맥스가 C6~G6 에만 놓여 있다. 학원 업라이트나 대회장 피아노의 이 음역은 소리가 얇아서, f 로 쳐도 객석에서는 작게 들릴 위험이 있다.",
+        "instruction": "17~18마디 오른손을 한 옥타브 내려 C5~G5 로 두고, 대신 각 마디 첫 음과 다섯째 음에 3도 아래를 겹쳐 두께로 클라이맥스를 만들어라. 학생 스팬 9반음 안에 들어간다."
+      }
+    ],
+    "overall_comment": "초2 학생에게 그대로 줘도 되는 수준이다. 모티브가 분명하고 손이 안전하며 독보가 쉽다. 다만 '잘 만든 연습곡' 과 '기억에 남는 콩쿨곡' 사이에서 아직 앞쪽에 있다. 곡 전체가 조금씩 다르기만 하고 똑같이 돌아오는 자리가 없어서 청중의 귀가 붙잡을 손잡이가 없고, 4마디 프레이즈가 여섯 번 반복되어 호흡이 예측된다. 재현부를 문자 그대로 되돌리고 B 섹션의 호흡만 흐트러뜨리면 같은 재료로 훨씬 인상적인 곡이 된다.",
+    "total": 7.65
+  },
+  "revision_round": 0,
+  "passed": true,
+  "threshold": 7.0,
+  "combined_score": 7.9,
+  "notes": []
+}

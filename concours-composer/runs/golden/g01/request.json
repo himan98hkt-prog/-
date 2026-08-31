@@ -1,0 +1,62 @@
+{
+  "spec": {
+    "id": "g01",
+    "note": "초등 저학년 · 밝은 알레그로 · 시간제한 150초",
+    "level": 3,
+    "span": 6,
+    "grade": "초2",
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "옥타브",
+      "약한 왼손"
+    ],
+    "tempo": 100,
+    "comfort": 108,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 3.0,
+    "mood": "밝고 활기찬",
+    "limit": 150
+  },
+  "constraints": {
+    "max_span_semitones": 9,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 108,
+    "max_accidental_ratio": 0.15,
+    "time_limit_sec": 150,
+    "target_difficulty": 3.0,
+    "difficulty_feasible_range": [
+      1.48,
+      7.75
+    ]
+  },
+  "student": {
+    "level": 3,
+    "grade": "초2",
+    "years_of_study": 0,
+    "hand_span_interval": 6,
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "옥타브",
+      "약한 왼손"
+    ],
+    "repertoire_done": [],
+    "reading_level": 4,
+    "tempo_comfort_max_bpm": 108,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초2",
+    "time_limit_sec": 150,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

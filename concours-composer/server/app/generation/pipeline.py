@@ -19,7 +19,7 @@ from app.generation.engines.base import ComposerEngine, PhraseRequest
 from app.generation.plan_rules import check_plan
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate
 from app.schemas.quality import CriticReport, QualityReport
-from app.validate.validator import ValidationReport, validate_score
+from app.validate.validator import Issue, ValidationReport, validate_score
 
 log = logging.getLogger(__name__)
 
@@ -169,9 +169,9 @@ class CompositionPipeline:
         return [produced[n] for n in sorted(produced)], failures
 
     # ── Stage 5 ──────────────────────────────────────────────────────────
-    def soft_warnings(
+    def soft_warning_issues(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan
-    ) -> list[str]:
+    ) -> list[Issue]:
         """검증기의 소프트 규칙 위반. 저장은 막지 않지만 음악적으로는 흠이다.
 
         비평가에게 넘기지 않으면 아무도 고치지 않는다 — 병행 5·8도가 매 곡 대여섯 건씩
@@ -182,7 +182,14 @@ class CompositionPipeline:
             plan=plan, competition=ctx.competition,
             max_accidental_ratio=ctx.hard.max_accidental_ratio,
         )
-        return [f"[{i.rule}] {i.message}" for i in report.warnings]
+        return report.warnings
+
+    def soft_warnings(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan
+    ) -> list[str]:
+        return [
+            f"[{i.rule}] {i.message}" for i in self.soft_warning_issues(ctx, measures, plan)
+        ]
 
     def evaluate(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
@@ -202,8 +209,14 @@ class CompositionPipeline:
     def revise(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
         motif: MotifCandidate, critic: CriticReport,
+        only_measures: set[int] | None = None,
     ) -> list[Measure]:
-        """비평의 revision_requests 를 해당 프레이즈 재생성으로 실행한다."""
+        """비평의 revision_requests 를 해당 프레이즈 재생성으로 실행한다.
+
+        `only_measures` 를 주면 그 마디를 품은 프레이즈만 다시 쓴다. 비평가가 "곡이
+        너무 짧다" 처럼 곡 전체를 가리키는 지적을 하면 범위가 1~마지막마디가 되는데,
+        그것 때문에 멀쩡한 프레이즈까지 다시 쓰면 손해다.
+        """
         by_number = {m.number: m for m in measures}
         phrases = plan.phrases()
 
@@ -211,8 +224,13 @@ class CompositionPipeline:
         for rr in critic.revision_requests:
             lo, hi = rr.measures
             for i, p in enumerate(phrases):
-                if not (p.measures[1] < lo or p.measures[0] > hi):
-                    targets.add(i)
+                if p.measures[1] < lo or p.measures[0] > hi:
+                    continue
+                if only_measures is not None and not any(
+                    p.measures[0] <= n <= p.measures[1] for n in only_measures
+                ):
+                    continue
+                targets.add(i)
 
         for i in sorted(targets):
             p = phrases[i]
@@ -245,30 +263,36 @@ class CompositionPipeline:
 
         return [by_number[n] for n in sorted(by_number)]
 
-    # 검증기 경고에서 나온 수정 지시인지 판별하는 표식(스텁·Claude 공통 어휘)
-    _WARNING_ISSUES = ("병행", "다이내믹 대비", "마무리", "클라이맥스 위치")
-
     def _polish(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
         motif: MotifCandidate, critic: CriticReport, combined: float,
     ) -> tuple[list[Measure], tuple[dict, CriticReport, float] | None]:
-        """마무리 다듬기 — 검증기 경고를 겨냥한 수정만 실행한다.
+        """마무리 다듬기 — 검증기 경고가 실제로 난 **마디를 겨냥한** 수정만 실행한다.
+
+        예전에는 비평문에 '병행'·'마무리' 같은 낱말이 있는지로 골랐는데, 경고가 하나도
+        없는 곡도 비평가가 그 단어를 쓰기만 하면 다듬기가 돌았다. 경고의 마디 번호와
+        수정 지시의 마디 범위가 겹치는지로 판단해야 겨냥이 맞는다.
 
         점수가 떨어지거나 경고가 줄지 않으면 **원본을 유지한다**. 다듬기가 곡을
         나쁘게 만드는 일은 없어야 한다.
         """
+        issues = self.soft_warning_issues(ctx, measures, plan)
+        flagged = {n for i in issues for n in i.measures}
+        if not flagged:
+            return measures, None
+
         targeted = [
             rr for rr in critic.revision_requests
-            if any(tok in rr.issue for tok in self._WARNING_ISSUES)
+            if any(rr.measures[0] <= n <= rr.measures[1] for n in flagged)
         ]
         if not targeted:
             return measures, None
 
-        before = len(self.soft_warnings(ctx, measures, plan))
+        before = len(issues)
         trimmed = critic.model_copy(update={"revision_requests": targeted})
         self.progress("polish", 0.5, f"검증기 경고 {before}건을 겨냥해 다듬는 중")
 
-        candidate = self.revise(ctx, measures, plan, motif, trimmed)
+        candidate = self.revise(ctx, measures, plan, motif, trimmed, only_measures=flagged)
         new_musicality, new_critic = self.evaluate(ctx, candidate, plan, motif)
         new_combined = self._combined(new_musicality, new_critic)
         after = len(self.soft_warnings(ctx, candidate, plan))

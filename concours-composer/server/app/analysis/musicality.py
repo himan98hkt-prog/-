@@ -419,26 +419,34 @@ def texture_contrast(measures: list[Measure], plan: CompositionPlan | None) -> M
 
 
 def playability(measures: list[Measure], max_span_semitones: int) -> Metric:
-    """스팬·연속 도약·손 이동 거리. 난이도 검증기와 같은 재료를 쓴다."""
+    """스팬·연속 도약·손 이동 거리. 난이도 검증기와 같은 재료를 쓴다.
+
+    이동 거리는 **손마다 따로** 센다. 두 손을 이어 붙여 세면 오른손 마지막 음에서
+    왼손 첫 음으로 건너뛰는 것이 매 마디 거대한 '이동' 으로 잡혀, 두 손이 각자
+    편하게 움직이는 곡도 연주가 어렵다고 나온다.
+    """
     spans: list[int] = []
     motions: list[int] = []
-    consecutive_leaps = 0
     worst_run = 0
-    prev_top: int | None = None
-    for m in sorted(measures, key=lambda x: x.number):
-        for v in (*m.rh, *m.lh):
-            for e in v.events:
-                if not e.pitches:
-                    continue
-                midis = [pitch_to_midi(p) for p in e.pitches]
-                spans.append(max(midis) - min(midis))
-                top = max(midis)
-                if prev_top is not None:
-                    d = abs(top - prev_top)
-                    motions.append(d)
-                    consecutive_leaps = consecutive_leaps + 1 if d >= 9 else 0
-                    worst_run = max(worst_run, consecutive_leaps)
-                prev_top = top
+
+    for hand in ("rh", "lh"):
+        prev_top: int | None = None
+        consecutive_leaps = 0
+        for m in sorted(measures, key=lambda x: x.number):
+            for v in (m.rh if hand == "rh" else m.lh):
+                for e in v.events:
+                    if not e.pitches:
+                        continue
+                    midis = [pitch_to_midi(p) for p in e.pitches]
+                    spans.append(max(midis) - min(midis))
+                    top = max(midis)
+                    if prev_top is not None:
+                        d = abs(top - prev_top)
+                        motions.append(d)
+                        consecutive_leaps = consecutive_leaps + 1 if d >= 9 else 0
+                        worst_run = max(worst_run, consecutive_leaps)
+                    prev_top = top
+
     if not spans:
         return Metric("playability", 0.0, TARGETS["playability"], "음이 없다")
 

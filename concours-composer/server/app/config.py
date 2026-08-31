@@ -10,11 +10,33 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = ROOT / ".env"
+
+
+def read_api_key_from_env_file(path: Path | None = None) -> str:
+    """ANTHROPIC_API_KEY 는 **프로젝트 .env 파일에서만** 읽는다.
+
+    시스템 환경변수는 쓰지 않는다(원장 지시). 셸에 키가 떠 있으면 다른 프로세스·로그·
+    자식 프로세스로 새기 쉽고, 어느 키로 돌았는지도 추적이 안 된다. 파일 하나로 못박아
+    두면 `.env` 가 gitignore 되는 한 유출 경로가 하나로 줄어든다.
+    """
+    f = path or ENV_FILE
+    if not f.exists():
+        return ""
+    for raw in f.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        if name.strip() == "ANTHROPIC_API_KEY":
+            return value.strip().strip("\"'")
+    return ""
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(ROOT / ".env"), extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
+    # 이 필드는 __init__ 에서 .env 파일 값으로 덮어쓴다. 환경변수를 신뢰하지 않는다.
     anthropic_api_key: str = ""
     composer_model: str = "claude-opus-5"
     writer_model: str = "claude-sonnet-5"
@@ -34,6 +56,13 @@ class Settings(BaseSettings):
     # 비평 루프
     quality_threshold: float = Field(default=7.0, ge=0, le=10)
     max_revision_rounds: int = Field(default=2, ge=0, le=4)
+
+    def __init__(self, **data: object) -> None:
+        super().__init__(**data)  # type: ignore[arg-type]
+        # 환경변수에서 온 값이 있어도 버리고 .env 파일 값만 쓴다(원장 지시).
+        # 테스트가 명시적으로 넘긴 값은 존중한다.
+        if "anthropic_api_key" not in data:
+            object.__setattr__(self, "anthropic_api_key", read_api_key_from_env_file())
 
     @property
     def has_api_key(self) -> bool:

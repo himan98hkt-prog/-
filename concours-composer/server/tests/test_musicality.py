@@ -167,3 +167,24 @@ def test_full_evaluation_scores_a_good_piece_above_a_bad_one():
     g = evaluate(good, motif=motif, plan=plan).score
     b = evaluate(bad, motif=motif, plan=plan).score
     assert g > b, f"좋은 곡 {g} vs 나쁜 곡 {b}"
+
+
+def test_playability_measures_each_hand_separately():
+    """두 손을 이어 붙여 세면 오른손→왼손 건너뛰기가 매 마디 거대한 '이동' 으로 잡힌다.
+
+    아래 곡은 양손 모두 제자리에서 순차로만 움직인다 — 연주가 어려울 이유가 없다.
+    """
+    from app.analysis.musicality import playability
+
+    calm = [
+        Measure(
+            number=i,
+            rh=[Voice(events=[ScoreEvent(dur=1, pitches=[p]) for p in ["C5", "D5", "E5", "D5"]])],
+            lh=[Voice(events=[ScoreEvent(dur=1, pitches=[p]) for p in ["C3", "D3", "E3", "D3"]])],
+        )
+        for i in range(1, 9)
+    ]
+    m = playability(calm, max_span_semitones=12)
+    assert m.met, m.detail
+    # 손마다 순차 이동이므로 평균 이동은 2반음 근처여야 한다.
+    assert "평균 이동 1" not in m.detail or "평균 이동 1." in m.detail

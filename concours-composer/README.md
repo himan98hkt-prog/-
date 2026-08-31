@@ -35,13 +35,29 @@ Stage 7  원장 편곡           ★   구간 재생성·직접 편집
 | **골든 회귀**(§7.8) | 요청 20건에 대해 검증 통과율·음악성·비평 총점을 기록. 프롬프트를 바꾸면 이 결과를 비교한다 |
 | **3안 비교**(§7.9 원칙 5) | 같은 모티브로 최대 3안을 만들어 종합점수 최고안을 기본 표시하고 나머지는 비교 청취 |
 | **자기 코퍼스**(§6.1 §7.8) | 원장이 올린 콩쿨 명곡·교재에서 StyleProfile 을 뽑아 요청마다 비슷한 곡을 찾아 주입. 저작권곡은 통계만 쓰고 음표열은 **보관조차 하지 않는다** |
+| **원장 피드백**(§8) | 👍/👎 · 이유 태그 · **실제로 손댄 마디** 를 평가 시점의 지표와 함께 얼려 저장. 가중치 보정은 표본 30건 뒤(M8) |
+
+## 작곡 엔진 세 가지
+
+파이프라인은 어느 엔진인지 모른다 — 같은 `ComposerEngine` Protocol 을 구현한다.
+
+| 엔진 | 언제 | 검증기·지표 |
+|---|---|---|
+| `ClaudeComposerEngine` | 운영. `.env` 에 API 키가 있으면 자동 | 그대로 적용 |
+| `SessionComposerEngine` | Claude Code 세션이 직접 작곡 (API 미호출) | 그대로 적용 |
+| `StubComposerEngine` | 테스트·CI·오프라인 데모 | 그대로 적용 |
+
+세션 엔진 사용법과 산출물은 [docs/SESSION_ENGINE.md](docs/SESSION_ENGINE.md).
+실제로 만든 5곡의 결과·비용은 [runs/golden/SUMMARY.md](runs/golden/SUMMARY.md).
+
+**API 키는 프로젝트 `.env` 파일에서만 읽는다.** 시스템 환경변수는 쓰지 않는다.
 
 ## 빠르게 돌려보기
 
 ```bash
 cp .env.example .env          # ANTHROPIC_API_KEY 를 넣는다. 없으면 규칙 기반 스텁으로 돈다
 make venv && make check-tools # 외부 도구 점검
-make test                     # 93건
+make test                     # 146건
 make demo-m3                  # 모티브 → 설계 → 작곡 → 채점 → 비평, 전 과정 출력
 make demo-judge               # 모의 심사 3인
 make golden                   # 골든 20건 회귀 → docs/golden-report.md
@@ -76,6 +92,9 @@ POST /api/corpus/search?request_id=...              이 요청에 붙을 참고�
 POST /api/compositions/{id}/guide                   §6.6 연주법 해설(4주 연습 계획·암보 구획)
 POST /api/compositions/{id}/title                   제목 후보 3 + 추천
 GET  /api/compositions/{id}/midi                    손별 트랙이 나뉜 MIDI
+
+POST /api/feedback                                  원장 평가(👍/👎·이유 태그·손댄 마디)
+GET  /api/feedback/stats                            '수정 없이 사용' 비율 · 보정 준비 여부
 ```
 
 워크플로 순서는 URL 로 강제된다 — 모티브 없이 설계할 수 없고, 승인되지 않은 설계로

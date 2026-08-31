@@ -51,6 +51,24 @@ def _j(obj: object) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=1, default=str)
 
 
+def fixed_context(ctx: ComposerContext) -> str:
+    """곡 하나를 만드는 동안 **한 글자도 바뀌지 않는** 부분.
+
+    학생 프로필·하드 제약·콩쿨 규정·코퍼스 요약·학원 실전 데이터가 여기 들어간다.
+    프레이즈마다 이것을 다시 과금할 이유가 없으므로 프롬프트 캐시 접두사로 보낸다.
+    바뀌는 것(이번 프레이즈의 plan·직전 마디)은 user 메시지로 가야 캐시가 깨지지 않는다.
+    """
+    payload = ctx.prompt_payload()
+    return _j({
+        "student": payload["student"],
+        "constraints": payload["constraints"],
+        "competition": payload["competition"],
+        "style_context": payload["style_context"],
+        "academy_data": payload["academy_data"],
+        "request": payload["request"],
+    })
+
+
 class ClaudeComposerEngine:
     name = "claude"
 
@@ -67,8 +85,7 @@ class ClaudeComposerEngine:
 
     # ── Stage 1 ──────────────────────────────────────────────────────────
     def motifs(self, ctx: ComposerContext, n: int, feedback: str = "") -> list[MotifCandidate]:
-        payload = ctx.prompt_payload()
-        payload["n"] = n
+        payload: dict[str, object] = {"n": n}
         if feedback:
             payload["director_feedback"] = feedback
         batch = self.client.parse(
@@ -77,6 +94,7 @@ class ClaudeComposerEngine:
             user=_j(payload),
             output_model=MotifBatch,
             model=self.settings.composer_model,
+            fixed_context=fixed_context(ctx),
         )
         out: list[MotifCandidate] = []
         for i, c in enumerate(batch.candidates):
@@ -85,17 +103,17 @@ class ClaudeComposerEngine:
 
     # ── Stage 2 ──────────────────────────────────────────────────────────
     def plan(self, ctx: ComposerContext, motif: MotifCandidate) -> CompositionPlan:
-        payload = ctx.prompt_payload()
-        payload["locked_motif"] = motif.model_dump()
-        payload["suggested_total_measures"] = estimate_measures(
-            ctx.request, motif.meter, motif.tempo
-        )
+        payload = {
+            "locked_motif": motif.model_dump(),
+            "suggested_total_measures": estimate_measures(ctx.request, motif.meter, motif.tempo),
+        }
         return self.client.parse(
             stage="plan",
             system=load_prompt("plan"),
             user=_j(payload),
             output_model=CompositionPlan,
             model=self.settings.composer_model,
+            fixed_context=fixed_context(ctx),
         )
 
     # ── Stage 3 ──────────────────────────────────────────────────────────
@@ -111,9 +129,6 @@ class ClaudeComposerEngine:
             "meter": req.plan.meter,
             "tempo": req.plan.tempo,
             "previous_measures": [m.model_dump() for m in req.previous_measures],
-            "constraints": ctx.hard.as_dict(),
-            "student_strengths": ctx.student.strengths,
-            "student_weaknesses": ctx.student.weaknesses,
         }
         # 구간 재생성이면 지시가 붙는다 — 프롬프트도 바뀐다.
         name = "regenerate_region" if req.instruction else "realize_phrase"
@@ -126,6 +141,7 @@ class ClaudeComposerEngine:
             user=_j(payload),
             output_model=PhraseRealization,
             model=self.settings.composer_model,
+            fixed_context=fixed_context(ctx),
         )
 
     # ── Stage 5 ──────────────────────────────────────────────────────────
@@ -137,8 +153,6 @@ class ClaudeComposerEngine:
             "score_text": score_to_text(measures, plan),
             "plan": plan.model_dump(),
             "locked_motif": motif.model_dump(),
-            "student": ctx.prompt_payload()["student"],
-            "constraints": ctx.hard.as_dict(),
             "rule_based_musicality": musicality,
             "validator_warnings": warnings or [],
             "total_measures": len(measures),
@@ -149,6 +163,7 @@ class ClaudeComposerEngine:
             user=_j(payload),
             output_model=CriticReport,
             model=self.settings.composer_model,
+            fixed_context=fixed_context(ctx),
         )
 
 

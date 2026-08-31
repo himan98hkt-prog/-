@@ -13,3 +13,7 @@ models/
 .env
 *.log
 web/tests/__snapshots__/*.actual.png
+
+# 세션 작곡 산출물: 악보·MIDI·리포트는 커밋하고, 재생성 가능한 프롬프트는 제외
+runs/golden/*/*_prompt.md
+runs/golden/*/*_error.txt

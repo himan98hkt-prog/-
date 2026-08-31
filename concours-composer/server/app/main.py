@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import compositions, corpus, health, judge, recitals, students
+from app.api import compositions, corpus, feedback, health, judge, recitals, students
 from app.config import get_settings, validate_models
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -45,3 +45,4 @@ app.include_router(corpus.router)
 app.include_router(compositions.router)
 app.include_router(judge.router)
 app.include_router(recitals.router)
+app.include_router(feedback.router)
