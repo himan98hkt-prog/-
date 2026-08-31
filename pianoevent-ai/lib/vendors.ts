@@ -34,6 +34,15 @@ export interface CategorySpec {
   findable: boolean
   /** 찾아지지 않는 갈래에 드리는 안내 */
   hint: string
+  /**
+   * 재능마켓(숨고)에서 사람이 실제로 구해지는 갈래인가.
+   *
+   * **공급이 없는 곳으로 보내 드리면 안 된다.** 연주홀 대관과 아동 드레스 대여는
+   * 숨고에서 거의 안 나온다 — 그쪽은 지도로만 보낸다.
+   */
+  market: boolean
+  /** 재능마켓에서 쓸 검색어 (지도 검색어와 부르는 말이 다르다) */
+  marketQuery: string
 }
 
 export const CATEGORIES: CategorySpec[] = [
@@ -44,6 +53,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '가장 먼저 잠가야 하는 것. 날짜가 여기서 정해집니다.',
     findable: true,
     hint: '구민회관·문화의집·아트홀은 대개 지자체 누리집에서 예약합니다.',
+    market: false,
+    marketQuery: '',
   },
   {
     id: 'accompanist',
@@ -52,6 +63,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '연탄·협주 순서가 있으면 미리 잡아 두십시오.',
     findable: false,
     hint: '개인이라 지도에는 잘 안 나옵니다. 가까운 음대 학과 사무실, 지역 음악 선생님 모임, 반주자 구인 카페 쪽이 빠릅니다.',
+    market: true,
+    marketQuery: '피아노 반주',
   },
   {
     id: 'mc',
@@ -60,6 +73,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '대본은 프로그램이 만들어 드립니다. 읽어 주실 분만 정하시면 됩니다.',
     findable: false,
     hint: '개인이라 지도에는 잘 안 나옵니다. 학부모·고학년 학생·선생님이 맡는 경우가 가장 많습니다.',
+    market: true,
+    marketQuery: '행사 사회자',
   },
   {
     id: 'dress',
@@ -68,6 +83,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '치수와 반납일을 함께 적어 두십시오.',
     findable: true,
     hint: '',
+    market: false,
+    marketQuery: '',
   },
   {
     id: 'photo',
@@ -76,6 +93,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '감동영상에 쓸 사진도 이분께 부탁드리면 됩니다.',
     findable: true,
     hint: '',
+    market: true,
+    marketQuery: '행사 스냅 촬영',
   },
   {
     id: 'tuner',
@@ -84,6 +103,8 @@ export const CATEGORIES: CategorySpec[] = [
     detail: '행사 1~2일 전으로. 당일 조율은 리허설과 겹칩니다.',
     findable: true,
     hint: '',
+    market: true,
+    marketQuery: '피아노 조율',
   },
 ]
 
@@ -269,7 +290,21 @@ export interface SearchLink {
 }
 
 /**
- * 지도 검색 주소를 만든다.
+ * 찾으러 보내는 곳.
+ *
+ * ⚠️ **주소 모양이 바뀌면 이 표 한 곳만 고치면 됩니다.**
+ * 지도·검색 서비스는 가끔 주소 모양을 바꾼다. 화면 여기저기에 흩어 두면 그때
+ * 몇 군데를 고쳐야 할지 알 수 없게 되므로 한 곳에 모아 둔다.
+ */
+const PLACES = {
+  naverMap: (q: string) => `https://map.naver.com/p/search/${encodeURIComponent(q)}`,
+  kakaoMap: (q: string) => `https://map.kakao.com/?q=${encodeURIComponent(q)}`,
+  naver: (q: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(q)}`,
+  soomgo: (q: string) => `https://soomgo.com/search?q=${encodeURIComponent(q)}`,
+} as const
+
+/**
+ * 지도에서 찾는 길 — **자리(가게)** 가 있는 갈래.
  *
  * 업체 정보를 우리가 모으지 않는다 — 목록은 썩고, 썩은 목록은 없느니만 못하다.
  * 늘 최신인 지도 서비스로 **검색어만 만들어** 보내 드린다.
@@ -279,12 +314,25 @@ export function searchLinks(category: VendorCategory, region: string): SearchLin
   const spec = categorySpec(category)
   if (!spec) return []
   const q = `${region.trim()} ${spec.query}`.trim()
-  const enc = encodeURIComponent(q)
   return [
-    { label: '네이버 지도', url: `https://map.naver.com/p/search/${enc}` },
-    { label: '카카오맵', url: `https://map.kakao.com/?q=${enc}` },
-    { label: '구글 검색', url: `https://www.google.com/search?q=${enc}` },
+    { label: '네이버 지도', url: PLACES.naverMap(q) },
+    { label: '카카오맵', url: PLACES.kakaoMap(q) },
+    { label: '네이버 검색', url: PLACES.naver(q) },
   ]
+}
+
+/**
+ * 사람을 구하는 길 — **가게가 아니라 사람**인 갈래.
+ *
+ * 반주자·사회자는 개인이라 지도에 안 나온다. 대신 재능마켓에는 있다.
+ * 공급이 없는 갈래(연주홀 대관·아동 드레스)에는 이 길을 만들지 않는다 —
+ * 눌렀는데 아무것도 없으면 안 만드느니만 못하다.
+ */
+export function marketLinks(category: VendorCategory, region: string): SearchLink[] {
+  const spec = categorySpec(category)
+  if (!spec || !spec.market) return []
+  const q = `${region.trim()} ${spec.marketQuery}`.trim()
+  return [{ label: '숨고에서 찾기', url: PLACES.soomgo(q) }]
 }
 
 /** 태블릿·휴대폰에서 눌러 바로 걸 수 있게. 숫자가 없으면 링크를 만들지 않는다 */

@@ -1,4 +1,5 @@
 import type { EventRecord } from '@/lib/types'
+import type { VendorBookings, VendorCategory } from '@/lib/vendors'
 
 /**
  * 연주회 예산·정산.
@@ -48,7 +49,63 @@ export const DEFAULT_BUDGET_ITEMS: BudgetItem[] = [
   { id: 'snack', label: '간식·음료', note: '대기실 학생용. 관객 배포는 홀 규정을 확인하세요.', basis: 'per_student', unit_cost: 3_000, qty: 1, optional: true },
   { id: 'banner', label: '현수막·포토존', note: '현수막은 재사용하면 연도만 바꿔 다시 씁니다.', basis: 'fixed', unit_cost: 80_000, qty: 1, optional: true },
   { id: 'staff', label: '진행 보조 인건비', note: '접수·안내 2명 기준 반일.', basis: 'fixed', unit_cost: 160_000, qty: 1, optional: true },
+  /*
+   * 아래 셋은 **기본 단가를 0원으로 둔다.**
+   *
+   * 반주자·사회자·드레스는 학원마다 있고 없고가 갈리고, 값의 폭도 크다.
+   * 그런데도 어림값을 넣어 두면 아무것도 안 하신 원장님께 **없는 비용이 잡힌
+   * 예산**을 보여 드리게 된다. 「함께할 분들」에 실제 금액을 적으시면 그때
+   * 들어온다(applyVendorFees).
+   */
+  { id: 'accompanist', label: '반주자 사례비', note: '「함께할 분들」에 금액을 적으시면 그대로 들어옵니다.', basis: 'fixed', unit_cost: 0, qty: 1, optional: true },
+  { id: 'mc', label: '사회자 사례비', note: '학부모·선생님이 맡으시면 0원입니다.', basis: 'fixed', unit_cost: 0, qty: 1, optional: true },
+  { id: 'dress', label: '드레스 대여', note: '전원 대여인지 피날레만인지 먼저 정하세요.', basis: 'fixed', unit_cost: 0, qty: 1, optional: true },
 ]
+
+/**
+ * 「함께할 분들」의 갈래가 예산의 어느 줄로 가는가.
+ *
+ * 두 화면이 따로 놀면 원장님은 같은 금액을 두 번 적으셔야 한다. 한 번만 적으시고
+ * 예산은 저절로 맞기를 바란다.
+ */
+export const VENDOR_TO_BUDGET: Record<VendorCategory, string> = {
+  hall: 'venue',
+  tuner: 'tuning',
+  photo: 'photo',
+  accompanist: 'accompanist',
+  mc: 'mc',
+  dress: 'dress',
+}
+
+export interface PricedBudget {
+  items: BudgetItem[]
+  /** 어림값이 아니라 **실제로 적어 두신 금액**이 들어간 줄 — 화면에 표시한다 */
+  fromVendor: Record<string, string>
+}
+
+/**
+ * 적어 두신 실제 금액으로 어림값을 바꿔 끼운다.
+ *
+ * 예산표의 기본 단가는 「중소도시 통상 범위」라는 어림이다. 대관료를 이미
+ * 계약하셨다면 그 숫자가 진짜다 — 진짜가 있는 자리에 어림을 두면 안 된다.
+ */
+export function applyVendorFees(items: BudgetItem[], bookings: VendorBookings): PricedBudget {
+  const fromVendor: Record<string, string> = {}
+  const next = items.map((item) => {
+    const category = (Object.keys(VENDOR_TO_BUDGET) as VendorCategory[]).find(
+      (c) => VENDOR_TO_BUDGET[c] === item.id,
+    )
+    if (!category) return item
+    const booking = bookings[category]
+    // 금액을 안 적으셨으면 그대로 둔다 — 0원으로 덮어쓰면 어림값이 사라진다
+    if (!booking || booking.fee === null || booking.fee <= 0) return item
+    fromVendor[item.id] = booking.name
+    // 고정비가 아닌 줄(1인당 등)은 건드리지 않는다 — 뜻이 달라진다
+    if (item.basis !== 'fixed') return item
+    return { ...item, unit_cost: booking.fee, qty: 1 }
+  })
+  return { items: next, fromVendor }
+}
 
 export interface BudgetInput {
   students: number

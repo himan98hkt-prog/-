@@ -10,6 +10,7 @@ import { formatWon } from '@/lib/ops/budget'
 import {
   CATEGORIES,
   guessRegion,
+  marketLinks,
   normalizeBook,
   normalizeBookings,
   pastVendors,
@@ -157,6 +158,8 @@ export function VendorPanel({
         <p className="text-xs text-muted-foreground">
           한 번 적으신 곳은 <b className="text-foreground">학원 수첩</b>에 남습니다.
           내년 연주회에서는 「지난번 그대로」 한 번이면 됩니다.
+          {' '}적어 두신 금액은 <b className="text-foreground">「행사 계획 → 예산」</b>에
+          그대로 들어가 참가비까지 계산됩니다.
         </p>
       </CardContent>
       </details>
@@ -185,6 +188,8 @@ function VendorCard({
 }) {
   const [showSearch, setShowSearch] = useState(false)
   const links = useMemo(() => searchLinks(spec.id, region), [spec.id, region])
+  // 사람을 구하는 갈래에만 재능마켓 길을 낸다 — 없는 곳으로 보내지 않는다
+  const market = useMemo(() => marketLinks(spec.id, region), [spec.id, region])
   const tel = booking?.phone ? telHref(booking.phone) : null
   const sms = booking?.phone ? smsHref(booking.phone) : null
 
@@ -294,8 +299,10 @@ function VendorCard({
                 </>
               ) : (
                 <>
-                  <p className="text-muted-foreground">{spec.hint}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <p className="mb-2 text-muted-foreground">
+                    <b className="text-foreground">지도에는 잘 안 나오는 갈래</b>입니다 — 개인이라 가게가 없습니다.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
                     {links.slice(2).map((link) => (
                       <a
                         key={link.label}
@@ -304,11 +311,29 @@ function VendorCard({
                         rel="noreferrer noopener"
                         className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                       >
-                        그래도 검색해 보기 <ExternalLink className="h-3 w-3" aria-hidden />
+                        {link.label} <ExternalLink className="h-3 w-3" aria-hidden />
                       </a>
                     ))}
                   </div>
+                  <p className="mt-2 text-muted-foreground">{spec.hint}</p>
                 </>
+              )}
+              {/* 사람을 구하는 갈래에는 재능마켓 길을 함께 낸다 */}
+              {market.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+                  <span className="text-muted-foreground">사람으로 구하실 때 —</span>
+                  {market.map((link) => (
+                    <a
+                      key={link.label}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className={cn(buttonVariants({ variant: 'accent', size: 'sm' }))}
+                    >
+                      {link.label} <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  ))}
+                </div>
               )}
               {spec.findable && spec.hint && <p className="mt-2 text-muted-foreground">{spec.hint}</p>}
             </div>

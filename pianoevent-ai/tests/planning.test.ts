@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { diagnoseProgram, issueSummary } from '@/lib/program/diagnose'
 import { buildProgram } from '@/lib/program/order'
-import { buildBudget, DEFAULT_BUDGET_ITEMS, formatWon } from '@/lib/ops/budget'
+import { applyVendorFees, buildBudget, DEFAULT_BUDGET_ITEMS, formatWon } from '@/lib/ops/budget'
 import { buildRehearsal, rehearsalCallMessage, rehearsalSummary } from '@/lib/ops/rehearsal'
 import { buildSeating, seatLabel } from '@/lib/ops/seating'
 import type { EventRecord, Rsvp } from '@/lib/types'
@@ -299,5 +299,51 @@ describe('순서표 정밀 진단', () => {
 
   it('빈 순서표는 진단할 것이 없다', () => {
     expect(diagnoseProgram(buildProgram([]))).toEqual([])
+  })
+})
+
+
+describe('적어 두신 금액이 예산으로', () => {
+  const booking = (name: string, fee: number | null) => ({
+    name, phone: '', fee, status: 'booked' as const, memo: '', updated_at: '2026-09-01T00:00:00.000Z',
+  })
+
+  it('실제 금액이 어림값을 밀어낸다', () => {
+    const { items, fromVendor } = applyVendorFees(DEFAULT_BUDGET_ITEMS, {
+      hall: booking('하모니홀', 550_000),
+    })
+    expect(items.find((i) => i.id === 'venue')!.unit_cost).toBe(550_000)
+    expect(fromVendor.venue).toBe('하모니홀')
+  })
+
+  it('금액을 안 적으셨으면 어림값을 그대로 둔다 — 0원으로 덮지 않는다', () => {
+    const before = DEFAULT_BUDGET_ITEMS.find((i) => i.id === 'venue')!.unit_cost
+    const { items, fromVendor } = applyVendorFees(DEFAULT_BUDGET_ITEMS, { hall: booking('하모니홀', null) })
+    expect(items.find((i) => i.id === 'venue')!.unit_cost).toBe(before)
+    expect(fromVendor.venue).toBeUndefined()
+  })
+
+  it('반주자·사회자·드레스는 적으시기 전까지 0원이다', () => {
+    // 어림값을 넣어 두면 없는 비용이 잡힌 예산을 보여 드리게 된다
+    for (const id of ['accompanist', 'mc', 'dress']) {
+      expect(DEFAULT_BUDGET_ITEMS.find((i) => i.id === id)!.unit_cost).toBe(0)
+    }
+    const { items } = applyVendorFees(DEFAULT_BUDGET_ITEMS, { accompanist: booking('김반주', 150_000) })
+    expect(items.find((i) => i.id === 'accompanist')!.unit_cost).toBe(150_000)
+  })
+
+  it('1인당으로 세는 줄은 건드리지 않는다 — 뜻이 달라진다', () => {
+    const before = DEFAULT_BUDGET_ITEMS.find((i) => i.id === 'print')!.unit_cost
+    const { items } = applyVendorFees(DEFAULT_BUDGET_ITEMS, { hall: booking('하모니홀', 550_000) })
+    expect(items.find((i) => i.id === 'print')!.unit_cost).toBe(before)
+  })
+
+  it('바뀐 금액이 합계와 참가비에 반영된다', () => {
+    const base = { students: 20, families: 18, guests: 54, academy_share: 0 }
+    const plain = buildBudget({ ...base, items: DEFAULT_BUDGET_ITEMS })
+    const { items } = applyVendorFees(DEFAULT_BUDGET_ITEMS, { hall: booking('하모니홀', 900_000) })
+    const real = buildBudget({ ...base, items })
+    expect(real.total).toBeGreaterThan(plain.total)
+    expect(real.suggested_fee).toBeGreaterThan(plain.suggested_fee)
   })
 })

@@ -115,8 +115,9 @@ const openFind = async (id) => {
 }
 
 const photoCard = await openFind('photo')
+const FIND_LINKS = 'a[href*="map.naver"], a[href*="map.kakao"], a[href*="search.naver"]'
 const links = await photoCard
-  .locator('a[href*="map."], a[href*="google.com/search"]')
+  .locator(FIND_LINKS)
   .evaluateAll((els) => els.map((el) => el.getAttribute('href')))
 say(links.length === 3, `찾아지는 갈래는 길을 셋 준다 (${links.length}개)`)
 say(links.every((u) => u.includes(encodeURIComponent('일산동구'))), '검색어에 학원 지역이 붙는다')
@@ -127,7 +128,7 @@ say(
 
 const mcCard = await openFind('accompanist')
 const mcLinks = await mcCard
-  .locator('a[href*="map."], a[href*="google.com/search"]')
+  .locator(FIND_LINKS)
   .evaluateAll((els) => els.map((el) => el.getAttribute('href')))
 say(mcLinks.length === 1, `지도에 안 나오는 갈래는 길을 하나만 준다 (${mcLinks.length}개)`)
 say(
@@ -162,6 +163,33 @@ if (!nextId) {
   )
   await fetch(`${BASE}/api/events/${nextId}`, { method: 'DELETE' })
 }
+
+// ── 적어 두신 금액이 예산으로 흘러가는가 ────────────────────────────
+//
+// 이 기능의 값은 「한 번만 적으면 비용 예측까지 된다」에 있다.
+// 두 화면이 따로 놀면 원장님은 같은 금액을 두 번 적으셔야 한다.
+const plan = await ctx.newPage()
+await plan.goto(`${BASE}/events/demo-event?tab=plan`, { waitUntil: 'networkidle' })
+await plan.waitForTimeout(800)
+say(
+  await plan.getByText('하모니홀 · 적어 두신 금액', { exact: false }).count() > 0,
+  '예산표에 「적어 두신 금액」 표시가 붙는다',
+)
+const venueLine = await plan
+  .locator('label', { hasText: '대관료' })
+  .first()
+  .innerText()
+say(venueLine.includes('300,000'), `예산의 대관료가 적어 두신 300,000원이 된다 (${venueLine.split('\n').pop()})`)
+
+// ── 재능마켓 길 — 공급이 있는 갈래에만 ──────────────────────────────
+const mcCard2 = await openFind('mc')
+const soomgo = await mcCard2.locator('a[href*="soomgo"]').count()
+say(soomgo === 1, `사람으로 구하는 갈래에 재능마켓 길이 있다 (${soomgo}개)`)
+const dressCard = await openFind('dress')
+say(
+  (await dressCard.locator('a[href*="soomgo"]').count()) === 0,
+  '공급이 없는 갈래(드레스 대여)에는 재능마켓 길을 만들지 않는다',
+)
 
 // ── 자리 비우기 ────────────────────────────────────────────────────
 await fresh.getByRole('button', { name: '연주홀 · 대관 고치기' }).click()

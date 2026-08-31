@@ -10,6 +10,7 @@ import { formatWallClock } from '@/lib/format'
 import {
   BASIS_LABEL,
   DEFAULT_BUDGET_ITEMS,
+  applyVendorFees,
   buildBudget,
   feeNoticeMessage,
   formatWon,
@@ -18,6 +19,7 @@ import { DEFAULT_REHEARSAL_OPTIONS, buildRehearsal, rehearsalCallMessage } from 
 import { DEFAULT_SEATING_OPTIONS, buildSeating, seatLabel } from '@/lib/ops/seating'
 import { ISSUE_LEVEL_LABEL, diagnoseProgram, issueSummary, type IssueLevel } from '@/lib/program/diagnose'
 import type { Academy, EventRecord, ProgramPlan, Rsvp } from '@/lib/types'
+import { normalizeBookings } from '@/lib/vendors'
 import { cn } from '@/lib/utils'
 
 const LEVEL_STYLE: Record<IssueLevel, string> = {
@@ -94,16 +96,24 @@ export function PlanPanel({
   const [off, setOff] = useState<Record<string, boolean>>({})
   const [share, setShare] = useState(0)
   const attending = useMemo(() => rsvps.filter((r) => r.attending), [rsvps])
+  /**
+   * 「함께할 분들」에 적어 두신 **실제 금액**을 어림값 위에 얹는다.
+   * 같은 숫자를 두 번 적으시게 하지 않는다.
+   */
+  const priced = useMemo(
+    () => applyVendorFees(DEFAULT_BUDGET_ITEMS, normalizeBookings(event.vendor_bookings)),
+    [event.vendor_bookings],
+  )
   const budget = useMemo(
     () =>
       buildBudget({
         students: plan.items.length,
         families: Math.max(attending.length, plan.items.length),
         guests: attending.reduce((s, r) => s + r.headcount, 0) || plan.items.length * 3,
-        items: DEFAULT_BUDGET_ITEMS.filter((item) => !off[item.id]),
+        items: priced.items.filter((item) => !off[item.id]),
         academy_share: share,
       }),
-    [plan.items.length, attending, off, share],
+    [plan.items.length, attending, off, share, priced],
   )
 
   // ── 좌석 ──────────────────────────────────────────────────
@@ -259,7 +269,7 @@ export function PlanPanel({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            {DEFAULT_BUDGET_ITEMS.map((item) => {
+            {priced.items.map((item) => {
               const line = budget.lines.find((l) => l.item.id === item.id)
               const enabled = !off[item.id]
               return (
@@ -284,6 +294,11 @@ export function PlanPanel({
                         {BASIS_LABEL[item.basis]} {item.unit_cost.toLocaleString('ko-KR')}원
                       </span>
                       {!item.optional && <Badge variant="outline" className="text-xs">필수</Badge>}
+                      {priced.fromVendor[item.id] && (
+                        <Badge variant="accent" className="text-xs">
+                          {priced.fromVendor[item.id]} · 적어 두신 금액
+                        </Badge>
+                      )}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">{item.note}</span>
                   </span>

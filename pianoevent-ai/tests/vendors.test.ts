@@ -3,6 +3,7 @@ import {
   BOOK_PER_CATEGORY,
   CATEGORIES,
   guessRegion,
+  marketLinks,
   normalizeBook,
   normalizeBookings,
   pastVendors,
@@ -60,6 +61,29 @@ describe('지도 검색 주소', () => {
     const [naver] = searchLinks('hall', '중구 & 남구')
     expect(naver.url).not.toContain(' ')
     expect(naver.url).not.toContain('&')
+  })
+})
+
+describe('재능마켓 길', () => {
+  it('사람으로 구하는 갈래에만 길을 낸다 — 없는 곳으로 보내지 않는다', () => {
+    // 연주홀 대관과 아동 드레스 대여는 숨고에 공급이 없다
+    expect(marketLinks('hall', '일산동구')).toEqual([])
+    expect(marketLinks('dress', '일산동구')).toEqual([])
+    for (const id of ['accompanist', 'mc', 'photo', 'tuner'] as const) {
+      expect(marketLinks(id, '일산동구')).toHaveLength(1)
+    }
+  })
+
+  it('지도 검색어와 부르는 말이 다르다', () => {
+    // 지도에서는 「피아노 반주자」, 숨고에서는 「피아노 반주」로 잡힌다
+    const [market] = marketLinks('accompanist', '일산동구')
+    expect(market.url).toContain(encodeURIComponent('일산동구 피아노 반주'))
+    expect(market.url.startsWith('https://')).toBe(true)
+  })
+
+  it('지도에 안 나오는 갈래도 검색 길은 남겨 둔다', () => {
+    // 「그래도 한번 찾아보고 싶다」는 마음을 막지 않는다
+    expect(searchLinks('accompanist', '일산동구').length).toBeGreaterThan(0)
   })
 })
 
