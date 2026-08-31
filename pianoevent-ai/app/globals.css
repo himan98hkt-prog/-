@@ -1,0 +1,671 @@
+/* 인쇄물 테마용 한글 서체. 오프라인이면 시스템 서체로 자연스럽게 대체된다 */
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Jua&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Song+Myung&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui,
+      sans-serif;
+    --font-serif: 'Nanum Myeongjo', 'Apple SD Gothic Neo', Batang, serif;
+    --background: 40 33% 98%;
+    --foreground: 222 38% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 38% 14%;
+    --primary: 222 47% 20%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 40 30% 94%;
+    --secondary-foreground: 222 38% 14%;
+    --muted: 40 20% 95%;
+    --muted-foreground: 222 12% 44%;
+    --accent: 38 62% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 16% 88%;
+    --input: 40 16% 86%;
+    --ring: 38 62% 48%;
+    --radius: 0.7rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'ss01', 'cv01';
+    /* 화면(단계)마다 바탕색이 다르다. 기본은 여느 화면과 같은 색 */
+    --screen-bg: hsl(var(--background));
+  }
+
+  /*
+   * 누른 느낌은 **모든 단추**에 걸린다.
+   *
+   * 공용 부품(`Button`)에만 넣었더니, 그 부품을 안 쓰고 직접 쓴 `<button>` 들이
+   * 그대로 죽은 채 남았다. 화면에 따라 어떤 것은 반응하고 어떤 것은 안 하면
+   * 「이건 눌리는 건가?」를 매번 생각하셔야 한다. 그래서 바탕에서 한 번에 건다.
+   *
+   * 강조색 테까지 두르는 것은 `.press` 를 붙인 진짜 단추만이다(`@layer components`).
+   */
+  button,
+  summary,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 110ms ease,
+      box-shadow 110ms ease,
+      background-color 140ms ease,
+      color 140ms ease;
+  }
+
+  button:active:not(:disabled),
+  summary:active,
+  [role='button']:active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    summary,
+    [role='button'] {
+      transition-duration: 0.01ms;
+    }
+
+    button:active:not(:disabled),
+    summary:active,
+    [role='button']:active {
+      transform: none;
+    }
+  }
+
+  /* 어느 화면인지 색으로 먼저 안다 — 글로 적어 두면 안 읽으신다 */
+  .app-shell {
+    background: var(--screen-bg);
+  }
+
+  @media print {
+    .app-shell {
+      background: #fff;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * 판.
+   *
+   * 그림자 한 겹으로는 종이가 바닥에 붙어 보인다. 얇은 것 두 겹을 겹치면
+   * 살짝 떠 있는 것처럼 보이고, 그게 화면을 한 단계 비싸 보이게 한다.
+   */
+  /*
+   * 손가락으로 쓰는 기기에서는 단추가 커야 한다.
+   *
+   * 연주회 **당일**에는 태블릿을 들고 다니신다. 그때 36px 단추는 손가락 끝보다 작아
+   * 옆의 것이 눌린다. 그렇다고 PC 화면까지 키우면 한 화면에 들어가던 것이 밀려난다.
+   * 그래서 **누르는 방식이 손가락일 때만**(pointer: coarse) 44px 로 키운다.
+   * (`npm run verify:mobile` 이 화면마다 재고, 40px 미만이면 실패로 잡는다.)
+   */
+  @media (pointer: coarse) {
+    button,
+    summary,
+    [role='button'],
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    /*
+     * 링크도 마찬가지다. `min-height` 는 **줄 안에 흐르는 글자 링크에는 아무 영향이 없다**
+     * (인라인 요소에는 적용되지 않는 성질). 그래서 판처럼 놓인 링크만 커진다.
+     */
+    a {
+      min-height: 44px;
+    }
+
+    /* 체크상자는 이름표를 누르시지만, 상자 자체도 손가락에 보이게 조금 키운다 */
+    input[type='checkbox'],
+    input[type='radio'] {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .surface {
+    @apply rounded-lg border border-border bg-card;
+    box-shadow:
+      0 1px 2px rgba(24, 24, 43, 0.05),
+      0 2px 8px -4px rgba(24, 24, 43, 0.06);
+    /*
+     * 격자 칸 안에서 **줄어들 수 있어야 한다.**
+     *
+     * 격자 칸은 기본이 `min-width: auto` 라 안에 줄바꿈 없는 긴 것(초대장 주소 한 줄)이
+     * 하나만 있어도 카드가 통째로 화면 밖으로 밀린다. 휴대폰에서 초대장 화면이
+     * 71px 옆으로 새고 있었고, 손가락으로 옆으로 밀어야 단추가 보였다.
+     * (`npm run verify:mobile` 이 찾았다.)
+     */
+    min-width: 0;
+  }
+
+  /*
+   * 누를 수 있는 판.
+   *
+   * 카드가 링크인데 눌러도 아무 반응이 없으면 **누를 수 있는 줄 모르신다.**
+   * 얹으면 살짝 떠오르고, 누르면 도로 내려앉는다.
+   */
+  .surface-lift {
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      border-color 140ms ease;
+  }
+
+  @media (hover: hover) {
+    .surface-lift:hover {
+      transform: translateY(-2px);
+      border-color: hsl(var(--accent) / 0.45);
+      box-shadow:
+        0 2px 4px rgba(24, 24, 43, 0.06),
+        0 12px 24px -12px rgba(24, 24, 43, 0.18);
+    }
+  }
+
+  .surface-lift:active {
+    transform: translateY(0);
+    box-shadow:
+      0 1px 2px rgba(24, 24, 43, 0.08),
+      inset 0 1px 3px rgba(24, 24, 43, 0.06);
+  }
+
+  /*
+   * 누른 느낌.
+   *
+   * 이 프로그램에서 가장 자주 들은 말이 「눌렀는지 모르겠다」였다.
+   * 단추에 `:active` 가 아예 없어서 눌러도 화면이 그대로였다.
+   *
+   * 셋을 한꺼번에 준다 — 1px 내려앉고, 아주 살짝 줄고, 둘레에 테가 번진다.
+   * 하나만으로는 눈이 편치 않은 분께 안 보인다. 셋이면 못 보고 지나칠 수 없다.
+   */
+  .press {
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 110ms ease,
+      box-shadow 110ms ease,
+      background-color 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease;
+  }
+
+  .press:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    box-shadow:
+      0 0 0 3px hsl(var(--ring) / 0.28),
+      inset 0 2px 4px rgba(24, 24, 43, 0.18);
+  }
+
+  /*
+   * 채워진 단추의 윗면 광택 — 금속처럼 도톰해 보인다.
+   *
+   * 이것을 `bg-gradient-to-b` 유틸리티로 붙이면 안 된다. `tailwind-merge` 가
+   * 배경색과 같은 갈래로 보고 `bg-primary` 를 지워 버린다(단추가 하얘진다).
+   */
+  .press-filled {
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 62%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 1px 2px rgba(24, 24, 43, 0.16),
+      0 2px 6px -3px rgba(24, 24, 43, 0.28);
+  }
+
+  @media (hover: hover) {
+    .press-filled:hover:not(:disabled) {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 2px 4px rgba(24, 24, 43, 0.18),
+        0 6px 14px -6px rgba(24, 24, 43, 0.32);
+    }
+  }
+
+  /* 화살표는 얹으면 조금 나아간다 — 「눌러서 가는 곳」이라는 신호 */
+  .nudge svg,
+  .nudge .arrow {
+    transition: transform 160ms ease;
+  }
+
+  @media (hover: hover) {
+    .nudge:hover svg,
+    .nudge:hover .arrow {
+      transform: translateX(3px);
+    }
+  }
+
+  /* 지금 보고 계신 화면 — 머리띠에서 금색 밑줄로 표시한다 */
+  .nav-here {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+  }
+
+  .nav-here::after {
+    content: '';
+    display: block;
+    height: 2px;
+    margin-top: 3px;
+    border-radius: 2px;
+    background: hsl(var(--accent));
+  }
+
+  /*
+   * 줄줄이 나타나기.
+   *
+   * 카드가 한꺼번에 뜨면 어디부터 볼지 모르신다. 왼쪽부터 차례로 뜨면
+   * 눈이 저절로 그 순서를 따라간다. 아주 짧게(0.35초 안에) 끝난다.
+   */
+  .stagger > * {
+    animation: fade-up 0.38s ease-out both;
+  }
+
+  .stagger > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .stagger > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .stagger > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  .stagger > *:nth-child(n + 5) {
+    animation-delay: 240ms;
+  }
+}
+
+/*
+ * 움직임을 꺼 두신 분께는 움직이지 않는다.
+ * 어지럼증이 있는 분께 움직이는 화면은 쓸 수 없는 화면이다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .surface-lift,
+  .press,
+  .nudge svg,
+  .nudge .arrow {
+    transition-duration: 0.01ms !important;
+  }
+
+  .surface-lift:hover,
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+
+  .stagger > *,
+  .animate-fade-up {
+    animation: none !important;
+  }
+}
+
+@media print {
+  .surface {
+    box-shadow: none !important;
+  }
+}
+
+/* 인쇄용 순서표 / 활동지 — A4 세로, 화면 전용 요소는 숨김 */
+/* 무대 화면 — 인쇄(PDF 저장)용 슬라이드 묶음은 화면에 보이지 않는다 */
+.stage-print-deck {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .stage-print-deck {
+    display: block !important;
+  }
+
+  .stage-print-page {
+    break-after: page;
+    page-break-after: always;
+    overflow: hidden;
+  }
+
+  /* 무대 화면·인쇄물은 색이 전부다. "배경 그래픽" 체크를 잊어도 색이 나오게 강제한다 */
+  .stage-print-page,
+  .stage-slide,
+  .d-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .stage-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .print-break {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ── 첫 장만 뽑아 보기 ──────────────────────────────────────
+     인쇄 설정(배율·여백·배경 그래픽)을 맞게 하셨는지는 결국 한 장 뽑아 봐야 안다.
+     100부를 걸기 전에 한 장만 나오게 잘라 둔다. 종이 한 장이 100장을 살린다. */
+  .print-first-only .print-first-clip {
+    max-height: var(--first-page-h, 1000px);
+    overflow: hidden;
+  }
+
+  /* 여러 장이 이어지는 인쇄물은 첫 장만 남긴다 */
+  .print-first-only .stage-print-page:not(:first-of-type),
+  .print-first-only .print-page ~ .print-page,
+  .print-first-only .help-prose section:not(:first-child) {
+    display: none !important;
+  }
+}
+
+/* ── 사용설명서 본문 ──────────────────────────────────────────
+   설명서는 글이 전부다. 읽는 데만 도움이 되게 최소한으로 꾸민다. */
+.help-prose {
+  color: hsl(var(--foreground));
+  line-height: 1.85;
+  font-size: 0.95rem;
+  max-width: 46rem;
+}
+.help-prose h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+}
+.help-prose h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid hsl(var(--border));
+}
+.help-prose h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.4rem 0 0.4rem;
+}
+.help-prose p {
+  margin: 0.7rem 0;
+}
+.help-prose ul,
+.help-prose ol {
+  margin: 0.7rem 0;
+  padding-left: 1.3rem;
+  list-style: revert;
+}
+.help-prose li {
+  margin: 0.3rem 0;
+}
+.help-prose code {
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.88em;
+}
+.help-prose pre {
+  background: hsl(var(--secondary));
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  margin: 0.9rem 0;
+}
+.help-prose pre code {
+  background: none;
+  padding: 0;
+}
+.help-prose blockquote {
+  border-left: 3px solid hsl(var(--accent));
+  background: hsl(var(--accent) / 0.06);
+  border-radius: 0 8px 8px 0;
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+}
+.help-prose blockquote p {
+  margin: 0.35rem 0;
+}
+.help-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  display: block;
+  overflow-x: auto;
+}
+.help-prose th,
+.help-prose td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+.help-prose th {
+  background: hsl(var(--secondary));
+  font-weight: 600;
+  white-space: nowrap;
+}
+.help-prose hr {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.6rem 0;
+}
+.help-prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* 설명서 그림 — "이 화면 맞나?" 에서 멈추지 않으시게 절마다 한 장씩 */
+.help-prose .help-shot {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--muted));
+}
+@media print {
+  .help-prose {
+    max-width: none;
+    font-size: 10.5pt;
+  }
+  /* 종이에서는 그림이 글을 밀어내지 않게 반쯤으로 */
+  .help-prose .help-shot {
+    max-width: 60%;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .help-prose h2 {
+    page-break-before: always;
+  }
+  .help-prose section:first-child h2 {
+    page-break-before: auto;
+  }
+}
+
+
+/*
+ * 금박 글씨.
+ *
+ * 제목을 금박 사진으로 칠한다 — 진짜 금박으로 찍은 것처럼 보인다.
+ * 「고급지게」에서 가장 값싸게 효과가 큰 한 수다.
+ *
+ * 글자 모양으로 배경을 오려 내는 것이라, 이걸 못 하는 브라우저에서는 글씨가
+ * 사라져 버린다. 그래서 기본값은 **강조색 글씨**로 두고, 할 수 있을 때만 금박을 입힌다.
+ */
+.d-foil {
+  color: var(--d-accent);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .d-foil {
+    background-image: url('/art/texture/gold-foil.jpg');
+    background-size: cover;
+    background-position: center;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+
+/* ────────────────────────────────────────────────────────────────
+ * 첫 화면.
+ *
+ * 프로그램을 켜면 가장 먼저 보이는 자리다. 여기가 문서처럼 보이면 프로그램 전체가
+ * 문서처럼 보인다. 사진을 화면 끝까지 붙이고, 마디마다 바탕을 갈라 놓는다.
+ * ──────────────────────────────────────────────────────────────── */
+@layer components {
+  .hero-band {
+    background: #0d0c12;
+  }
+
+  /* 사진이 아주 천천히 다가온다 — 움직임을 알아채기 전에 「살아 있다」만 느껴질 만큼 */
+  .hero-photo {
+    animation: hero-drift 24s ease-out both;
+    object-position: center 62%;
+  }
+
+  @keyframes hero-drift {
+    from {
+      transform: scale(1.06);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  /*
+   * 글씨가 앉을 자리를 눌러 준다.
+   * 왼쪽에서 오른쪽으로 옅어지므로 사진의 오른쪽은 그대로 보인다.
+   */
+  .hero-scrim {
+    background:
+      linear-gradient(100deg, rgba(8, 8, 12, 0.92) 0%, rgba(8, 8, 12, 0.72) 42%, rgba(8, 8, 12, 0.18) 78%),
+      linear-gradient(to top, rgba(8, 8, 12, 0.55) 0%, rgba(8, 8, 12, 0) 40%);
+  }
+
+  .hero-eyebrow {
+    font-size: 0.8rem;
+    letter-spacing: 0.28em;
+    color: hsl(var(--accent));
+    font-weight: 600;
+  }
+
+  .hero-gold {
+    color: #e7c887;
+  }
+
+  .section-eyebrow {
+    font-size: 0.78rem;
+    letter-spacing: 0.26em;
+    font-weight: 600;
+    color: hsl(var(--accent));
+  }
+
+  /* 네 칸을 1px 선으로만 가른다 — 카드 넷보다 한 덩어리로 보인다 */
+  .step-cell {
+    transition: background-color 200ms ease;
+  }
+
+  @media (hover: hover) {
+    .step-cell:hover {
+      background: hsl(var(--secondary));
+    }
+  }
+
+  .step-no {
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: hsl(var(--accent) / 0.35);
+    letter-spacing: 0.02em;
+  }
+
+  /* 결과물 띠 — 어두운 바탕에 포스터를 늘어놓는다 */
+  .showcase-band {
+    background:
+      radial-gradient(120% 90% at 20% 0%, rgba(199, 148, 58, 0.16) 0%, rgba(13, 12, 18, 0) 55%),
+      #14131a;
+  }
+
+  .showcase-card {
+    overflow: hidden;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease;
+  }
+
+  @media (hover: hover) {
+    .showcase-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(231, 200, 135, 0.55);
+      box-shadow: 0 26px 52px -20px rgba(0, 0, 0, 0.95);
+    }
+  }
+
+  /* 행사 카드 위에 금색 실선 한 줄 */
+  .event-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .event-card::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    background: linear-gradient(to right, hsl(var(--accent)), hsl(var(--accent) / 0.25));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-photo {
+    animation: none;
+  }
+
+  .showcase-card:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .hero-band,
+  .showcase-band {
+    display: none !important;
+  }
+}

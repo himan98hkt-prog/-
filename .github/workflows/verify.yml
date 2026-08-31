@@ -1,0 +1,48 @@
+# 브라우저 실행이 필요한 검증 — 시간이 걸려 매 PR 마다 돌리지 않고 필요할 때 수동 실행한다.
+# (릴리스 전 점검: docs/DEPLOY.md 체크리스트)
+name: 브라우저 검증
+
+on:
+  workflow_dispatch:
+    inputs:
+      students:
+        description: '성능 테스트 원생 수'
+        required: false
+        default: '1000'
+      attendance:
+        description: '성능 테스트 출결 레코드 수'
+        required: false
+        default: '200000'
+
+jobs:
+  browser:
+    name: 시나리오 스모크 · 성능 측정
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Chromium 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: 시나리오 스모크 (계열 전환 · 브랜딩 · 백업 · 라이선스)
+        run: npm run smoke
+
+      - name: 성능 측정 (전 화면 1초 기준)
+        run: node scripts/perf.mjs --students ${{ inputs.students }} --attendance ${{ inputs.attendance }}
+
+      - name: 성능 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: perf-report
+          path: perf-report.json
+          retention-days: 30
