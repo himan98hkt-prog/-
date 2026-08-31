@@ -7,6 +7,7 @@ import { CopyButton } from '@/components/copy-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EventExport } from '@/components/event/event-transfer'
+import { VendorPanel } from '@/components/event/vendor-panel'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatWallClock } from '@/lib/format'
 import { buildChecklist, checklistTaskCount, currentGroup } from '@/lib/ops/checklist'
@@ -73,6 +74,10 @@ export function PrepPanel({
 
   return (
     <div className="grid gap-5">
+      {/* 종이는 프로그램이 만들어 드리지만 사람은 원장님이 부르셔야 한다.
+          그 자리를 비워 두면 「알아서 하세요」가 되므로 체크리스트 바로 위에 둔다 */}
+      <VendorPanel academy={academy} event={event} />
+
       {now && (
         <Card className="border-accent/40 bg-accent/5">
           <CardHeader>

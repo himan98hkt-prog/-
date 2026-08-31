@@ -45,6 +45,8 @@ const ACADEMY: Academy = {
   photo_url: null,
   assets: [],
   timing_log: null,
+  vendors: [],
+  region: null,
   created_at: '2026-01-01T00:00:00.000Z',
 }
 
@@ -65,6 +67,7 @@ const EVENT: EventRecord = {
   design_theme: null,
   design_template: null,
   design_copy: null,
+  vendor_bookings: null,
   photo_url: null,
   image_map: null,
   stage_prefs: null,

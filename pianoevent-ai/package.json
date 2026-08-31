@@ -43,7 +43,8 @@
     "keygen:build": "node scripts/make-keygen.mjs",
     "secret:check": "node --experimental-strip-types scripts/check-license-secret.mjs",
     "product:image": "node scripts/make-product-image.mjs",
-    "verify:embed": "node scripts/verify-embed.mjs"
+    "verify:embed": "node scripts/verify-embed.mjs",
+    "verify:vendors": "node scripts/verify-vendors.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

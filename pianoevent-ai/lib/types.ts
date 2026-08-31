@@ -2,6 +2,7 @@ import type { AcademyAsset, ImageMap } from '@/lib/assets'
 import type { LiveState } from '@/lib/ops/live'
 import type { TimingLog } from '@/lib/ops/timing'
 import type { Prefs } from '@/lib/prefs'
+import type { VendorBookings, VendorMemo } from '@/lib/vendors'
 
 /** 연주 난이도 — 순서 배치 단계(stage)를 결정하는 1차 기준 */
 export type Level = 'beginner' | 'intermediate' | 'advanced' | 'ensemble'
@@ -30,6 +31,13 @@ export interface Academy {
    * 학생 명단은 행사마다 새로 만들어지지만 아이는 그대로라 학원에 쌓는다.
    */
   timing_log: TimingLog | null
+  /**
+   * 함께한 분들 수첩 — 연주홀·반주자·사회자·드레스·사진·조율사.
+   * 행사가 끝나도 학원에 남아 내년에 그대로 꺼내진다.
+   */
+  vendors: VendorMemo[]
+  /** 업체를 찾을 때 쓰는 지역 (「일산동구」). 학원은 한 동네에 있으니 학원에 둔다 */
+  region: string | null
   created_at: string
 }
 
@@ -58,6 +66,8 @@ export interface EventRecord {
   design_template: string | null
   /** 인쇄물 문구 (부제·주최·문의·안내) */
   design_copy: Record<string, string> | null
+  /** 이 연주회에 누구를 부르기로 했는지 (갈래별 한 곳) */
+  vendor_bookings: VendorBookings | null
   /** 이 행사의 대표 사진 (작년 연주회·단체 사진 등). 없으면 학원 대표 사진을 쓴다 */
   photo_url: string | null
   /** 인쇄물 갈래별로 어떤 보관함 이미지를 쓸지. 비우면 기본값을 따른다 */

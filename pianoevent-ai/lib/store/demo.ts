@@ -64,6 +64,8 @@ function seed(): Db {
         photo_url: DEMO_PHOTO,
         assets: [],
         timing_log: null,
+        vendors: [],
+        region: null,
         created_at: created,
       },
     ],
@@ -86,6 +88,7 @@ function seed(): Db {
         design_theme: null,
         design_template: null,
         design_copy: null,
+        vendor_bookings: null,
         photo_url: null,
         image_map: null,
         stage_prefs: null,
@@ -163,6 +166,8 @@ export class DemoRepository implements Repository {
       photo_url: null,
       assets: [],
       timing_log: null,
+      vendors: [],
+      region: null,
       created_at: nowIso(),
     }
     db.academies.push(academy)
@@ -220,6 +225,7 @@ export class DemoRepository implements Repository {
       design_theme: null,
       design_template: null,
       design_copy: null,
+      vendor_bookings: null,
       photo_url: null,
       image_map: null,
       stage_prefs: null,
