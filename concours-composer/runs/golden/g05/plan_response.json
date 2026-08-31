@@ -1,0 +1,742 @@
+{
+  "title_candidates": [
+    "개선 행진",
+    "높이 오르는 계단",
+    "금빛 스케일"
+  ],
+  "key": "G",
+  "meter": "4/4",
+  "tempo": 120,
+  "total_measures": 80,
+  "duration_est": 160.0,
+  "difficulty_target": 6.0,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        24
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 16분음표 상행 음계로 한 옥타브를 훑고 4분음표 둘로 착지. 2마디는 하행 8분음표로 받는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "1~4마디를 그대로 한 번 더. 같은 것이 돌아와야 스케일이 장식이 아니라 주제로 들린다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 상행 음계를 한 음 위 자리에서. 11마디는 딸림7화음 위에서 가장 넓게 훑는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            13,
+            16
+          ],
+          "motif_treatment": "transpose_to_dominant",
+          "texture_rh": "딸림조 자리로 옮긴다. 14마디 C#5 를 짚어 색을 바꾸고 15~16마디는 딸림7화음에 걸어 묻는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            17,
+            18
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "상행 음계 머리만 떼어 두 마디로 조인다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            19,
+            24
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "19~22마디는 다시 1~4마디 그대로. 23~24마디를 덧붙여 A 를 여섯 마디 악절로 닫는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        25,
+        52
+      ],
+      "phrases": [
+        {
+          "measures": [
+            25,
+            28
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "마단조 색. 16분음표를 멈추고 4분음표로 노래한다. 여린 소리가 약점이므로 pp 로 내려가지 않고 mp 까지만",
+          "texture_lh": "왼손 온음표 화음으로 깔고 베이스만 낮게 이동. 스케일을 멈추고 숨을 고른다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            29,
+            32
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "상행 음계를 뒤집어 하행으로. 여전히 4분음표, 여전히 차분하게",
+          "texture_lh": "왼손 온음표 화음으로 깔고 베이스만 낮게 이동. 스케일을 멈추고 숨을 고른다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            33,
+            36
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 넓게 벌린다",
+          "texture_lh": "왼손 온음표 화음으로 깔고 베이스만 낮게 이동. 스케일을 멈추고 숨을 고른다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            37,
+            40
+          ],
+          "motif_treatment": "sequence_down_3rd",
+          "texture_rh": "8분음표가 돌아온다. 38마디 C#5 로 색을 바꾸고 딸림화음으로 밀어붙인다",
+          "texture_lh": "왼손이 절반만 돌아온다 — 2분음표 화음 두 번. 온음표(B 앞부분)와 4분음표(A) 사이 단계",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            41,
+            42
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "상행 음계 머리 두 마디 분절",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            43,
+            44
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "하행 꼬리 두 마디로 대답",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            45,
+            48
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "16분음표가 완전히 돌아온다. 딸림화음 위에서 두 마디씩 밀며 재현을 준비한다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            49,
+            52
+          ],
+          "motif_treatment": "texture_swap",
+          "texture_rh": "왼손이 화음을 두껍게 잡고 오른손이 스케일을 훑는다. 재현 직전 가장 두꺼운 자리",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        53,
+        80
+      ],
+      "phrases": [
+        {
+          "measures": [
+            53,
+            56
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "53~56마디는 1~4마디를 **그대로** 되돌린다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            57,
+            60
+          ],
+          "motif_treatment": "octave_shift",
+          "texture_rh": "스케일이 한 옥타브 위로 올라간다. 58마디 A6 가 곡 전체의 최고음이자 정점 — 이 학생의 화려한 스케일이 가장 크게 들리는 네 마디다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "ff"
+        },
+        {
+          "measures": [
+            61,
+            64
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "정점 뒤 한 단계 내려와 정리한다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            65,
+            66
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "41~42마디 두 마디 분절을 그대로 한 번 더",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            67,
+            68
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "43~44마디 대답을 그대로 한 번 더",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            69,
+            74
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "여섯 마디로 마무리를 연다. 72마디 거짓 종지(vi)에서 한 번 접는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            75,
+            80
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "75~76마디에 모티브 머리가 마지막으로 돌아오고, 78마디 거짓 종지를 한 번 더 지난 뒤 80마디 화음으로 닫는다",
+          "texture_lh": "왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+          "dynamic": "f"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 2,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 3,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 4,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 5,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 6,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 7,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 8,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 9,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 10,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 11,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 12,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 13,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 14,
+      "roman": "II",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 15,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 16,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 17,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 18,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 19,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 20,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 21,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 22,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 23,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 24,
+      "roman": "V",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 25,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 26,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 27,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 28,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 29,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 30,
+      "roman": "iii",
+      "bass_note": "B2"
+    },
+    {
+      "measure": 31,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 32,
+      "roman": "V",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 33,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 34,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 35,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 36,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 37,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 38,
+      "roman": "II",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 39,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 40,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 41,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 42,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 43,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 44,
+      "roman": "V",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 45,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 46,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 47,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 48,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 49,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 50,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 51,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 52,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 53,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 54,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 55,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 56,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 57,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 58,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 59,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 60,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 61,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 62,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 63,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 64,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 65,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 66,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 67,
+      "roman": "ii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 68,
+      "roman": "V",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 69,
+      "roman": "IV",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 70,
+      "roman": "II",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 71,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 72,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 73,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 74,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 75,
+      "roman": "I",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 76,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 77,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 78,
+      "roman": "vi",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 79,
+      "roman": "V7",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 80,
+      "roman": "I",
+      "bass_note": "G2"
+    }
+  ],
+  "climax": {
+    "measure": 57,
+    "how": "스케일이 한 옥타브 위로 올라가 58마디 A6 에서 곡의 최고음에 닿는다. ff + 왼손 옥타브 베이스. 여린 소리가 약점인 학생에게 가장 크게 칠 자리를 정확히 만들어 준다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        57,
+        60
+      ],
+      "strength_used": "화려한 스케일"
+    }
+  ],
+  "contrast_section": {
+    "label": "B",
+    "how": "마단조 색(조성), 16분음표를 멈추고 4분·2분음표로(리듬 밀도), 왼손 옥타브를 온음표 화음으로(텍스처) — 셋이 함께 바뀐다"
+  },
+  "modulations": [],
+  "ending": {
+    "type": "거짓 종지(78마디 vi) 뒤 완전종지 V7-I + 화음 마무리",
+    "measures": [
+      75,
+      80
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mf"
+    },
+    {
+      "measure": 5,
+      "dyn": "f"
+    },
+    {
+      "measure": 9,
+      "dyn": "mf"
+    },
+    {
+      "measure": 13,
+      "dyn": "f"
+    },
+    {
+      "measure": 17,
+      "dyn": "mf"
+    },
+    {
+      "measure": 19,
+      "dyn": "f"
+    },
+    {
+      "measure": 25,
+      "dyn": "mp"
+    },
+    {
+      "measure": 33,
+      "dyn": "mf"
+    },
+    {
+      "measure": 41,
+      "dyn": "f"
+    },
+    {
+      "measure": 45,
+      "dyn": "mf"
+    },
+    {
+      "measure": 53,
+      "dyn": "f"
+    },
+    {
+      "measure": 57,
+      "dyn": "ff"
+    },
+    {
+      "measure": 65,
+      "dyn": "f"
+    },
+    {
+      "measure": 69,
+      "dyn": "mf"
+    },
+    {
+      "measure": 75,
+      "dyn": "f"
+    }
+  ],
+  "pedal_plan": "화성이 바뀌는 마디마다 첫 박에 밟고 다음 마디 첫 박에서 바꾼다. 16분음표 스케일 구간은 얕게"
+}

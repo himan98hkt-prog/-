@@ -165,6 +165,33 @@ def write_summary_table(rows: list[dict]) -> Path:
             f"{r['difficulty']}({r['difficulty_target']}) |"
         )
 
+    prev = RUNS.parent / "golden-v1"
+    if prev.exists():
+        lines += [
+            "", "## 이전 판과 비교", "",
+            "`runs/golden-v1/` 에 개선 전 다섯 곡이 그대로 있다. 길이 확대·프레이즈 길이 가변화·",
+            "표현 다양성 지표를 반영하기 전 결과다.", "",
+            "| id | 마디 (전→후) | 연주시간 (전→후) | 제한 시간 사용률 (전→후) |",
+            "|---|---|---|---|",
+        ]
+        for r in rows:
+            old_path = prev / r["id"] / "summary.json"
+            if not old_path.exists():
+                continue
+            o = json.loads(old_path.read_text(encoding="utf-8"))
+            limit = r["time_limit_sec"] or 1
+            lines.append(
+                f"| {r['id']} | {o['measures']} → {r['measures']} | "
+                f"{o['duration_sec']}초 → {r['duration_sec']}초 | "
+                f"{o['duration_sec'] / limit:.0%} → {r['duration_sec'] / limit:.0%} |"
+            )
+        lines += [
+            "",
+            "> 음악성 점수는 지표 자체가 바뀌었으므로(표현 다양성 추가 + 가중치 재배분)",
+            "> 두 판을 직접 비교하지 않는다. 같은 잣대로 비교하려면 개선 후 코드로",
+            "> 이전 판을 다시 채점해야 한다.",
+        ]
+
     lines += ["", "## 미달 지표", ""]
     for r in rows:
         lines.append(f"- **{r['id']}** {r['title']}: {', '.join(r['unmet']) or '없음'}")
