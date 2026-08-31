@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConcoursComposer — 콩쿨곡 작곡</title>
+<style>
+  :root{
+    --bg:#faf8f5; --panel:#fff; --ink:#241f1a; --muted:#7a6f63; --line:#e6ded3;
+    --accent:#7b2233; --ok:#2f6b45; --warn:#9a6a12; --bad:#a32b21;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.65 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+  header{background:var(--panel);border-bottom:1px solid var(--line);padding:18px 24px}
+  h1{margin:0;font-size:19px;letter-spacing:-.2px}
+  h1 small{display:block;color:var(--muted);font-size:13px;font-weight:400;margin-top:4px}
+  main{max-width:1080px;margin:0 auto;padding:24px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+          padding:20px;margin-bottom:18px}
+  section h2{margin:0 0 4px;font-size:16px}
+  section p.hint{margin:0 0 14px;color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);
+    border-radius:7px;font:inherit;font-size:14px;background:#fff;color:var(--ink)}
+  textarea{min-height:64px;resize:vertical}
+  button{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:11px 20px;
+    font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{background:#c9bfb5;cursor:not-allowed}
+  button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:14px;cursor:pointer;background:#fff}
+  .card:hover{border-color:var(--accent)}
+  .card.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .card h3{margin:0 0 6px;font-size:15px}
+  .card p{margin:0;font-size:13px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;min-width:70px}
+  .bar i{display:block;height:100%;background:var(--ok)}
+  .bar i.miss{background:var(--warn)}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600}
+  .tag.ok{background:#e6f2ea;color:var(--ok)} .tag.warn{background:#fbf1dd;color:var(--warn)}
+  .tag.bad{background:#fbe9e7;color:var(--bad)}
+  pre{background:#f4efe8;border-radius:7px;padding:12px;overflow:auto;font-size:12px;line-height:1.5}
+  .msg{padding:10px 12px;border-radius:7px;font-size:13px;margin-top:12px}
+  .msg.warn{background:#fbf1dd;color:var(--warn)} .msg.bad{background:#fbe9e7;color:var(--bad)}
+  .hidden{display:none}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ConcoursComposer
+    <small>학생 맞춤형 콩쿨 독창곡 — 모티브를 고르고, 설계를 승인하고, 곡을 받는다</small></h1>
+</header>
+
+<main>
+  <section>
+    <h2>1. 학생과 요청</h2>
+    <p class="hint">손 스팬·음역·템포는 <strong>하드 제약</strong>이다. 이걸 어긴 악보는 저장되지 않는다.</p>
+    <div class="grid">
+      <div><label>학생 이름</label><input id="name" value="김민준"></div>
+      <div><label>학년</label><input id="grade" value="초3"></div>
+      <div><label>레벨 1~10</label><input id="level" type="number" value="4" min="1" max="10"></div>
+      <div><label>손 스팬(도)</label><input id="span" type="number" value="7" min="2" max="12"></div>
+      <div><label>편안한 템포 상한(bpm)</label><input id="comfort" type="number" value="112"></div>
+      <div><label>독보 수준 1~10</label><input id="reading" type="number" value="5" min="1" max="10"></div>
+      <div><label>강점(쉼표로 구분)</label><input id="strengths" value="빠른 손가락"></div>
+      <div><label>약점(쉼표로 구분)</label><input id="weaknesses" value="옥타브"></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div><label>목표 난이도</label><input id="difficulty" type="number" step="0.5" value="4"></div>
+      <div><label>조성</label><input id="key" value="A"></div>
+      <div><label>박자</label><input id="meter" value="4/4"></div>
+      <div><label>템포</label><input id="tempo" type="number" value="104"></div>
+      <div><label>콩쿨 제한 시간(초)</label><input id="limit" type="number" value="150"></div>
+      <div><label>형식</label>
+        <select id="form"><option>ABA</option><option>AB</option><option>rondo</option>
+          <option>sonatina</option><option>variations</option></select></div>
+    </div>
+    <div style="margin-top:12px"><label>분위기·필수 요소</label>
+      <textarea id="mood">밝고 활기찬 알레그로, 중간에 서정적 대비, 마지막은 화려하게</textarea></div>
+    <div class="row"><button id="btnRequest">요청 만들기</button><span id="reqInfo"></span></div>
+    <div id="feasWarn" class="msg warn hidden"></div>
+  </section>
+
+  <section id="secMotif" class="hidden">
+    <h2>2. 모티브 고르기</h2>
+    <p class="hint">좋은 곡은 좋은 모티브에서 나온다. 하나를 고르면 그 뒤 모든 단계가 이것을 참조한다.</p>
+    <div class="grid" id="motifs"></div>
+    <div class="row"><button class="ghost" id="btnMore">이 느낌으로 더 보기</button></div>
+  </section>
+
+  <section id="secPlan" class="hidden">
+    <h2>3. 설계 승인</h2>
+    <p class="hint">음표를 쓰기 전에 형식·화성·클라이맥스·쇼케이스를 확인한다.</p>
+    <div id="planSummary"></div>
+    <table id="planTable"></table>
+    <div id="planIssues"></div>
+    <div class="row"><button id="btnRealize">이 설계로 작곡</button>
+      <span class="hint" style="margin:0">프레이즈 4마디씩 순차 생성 → 검증 → 비평 루프</span></div>
+  </section>
+
+  <section id="secResult" class="hidden">
+    <h2>4. 결과</h2>
+    <div id="resultSummary"></div>
+    <h3 style="font-size:14px;margin:18px 0 8px">음악성 지표</h3>
+    <table id="metrics"></table>
+    <h3 style="font-size:14px;margin:18px 0 8px">비평가의 수정 지시</h3>
+    <table id="revisions"></table>
+    <div class="row">
+      <button class="ghost" id="btnJudge">모의 심사 3인</button>
+      <button class="ghost" id="btnXml">MusicXML 내려받기</button>
+    </div>
+    <div id="judgeOut"></div>
+  </section>
+</main>
+
+<footer>
+  이 시스템은 입상을 보장하지 않는다. 규정 위반을 막고, 학생의 강점을 드러내고,
+  약점을 미리 찾아 <strong>입상 확률을 높이는 것</strong>까지가 역할이다.
+</footer>
+
+<script>
+const API = localStorage.getItem("cc_api") || "http://localhost:8000";
+let requestId = null, chosenMotif = null, plan = null, compositionId = null;
+
+const $ = (id) => document.getElementById(id);
+const val = (id) => $(id).value.trim();
+const num = (id) => Number($(id).value);
+const list = (id) => val(id).split(",").map(s => s.trim()).filter(Boolean);
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: { "Content-Type": "application/json" }, ...options,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail || body));
+  return body;
+}
+
+function student() {
+  return {
+    id: "s1", name: val("name"), grade: val("grade"), years_of_study: 0,
+    hand_span: { max_interval: num("span") }, level: num("level"),
+    repertoire_done: [], strengths: list("strengths"), weaknesses: list("weaknesses"),
+    tempo_comfort_max_bpm: num("comfort"), reading_level: num("reading"),
+    lowest_midi: 36, highest_midi: 93, notes: "",
+    media_consent: { reels_public: false, show_full_name: false },
+  };
+}
+
+$("btnRequest").onclick = async () => {
+  try {
+    const body = await api("/api/requests", { method: "POST", body: JSON.stringify({
+      id: "", student: student(),
+      competition: num("limit") > 0 ? {
+        id: "c1", name: "콩쿨", organizer: "", year: null, division: val("grade"),
+        time_limit_sec: num("limit"), original_allowed: true, score_submission_rules: "",
+        memorization_required: false, repeats_allowed: true, criteria_text: "", judge_notes: "",
+      } : null,
+      target_difficulty: num("difficulty"), mood: val("mood"), form: val("form"),
+      key_preference: [val("key")], meter: val("meter"), tempo: num("tempo"),
+      total_measures: null, reference_style_ids: [], texture_options: [],
+      must_include: "", n_candidates: 1,
+    })});
+    requestId = body.request_id;
+    const c = body.constraints;
+    $("reqInfo").innerHTML = `<span class="tag ok">${requestId}</span> 스팬 ${c.max_span_semitones}반음 ·
+      임시표 상한 ${Math.round(c.max_accidental_ratio * 100)}% ·
+      난이도 가능 대역 ${c.difficulty_feasible_range[0]}~${c.difficulty_feasible_range[1]}`;
+    const w = $("feasWarn");
+    if (body.feasibility_warning) { w.textContent = body.feasibility_warning; w.classList.remove("hidden"); }
+    else w.classList.add("hidden");
+    $("secMotif").classList.remove("hidden");
+    loadMotifs();
+  } catch (e) { alert("요청 실패: " + e.message); }
+};
+
+async function loadMotifs(feedback = "") {
+  $("motifs").innerHTML = "<p class='hint'>모티브를 만드는 중…</p>";
+  try {
+    const body = await api(`/api/requests/${requestId}/motifs`,
+      { method: "POST", body: JSON.stringify({ n: 4, feedback }) });
+    $("motifs").innerHTML = "";
+    body.candidates.forEach(m => {
+      const el = document.createElement("div");
+      el.className = "card";
+      el.innerHTML = `<h3>${m.character_label}</h3>
+        <p>${m.key} · ${m.meter} · ${m.tempo}bpm · ${m.measures.length}마디</p>
+        <p style="margin-top:8px">${m.why_it_works || ""}</p>`;
+      el.onclick = () => selectMotif(m, el);
+      $("motifs").appendChild(el);
+    });
+  } catch (e) { $("motifs").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+}
+
+$("btnMore").onclick = () => loadMotifs("다른 성격으로 더");
+
+async function selectMotif(m, el) {
+  document.querySelectorAll("#motifs .card").forEach(c => c.classList.remove("sel"));
+  el.classList.add("sel");
+  chosenMotif = m;
+  $("planSummary").innerHTML = "<p class='hint'>설계 중…</p>";
+  $("secPlan").classList.remove("hidden");
+  try {
+    const body = await api(`/api/requests/${requestId}/motifs/${m.id}/select`, { method: "POST" });
+    plan = body.plan;
+    renderPlan(body);
+  } catch (e) { $("planSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+}
+
+function renderPlan(body) {
+  const p = body.plan;
+  $("planSummary").innerHTML = `<p>${p.key} · ${p.meter} · ${p.tempo}bpm ·
+    <strong>${p.total_measures}마디</strong> · 예상 ${Math.round(p.duration_est)}초 ·
+    클라이맥스 ${p.climax.measure}마디 (${p.climax.how})
+    ${p.showcase_measures.map(s => `· 쇼케이스 ${s.range[0]}-${s.range[1]}마디 「${s.strength_used}」`).join(" ")}</p>`;
+  const harmony = Object.fromEntries(p.harmony.map(h => [h.measure, h.roman]));
+  let rows = "<tr><th>섹션</th><th>마디</th><th>모티브 처리</th><th>화성</th><th>다이내믹</th><th>왼손</th></tr>";
+  p.form.forEach(sec => sec.phrases.forEach((ph, i) => {
+    const ms = []; for (let n = ph.measures[0]; n <= ph.measures[1]; n++) ms.push(harmony[n] || "-");
+    rows += `<tr><td>${i === 0 ? sec.label : ""}</td><td>${ph.measures[0]}-${ph.measures[1]}</td>
+      <td><code>${ph.motif_treatment}</code></td><td>${ms.join(" ")}</td>
+      <td>${ph.dynamic}</td><td>${ph.texture_lh}</td></tr>`;
+  }));
+  $("planTable").innerHTML = rows;
+  $("planIssues").innerHTML = body.passed
+    ? `<div class="msg" style="background:#e6f2ea;color:var(--ok)">규칙 검사 통과${
+        body.issues.length ? ` (경고 ${body.issues.length}건)` : ""}</div>`
+    : `<div class="msg bad">${body.issues.filter(i => i.severity === "hard")
+        .map(i => i.message).join("<br>")}</div>`;
+  $("btnRealize").disabled = !body.passed;
+}
+
+$("btnRealize").onclick = async () => {
+  $("btnRealize").disabled = true;
+  $("secResult").classList.remove("hidden");
+  $("resultSummary").innerHTML = "<p class='hint'>프레이즈를 순차 생성하고 비평 루프를 도는 중…</p>";
+  try {
+    const b = await api(`/api/requests/${requestId}/realize`, { method: "POST" });
+    compositionId = b.composition_id;
+    renderResult(b);
+  } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+  finally { $("btnRealize").disabled = false; }
+};
+
+function renderResult(b) {
+  const q = b.quality;
+  const status = !b.savable ? '<span class="tag bad">저장 불가</span>'
+    : b.shown_as_draft ? '<span class="tag warn">초안(비평 문턱 미달)</span>'
+    : '<span class="tag ok">통과</span>';
+  $("resultSummary").innerHTML = `<p>${status}
+    ${b.measures}마디 · 난이도 <strong>${b.difficulty}</strong> ·
+    품질 종합 <strong>${q.combined_score}</strong>/${q.threshold} ·
+    수정 ${b.revision_rounds}라운드 · 엔진 <code>${b.engine}</code>
+    ${b.cost && b.cost.total_usd ? `· API $${b.cost.total_usd}` : ""}</p>
+    ${b.validation.issues.length ? `<details><summary>검증 ${b.validation.summary}</summary>
+      <pre>${b.validation.issues.map(i => `[${i.severity}] ${i.rule}: ${i.message}`).join("\n")}</pre></details>` : ""}`;
+
+  let rows = "<tr><th>지표</th><th>값</th><th></th><th>설명</th></tr>";
+  Object.entries(q.musicality.metrics).forEach(([k, m]) => {
+    rows += `<tr><td>${k}</td><td>${m.value.toFixed(2)} / ${m.target}</td>
+      <td><div class="bar"><i class="${m.met ? "" : "miss"}" style="width:${m.value * 100}%"></i></div></td>
+      <td>${m.detail}</td></tr>`;
+  });
+  $("metrics").innerHTML = rows;
+
+  const rr = (q.critic && q.critic.revision_requests) || [];
+  $("revisions").innerHTML = rr.length
+    ? "<tr><th>마디</th><th>문제</th><th>지시</th></tr>" + rr.map(r =>
+        `<tr><td>${r.measures[0]}-${r.measures[1]}</td><td>${r.issue}</td><td>${r.instruction}</td></tr>`).join("")
+    : "<tr><td class='hint'>수정 지시 없음</td></tr>";
+}
+
+$("btnJudge").onclick = async () => {
+  $("judgeOut").innerHTML = "<p class='hint'>심사 중…</p>";
+  try {
+    const b = await api(`/api/compositions/${compositionId}/judge`, { method: "POST" });
+    $("judgeOut").innerHTML = `<p style="margin-top:16px">평균 <strong>${b.average}</strong>/10</p>` +
+      b.panel.verdicts.map(v => `<div class="card" style="cursor:default;margin-top:10px">
+        <h3>${v.persona_label || v.persona} · ${v.total}/10</h3><p>${v.comment}</p>
+        ${v.fix_in_score.map(f => `<p>· [곡 수정] ${f}</p>`).join("")}
+        ${v.fix_in_practice.map(f => `<p>· [연습] ${f}</p>`).join("")}</div>`).join("") +
+      (b.consensus_fixes.length ? `<div class="msg warn">둘 이상이 지적: ${b.consensus_fixes.join(" / ")}</div>` : "");
+  } catch (e) { $("judgeOut").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+};
+
+$("btnXml").onclick = async () => {
+  try {
+    const b = await api(`/api/compositions/${compositionId}/musicxml`);
+    const url = URL.createObjectURL(new Blob([b.musicxml], { type: "application/xml" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `${val("name")}_${compositionId}.musicxml`; a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { alert(e.message); }
+};
+</script>
+</body>
+</html>

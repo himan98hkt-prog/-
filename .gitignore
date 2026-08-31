@@ -11,3 +11,7 @@ perf-report.json
 screenshots
 *.zip
 dist-demo
+
+# 로컬 개발용 가상환경
+.venv/
+.venv-cc/

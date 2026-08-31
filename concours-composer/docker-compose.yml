@@ -1,0 +1,73 @@
+# ConcoursComposer — 개발/학원 PC 배포용 6개 서비스
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-concours}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-concours}
+      POSTGRES_DB: ${POSTGRES_DB:-concours}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-concours}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./server
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-concours}:${POSTGRES_PASSWORD:-concours}@db:5432/${POSTGRES_DB:-concours}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./server:/app
+      - ./assets:/assets:ro
+      - data:/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker-py:
+    build:
+      context: ./server
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-concours}:${POSTGRES_PASSWORD:-concours}@db:5432/${POSTGRES_DB:-concours}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./server:/app
+      - ./assets:/assets:ro
+      - data:/data
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    command: celery -A app.worker.celery_app worker -l info -Q default,transcribe,generate,export
+
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on: [api]
+
+volumes:
+  db_data:
+  data:
