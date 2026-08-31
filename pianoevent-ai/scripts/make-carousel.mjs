@@ -11,9 +11,10 @@
  * 두 배 크기로 찍고 1080 으로 줄인다(글자 가장자리가 매끈해진다).
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
+import { zipFolder } from './zip-utf8.mjs'
 
 const OUT = join('배포', '카드뉴스')
 const W = 1080, H = 1350, SCALE = 2
@@ -469,4 +470,51 @@ if (problems.length) {
   for (const p of problems) console.error(`  · ${p}`)
   process.exit(1)
 }
+
+/* ── 한 번에 받으실 수 있게 묶는다 ────────────────────────────
+   `zip -j` 는 이름이 UTF-8 이라는 **표시를 켜 주지 않는다.** 그러면 윈도우에서
+   한글 이름이 깨지고, 「풀었는데 아무것도 없다」가 된다. 표시를 켜서 묶는
+   scripts/zip-utf8.mjs 를 쓴다(검사는 tests/zip-utf8.test.ts).
+
+   폴더는 넣지 않는다 — 푼 자리에 그대로 나오는 편이 헷갈리지 않는다. */
+const STAGE = join('배포', '_카드뉴스-묶음')
+const ZIP = join('배포', '연주회매니저-인스타-카드뉴스.zip')
+
+rmSync(STAGE, { recursive: true, force: true })
+mkdirSync(STAGE, { recursive: true })
+for (const [name] of CARDS) {
+  const f = `연주회매니저-카드뉴스-${name}.jpg`
+  copyFileSync(join(OUT, f), join(STAGE, f))
+}
+if (existsSync(join('web', '인스타-캡션.txt'))) {
+  copyFileSync(join('web', '인스타-캡션.txt'), join(STAGE, '인스타-캡션.txt'))
+}
+writeFileSync(join(STAGE, '먼저-읽어주세요.txt'), `연주회 매니저 — 인스타 카드뉴스 ${CARDS.length}장
+
+크기 1080 × 1350 (4:5). 인스타 피드에서 가장 크게 보이는 비율입니다.
+
+■ 올리시는 법
+  1) 인스타 앱 → + → 게시물 → 여러 항목 선택
+  2) 01번부터 ${String(CARDS.length).padStart(2, '0')}번까지 **번호 순서대로** 고르세요
+     (고른 순서가 곧 넘어가는 순서입니다)
+  3) 자르기는 「원본」 또는 4:5 로 두세요. 정사각으로 자르면 위아래 글자가 잘립니다
+  4) 필터는 넣지 마세요 — 글자가 흐려집니다
+  5) 본문은 「인스타-캡션.txt」 를 그대로 복사해 붙여넣으시면 됩니다
+
+■ 들어 있는 것
+${CARDS.map(([n], i) => `  ${String(i + 1).padStart(2, '0')}. ${n.replace(/^\d+-/, '')}`).join('\n')}
+
+■ 사진에 대하여
+  카드에 들어간 포스터·순서지·상장·초대장은 전부 프로그램이 실제로 뽑아 낸 것입니다.
+  아이들 이름은 들어 있지 않습니다 — 예시용 이름만 씁니다.
+
+아첼쌤 · accelssam.com
+`, 'utf8')
+
+rmSync(ZIP, { force: true })
+await zipFolder(STAGE, ZIP)
+rmSync(STAGE, { recursive: true, force: true })
+
 console.log(`\n${CARDS.length}장 · 1080×1350 · ${OUT}`)
+console.log(execFileSync('unzip', ['-l', ZIP], { encoding: 'utf8' }).trim())
+console.log(`\n${ZIP} — 이 하나만 받으시면 됩니다`)
