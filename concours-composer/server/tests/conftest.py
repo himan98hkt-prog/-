@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
+# 테스트는 파일 저장소를 쓰지 않는다 — 앞선 실행이 남긴 학생·곡이 다음 실행에
+# 섞이면 테스트가 서로를 오염시킨다. 영속화 자체는 test_store.py 가 따로 본다.
+os.environ.setdefault("STORE_PERSIST", "0")
 
 import pytest
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from music21 import meter as m21meter
 
-from app.schemas.music import CompositionPlan
+from app.schemas.music import MAX_PHRASE_MEASURES, MIN_PHRASE_MEASURES, CompositionPlan
 from app.schemas.student import Student
 from app.validate.validator import ValidationReport
 
@@ -31,6 +31,13 @@ def check_plan(
             if plo < lo or phi > hi:
                 r.add("plan_phrase", "hard",
                       f"섹션 {s.label}({lo}-{hi}) 밖의 프레이즈 {p.measures}", list(p.measures))
+            length = phi - plo + 1
+            if not MIN_PHRASE_MEASURES <= length <= MAX_PHRASE_MEASURES:
+                r.add("plan_phrase", "hard",
+                      f"프레이즈 {p.measures} 가 {length}마디 — "
+                      f"{MIN_PHRASE_MEASURES}~{MAX_PHRASE_MEASURES}마디여야 한다"
+                      "(한 호출로 곡을 통째로 만드는 것을 막는 규칙이다)",
+                      list(p.measures))
             covered.update(range(plo, phi + 1))
     missing = set(range(1, plan.total_measures + 1)) - covered
     if missing:
@@ -53,6 +60,13 @@ def check_plan(
             r.add("plan_time_limit", "hard",
                   f"설계 연주시간 {seconds:.0f}초 > 제한 {time_limit_sec}초의 95%({limit:.0f}초). "
                   f"마디 수를 {int(limit / (bar_ql * 60.0 / plan.tempo))} 이하로 줄여라")
+        # 짧은 곡은 심사에서 손해다. 제한 시간의 절반도 안 쓰면 곡이 덜 자란 것이다.
+        elif seconds < time_limit_sec * 0.55:
+            want = int(time_limit_sec * 0.75 / (bar_ql * 60.0 / plan.tempo))
+            r.add("plan_time_limit", "soft",
+                  f"설계 연주시간 {seconds:.0f}초 — 제한 {time_limit_sec}초의 "
+                  f"{seconds / time_limit_sec:.0%}밖에 쓰지 않는다. "
+                  f"{want}마디 정도로 늘리면 제한의 75% 를 쓴다")
 
     # 3. 종지
     ehi = plan.ending.measures[1]
@@ -98,6 +112,13 @@ def check_plan(
             if w and w in sc.strength_used:
                 r.add("plan_showcase", "hard",
                       f"학생 약점 '{w}' 을 showcase 로 잡았다 — 노출을 피해야 한다", list(sc.range))
+
+    # 6b. 프레이즈 길이에 변화가 있는가
+    lengths = [p.measures[1] - p.measures[0] + 1 for p in plan.phrases()]
+    if len(lengths) >= 3 and len(set(lengths)) == 1:
+        r.add("plan_phrase_shape", "soft",
+              f"프레이즈가 전부 {lengths[0]}마디다 — 분절(2마디)이나 확장(6마디)이 없으면 "
+              "형식이 격자처럼 들린다")
 
     # 7. 클라이맥스 위치
     pos = plan.climax.measure / plan.total_measures

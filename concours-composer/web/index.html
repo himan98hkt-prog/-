@@ -110,6 +110,22 @@
   <section id="secResult" class="hidden">
     <h2>4. 결과</h2>
     <div id="resultSummary"></div>
+    <div id="scoreBox" style="margin:18px 0">
+      <div class="row" style="align-items:center">
+        <button id="btnPlay">▶ 재생</button>
+        <button class="ghost" id="btnStop">■ 정지</button>
+        <select id="playHands">
+          <option value="both">양손</option><option value="rh">오른손만</option>
+          <option value="lh">왼손만</option>
+        </select>
+        <label style="margin:0">템포 <span id="playTempoLabel"></span></label>
+        <input id="playTempo" type="range" min="40" max="180" value="100" style="width:140px">
+        <span id="playState" class="hint" style="margin:0"></span>
+      </div>
+      <div id="osmd" style="margin-top:12px;background:#fff;border:1px solid var(--line);
+           border-radius:8px;padding:8px;overflow-x:auto"></div>
+    </div>
+
     <h3 style="font-size:14px;margin:18px 0 8px">음악성 지표</h3>
     <table id="metrics"></table>
     <h3 style="font-size:14px;margin:18px 0 8px">비평가의 수정 지시</h3>
@@ -155,6 +171,8 @@
   약점을 미리 찾아 <strong>입상 확률을 높이는 것</strong>까지가 역할이다.
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.7/build/opensheetmusicdisplay.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
 <script>
 const API = localStorage.getItem("cc_api") || "http://localhost:8000";
 let requestId = null, chosenMotif = null, plan = null, compositionId = null;
@@ -343,6 +361,13 @@ $("btnRealize").onclick = async () => {
 
 function renderResult(b) {
   const q = b.quality;
+  playMeasures = null;                       // 새 곡이면 재생 데이터를 다시 받는다
+  stopPlayback();
+  if (plan && plan.tempo) {
+    $("playTempo").value = plan.tempo;
+    $("playTempoLabel").textContent = plan.tempo + " bpm";
+  }
+  renderScore();
   const status = !b.savable ? '<span class="tag bad">저장 불가</span>'
     : b.shown_as_draft ? '<span class="tag warn">초안(비평 문턱 미달)</span>'
     : '<span class="tag ok">통과</span>';
@@ -381,6 +406,184 @@ function renderResult(b) {
         `<tr><td>${r.measures[0]}-${r.measures[1]}</td><td>${r.issue}</td><td>${r.instruction}</td></tr>`).join("")
     : "<tr><td class='hint'>수정 지시 없음</td></tr>";
 }
+
+// ── 악보 렌더(OSMD) · 재생(Tone.js) ─────────────────────────────────────────
+//
+// 원장이 품질을 판단하려면 **보고 들어야** 한다. 지표 표만으로는 곡이 좋은지 알 수 없다.
+// 둘 다 CDN 이 막히면 조용히 실패하지 않고 왜 안 되는지 적는다 —
+// MusicXML·MIDI 내려받기는 그때도 그대로 쓸 수 있다.
+let osmd = null, playMeasures = null, sampler = null, playing = false;
+
+function barBeats(meter) {
+  const [n, d] = String(meter || "4/4").split("/").map(Number);
+  return (n || 4) * (4 / (d || 4));
+}
+
+async function renderScore() {
+  const box = $("osmd");
+  if (!window.opensheetmusicdisplay) {
+    box.innerHTML = "<p class='hint'>악보 렌더러(OSMD)를 불러오지 못했습니다 — 이 화면은 첫 " +
+      "실행에 인터넷이 필요합니다. 재생은 내장 음원으로 그대로 되고, " +
+      "악보는 아래 <strong>MusicXML</strong> 을 내려받아 MuseScore 로 열면 됩니다.</p>";
+    return;
+  }
+  try {
+    const b = await api(`/api/compositions/${compositionId}/musicxml`);
+    box.innerHTML = "";
+    osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(box, {
+      autoResize: true, drawTitle: true, drawPartNames: false,
+    });
+    await osmd.load(b.musicxml);
+    osmd.render();
+    osmd.cursor.show();
+  } catch (e) {
+    box.innerHTML = `<div class="msg bad">악보를 그리지 못했습니다: ${e.message}</div>`;
+  }
+}
+
+function cursorToMeasure(index) {
+  if (!osmd || !osmd.cursor) return;
+  try {
+    const it = osmd.cursor.iterator;
+    if (it.currentMeasureIndex > index) { osmd.cursor.reset(); }
+    let guard = 0;
+    while (osmd.cursor.iterator.currentMeasureIndex < index && !osmd.cursor.iterator.endReached && guard++ < 400) {
+      osmd.cursor.next();
+    }
+  } catch (_) { /* 커서는 보조 기능이다 — 실패해도 재생은 계속한다 */ }
+}
+
+async function ensureSampler() {
+  if (sampler || !window.Tone) return sampler;
+  // 살라만더 피아노 샘플. 못 받으면 신시사이저로 떨어진다(소리는 나야 한다).
+  try {
+    const s = new Tone.Sampler({
+      urls: { A1: "A1.mp3", C2: "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3",
+              A2: "A2.mp3", C3: "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3",
+              A3: "A3.mp3", C4: "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3",
+              A4: "A4.mp3", C5: "C5.mp3", "D#5": "Ds5.mp3", "F#5": "Fs5.mp3",
+              A5: "A5.mp3", C6: "C6.mp3" },
+      release: 1.2, baseUrl: "https://tonejs.github.io/audio/salamander/",
+    }).toDestination();
+    await Promise.race([
+      Tone.loaded(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000)),
+    ]);
+    sampler = s;
+  } catch (_) {
+    sampler = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.01, decay: 0.3, sustain: 0.25, release: 0.9 },
+    }).toDestination();
+    $("playState").textContent = "피아노 샘플을 못 받아 신시사이저로 재생합니다";
+  }
+  return sampler;
+}
+
+function scheduleNotes(measures, meter, bpm, hands) {
+  const spb = 60 / bpm;
+  const barQL = barBeats(meter);
+  const out = [];
+  let bar = 0;
+  for (const m of measures) {
+    for (const [hand, voices] of [["rh", m.rh || []], ["lh", m.lh || []]]) {
+      if (hands !== "both" && hands !== hand) continue;
+      for (const v of voices) {
+        let off = 0;
+        for (const ev of v.events) {
+          if (ev.pitches && ev.pitches.length) {
+            out.push({
+              time: bar + off * spb,
+              dur: Math.max(0.08, ev.dur * spb * (ev.artic === "staccato" ? 0.55 : 0.95)),
+              pitches: ev.pitches.map(p => p.replace("-", "b")),
+              vel: hand === "rh" ? 0.8 : 0.55,
+              measure: m.number,
+            });
+          }
+          off += ev.dur;
+        }
+      }
+    }
+    bar += barQL * spb;
+  }
+  return out.sort((a, b) => a.time - b.time);
+}
+
+// CDN 이 막힌 환경(학원 PC 가 오프라인일 때)에서도 소리는 나야 한다.
+// Tone.js 가 없으면 브라우저 내장 오실레이터로 같은 스케줄을 연주한다.
+let oscTimers = [];
+
+function playWithOscillator(notes) {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = audioCtx;
+  const t0 = ctx.currentTime + 0.08;
+  for (const n of notes) {
+    for (const p of n.pitches) {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = pitchToFreq(p);
+      const start = t0 + n.time;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.22 * n.vel, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + Math.max(0.12, n.dur));
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start); osc.stop(start + Math.max(0.14, n.dur));
+    }
+  }
+  const end = notes.length ? notes[notes.length - 1].time + notes[notes.length - 1].dur : 0;
+  oscTimers.push(setTimeout(stopPlayback, (end + 0.6) * 1000));
+  playing = true;
+  $("playState").textContent = `재생 중 · ${notes.length}음 (내장 음원)`;
+}
+
+async function startPlayback() {
+  if (playing) stopPlayback();
+  $("playState").textContent = "준비 중…";
+  if (!playMeasures) playMeasures = await api(`/api/compositions/${compositionId}/measures`);
+  if (!window.Tone) {
+    const notes = scheduleNotes(playMeasures, plan ? plan.meter : "4/4",
+                                num("playTempo"), val("playHands"));
+    playWithOscillator(notes);
+    return;
+  }
+  await Tone.start();
+  const inst = await ensureSampler();
+  const bpm = num("playTempo");
+  const notes = scheduleNotes(playMeasures, plan ? plan.meter : "4/4", bpm, val("playHands"));
+  Tone.Transport.stop(); Tone.Transport.cancel(); Tone.Transport.position = 0;
+  let lastMeasure = -1;
+  for (const n of notes) {
+    Tone.Transport.schedule((t) => {
+      inst.triggerAttackRelease(n.pitches, n.dur, t, n.vel);
+      if (n.measure !== lastMeasure) {
+        lastMeasure = n.measure;
+        Tone.Draw.schedule(() => cursorToMeasure(n.measure - 1), t);
+      }
+    }, n.time);
+  }
+  const end = notes.length ? notes[notes.length - 1].time + notes[notes.length - 1].dur + 0.5 : 1;
+  Tone.Transport.schedule(() => { stopPlayback(); }, end);
+  playing = true;
+  $("playState").textContent = `재생 중 · ${notes.length}음`;
+  Tone.Transport.start();
+}
+
+function stopPlayback() {
+  if (window.Tone) { Tone.Transport.stop(); Tone.Transport.cancel(); }
+  if (sampler && sampler.releaseAll) sampler.releaseAll();
+  oscTimers.forEach(clearTimeout); oscTimers = [];
+  if (audioCtx) {                       // 오실레이터 재생은 컨텍스트를 갈아 끊는다
+    try { audioCtx.close(); } catch (_) { /* 이미 닫힘 */ }
+    audioCtx = null;
+  }
+  playing = false;
+  $("playState").textContent = "";
+}
+
+$("btnPlay").onclick = startPlayback;
+$("btnStop").onclick = stopPlayback;
+$("playTempo").oninput = () => { $("playTempoLabel").textContent = $("playTempo").value + " bpm"; };
+$("playHands").onchange = () => { if (playing) startPlayback(); };
 
 $("btnJudge").onclick = async () => {
   $("judgeOut").innerHTML = "<p class='hint'>심사 중…</p>";

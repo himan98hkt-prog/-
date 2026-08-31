@@ -256,8 +256,10 @@ class SessionComposerEngine:
             ),
             output_model=CompositionPlan,
             note=(
-                f"제안 마디 수 {suggested}. 프레이즈는 4마디 단위로 끊고 total_measures 를 "
-                "빠짐없이 덮어야 한다. 클라이맥스는 전체의 60~80% 지점."
+                f"제안 마디 수 {suggested}. 프레이즈는 2~8마디이고 길이를 섞어야 한다"
+                "(제시 4+4 · 전개 4+2+2 · 재현 마지막 6마디 확장). "
+                "프레이즈가 total_measures 를 빠짐없이 덮어야 하고, "
+                "클라이맥스는 전체의 60~80% 지점이며 프레이즈 시작 마디여야 한다."
             ),
         )
 

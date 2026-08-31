@@ -95,8 +95,16 @@ class ComposerContext:
         return payload
 
 
+# 제한 시간을 얼마나 쓸 것인가.
+#
+# 짧으면 손해다 — 55초짜리로 150초 슬롯에 나가면 심사위원이 들을 것이 없다.
+# 꽉 채워도 손해다 — 학생이 긴장해서 10% 느리게 치면 규정 초과로 감점이다.
+# 0.78 은 그 사이다: 10% 느려져도 86%, 하드 상한 95% 안에 남는다.
+TIME_BUDGET = 0.78
+
+
 def estimate_measures(request: CompositionRequest, meter: str, tempo: int) -> int:
-    """제한 시간이 있으면 그 85% 를 목표로 마디 수를 정한다. 없으면 32마디."""
+    """제한 시간이 있으면 그 78% 를 목표로 마디 수를 정한다. 없으면 32마디."""
     if request.total_measures:
         return request.total_measures
     limit = request.time_limit_sec
@@ -106,9 +114,9 @@ def estimate_measures(request: CompositionRequest, meter: str, tempo: int) -> in
 
     bar_ql = float(m21meter.TimeSignature(meter).barDuration.quarterLength)
     bar_sec = bar_ql * (60.0 / tempo)
-    n = int((limit * 0.85) // bar_sec)
-    # 프레이즈가 4마디 단위이므로 4의 배수로 내린다. 최소 16, 최대 96.
-    return max(16, min(96, (n // 4) * 4))
+    n = int((limit * TIME_BUDGET) // bar_sec)
+    # 프레이즈가 2마디까지 잘리므로 짝수로 내린다. 최소 16, 최대 96.
+    return max(16, min(96, (n // 2) * 2))
 
 
 class InfeasibleRequest(ValueError):

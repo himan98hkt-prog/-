@@ -188,3 +188,80 @@ def test_playability_measures_each_hand_separately():
     assert m.met, m.detail
     # 손마다 순차 이동이므로 평균 이동은 2반음 근처여야 한다.
     assert "평균 이동 1" not in m.detail or "평균 이동 1." in m.detail
+
+
+# ── 표현 다양성 (§7.4 추가 지표) ─────────────────────────────────────────────
+
+
+def _bland_piece(n: int = 16):
+    """4분음표만, 6도 안, 다이내믹 하나 — 문법은 맞지만 심심한 곡."""
+    from app.schemas.music import Measure, ScoreEvent, Voice
+
+    return [
+        Measure(
+            number=i + 1,
+            rh=[Voice(events=[ScoreEvent(dur=1.0, pitches=[p]) for p in ("C5", "D5", "E5", "C5")])],
+            lh=[Voice(events=[ScoreEvent(dur=4.0, pitches=["C3"])])],
+            dynamics="mf" if i == 0 else None,
+        )
+        for i in range(n)
+    ]
+
+
+def _varied_piece(n: int = 16):
+    from app.schemas.music import Measure, ScoreEvent, Voice
+
+    shapes = [
+        [(0.5, "C5"), (0.5, "E5"), (1.0, "G5"), (2.0, "F5")],
+        [(1.5, "A5"), (0.5, "G5"), (2.0, "E5")],
+        [(0.25, "C5"), (0.25, "D5"), (0.5, "E5"), (1.0, "G5"), (2.0, "C6")],
+        [(4.0, "G4")],
+    ]
+    out = []
+    for i in range(n):
+        shape = shapes[i % len(shapes)]
+        out.append(
+            Measure(
+                number=i + 1,
+                rh=[Voice(events=[
+                    ScoreEvent(dur=d, pitches=[p], artic="staccato" if i % 4 == 2 else "none")
+                    for d, p in shape
+                ])],
+                lh=[Voice(events=[ScoreEvent(dur=4.0, pitches=["C3", "G3"])])],
+                dynamics=["p", "mf", "f", "mp"][i % 4] if i % 4 == 0 or i == 8 else None,
+            )
+        )
+    return out
+
+
+def test_expressive_variety_catches_bland_piece() -> None:
+    from app.analysis.musicality import expressive_variety
+
+    m = expressive_variety(_bland_piece(), difficulty_target=2.0)
+    assert not m.met, m.detail
+    assert m.value < 0.4, m.detail
+    assert "같은 리듬형 100%" in m.detail
+
+
+def test_expressive_variety_passes_varied_piece() -> None:
+    from app.analysis.musicality import expressive_variety
+
+    m = expressive_variety(_varied_piece(), difficulty_target=4.0)
+    assert m.met, m.detail
+
+
+def test_expressive_variety_is_relative_to_difficulty() -> None:
+    """같은 곡이라도 유치부 목표면 덜 요구한다 — 쉬운 곡에 16분음표를 강요하지 않는다."""
+    from app.analysis.musicality import expressive_variety
+
+    piece = _bland_piece()
+    easy = expressive_variety(piece, difficulty_target=1.0).value
+    hard = expressive_variety(piece, difficulty_target=9.0).value
+    assert easy > hard
+
+
+def test_musicality_weights_sum_to_one() -> None:
+    from app.analysis.musicality import TARGETS, WEIGHTS
+
+    assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-6
+    assert set(WEIGHTS) == set(TARGETS)

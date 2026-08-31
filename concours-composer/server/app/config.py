@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     max_cost_per_composition: float = 2.50
     model_validation: Literal["strict", "warn", "off"] = "warn"
 
+    # 저장소 — 기본은 data_dir/store.sqlite3. STORE_PERSIST=0 이면 메모리만 쓴다.
+    store_persist: bool = True
+    store_path: Path | None = None
+
     database_url: str = "postgresql+psycopg://concours:concours@localhost:5432/concours"
     redis_url: str = "redis://localhost:6379/0"
     data_dir: Path = ROOT / "data"
@@ -63,6 +67,9 @@ class Settings(BaseSettings):
         # 테스트가 명시적으로 넘긴 값은 존중한다.
         if "anthropic_api_key" not in data:
             object.__setattr__(self, "anthropic_api_key", read_api_key_from_env_file())
+
+    def resolved_store_path(self) -> Path:
+        return self.store_path or (self.data_dir / "store.sqlite3")
 
     @property
     def has_api_key(self) -> bool:

@@ -20,6 +20,8 @@ from app.analysis.pitch import pitch_to_midi
 from app.generation.context import ComposerContext, estimate_measures
 from app.generation.engines.base import PhraseRequest
 from app.schemas.music import (
+    MAX_PHRASE_MEASURES,
+    MIN_PHRASE_MEASURES,
     Climax,
     CompositionPlan,
     DynamicPoint,
@@ -132,19 +134,107 @@ class TextureLevel:
         return _fit_rhythm(out, bar)
 
 
-def _climax_measure(total: int) -> int:
+def _climax_measure(total: int, phrase_starts: list[int] | None = None) -> int:
     """클라이맥스를 전체의 60~80% 안에 놓되 프레이즈 시작에 맞춘다.
 
     프레이즈 경계로만 반올림하면 짧은 곡(16마디)에서 대역 밖으로 밀린다 —
     먼저 프레이즈 시작 후보를 모으고, 그중 대역 안에 있는 것을 고른다.
+    프레이즈 길이가 제각각이므로 후보는 **실제 프레이즈 시작**이어야 한다.
+    4마디 격자로 가정하면 2마디 분절이 있는 곡에서 엉뚱한 마디를 고른다.
     """
     lo, hi = total * 0.60, total * 0.80
-    starts = [m for m in range(1, total + 1, 4) if lo <= m <= hi]
+    grid = phrase_starts if phrase_starts else list(range(1, total + 1, 4))
+    starts = [m for m in grid if lo <= m <= hi]
     if starts:
         # 대역 안 후보 중 72% 지점에 가장 가까운 것
         return min(starts, key=lambda m: abs(m - total * 0.72))
     # 프레이즈 시작이 대역에 하나도 없으면(아주 짧은 곡) 마디 단위로 맞춘다.
     return max(1, min(total - 1, round(total * 0.70)))
+
+
+# 섹션 역할별 프레이즈 길이 원형.
+#   A  제시  — 대칭 악절(4+4). 주제는 또박또박 제시해야 기억된다.
+#   B  전개  — 분절(4+2+2). 프레이즈가 짧아지면서 긴장이 는다.
+#   A' 재현  — 확장(4+6). 마지막 프레이즈를 늘려 종지를 넓게 받는다.
+PHRASE_SHAPES: dict[str, list[int]] = {
+    "A": [4, 4],
+    "B": [4, 2, 2],
+    "A'": [4, 6],
+}
+
+
+def _fours(n: int) -> list[int]:
+    """n 마디를 4마디 악절로 채운다. 남는 2마디는 **마지막 프레이즈에 붙여** 확장한다.
+
+    남는 2마디를 따로 떼면 악절 끝에 어정쩡한 2마디 토막이 생긴다. 붙여서 6마디로
+    만들면 '한 번 더 밀고 끝내는' 확장 악절이 된다.
+    """
+    if n <= 0:
+        return []
+    if n <= MAX_PHRASE_MEASURES and n % 4:
+        return [n]
+    out = [4] * (n // 4)
+    rem = n % 4
+    if rem:
+        if out:
+            out[-1] += rem
+        else:
+            out = [rem]
+    return out
+
+
+def _phrase_lengths(total: int, role: str) -> list[int]:
+    """섹션 길이를 프레이즈로 나눈다. 모든 프레이즈를 4마디로 자르지 않는다.
+
+    결과는 항상 합이 `total` 이고, 각 길이는 2~8마디다(절대 규칙 9).
+    """
+    if role == "B":
+        # 전개는 분절이 핵심이다 — 4마디 다음에 2마디 둘로 잘라 호흡을 조인다.
+        out: list[int] = []
+        remaining = total
+        i = 0
+        shape = PHRASE_SHAPES["B"]
+        while remaining > 0:
+            n = min(shape[i % len(shape)], remaining)
+            if 0 < remaining - n < MIN_PHRASE_MEASURES:
+                n = remaining
+            out.append(n)
+            remaining -= n
+            i += 1
+        return out
+
+    if role != "A" and role.startswith("A") and total >= 10:
+        # 재현부는 마지막 프레이즈를 6마디로 늘려 종지를 넓게 받는다.
+        return [*_fours(total - 6), 6]
+
+    return _fours(total)
+
+
+def _rh_texture_for(plen: int) -> str:
+    """프레이즈 길이가 오른손이 할 일을 바꾼다 — 2마디 분절과 6마디 확장은 다른 글씨체다."""
+    if plen <= 2:
+        return "짧은 분절 동기 — 두 마디 안에서 묻고 답한다, 끝음은 짧게 끊어 다음으로 민다"
+    if plen >= 6:
+        return "확장된 선율선 — 마지막 두 마디를 넓게 늘려 종지를 받는다"
+    return "8분음표 순차 선율, 프레이즈 끝 2박 길게"
+
+
+def _section_lengths(total: int) -> tuple[int, int, int]:
+    """ABA' 섹션 길이. A 가 가장 길고 B(대비 구간)가 가장 짧다.
+
+    합은 정확히 `total` 이고 A·B 는 짝수 마디로 떨어뜨린다 — 홀수로 끝나면
+    프레이즈가 1마디로 잘리는 자리가 생긴다.
+    """
+    a = max(4, round(total * 0.40 / 2) * 2)
+    b = max(4, round(total * 0.26 / 2) * 2)
+    a2 = total - a - b
+    while a2 < 6 and a > 6:      # 재현부가 종지를 담을 만큼은 남겨둔다
+        a -= 2
+        a2 += 2
+    while a2 < 6 and b > 4:
+        b -= 2
+        a2 += 2
+    return a, b, max(2, a2)
 
 
 def _bar_ql(meter: str) -> float:
@@ -281,15 +371,12 @@ class StubComposerEngine:
     def plan(self, ctx: ComposerContext, motif: MotifCandidate) -> CompositionPlan:
         key, meter, tempo = motif.key, motif.meter, motif.tempo
         total = estimate_measures(ctx.request, meter, tempo)
-        total = max(16, (total // 4) * 4)
+        total = max(16, (total // 2) * 2)
         bar = _bar_ql(meter)
         duration = total * bar * (60.0 / tempo)
 
         # ABA' 를 기본으로, 마디 수에 맞춰 섹션 길이를 나눈다.
-        n_phrases = total // 4
-        a_ph = max(2, n_phrases // 3)
-        b_ph = max(1, n_phrases // 3)
-        a2_ph = n_phrases - a_ph - b_ph
+        a_len, b_len, a2_len = _section_lengths(total)
 
         treatments_a = ["statement", "sequence_up_2nd", "repeat", "fragment_head",
                         "rhythmic_variation", "sequence_down_3rd"]
@@ -302,32 +389,34 @@ class StubComposerEngine:
         harmony_list = []
         m = 1
 
-        def add_section(label: str, n_ph: int, treatments: list[str], texture_lh: str) -> None:
+        def add_section(label: str, length: int, treatments: list[str], texture_lh: str) -> None:
             nonlocal m
             start = m
             phrases: list[PhrasePlan] = []
             prog = PROGRESSIONS.get(label, PROGRESSIONS["A"])
-            for i in range(n_ph):
+            for i, plen in enumerate(_phrase_lengths(length, label)):
                 lo = m
-                hi = m + 3
+                hi = m + plen - 1
                 dyn = ["mp", "mf", "f", "mf"][i % 4] if label != "B" else ["p", "mp", "mf", "mp"][i % 4]
                 phrases.append(
                     PhrasePlan(
                         measures=[lo, hi],
                         motif_treatment=treatments[i % len(treatments)],  # type: ignore[arg-type]
-                        texture_rh="8분음표 순차 선율, 프레이즈 끝 2박 길게",
+                        texture_rh=_rh_texture_for(plen),
                         texture_lh=texture_lh,
                         dynamic=dyn,  # type: ignore[arg-type]
                     )
                 )
-                for k in range(4):
-                    harmony_list.append((m + k, prog[(i * 4 + k) % len(prog)]))
-                m += 4
+                # 화성 진행은 프레이즈가 아니라 **섹션 안의 위치**를 따라간다 —
+                # 프레이즈가 2마디로 잘려도 진행이 처음으로 되감기지 않는다.
+                for k in range(plen):
+                    harmony_list.append((m + k, prog[(m - start + k) % len(prog)]))
+                m += plen
             sections.append(SectionPlan(label=label, measures=[start, m - 1], phrases=phrases))
 
-        add_section("A", a_ph, treatments_a, "분산화음 반주(알베르티), 4분음표 단위")
-        add_section("B", b_ph, treatments_b, "지속 화음 + 저음역 이동, 온음표 단위")
-        add_section("A'", a2_ph, treatments_a2, "분산화음 반주, 마지막 4마디는 화음 두껍게")
+        add_section("A", a_len, treatments_a, "분산화음 반주(알베르티), 4분음표 단위")
+        add_section("B", b_len, treatments_b, "지속 화음 + 저음역 이동, 온음표 단위")
+        add_section("A'", a2_len, treatments_a2, "분산화음 반주, 마지막 4마디는 화음 두껍게")
 
         from app.schemas.music import HarmonyStep
 
@@ -339,7 +428,8 @@ class StubComposerEngine:
             elif h.measure == total:
                 h.roman = "I"
 
-        climax_measure = _climax_measure(total)
+        phrase_starts = [p.measures[0] for sec in sections for p in sec.phrases]
+        climax_measure = _climax_measure(total, phrase_starts)
 
         showcase: list[Showcase] = []
         if ctx.student.strengths:
@@ -425,11 +515,20 @@ class StubComposerEngine:
                     cur = self._keep_in_range(leaped, ctx)
                 strong = (j % level.chord_every == 0) if level.chord_every else (j == 0)
                 pitches = self._rh_pitches(cur, roman, key, level, ctx, strong=strong)
+                # 아티큘레이션은 성격을 만든다 — 분절 프레이즈는 끊어서, 클라이맥스는
+                # 첫 음에 악센트로. 곡 전체가 레가토 한 가지면 표정이 없다.
+                short_phrase = (hi - lo + 1) <= 2
+                if j == 0 and number == plan.climax.measure:
+                    artic = "accent"
+                elif (phrase.motif_treatment == "diminution" or short_phrase) and j % 2 == 0:
+                    artic = "staccato"
+                else:
+                    artic = "none"
                 events.append(
                     ScoreEvent(
                         dur=d,
                         pitches=pitches,
-                        artic="staccato" if phrase.motif_treatment == "diminution" and j % 2 == 0 else "none",
+                        artic=artic,  # type: ignore[arg-type]
                         slur="start" if j == 0 else ("stop" if j == len(durs) - 1 else None),
                     )
                 )

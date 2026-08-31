@@ -192,6 +192,12 @@ MotifTreatment = Literal[
 
 MeasureRange = Annotated[list[int], Field(min_length=2, max_length=2)]
 
+# 한 번의 Realize 호출이 만들 수 있는 최대 마디 수(CLAUDE.md 절대 규칙 9).
+# 프레이즈는 2~8마디다 — 4마디로 고정하면 여섯 프레이즈가 전부 같은 길이인
+# 곡만 나온다. 분절(2마디)과 확장(6마디)이 있어야 형식이 말을 한다.
+MAX_PHRASE_MEASURES = 8
+MIN_PHRASE_MEASURES = 2
+
 
 class PhrasePlan(BaseModel):
     model_config = ConfigDict(extra="forbid")

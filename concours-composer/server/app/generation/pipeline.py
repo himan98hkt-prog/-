@@ -17,14 +17,11 @@ from app.generation.assemble import AssembleOptions, measures_to_musicxml
 from app.generation.context import ComposerContext
 from app.generation.engines.base import ComposerEngine, PhraseRequest
 from app.generation.plan_rules import check_plan
-from app.schemas.music import CompositionPlan, Measure, MotifCandidate
+from app.schemas.music import MAX_PHRASE_MEASURES, CompositionPlan, Measure, MotifCandidate
 from app.schemas.quality import CriticReport, QualityReport
 from app.validate.validator import Issue, ValidationReport, validate_score
 
 log = logging.getLogger(__name__)
-
-# 한 번의 Realize 호출이 만들 수 있는 최대 마디 수. 프레이즈는 4마디가 기본이다.
-MAX_PHRASE_MEASURES = 8
 
 ProgressFn = Callable[[str, float, str], None]
 
@@ -196,7 +193,8 @@ class CompositionPipeline:
         motif: MotifCandidate,
     ) -> tuple[dict, CriticReport]:
         musicality = musicality_mod.evaluate(
-            measures, motif=motif, plan=plan, max_span_semitones=ctx.hard.max_span_semitones
+            measures, motif=motif, plan=plan, max_span_semitones=ctx.hard.max_span_semitones,
+            difficulty_target=ctx.hard.target_difficulty,
         ).as_dict()
         warnings = self.soft_warnings(ctx, measures, plan)
         critic = self.engine.critique(ctx, measures, plan, motif, musicality, warnings)

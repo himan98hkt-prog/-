@@ -15,14 +15,15 @@ from app.analysis.pitch import pitch_to_midi
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate, ScoreEvent
 
 WEIGHTS: dict[str, float] = {
-    "motif_consistency": 0.22,   # 가장 무겁다 — 모티브가 곡을 하나로 묶는다
-    "repetition_balance": 0.12,
-    "melodic_contour": 0.12,
-    "harmonic_consistency": 0.14,
-    "phrase_balance": 0.12,
-    "dynamic_curve": 0.10,
-    "texture_contrast": 0.10,
-    "playability": 0.08,
+    "motif_consistency": 0.20,   # 가장 무겁다 — 모티브가 곡을 하나로 묶는다
+    "repetition_balance": 0.10,
+    "melodic_contour": 0.11,
+    "harmonic_consistency": 0.13,
+    "phrase_balance": 0.11,
+    "dynamic_curve": 0.09,
+    "texture_contrast": 0.09,
+    "playability": 0.07,
+    "expressive_variety": 0.10,  # 나머지 지표가 못 재는 것 — 밋밋함
 }
 
 TARGETS: dict[str, float] = {
@@ -34,6 +35,7 @@ TARGETS: dict[str, float] = {
     "dynamic_curve": 0.70,
     "texture_contrast": 0.50,
     "playability": 0.70,
+    "expressive_variety": 0.65,
 }
 
 DEFAULT_THRESHOLD = 0.70
@@ -462,6 +464,78 @@ def playability(measures: list[Measure], max_span_semitones: int) -> Metric:
     )
 
 
+# ── 9. 표현 다양성 ───────────────────────────────────────────────────────────
+#
+# 앞의 여덟 지표는 **곡이 옳은가**를 잰다 — 모티브를 지키는가, 화성을 벗어나지
+# 않는가, 손에 무리가 없는가. 옳은 곡은 밋밋해도 만점이 나온다. 실제로 4분음표만
+# 쓰고 6도 안에서만 움직이는 유치부 곡이 종합 9.79 로 가장 높은 점수를 받았는데,
+# 들어보면 다섯 곡 중 가장 심심했다.
+#
+# 그래서 '심심함' 을 따로 잰다. 다만 **난이도 목표에 상대적으로** 재야 한다.
+# 유치부 곡에 16분음표와 2옥타브를 요구하면 그건 지표가 아니라 고장이다.
+
+
+def _expected(base: float, per_level: float, difficulty: float, cap: float) -> float:
+    return min(cap, base + per_level * max(1.0, difficulty))
+
+
+def _rhythm_signature(m: Measure) -> tuple[float, ...]:
+    return tuple(e.dur for v in m.rh for e in v.events)
+
+
+def expressive_variety(measures: list[Measure], difficulty_target: float) -> Metric:
+    """난이도 대비 표현의 폭. 목표 ≥ 0.65.
+
+    네 갈래로 나눠 본다 — 리듬 어휘, 선율 음역, 마디 리듬의 중복, 표현 기호.
+    각각 '이 난이도라면 이만큼은 나와야 한다' 는 기대치로 나눈다.
+
+    **이 지표는 순위가 아니라 바닥이다.** 제대로 쓴 곡들은 0.85~1.00 에 몰려 있어
+    서로를 가려주지 못한다. 대신 4분음표만 쓰고 6도 안에서만 움직이고 다이내믹이
+    하나뿐인 곡은 0.25 부근으로 떨어진다 — 잡아야 할 것이 그것이다.
+    '흥미로운가' 는 사람이 듣고 판단한다.
+    """
+    if not measures:
+        return Metric("expressive_variety", 0.0, TARGETS["expressive_variety"], "마디가 없다")
+
+    # 1) 리듬 어휘 — 쓰는 음길이가 몇 가지인가
+    durs = {e.dur for m in measures for v in (*m.rh, *m.lh) for e in v.events}
+    want_durs = _expected(3.0, 0.40, difficulty_target, 7.0)
+    rhythm_score = min(1.0, len(durs) / want_durs)
+
+    # 2) 선율 음역 — 오른손 선율이 몇 반음 안에서 움직이는가
+    line = [p for _, p, _ in _melody(measures)]
+    span = (max(line) - min(line)) if len(line) >= 2 else 0
+    want_span = _expected(12.0, 1.2, difficulty_target, 26.0)
+    range_score = min(1.0, span / want_span)
+
+    # 3) 마디 리듬 중복 — 같은 리듬형이 곡을 뒤덮고 있는가
+    sigs = [_rhythm_signature(m) for m in measures if any(m.rh)]
+    if sigs:
+        top = max(sigs.count(x) for x in set(sigs)) / len(sigs)
+        # 반주형이 일정한 곡은 오른손 리듬도 40%대에서 겹친다 — 정상이다.
+        # 곡 전체가 한 가지 리듬형일 때만 0 으로 떨어진다.
+        sameness_score = 1.0 if top <= 0.45 else max(0.0, 1.0 - (top - 0.45) / 0.55)
+    else:
+        top, sameness_score = 0.0, 0.0
+
+    # 4) 표현 기호 — 다이내믹이 변하는가, 아티큘레이션·이음줄이 있는가
+    dyns = {m.dynamics for m in measures if m.dynamics}
+    articulated = any(
+        e.artic != "none" or e.slur is not None
+        for m in measures for v in (*m.rh, *m.lh) for e in v.events
+    )
+    mark_score = 0.6 * min(1.0, max(0, len(dyns) - 1) / 2.0) + 0.4 * (1.0 if articulated else 0.0)
+
+    value = 0.30 * rhythm_score + 0.30 * range_score + 0.25 * sameness_score + 0.15 * mark_score
+    return Metric(
+        "expressive_variety", round(value, 4), TARGETS["expressive_variety"],
+        f"난이도 {difficulty_target:.1f} 기준 · 리듬 어휘 {len(durs)}종(기대 {want_durs:.1f}) · "
+        f"선율 음역 {span}반음(기대 {want_span:.0f}) · "
+        f"같은 리듬형 {top:.0%} · 다이내믹 {len(dyns)}종"
+        f"{' · 아티큘레이션 없음' if not articulated else ''}",
+    )
+
+
 # ── 진입점 ───────────────────────────────────────────────────────────────────
 
 
@@ -471,7 +545,10 @@ def evaluate(
     motif: MotifCandidate | None = None,
     plan: CompositionPlan | None = None,
     max_span_semitones: int = 12,
+    difficulty_target: float | None = None,
 ) -> MusicalityReport:
+    if difficulty_target is None:
+        difficulty_target = plan.difficulty_target if plan is not None else 5.0
     r = MusicalityReport()
     for m in (
         motif_consistency(measures, motif, plan),
@@ -482,6 +559,7 @@ def evaluate(
         dynamic_curve(measures, plan),
         texture_contrast(measures, plan),
         playability(measures, max_span_semitones),
+        expressive_variety(measures, difficulty_target),
     ):
         r.metrics[m.key] = m
     return r
