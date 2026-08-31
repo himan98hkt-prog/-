@@ -139,6 +139,11 @@ const mcLinks = await mcCard
   .locator(FIND_LINKS)
   .evaluateAll((els) => els.map((el) => el.getAttribute('href')))
 say(mcLinks.length === 1, `지도에 안 나오는 갈래는 길을 하나만 준다 (${mcLinks.length}개)`)
+// 개수만 세면 순서를 바꿨을 때 엉뚱한 단추가 된 것을 못 잡는다 — 실제로 그랬다
+say(
+  mcLinks[0]?.includes('search.naver'),
+  `그 하나는 가장 튼튼한 길이다 (${(mcLinks[0] ?? '').split('?')[0]})`,
+)
 say(
   await mcCard.getByText('음대 학과 사무실', { exact: false }).count() > 0,
   '지도에 안 나오는 갈래에는 다른 길을 알려 준다',
@@ -193,6 +198,12 @@ say(venueLine.includes('300,000'), `예산의 대관료가 적어 두신 300,000
 const mcCard2 = await openFind('mc')
 const soomgo = await mcCard2.locator('a[href*="soomgo"]').count()
 say(soomgo === 1, `사람으로 구하는 갈래에 재능마켓 길이 있다 (${soomgo}개)`)
+const soomgoHref = await mcCard2.locator('a[href*="soomgo"]').first().getAttribute('href')
+say(soomgoHref === 'https://soomgo.com/', `숨고는 첫 화면으로만 보낸다 (${soomgoHref})`)
+say(
+  (await mcCard2.getByText('행사 사회자', { exact: false }).count()) > 0,
+  '검색창에 칠 말을 글로 알려 준다',
+)
 const dressCard = await openFind('dress')
 say(
   (await dressCard.locator('a[href*="soomgo"]').count()) === 0,

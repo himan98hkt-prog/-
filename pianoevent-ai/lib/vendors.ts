@@ -300,7 +300,15 @@ const PLACES = {
   naverMap: (q: string) => `https://map.naver.com/p/search/${encodeURIComponent(q)}`,
   kakaoMap: (q: string) => `https://map.kakao.com/?q=${encodeURIComponent(q)}`,
   naver: (q: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(q)}`,
-  soomgo: (q: string) => `https://soomgo.com/search?q=${encodeURIComponent(q)}`,
+  /*
+   * 숨고는 **첫 화면으로만** 보낸다.
+   *
+   * 검색 주소를 `/search?q=…` 로 짐작해 봤더니 도메인은 열리는데 화면이 하얗게
+   * 비었다(직접 눌러 확인). 눌러도 아무것도 안 나오는 단추는 안 만드느니만 못하다.
+   * 안쪽 주소는 사이트 사정으로 바뀌므로, 확실한 첫 화면으로 보내고 **검색어는
+   * 화면에 글로 적어** 드린다. 맞는 검색 주소를 알게 되면 이 한 줄만 고치면 된다.
+   */
+  soomgo: () => 'https://soomgo.com/',
 } as const
 
 /**
@@ -335,11 +343,25 @@ export function searchLinks(category: VendorCategory, region: string): SearchLin
  * 공급이 없는 갈래(연주홀 대관·아동 드레스)에는 이 길을 만들지 않는다 —
  * 눌렀는데 아무것도 없으면 안 만드느니만 못하다.
  */
-export function marketLinks(category: VendorCategory, region: string): SearchLink[] {
+export function marketLinks(category: VendorCategory): SearchLink[] {
   const spec = categorySpec(category)
   if (!spec || !spec.market) return []
-  const q = `${region.trim()} ${spec.marketQuery}`.trim()
-  return [{ label: '숨고에서 찾기', url: PLACES.soomgo(q) }]
+  return [{ label: '숨고 열기', url: PLACES.soomgo() }]
+}
+
+/** 재능마켓에서 치실 검색어 — 주소에 못 넣으므로 화면에 글로 알려 드린다 */
+export function marketTerm(category: VendorCategory): string {
+  return categorySpec(category)?.marketQuery ?? ''
+}
+
+/**
+ * 지도에 안 나오는 갈래에 드리는 **한 가지 길**.
+ *
+ * 「가장 튼튼한 것 하나만」이다. 여러 개를 늘어놓으면 어느 것을 눌러야 할지
+ * 또 고르셔야 한다.
+ */
+export function fallbackLink(category: VendorCategory, region: string): SearchLink | null {
+  return searchLinks(category, region)[0] ?? null
 }
 
 /** 태블릿·휴대폰에서 눌러 바로 걸 수 있게. 숫자가 없으면 링크를 만들지 않는다 */

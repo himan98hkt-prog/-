@@ -3,7 +3,9 @@ import {
   BOOK_PER_CATEGORY,
   CATEGORIES,
   guessRegion,
+  fallbackLink,
   marketLinks,
+  marketTerm,
   normalizeBook,
   normalizeBookings,
   pastVendors,
@@ -67,7 +69,7 @@ describe('지도 검색 주소', () => {
     // 코드의 `${…}` 가 글자 그대로 주소에 들어가면 눌러도 아무 데도 못 간다
     const all = [
       ...CATEGORIES.flatMap((c) => searchLinks(c.id, '일산동구')),
-      ...CATEGORIES.flatMap((c) => marketLinks(c.id, '일산동구')),
+      ...CATEGORIES.flatMap((c) => marketLinks(c.id)),
     ]
     expect(all.length).toBeGreaterThan(0)
     for (const link of all) {
@@ -87,23 +89,35 @@ describe('지도 검색 주소', () => {
 describe('재능마켓 길', () => {
   it('사람으로 구하는 갈래에만 길을 낸다 — 없는 곳으로 보내지 않는다', () => {
     // 연주홀 대관과 아동 드레스 대여는 숨고에 공급이 없다
-    expect(marketLinks('hall', '일산동구')).toEqual([])
-    expect(marketLinks('dress', '일산동구')).toEqual([])
+    expect(marketLinks('hall')).toEqual([])
+    expect(marketLinks('dress')).toEqual([])
     for (const id of ['accompanist', 'mc', 'photo', 'tuner'] as const) {
-      expect(marketLinks(id, '일산동구')).toHaveLength(1)
+      expect(marketLinks(id)).toHaveLength(1)
     }
   })
 
-  it('지도 검색어와 부르는 말이 다르다', () => {
-    // 지도에서는 「피아노 반주자」, 숨고에서는 「피아노 반주」로 잡힌다
-    const [market] = marketLinks('accompanist', '일산동구')
-    expect(market.url).toContain(encodeURIComponent('일산동구 피아노 반주'))
-    expect(market.url.startsWith('https://')).toBe(true)
+  it('검색 주소를 짐작하지 않고 첫 화면으로만 보낸다', () => {
+    // `/search?q=…` 로 짐작했더니 도메인은 열리는데 화면이 하얗게 비었다.
+    // 눌러도 아무것도 안 나오는 단추는 안 만드느니만 못하다
+    const [link] = marketLinks('accompanist')
+    expect(link.url).toBe('https://soomgo.com/')
+    expect(link.url).not.toContain('?')
+    expect(link.url).not.toContain('search')
   })
 
-  it('지도에 안 나오는 갈래도 검색 길은 남겨 둔다', () => {
-    // 「그래도 한번 찾아보고 싶다」는 마음을 막지 않는다
-    expect(searchLinks('accompanist', '일산동구').length).toBeGreaterThan(0)
+  it('대신 칠 말을 알려 준다 — 지도와 부르는 말이 다르다', () => {
+    // 지도에서는 「피아노 반주자」, 숨고에서는 「피아노 반주」로 잡힌다
+    expect(marketTerm('accompanist')).toBe('피아노 반주')
+    expect(marketTerm('photo')).toBe('행사 스냅 촬영')
+    expect(marketTerm('hall')).toBe('')
+  })
+
+  it('지도에 안 나오는 갈래에는 **가장 튼튼한 길 하나**를 준다', () => {
+    // 예전에는 links.slice(2) 로 집어 카카오맵이 나왔다 — 순서를 바꾸자
+    // 조용히 엉뚱한 단추가 됐고, 개수만 세던 검사는 그것을 못 잡았다
+    const one = fallbackLink('accompanist', '일산동구')
+    expect(one?.label).toBe('네이버 검색')
+    expect(one?.url).toContain('search.naver.com')
   })
 })
 

@@ -10,7 +10,9 @@ import { formatWon } from '@/lib/ops/budget'
 import {
   CATEGORIES,
   guessRegion,
+  fallbackLink,
   marketLinks,
+  marketTerm,
   normalizeBook,
   normalizeBookings,
   pastVendors,
@@ -189,7 +191,8 @@ function VendorCard({
   const [showSearch, setShowSearch] = useState(false)
   const links = useMemo(() => searchLinks(spec.id, region), [spec.id, region])
   // 사람을 구하는 갈래에만 재능마켓 길을 낸다 — 없는 곳으로 보내지 않는다
-  const market = useMemo(() => marketLinks(spec.id, region), [spec.id, region])
+  const market = useMemo(() => marketLinks(spec.id), [spec.id])
+  const fallback = useMemo(() => fallbackLink(spec.id, region), [spec.id, region])
   const tel = booking?.phone ? telHref(booking.phone) : null
   const sms = booking?.phone ? smsHref(booking.phone) : null
 
@@ -303,36 +306,43 @@ function VendorCard({
                     <b className="text-foreground">지도에는 잘 안 나오는 갈래</b>입니다 — 개인이라 가게가 없습니다.
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {links.slice(2).map((link) => (
+                    {fallback && (
                       <a
-                        key={link.label}
-                        href={link.url}
+                        href={fallback.url}
                         target="_blank"
                         rel="noreferrer noopener"
                         className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                       >
-                        {link.label} <ExternalLink className="h-3 w-3" aria-hidden />
+                        {fallback.label} <ExternalLink className="h-3 w-3" aria-hidden />
                       </a>
-                    ))}
+                    )}
                   </div>
                   <p className="mt-2 text-muted-foreground">{spec.hint}</p>
                 </>
               )}
               {/* 사람을 구하는 갈래에는 재능마켓 길을 함께 낸다 */}
               {market.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
-                  <span className="text-muted-foreground">사람으로 구하실 때 —</span>
-                  {market.map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className={cn(buttonVariants({ variant: 'accent', size: 'sm' }))}
-                    >
-                      {link.label} <ExternalLink className="h-3 w-3" aria-hidden />
-                    </a>
-                  ))}
+                <div className="mt-2 border-t border-border pt-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-muted-foreground">사람으로 구하실 때 —</span>
+                    {market.map((link) => (
+                      <a
+                        key={link.label}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className={cn(buttonVariants({ variant: 'accent', size: 'sm' }))}
+                      >
+                        {link.label} <ExternalLink className="h-3 w-3" aria-hidden />
+                      </a>
+                    ))}
+                  </div>
+                  {/* 검색 주소를 짐작하지 않는다. 대신 칠 말을 그대로 적어 드린다 */}
+                  <p className="mt-1.5 text-muted-foreground">
+                    열리면 검색창에 <b className="text-foreground">「{marketTerm(spec.id)}」</b>
+                    {region.trim() && <> 또는 <b className="text-foreground">「{region.trim()} {marketTerm(spec.id)}」</b></>}
+                    {' '}라고 치시면 됩니다.
+                  </p>
                 </div>
               )}
               {spec.findable && spec.hint && <p className="mt-2 text-muted-foreground">{spec.hint}</p>}
