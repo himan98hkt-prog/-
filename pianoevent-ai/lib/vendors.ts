@@ -314,10 +314,17 @@ export function searchLinks(category: VendorCategory, region: string): SearchLin
   const spec = categorySpec(category)
   if (!spec) return []
   const q = `${region.trim()} ${spec.query}`.trim()
+  /*
+   * 네이버 검색을 **맨 앞**에 둔다.
+   *
+   * 주소 모양이 가장 안 바뀌는 길이고, 검색 결과 안에 「플레이스」가 함께 떠서
+   * 상호·전화·주소가 한 화면에 나온다. 지도는 그다음이다 — 지도 서비스는 주소
+   * 모양을 가끔 바꾸므로, 가장 튼튼한 길을 첫 단추로 둔다.
+   */
   return [
+    { label: '네이버 검색', url: PLACES.naver(q) },
     { label: '네이버 지도', url: PLACES.naverMap(q) },
     { label: '카카오맵', url: PLACES.kakaoMap(q) },
-    { label: '네이버 검색', url: PLACES.naver(q) },
   ]
 }
 

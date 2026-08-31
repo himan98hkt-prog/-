@@ -57,6 +57,26 @@ describe('지도 검색 주소', () => {
     expect(naver.url).not.toContain('%20%20')
   })
 
+  it('가장 튼튼한 길이 첫 단추다', () => {
+    // 지도 서비스는 주소 모양을 가끔 바꾼다. 네이버 검색은 잘 안 바뀌고
+    // 결과 안에 「플레이스」가 함께 떠서 상호·전화·주소가 한 화면에 나온다
+    expect(searchLinks('tuner', '일산동구')[0].label).toBe('네이버 검색')
+  })
+
+  it('주소에 채워지지 않은 자리가 남지 않는다', () => {
+    // 코드의 `${…}` 가 글자 그대로 주소에 들어가면 눌러도 아무 데도 못 간다
+    const all = [
+      ...CATEGORIES.flatMap((c) => searchLinks(c.id, '일산동구')),
+      ...CATEGORIES.flatMap((c) => marketLinks(c.id, '일산동구')),
+    ]
+    expect(all.length).toBeGreaterThan(0)
+    for (const link of all) {
+      expect(link.url).not.toContain('${')
+      expect(link.url).not.toContain('undefined')
+      expect(link.url).toMatch(/^https:\/\/[a-z.]+\/\S*$/)
+    }
+  })
+
   it('띄어쓰기와 특수문자를 그대로 붙이지 않는다', () => {
     const [naver] = searchLinks('hall', '중구 & 남구')
     expect(naver.url).not.toContain(' ')

@@ -120,6 +120,14 @@ const links = await photoCard
   .locator(FIND_LINKS)
   .evaluateAll((els) => els.map((el) => el.getAttribute('href')))
 say(links.length === 3, `찾아지는 갈래는 길을 셋 준다 (${links.length}개)`)
+say(
+  links[0]?.includes('search.naver'),
+  '가장 튼튼한 길(네이버 검색)이 첫 단추다',
+)
+say(
+  links.every((u) => !u.includes('${') && !u.includes('undefined')),
+  '주소에 채워지지 않은 자리가 남지 않는다',
+)
 say(links.every((u) => u.includes(encodeURIComponent('일산동구'))), '검색어에 학원 지역이 붙는다')
 say(
   links.every((u) => !/김서연|박지호|demo-event|하모니 피아노학원/.test(decodeURIComponent(u))),
