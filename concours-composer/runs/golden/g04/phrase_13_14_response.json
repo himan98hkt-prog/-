@@ -1,0 +1,14 @@
+{"measures": [
+ {"number": 13, "dynamics": "mp", "pedal": false,
+  "rh": [{"voice": 1, "events": [
+    {"dur": 1.0, "pitches": ["E5"], "artic": "staccato"},
+    {"dur": 1.0, "pitches": ["E5"], "artic": "staccato"},
+    {"dur": 2.0, "pitches": ["G#5"]}]}],
+  "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["E3"]}]}]},
+ {"number": 14, "pedal": false,
+  "rh": [{"voice": 1, "events": [
+    {"dur": 1.0, "pitches": ["C5"], "artic": "staccato"},
+    {"dur": 1.0, "pitches": ["C5"], "artic": "staccato"},
+    {"dur": 2.0, "pitches": ["A4"]}]}],
+  "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["A2"]}]}]}
+]}

@@ -1,0 +1,215 @@
+{
+  "title_candidates": [
+    "작은 북",
+    "씩씩한 걸음",
+    "둥둥 행진"
+  ],
+  "key": "C",
+  "meter": "4/4",
+  "tempo": 88,
+  "total_measures": 16,
+  "duration_est": 65.5,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        8
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "같은 음을 두 번씩 또렷하게. 다섯 손가락 자리 안에서만 움직인다",
+          "texture_lh": "홑음 베이스를 2분음표로. 화음은 쓰지 않는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 두드림을 한 계단 위에서. 8마디는 으뜸음으로 내려앉는다",
+          "texture_lh": "홑음 베이스를 2분음표로",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        9,
+        12
+      ],
+      "phrases": [
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "단조 색으로 두드리다 11마디에서 곡의 가장 높은 자리까지 올라간다",
+          "texture_lh": "온음표 하나만. 왼손이 쉬는 동안 오른손 리듬이 앞으로 나온다",
+          "dynamic": "p"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        13,
+        16
+      ],
+      "phrases": [
+        {
+          "measures": [
+            13,
+            16
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "1~2마디를 음까지 그대로 되돌린 뒤 온음표로 마무리",
+          "texture_lh": "1~2마디와 동일",
+          "dynamic": "mf"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 11,
+    "how": "곡에서 한 번만 나오는 C6 을 두 번 두드려 가장 높은 자리를 만든다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        1,
+        4
+      ],
+      "strength_used": "또렷한 리듬"
+    },
+    {
+      "range": [
+        9,
+        12
+      ],
+      "strength_used": "또렷한 리듬"
+    }
+  ],
+  "contrast_section": {
+    "label": "B",
+    "how": "나란한 단조 색으로 바꾸고, 왼손을 2분음표 홑음에서 온음표 하나로 멈춰 세워 오른손 리듬만 남긴다"
+  },
+  "modulations": [],
+  "ending": {
+    "type": "완전종지 — V7 에서 I 로, 온음표로 길게",
+    "measures": [
+      13,
+      16
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mf"
+    },
+    {
+      "measure": 5,
+      "dyn": "f"
+    },
+    {
+      "measure": 9,
+      "dyn": "p"
+    },
+    {
+      "measure": 13,
+      "dyn": "mf"
+    }
+  ],
+  "pedal_plan": "페달은 쓰지 않는다. 유치부는 손과 귀만으로 또렷하게 치는 것이 먼저다",
+  "difficulty_target": 2.0
+}
