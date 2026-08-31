@@ -1,0 +1,926 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "F",
+   "meter": "3/4",
+   "tempo": 72,
+   "character_label": "올려다본 하늘",
+   "why_it_works": "낮은 자리에서 4도·3도로 두 번 올라가 A5 에 닿았다가 순차로 내려오는 큰 아치라, 한 호흡으로 노래하기 좋고 이 학생의 서정적 표현이 그대로 드러난다. 올라가는 두 도약만 떼면 어디에나 붙는 머리 동기가 되고, 내려오는 순차는 그대로 꼬리로 써서 프레이즈를 닫을 수 있다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mp"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 3,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F3",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F3",
+          "A3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 4,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "F",
+   "meter": "3/4",
+   "tempo": 72,
+   "character_label": "천천히 걷는 밤",
+   "why_it_works": "2분음표로 시작해 4분음표로 갈라지는 '늘어졌다 조여지는' 리듬이 각인점이고, 좁은 음역 안에서만 움직여 노래하듯 이어 붙이기 쉽다. 늘어진 첫 음을 붙점으로 바꾸면 긴장이 생기고, 좁은 음역을 한 옥타브 벌리면 클라이맥스가 그대로 나온다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "p"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 3,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 4,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "B-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "B-3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "F",
+   "meter": "3/4",
+   "tempo": 72,
+   "character_label": "묻고 기다리는",
+   "why_it_works": "붙점 2분음표 뒤 4분음표 하나가 각인점이고 둘째 마디가 딸림음에 걸려 끝나므로 '묻고 기다리는' 문장이 된다. 붙점을 그대로 두고 3도 올리면 대답이 되고, 붙점을 풀어 순차로 채우면 재현부의 확신 있는 마무리가 된다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mp"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 3,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F3",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F3",
+          "A3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 4,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2",
+          "D3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2",
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "F",
+   "meter": "3/4",
+   "tempo": 72,
+   "character_label": "내려오는 빗줄기",
+   "why_it_works": "높은 자리에서 순차로 여섯 음을 내려오는 하행 선이라 손이 저절로 제자리로 모이고, 빠른 패시지가 약점인 학생에게도 부담이 없다. 뒤집으면 상행이 되어 클라이맥스로 쓸 수 있고, 앞 세 음만 떼면 두 마디 분절 동기가 된다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mp"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 3,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 4,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D6"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "B-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "B-3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

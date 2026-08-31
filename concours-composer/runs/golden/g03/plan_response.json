@@ -1,0 +1,542 @@
+{
+  "title_candidates": [
+    "올려다본 하늘",
+    "저녁 창가",
+    "오래된 왈츠"
+  ],
+  "key": "F",
+  "meter": "3/4",
+  "tempo": 72,
+  "total_measures": 56,
+  "duration_est": 140.0,
+  "difficulty_target": 5.0,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        20
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 4도·3도로 두 번 올라 A5 에 닿고, 2마디 붙점으로 숨을 고른 뒤 4마디는 2분음표로 내려앉는다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "5~7마디는 1~3마디를 그대로. 8마디에서만 ii 로 빠져 아직 끝나지 않았다고 말한다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "transpose_to_dominant",
+          "texture_rh": "같은 아치를 딸림 자리에서. 11마디 B 내추럴을 한 번 짚어 색을 바꾸고 12마디는 딸림화음에 걸어 묻는다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            13,
+            14
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 도약만 떼어 두 마디로 짧게 묻는다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            15,
+            20
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "15~17마디는 다시 1~3마디 그대로. 18~20마디 세 마디를 덧붙여 A 를 여섯 마디 악절로 늘리고 반종지로 닫는다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        21,
+        36
+      ],
+      "phrases": [
+        {
+          "measures": [
+            21,
+            24
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "라단조 색. 아치를 뒤집어 위에서 내려왔다가 23~24마디에서 다시 오르며 꼬리 음형을 그린다",
+          "texture_lh": "왼손이 왈츠를 멈추고 온음표 2음 화음으로 깐다 — A 와 손이 하는 일 자체가 달라진다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            25,
+            28
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리 음형(한 걸음 올라 3도씩 오르고 순차 하행)만으로 네 마디를 짓는다",
+          "texture_lh": "왼손이 왈츠를 멈추고 온음표 2음 화음으로 깐다 — A 와 손이 하는 일 자체가 달라진다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            29,
+            30
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 도약을 두 마디로 다시 — 긴장이 조여진다",
+          "texture_lh": "왼손이 절반만 돌아온다 — 첫 박 베이스 하나 + 2박짜리 화음 하나",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            31,
+            32
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리로 두 마디 대답",
+          "texture_lh": "왼손이 절반만 돌아온다 — 첫 박 베이스 하나 + 2박짜리 화음 하나",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            33,
+            36
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 딸림화음 위에서 재현을 기다린다",
+          "texture_lh": "다시 온음표 화음. 딸림화음 위에서 숨을 고른다",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        37,
+        56
+      ],
+      "phrases": [
+        {
+          "measures": [
+            37,
+            40
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "37~40마디는 1~4마디를 **그대로** 되돌린다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            41,
+            44
+          ],
+          "motif_treatment": "octave_shift",
+          "texture_rh": "아치가 한 옥타브 가까이 올라간다. 43마디 F6 가 곡 전체의 최고음이자 정점이고, 44마디에서 내려앉아 마무리를 준비한다",
+          "texture_lh": "왈츠 유지. 정점인 43마디 첫 박만 베이스를 옥타브(C3+C4)로 잡아 소리를 세운다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            45,
+            46
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "29~30마디 두 마디 분절을 그대로 한 번 더",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            47,
+            50
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "모티브 머리가 음 하나 안 틀리고 마지막으로 한 번 더 지나간다(47~48마디). 49~50마디에서 내려앉아 코다를 연다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            51,
+            56
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "여섯 마디 확장 코다. 54마디 거짓 종지(vi)에서 한 번 더 밀고 56마디 F5+A5 화음으로 넓게 닫는다",
+          "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
+          "dynamic": "mf"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 2,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 3,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 4,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 5,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 6,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 7,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 8,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 9,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 10,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 11,
+      "roman": "II",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 12,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 13,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 14,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 15,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 16,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 17,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 18,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 19,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 20,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 21,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 22,
+      "roman": "iii",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 23,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 24,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 25,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 26,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 27,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 28,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 29,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 30,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 31,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 32,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 33,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 34,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 35,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 36,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 37,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 38,
+      "roman": "V",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 39,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 40,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 41,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 42,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 43,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 44,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 45,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 46,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 47,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 48,
+      "roman": "I",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 49,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 50,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 51,
+      "roman": "IV",
+      "bass_note": "B-2"
+    },
+    {
+      "measure": 52,
+      "roman": "ii",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 53,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 54,
+      "roman": "vi",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 55,
+      "roman": "V7",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 56,
+      "roman": "I",
+      "bass_note": "F2"
+    }
+  ],
+  "climax": {
+    "measure": 41,
+    "how": "아치가 한 옥타브 가까이 올라가 43마디 F6 에서 곡의 최고음에 닿는다. f + 왼손 왈츠 반주가 가장 넓게 벌어진다. 서정적 표현이 강점인 학생이 가장 길게 노래하는 자리다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        21,
+        28
+      ],
+      "strength_used": "서정적 표현"
+    }
+  ],
+  "contrast_section": {
+    "label": "B",
+    "how": "라단조 색(조성), 아치를 뒤집은 하행 윤곽(선율), 왈츠 반주를 멈추고 온음표 화음으로(텍스처) — 셋이 함께 바뀐다"
+  },
+  "modulations": [],
+  "ending": {
+    "type": "거짓 종지(54마디 vi) 뒤 완전종지 V7-I + 화음 마무리",
+    "measures": [
+      51,
+      56
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mp"
+    },
+    {
+      "measure": 5,
+      "dyn": "mf"
+    },
+    {
+      "measure": 9,
+      "dyn": "mp"
+    },
+    {
+      "measure": 15,
+      "dyn": "mf"
+    },
+    {
+      "measure": 21,
+      "dyn": "p"
+    },
+    {
+      "measure": 29,
+      "dyn": "mp"
+    },
+    {
+      "measure": 33,
+      "dyn": "mf"
+    },
+    {
+      "measure": 37,
+      "dyn": "mf"
+    },
+    {
+      "measure": 41,
+      "dyn": "f"
+    },
+    {
+      "measure": 47,
+      "dyn": "mf"
+    }
+  ],
+  "pedal_plan": "왈츠 반주이므로 마디마다 첫 박에 밟고 다음 마디 첫 박에서 바꾼다. B 섹션은 두 마디 단위로 길게"
+}
