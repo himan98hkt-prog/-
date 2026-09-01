@@ -37,10 +37,35 @@
 
 ### API 키
 
-`.env` 파일의 `ANTHROPIC_API_KEY` 한 줄만 채우면 실제 작곡 엔진이 켜진다.
+키가 없으면 규칙 기반 스텁 엔진으로 전 과정이 그대로 돈다(품질은 낮지만 흐름·검증은
+동일). 실제 작곡 엔진을 켜려면 키가 필요하다.
+
+**1. 키 만들기** — [console.anthropic.com](https://console.anthropic.com) 에 로그인 →
+Settings → **API keys** → *Create key*. 만들어진 키는 **그 화면에서 한 번만** 보인다.
+결제 수단이나 크레딧이 없으면 키가 있어도 호출이 거부되므로 Billing 도 함께 확인한다.
+
+**2. 넣기** — 셸 기록에 남지 않게 물어보는 도구를 쓴다.
+
+```bash
+.venv/bin/python scripts/set_api_key.py     # 화면에 보이지 않게 입력받는다
+```
+
+직접 고쳐도 된다 — `.env` 첫 줄의 `ANTHROPIC_API_KEY=sk-ant-...` 를 진짜 키로 바꾼다.
+
+**3. 확인**
+
+```bash
+.venv/bin/python scripts/self_check.py      # 엔진이 claude 로 바뀌었는지
+```
+
 **키는 프로젝트 `.env` 에서만 읽는다 — 시스템 환경변수는 절대 읽지도 쓰지도 않는다**
-(`server/app/config.py: read_api_key_from_env_file`). 키가 없으면 규칙 기반
-스텁 엔진으로 전 과정이 그대로 돌아간다(품질은 낮지만 흐름·검증은 동일).
+(`server/app/config.py: read_api_key_from_env_file`). 셸에 키가 떠 있으면 다른 프로세스·
+로그·자식 프로세스로 새기 쉽고 어느 키로 돌았는지 추적도 안 되기 때문이다.
+`.env` 와 `.env.bak` 은 `.gitignore` 에 있어 커밋되지 않는다.
+
+**비용 안전장치** — `.env` 의 `MAX_COST_PER_COMPOSITION`(기본 $2.50)을 넘으면 그 곡의
+파이프라인이 중단된다. 곡마다 호출 수와 토큰이 기록되므로 실제로 얼마가 들었는지
+`runs/` 의 `cost.json` 에서 확인할 수 있다.
 
 ### 개발자용
 
