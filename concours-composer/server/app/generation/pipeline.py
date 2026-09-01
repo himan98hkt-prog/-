@@ -6,6 +6,7 @@ CLAUDE.md 절대 규칙 9: 모티브 잠금 → Plan → **프레이즈 단위**
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -58,6 +59,38 @@ class CompositionResult:
     def shown_as_draft(self) -> bool:
         """비평 문턱 미달이면 '초안(미통과)' 으로만 보인다(절대 규칙 10)."""
         return self.savable and not self.quality.passed
+
+
+def _critic_with(
+    critic_dump: dict[str, Any] | None, requests: list[RevisionRequest]
+) -> CriticReport:
+    """저장된 비평 결과에 수정 지시만 갈아 끼운다.
+
+    `CriticReport.total` 은 계산 필드라 직렬화에는 들어가지만 다시 넣을 수는 없다.
+    되돌려 읽을 때 그것을 빼 주지 않으면 extra_forbidden 으로 막힌다.
+    """
+    body = {k: v for k, v in (critic_dump or {}).items() if k != "total"}
+    body["revision_requests"] = []
+    return CriticReport.model_validate(body).model_copy(update={"revision_requests": requests})
+
+
+_MEASURE_RE = re.compile(r"(\d{1,3})\s*(?:~|-|–|—|부터)\s*(\d{1,3})\s*마디|(\d{1,3})\s*마디")
+
+
+def _measure_hints(text: str, total: int) -> list[tuple[int, int]]:
+    """심사평에서 마디 번호를 뽑는다 — "13~16마디", "25마디" 둘 다 받는다.
+
+    번호가 없는 지적("전체적으로 밋밋하다")은 겨냥할 곳이 없으므로 빈 목록이다.
+    곡 밖을 가리키는 번호도 버린다 — 심사위원이 헷갈린 것이지 고칠 곳이 아니다.
+    """
+    out: list[tuple[int, int]] = []
+    for a, b, single in _MEASURE_RE.findall(text):
+        lo, hi = (int(a), int(b)) if a else (int(single), int(single))
+        if lo > hi:
+            lo, hi = hi, lo
+        if 1 <= lo <= total:
+            out.append((lo, min(hi, total)))
+    return out
 
 
 def _noop(stage: str, pct: float, msg: str) -> None:
@@ -491,6 +524,113 @@ class CompositionPipeline:
         return plan.model_copy(update={"form": form})
 
     # ── 전체 ─────────────────────────────────────────────────────────────
+    # ── 곡이 나온 뒤에 고치는 두 길 ──────────────────────────────────────────
+
+    def _finish(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
+        motif: MotifCandidate, *, rounds: int, notes: list[str],
+        corpus_ngrams: set[tuple[int, ...]] | None = None, title: str = "",
+    ) -> CompositionResult:
+        """마디를 받아 채점·검증·조립까지 끝낸 결과로 만든다.
+
+        `compose` 의 뒤쪽 절반과 같은 일을 한다 — 심사 되먹임이나 원장 편곡처럼
+        **이미 있는 곡을 고친 뒤**에도 같은 관문을 그대로 통과시키기 위해서다.
+        """
+        musicality, critic = self.evaluate(ctx, measures, plan, motif)
+        combined = self._combined(musicality, critic)
+        validation = validate_score(
+            measures, ctx.student,
+            meter=plan.meter, tempo=plan.tempo, key_sig=plan.key, plan=plan,
+            competition=ctx.competition,
+            target_difficulty=ctx.hard.target_difficulty,
+            corpus_ngrams=corpus_ngrams,
+            max_accidental_ratio=ctx.hard.max_accidental_ratio,
+        )
+        diff = difficulty_score(measures, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key)
+        sat = diff.saturated()
+        extra = list(notes)
+        if sat:
+            extra.append(
+                "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): "
+                + ", ".join(f"{k} {d}" for k, d in sat.items())
+            )
+        opts = AssembleOptions(
+            title=title or (plan.title_candidates[0] if plan.title_candidates else "무제"),
+            composer="AI 초안 · 원장 편곡",
+            key_sig=plan.key, meter=plan.meter, tempo=plan.tempo,
+        )
+        quality = QualityReport(
+            musicality=musicality, critic=critic.model_dump(), revision_round=rounds,
+            passed=combined >= self.settings.quality_threshold,
+            threshold=self.settings.quality_threshold,
+            combined_score=combined, notes=extra,
+        )
+        cost: dict[str, Any] = {}
+        ledger = getattr(self.engine, "ledger", None)
+        if ledger is not None:
+            cost = ledger.summary()
+        return CompositionResult(
+            request_id=ctx.request.id, measures=measures, plan=plan, motif=motif,
+            musicxml=measures_to_musicxml(measures, opts),
+            validation=validation, quality=quality, difficulty=diff.score,
+            engine=getattr(self.engine, "name", "unknown"),
+            revision_rounds=rounds, phrase_failures=[], cost=cost,
+        )
+
+    def revise_with_notes(
+        self, ctx: ComposerContext, result: CompositionResult, notes: list[str],
+    ) -> CompositionResult | None:
+        """모의 심사위원 여럿이 공통으로 지적한 것을 겨냥해 다시 쓴다.
+
+        지적에 마디 번호가 없으면 실행할 수 없다 — 어디를 고치라는 말인지 모르는 지시로
+        곡 전체를 다시 쓰면 좋아진 것인지 나빠진 것인지도 알 수 없다. 그런 지적은
+        돌려주지 않고 None 을 낸다(원장에게 글로 넘어간다).
+
+        점수가 떨어지면 **원본을 유지한다**. 심사 되먹임이 곡을 나쁘게 만드는 일은 없어야 한다.
+        """
+        spans = [m for n in notes for m in _measure_hints(n, len(result.measures))]
+        if not spans:
+            return None
+        targets = {n for lo, hi in spans for n in range(lo, hi + 1)}
+        requests = [
+            RevisionRequest(measures=[lo, hi], issue="모의 심사 공통 지적", instruction=note)
+            for note, (lo, hi) in zip(notes, spans, strict=False)
+        ]
+        trimmed = _critic_with(result.quality.critic, requests)
+        candidate = self.revise(
+            ctx, result.measures, result.plan, result.motif, trimmed, only_measures=targets
+        )
+        out = self._finish(
+            ctx, candidate, result.plan, result.motif,
+            rounds=result.revision_rounds + 1,
+            notes=[*result.quality.notes, "모의 심사 되먹임 1회"],
+        )
+        if out.quality.combined_score < result.quality.combined_score or not out.savable:
+            return None
+        return out
+
+    def rearrange(
+        self, ctx: ComposerContext, result: CompositionResult,
+        region: tuple[int, int], instruction: str,
+    ) -> CompositionResult:
+        """원장이 지정한 구간만 다시 쓴다(§7.3 Stage 7).
+
+        비평가를 거치지 않는다 — 이것은 채점이 아니라 **원장의 결정**이다. 다만 검증기와
+        지표는 그대로 돌려서, 고친 결과가 학생 제약을 벗어나면 화면에 보이게 한다.
+        """
+        lo, hi = region
+        rq = RevisionRequest(measures=[lo, hi], issue="원장 편곡 요청", instruction=instruction)
+        trimmed = _critic_with(result.quality.critic, [rq])
+        measures = self.revise(
+            ctx, result.measures, result.plan, result.motif, trimmed,
+            only_measures=set(range(lo, hi + 1)),
+        )
+        return self._finish(
+            ctx, measures, result.plan, result.motif,
+            rounds=result.revision_rounds,
+            notes=[*result.quality.notes, f"원장 편곡 {lo}~{hi}마디: {instruction}"],
+        )
+
     def compose(
         self,
         ctx: ComposerContext,

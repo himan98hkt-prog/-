@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 # 파일로 내리는 버킷. 순서가 곧 저장 순서다.
 PERSISTED = (
     "students", "competitions", "requests", "motifs",
-    "plans", "compositions", "versions", "jobs", "recitals",
+    "plans", "compositions", "versions", "jobs", "recitals", "judgements",
 )
 
 
@@ -53,6 +53,8 @@ class Store:
     plans: dict[str, Any] = field(default_factory=dict)
     compositions: dict[str, Any] = field(default_factory=dict)
     versions: dict[str, list] = field(default_factory=dict)
+    # 사전 전문심사 결과. 곡을 내놓기 전에 통과했는지 판단하는 근거이므로 함께 남긴다.
+    judgements: dict[str, Any] = field(default_factory=dict)
     jobs: dict[str, Any] = field(default_factory=dict)
     recitals: dict[str, Any] = field(default_factory=dict)
     persistence: SqlitePersistence | None = None

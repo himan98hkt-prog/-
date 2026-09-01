@@ -10,7 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import compositions, corpus, feedback, health, judge, recitals, students
+from app.api import (
+    compositions,
+    corpus,
+    feedback,
+    health,
+    judge,
+    recitals,
+    students,
+    studio,
+)
 from app.api.deps import get_store
 from app.config import get_settings, validate_models
 
@@ -30,6 +39,28 @@ async def lifespan(app: FastAPI):
         s.max_cost_per_composition,
     )
     app.state.model_problems = problems
+
+    # 원장이 폴더에 넣어 둔 참고 악보를 시작할 때 한 번 읽는다.
+    # 업로드 화면을 거치지 않아도 참고가 걸리게 하는 것이 목적이다.
+    try:
+        import sys
+        from pathlib import Path
+
+        scripts = Path(__file__).resolve().parents[2] / "scripts"
+        if str(scripts) not in sys.path:
+            sys.path.insert(0, str(scripts))
+        from import_scores import sync as sync_reference_scores
+
+        from app.api.corpus import get_corpus
+
+        r = sync_reference_scores(get_corpus(), quiet=True)
+        app.state.reference_scores = r
+        if r["added"] or r["failed"]:
+            log.info("참고 악보 적재 %s", r)
+    except Exception:                                  # 참고 악보가 없다고 기동을 막지 않는다
+        log.warning("참고 악보 폴더를 읽지 못했다", exc_info=True)
+        app.state.reference_scores = {"added": 0, "skipped": 0, "failed": 0}
+
     if s.store_persist:
         path = s.resolved_store_path()
         get_store().attach(path)
@@ -65,6 +96,7 @@ app.include_router(health.router)
 app.include_router(students.router)
 app.include_router(corpus.router)
 app.include_router(compositions.router)
+app.include_router(studio.router)
 app.include_router(judge.router)
 app.include_router(recitals.router)
 app.include_router(feedback.router)

@@ -339,11 +339,28 @@ def get_quality(composition_id: str, store: Store = Depends(get_store)) -> dict:
     if composition_id not in store.compositions:
         raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
     res = store.compositions[composition_id]
+    # 라이브러리에서 곡을 다시 열 때 화면이 필요한 것을 한 번에 준다 —
+    # 예전에는 이 응답만으로 결과 화면을 그릴 수 없어 작곡 직후에만 볼 수 있었다.
     return {
         "composition_id": composition_id,
         "quality": res.quality.model_dump(),
         "difficulty": res.difficulty,
         "shown_as_draft": res.shown_as_draft,
+        "savable": res.savable,
+        "engine": res.engine,
+        "measures": len(res.measures),
+        "revision_rounds": res.revision_rounds,
+        "title": res.plan.title_candidates[0] if res.plan.title_candidates else composition_id,
+        "key": res.plan.key,
+        "meter": res.plan.meter,
+        "tempo": res.plan.tempo,
+        "cost": res.cost,
+        "validation": {
+            "passed": res.validation.passed,
+            "summary": res.validation.summary(),
+            "issues": _issues(res.validation),
+        },
+        "candidates": [],
     }
 
 

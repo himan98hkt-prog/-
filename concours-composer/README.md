@@ -87,6 +87,11 @@ python3 -m http.server 8080 --directory web    # → http://localhost:8080/index
 ## API
 
 ```
+GET  /api/presets?student_id=...                    컨셉 카드 12가지(학생에 맞는 것 표시)
+POST /api/compositions/auto                         컨셉 하나로 모티브~작곡~사전 심사까지
+GET  /api/compositions                              만든 곡 목록(사전 심사 통과 여부 포함)
+POST /api/compositions/{id}/rearrange               지정한 구간만 다시 쓰기(편곡)
+
 POST /api/requests                                  요청 등록 → 하드 제약 + 실현 가능 난이도 대역
 POST /api/requests/{id}/motifs                      Stage 1 모티브 후보
 POST /api/requests/{id}/motifs/custom               원장이 직접 그린 모티브

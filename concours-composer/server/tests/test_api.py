@@ -10,9 +10,17 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client():
     for bucket in (STORE.students, STORE.competitions, STORE.requests, STORE.motifs,
-                   STORE.plans, STORE.compositions, STORE.versions, STORE.recitals):
+                   STORE.plans, STORE.compositions, STORE.versions, STORE.recitals,
+                   STORE.judgements):
         bucket.clear()
     STORE.jobs.clear()
+    # 코퍼스는 모듈 싱글턴이다. 앞 테스트가 만든 곡이 남아 있으면 다음 곡이
+    # 자기 형제와 표절로 부딪힌다 — 실제 운영과 달리 테스트는 매번 새 학원이다.
+    from app.api.corpus import get_corpus
+
+    corpus = get_corpus()
+    corpus.scores.clear()
+    corpus._ngrams.clear()
     with TestClient(app) as c:
         yield c
 
@@ -144,3 +152,119 @@ def test_unvalidated_score_cannot_be_exported(client, req_id, monkeypatch):
     res = S.compositions[cid]
     res.validation.add("range", "hard", "테스트용 강제 실패")
     assert client.get(f"/api/compositions/{cid}/musicxml").status_code == 409
+
+
+# ── 대시보드(스튜디오) — 컨셉 버튼 하나로 끝까지 ─────────────────────────────
+
+
+def test_presets_mark_what_suits_this_student(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    r = client.get("/api/presets", params={"student_id": student.id})
+    assert r.status_code == 200, r.text
+    presets = r.json()
+    assert len(presets) >= 8
+    assert presets[0]["recommended"] is True          # 권하는 것이 앞에 온다
+    # 권하지 않는 것도 숨기지 않는다 — 원장이 일부러 고를 수 있어야 한다.
+    assert any(p["recommended"] is False for p in presets)
+    finale = next(p for p in presets if p["id"] == "finale")
+    assert finale["recommended"] is False, "레벨 4 학생에게 피날레를 권하면 안 된다"
+
+
+def test_auto_compose_runs_the_whole_pipeline_and_judges_before_handing_over(
+    client, student, competition
+):
+    """컨셉 하나 고르면 모티브·설계·작곡·사전 심사까지 한 번에 끝나야 한다."""
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    client.post("/api/competition-profiles", json=competition.model_dump(mode="json"))
+    r = client.post("/api/compositions/auto", json={
+        "preset_id": "march", "student_id": student.id,
+        "competition_profile_id": competition.id,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["measures"] >= 8
+    assert body["validation"]["passed"], body["validation"]
+    # 프리셋이 요청을 채웠다
+    assert body["meter"] == "4/4"
+    # 곡을 내놓기 전에 심사가 돌았다 — 통과 여부와 문턱이 함께 온다
+    j = body["judge"]
+    assert j["panel"] and len(j["panel"]["verdicts"]) == 3
+    assert j["required_average"] > 0 and isinstance(j["passed"], bool)
+    assert j["average"] == pytest.approx(j["panel"]["average"])
+    # 이어서 기존 워크플로로 손볼 수 있게 request_id 가 살아 있다
+    assert client.get(f"/api/compositions/{body['composition_id']}/quality").status_code == 200
+
+
+def test_auto_compose_rejects_an_unknown_preset(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    r = client.post("/api/compositions/auto",
+                    json={"preset_id": "없는컨셉", "student_id": student.id})
+    assert r.status_code == 404
+
+
+def test_library_lists_what_was_made_with_the_judge_verdict(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    client.post("/api/compositions/auto",
+                json={"preset_id": "miniature", "student_id": student.id})
+    r = client.get("/api/compositions")
+    assert r.status_code == 200, r.text
+    items = r.json()
+    assert len(items) == 1
+    assert items[0]["judged"] is True
+    assert items[0]["judge_average"] is not None
+    assert items[0]["versions"] == 1
+
+
+def test_rearrange_changes_only_the_named_measures(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    made = client.post("/api/compositions/auto",
+                       json={"preset_id": "march", "student_id": student.id}).json()
+    cid = made["composition_id"]
+    before = client.get(f"/api/compositions/{cid}/measures").json()
+
+    r = client.post(f"/api/compositions/{cid}/rearrange",
+                    json={"measures": [5, 8], "instruction": "왼손을 한 옥타브 내려라"})
+    assert r.status_code == 200, r.text
+    assert r.json()["version"] == 2
+    after = client.get(f"/api/compositions/{cid}/measures").json()
+
+    changed = {a["number"] for a, b in zip(before, after, strict=True) if a != b}
+    assert changed <= {5, 6, 7, 8}, f"지정하지 않은 마디가 바뀌었다: {changed}"
+
+
+def test_rearrange_refuses_a_range_outside_the_piece(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    made = client.post("/api/compositions/auto",
+                       json={"preset_id": "march", "student_id": student.id}).json()
+    r = client.post(f"/api/compositions/{made['composition_id']}/rearrange",
+                    json={"measures": [900, 999], "instruction": "왼손을 한 옥타브 내려라"})
+    assert r.status_code == 422
+
+
+def test_auto_compose_tries_another_motif_when_the_plan_collides(client, student):
+    """같은 컨셉을 두 번 눌러도 겹침 오류 벽을 보이지 않는다.
+
+    형식이 겹치면 그 설계를 버리는 것이 맞다(절대 규칙 12). 하지만 그것은 다른 모티브로
+    다시 시도하라는 뜻이지, 버튼 하나 누른 원장에게 오류를 던지라는 뜻이 아니다.
+    후보를 다 써도 겹치면 그때는 409 로 **무엇을 하면 되는지와 함께** 알린다.
+    """
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    first = client.post("/api/compositions/auto",
+                        json={"preset_id": "march", "student_id": student.id})
+    assert first.status_code == 200, first.text
+
+    second = client.post("/api/compositions/auto",
+                         json={"preset_id": "march", "student_id": student.id})
+    assert second.status_code in (200, 409), second.text
+    if second.status_code == 409:
+        detail = second.json()["detail"]
+        assert "what_to_do" in detail and detail["issues"]
+    else:
+        # 다른 모티브로 통과했다면 앞 곡과 형식이 같으면 안 된다.
+        from app.api.deps import STORE
+        from app.generation.diversity import FormFingerprint, compare
+
+        plans = [e["plan"] for e in STORE.plans.values()]
+        assert len(plans) == 2
+        sim, _ = compare(FormFingerprint.of(plans[0]), FormFingerprint.of(plans[1]))
+        assert sim < 0.60, f"겹침 검사를 통과했다는데 유사도가 {sim} 다"

@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     rubric_floor: float = Field(default=7.0, ge=0, le=10)
     # 목표 난이도에서 이만큼 벗어나면 텍스처를 조정하는 지시를 만든다.
     difficulty_tolerance: float = Field(default=0.5, ge=0.1, le=2.0)
+    # 사전 전문심사 게이트(§6.13). 원클릭 작곡은 모의 심사 3인을 **곡을 내놓기 전에**
+    # 돌리고, 평균과 최저가 둘 다 이 문턱을 넘어야 '심사 통과' 로 표시한다.
+    # 미달이면 심사위원들이 공통으로 지적한 마디를 겨냥해 한 번 더 고쳐 본다.
+    judge_gate_average: float = Field(default=8.0, ge=0, le=10)
+    judge_gate_minimum: float = Field(default=7.0, ge=0, le=10)
+    judge_gate_rounds: int = Field(default=1, ge=0, le=3)
 
     def __init__(self, **data: object) -> None:
         super().__init__(**data)  # type: ignore[arg-type]

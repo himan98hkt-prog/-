@@ -9,6 +9,9 @@ node_modules/
 dist/
 out/
 data/
+# 참고 악보 폴더의 안내문만은 저장소에 둔다 — 원장이 무엇을 넣어야 하는지 알아야 한다.
+!data/reference_scores/
+!data/reference_scores/README.md
 models/
 .env
 *.log

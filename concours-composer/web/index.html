@@ -16,6 +16,20 @@
   h1{margin:0;font-size:19px;letter-spacing:-.2px}
   h1 small{display:block;color:var(--muted);font-size:13px;font-weight:400;margin-top:4px}
   main{max-width:1080px;margin:0 auto;padding:24px}
+  .tabs{display:flex;gap:6px;margin-top:14px}
+  .tab{background:transparent;border:1px solid var(--line);color:var(--muted);
+       border-radius:999px;padding:6px 16px;font-size:13px;cursor:pointer}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg);
+        cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color .12s}
+  .card:hover{border-color:var(--accent)}
+  .card[disabled]{cursor:progress;opacity:.55}
+  .card h3{margin:0 0 4px;font-size:15px}
+  .card .why{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 8px}
+  .card .meta{color:var(--muted);font-size:11.5px}
+  .card.dim{opacity:.62}
+  .card.dim h3::after{content:" · 권장 아님";color:var(--warn);font-size:11px;font-weight:400}
   section{background:var(--panel);border:1px solid var(--line);border-radius:10px;
           padding:20px;margin-bottom:18px}
   section h2{margin:0 0 4px;font-size:16px}
@@ -54,10 +68,50 @@
 <body>
 <header>
   <h1>ConcoursComposer
-    <small>학생 맞춤형 콩쿨 독창곡 — 모티브를 고르고, 설계를 승인하고, 곡을 받는다</small></h1>
+    <small>학생 맞춤형 콩쿨 독창곡 — 컨셉을 고르면 사전 심사까지 마친 곡이 나온다</small></h1>
+  <div class="tabs">
+    <button class="tab on" data-tab="dash">대시보드</button>
+    <button class="tab" data-tab="steps">단계별로 만들기</button>
+  </div>
 </header>
 
 <main>
+  <!-- ── 대시보드 ─────────────────────────────────────────────────────── -->
+  <div id="tabDash">
+  <section>
+    <h2>학생</h2>
+    <p class="hint">컨셉 카드를 누르면 이 학생에 맞춰 모티브·설계·작곡·<strong>사전 심사</strong>까지 한 번에 돈다.</p>
+    <div class="grid">
+      <div><label>이름</label><input id="dName" value="김민준"></div>
+      <div><label>학년</label><input id="dGrade" value="초3"></div>
+      <div><label>레벨 1~10</label><input id="dLevel" type="number" value="4" min="1" max="10"></div>
+      <div><label>손 스팬(도)</label><input id="dSpan" type="number" value="7" min="2" max="12"></div>
+      <div><label>편안한 템포 상한</label><input id="dComfort" type="number" value="112"></div>
+      <div><label>독보 수준 1~10</label><input id="dReading" type="number" value="5" min="1" max="10"></div>
+      <div><label>강점(쉼표)</label><input id="dStrengths" value="빠른 손가락"></div>
+      <div><label>약점(쉼표)</label><input id="dWeaknesses" value="옥타브"></div>
+      <div><label>목표 난이도(비우면 레벨)</label><input id="dDifficulty" type="number" step="0.5"></div>
+      <div><label>콩쿨 제한 시간(초)</label><input id="dLimit" type="number" value="150"></div>
+    </div>
+    <div class="row"><button id="btnDashStudent">이 학생으로 컨셉 보기</button>
+      <span id="dashInfo" class="hint" style="margin:0"></span></div>
+  </section>
+
+  <section id="secPresets" class="hidden">
+    <h2>컨셉 고르기</h2>
+    <p class="hint">권하지 않는 컨셉도 숨기지 않는다 — 일부러 어려운 성격을 고를 수 있어야 한다.</p>
+    <div id="presetGrid" class="cards"></div>
+    <div id="autoProgress" class="msg hidden"></div>
+  </section>
+
+  <section id="secLibrary" class="hidden">
+    <h2>만든 곡</h2>
+    <div id="libraryTable"></div>
+  </section>
+  </div>
+
+  <!-- ── 단계별 워크플로(기존) ────────────────────────────────────────── -->
+  <div id="tabSteps" class="hidden">
   <section>
     <h2>1. 학생과 요청</h2>
     <p class="hint">손 스팬·음역·템포는 <strong>하드 제약</strong>이다. 이걸 어긴 악보는 저장되지 않는다.</p>
@@ -107,6 +161,9 @@
       <span class="hint" style="margin:0">프레이즈 4마디씩 순차 생성 → 검증 → 비평 루프</span></div>
   </section>
 
+  </div>
+
+  <!-- 결과·재생·편곡은 두 탭이 함께 쓴다 -->
   <section id="secResult" class="hidden">
     <h2>4. 결과</h2>
     <div id="resultSummary"></div>
@@ -142,6 +199,19 @@
     </div>
     <div id="judgeOut"></div>
     <div id="guideOut"></div>
+
+    <div id="arrangeBox" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
+      <h3 style="font-size:14px;margin:0 0 4px">편곡 — 구간만 다시 쓰기</h3>
+      <p class="hint">지정한 마디 밖은 한 음도 건드리지 않는다. 이전 판은 남으므로 되돌릴 수 있다.</p>
+      <div class="grid">
+        <div><label>시작 마디</label><input id="arrFrom" type="number" min="1" value="1"></div>
+        <div><label>끝 마디</label><input id="arrTo" type="number" min="1" value="4"></div>
+      </div>
+      <div style="margin-top:10px"><label>어떻게 바꿀까</label>
+        <textarea id="arrHow" placeholder="예: 왼손을 한 옥타브 내리고 오른손은 그대로 둬라"></textarea></div>
+      <div class="row"><button id="btnRearrange">이 구간 다시 쓰기</button>
+        <span id="arrOut" class="hint" style="margin:0"></span></div>
+    </div>
 
     <div id="feedbackBox" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
       <h3 style="font-size:14px;margin:0 0 4px">원장 평가</h3>
@@ -190,7 +260,18 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json" }, ...options,
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail || body));
+  if (!res.ok) {
+    // 서버가 {message, what_to_do, issues} 로 답하면 그 문장을 그대로 보여준다 —
+    // 원장에게 JSON 을 던지지 않는다.
+    const d = body.detail;
+    if (d && typeof d === "object" && d.message) {
+      const err = new Error(d.message);
+      err.hint = d.what_to_do || "";
+      err.issues = d.issues || [];
+      throw err;
+    }
+    throw new Error(typeof d === "string" ? d : JSON.stringify(d || body));
+  }
   return body;
 }
 
@@ -686,6 +767,152 @@ $("btnXml").onclick = async () => {
     URL.revokeObjectURL(url);
   } catch (e) { alert(e.message); }
 };
+// ── 대시보드 ─────────────────────────────────────────────────────────────────
+// 단계별 워크플로를 대신하는 것이 아니라 **같은 파이프라인을 끝까지 돌리는 길**이다.
+// 모티브도 설계도도 다 만들고, 고르는 주체만 사람에서 지표로 바뀐다.
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+    $("tabDash").classList.toggle("hidden", t.dataset.tab !== "dash");
+    $("tabSteps").classList.toggle("hidden", t.dataset.tab !== "steps");
+  };
+});
+
+function dashStudent() {
+  return {
+    id: "s1", name: val("dName"), grade: val("dGrade"), years_of_study: 0,
+    hand_span: { max_interval: num("dSpan") }, level: num("dLevel"),
+    repertoire_done: [], strengths: list("dStrengths"), weaknesses: list("dWeaknesses"),
+    tempo_comfort_max_bpm: num("dComfort"), reading_level: num("dReading"),
+    lowest_midi: 36, highest_midi: 93, notes: "",
+    media_consent: { reels_public: false, show_full_name: false },
+  };
+}
+
+function dashCompetition() {
+  if (!(num("dLimit") > 0)) return null;
+  return {
+    id: "c1", name: "콩쿨", organizer: "", year: null, division: val("dGrade"),
+    time_limit_sec: num("dLimit"), original_allowed: true, score_submission_rules: "",
+    memorization_required: false, repeats_allowed: true, criteria_text: "", judge_notes: "",
+  };
+}
+
+$("btnDashStudent").onclick = async () => {
+  try {
+    await api("/api/students", { method: "POST", body: JSON.stringify(dashStudent()) });
+    const presets = await api("/api/presets?student_id=s1");
+    $("presetGrid").innerHTML = presets.map(p => `
+      <button class="card ${p.recommended ? "" : "dim"}" data-preset="${p.id}">
+        <h3>${p.name}</h3>
+        <p class="why">${p.blurb}</p>
+        <div class="meta">${p.meter} · ♩=${p.tempo[0]}~${p.tempo[1]} · ${p.form}
+          ${p.shows_off.length ? "· " + p.shows_off.join("·") + " 를 보여준다" : ""}</div>
+      </button>`).join("");
+    $("presetGrid").querySelectorAll(".card").forEach(c => {
+      c.onclick = () => autoCompose(c.dataset.preset, c);
+    });
+    $("secPresets").classList.remove("hidden");
+    $("dashInfo").textContent = `컨셉 ${presets.length}가지 · 권장 ${presets.filter(p => p.recommended).length}`;
+    await refreshLibrary();
+  } catch (e) { alert("컨셉을 불러오지 못했다: " + e.message); }
+};
+
+async function autoCompose(presetId, cardEl) {
+  const box = $("autoProgress");
+  box.className = "msg";
+  box.textContent = "모티브 → 설계 → 작곡 → 사전 심사… (곡 길이에 따라 수십 초 걸린다)";
+  document.querySelectorAll("#presetGrid .card").forEach(c => c.disabled = true);
+  try {
+    const diff = val("dDifficulty");
+    const body = await api("/api/compositions/auto", { method: "POST", body: JSON.stringify({
+      preset_id: presetId, student: dashStudent(), competition: dashCompetition(),
+      target_difficulty: diff ? Number(diff) : null, n_candidates: 1,
+    })});
+    const j = body.judge;
+    const verdict = j.passed
+      ? `<strong>사전 심사 통과</strong> · 평균 ${j.average} (문턱 ${j.required_average})`
+      : `<strong>심사 문턱 미달</strong> · 평균 ${j.average} / 최저 ${j.minimum}
+         (문턱 ${j.required_average}·${j.required_minimum}) — 초안으로만 쓸 것`;
+    box.className = "msg " + (j.passed ? "ok" : "warn");
+    box.innerHTML = `${body.title} · ${body.measures}마디 · ${body.key} ${body.meter}
+      ♩=${body.tempo} · 난이도 ${body.difficulty} · 종합 ${body.combined_score}<br>${verdict}
+      ${j.rounds ? `<br>심사 되먹임 ${j.rounds}회 반영` : ""}
+      ${j.consensus_fixes.length ? `<br>공통 지적: ${j.consensus_fixes.join(" / ")}` : ""}`;
+    // 만든 곡을 곧바로 결과 화면(악보·재생·편곡)으로 넘긴다.
+    requestId = body.request_id;
+    compositionId = body.composition_id;
+    await showComposition(body.composition_id);
+    await refreshLibrary();
+  } catch (e) {
+    box.className = "msg bad";
+    box.innerHTML = `<strong>${e.message}</strong>`
+      + (e.hint ? `<br>${e.hint}` : "")
+      + (e.issues && e.issues.length
+          ? `<details style="margin-top:6px"><summary>자세히</summary><pre>${
+              [...new Set(e.issues)].join("\n\n")}</pre></details>`
+          : "");
+  } finally {
+    document.querySelectorAll("#presetGrid .card").forEach(c => c.disabled = false);
+    if (cardEl) cardEl.disabled = false;
+  }
+}
+
+async function refreshLibrary() {
+  const items = await api("/api/compositions");
+  $("secLibrary").classList.toggle("hidden", items.length === 0);
+  if (!items.length) return;
+  $("libraryTable").innerHTML =
+    "<table><tr><th>곡</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>종합</th>" +
+    "<th>사전 심사</th><th>판</th><th></th></tr>" +
+    items.map(i => `<tr>
+      <td>${i.title}</td><td>${i.key} ${i.meter} ♩=${i.tempo}</td>
+      <td>${i.measures}</td><td>${i.difficulty}</td><td>${i.combined_score}</td>
+      <td>${i.judged ? (i.judge_passed ? "통과 " + i.judge_average : "미달 " + i.judge_average) : "—"}</td>
+      <td>${i.versions}</td>
+      <td><button class="ghost open" data-cid="${i.composition_id}">열기</button></td>
+    </tr>`).join("") + "</table>";
+  $("libraryTable").querySelectorAll(".open").forEach(b => {
+    b.onclick = () => { compositionId = b.dataset.cid; showComposition(b.dataset.cid); };
+  });
+}
+
+// 라이브러리에서 곡을 다시 열 때도 같은 결과 화면을 쓴다.
+async function showComposition(cid) {
+  compositionId = cid;
+  $("secResult").classList.remove("hidden");
+  $("resultSummary").innerHTML = "<p class='hint'>곡을 불러오는 중…</p>";
+  try {
+    const b = await api(`/api/compositions/${cid}/quality`);
+    if (b.tempo) { $("playTempo").value = b.tempo; $("playTempoLabel").textContent = b.tempo + " bpm"; }
+    renderResult(b);
+    $("secResult").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
+}
+
+// ── 편곡(구간 다시 쓰기) ────────────────────────────────────────────────────
+$("btnRearrange").onclick = async () => {
+  const lo = num("arrFrom"), hi = num("arrTo"), how = val("arrHow");
+  const out = $("arrOut");
+  if (!compositionId) { out.textContent = "먼저 곡을 만들거나 열어라"; return; }
+  if (!(lo >= 1 && hi >= lo)) { out.textContent = "마디 범위를 확인하라"; return; }
+  if (how.length < 4) { out.textContent = "무엇을 어떻게 바꿀지 적어라"; return; }
+  $("btnRearrange").disabled = true;
+  out.textContent = `${lo}~${hi}마디를 다시 쓰는 중…`;
+  try {
+    const b = await api(`/api/compositions/${compositionId}/rearrange`, {
+      method: "POST", body: JSON.stringify({ measures: [lo, hi], instruction: how }),
+    });
+    out.textContent = `${b.changed_measures[0]}~${b.changed_measures.slice(-1)[0]}마디 수정 · `
+      + `${b.version}판 · 난이도 ${b.difficulty} · 종합 ${b.combined_score} · ${b.validation.summary}`;
+    playMeasures = null;
+    await showComposition(compositionId);
+    await refreshLibrary();
+  } catch (e) { out.textContent = "편곡 실패: " + e.message; }
+  finally { $("btnRearrange").disabled = false; }
+};
+
 </script>
 </body>
 </html>
