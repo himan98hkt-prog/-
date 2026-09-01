@@ -1,0 +1,594 @@
+{
+  "title_candidates": [
+    "흔들리는 나룻배",
+    "여섯 박의 물결",
+    "저녁 뱃길"
+  ],
+  "key": "D",
+  "meter": "6/8",
+  "tempo": 96,
+  "total_measures": 62,
+  "duration_est": 116.2,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        16
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            6
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 4분+8분 흔들림으로 F#4 에서 B4 까지 올라갔다 A4 로 내려앉는다. 5~6마디는 같은 윤곽을 한 음 낮춰 받아 여섯 마디 악절로 닫는다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            7,
+            8
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 세 음(F#4 G4 A4)만 떼어 두 마디로 되묻는다. 두 번째 마디 끝은 V 에 걸어 열어 둔다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 흔들림을 2도 위(G4 시작)에서. 11마디에서 한 번 더 올려 D5 를 처음 짚는다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            13,
+            16
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "1~4마디를 음 하나 바꾸지 않고 그대로 되돌린다. 화성까지 같게 두어 f 와 악센트만 달라진다 — 암보가 약한 학생이라 '똑같은 것이 돌아온다' 는 자리를 곡 앞쪽에 확실히 박아 둔다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        17,
+        40
+      ],
+      "phrases": [
+        {
+          "measures": [
+            17,
+            20
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "나란한단조(b단조) 색. 흔들림을 4분음표 두 개로 펴서 노래로 바꾼다. 음역은 한 옥타브 아래로 내린다",
+          "texture_lh": "왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            21,
+            24
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "상행 머리를 뒤집어 하행으로. 23마디에서 이끔음 A#4 를 한 번만 짚어 색을 바꾼다",
+          "texture_lh": "왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            25,
+            26
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리 두 음만 남겨 두 마디로 조인다",
+          "texture_lh": "왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            27,
+            28
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 두 음으로 되받는다. 프레이즈가 짧아지면서 조여 든다",
+          "texture_lh": "왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            29,
+            32
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 넓게 벌린다. 29마디 V7/V 로 딸림화음을 준비한다",
+          "texture_lh": "왼손이 오른손의 노래를 8분음표로 받아 친다 — 양손이 번갈아 흔든다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            33,
+            36
+          ],
+          "motif_treatment": "sequence_down_3rd",
+          "texture_rh": "3도씩 내려가는 동형진행. 왼손이 오른손 8분음표를 이어받아 양손이 번갈아 흔든다",
+          "texture_lh": "왼손이 오른손의 노래를 8분음표로 받아 친다 — 양손이 번갈아 흔든다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            37,
+            40
+          ],
+          "motif_treatment": "texture_swap",
+          "texture_rh": "선율을 왼손으로 넘기고 오른손이 6/8 펼침화음을 얹는다. 양손 균형이 강점인 학생의 자리다",
+          "texture_lh": "왼손이 오른손의 노래를 8분음표로 받아 친다 — 양손이 번갈아 흔든다",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        41,
+        56
+      ],
+      "phrases": [
+        {
+          "measures": [
+            41,
+            44
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "D장조로 돌아와 모티브를 원형 그대로. 여기가 곡의 꼭대기다 — 오른손은 한 옥타브 위에서 시작한다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            45,
+            48
+          ],
+          "motif_treatment": "octave_shift",
+          "texture_rh": "같은 선율을 원래 음역으로 내려 놓아 열이 식는 것을 들리게 한다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            49,
+            56
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "흔들림을 점8분+16분으로 잘게 쪼개 여덟 마디를 한 호흡으로 흘린다. 51~56마디에서 ii-V7 을 두 번 돌며 종지를 넓게 받는다",
+          "texture_lh": "왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "코다",
+      "measures": [
+        57,
+        62
+      ],
+      "phrases": [
+        {
+          "measures": [
+            57,
+            62
+          ],
+          "motif_treatment": "diminution",
+          "texture_rh": "머리 세 음을 8분음표로 축소해 세 번 되풀이하다 마지막 두 마디에서 손을 놓는다. 배가 멀어지듯 여려진다",
+          "texture_lh": "왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+          "dynamic": "mp"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 17,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 18,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 19,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 20,
+      "roman": "V7/vi",
+      "bass_note": null
+    },
+    {
+      "measure": 21,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 22,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 23,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 24,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 25,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 26,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 27,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 28,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 29,
+      "roman": "V7/V",
+      "bass_note": null
+    },
+    {
+      "measure": 30,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 31,
+      "roman": "V7/V",
+      "bass_note": null
+    },
+    {
+      "measure": 32,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 33,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 34,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 35,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 36,
+      "roman": "V7/V",
+      "bass_note": null
+    },
+    {
+      "measure": 37,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 38,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 39,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 40,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 41,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 42,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 43,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 44,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 45,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 46,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 47,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 48,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 49,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 50,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 51,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 52,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 53,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 54,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 55,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 56,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 57,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 58,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 59,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 60,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 61,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 62,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 41,
+    "how": "B 의 조임이 풀리며 D장조 원형 모티브가 한 옥타브 위에서 f 로 돌아온다. 41마디 첫 박이 곡 전체에서 가장 높고 가장 큰 자리다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        33,
+        40
+      ],
+      "strength_used": "균형 잡힌 양손"
+    },
+    {
+      "range": [
+        45,
+        52
+      ],
+      "strength_used": "균형 잡힌 양손"
+    }
+  ],
+  "contrast_section": {
+    "key": "A 는 D장조, B 는 나란한단조 b단조 색",
+    "texture_lh": "A 의 '베이스+화음' 흔들림을 B 에서는 온음표 지속화음으로 멈춘다",
+    "register": "B 앞부분은 A 보다 한 옥타브 낮다",
+    "rhythm": "A 는 4분+8분, B 는 4분음표 균등 → 29마디부터 2분음표 확대"
+  },
+  "modulations": [
+    "17마디 b단조 색으로",
+    "29마디 V7/V 로 딸림 준비",
+    "41마디 D장조 복귀"
+  ],
+  "ending": {
+    "type": "코다 — 축소된 모티브가 I-vi 를 두 번 왕복하다 V7-I 로 잦아든다",
+    "measures": [
+      57,
+      62
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mp"
+    },
+    {
+      "measure": 7,
+      "dyn": "mf"
+    },
+    {
+      "measure": 13,
+      "dyn": "f"
+    },
+    {
+      "measure": 17,
+      "dyn": "p"
+    },
+    {
+      "measure": 27,
+      "dyn": "mf"
+    },
+    {
+      "measure": 37,
+      "dyn": "f"
+    },
+    {
+      "measure": 41,
+      "dyn": "f"
+    },
+    {
+      "measure": 45,
+      "dyn": "mf"
+    },
+    {
+      "measure": 57,
+      "dyn": "mp"
+    },
+    {
+      "measure": 61,
+      "dyn": "p"
+    }
+  ],
+  "pedal_plan": "6/8 한 마디 = 한 페달. 화음이 마디 안에서 바뀌는 5·11·29·51마디만 네 번째 8분음표에서 한 번 더 바꾼다. B 섹션(17~28)은 페달을 얕게 밟아 지속화음이 뭉치지 않게 한다",
+  "difficulty_target": 4.0
+}

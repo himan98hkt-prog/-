@@ -1,0 +1,678 @@
+[
+  {
+    "id": "motif-1",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "start"
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "G4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "6/8",
+    "tempo": 96,
+    "character_label": "노 젓는 배",
+    "why_it_works": "6/8 의 긴-짧은 흔들림(4분+8분)을 두 번 밟아 올라갔다가 둘째 마디에서 한 번에 내려앉는 '올라갔다 내려오는 한 숨'이 각인점이고, 순차 진행뿐이라 초3 이 한 번 듣고 따라 부른다. 머리 네 음이 상행 순차라 2도·3도 위 동형진행이 그대로 되고, 둘째 마디 하행을 뒤집으면 B 섹션의 상행 노래가 나온다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-2",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "C#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "D3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "D3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "start"
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "E3",
+                  "B3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "E3",
+                  "B3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "6/8",
+    "tempo": 96,
+    "character_label": "물음표 같은",
+    "why_it_works": "같은 음을 두 번 치고 반음 아래로 흘러내리는 반복음이 각인점이며, 아치가 아니라 계속 내려오기만 해서 끝이 열린 물음으로 들린다. 하행 윤곽을 전위하면 상행 답구가 되어 문답 구조를 짜기 좋고, 반복음 머리는 확대해도 형태가 유지된다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-3",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "C#5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "C#5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "6/8",
+    "tempo": 96,
+    "character_label": "쉼표 뒤 도약",
+    "why_it_works": "매 마디 첫 8분쉼표 뒤에 스타카토로 뛰어드는 늦은 출발이 각인점이라 박자를 놓쳐도 귀가 먼저 알아채고, 암보가 약한 학생에게 '쉬고 넷' 이라는 셈이 그대로 기억의 손잡이가 된다. 상행·하행이 짝을 이루므로 둘 중 하나만 떼어 분절하면 조임 구간이 즉시 나온다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-4",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "start"
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "F#4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "F#4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 3.0,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "G4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.5,
+                "pitches": [
+                  "G4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 3.0,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "6/8",
+    "tempo": 96,
+    "character_label": "펼쳐지는 물결",
+    "why_it_works": "여섯 개 8분음표가 D 화음을 올라갔다 내려오는 펼침화음이라 앞의 노래형 후보들과 텍스처가 아예 다르고, 양손 균형이 강점인 학생에게 오른손 물결·왼손 지속음의 역할 분담이 바로 보인다. 화음만 갈아끼우면 어느 진행 위로도 옮겨지므로 동형진행 구간을 길게 쓸 수 있다.",
+    "source": "ai",
+    "selected": false
+  }
+]

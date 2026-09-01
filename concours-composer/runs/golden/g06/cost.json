@@ -1,0 +1,455 @@
+{
+  "recorded_at": "2026-09-01T14:04:43+00:00",
+  "summary": {
+    "composition_id": "g06",
+    "engine": "session",
+    "total_usd": 0.0,
+    "limit_usd": 2.5,
+    "calls": 27,
+    "input_tokens": 191793,
+    "output_tokens": 48026,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 0,
+    "by_stage": {
+      "motif": {
+        "calls": 1,
+        "input_tokens": 1061,
+        "output_tokens": 3603,
+        "cost_usd": 0.0
+      },
+      "plan": {
+        "calls": 1,
+        "input_tokens": 2498,
+        "output_tokens": 3918,
+        "cost_usd": 0.0
+      },
+      "phrase_01_06": {
+        "calls": 1,
+        "input_tokens": 3186,
+        "output_tokens": 2362,
+        "cost_usd": 0.0
+      },
+      "phrase_07_08": {
+        "calls": 1,
+        "input_tokens": 6847,
+        "output_tokens": 753,
+        "cost_usd": 0.0
+      },
+      "phrase_09_12": {
+        "calls": 1,
+        "input_tokens": 8050,
+        "output_tokens": 1562,
+        "cost_usd": 0.0
+      },
+      "phrase_13_16": {
+        "calls": 1,
+        "input_tokens": 8009,
+        "output_tokens": 1594,
+        "cost_usd": 0.0
+      },
+      "phrase_17_20": {
+        "calls": 1,
+        "input_tokens": 8119,
+        "output_tokens": 1429,
+        "cost_usd": 0.0
+      },
+      "phrase_21_24": {
+        "calls": 1,
+        "input_tokens": 7730,
+        "output_tokens": 1500,
+        "cost_usd": 0.0
+      },
+      "phrase_25_26": {
+        "calls": 1,
+        "input_tokens": 7364,
+        "output_tokens": 654,
+        "cost_usd": 0.0
+      },
+      "phrase_27_28": {
+        "calls": 1,
+        "input_tokens": 7241,
+        "output_tokens": 650,
+        "cost_usd": 0.0
+      },
+      "phrase_29_32": {
+        "calls": 1,
+        "input_tokens": 7147,
+        "output_tokens": 1528,
+        "cost_usd": 0.0
+      },
+      "phrase_33_36": {
+        "calls": 1,
+        "input_tokens": 7430,
+        "output_tokens": 1775,
+        "cost_usd": 0.0
+      },
+      "phrase_37_40": {
+        "calls": 1,
+        "input_tokens": 8551,
+        "output_tokens": 1682,
+        "cost_usd": 0.0
+      },
+      "phrase_41_44": {
+        "calls": 1,
+        "input_tokens": 8825,
+        "output_tokens": 1571,
+        "cost_usd": 0.0
+      },
+      "phrase_45_48": {
+        "calls": 1,
+        "input_tokens": 8338,
+        "output_tokens": 1596,
+        "cost_usd": 0.0
+      },
+      "phrase_49_56": {
+        "calls": 1,
+        "input_tokens": 8214,
+        "output_tokens": 3204,
+        "cost_usd": 0.0
+      },
+      "phrase_57_62": {
+        "calls": 1,
+        "input_tokens": 8283,
+        "output_tokens": 2465,
+        "cost_usd": 0.0
+      },
+      "critic": {
+        "calls": 3,
+        "input_tokens": 31557,
+        "output_tokens": 3690,
+        "cost_usd": 0.0
+      },
+      "phrase_01_06_fix": {
+        "calls": 2,
+        "input_tokens": 5230,
+        "output_tokens": 4726,
+        "cost_usd": 0.0
+      },
+      "phrase_13_16_fix": {
+        "calls": 2,
+        "input_tokens": 14984,
+        "output_tokens": 3166,
+        "cost_usd": 0.0
+      },
+      "phrase_17_20_fix": {
+        "calls": 2,
+        "input_tokens": 15074,
+        "output_tokens": 2856,
+        "cost_usd": 0.0
+      },
+      "phrase_37_40_fix": {
+        "calls": 1,
+        "input_tokens": 8055,
+        "output_tokens": 1742,
+        "cost_usd": 0.0
+      }
+    }
+  },
+  "calls": [
+    {
+      "stage": "motif",
+      "model": "claude-opus-5",
+      "input_tokens": 1061,
+      "output_tokens": 3603,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "plan",
+      "model": "claude-opus-5",
+      "input_tokens": 2498,
+      "output_tokens": 3918,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_01_06",
+      "model": "claude-opus-5",
+      "input_tokens": 3186,
+      "output_tokens": 2362,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_07_08",
+      "model": "claude-opus-5",
+      "input_tokens": 6847,
+      "output_tokens": 753,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_09_12",
+      "model": "claude-opus-5",
+      "input_tokens": 8050,
+      "output_tokens": 1562,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_13_16",
+      "model": "claude-opus-5",
+      "input_tokens": 8009,
+      "output_tokens": 1594,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_17_20",
+      "model": "claude-opus-5",
+      "input_tokens": 8119,
+      "output_tokens": 1429,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_21_24",
+      "model": "claude-opus-5",
+      "input_tokens": 7730,
+      "output_tokens": 1500,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_25_26",
+      "model": "claude-opus-5",
+      "input_tokens": 7364,
+      "output_tokens": 654,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_27_28",
+      "model": "claude-opus-5",
+      "input_tokens": 7241,
+      "output_tokens": 650,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_29_32",
+      "model": "claude-opus-5",
+      "input_tokens": 7147,
+      "output_tokens": 1528,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_33_36",
+      "model": "claude-opus-5",
+      "input_tokens": 7430,
+      "output_tokens": 1775,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_37_40",
+      "model": "claude-opus-5",
+      "input_tokens": 8551,
+      "output_tokens": 1682,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_41_44",
+      "model": "claude-opus-5",
+      "input_tokens": 8825,
+      "output_tokens": 1571,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_45_48",
+      "model": "claude-opus-5",
+      "input_tokens": 8338,
+      "output_tokens": 1596,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_49_56",
+      "model": "claude-opus-5",
+      "input_tokens": 8214,
+      "output_tokens": 3204,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_57_62",
+      "model": "claude-opus-5",
+      "input_tokens": 8283,
+      "output_tokens": 2465,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "critic",
+      "model": "claude-opus-5",
+      "input_tokens": 10554,
+      "output_tokens": 1230,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_01_06_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 2586,
+      "output_tokens": 2363,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_13_16_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 7463,
+      "output_tokens": 1583,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_17_20_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 7508,
+      "output_tokens": 1428,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "critic",
+      "model": "claude-opus-5",
+      "input_tokens": 10493,
+      "output_tokens": 1230,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_01_06_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 2644,
+      "output_tokens": 2363,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_13_16_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 7521,
+      "output_tokens": 1583,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_17_20_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 7566,
+      "output_tokens": 1428,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_37_40_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 8055,
+      "output_tokens": 1742,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "critic",
+      "model": "claude-opus-5",
+      "input_tokens": 10510,
+      "output_tokens": 1230,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    }
+  ],
+  "projection": {
+    "model": "claude-opus-5",
+    "calls": 27,
+    "input_tokens": 191793,
+    "output_tokens": 48026,
+    "cost_usd_no_cache": 2.1596,
+    "cost_usd_with_cache": 1.5555
+  }
+}
