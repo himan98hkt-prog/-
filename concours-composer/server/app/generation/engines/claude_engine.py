@@ -12,6 +12,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.analysis.musicality import describe_texture
 from app.config import Settings, get_settings
 from app.generation.client import ClaudeClient, CostLedger
 from app.generation.context import ComposerContext, estimate_measures
@@ -154,6 +155,7 @@ class ClaudeComposerEngine:
             "plan": plan.model_dump(),
             "locked_motif": motif.model_dump(),
             "rule_based_musicality": musicality,
+            "measured_texture": describe_texture(measures, plan),
             "validator_warnings": warnings or [],
             "total_measures": len(measures),
         }

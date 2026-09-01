@@ -107,3 +107,55 @@ def test_soft_rules_do_not_block_save(student):
     r = validate_score(ms, student, meter="4/4", tempo=100)
     assert r.warnings
     assert r.passed
+
+
+def _bar(n: int, rh: list[tuple[float, list[str]]], lh: list[tuple[float, list[str]]],
+         *, rh_ties: list[str | None] | None = None) -> Measure:
+    ties = rh_ties or [None] * len(rh)
+    return Measure(
+        number=n,
+        rh=[Voice(events=[ScoreEvent(dur=d, pitches=p, tie=t)
+                          for (d, p), t in zip(rh, ties, strict=True)])],
+        lh=[Voice(events=[ScoreEvent(dur=d, pitches=p) for d, p in lh])],
+    )
+
+
+def test_parallel_octaves_inside_a_measure_are_caught(student):
+    """마디 첫 음만 보던 검사는 이것을 통째로 놓쳤다 — 2·3박에서 두 손이 나란히 8도로 걷는다."""
+    m = _bar(1,
+             [(1.0, ["C5"]), (1.0, ["D5"]), (1.0, ["E5"]), (1.0, ["C5"])],
+             [(1.0, ["C3"]), (1.0, ["D3"]), (1.0, ["E3"]), (1.0, ["C3"])])
+    r = validate_score([m], student, meter="4/4", tempo=100)
+    msgs = [i.message for i in r.warnings if i.rule == "parallels"]
+    assert msgs and "1마디" in msgs[0] and "8도" in msgs[0], msgs
+
+
+def test_parallel_fifths_inside_a_measure_are_caught(student):
+    m = _bar(1,
+             [(2.0, ["G4"]), (2.0, ["A4"])],
+             [(2.0, ["C3"]), (2.0, ["D3"])])
+    r = validate_score([m], student, meter="4/4", tempo=100)
+    assert any("5도" in i.message for i in r.warnings if i.rule == "parallels")
+
+
+def test_one_hand_holding_is_not_a_parallel(student):
+    """오른손이 붙잡고 있는 동안 왼손만 움직이면 병행이 아니다."""
+    m = _bar(1,
+             [(4.0, ["C5"])],
+             [(1.0, ["C3"]), (1.0, ["D3"]), (1.0, ["E3"]), (1.0, ["F3"])])
+    r = validate_score([m], student, meter="4/4", tempo=100)
+    assert not [i for i in r.warnings if i.rule == "parallels"]
+
+
+def test_tied_note_is_not_a_new_attack(student):
+    """이어짐표로 묶인 뒷마디 음은 새로 친 것이 아니므로 병행의 출발점이 될 수 없다."""
+    ms = [
+        _bar(1, [(2.0, ["C5"]), (2.0, ["D5"])], [(2.0, ["C3"]), (2.0, ["D3"])],
+             rh_ties=[None, "start"]),
+        _bar(2, [(2.0, ["D5"]), (2.0, ["E5"])], [(2.0, ["D3"]), (2.0, ["E3"])],
+             rh_ties=["stop", None]),
+    ]
+    r = validate_score(ms, student, meter="4/4", tempo=100)
+    # 1마디 안(도→레)과 2마디 안(레→미)은 잡히지만, 이어짐표 자리는 새 타건이 아니다.
+    hits = [i.message for i in r.warnings if i.rule == "parallels"]
+    assert all("1→2마디" not in m for m in hits), hits

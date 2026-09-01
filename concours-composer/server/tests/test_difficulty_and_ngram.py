@@ -97,3 +97,44 @@ def test_unrelated_melody_is_not_flagged():
 def test_short_pieces_produce_no_ngrams():
     short = [simple_measure(i, ["C5", "D5", "E5", "F5"], ["C3"]) for i in range(1, 3)]
     assert interval_ngrams(short, DEFAULT_N) == {}
+
+
+def test_saturated_features_are_named() -> None:
+    """상한에 걸려 1.0 으로 잘린 특징은 원값과 함께 드러나야 한다.
+
+    난이도 9 를 겨냥한 곡에서 밀도가 상한의 2.2배인데도 점수가 오르지 않아
+    한참을 헤맸다. 화면에 이것이 보였다면 바로 조표를 봤을 것이다.
+    """
+    from app.analysis.difficulty import CAPS
+
+    ms = _hard()
+    d = difficulty_score(ms, meter="4/4", tempo=170, key_sig="F#")
+    for k, v in d.features.items():
+        cap, _ = CAPS[k]
+        if v >= 1.0 and d.raw[k] > cap:
+            assert k in d.saturated()
+            assert "상한" in d.saturated()[k]
+    # 상한을 넘지 않은 특징은 나오지 않는다
+    assert all(d.raw[k] > CAPS[k][0] for k in d.saturated())
+
+
+def test_advice_does_not_offer_a_lever_that_is_already_maxed() -> None:
+    from app.analysis.difficulty import difficulty_advice
+
+    d = difficulty_score(_hard(), meter="4/4", tempo=170, key_sig="F#")
+    lines = difficulty_advice(d, 10.0)
+    for k, v in d.features.items():
+        if v >= 1.0:
+            assert not any(line.startswith(f"{k} ") for line in lines), lines
+
+
+def test_key_signature_advice_fires_only_when_the_key_is_the_blocker() -> None:
+    from app.analysis.difficulty import key_signature_advice
+
+    # 다장조(조표 0개)·느린 템포로 난이도 9 는 나오지 않는다.
+    hard = key_signature_advice(target=9.0, tempo=100, key_sig="C",
+                                max_span_semitones=12, max_accidental_ratio=0.25)
+    assert hard and "조표" in hard
+    # 목표가 낮으면 조언하지 않는다.
+    assert key_signature_advice(target=3.0, tempo=100, key_sig="C",
+                                max_span_semitones=12, max_accidental_ratio=0.25) is None

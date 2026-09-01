@@ -49,7 +49,7 @@ seed: venv
 	$(VPY) scripts/seed_corpus.py
 
 lint: venv
-	$(VPY) -m ruff check server scripts
+	$(VPY) -m ruff check server scripts tools
 	$(VPY) -m mypy server/app
 
 demo-m0: check-tools  ## M0 완료 기준 재현

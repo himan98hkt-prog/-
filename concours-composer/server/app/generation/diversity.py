@@ -124,3 +124,37 @@ def suggest(shared: Sequence[str]) -> str:
         "형식 라벨": "ABA' 대신 ABAC 나 AABA 를 써 보라",
     }
     return " / ".join(tips.get(s, s) for s in shared)
+
+
+# ── 음색 팔레트(조성·박자) ───────────────────────────────────────────────────
+#
+# 형식 지문에는 조성을 **일부러** 넣지 않았다 — 넣으면 조만 바꾼 같은 곡이 검사를
+# 빠져나간다. 하지만 같은 콩쿨 같은 부문에 다장조 소품이 연달아 세 곡 나가는 것도
+# 학원 입장에서는 문제다. 그래서 형식과 별개의 **소프트** 신호로 따로 본다.
+
+PALETTE_WINDOW = 6        # 최근 몇 곡을 보는가
+PALETTE_LIMIT = 2         # 그 안에 같은 조성이 몇 번까지면 봐줄 것인가
+
+
+def palette_repeats(
+    plan: CompositionPlan,
+    previous: Sequence[tuple[str, CompositionPlan]],
+    *,
+    window: int = PALETTE_WINDOW,
+    limit: int = PALETTE_LIMIT,
+) -> str | None:
+    """최근 곡들과 조성·박자가 얼마나 겹치는가. 겹치면 한 줄로 알려 준다(하드 실패 아님)."""
+    recent = list(previous)[-window:]
+    if not recent:
+        return None
+    same_key = [i for i, p in recent if p.key == plan.key]
+    same_both = [i for i, p in recent if p.key == plan.key and p.meter == plan.meter]
+    if len(same_key) < limit:
+        return None
+    who = ", ".join(same_both or same_key)
+    what = f"{plan.key} {plan.meter}" if same_both else plan.key
+    return (
+        f"최근 {len(recent)}곡 중 {len(same_both or same_key)}곡이 이미 {what} 다({who}). "
+        "형식은 달라도 같은 부문에 같은 색이 연달아 나가면 심사위원 귀에는 비슷하게 들린다 — "
+        "나란한조·딸림조로 옮기거나 박자를 바꾸는 것을 검토하라."
+    )

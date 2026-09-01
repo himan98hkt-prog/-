@@ -25,6 +25,7 @@ class HardConstraints:
     target_difficulty: float
     difficulty_min: float = 1.0
     difficulty_max: float = 10.0
+    difficulty_key_advice: str | None = None   # 조표로 목표에 못 닿을 때만 채워진다
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +37,7 @@ class HardConstraints:
             "time_limit_sec": self.time_limit_sec,
             "target_difficulty": self.target_difficulty,
             "difficulty_feasible_range": [self.difficulty_min, self.difficulty_max],
+            "difficulty_key_advice": self.difficulty_key_advice,
         }
 
 
@@ -179,11 +181,12 @@ def build_context(
         0.30, 0.05 + s.reading_level * 0.025
     )
 
-    from app.analysis.difficulty import feasible_range
+    from app.analysis.difficulty import feasible_range, key_signature_advice
 
+    key_sig = (request.key_preference or ["C"])[0]
     feas = feasible_range(
         tempo=request.tempo,
-        key_sig=(request.key_preference or ["C"])[0],
+        key_sig=key_sig,
         max_span_semitones=s.hand_span.max_semitones,
         max_accidental_ratio=acc_ratio,
     )
@@ -191,6 +194,13 @@ def build_context(
     hard = HardConstraints(
         difficulty_min=feas.min_score,
         difficulty_max=feas.max_score,
+        difficulty_key_advice=key_signature_advice(
+            target=request.target_difficulty,
+            tempo=request.tempo,
+            key_sig=key_sig,
+            max_span_semitones=s.hand_span.max_semitones,
+            max_accidental_ratio=acc_ratio,
+        ),
         max_span_semitones=s.hand_span.max_semitones,
         lowest_midi=s.lowest_midi,
         highest_midi=s.highest_midi,

@@ -265,3 +265,68 @@ def test_musicality_weights_sum_to_one() -> None:
 
     assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-6
     assert set(WEIGHTS) == set(TARGETS)
+
+
+def test_describe_texture_reports_what_the_score_actually_does() -> None:
+    """설계도가 '스트라이드' 라고 적혀 있어도, 온음표로 쓴 왼손은 온음표로 보고돼야 한다.
+
+    비평가가 Plan 의 문장만 믿고 실제 악보에 없는 것을 지적한 일이 있었다.
+    """
+    from app.analysis.musicality import describe_texture
+
+    plan = _plan(8)
+    plan.form[0].phrases[0].texture_lh = "왼손 10도 스트라이드"
+    plan.form[1].phrases[0].texture_lh = "왼손 10도 스트라이드"
+    ms = [
+        Measure(number=i,
+                rh=[Voice(events=[ScoreEvent(dur=1, pitches=["C5"]) for _ in range(4)])],
+                lh=[Voice(events=[ScoreEvent(dur=4, pitches=["C3", "G3", "C4"])])])
+        for i in range(1, 9)
+    ]
+    rows = describe_texture(ms, plan)
+    assert len(rows) == 2
+    lh = rows[0]["왼손"]
+    assert lh["평균음길이"] == 4.0
+    assert "스트라이드" not in str(lh["모양"]), lh
+    assert lh["동시음"] == 3.0
+
+
+def test_describe_texture_names_a_real_stride() -> None:
+    from app.analysis.musicality import describe_texture
+
+    def bar(n: int) -> Measure:
+        ev = []
+        for _ in range(4):
+            ev.append(ScoreEvent(dur=0.5, pitches=["C2"]))
+            ev.append(ScoreEvent(dur=0.5, pitches=["C3", "E3", "G3"]))
+        return Measure(number=n,
+                       rh=[Voice(events=[ScoreEvent(dur=4, pitches=["C5"])])],
+                       lh=[Voice(events=ev)])
+
+    rows = describe_texture([bar(i) for i in range(1, 9)], _plan(8))
+    assert "스트라이드" in str(rows[0]["왼손"]["모양"]), rows[0]
+
+
+def test_texture_contrast_notices_a_right_hand_change() -> None:
+    """왼손이 그대로여도 오른손이 홑음에서 4음 화음으로 두꺼워지면 텍스처가 바뀐 것이다."""
+    plan = _plan(8)
+    lh = [ScoreEvent(dur=2, pitches=["C3", "G3"]), ScoreEvent(dur=2, pitches=["C3", "G3"])]
+    thin = [Measure(number=i,
+                    rh=[Voice(events=[ScoreEvent(dur=1, pitches=["C5"]) for _ in range(4)])],
+                    lh=[Voice(events=list(lh))]) for i in range(1, 5)]
+    thick = [Measure(number=i,
+                     rh=[Voice(events=[ScoreEvent(dur=1, pitches=["C5", "E5", "G5", "C6"])
+                                       for _ in range(4)])],
+                     lh=[Voice(events=list(lh))]) for i in range(5, 9)]
+    m = texture_contrast(thin + thick, plan)
+    assert m.value == 1.0, m.detail
+    assert "오른손" in m.detail
+
+
+def test_motif_consistency_names_the_phrases_that_lost_the_motif() -> None:
+    motif = _motif()
+    plan = _plan(8)
+    ms = [simple_measure(i, ["C5", "D5", "E5", "G5"], ["C3"]) for i in range(1, 5)]
+    ms += [simple_measure(i, ["B5", "B-5", "A5", "A-5"], ["C3"]) for i in range(5, 9)]
+    m = motif_consistency(ms, motif, plan)
+    assert "없는 곳" in m.detail and "5-8" in m.detail, m.detail

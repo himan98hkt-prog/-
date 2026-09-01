@@ -24,6 +24,10 @@ ignore = [
 "server/tests/**" = ["ARG001", "ARG002", "ARG005", "PLR0915", "N806", "SLF001"]
 "scripts/**" = ["T201"]
 "server/app/schemas/*.py" = ["N805"]
+# 세션 작곡 도구는 서버 코드를 import 하기 전에 sys.path 를 먼저 세워야 한다 —
+# 그래서 import 순서가 관례와 다르다. 짧은 도구이므로 그대로 둔다.
+"tools/notation/*.py" = ["E402", "E701", "E702", "I001", "T201", "SLF001",
+                         "ARG001", "B905", "F401"]
 
 [tool.mypy]
 python_version = "3.12"

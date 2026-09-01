@@ -225,7 +225,9 @@ $("btnRequest").onclick = async () => {
       임시표 상한 ${Math.round(c.max_accidental_ratio * 100)}% ·
       난이도 가능 대역 ${c.difficulty_feasible_range[0]}~${c.difficulty_feasible_range[1]}`;
     const w = $("feasWarn");
-    if (body.feasibility_warning) { w.textContent = body.feasibility_warning; w.classList.remove("hidden"); }
+    // 조표로는 목표 난이도에 닿지 않는다는 조언은 곡을 쓰기 전에 봐야 쓸모가 있다.
+    const notes = [body.feasibility_warning, c.difficulty_key_advice].filter(Boolean);
+    if (notes.length) { w.textContent = notes.join(" · "); w.classList.remove("hidden"); }
     else w.classList.add("hidden");
     $("secMotif").classList.remove("hidden");
     loadMotifs();

@@ -267,3 +267,32 @@ def test_diversity_ignores_key_and_tempo() -> None:
     b = a.model_copy(update={"key": "A", "tempo": 132})
     sim, _ = compare(FormFingerprint.of(a), FormFingerprint.of(b))
     assert sim == 1.0
+
+
+def test_palette_warns_when_the_key_keeps_coming_back(student) -> None:
+    """형식이 달라도 같은 부문에 같은 조성이 연달아 나가면 소프트로 알린다.
+
+    형식 지문에는 조성을 일부러 넣지 않았다(조만 바꾼 같은 곡을 잡아야 하므로).
+    그래서 조성 반복은 **별도의 소프트 신호**로 본다.
+    """
+    a = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    b = _plan_with(cadence=["I", "vi", "ii", "V7", "V7", "I"], lengths=[6, 2, 4, 4],
+                   treatments=["augmentation", "fragment_head", "sequence_up_2nd", "repeat"],
+                   labels=("A", "C"), climax=13)
+    rep = check_plan(b, student, previous_plans=[("g01", a), ("g02", a)])
+    palette = [i for i in rep.warnings if i.rule == "plan_palette"]
+    assert palette, [i.message for i in rep.issues]
+    assert "g01" in palette[0].message and "g02" in palette[0].message
+    assert not [i for i in rep.hard_failures if i.rule == "plan_palette"]
+
+
+def test_palette_is_quiet_when_keys_differ(student) -> None:
+    a = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    other = a.model_copy(update={"key": "E-"})
+    b = _plan_with(cadence=["I", "vi", "ii", "V7", "V7", "I"], lengths=[6, 2, 4, 4],
+                   treatments=["augmentation", "fragment_head", "sequence_up_2nd", "repeat"],
+                   labels=("A", "C"), climax=13)
+    rep = check_plan(b, student, previous_plans=[("g01", other), ("g02", other)])
+    assert not [i for i in rep.warnings if i.rule == "plan_palette"]

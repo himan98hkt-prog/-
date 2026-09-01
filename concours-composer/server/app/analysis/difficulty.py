@@ -37,11 +37,40 @@ _KEY_SHARPS = {
 }
 
 
+# 정규화 상한(=1.0 이 되는 원값). 콩쿨 초·중급 레퍼토리(부르크뮐러~클레멘티) 관측 범위.
+# 이 값을 넘어서면 특징이 1.0 에서 잘리므로, 아무리 더 어렵게 써도 점수가 오르지 않는다.
+CAPS: dict[str, tuple[float, str]] = {
+    "note_density": (10.0, "초당 음 수"),
+    "hand_span": (14.0, "동시 타건 최대 폭(반음)"),
+    "simultaneity": (4.0, "평균 동시음 수"),
+    "key_signature": (5.0, "조표 개수"),
+    "accidentals": (0.30, "임시표 비율"),
+    "tempo": (180.0, "bpm"),
+    "rhythm": (7.0, "쓰인 음길이 종류"),
+    "lh_texture": (12.0, "왼손 저음 평균 도약(반음)"),
+    "hand_motion": (12.0, "오른손 최고음 평균 이동(반음)"),
+}
+
+
 @dataclass
 class DifficultyReport:
     score: float
     features: dict[str, float] = field(default_factory=dict)
     raw: dict[str, float] = field(default_factory=dict)
+
+    def saturated(self) -> dict[str, str]:
+        """상한에 걸려 1.0 으로 잘린 특징 — 여기를 더 밀어도 점수는 오르지 않는다.
+
+        난이도 9 를 겨냥한 곡에서 밀도가 21.96(상한 10)인데 점수가 7.9 에서 멈춘 일이
+        있었다. 화면에 이것이 보이지 않으면 "더 어렵게 썼는데 왜 안 오르나" 가 된다.
+        """
+        out: dict[str, str] = {}
+        for k, v in self.features.items():
+            cap, unit = CAPS[k]
+            raw = self.raw.get(k, 0.0)
+            if v >= 1.0 and raw > cap:
+                out[k] = f"{raw:.2f} / 상한 {cap:g} ({unit}) — {raw / cap:.1f}배"
+        return out
 
     def division_hint(self) -> str:
         s = self.score
@@ -130,17 +159,17 @@ def difficulty_score(
         "hand_motion": avg_motion,
     }
 
-    # 정규화 기준: 콩쿨 초·중급 레퍼토리(부르크뮐러~클레멘티) 관측 범위를 상한으로.
+    # 정규화 기준은 CAPS. 동시음·템포·리듬은 바닥이 0 이 아니라 1·60·1 이라 따로 뺀다.
     features = {
-        "note_density": _clamp01(density / 10.0),
-        "hand_span": _clamp01(max_span / 14.0),
-        "simultaneity": _clamp01((avg_simult - 1.0) / 3.0),
-        "key_signature": _clamp01(_KEY_SHARPS.get(key_sig, 0) / 5.0),
-        "accidentals": _clamp01(acc_ratio / 0.30),
-        "tempo": _clamp01((tempo - 60) / 120.0),
-        "rhythm": _clamp01((len(durs) - 1) / 6.0),
-        "lh_texture": _clamp01(avg_lh_leap / 12.0),
-        "hand_motion": _clamp01(avg_motion / 12.0),
+        "note_density": _clamp01(density / CAPS["note_density"][0]),
+        "hand_span": _clamp01(max_span / CAPS["hand_span"][0]),
+        "simultaneity": _clamp01((avg_simult - 1.0) / (CAPS["simultaneity"][0] - 1.0)),
+        "key_signature": _clamp01(_KEY_SHARPS.get(key_sig, 0) / CAPS["key_signature"][0]),
+        "accidentals": _clamp01(acc_ratio / CAPS["accidentals"][0]),
+        "tempo": _clamp01((tempo - 60) / (CAPS["tempo"][0] - 60)),
+        "rhythm": _clamp01((len(durs) - 1) / (CAPS["rhythm"][0] - 1)),
+        "lh_texture": _clamp01(avg_lh_leap / CAPS["lh_texture"][0]),
+        "hand_motion": _clamp01(avg_motion / CAPS["hand_motion"][0]),
     }
 
     weighted = sum(features[k] * WEIGHTS[k] for k in WEIGHTS)
@@ -177,6 +206,64 @@ class Feasibility:
             f"임시표 상한 {self.fixed.get('max_accidental_ratio', 0):.0%}). "
             "템포·조성을 바꾸거나 목표를 대역 안으로 옮겨라."
         )
+
+
+# 조표 개수 → 그 개수를 쓰는 조성 예. 원장에게 "몇 개짜리로 잡아라" 만 말하면 막막하다.
+_KEYS_BY_SHARPS: dict[int, str] = {
+    0: "다장조·가단조", 1: "사장조·바장조·마단조·라단조", 2: "라장조·내림나장조·나단조·사단조",
+    3: "가장조·내림마장조·올림바단조·다단조", 4: "마장조·내림가장조·올림다단조·바단조",
+    5: "나장조·내림라장조·올림사단조·내림나단조", 6: "올림바장조·내림사장조",
+    7: "올림다장조·내림다장조",
+}
+
+# 실무 상한. 이론적 상한(자유 특징이 전부 1.0)은 실제 곡에서 나오지 않는다 —
+# 임시표·동시음·손 이동이 동시에 1.0 에 닿으려면 곡이 아니라 연습 자료가 된다.
+# 아래 값은 난이도 8 이상을 겨냥해 실제로 쓴 곡들에서 관측한 상한이다.
+_PRACTICAL_CEILING: dict[str, float] = {
+    "note_density": 1.0, "simultaneity": 0.85, "accidentals": 0.55,
+    "rhythm": 1.0, "lh_texture": 1.0, "hand_motion": 0.55,
+}
+
+
+def _practical_max(
+    sharps: float, tempo: int, max_span_semitones: int, max_accidental_ratio: float
+) -> float:
+    """이 조표·템포·손 크기로 **실제 곡이** 닿을 수 있는 난이도 상한."""
+    free = dict(_PRACTICAL_CEILING)
+    free["hand_span"] = _clamp01(max_span_semitones / 14.0)
+    free["accidentals"] = min(free["accidentals"], _clamp01(max_accidental_ratio / 0.30))
+    total = sum(free[k] * WEIGHTS[k] for k in free)
+    total += _clamp01((tempo - 60) / 120.0) * WEIGHTS["tempo"]
+    total += _clamp01(sharps / 5.0) * WEIGHTS["key_signature"]
+    return round(1.0 + total * 9.0, 2)
+
+
+def key_signature_advice(
+    *, target: float, tempo: int, key_sig: str = "C",
+    max_span_semitones: int = 12, max_accidental_ratio: float = 0.25,
+) -> str | None:
+    """목표 난이도를 지금 조표로 맞출 수 있는가. 못 맞추면 조표 몇 개가 필요한지.
+
+    곡을 96마디 다 쓰고 나서 "밀도·스팬·리듬이 전부 상한에 붙었는데도 모자란다" 를
+    발견하는 일을 없앤다 — 그때 남는 손잡이는 조표뿐인데, 조성은 Plan 단계에서 정해진다.
+    """
+    now = int(_KEY_SHARPS.get(key_sig, 0))
+    here = _practical_max(now, tempo, max_span_semitones, max_accidental_ratio)
+    if here >= target:
+        return None
+    for n in range(now + 1, 8):
+        if _practical_max(n, tempo, max_span_semitones, max_accidental_ratio) >= target:
+            return (
+                f"목표 난이도 {target:.1f} 은 조표 {now}개짜리 {key_sig} 로는 실무적으로 "
+                f"{here:.1f} 까지가 한계다 — 밀도·손 스팬·리듬 어휘를 다 올려도 그렇다. "
+                f"조표 {n}개 이상({_KEYS_BY_SHARPS[n]})으로 잡아라."
+            )
+    top = _practical_max(7, tempo, max_span_semitones, max_accidental_ratio)
+    return (
+        f"목표 난이도 {target:.1f} 은 조표를 7개까지 올려도 {top:.1f} 가 한계다 "
+        f"(템포 {tempo}bpm · 손 스팬 {max_span_semitones}반음). "
+        "템포를 올리거나 목표를 낮춰야 한다 — 조성만으로는 닿지 않는다."
+    )
 
 
 def feasible_range(
@@ -266,16 +353,26 @@ def difficulty_advice(report: DifficultyReport, target: float, top: int = 3) -> 
     up = gap > 0
     # 올려야 하면 낮은 특징부터, 내려야 하면 높은 특징부터 만진다.
     # 리포트에 실제로 있는 특징만 본다 — 없는 축을 0 으로 치면 늘 그것부터 만지게 된다.
-    ranked = sorted(
-        ((k, v) for k, v in report.features.items() if k in _LEVERS),
-        key=lambda kv: kv[1], reverse=not up,
-    )
+    # 올릴 때는 **이미 상한에 붙은 특징을 손잡이로 내밀지 않는다** — 밀어도 점수가 안 오른다.
+    usable = {
+        k: v for k, v in report.features.items()
+        if k in _LEVERS and not (up and v >= 1.0)
+    }
+    ranked = sorted(usable.items(), key=lambda kv: kv[1], reverse=not up)
     out = [
         f"난이도 {report.score:.2f} → 목표 {target:.1f} "
         f"({'올려야' if up else '내려야'} 한다, 차이 {abs(gap):.2f})"
     ]
+    sat = report.saturated()
+    if up and sat:
+        out.append(
+            "이미 상한에 걸린 특징(더 밀어도 점수가 오르지 않는다): "
+            + ", ".join(f"{k} {d}" for k, d in sat.items())
+        )
     out += [
         f"{k} {v:.2f} — {_LEVERS[k][0 if up else 1]}"
         for k, v in ranked[:top]
     ]
+    if up and not ranked:
+        out.append("자유 특징이 전부 상한이다 — 조표나 템포를 바꾸지 않으면 목표에 닿지 않는다")
     return out

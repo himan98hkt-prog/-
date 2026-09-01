@@ -27,6 +27,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from app.analysis.musicality import describe_texture
 from app.config import Settings, get_settings
 from app.generation.client import CallRecord, CostLedger, estimate_cost
 from app.generation.context import ComposerContext, estimate_measures
@@ -320,6 +321,7 @@ class SessionComposerEngine:
                     "plan": plan.model_dump(),
                     "locked_motif": motif.model_dump(),
                     "rule_based_musicality": musicality,
+                    "measured_texture": describe_texture(measures, plan),
                     "validator_warnings": warnings or [],
                     "total_measures": len(measures),
                 },

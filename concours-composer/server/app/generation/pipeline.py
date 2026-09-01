@@ -301,6 +301,16 @@ class CompositionPipeline:
             return measures, None
 
         before = len(issues)
+        # 구간은 **경고가 난 마디**로 고르면서 지시는 비평가의 넓은 지적을 그대로 넘기면,
+        # 작곡가는 1~4마디를 받아 들고 27마디에 대한 지시를 읽는다. 무엇을 없애야 하는지를
+        # 지시 맨 앞에 붙여 준다.
+        note = "검증기 경고를 없애는 것이 이번 수정의 목적이다 — " + "; ".join(
+            sorted({i.message for i in issues})[:8]
+        )
+        targeted = [
+            rr.model_copy(update={"instruction": f"{note} · (비평가 지적) {rr.instruction}"})
+            for rr in targeted
+        ]
         trimmed = critic.model_copy(update={"revision_requests": targeted})
         self.progress("polish", 0.5, f"검증기 경고 {before}건을 겨냥해 다듬는 중")
 
@@ -548,6 +558,14 @@ class CompositionPipeline:
         )
 
         diff = difficulty_score(measures, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key)
+        # 상한에 걸린 특징은 난이도가 목표에 맞아도 알려 준다 — 다음 곡의 조성·템포 선택이
+        # 달라져야 하는 신호이기 때문이다.
+        sat = diff.saturated()
+        if sat:
+            advisory.append(
+                "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): "
+                + ", ".join(f"{k} {d}" for k, d in sat.items())
+            )
         opts = AssembleOptions(
             title=title or (plan.title_candidates[0] if plan.title_candidates else "무제"),
             composer="AI 초안 · 원장 편곡",

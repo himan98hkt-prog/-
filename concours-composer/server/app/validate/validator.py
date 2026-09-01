@@ -230,23 +230,65 @@ def _check_soft_climax(plan: CompositionPlan | None, total: int, r: ValidationRe
               f"클라이맥스가 {pos:.0%} 지점 — 권장 60~80% 밖", [plan.climax.measure])
 
 
-def _check_parallels(measures: list[Measure], r: ValidationReport) -> None:
-    """병행 5도·8도(소프트). 오른손 최고음 · 왼손 최저음의 골격만 본다."""
-    frame: list[tuple[int, int, int]] = []
+def _hand_spans(voices: list) -> list[tuple[float, float, list[int]]]:
+    """한 손의 (시작, 끝, 울리는 음들). 이어짐표로 묶인 음은 한 번만 친 것으로 센다."""
+    out: list[tuple[float, float, list[int]]] = []
+    for v in voices:
+        t = 0.0
+        for e in v.events:
+            if e.pitches:
+                midis = [pitch_to_midi(p) for p in e.pitches]
+                if e.tie in ("stop", "continue") and out and out[-1][2] == midis \
+                        and abs(out[-1][1] - t) < 1e-6:
+                    start, _, ps = out[-1]
+                    out[-1] = (start, t + e.dur, ps)   # 앞 음을 늘린다 — 새로 친 것이 아니다
+                else:
+                    out.append((t, t + e.dur, midis))
+            t += e.dur
+    return out
+
+
+def _outer_voice_points(measures: list[Measure]) -> list[tuple[int, float, int, int]]:
+    """(마디, 마디 안 위치, 오른손 최고음, 왼손 최저음) — 어느 손이든 새로 치는 순간마다.
+
+    마디의 첫 음만 보면 마디 **안에서** 일어나는 병행을 통째로 놓친다. 실제로 들리는 것은
+    두 바깥 성부가 함께 움직이는 순간이므로, 두 손의 모든 타건 시점을 모아 그 자리의
+    울림을 본다(한 손이 붙잡고 있는 동안 다른 손만 움직이면 병행이 아니다).
+    """
+    points: list[tuple[int, float, int, int]] = []
     for m in measures:
-        top = [max((pitch_to_midi(p) for p in e.pitches), default=None)
-               for v in m.rh for e in v.events if e.pitches]
-        bot = [min((pitch_to_midi(p) for p in e.pitches), default=None)
-               for v in m.lh for e in v.events if e.pitches]
-        if top and bot:
-            frame.append((m.number, top[0], bot[0]))  # type: ignore[arg-type]
-    for (m1, t1, b1), (m2, t2, b2) in zip(frame, frame[1:], strict=False):
+        rh, lh = _hand_spans(m.rh), _hand_spans(m.lh)
+        if not rh or not lh:
+            continue
+        for t in sorted({s for s, _, _ in rh} | {s for s, _, _ in lh}):
+            top = [p for s, e, ps in rh if s <= t < e - 1e-9 for p in ps]
+            bot = [p for s, e, ps in lh if s <= t < e - 1e-9 for p in ps]
+            if top and bot:
+                points.append((m.number, t, max(top), min(bot)))
+    return points
+
+
+def _check_parallels(measures: list[Measure], meter: str, r: ValidationReport) -> None:
+    """병행 5도·8도(소프트). 오른손 최고음 · 왼손 최저음의 골격을 타건 시점마다 본다."""
+    try:
+        beat_ql = float(m21meter.TimeSignature(meter).beatDuration.quarterLength)
+    except Exception:                                   # 알 수 없는 박자표
+        beat_ql = 1.0
+    points = _outer_voice_points(measures)
+    seen: set[int] = set()                              # 마디마다 한 건만 알린다
+    for (m1, o1, t1, b1), (m2, o2, t2, b2) in zip(points, points[1:], strict=False):
         i1, i2 = (t1 - b1) % 12, (t2 - b2) % 12
         moved = (t1 != t2) and (b1 != b2)
         direction_same = (t2 - t1) * (b2 - b1) > 0
-        if moved and direction_same and i1 == i2 and i1 in (0, 7):
-            name = "8도" if i1 == 0 else "5도"
-            r.add("parallels", "soft", f"{m1}→{m2}마디 병행 {name}", [m1, m2])
+        if not (moved and direction_same and i1 == i2 and i1 in (0, 7)):
+            continue
+        if m2 in seen:
+            continue
+        seen.add(m2)
+        name = "8도" if i1 == 0 else "5도"
+        where = (f"{m1}→{m2}마디" if m1 != m2
+                 else f"{m1}마디 {o1 / beat_ql + 1:g}→{o2 / beat_ql + 1:g}박")
+        r.add("parallels", "soft", f"{where} 병행 {name}", sorted({m1, m2}))
 
 
 # ── 진입점 ───────────────────────────────────────────────────────────────────
@@ -284,7 +326,7 @@ def validate_score(
     _check_competition_rules(measures, competition, r)
     _check_soft_first_eight(measures, r)
     _check_soft_climax(plan, len(measures), r)
-    _check_parallels(measures, r)
+    _check_parallels(measures, meter, r)
 
     if tempo > student.tempo_comfort_max_bpm:
         r.add("tempo", "hard",

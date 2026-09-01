@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from statistics import fmean, pstdev
 
-from app.analysis.pitch import pitch_to_midi
+from app.analysis.pitch import midi_to_pitch, pitch_to_midi
 from app.analysis.theory import is_minor
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate, ScoreEvent
 
@@ -158,6 +158,7 @@ def motif_consistency(
     line = _melody(measures)
     hits = 0
     found: list[str] = []
+    missing: list[str] = []
     for lo, hi in phrases:
         seq = [p for mn, p, _ in line if lo <= mn <= hi]
         ivs = [b - a for a, b in zip(seq, seq[1:], strict=False)]
@@ -172,10 +173,14 @@ def motif_consistency(
         if matched:
             hits += 1
             found.append(f"{lo}-{hi}:{matched}")
+        else:
+            missing.append(f"{lo}-{hi}")
     value = hits / len(phrases)
+    # 빠진 프레이즈를 적지 않으면 "13/16" 만 보고 어디를 고쳐야 하는지 알 수 없다.
+    tail = f" · 없는 곳 {', '.join(missing)}" if missing else ""
     return Metric(
         "motif_consistency", round(value, 4), TARGETS["motif_consistency"],
-        f"{hits}/{len(phrases)} 프레이즈에 등장 · {', '.join(found[:6])}",
+        f"{hits}/{len(phrases)} 프레이즈에 등장{tail} · {', '.join(found[:6])}",
     )
 
 
@@ -371,13 +376,13 @@ def dynamic_curve(measures: list[Measure], plan: CompositionPlan | None) -> Metr
 # ── 7. 텍스처 대비 ───────────────────────────────────────────────────────────
 
 
-def _lh_texture_fingerprint(measures: list[Measure]) -> tuple[float, float, float]:
-    """왼손 텍스처를 (평균 동시음 수, 평균 음역 중심, 평균 음 길이) 로 요약."""
+def _texture_fingerprint(measures: list[Measure], hand: str) -> tuple[float, float, float]:
+    """한 손의 텍스처를 (평균 동시음 수, 평균 음역 중심, 평균 음 길이) 로 요약."""
     simult: list[int] = []
     centers: list[float] = []
     durs: list[float] = []
     for m in measures:
-        for v in m.lh:
+        for v in (m.rh if hand == "rh" else m.lh):
             for e in v.events:
                 if not e.pitches:
                     continue
@@ -390,38 +395,55 @@ def _lh_texture_fingerprint(measures: list[Measure]) -> tuple[float, float, floa
     return (fmean(simult), fmean(centers), fmean(durs))
 
 
+def _fingerprint_diff(f1: tuple[float, float, float],
+                      f2: tuple[float, float, float]) -> list[str]:
+    out = []
+    if abs(f1[0] - f2[0]) >= 0.5:
+        out.append("동시음")
+    if abs(f1[1] - f2[1]) >= 3.0:
+        out.append("음역")
+    if abs(f1[2] - f2[2]) >= 0.5:
+        out.append("리듬")
+    return out
+
+
 def texture_contrast(measures: list[Measure], plan: CompositionPlan | None) -> Metric:
-    """섹션 사이에 왼손 텍스처·음역 변화가 있는가. B 섹션에 최소 1개."""
+    """섹션 사이에 텍스처·음역 변화가 있는가. **양손 모두** 본다.
+
+    왼손만 보던 때에는 오른손이 홑음 선율에서 4음 화음으로 두꺼워져도 '섹션이 바뀌어도
+    그대로' 로 잡혔다. 반주가 바뀌는 것이 가장 큰 신호인 것은 맞지만, 그것만은 아니다.
+    """
     if plan is None or len(plan.form) < 2:
         return Metric("texture_contrast", 0.0, TARGETS["texture_contrast"], "섹션이 하나뿐이다")
     by_number = {m.number: m for m in measures}
-    prints: list[tuple[str, tuple[float, float, float]]] = []
+    prints: list[tuple[str, tuple[float, float, float], tuple[float, float, float]]] = []
     for s in plan.form:
         sec = [by_number[n] for n in range(s.measures[0], s.measures[1] + 1) if n in by_number]
         if sec:
-            prints.append((s.label, _lh_texture_fingerprint(sec)))
+            prints.append((s.label, _texture_fingerprint(sec, "lh"),
+                           _texture_fingerprint(sec, "rh")))
     if len(prints) < 2:
         return Metric("texture_contrast", 0.0, TARGETS["texture_contrast"], "비교할 섹션이 없다")
 
     changes = 0
     notes: list[str] = []
-    for (l1, f1), (l2, f2) in zip(prints, prints[1:], strict=False):
+    for (l1, lh1, rh1), (l2, lh2, rh2) in zip(prints, prints[1:], strict=False):
         if l1 == l2:
             continue
-        diffs = []
-        if abs(f1[0] - f2[0]) >= 0.5:
-            diffs.append("동시음")
-        if abs(f1[1] - f2[1]) >= 3.0:
-            diffs.append("음역")
-        if abs(f1[2] - f2[2]) >= 0.5:
-            diffs.append("리듬")
-        if diffs:
+        lh_d, rh_d = _fingerprint_diff(lh1, lh2), _fingerprint_diff(rh1, rh2)
+        if lh_d or rh_d:
             changes += 1
-            notes.append(f"{l1}→{l2}: {'·'.join(diffs)}")
-    boundaries = max(1, sum(1 for (l1, _), (l2, _) in zip(prints, prints[1:], strict=False) if l1 != l2))
+            parts = []
+            if lh_d:
+                parts.append("왼손 " + "·".join(lh_d))
+            if rh_d:
+                parts.append("오른손 " + "·".join(rh_d))
+            notes.append(f"{l1}→{l2}: {', '.join(parts)}")
+    boundaries = max(1, sum(1 for (l1, _, _), (l2, _, _)
+                            in zip(prints, prints[1:], strict=False) if l1 != l2))
     value = min(1.0, changes / boundaries)
     return Metric("texture_contrast", round(value, 4), TARGETS["texture_contrast"],
-                  "; ".join(notes) if notes else "섹션이 바뀌어도 왼손이 그대로다")
+                  "; ".join(notes) if notes else "섹션이 바뀌어도 두 손이 그대로다")
 
 
 # ── 8. 연주 편의 ─────────────────────────────────────────────────────────────
@@ -570,3 +592,76 @@ def evaluate(
     ):
         r.metrics[m.key] = m
     return r
+
+
+# ── 실측 텍스처 요약 ─────────────────────────────────────────────────────────
+#
+# 설계도의 texture_rh/texture_lh 는 '이렇게 쓰겠다' 는 말이지 '이렇게 썼다' 가 아니다.
+# 비평가가 그 말만 믿으면 실제 악보에 없는 것을 지적한다(실제로 겪었다 — 이미 온음표인
+# 코다의 왼손을 스트라이드라고 지적했다). 그래서 마디에서 직접 잰 것을 함께 준다.
+
+
+def _hand_stats(measures: list[Measure], hand: str) -> dict[str, object] | None:
+    simult: list[int] = []
+    centers: list[float] = []
+    durs: list[float] = []
+    edge: list[int] = []            # 오른손은 최고음, 왼손은 최저음
+    for m in measures:
+        for v in (m.rh if hand == "rh" else m.lh):
+            for e in v.events:
+                if not e.pitches:
+                    continue
+                midis = [pitch_to_midi(p) for p in e.pitches]
+                simult.append(len(midis))
+                centers.append(sum(midis) / len(midis))
+                durs.append(e.dur)
+                edge.append(max(midis) if hand == "rh" else min(midis))
+    if not simult:
+        return None
+    steps = [abs(b - a) for a, b in zip(edge, edge[1:], strict=False)]
+    return {
+        "동시음": round(fmean(simult), 2),
+        "음역중심": midi_to_pitch(round(fmean(centers))),
+        "평균음길이": round(fmean(durs), 3),
+        "음길이종류": sorted({round(d, 3) for d in durs}),
+        "평균이동반음": round(fmean(steps), 2) if steps else 0.0,
+        "모양": _hand_shape(hand, fmean(simult), fmean(durs), fmean(steps) if steps else 0.0),
+    }
+
+
+def _hand_shape(hand: str, simult: float, dur: float, step: float) -> str:
+    """세 숫자로 텍스처를 한 마디로 부른다. 비평가가 악보를 다시 세지 않아도 되게."""
+    rh = hand == "rh"
+    if dur >= 3.0:
+        return "온음표급 지속 화음 — 움직이지 않는다" if simult >= 2 else "온음표급 지속 단음"
+    if simult >= 2.5 and dur >= 1.5:
+        return "긴 화음으로 버틴다"
+    if simult < 1.5:
+        return "홑음 선율" if step <= 4 else "홑음 도약 — 분산화음·끊는 옥타브 계열"
+    if step >= 7 and dur <= 0.75:
+        return ("옥타브·넓은 도약 화음" if rh
+                else "스트라이드 — 저음과 화음을 번갈아 짚는다")
+    if dur <= 0.5:
+        return "잘게 움직이는 화음"
+    return "화음 선율" if rh else "화음 반주"
+
+
+def describe_texture(
+    measures: list[Measure], plan: CompositionPlan | None
+) -> list[dict[str, object]]:
+    """설계도의 섹션마다 **실제로 쓰인** 손별 텍스처. 비평 프롬프트에 넣는다."""
+    if plan is None or not plan.form:
+        return []
+    by_number = {m.number: m for m in measures}
+    out: list[dict[str, object]] = []
+    for s in plan.form:
+        sec = [by_number[n] for n in range(s.measures[0], s.measures[1] + 1) if n in by_number]
+        if not sec:
+            continue
+        out.append({
+            "섹션": s.label,
+            "마디": list(s.measures),
+            "오른손": _hand_stats(sec, "rh"),
+            "왼손": _hand_stats(sec, "lh"),
+        })
+    return out

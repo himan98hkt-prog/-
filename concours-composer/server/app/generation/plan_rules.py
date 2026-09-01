@@ -9,7 +9,7 @@ from collections.abc import Sequence
 
 from music21 import meter as m21meter
 
-from app.generation.diversity import collisions, suggest
+from app.generation.diversity import collisions, palette_repeats, suggest
 from app.schemas.music import MAX_PHRASE_MEASURES, MIN_PHRASE_MEASURES, CompositionPlan
 from app.schemas.student import Student
 from app.validate.validator import ValidationReport
@@ -148,5 +148,10 @@ def check_plan(
             f"{c.other_id} 과(와) 형식이 {c.similarity:.0%} 같다 — 겹치는 축: "
             f"{', '.join(c.shared)}. {suggest(c.shared)}",
         )
+
+    # 11. 조성·박자가 최근 곡들과 겹치는가 (형식 지문에는 일부러 넣지 않은 축)
+    palette = palette_repeats(plan, previous_plans)
+    if palette:
+        r.add("plan_palette", "soft", palette)
 
     return r
