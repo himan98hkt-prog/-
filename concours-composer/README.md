@@ -3,6 +3,8 @@
 학생 맞춤형 AI 콩쿨 독창곡 생성기. 원장이 학생의 수준·손 크기·성향·콩쿨 부문을 넣으면
 **연주 가능한 독창곡**을 MusicXML 로 만든다.
 
+**설치·구성·기능을 한 번에 보려면 [docs/OVERVIEW.md](docs/OVERVIEW.md).**
+
 명세는 [SPEC.md](SPEC.md), 실제 구현 범위는 [docs/SCOPE.md](docs/SCOPE.md),
 진행 상황과 한계는 [docs/STATUS.md](docs/STATUS.md), 작업 규칙은 [CLAUDE.md](CLAUDE.md).
 
@@ -50,8 +52,8 @@ Stage 7  원장 편곡           ★   구간 재생성·직접 편집
 | `StubComposerEngine` | 테스트·CI·오프라인 데모 | 그대로 적용 |
 
 세션 엔진 사용법과 산출물은 [docs/SESSION_ENGINE.md](docs/SESSION_ENGINE.md).
-실제로 만든 5곡(24~80마디, 제한 시간의 73~78% 사용)의 결과·비용은
-[runs/golden/SUMMARY.md](runs/golden/SUMMARY.md). 개선 전 판은 `runs/golden-v1/`.
+실제로 만든 **20곡**(22~96마디 · 난이도 2.8~8.4 · 전곡 검증 통과 · 병행 5·8도 0건)의
+결과·비용은 [runs/golden/SUMMARY.md](runs/golden/SUMMARY.md). 개선 전 판은 `runs/golden-v1/`.
 
 **API 키는 프로젝트 `.env` 파일에서만 읽는다.** 시스템 환경변수는 쓰지 않는다.
 

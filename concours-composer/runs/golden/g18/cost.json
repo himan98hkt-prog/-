@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-01T15:44:08+00:00",
+  "recorded_at": "2026-09-01T16:29:24+00:00",
   "summary": {
     "composition_id": "g18",
     "engine": "session",
@@ -122,7 +122,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 0,
+      "latency_ms": 2,
       "batched": false
     },
     {
@@ -199,7 +199,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 0,
+      "latency_ms": 1,
       "batched": false
     },
     {
@@ -210,7 +210,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 1,
+      "latency_ms": 3,
       "batched": false
     },
     {

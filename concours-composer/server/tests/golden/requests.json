@@ -1,22 +1,396 @@
 [
- {"id":"g01","note":"초등 저학년 · 밝은 알레그로 · 시간제한 150초","level":3,"span":6,"grade":"초2","strengths":["빠른 손가락"],"weaknesses":["옥타브","약한 왼손"],"tempo":100,"comfort":108,"key":"C","meter":"4/4","difficulty":3.0,"mood":"밝고 활기찬","limit":150},
- {"id":"g02","level":4,"span":7,"grade":"초3","strengths":["빠른 손가락"],"weaknesses":["옥타브"],"tempo":104,"comfort":112,"key":"A","meter":"4/4","difficulty":4.0,"mood":"밝고 활기찬 알레그로","limit":150,"note":"시나리오 A 원문"},
- {"id":"g03","level":5,"span":8,"grade":"초4","strengths":["서정적 표현"],"weaknesses":["빠른 패시지"],"tempo":72,"comfort":96,"key":"F","meter":"3/4","difficulty":5.0,"mood":"서정적이고 노래하는","limit":180},
- {"id":"g04","level":2,"span":5,"grade":"유치","strengths":["또렷한 리듬"],"weaknesses":["손가락 힘"],"tempo":88,"comfort":96,"key":"C","meter":"4/4","difficulty":2.0,"mood":"귀여운 행진","limit":90},
- {"id":"g05","level":6,"span":9,"grade":"초6","strengths":["화려한 스케일"],"weaknesses":["여린 소리"],"tempo":120,"comfort":132,"key":"G","meter":"4/4","difficulty":6.0,"mood":"화려하고 당당한","limit":210},
- {"id":"g06","level":4,"span":7,"grade":"초3","strengths":["균형 잡힌 양손"],"weaknesses":["암보"],"tempo":96,"comfort":112,"key":"D","meter":"6/8","difficulty":4.0,"mood":"흔들리는 뱃노래","limit":150},
- {"id":"g07","level":7,"span":10,"grade":"중1","strengths":["표현력","옥타브"],"weaknesses":["트릴"],"tempo":112,"comfort":126,"key":"E-","meter":"4/4","difficulty":7.0,"mood":"극적이고 어두운","limit":240},
- {"id":"g08","level":3,"span":6,"grade":"초2","strengths":["또렷한 리듬"],"weaknesses":["레가토"],"tempo":92,"comfort":104,"key":"G","meter":"2/4","difficulty":3.0,"mood":"씩씩한 행진곡","limit":120},
- {"id":"g09","level":5,"span":8,"grade":"초5","strengths":["빠른 손가락","리듬감"],"weaknesses":["여린 소리"],"tempo":126,"comfort":138,"key":"C","meter":"4/4","difficulty":5.0,"mood":"장난스럽고 재빠른","limit":180},
- {"id":"g10","level":4,"span":7,"grade":"초4","strengths":["서정적 표현"],"weaknesses":["빠른 패시지"],"tempo":66,"comfort":88,"key":"B-","meter":"3/4","difficulty":4.0,"mood":"느린 왈츠","limit":150},
- {"id":"g11","level":6,"span":9,"grade":"초6","strengths":["화려한 스케일","페달"],"weaknesses":["왼손 도약"],"tempo":108,"comfort":120,"key":"D","meter":"4/4","difficulty":6.0,"mood":"물결치는 아르페지오","limit":210},
- {"id":"g12","level":2,"span":5,"grade":"초1","strengths":["또렷한 리듬"],"weaknesses":["손가락 힘","독보"],"tempo":80,"comfort":92,"key":"F","meter":"4/4","difficulty":2.0,"mood":"동요풍의 밝은","limit":90},
- {"id":"g13","level":8,"span":11,"grade":"중2","strengths":["옥타브","표현력"],"weaknesses":["섬세한 터치"],"tempo":132,"comfort":144,"key":"A","meter":"4/4","difficulty":8.0,"mood":"휘몰아치는","limit":270},
- {"id":"g14","level":5,"span":8,"grade":"초5","strengths":["균형 잡힌 양손"],"weaknesses":["암보"],"tempo":100,"comfort":112,"key":"E","meter":"4/4","difficulty":5.0,"mood":"단정한 소나티네풍","limit":180,"form":"sonatina"},
- {"id":"g15","level":3,"span":6,"grade":"초2","strengths":["리듬감"],"weaknesses":["옥타브"],"tempo":112,"comfort":120,"key":"C","meter":"4/4","difficulty":3.0,"mood":"통통 튀는 스타카토","limit":120},
- {"id":"g16","level":7,"span":10,"grade":"중1","strengths":["표현력"],"weaknesses":["빠른 반복음"],"tempo":60,"comfort":88,"key":"c","meter":"4/4","difficulty":7.0,"mood":"비장한 단조","limit":240},
- {"id":"g17","level":4,"span":7,"grade":"초3","strengths":["빠른 손가락"],"weaknesses":["왼손 도약"],"tempo":116,"comfort":126,"key":"G","meter":"4/4","difficulty":4.0,"mood":"경쾌한 무곡","limit":150},
- {"id":"g18","level":6,"span":9,"grade":"초6","strengths":["서정적 표현","페달"],"weaknesses":["옥타브"],"tempo":76,"comfort":100,"key":"A-","meter":"4/4","difficulty":6.0,"mood":"몽환적이고 부드러운","limit":210},
- {"id":"g19","level":5,"span":8,"grade":"초4","strengths":["또렷한 리듬","균형 잡힌 양손"],"weaknesses":["레가토"],"tempo":104,"comfort":116,"key":"D","meter":"4/4","difficulty":5.0,"mood":"변주곡풍","limit":180,"form":"variations"},
- {"id":"g20","level":9,"span":12,"grade":"중3","strengths":["옥타브","화려한 스케일","표현력"],"weaknesses":["집중력"],"tempo":138,"comfort":152,"key":"B-","meter":"4/4","difficulty":9.0,"mood":"거대한 피날레","limit":300}
+  {
+    "id": "g01",
+    "note": "초등 저학년 · 밝은 알레그로 · 시간제한 150초",
+    "level": 3,
+    "span": 6,
+    "grade": "초2",
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "옥타브",
+      "약한 왼손"
+    ],
+    "tempo": 100,
+    "comfort": 108,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 3.0,
+    "mood": "밝고 활기찬",
+    "limit": 150
+  },
+  {
+    "id": "g02",
+    "level": 4,
+    "span": 7,
+    "grade": "초3",
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "옥타브"
+    ],
+    "tempo": 104,
+    "comfort": 112,
+    "key": "A",
+    "meter": "4/4",
+    "difficulty": 4.0,
+    "mood": "밝고 활기찬 알레그로",
+    "limit": 150,
+    "note": "시나리오 A 원문"
+  },
+  {
+    "id": "g03",
+    "level": 5,
+    "span": 8,
+    "grade": "초4",
+    "strengths": [
+      "서정적 표현"
+    ],
+    "weaknesses": [
+      "빠른 패시지"
+    ],
+    "tempo": 72,
+    "comfort": 96,
+    "key": "F",
+    "meter": "3/4",
+    "difficulty": 5.0,
+    "mood": "서정적이고 노래하는",
+    "limit": 180
+  },
+  {
+    "id": "g04",
+    "level": 2,
+    "span": 5,
+    "grade": "유치",
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "손가락 힘"
+    ],
+    "tempo": 88,
+    "comfort": 96,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 2.0,
+    "mood": "귀여운 행진",
+    "limit": 90
+  },
+  {
+    "id": "g05",
+    "level": 6,
+    "span": 9,
+    "grade": "초6",
+    "strengths": [
+      "화려한 스케일"
+    ],
+    "weaknesses": [
+      "여린 소리"
+    ],
+    "tempo": 120,
+    "comfort": 132,
+    "key": "G",
+    "meter": "4/4",
+    "difficulty": 6.0,
+    "mood": "화려하고 당당한",
+    "limit": 210
+  },
+  {
+    "id": "g06",
+    "level": 4,
+    "span": 7,
+    "grade": "초3",
+    "strengths": [
+      "균형 잡힌 양손"
+    ],
+    "weaknesses": [
+      "암보"
+    ],
+    "tempo": 96,
+    "comfort": 112,
+    "key": "D",
+    "meter": "6/8",
+    "difficulty": 4.0,
+    "mood": "흔들리는 뱃노래",
+    "limit": 150
+  },
+  {
+    "id": "g07",
+    "level": 7,
+    "span": 10,
+    "grade": "중1",
+    "strengths": [
+      "표현력",
+      "옥타브"
+    ],
+    "weaknesses": [
+      "트릴"
+    ],
+    "tempo": 112,
+    "comfort": 126,
+    "key": "E-",
+    "meter": "4/4",
+    "difficulty": 7.0,
+    "mood": "극적이고 어두운",
+    "limit": 240
+  },
+  {
+    "id": "g08",
+    "level": 3,
+    "span": 6,
+    "grade": "초2",
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "tempo": 92,
+    "comfort": 104,
+    "key": "G",
+    "meter": "2/4",
+    "difficulty": 3.0,
+    "mood": "씩씩한 행진곡",
+    "limit": 120
+  },
+  {
+    "id": "g09",
+    "level": 5,
+    "span": 8,
+    "grade": "초5",
+    "strengths": [
+      "빠른 손가락",
+      "리듬감"
+    ],
+    "weaknesses": [
+      "여린 소리"
+    ],
+    "tempo": 126,
+    "comfort": 138,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 5.0,
+    "mood": "장난스럽고 재빠른",
+    "limit": 180
+  },
+  {
+    "id": "g10",
+    "level": 4,
+    "span": 7,
+    "grade": "초4",
+    "strengths": [
+      "서정적 표현"
+    ],
+    "weaknesses": [
+      "빠른 패시지"
+    ],
+    "tempo": 66,
+    "comfort": 88,
+    "key": "B-",
+    "meter": "3/4",
+    "difficulty": 4.0,
+    "mood": "느린 왈츠",
+    "limit": 150
+  },
+  {
+    "id": "g11",
+    "level": 6,
+    "span": 9,
+    "grade": "초6",
+    "strengths": [
+      "화려한 스케일",
+      "페달"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "tempo": 108,
+    "comfort": 120,
+    "key": "D",
+    "meter": "4/4",
+    "difficulty": 6.0,
+    "mood": "물결치는 아르페지오",
+    "limit": 210
+  },
+  {
+    "id": "g12",
+    "level": 2,
+    "span": 5,
+    "grade": "초1",
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "손가락 힘",
+      "독보"
+    ],
+    "tempo": 80,
+    "comfort": 92,
+    "key": "F",
+    "meter": "4/4",
+    "difficulty": 2.0,
+    "mood": "동요풍의 밝은",
+    "limit": 90
+  },
+  {
+    "id": "g13",
+    "level": 8,
+    "span": 11,
+    "grade": "중2",
+    "strengths": [
+      "옥타브",
+      "표현력"
+    ],
+    "weaknesses": [
+      "섬세한 터치"
+    ],
+    "tempo": 132,
+    "comfort": 144,
+    "key": "A",
+    "meter": "4/4",
+    "difficulty": 8.0,
+    "mood": "휘몰아치는",
+    "limit": 270
+  },
+  {
+    "id": "g14",
+    "level": 5,
+    "span": 8,
+    "grade": "초5",
+    "strengths": [
+      "균형 잡힌 양손"
+    ],
+    "weaknesses": [
+      "암보"
+    ],
+    "tempo": 100,
+    "comfort": 112,
+    "key": "E",
+    "meter": "4/4",
+    "difficulty": 5.0,
+    "mood": "단정한 소나티네풍",
+    "limit": 180,
+    "form": "sonatina"
+  },
+  {
+    "id": "g15",
+    "level": 3,
+    "span": 6,
+    "grade": "초2",
+    "strengths": [
+      "리듬감"
+    ],
+    "weaknesses": [
+      "옥타브"
+    ],
+    "tempo": 112,
+    "comfort": 120,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 3.0,
+    "mood": "통통 튀는 스타카토",
+    "limit": 120
+  },
+  {
+    "id": "g16",
+    "level": 7,
+    "span": 10,
+    "grade": "중1",
+    "strengths": [
+      "표현력"
+    ],
+    "weaknesses": [
+      "빠른 반복음"
+    ],
+    "tempo": 60,
+    "comfort": 88,
+    "key": "c",
+    "meter": "4/4",
+    "difficulty": 7.0,
+    "mood": "비장한 단조",
+    "limit": 240
+  },
+  {
+    "id": "g17",
+    "level": 4,
+    "span": 7,
+    "grade": "초3",
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "tempo": 116,
+    "comfort": 126,
+    "key": "G",
+    "meter": "4/4",
+    "difficulty": 4.0,
+    "mood": "경쾌한 무곡",
+    "limit": 150
+  },
+  {
+    "id": "g18",
+    "level": 6,
+    "span": 9,
+    "grade": "초6",
+    "strengths": [
+      "서정적 표현",
+      "페달"
+    ],
+    "weaknesses": [
+      "옥타브"
+    ],
+    "tempo": 76,
+    "comfort": 100,
+    "key": "A-",
+    "meter": "4/4",
+    "difficulty": 6.0,
+    "mood": "몽환적이고 부드러운",
+    "limit": 210
+  },
+  {
+    "id": "g19",
+    "level": 5,
+    "span": 8,
+    "grade": "초4",
+    "strengths": [
+      "또렷한 리듬",
+      "균형 잡힌 양손"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "tempo": 104,
+    "comfort": 116,
+    "key": "D",
+    "meter": "4/4",
+    "difficulty": 5.0,
+    "mood": "변주곡풍",
+    "limit": 180,
+    "form": "variations"
+  },
+  {
+    "id": "g20",
+    "level": 9,
+    "span": 12,
+    "grade": "중3",
+    "strengths": [
+      "옥타브",
+      "화려한 스케일",
+      "표현력"
+    ],
+    "weaknesses": [
+      "집중력"
+    ],
+    "tempo": 138,
+    "comfort": 152,
+    "key": "B",
+    "meter": "4/4",
+    "difficulty": 9.0,
+    "mood": "거대한 피날레",
+    "limit": 300
+  }
 ]

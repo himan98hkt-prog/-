@@ -1,0 +1,52 @@
+{
+  "verdicts": [
+    {
+      "persona": "technique",
+      "accuracy": 8.4,
+      "expression": 9.0,
+      "structure": 7.8,
+      "difficulty_fit": 8.6,
+      "impression": 9.0,
+      "comment": "난이도 8.4(중등부)로 목표 9.0 대비 적절. 스팬 초과 0회 · 평균 이동 4.5반음 · 연속 도약 최대 96회.",
+      "fix_in_score": [],
+      "fix_in_practice": [
+        "느린 템포에서 손 이동 구간만 분리 연습",
+        "메트로놈으로 템포 유지 확인"
+      ],
+      "total": 8.56,
+      "persona_label": "테크닉 중시"
+    },
+    {
+      "persona": "musicality",
+      "accuracy": 9.0,
+      "expression": 10.0,
+      "structure": 9.0,
+      "difficulty_fit": 8.6,
+      "impression": 10.0,
+      "comment": "프레이즈 호흡 — 16/16 프레이즈가 호흡으로 끝난다. 다이내믹 — Plan 대비 상관 1.00 (14개 지점).",
+      "fix_in_score": [],
+      "fix_in_practice": [
+        "프레이즈 끝을 손목으로 놓아주는 연습",
+        "노래하듯 선율만 따로 쳐보기"
+      ],
+      "total": 9.32,
+      "persona_label": "음악성 중시"
+    },
+    {
+      "persona": "structure",
+      "accuracy": 8.3,
+      "expression": 7.8,
+      "structure": 8.3,
+      "difficulty_fit": 8.6,
+      "impression": 9.0,
+      "comment": "모티브 통일성 — 13/16 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-16:statement, 17-24:statement, 25-28:fragment_head, 29-32:fragment_head. 화성 — 코드톤 비율 86%.",
+      "fix_in_score": [],
+      "fix_in_practice": [
+        "섹션 경계를 의식하며 암보 구획 나누기"
+      ],
+      "total": 8.4,
+      "persona_label": "구조·형식 중시"
+    }
+  ],
+  "average": 8.76
+}

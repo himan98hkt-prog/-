@@ -1,0 +1,63 @@
+{
+  "spec": {
+    "id": "g20",
+    "level": 9,
+    "span": 12,
+    "grade": "중3",
+    "strengths": [
+      "옥타브",
+      "화려한 스케일",
+      "표현력"
+    ],
+    "weaknesses": [
+      "집중력"
+    ],
+    "tempo": 138,
+    "comfort": 152,
+    "key": "B",
+    "meter": "4/4",
+    "difficulty": 9.0,
+    "mood": "거대한 피날레",
+    "limit": 300
+  },
+  "constraints": {
+    "max_span_semitones": 19,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 152,
+    "max_accidental_ratio": 0.3,
+    "time_limit_sec": 300,
+    "target_difficulty": 9.0,
+    "difficulty_feasible_range": [
+      2.54,
+      9.62
+    ]
+  },
+  "student": {
+    "level": 9,
+    "grade": "중3",
+    "years_of_study": 0,
+    "hand_span_interval": 12,
+    "strengths": [
+      "옥타브",
+      "화려한 스케일",
+      "표현력"
+    ],
+    "weaknesses": [
+      "집중력"
+    ],
+    "repertoire_done": [],
+    "reading_level": 10,
+    "tempo_comfort_max_bpm": 152,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "중3",
+    "time_limit_sec": 300,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

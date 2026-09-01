@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-01T14:37:15+00:00",
+  "recorded_at": "2026-09-01T16:28:23+00:00",
   "summary": {
     "composition_id": "g09",
     "engine": "session",
@@ -341,7 +341,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 1,
+      "latency_ms": 0,
       "batched": false
     },
     {
@@ -385,7 +385,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 2,
+      "latency_ms": 0,
       "batched": false
     },
     {

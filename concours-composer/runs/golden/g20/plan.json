@@ -1,0 +1,815 @@
+{
+  "title_candidates": [
+    "거대한 피날레",
+    "나장조의 문",
+    "마지막 팡파르"
+  ],
+  "key": "B",
+  "meter": "4/4",
+  "tempo": 138,
+  "total_measures": 96,
+  "duration_est": 167.0,
+  "form": [
+    {
+      "label": "서주",
+      "measures": [
+        1,
+        8
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 양손 화음으로 버티다 16분음표 둘로 되짚고 옥타브로 치솟는다. 3~4마디는 1~2마디를 음 하나 바꾸지 않고 되풀이한다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "ff"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "octave_shift",
+          "texture_rh": "같은 팡파르를 차용화음(iv) 위에서 한 번 더. 색이 어두워지며 제1주제를 부른다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "제1주제",
+      "measures": [
+        9,
+        24
+      ],
+      "phrases": [
+        {
+          "measures": [
+            9,
+            16
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "주제 여덟 마디 — 팡파르가 2도씩 올라가며 자리를 넓힌다. 11~12마디는 9~10마디를 그대로. 집중력이 약점인 학생을 위해 두 마디 단위로 되풀이하는 자리를 곡 앞쪽에 박아 둔다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            17,
+            24
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "9~16마디를 음 하나 바꾸지 않고 그대로. 여덟 마디가 통째로 돌아오는 것이 이 곡의 뼈대다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "ff"
+        }
+      ]
+    },
+    {
+      "label": "제2주제",
+      "measures": [
+        25,
+        40
+      ],
+      "phrases": [
+        {
+          "measures": [
+            25,
+            28
+          ],
+          "motif_treatment": "texture_swap",
+          "texture_rh": "선율을 왼손 옥타브로 넘기고 오른손이 위에서 화음을 얹는다. 딸림조 자리다. 27~28마디는 25~26마디를 그대로",
+          "texture_lh": "왼손이 옥타브로 선율을 노래하고 오른손이 위에서 화음을 얹는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            29,
+            32
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "같은 자리를 한 번 더 — 29~32마디는 25~28마디를 통째로 되풀이한다",
+          "texture_lh": "왼손이 옥타브로 선율을 노래하고 오른손이 위에서 화음을 얹는다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            33,
+            40
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 넓게 벌린다. 표현력이 강점인 학생이 소리를 만들 자리이고, 집중력을 위해 밀도를 한 번 확 떨어뜨린다",
+          "texture_lh": "왼손 온음표 4음 화음 — 스트라이드를 멈추고 소리만 남긴다",
+          "dynamic": "mp"
+        }
+      ]
+    },
+    {
+      "label": "전개",
+      "measures": [
+        41,
+        60
+      ],
+      "phrases": [
+        {
+          "measures": [
+            41,
+            44
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리(되짚는 두 음)만 떼어 네 마디. 43~44마디는 41~42마디를 그대로",
+          "texture_lh": "왼손 온음표 4음 화음 — 스트라이드를 멈추고 소리만 남긴다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            45,
+            48
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "치솟던 것을 뒤집어 쏟아 내린다. 47~48마디는 45~46마디를 그대로",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            49,
+            52
+          ],
+          "motif_treatment": "sequence_down_3rd",
+          "texture_rh": "3도씩 내려가는 동형진행. 51~52마디는 49~50마디를 그대로",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            53,
+            60
+          ],
+          "motif_treatment": "diminution",
+          "texture_rh": "반음계 16분음표로 잘게 부수며 딸림화음 위에서 여덟 마디를 밀어붙인다. 화려한 스케일이 강점인 학생의 자리다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "ff"
+        }
+      ]
+    },
+    {
+      "label": "재현",
+      "measures": [
+        61,
+        84
+      ],
+      "phrases": [
+        {
+          "measures": [
+            61,
+            68
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "9~16마디가 세 번째로 그대로 돌아온다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "ff"
+        },
+        {
+          "measures": [
+            69,
+            76
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "곡의 꼭대기. 팡파르를 양손 옥타브 화음으로 두껍게 하고 69마디에서 시6 을 짚는다 — 곡 전체의 최고음이자 유일한 fff",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "fff"
+        },
+        {
+          "measures": [
+            77,
+            84
+          ],
+          "motif_treatment": "octave_shift",
+          "texture_rh": "같은 것을 한 옥타브 내려 열이 식는 것을 들리게 한다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "ff"
+        }
+      ]
+    },
+    {
+      "label": "코다",
+      "measures": [
+        85,
+        96
+      ],
+      "phrases": [
+        {
+          "measures": [
+            85,
+            90
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리만 남겨 여섯 마디로 조인다. 차용화음 iv 가 두 번 스친다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            91,
+            96
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "마지막 팡파르. 91마디 차용화음 iv 를 지나 딸림7-으뜸으로 두 번 못을 박는다",
+          "texture_lh": "왼손 10도 스트라이드 — 8분음표로 저음 10도와 한 옥타브 위 3음 화음을 번갈아 짚는다. 피날레의 바닥이다",
+          "dynamic": "fff"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "iv",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "VII",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "VI",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 17,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 18,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 19,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 20,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 21,
+      "roman": "VII",
+      "bass_note": null
+    },
+    {
+      "measure": 22,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 23,
+      "roman": "VI",
+      "bass_note": null
+    },
+    {
+      "measure": 24,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 25,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 26,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 27,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 28,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 29,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 30,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 31,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 32,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 33,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 34,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 35,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 36,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 37,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 38,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 39,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 40,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 41,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 42,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 43,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 44,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 45,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 46,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 47,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 48,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 49,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 50,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 51,
+      "roman": "II",
+      "bass_note": null
+    },
+    {
+      "measure": 52,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 53,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 54,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 55,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 56,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 57,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 58,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 59,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 60,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 61,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 62,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 63,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 64,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 65,
+      "roman": "VII",
+      "bass_note": null
+    },
+    {
+      "measure": 66,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 67,
+      "roman": "VI",
+      "bass_note": null
+    },
+    {
+      "measure": 68,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 69,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 70,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 71,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 72,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 73,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 74,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 75,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 76,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 77,
+      "roman": "VII",
+      "bass_note": null
+    },
+    {
+      "measure": 78,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 79,
+      "roman": "VI",
+      "bass_note": null
+    },
+    {
+      "measure": 80,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 81,
+      "roman": "VII",
+      "bass_note": null
+    },
+    {
+      "measure": 82,
+      "roman": "III",
+      "bass_note": null
+    },
+    {
+      "measure": 83,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 84,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 85,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 86,
+      "roman": "iv",
+      "bass_note": null
+    },
+    {
+      "measure": 87,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 88,
+      "roman": "iv",
+      "bass_note": null
+    },
+    {
+      "measure": 89,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 90,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 91,
+      "roman": "iv",
+      "bass_note": null
+    },
+    {
+      "measure": 92,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 93,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 94,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 95,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 96,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 69,
+    "how": "재현의 팡파르가 양손 옥타브 화음으로 두꺼워지며 69마디에서 시6 에 닿는다. 곡의 유일한 fff 이자 최고음이고, 왼손 10도 스트라이드는 멈추지 않는다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        9,
+        24
+      ],
+      "strength_used": "옥타브"
+    },
+    {
+      "range": [
+        53,
+        60
+      ],
+      "strength_used": "화려한 스케일"
+    },
+    {
+      "range": [
+        33,
+        40
+      ],
+      "strength_used": "표현력"
+    }
+  ],
+  "contrast_section": {
+    "key": "서주·제1주제는 나장조, 제2주제는 딸림조(F#) 자리, 전개는 올림사단조 색, 재현은 복귀",
+    "texture_lh": "제1주제는 10도 스트라이드, 제2주제는 옥타브 선율과 온음표 화음, 재현은 다시 스트라이드",
+    "register": "제2주제는 선율이 왼손으로 내려가고 69마디에서 시6 까지 열린다",
+    "rhythm": "서주·주제는 붙점+16분, 제2주제는 2분음표 확대, 전개의 53마디부터 반음계 16분음표"
+  },
+  "modulations": [
+    "25마디 딸림조 자리로",
+    "41마디 올림사단조 색으로",
+    "61마디 나장조 복귀"
+  ],
+  "ending": {
+    "type": "차용화음 iv 를 지나 딸림7-으뜸으로 두 번 못을 박는 정격 종지",
+    "measures": [
+      91,
+      96
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "ff"
+    },
+    {
+      "measure": 5,
+      "dyn": "f"
+    },
+    {
+      "measure": 9,
+      "dyn": "f"
+    },
+    {
+      "measure": 17,
+      "dyn": "ff"
+    },
+    {
+      "measure": 25,
+      "dyn": "mf"
+    },
+    {
+      "measure": 33,
+      "dyn": "mp"
+    },
+    {
+      "measure": 41,
+      "dyn": "mf"
+    },
+    {
+      "measure": 45,
+      "dyn": "f"
+    },
+    {
+      "measure": 53,
+      "dyn": "ff"
+    },
+    {
+      "measure": 61,
+      "dyn": "ff"
+    },
+    {
+      "measure": 69,
+      "dyn": "fff"
+    },
+    {
+      "measure": 77,
+      "dyn": "ff"
+    },
+    {
+      "measure": 85,
+      "dyn": "f"
+    },
+    {
+      "measure": 91,
+      "dyn": "fff"
+    }
+  ],
+  "pedal_plan": "스트라이드 구간은 반 마디마다 바꾼다 — 10도 베이스를 잡아 두되 화음이 뭉치면 진흙이 된다. 제2주제(25~40마디)는 두 마디를 통째로 묶어 울림을 남기고, 53~60마디의 반음계는 한 박마다 얕게 바꾼다. 마지막 두 마디는 한 페달로 묶는다",
+  "difficulty_target": 9.0
+}
