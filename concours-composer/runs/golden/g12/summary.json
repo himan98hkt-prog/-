@@ -1,0 +1,47 @@
+{
+  "id": "g12",
+  "title": "작은 계단",
+  "motif": "motif-1 · 같은 음 둘",
+  "key": "F",
+  "meter": "4/4",
+  "tempo": 80,
+  "measures": 22,
+  "planned_measures": 22,
+  "duration_sec": 66.0,
+  "time_limit_sec": 90,
+  "validation_passed": true,
+  "hard_failures": [],
+  "warnings": 0,
+  "parallels": 0,
+  "musicality": 9.45,
+  "unmet": [
+    "harmonic_consistency"
+  ],
+  "critic_total": 8.05,
+  "combined": 8.61,
+  "quality_passed": true,
+  "revision_rounds": 1,
+  "difficulty": 2.82,
+  "difficulty_target": 2.0,
+  "difficulty_division": "초등 저학년부",
+  "judge_average": 8.78,
+  "judge_consensus_fixes": [],
+  "guide_sections": 3,
+  "advisory": [
+    "약한 루브릭: originality 6.5",
+    "난이도 2.81 → 목표 2.0 (내려야 한다, 차이 0.81)",
+    "rhythm 0.33 — 쓰는 음길이 종류를 줄여라",
+    "hand_span 0.29 — 동시 타건 폭을 좁혀라(옥타브를 5도로)",
+    "lh_texture 0.23 — 왼손을 지속 화음으로 단순화하라"
+  ],
+  "prompts": 13,
+  "responses": 13,
+  "projection": {
+    "model": "claude-opus-5",
+    "calls": 13,
+    "input_tokens": 61297,
+    "output_tokens": 15310,
+    "cost_usd_no_cache": 0.6892,
+    "cost_usd_with_cache": 0.4961
+  }
+}

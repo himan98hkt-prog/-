@@ -1,0 +1,178 @@
+{
+ "measures": [
+  {
+   "number": 15,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F5"
+       ],
+       "artic": "accent"
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B-2",
+        "D3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B-2",
+        "D3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "f"
+  },
+  {
+   "number": 16,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "G5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 17,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "G5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C3",
+        "E3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C3",
+        "E3"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 18,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
