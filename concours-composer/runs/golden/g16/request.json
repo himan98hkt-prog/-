@@ -1,0 +1,59 @@
+{
+  "spec": {
+    "id": "g16",
+    "level": 7,
+    "span": 10,
+    "grade": "중1",
+    "strengths": [
+      "표현력"
+    ],
+    "weaknesses": [
+      "빠른 반복음"
+    ],
+    "tempo": 60,
+    "comfort": 88,
+    "key": "c",
+    "meter": "4/4",
+    "difficulty": 7.0,
+    "mood": "비장한 단조",
+    "limit": 240
+  },
+  "constraints": {
+    "max_span_semitones": 16,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 88,
+    "max_accidental_ratio": 0.25,
+    "time_limit_sec": 240,
+    "target_difficulty": 7.0,
+    "difficulty_feasible_range": [
+      1.55,
+      8.51
+    ]
+  },
+  "student": {
+    "level": 7,
+    "grade": "중1",
+    "years_of_study": 0,
+    "hand_span_interval": 10,
+    "strengths": [
+      "표현력"
+    ],
+    "weaknesses": [
+      "빠른 반복음"
+    ],
+    "repertoire_done": [],
+    "reading_level": 8,
+    "tempo_comfort_max_bpm": 88,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "중1",
+    "time_limit_sec": 240,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from statistics import fmean, pstdev
 
 from app.analysis.pitch import pitch_to_midi
+from app.analysis.theory import is_minor
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate, ScoreEvent
 
 WEIGHTS: dict[str, float] = {
@@ -246,17 +247,22 @@ _ROMAN_DEGREE = {
     "I": 0, "i": 0, "II": 2, "ii": 2, "III": 4, "iii": 4, "IV": 5, "iv": 5,
     "V": 7, "v": 7, "VI": 9, "vi": 9, "VII": 11, "vii": 11,
 }
+# 단조에서는 III·VI·VII 이 이미 내려간 음도를 뜻한다 — c단조의 VI 는 A♭장3화음이지
+# A장3화음이 아니다. 장조 음도표로만 읽으면 단조 곡의 화음이 전부 '이탈' 로 잡힌다.
+_ROMAN_DEGREE_MINOR = {**_ROMAN_DEGREE, "III": 3, "iii": 3, "VI": 8, "vi": 8,
+                       "VII": 10, "vii": 10}
 
 
-def _roman_chord_tones(roman: str, tonic_midi: int) -> set[int]:
+def _roman_chord_tones(roman: str, tonic_midi: int, key_is_minor: bool = False) -> set[int]:
     """로마숫자 → 화음 구성음 pitch class 집합. 7화음·전위 표기는 삼화음으로 축약한다."""
     core = roman.split("/", maxsplit=1)[0].strip()
     body = "".join(ch for ch in core if ch.isalpha() or ch in "#b")
     body = body.replace("o", "").replace("°", "").replace("ø", "")
     deg_key = "".join(ch for ch in body if ch in "IViv")
-    if deg_key not in _ROMAN_DEGREE:
+    table = _ROMAN_DEGREE_MINOR if key_is_minor else _ROMAN_DEGREE
+    if deg_key not in table:
         return set()
-    root = (tonic_midi + _ROMAN_DEGREE[deg_key]) % 12
+    root = (tonic_midi + table[deg_key]) % 12
     minor = deg_key.islower()
     third = (root + (3 if minor else 4)) % 12
     fifth = (root + 7) % 12
@@ -274,6 +280,7 @@ def harmonic_consistency(measures: list[Measure], plan: CompositionPlan | None) 
     except ValueError:
         tonic = 0
 
+    minor_key = is_minor(plan.key)
     by_measure = {h.measure: h.roman for h in plan.harmony}
     total = 0
     chordal = 0
@@ -282,7 +289,7 @@ def harmonic_consistency(measures: list[Measure], plan: CompositionPlan | None) 
         roman = by_measure.get(m.number)
         if not roman:
             continue
-        tones = _roman_chord_tones(roman, tonic)
+        tones = _roman_chord_tones(roman, tonic, minor_key)
         if not tones:
             continue
         m_total = m_chordal = 0
