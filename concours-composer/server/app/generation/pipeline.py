@@ -526,15 +526,16 @@ class CompositionPipeline:
     # ── 전체 ─────────────────────────────────────────────────────────────
     # ── 곡이 나온 뒤에 고치는 두 길 ──────────────────────────────────────────
 
-    def _finish(
+    def finish_edited(
         self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
         motif: MotifCandidate, *, rounds: int, notes: list[str],
         corpus_ngrams: set[tuple[int, ...]] | None = None, title: str = "",
     ) -> CompositionResult:
-        """마디를 받아 채점·검증·조립까지 끝낸 결과로 만든다.
+        """고쳐진 마디를 받아 채점·검증·조립까지 끝낸 결과로 만든다.
 
-        `compose` 의 뒤쪽 절반과 같은 일을 한다 — 심사 되먹임이나 원장 편곡처럼
+        `compose` 의 뒤쪽 절반과 같은 일을 한다 — 심사 되먹임·원장 편곡·직접 편집처럼
         **이미 있는 곡을 고친 뒤**에도 같은 관문을 그대로 통과시키기 위해서다.
+        작곡 엔진을 부르지 않으므로 사람이 직접 고친 마디에도 그대로 쓸 수 있다.
         """
         musicality, critic = self.evaluate(ctx, measures, plan, motif)
         combined = self._combined(musicality, critic)
@@ -600,7 +601,7 @@ class CompositionPipeline:
         candidate = self.revise(
             ctx, result.measures, result.plan, result.motif, trimmed, only_measures=targets
         )
-        out = self._finish(
+        out = self.finish_edited(
             ctx, candidate, result.plan, result.motif,
             rounds=result.revision_rounds + 1,
             notes=[*result.quality.notes, "모의 심사 되먹임 1회"],
@@ -625,7 +626,7 @@ class CompositionPipeline:
             ctx, result.measures, result.plan, result.motif, trimmed,
             only_measures=set(range(lo, hi + 1)),
         )
-        return self._finish(
+        return self.finish_edited(
             ctx, measures, result.plan, result.motif,
             rounds=result.revision_rounds,
             notes=[*result.quality.notes, f"원장 편곡 {lo}~{hi}마디: {instruction}"],

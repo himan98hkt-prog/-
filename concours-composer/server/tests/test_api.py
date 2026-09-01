@@ -268,3 +268,51 @@ def test_auto_compose_tries_another_motif_when_the_plan_collides(client, student
         assert len(plans) == 2
         sim, _ = compare(FormFingerprint.of(plans[0]), FormFingerprint.of(plans[1]))
         assert sim < 0.60, f"겹침 검사를 통과했다는데 유사도가 {sim} 다"
+
+
+def test_direct_edit_saves_only_the_named_measures_and_revalidates(client, student):
+    """M4 직접 편집 — 원장이 고친 마디만 넣고, 검증기·지표는 그대로 다시 돌린다."""
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    made = client.post("/api/compositions/auto",
+                       json={"preset_id": "march", "student_id": student.id}).json()
+    cid = made["composition_id"]
+    before = client.get(f"/api/compositions/{cid}/measures").json()
+
+    edited = dict(before[2])
+    edited["rh"] = [{"voice": 1, "events": [{"dur": 4, "pitches": ["C5"], "artic": "none"}]}]
+    r = client.put(f"/api/compositions/{cid}/measures", json={"measures": [edited]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["changed_measures"] == [before[2]["number"]]
+    assert body["version"] == 2
+    assert "passed" in body["validation"]
+
+    after = client.get(f"/api/compositions/{cid}/measures").json()
+    changed = {a["number"] for a, b in zip(before, after, strict=True) if a != b}
+    assert changed == {before[2]["number"]}, f"다른 마디가 바뀌었다: {changed}"
+
+
+def test_direct_edit_refuses_a_measure_the_piece_does_not_have(client, student):
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    made = client.post("/api/compositions/auto",
+                       json={"preset_id": "march", "student_id": student.id}).json()
+    r = client.put(f"/api/compositions/{made['composition_id']}/measures", json={"measures": [
+        {"number": 9999, "rh": [{"voice": 1, "events": [{"dur": 4, "pitches": ["C5"]}]}]},
+    ]})
+    assert r.status_code == 422
+    assert "9999" in str(r.json()["detail"])
+
+
+def test_direct_edit_reports_a_broken_bar_instead_of_saving_it_silently(client, student):
+    """마디 길이가 안 맞는 편집은 저장은 되되 savable=false 로 드러나야 한다."""
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    made = client.post("/api/compositions/auto",
+                       json={"preset_id": "march", "student_id": student.id}).json()
+    cid = made["composition_id"]
+    first = client.get(f"/api/compositions/{cid}/measures").json()[0]
+    broken = dict(first)
+    broken["rh"] = [{"voice": 1, "events": [{"dur": 0.5, "pitches": ["C5"], "artic": "none"}]}]
+    r = client.put(f"/api/compositions/{cid}/measures", json={"measures": [broken]})
+    assert r.status_code == 200, r.text
+    assert r.json()["savable"] is False
+    assert any(i["rule"] == "measure_length" for i in r.json()["validation"]["issues"])

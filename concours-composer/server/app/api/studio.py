@@ -21,7 +21,7 @@ from app.config import Settings, get_settings
 from app.generation.context import InfeasibleRequest, build_context
 from app.generation.pipeline import CompositionPipeline, PlanRejected
 from app.generation.presets import BY_ID, PRESETS, pick_key, pick_tempo, suitable
-from app.schemas.music import CompositionPlan, MotifCandidate
+from app.schemas.music import CompositionPlan, Measure, MotifCandidate
 from app.schemas.quality import JudgePanel
 from app.schemas.student import CompetitionProfile, CompositionRequest, Student
 
@@ -454,3 +454,77 @@ def library(
             versions=len(store.versions.get(cid, [res])),
         ))
     return sorted(out, key=lambda x: x.composition_id, reverse=True)
+
+
+# ── 직접 편집(M4) ────────────────────────────────────────────────────────────
+
+
+class DirectEditIn(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    measures: list[Measure] = Field(min_length=1, description="고친 마디만 보낸다")
+
+
+class DirectEditOut(BaseModel):
+    composition_id: str
+    version: int
+    changed_measures: list[int]
+    difficulty: float
+    combined_score: float
+    musicality: float
+    validation: dict
+    savable: bool
+
+
+@router.put("/compositions/{composition_id}/measures", response_model=DirectEditOut)
+def direct_edit(
+    composition_id: str,
+    body: DirectEditIn,
+    store: Store = Depends(get_store),
+    pipeline: CompositionPipeline = Depends(get_pipeline),
+) -> DirectEditOut:
+    """원장이 음표를 직접 고친 마디를 받아 넣는다(§7.3 Stage 7 · M4 편집기의 저장 경로).
+
+    작곡 엔진을 부르지 않는다 — 이것은 생성이 아니라 **사람의 편집**이다. 다만 검증기와
+    지표는 그대로 돌린다. 학생 제약을 벗어난 편집은 화면에 보여야 하고, 하드 규칙을
+    어기면 `savable=false` 로 표시된다(절대 규칙 2 — 통과 못 한 악보는 저장하지 않는다).
+    """
+    res = store.compositions.get(composition_id)
+    if res is None:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    req = store.requests.get(res.request_id)
+    if req is None:
+        raise HTTPException(409, f"이 곡의 생성 요청을 찾을 수 없다: {res.request_id}")
+
+    known = {m.number for m in res.measures}
+    unknown = sorted({m.number for m in body.measures} - known)
+    if unknown:
+        raise HTTPException(422, f"곡에 없는 마디 번호다: {unknown}")
+
+    edited = {m.number: m for m in body.measures}
+    merged = [edited.get(m.number, m) for m in res.measures]
+    ctx = build_context(req)
+    out = pipeline.finish_edited(
+        ctx, merged, res.plan, res.motif,
+        rounds=res.revision_rounds,
+        notes=[*res.quality.notes, f"원장 직접 편집 {sorted(edited)}마디"],
+    )
+    store.compositions[composition_id] = out
+    store.versions.setdefault(composition_id, []).append(out)
+
+    from app.api.compositions import _issues
+
+    return DirectEditOut(
+        composition_id=composition_id,
+        version=len(store.versions[composition_id]),
+        changed_measures=sorted(edited),
+        difficulty=out.difficulty,
+        combined_score=out.quality.combined_score,
+        musicality=float(out.quality.musicality["score_10"]),
+        savable=out.savable,
+        validation={
+            "passed": out.validation.passed,
+            "summary": out.validation.summary(),
+            "issues": _issues(out.validation),
+        },
+    )

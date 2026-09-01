@@ -5,112 +5,278 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ConcoursComposer — 콩쿨곡 작곡</title>
 <style>
+  /* ── 디자인 토큰 ─────────────────────────────────────────────────────────
+     콩쿨 무대의 색을 쓴다 — 무대 커튼의 딥 버건디, 악보 종이의 아이보리,
+     프로그램북 금박의 골드. 제목은 명조, 본문은 고딕. 악보만은 순백이다. */
   :root{
-    --bg:#faf8f5; --panel:#fff; --ink:#241f1a; --muted:#7a6f63; --line:#e6ded3;
-    --accent:#7b2233; --ok:#2f6b45; --warn:#9a6a12; --bad:#a32b21;
+    --ink:#1a1512; --ink-2:#2a221d;
+    --paper:#f7f3ec; --panel:#fffdfa; --score:#ffffff;
+    --line:#e5dbcb; --line-2:#d6c9b4;
+    --muted:#7d7365; --muted-2:#9a8f7f;
+    --accent:#6d1f2e; --accent-2:#8d2c3e; --gold:#a8853c; --gold-2:#c9a55f;
+    --ok:#2c6a45; --warn:#8f6310; --bad:#9d2b21;
+    --shadow:0 1px 2px rgba(26,21,18,.05), 0 8px 24px -12px rgba(26,21,18,.16);
+    --serif:"Nanum Myeongjo","Apple SD Gothic Neo",Georgia,"Times New Roman",serif;
+    --sans:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.65 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
-  header{background:var(--panel);border-bottom:1px solid var(--line);padding:18px 24px}
-  h1{margin:0;font-size:19px;letter-spacing:-.2px}
-  h1 small{display:block;color:var(--muted);font-size:13px;font-weight:400;margin-top:4px}
-  main{max-width:1080px;margin:0 auto;padding:24px}
-  .tabs{display:flex;gap:6px;margin-top:14px}
-  .tab{background:transparent;border:1px solid var(--line);color:var(--muted);
-       border-radius:999px;padding:6px 16px;font-size:13px;cursor:pointer}
-  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}
-  .card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg);
-        cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color .12s}
-  .card:hover{border-color:var(--accent)}
-  .card[disabled]{cursor:progress;opacity:.55}
-  .card h3{margin:0 0 4px;font-size:15px}
-  .card .why{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 8px}
-  .card .meta{color:var(--muted);font-size:11.5px}
-  .card.dim{opacity:.62}
-  .card.dim h3::after{content:" · 권장 아님";color:var(--warn);font-size:11px;font-weight:400}
-  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-          padding:20px;margin-bottom:18px}
-  section h2{margin:0 0 4px;font-size:16px}
-  section p.hint{margin:0 0 14px;color:var(--muted);font-size:13px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);
-    border-radius:7px;font:inherit;font-size:14px;background:#fff;color:var(--ink)}
-  textarea{min-height:64px;resize:vertical}
-  button{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:11px 20px;
-    font:inherit;font-weight:600;cursor:pointer}
-  button:disabled{background:#c9bfb5;cursor:not-allowed}
-  button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
-  .card{border:1px solid var(--line);border-radius:8px;padding:14px;cursor:pointer;background:#fff}
-  .card:hover{border-color:var(--accent)}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 var(--sans)}
+
+  /* ── 헤더 ───────────────────────────────────────────────────────────── */
+  header{background:linear-gradient(180deg,var(--ink) 0%,var(--ink-2) 100%);
+         color:#f3ece1;border-bottom:2px solid var(--gold);position:sticky;top:0;z-index:40}
+  .head-in{max-width:1180px;margin:0 auto;padding:16px 24px;
+           display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+  .brand .mark{width:34px;height:34px;border:1.5px solid var(--gold);border-radius:50%;
+    display:grid;place-items:center;font:600 15px/1 var(--serif);color:var(--gold);flex:0 0 auto}
+  .brand h1{margin:0;font:600 19px/1.25 var(--serif);letter-spacing:.2px}
+  .brand small{display:block;color:#b9ab97;font:400 12px/1.5 var(--sans);margin-top:2px}
+
+  .tabs{display:flex;gap:4px;background:rgba(255,255,255,.07);padding:4px;border-radius:999px}
+  .tab{background:transparent;border:0;color:#cabca7;border-radius:999px;
+       padding:7px 16px;font:600 13px/1 var(--sans);cursor:pointer;transition:.15s}
+  .tab:hover{color:#f3ece1}
+  .tab.on{background:var(--accent);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.12) inset}
+
+  /* 설명 표시 온·오프 */
+  .switchbox{display:flex;align-items:center;gap:8px;color:#cabca7;font-size:12.5px}
+  .switch{width:42px;height:23px;border-radius:999px;border:0;background:#4a3f36;
+    position:relative;cursor:pointer;padding:0;transition:background .18s;flex:0 0 auto}
+  .switch span{position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
+    background:#cabca7;transition:transform .18s,background .18s}
+  .switch.on{background:var(--gold)}
+  .switch.on span{transform:translateX(19px);background:#fff}
+
+  /* ── 툴팁 ───────────────────────────────────────────────────────────── */
+  [data-tip]{position:relative}
+  body.tips [data-tip]:hover::after{
+    content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);
+    transform:translateX(-50%);background:var(--ink);color:#f3ece1;
+    padding:8px 11px;border-radius:7px;font:400 12px/1.5 var(--sans);
+    white-space:pre-line;width:max-content;max-width:270px;text-align:left;
+    box-shadow:var(--shadow);z-index:60;pointer-events:none}
+  body.tips [data-tip]:hover::before{
+    content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:var(--ink);z-index:60;pointer-events:none}
+  body.tips [data-tip][data-tip-side="right"]:hover::after{
+    left:auto;right:0;transform:none}
+  body.tips [data-tip][data-tip-side="right"]:hover::before{left:auto;right:14px;transform:none}
+
+  /* ── 레이아웃 ───────────────────────────────────────────────────────── */
+  main{max-width:1180px;margin:0 auto;padding:26px 24px 40px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+          padding:22px 24px;margin-bottom:20px;box-shadow:var(--shadow)}
+  section > h2{margin:0 0 5px;font:600 17px/1.35 var(--serif);
+               display:flex;align-items:center;gap:9px}
+  section > h2::before{content:"";width:3px;height:16px;background:var(--gold);border-radius:2px}
+  section p.hint{margin:0 0 16px;color:var(--muted);font-size:13px}
+  h3{font:600 14px/1.4 var(--serif);margin:20px 0 9px}
+  .step{font:600 11px/1 var(--sans);color:var(--gold);letter-spacing:.14em;
+        text-transform:uppercase;display:block;margin-bottom:6px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:13px}
+  .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  .spread{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+
+  label{display:block;font:500 11.5px/1.4 var(--sans);color:var(--muted);
+        margin-bottom:5px;letter-spacing:.01em}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line-2);
+    border-radius:8px;font:inherit;font-size:14px;background:#fff;color:var(--ink);
+    transition:border-color .14s,box-shadow .14s}
+  input:focus,select:focus,textarea:focus{outline:0;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(109,31,46,.10)}
+  textarea{min-height:66px;resize:vertical;line-height:1.6}
+
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 18px;
+    font:600 14px/1.2 var(--sans);cursor:pointer;transition:.14s}
+  button:hover:not(:disabled){background:var(--accent-2)}
+  button:disabled{background:#cfc4b6;cursor:not-allowed}
+  button.ghost{background:#fff;color:var(--accent);border:1px solid var(--line-2);font-weight:500}
+  button.ghost:hover:not(:disabled){border-color:var(--accent);background:#fdf8f8}
+  button.mini{padding:6px 12px;font-size:12.5px}
+
+  /* ── 컨셉 카드 ──────────────────────────────────────────────────────── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:13px}
+  .card{border:1px solid var(--line);border-radius:11px;padding:16px;background:#fff;
+        cursor:pointer;text-align:left;font:inherit;color:inherit;
+        transition:border-color .15s,box-shadow .15s,transform .15s;position:relative}
+  .card:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-1px)}
+  .card[disabled]{cursor:progress;opacity:.5;transform:none}
+  .card h3{margin:0 0 5px;font:600 15px/1.35 var(--serif)}
+  .card .why{color:var(--muted);font-size:12.5px;line-height:1.55;margin:0 0 10px}
+  .card .meta{color:var(--muted-2);font-size:11.5px;line-height:1.5;
+              border-top:1px solid var(--line);padding-top:8px}
+  .card.dim{opacity:.6}
+  .card .flag{position:absolute;top:12px;right:12px;font-size:10.5px;font-weight:600;
+              color:var(--warn);background:#fbf3e2;padding:2px 7px;border-radius:20px}
   .card.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-  .card h3{margin:0 0 6px;font-size:15px}
   .card p{margin:0;font-size:13px;color:var(--muted)}
+
+  /* ── 표·지표 ────────────────────────────────────────────────────────── */
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--muted);font-weight:600}
-  .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;min-width:70px}
+  th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:.03em;
+     text-transform:uppercase}
+  tbody tr:hover td{background:#fdfbf7}
+  .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;min-width:64px}
   .bar i{display:block;height:100%;background:var(--ok)}
   .bar i.miss{background:var(--warn)}
-  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600}
-  .tag.ok{background:#e6f2ea;color:var(--ok)} .tag.warn{background:#fbf1dd;color:var(--warn)}
-  .tag.bad{background:#fbe9e7;color:var(--bad)}
-  pre{background:#f4efe8;border-radius:7px;padding:12px;overflow:auto;font-size:12px;line-height:1.5}
-  .msg{padding:10px 12px;border-radius:7px;font-size:13px;margin-top:12px}
-  .msg.warn{background:#fbf1dd;color:var(--warn)} .msg.bad{background:#fbe9e7;color:var(--bad)}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+  .tag.ok{background:#e7f1ea;color:var(--ok)} .tag.warn{background:#fbf3e2;color:var(--warn)}
+  .tag.bad{background:#fbeae8;color:var(--bad)}
+  .tag.gold{background:#f7f0df;color:var(--gold)}
+  pre{background:#f5f0e7;border:1px solid var(--line);border-radius:8px;padding:12px;
+      overflow:auto;font-size:12px;line-height:1.55}
+  .msg{padding:11px 13px;border-radius:8px;font-size:13px;margin-top:13px;
+       background:#f5f0e7;border:1px solid var(--line)}
+  .msg.ok{background:#e7f1ea;border-color:#c8e0d1;color:#1f5133}
+  .msg.warn{background:#fbf3e2;border-color:#eddcb9;color:#6f4d09}
+  .msg.bad{background:#fbeae8;border-color:#f0cdc8;color:#7d2019}
+
+  /* ── 악보와 이동바 ──────────────────────────────────────────────────── */
+  .stage{border:1px solid var(--line-2);border-radius:11px;overflow:hidden;background:#fff}
+  .transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+             padding:12px 14px;background:linear-gradient(180deg,#fffdfa,#f7f3ec);
+             border-bottom:1px solid var(--line)}
+  .transport .sp{flex:1}
+  .scoreview{background:var(--score);padding:10px 12px;overflow-x:auto;min-height:120px}
+  .timeline{position:relative;background:#f7f3ec;border-top:1px solid var(--line);
+            padding:10px 12px 12px;user-select:none}
+  .tl-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted-2);
+            margin-bottom:6px}
+  .tl-track{position:relative;display:flex;gap:1px;height:30px;border-radius:5px;overflow:hidden}
+  .tl-cell{flex:1 1 0;background:#e9e1d3;cursor:pointer;position:relative;min-width:2px;
+           transition:background .1s}
+  .tl-cell:hover{background:#d9cdb8}
+  .tl-cell.sec{background:#ded3c0}
+  .tl-cell.on{background:var(--gold)}
+  .tl-cell.played{background:#c7b99f}
+  .tl-cell b{position:absolute;left:3px;top:2px;font:600 9px/1 var(--sans);
+             color:var(--muted);pointer-events:none}
+  .tl-cursor{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);
+             box-shadow:0 0 0 1px rgba(255,255,255,.6);pointer-events:none;
+             transition:left .06s linear}
+  .tl-cursor::before{content:"";position:absolute;top:-5px;left:-4px;
+    border:5px solid transparent;border-top-color:var(--accent)}
+
+  /* ── 편곡 채팅 ──────────────────────────────────────────────────────── */
+  .chat{border:1px solid var(--line-2);border-radius:11px;background:#fff;overflow:hidden}
+  .chat-log{padding:14px;max-height:300px;overflow-y:auto;background:#fbf8f3}
+  .chat-log:empty::after{content:"구간과 지시를 적으면 그 마디만 다시 씁니다.";
+    color:var(--muted-2);font-size:12.5px}
+  .bub{max-width:82%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.6;
+       margin-bottom:9px;white-space:pre-line}
+  .bub.me{margin-left:auto;background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+  .bub.sys{background:#fff;border:1px solid var(--line);border-bottom-left-radius:3px}
+  .bub.sys.bad{border-color:#f0cdc8;background:#fbeae8;color:#7d2019}
+  .bub .who{display:block;font-size:10.5px;opacity:.72;margin-bottom:3px;font-weight:600}
+  .chat-in{display:flex;gap:8px;padding:11px;border-top:1px solid var(--line);
+           align-items:flex-end;background:#fff;flex-wrap:wrap}
+  .chat-in .rng{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+  .chat-in .rng input{width:64px;padding:6px 8px;font-size:13px}
+  .chat-in textarea{flex:1 1 260px;min-height:42px;max-height:120px}
+
+  /* ── 직접 편집(M4) ──────────────────────────────────────────────────── */
+  .editor{border:1px solid var(--gold);border-radius:11px;background:#fffdf7;padding:16px}
+  .editor .ed-head{display:flex;justify-content:space-between;align-items:center;
+                   gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .ed-note{display:grid;grid-template-columns:52px 1fr 78px 96px 34px;gap:7px;
+           align-items:center;margin-bottom:6px}
+  .ed-note input,.ed-note select{padding:6px 8px;font-size:13px}
+  .ed-bar{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff;
+          margin-bottom:11px}
+  .ed-bar > h4{margin:0 0 9px;font:600 13px/1.3 var(--serif);
+               display:flex;justify-content:space-between;align-items:center}
+  .ed-hand{font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;
+           margin:9px 0 5px}
+
   .hidden{display:none}
-  footer{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:26px 24px 40px;
+         border-top:1px solid var(--line);margin-top:10px}
+  footer strong{color:var(--ink)}
 </style>
 </head>
 <body>
 <header>
-  <h1>ConcoursComposer
-    <small>학생 맞춤형 콩쿨 독창곡 — 컨셉을 고르면 사전 심사까지 마친 곡이 나온다</small></h1>
-  <div class="tabs">
-    <button class="tab on" data-tab="dash">대시보드</button>
-    <button class="tab" data-tab="steps">단계별로 만들기</button>
+  <div class="head-in">
+    <div class="brand">
+      <div class="mark">C</div>
+      <div>
+        <h1>ConcoursComposer</h1>
+        <small>학생 한 명을 위한 콩쿨 독창곡 — 컨셉을 고르면 사전 심사까지 마친 곡이 나옵니다</small>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="dash"
+        data-tip="컨셉 카드를 눌러 곡을 만들고, 듣고, 편곡하는 곳입니다.">대시보드</button>
+      <button class="tab" data-tab="steps"
+        data-tip="모티브를 직접 고르고 설계도를 승인하며 한 단계씩 진행합니다.&#10;대시보드가 자동으로 하는 일을 손으로 하는 길입니다.">단계별로 만들기</button>
+    </div>
+    <div class="switchbox">
+      <span>버튼 설명</span>
+      <button class="switch on" id="tipSwitch" role="switch" aria-checked="true"
+        aria-label="버튼 설명 표시"><span></span></button>
+      <span id="tipState">켬</span>
+    </div>
   </div>
 </header>
 
 <main>
-  <!-- ── 대시보드 ─────────────────────────────────────────────────────── -->
+  <!-- ══ 대시보드 ═══════════════════════════════════════════════════════ -->
   <div id="tabDash">
+
   <section>
+    <span class="step">1단계</span>
     <h2>학생</h2>
-    <p class="hint">컨셉 카드를 누르면 이 학생에 맞춰 모티브·설계·작곡·<strong>사전 심사</strong>까지 한 번에 돈다.</p>
+    <p class="hint">손 스팬·음역·템포는 <strong>하드 제약</strong>입니다. 이걸 어긴 악보는 저장되지 않습니다.</p>
     <div class="grid">
-      <div><label>이름</label><input id="dName" value="김민준"></div>
-      <div><label>학년</label><input id="dGrade" value="초3"></div>
-      <div><label>레벨 1~10</label><input id="dLevel" type="number" value="4" min="1" max="10"></div>
-      <div><label>손 스팬(도)</label><input id="dSpan" type="number" value="7" min="2" max="12"></div>
-      <div><label>편안한 템포 상한</label><input id="dComfort" type="number" value="112"></div>
-      <div><label>독보 수준 1~10</label><input id="dReading" type="number" value="5" min="1" max="10"></div>
-      <div><label>강점(쉼표)</label><input id="dStrengths" value="빠른 손가락"></div>
-      <div><label>약점(쉼표)</label><input id="dWeaknesses" value="옥타브"></div>
-      <div><label>목표 난이도(비우면 레벨)</label><input id="dDifficulty" type="number" step="0.5"></div>
-      <div><label>콩쿨 제한 시간(초)</label><input id="dLimit" type="number" value="150"></div>
+      <div data-tip="악보 표지와 프로그램북에 들어갈 이름입니다."><label>이름</label>
+        <input id="dName" value="김민준"></div>
+      <div data-tip="콩쿨 부문을 나누는 기준이 됩니다."><label>학년</label>
+        <input id="dGrade" value="초3"></div>
+      <div data-tip="1~10. 어떤 컨셉을 권할지, 기본 목표 난이도를 얼마로 잡을지 정합니다."><label>레벨 1~10</label>
+        <input id="dLevel" type="number" value="4" min="1" max="10"></div>
+      <div data-tip="한 손으로 동시에 누를 수 있는 최대 음정(도 단위).&#10;이걸 넘는 화음은 검증기가 막습니다."><label>손 스팬(도)</label>
+        <input id="dSpan" type="number" value="7" min="2" max="12"></div>
+      <div data-tip="학생이 무대에서 흔들리지 않는 최대 빠르기입니다.&#10;곡의 템포는 절대 이 값을 넘지 않습니다."><label>편안한 템포 상한</label>
+        <input id="dComfort" type="number" value="112"></div>
+      <div data-tip="1~10. 낮을수록 임시표를 적게 씁니다 — 못 읽으면 못 칩니다."><label>독보 수준 1~10</label>
+        <input id="dReading" type="number" value="5" min="1" max="10"></div>
+      <div data-tip="쉼표로 구분. 이 강점이 드러나는 구간을 설계도가 따로 잡습니다.&#10;예: 빠른 손가락, 표현력, 옥타브"><label>강점(쉼표)</label>
+        <input id="dStrengths" value="빠른 손가락"></div>
+      <div data-tip="쉼표로 구분. 이 약점을 정면으로 건드리는 컨셉은 '권장 아님' 으로 표시됩니다."><label>약점(쉼표)</label>
+        <input id="dWeaknesses" value="옥타브"></div>
+      <div data-tip="비우면 학생 레벨을 그대로 씁니다.&#10;검증기는 이 값에서 ±1.0 을 벗어난 곡을 하드 실패시킵니다."><label>목표 난이도(비우면 레벨)</label>
+        <input id="dDifficulty" type="number" step="0.5"></div>
+      <div data-tip="콩쿨 부문의 연주 시간 제한(초).&#10;곡 길이가 이 값의 55~85% 가 되도록 설계합니다."><label>콩쿨 제한 시간(초)</label>
+        <input id="dLimit" type="number" value="150"></div>
     </div>
-    <div class="row"><button id="btnDashStudent">이 학생으로 컨셉 보기</button>
-      <span id="dashInfo" class="hint" style="margin:0"></span></div>
+    <div class="row">
+      <button id="btnDashStudent"
+        data-tip="이 학생 정보를 저장하고, 맞는 컨셉 카드를 골라 보여줍니다.">학생 저장하고 컨셉 보기</button>
+      <span id="dashInfo" class="hint" style="margin:0"></span>
+    </div>
   </section>
 
   <section id="secPresets" class="hidden">
+    <span class="step">2단계</span>
     <h2>컨셉 고르기</h2>
-    <p class="hint">권하지 않는 컨셉도 숨기지 않는다 — 일부러 어려운 성격을 고를 수 있어야 한다.</p>
+    <p class="hint">카드를 누르면 <strong>모티브 → 설계 → 작곡 → 사전 전문심사</strong>까지 한 번에 돕니다.
+      권하지 않는 컨셉도 숨기지 않습니다 — 일부러 어려운 성격을 고를 수 있어야 하니까요.</p>
     <div id="presetGrid" class="cards"></div>
     <div id="autoProgress" class="msg hidden"></div>
   </section>
 
   <section id="secLibrary" class="hidden">
+    <span class="step">보관함</span>
     <h2>만든 곡</h2>
+    <p class="hint">사전 심사를 통과한 곡만 학생에게 건네십시오. 미달은 초안입니다.</p>
     <div id="libraryTable"></div>
   </section>
   </div>
 
-  <!-- ── 단계별 워크플로(기존) ────────────────────────────────────────── -->
   <div id="tabSteps" class="hidden">
   <section>
     <h2>1. 학생과 요청</h2>
@@ -165,75 +331,124 @@
 
   <!-- 결과·재생·편곡은 두 탭이 함께 쓴다 -->
   <section id="secResult" class="hidden">
-    <h2>4. 결과</h2>
+    <span class="step">3단계</span>
+    <h2>곡 확인 · 듣기</h2>
     <div id="resultSummary"></div>
-    <div id="scoreBox" style="margin:18px 0">
-      <div class="row" style="align-items:center">
-        <button id="btnPlay">▶ 재생</button>
-        <button class="ghost" id="btnStop">■ 정지</button>
-        <select id="playHands">
+
+    <div class="stage" style="margin:16px 0 6px">
+      <div class="transport">
+        <button id="btnPlay" data-tip="처음부터 재생합니다.&#10;아래 이동바를 클릭하면 그 마디부터 들을 수 있습니다.">▶ 재생</button>
+        <button class="ghost" id="btnStop" data-tip="재생을 멈추고 이동바를 처음으로 되돌립니다.">■ 정지</button>
+        <select id="playHands" style="width:auto"
+          data-tip="한 손만 들어 보면 그 손의 음형이 제대로인지 바로 압니다.">
           <option value="both">양손</option><option value="rh">오른손만</option>
           <option value="lh">왼손만</option>
         </select>
-        <label style="margin:0">템포 <span id="playTempoLabel"></span></label>
-        <input id="playTempo" type="range" min="40" max="180" value="100" style="width:140px">
-        <span id="playState" class="hint" style="margin:0"></span>
+        <label style="margin:0;display:flex;align-items:center;gap:8px"
+          data-tip="학생이 아직 못 따라가는 빠르기라면 늦춰서 들어 보십시오.&#10;곡의 실제 템포가 바뀌는 것은 아닙니다.">
+          <span style="white-space:nowrap">템포 <span id="playTempoLabel"></span></span>
+          <input id="playTempo" type="range" min="40" max="180" value="100" style="width:130px">
+        </label>
+        <span class="sp"></span>
+        <span id="playState" style="font-size:12.5px;color:var(--muted)"></span>
       </div>
-      <div id="osmd" style="margin-top:12px;background:#fff;border:1px solid var(--line);
-           border-radius:8px;padding:8px;overflow-x:auto"></div>
+
+      <div id="osmd" class="scoreview"></div>
+
+      <div class="timeline" data-tip="지금 연주되는 자리를 실시간으로 보여줍니다.&#10;칸을 클릭하면 그 마디부터 다시 재생합니다." data-tip-side="right">
+        <div class="tl-label">
+          <span id="tlNow">1마디</span>
+          <span id="tlHint">칸을 클릭하면 그 마디부터 재생합니다</span>
+          <span id="tlTotal"></span>
+        </div>
+        <div class="tl-track" id="tlTrack"><div class="tl-cursor" id="tlCursor" style="left:0"></div></div>
+      </div>
     </div>
 
-    <h3 style="font-size:14px;margin:18px 0 8px">음악성 지표</h3>
-    <table id="metrics"></table>
-    <h3 style="font-size:14px;margin:18px 0 8px">비평가의 수정 지시</h3>
-    <table id="revisions"></table>
-    <div id="candidateBox" class="hidden">
-      <h3 style="font-size:14px;margin:18px 0 8px">생성된 안 비교 (§7.9 원칙 5)</h3>
-      <table id="candidates"></table>
-    </div>
-    <div class="row">
-      <button class="ghost" id="btnJudge">모의 심사 3인</button>
-      <button class="ghost" id="btnGuide">연주법 해설</button>
-      <button class="ghost" id="btnXml">MusicXML</button>
-      <button class="ghost" id="btnMidi">MIDI</button>
+    <div class="row" style="margin-top:14px">
+      <button class="ghost" id="btnJudge" data-tip="성향이 다른 심사위원 3인이 채점하고,&#10;'곡에서 고칠 점' 과 '연습에서 보완할 점' 을 나눠 줍니다.">모의 심사 3인</button>
+      <button class="ghost" id="btnGuide" data-tip="4주 연습 계획·암보 구획·구간별 주의점을 만듭니다.">연주법 해설</button>
+      <button class="ghost" id="btnXml" data-tip="MuseScore·Sibelius 로 열 수 있는 표준 악보 파일입니다.">MusicXML 내려받기</button>
+      <button class="ghost" id="btnMidi" data-tip="오른손·왼손이 트랙으로 나뉜 MIDI 입니다.">MIDI 내려받기</button>
     </div>
     <div id="judgeOut"></div>
     <div id="guideOut"></div>
 
-    <div id="arrangeBox" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
-      <h3 style="font-size:14px;margin:0 0 4px">편곡 — 구간만 다시 쓰기</h3>
-      <p class="hint">지정한 마디 밖은 한 음도 건드리지 않는다. 이전 판은 남으므로 되돌릴 수 있다.</p>
-      <div class="grid">
-        <div><label>시작 마디</label><input id="arrFrom" type="number" min="1" value="1"></div>
-        <div><label>끝 마디</label><input id="arrTo" type="number" min="1" value="4"></div>
-      </div>
-      <div style="margin-top:10px"><label>어떻게 바꿀까</label>
-        <textarea id="arrHow" placeholder="예: 왼손을 한 옥타브 내리고 오른손은 그대로 둬라"></textarea></div>
-      <div class="row"><button id="btnRearrange">이 구간 다시 쓰기</button>
-        <span id="arrOut" class="hint" style="margin:0"></span></div>
-    </div>
-
-    <div id="feedbackBox" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
-      <h3 style="font-size:14px;margin:0 0 4px">원장 평가</h3>
-      <p class="hint">지금은 모으기만 한다. 가중치 보정은 표본이 쌓인 뒤 한다.
-        <strong>어느 마디를 실제로 손댔는지</strong>가 가장 정직한 신호다.</p>
-      <div class="row">
-        <button class="ghost" id="thumbUp">👍 좋다</button>
-        <button class="ghost" id="thumbDown">👎 아쉽다</button>
-        <span id="thumbState" class="hint" style="margin:0"></span>
-      </div>
-      <div id="tagBox" class="row" style="gap:6px"></div>
-      <div class="grid" style="margin-top:12px">
-        <div><label>수정 없이 쓸 수 있나</label>
-          <select id="usable"><option value="">선택 안 함</option>
-            <option value="yes">그대로 쓸 수 있다</option>
-            <option value="no">손봐야 한다</option></select></div>
-        <div><label>손댄 마디 (쉼표로 구분)</label><input id="editedMeasures" placeholder="13, 14, 21"></div>
-      </div>
-      <div style="margin-top:10px"><label>한마디</label><textarea id="fbComment"></textarea></div>
-      <div class="row"><button id="btnFeedback">평가 저장</button><span id="fbOut" class="hint" style="margin:0"></span></div>
+    <h3 style="margin-top:24px">음악성 지표</h3>
+    <table id="metrics"></table>
+    <h3>비평가의 수정 지시</h3>
+    <table id="revisions"></table>
+    <div id="candidateBox" class="hidden">
+      <h3>생성된 안 비교</h3>
+      <table id="candidates"></table>
     </div>
   </section>
+
+  <section id="secArrange" class="hidden">
+    <span class="step">4단계</span>
+    <h2>편곡</h2>
+    <p class="hint">말로 지시하면 그 구간만 다시 씁니다. 지정한 마디 밖은 한 음도 건드리지 않고,
+      이전 판이 남으므로 되돌릴 수 있습니다.</p>
+
+    <div class="chat">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-in">
+        <div class="rng" data-tip="다시 쓸 마디 범위입니다.&#10;위 이동바에서 자리를 확인하고 정하십시오.">
+          <input id="arrFrom" type="number" min="1" value="1"> ~
+          <input id="arrTo" type="number" min="1" value="4"> 마디
+        </div>
+        <textarea id="arrHow" placeholder="예: 왼손을 한 옥타브 내리고 오른손 선율은 그대로 두세요"
+          data-tip="작곡가가 그대로 실행할 수 있게 적으십시오.&#10;'더 음악적으로' 같은 말은 실행할 수 없습니다."></textarea>
+        <button id="btnRearrange" data-tip="이 구간을 다시 씁니다. 검증기와 지표를 다시 돌려 결과를 알려 줍니다.">보내기</button>
+        <button class="ghost" id="btnDirectEdit"
+          data-tip="말로 하는 대신 음표를 직접 고칩니다.&#10;위에 적은 마디 범위가 편집기로 열립니다.">직접 편집 →</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="secEditor" class="hidden">
+    <span class="step">직접 편집 · M4</span>
+    <h2>악보 직접 편집</h2>
+    <p class="hint">음 높이와 길이를 직접 고칩니다. 저장하면 <strong>검증기와 지표를 그대로 다시 돌려</strong>
+      학생 제약을 벗어났는지 바로 알려 줍니다. 작곡 엔진은 부르지 않습니다 — 이것은 원장의 결정입니다.</p>
+    <div class="editor">
+      <div class="ed-head">
+        <strong id="edTitle" style="font-family:var(--serif)"></strong>
+        <div class="row" style="margin:0">
+          <button class="ghost mini" id="btnEdCancel" data-tip="고친 것을 버리고 편집기를 닫습니다.">취소</button>
+          <button class="mini" id="btnEdSave" data-tip="고친 마디를 곡에 넣고 검증기·지표를 다시 돌립니다.">저장하고 검증</button>
+        </div>
+      </div>
+      <div id="edBars"></div>
+      <div id="edOut"></div>
+    </div>
+  </section>
+
+  <section id="secFeedback" class="hidden">
+    <span class="step">5단계</span>
+    <h2>원장 평가</h2>
+    <p class="hint">지금은 모으기만 합니다. 가중치 보정은 표본이 쌓인 뒤입니다.
+      <strong>어느 마디를 실제로 손댔는지</strong>가 가장 정직한 신호입니다.</p>
+    <div class="row" style="margin-top:0">
+      <button class="ghost" id="thumbUp" data-tip="이 곡이 학생에게 맞았다고 기록합니다.">👍 좋다</button>
+      <button class="ghost" id="thumbDown" data-tip="이 곡이 아쉬웠다고 기록합니다. 이유 태그를 함께 골라 주십시오.">👎 아쉽다</button>
+      <span id="thumbState" style="font-size:12.5px;color:var(--muted)"></span>
+    </div>
+    <div id="tagBox" class="row" data-tip="여러 개 고를 수 있습니다. 무엇이 아쉬웠는지가 다음 곡을 바꿉니다."></div>
+    <div class="grid" style="margin-top:16px">
+      <div data-tip="손대지 않고 무대에 올릴 수 있었는지 — 이 비율이 시스템의 진짜 성적표입니다.">
+        <label>수정 없이 쓸 수 있나</label>
+        <select id="usable"><option value="">선택 안 함</option>
+          <option value="yes">그대로 쓸 수 있다</option>
+          <option value="no">손봐야 한다</option></select></div>
+      <div data-tip="쉼표로 구분한 마디 번호입니다. 예: 13, 14, 21">
+        <label>손댄 마디</label><input id="editedMeasures" placeholder="13, 14, 21"></div>
+    </div>
+    <div style="margin-top:13px"><label>한마디</label><textarea id="fbComment"></textarea></div>
+    <div class="row"><button id="btnFeedback" data-tip="평가를 그때의 지표와 함께 얼려 저장합니다.">평가 저장</button>
+      <span id="fbOut" style="font-size:12.5px;color:var(--muted)"></span></div>
+  </section>
+
 </main>
 
 <footer>
@@ -249,6 +464,7 @@
 const API = localStorage.getItem("cc_api")
   || (location.pathname.startsWith("/app") ? location.origin : "http://localhost:8000");
 let requestId = null, chosenMotif = null, plan = null, compositionId = null;
+let shownMeta = null;   // 보관함에서 연 곡의 조성·박자·템포 (설계도가 없을 때 쓴다)
 
 const $ = (id) => document.getElementById(id);
 const val = (id) => $(id).value.trim();
@@ -447,13 +663,15 @@ $("btnRealize").onclick = async () => {
 
 function renderResult(b) {
   const q = b.quality;
-  playMeasures = null;                       // 새 곡이면 재생 데이터를 다시 받는다
   stopPlayback();
+  ["secArrange", "secFeedback"].forEach(id => $(id).classList.remove("hidden"));
   if (plan && plan.tempo) {
     $("playTempo").value = plan.tempo;
     $("playTempoLabel").textContent = plan.tempo + " bpm";
   }
-  renderScore();
+  renderScore().then(() => {
+    if (playMeasures) buildTimeline(playMeasures, b.meter || currentMeter(), num("playTempo"));
+  });
   const status = !b.savable ? '<span class="tag bad">저장 불가</span>'
     : b.shown_as_draft ? '<span class="tag warn">초안(비평 문턱 미달)</span>'
     : '<span class="tag ok">통과</span>';
@@ -599,7 +817,7 @@ function scheduleNotes(measures, meter, bpm, hands) {
 // Tone.js 가 없으면 브라우저 내장 오실레이터로 같은 스케줄을 연주한다.
 let oscTimers = [];
 
-function playWithOscillator(notes) {
+function playWithOscillator(notes, offsetSec = 0) {
   audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
   const ctx = audioCtx;
   const t0 = ctx.currentTime + 0.08;
@@ -620,41 +838,50 @@ function playWithOscillator(notes) {
   oscTimers.push(setTimeout(stopPlayback, (end + 0.6) * 1000));
   playing = true;
   $("playState").textContent = `재생 중 · ${notes.length}음 (내장 음원)`;
+  startTimelineClock(() => Math.max(0, ctx.currentTime - t0), offsetSec);
 }
 
-async function startPlayback() {
+// fromMeasure 를 주면 그 마디부터 듣는다 — 이동바를 클릭했을 때다.
+async function startPlayback(fromMeasure) {
   if (playing) stopPlayback();
   $("playState").textContent = "준비 중…";
   if (!playMeasures) playMeasures = await api(`/api/compositions/${compositionId}/measures`);
-  if (!window.Tone) {
-    const notes = scheduleNotes(playMeasures, plan ? plan.meter : "4/4",
-                                num("playTempo"), val("playHands"));
-    playWithOscillator(notes);
-    return;
-  }
+  const meter = currentMeter();
+  const bpm = num("playTempo");
+  buildTimeline(playMeasures, meter, bpm);
+
+  const all = scheduleNotes(playMeasures, meter, bpm, val("playHands"));
+  const from = Number.isFinite(fromMeasure) ? fromMeasure : (playMeasures[0] || {}).number || 1;
+  const span = tlSpans.find(x => x.number === from);
+  const offset = span ? span.start : 0;
+  const notes = all.filter(n => n.measure >= from).map(n => ({ ...n, time: n.time - offset }));
+  if (!notes.length) { $("playState").textContent = "재생할 음이 없습니다"; return; }
+
+  if (!window.Tone) { playWithOscillator(notes, offset); return; }
   await Tone.start();
   const inst = await ensureSampler();
-  const bpm = num("playTempo");
-  const notes = scheduleNotes(playMeasures, plan ? plan.meter : "4/4", bpm, val("playHands"));
   Tone.Transport.stop(); Tone.Transport.cancel(); Tone.Transport.position = 0;
-  let lastMeasure = -1;
   for (const n of notes) {
     Tone.Transport.schedule((t) => {
       inst.triggerAttackRelease(n.pitches, n.dur, t, n.vel);
-      if (n.measure !== lastMeasure) {
-        lastMeasure = n.measure;
-        Tone.Draw.schedule(() => cursorToMeasure(n.measure - 1), t);
-      }
     }, n.time);
   }
-  const end = notes.length ? notes[notes.length - 1].time + notes[notes.length - 1].dur + 0.5 : 1;
+  const end = notes[notes.length - 1].time + notes[notes.length - 1].dur + 0.5;
   Tone.Transport.schedule(() => { stopPlayback(); }, end);
   playing = true;
   $("playState").textContent = `재생 중 · ${notes.length}음`;
   Tone.Transport.start();
+  startTimelineClock(() => Tone.Transport.seconds, offset);
+}
+
+function currentMeter() {
+  if (plan && plan.meter) return plan.meter;
+  if (shownMeta && shownMeta.meter) return shownMeta.meter;
+  return "4/4";
 }
 
 function stopPlayback() {
+  stopTimelineClock();
   if (window.Tone) { Tone.Transport.stop(); Tone.Transport.cancel(); }
   if (sampler && sampler.releaseAll) sampler.releaseAll();
   oscTimers.forEach(clearTimeout); oscTimers = [];
@@ -664,12 +891,14 @@ function stopPlayback() {
   }
   playing = false;
   $("playState").textContent = "";
+  markTimeline(0);
 }
 
-$("btnPlay").onclick = startPlayback;
+$("btnPlay").onclick = () => startPlayback();
 $("btnStop").onclick = stopPlayback;
 $("playTempo").oninput = () => { $("playTempoLabel").textContent = $("playTempo").value + " bpm"; };
 $("playHands").onchange = () => { if (playing) startPlayback(); };
+$("playTempo").onchange = () => { if (playing) startPlayback(); };
 
 $("btnJudge").onclick = async () => {
   $("judgeOut").innerHTML = "<p class='hint'>심사 중…</p>";
@@ -803,13 +1032,22 @@ $("btnDashStudent").onclick = async () => {
   try {
     await api("/api/students", { method: "POST", body: JSON.stringify(dashStudent()) });
     const presets = await api("/api/presets?student_id=s1");
-    $("presetGrid").innerHTML = presets.map(p => `
-      <button class="card ${p.recommended ? "" : "dim"}" data-preset="${p.id}">
+    $("presetGrid").innerHTML = presets.map(p => {
+      const tip = [`${p.mood}`,
+        `박자 ${p.meter} · 권장 ♩=${p.tempo[0]}~${p.tempo[1]} · 형식 ${p.form}`,
+        p.shows_off.length ? `드러나는 강점: ${p.shows_off.join(", ")}` : "",
+        p.recommended ? "" : `이 학생에게는 권하지 않습니다 (레벨 ${p.level_range[0]}~${p.level_range[1]}` +
+          (p.avoid_if.length ? ` · ${p.avoid_if.join("·")} 이 약점이면 피하십시오` : "") + ")",
+        "누르면 작곡이 시작됩니다.",
+      ].filter(Boolean).join("\n");
+      return `<button class="card ${p.recommended ? "" : "dim"}" data-preset="${p.id}"
+          data-tip="${tip.replace(/"/g, "&quot;")}">
+        ${p.recommended ? "" : '<span class="flag">권장 아님</span>'}
         <h3>${p.name}</h3>
         <p class="why">${p.blurb}</p>
-        <div class="meta">${p.meter} · ♩=${p.tempo[0]}~${p.tempo[1]} · ${p.form}
-          ${p.shows_off.length ? "· " + p.shows_off.join("·") + " 를 보여준다" : ""}</div>
-      </button>`).join("");
+        <div class="meta">${p.meter} · ♩=${p.tempo[0]}~${p.tempo[1]} · ${p.form}</div>
+      </button>`;
+    }).join("");
     $("presetGrid").querySelectorAll(".card").forEach(c => {
       c.onclick = () => autoCompose(c.dataset.preset, c);
     });
@@ -835,9 +1073,13 @@ async function autoCompose(presetId, cardEl) {
       ? `<strong>사전 심사 통과</strong> · 평균 ${j.average} (문턱 ${j.required_average})`
       : `<strong>심사 문턱 미달</strong> · 평균 ${j.average} / 최저 ${j.minimum}
          (문턱 ${j.required_average}·${j.required_minimum}) — 초안으로만 쓸 것`;
-    box.className = "msg " + (j.passed ? "ok" : "warn");
-    box.innerHTML = `${body.title} · ${body.measures}마디 · ${body.key} ${body.meter}
-      ♩=${body.tempo} · 난이도 ${body.difficulty} · 종합 ${body.combined_score}<br>${verdict}
+    // 검증기를 통과하지 못한 곡은 저장할 수 없다(절대 규칙 2) — 심사 점수보다 먼저 보여야 한다.
+    box.className = "msg " + (!body.savable ? "bad" : j.passed ? "ok" : "warn");
+    const gate = !body.savable
+      ? `<strong>검증 실패 — 저장할 수 없습니다</strong> · ${body.validation.summary}`
+      : verdict;
+    box.innerHTML = `<strong>${body.title}</strong> · ${body.measures}마디 · ${body.key} ${body.meter}
+      ♩=${body.tempo} · 난이도 ${body.difficulty} · 종합 ${body.combined_score}<br>${gate}
       ${j.rounds ? `<br>심사 되먹임 ${j.rounds}회 반영` : ""}
       ${j.consensus_fixes.length ? `<br>공통 지적: ${j.consensus_fixes.join(" / ")}` : ""}`;
     // 만든 곡을 곧바로 결과 화면(악보·재생·편곡)으로 넘긴다.
@@ -865,13 +1107,18 @@ async function refreshLibrary() {
   if (!items.length) return;
   $("libraryTable").innerHTML =
     "<table><tr><th>곡</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>종합</th>" +
-    "<th>사전 심사</th><th>판</th><th></th></tr>" +
+    "<th>검증</th><th>사전 심사</th><th>판</th><th></th></tr>" +
     items.map(i => `<tr>
       <td>${i.title}</td><td>${i.key} ${i.meter} ♩=${i.tempo}</td>
       <td>${i.measures}</td><td>${i.difficulty}</td><td>${i.combined_score}</td>
-      <td>${i.judged ? (i.judge_passed ? "통과 " + i.judge_average : "미달 " + i.judge_average) : "—"}</td>
+      <td>${i.savable ? '<span class="tag ok">통과</span>' : '<span class="tag bad">저장 불가</span>'}</td>
+      <td>${i.judged
+        ? (i.judge_passed ? `<span class="tag ok">통과 ${i.judge_average}</span>`
+                          : `<span class="tag warn">미달 ${i.judge_average}</span>`)
+        : "—"}</td>
       <td>${i.versions}</td>
-      <td><button class="ghost open" data-cid="${i.composition_id}">열기</button></td>
+      <td><button class="ghost mini open" data-cid="${i.composition_id}"
+        data-tip="이 곡을 악보·재생·편곡 화면으로 엽니다." data-tip-side="right">열기</button></td>
     </tr>`).join("") + "</table>";
   $("libraryTable").querySelectorAll(".open").forEach(b => {
     b.onclick = () => { compositionId = b.dataset.cid; showComposition(b.dataset.cid); };
@@ -881,36 +1128,250 @@ async function refreshLibrary() {
 // 라이브러리에서 곡을 다시 열 때도 같은 결과 화면을 쓴다.
 async function showComposition(cid) {
   compositionId = cid;
-  $("secResult").classList.remove("hidden");
+  ["secResult", "secArrange", "secFeedback"].forEach(id => $(id).classList.remove("hidden"));
   $("resultSummary").innerHTML = "<p class='hint'>곡을 불러오는 중…</p>";
   try {
     const b = await api(`/api/compositions/${cid}/quality`);
+    shownMeta = { key: b.key, meter: b.meter, tempo: b.tempo, title: b.title };
     if (b.tempo) { $("playTempo").value = b.tempo; $("playTempoLabel").textContent = b.tempo + " bpm"; }
     renderResult(b);
+    // 편곡 채팅의 기본 구간을 곡 앞머리로 맞춰 둔다.
+    $("arrFrom").max = b.measures; $("arrTo").max = b.measures;
+    if (num("arrTo") > b.measures) $("arrTo").value = Math.min(4, b.measures);
+    playMeasures = await api(`/api/compositions/${cid}/measures`);
+    buildTimeline(playMeasures, b.meter || "4/4", num("playTempo"));
     $("secResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
 }
 
-// ── 편곡(구간 다시 쓰기) ────────────────────────────────────────────────────
+
+// ── 버튼 설명 온·오프 ────────────────────────────────────────────────────────
+// 처음 쓰는 원장은 버튼 이름만으로는 무엇을 위한 것인지 모른다. 익숙해지면 방해가 되므로
+// 끌 수 있게 하고, 선택을 기억한다.
+(function () {
+  const sw = $("tipSwitch"), st = $("tipState");
+  const set = (on) => {
+    document.body.classList.toggle("tips", on);
+    sw.classList.toggle("on", on);
+    sw.setAttribute("aria-checked", String(on));
+    st.textContent = on ? "켬" : "끔";
+    try { localStorage.setItem("cc_tips", on ? "1" : "0"); } catch (_) { /* 사생활 모드 */ }
+  };
+  let saved = "1";
+  try { saved = localStorage.getItem("cc_tips") ?? "1"; } catch (_) { /* 무시 */ }
+  set(saved !== "0");
+  sw.onclick = () => set(!document.body.classList.contains("tips"));
+
+  // 화면 오른쪽 끝의 버튼은 말풍선이 잘린다 — 가까이 갈 때 방향을 바꿔 준다.
+  document.addEventListener("mouseover", (e) => {
+    const el = e.target.closest("[data-tip]");
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.left + r.width / 2 > window.innerWidth - 160) el.dataset.tipSide = "right";
+    else if (el.dataset.tipSide === "right") delete el.dataset.tipSide;
+  });
+})();
+
+// ── 연주 위치 이동바 ────────────────────────────────────────────────────────
+// 악보만 보면 어디를 연주 중인지 알 수 없고, OSMD 커서는 CDN 이 막히면 아예 없다.
+// 마디 칸을 직접 그려 두면 두 경우 모두 **지금 어디인가**가 보이고, 클릭으로 그 자리부터
+// 다시 들을 수 있다 — 원장이 특정 마디를 검증하는 방식이 그것이다.
+let tlCells = [], tlSpans = [], tlTotalSec = 0, tlRaf = null, tlClock = null;
+
+function buildTimeline(measures, meter, bpm) {
+  const track = $("tlTrack");
+  const cursor = $("tlCursor");
+  track.querySelectorAll(".tl-cell").forEach(c => c.remove());
+  tlCells = []; tlSpans = [];
+  const spb = 60 / bpm, barSec = barBeats(meter) * spb;
+  let t = 0;
+  const sectionAt = sectionStarts();
+  measures.forEach((m, i) => {
+    const cell = document.createElement("div");
+    cell.className = "tl-cell" + (sectionAt.has(m.number) ? " sec" : "");
+    cell.title = `${m.number}마디`;
+    if (i === 0 || (m.number % 8 === 0)) cell.innerHTML = `<b>${m.number}</b>`;
+    cell.onclick = () => startPlayback(m.number);
+    track.insertBefore(cell, cursor);
+    tlCells.push(cell);
+    tlSpans.push({ number: m.number, start: t, end: t + barSec });
+    t += barSec;
+  });
+  tlTotalSec = t;
+  $("tlTotal").textContent = `${measures.length}마디 · ${Math.round(t)}초`;
+  markTimeline(0);
+}
+
+function sectionStarts() {
+  // 설계도가 있으면 섹션이 시작되는 마디를 진하게 칠한다 — 형식이 눈에 들어온다.
+  const out = new Set();
+  if (plan && plan.form) plan.form.forEach(f => out.add(f.measures[0]));
+  return out;
+}
+
+function markTimeline(sec) {
+  if (!tlSpans.length) return;
+  const idx = tlSpans.findIndex(s => sec >= s.start && sec < s.end);
+  const cur = idx < 0 ? (sec >= tlTotalSec ? tlSpans.length - 1 : 0) : idx;
+  tlCells.forEach((c, i) => {
+    c.classList.toggle("on", i === cur);
+    c.classList.toggle("played", i < cur);
+  });
+  const pct = tlTotalSec ? Math.min(1, Math.max(0, sec / tlTotalSec)) : 0;
+  $("tlCursor").style.left = (pct * 100) + "%";
+  $("tlNow").textContent = `${tlSpans[cur].number}마디`;
+  if (osmd && osmd.cursor) cursorToMeasure(cur);
+}
+
+function startTimelineClock(getSeconds, offsetSec) {
+  stopTimelineClock();
+  tlClock = getSeconds;
+  const tick = () => {
+    if (!tlClock) return;
+    markTimeline(offsetSec + tlClock());
+    tlRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stopTimelineClock() {
+  if (tlRaf) cancelAnimationFrame(tlRaf);
+  tlRaf = null; tlClock = null;
+}
+
+// ── 편곡 채팅 ───────────────────────────────────────────────────────────────
+function chatSay(who, text, cls = "") {
+  const log = $("chatLog");
+  const b = document.createElement("div");
+  b.className = "bub " + (who === "me" ? "me" : "sys " + cls);
+  b.innerHTML = `<span class="who">${who === "me" ? "원장" : "작곡가"}</span>` +
+    String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  log.appendChild(b);
+  log.scrollTop = log.scrollHeight;
+  return b;
+}
+
 $("btnRearrange").onclick = async () => {
   const lo = num("arrFrom"), hi = num("arrTo"), how = val("arrHow");
-  const out = $("arrOut");
-  if (!compositionId) { out.textContent = "먼저 곡을 만들거나 열어라"; return; }
-  if (!(lo >= 1 && hi >= lo)) { out.textContent = "마디 범위를 확인하라"; return; }
-  if (how.length < 4) { out.textContent = "무엇을 어떻게 바꿀지 적어라"; return; }
+  if (!compositionId) { chatSay("sys", "먼저 곡을 만들거나 보관함에서 열어 주십시오.", "bad"); return; }
+  if (!(lo >= 1 && hi >= lo)) { chatSay("sys", "마디 범위를 확인해 주십시오.", "bad"); return; }
+  if (how.length < 4) { chatSay("sys", "무엇을 어떻게 바꿀지 적어 주십시오.", "bad"); return; }
+  chatSay("me", `${lo}~${hi}마디\n${how}`);
+  $("arrHow").value = "";
   $("btnRearrange").disabled = true;
-  out.textContent = `${lo}~${hi}마디를 다시 쓰는 중…`;
+  const wait = chatSay("sys", `${lo}~${hi}마디를 다시 쓰는 중…`);
   try {
     const b = await api(`/api/compositions/${compositionId}/rearrange`, {
       method: "POST", body: JSON.stringify({ measures: [lo, hi], instruction: how }),
     });
-    out.textContent = `${b.changed_measures[0]}~${b.changed_measures.slice(-1)[0]}마디 수정 · `
-      + `${b.version}판 · 난이도 ${b.difficulty} · 종합 ${b.combined_score} · ${b.validation.summary}`;
+    const ch = b.changed_measures;
+    wait.innerHTML = `<span class="who">작곡가</span>` +
+      `${ch[0]}~${ch[ch.length - 1]}마디를 다시 썼습니다 · ${b.version}판\n` +
+      `난이도 ${b.difficulty} · 종합 ${b.combined_score} · 검증 ${b.validation.summary}`;
+    if (!b.validation.passed) wait.classList.add("bad");
     playMeasures = null;
     await showComposition(compositionId);
     await refreshLibrary();
-  } catch (e) { out.textContent = "편곡 실패: " + e.message; }
-  finally { $("btnRearrange").disabled = false; }
+  } catch (e) {
+    wait.className = "bub sys bad";
+    wait.innerHTML = `<span class="who">작곡가</span>${e.message}${e.hint ? "\n" + e.hint : ""}`;
+  } finally { $("btnRearrange").disabled = false; }
+};
+
+// ── 직접 편집(M4) ───────────────────────────────────────────────────────────
+// 말로 하는 편곡이 닿지 않는 자리가 있다 — "이 음 하나만 반음 올려" 같은 것. 그때는
+// 음표를 직접 고치는 것이 빠르다. 작곡 엔진을 부르지 않고 검증기·지표만 다시 돌린다.
+const OK_DUR = [0.125, 0.25, 0.375, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
+let edMeasures = null;
+
+$("btnDirectEdit").onclick = async () => {
+  const lo = num("arrFrom"), hi = num("arrTo");
+  if (!compositionId) { chatSay("sys", "먼저 곡을 만들거나 보관함에서 열어 주십시오.", "bad"); return; }
+  if (!(lo >= 1 && hi >= lo)) { chatSay("sys", "마디 범위를 확인해 주십시오.", "bad"); return; }
+  try {
+    const all = playMeasures || await api(`/api/compositions/${compositionId}/measures`);
+    playMeasures = all;
+    edMeasures = JSON.parse(JSON.stringify(all.filter(m => m.number >= lo && m.number <= hi)));
+    if (!edMeasures.length) { chatSay("sys", "그 범위에 마디가 없습니다.", "bad"); return; }
+    $("edTitle").textContent = `${lo}~${hi}마디 · ${edMeasures.length}개 마디`;
+    renderEditor();
+    $("secEditor").classList.remove("hidden");
+    $("edOut").innerHTML = "";
+    $("secEditor").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { chatSay("sys", "마디를 불러오지 못했습니다: " + e.message, "bad"); }
+};
+
+function renderEditor() {
+  const wrap = $("edBars");
+  wrap.innerHTML = "";
+  edMeasures.forEach((m, mi) => {
+    const bar = document.createElement("div");
+    bar.className = "ed-bar";
+    bar.innerHTML = `<h4><span>${m.number}마디</span>
+      <span style="font-weight:400;color:var(--muted);font-size:11.5px">${m.dynamics || ""}</span></h4>`;
+    [["rh", "오른손"], ["lh", "왼손"]].forEach(([hand, label]) => {
+      const voices = m[hand] || [];
+      const h = document.createElement("div");
+      h.className = "ed-hand";
+      h.textContent = label;
+      bar.appendChild(h);
+      voices.forEach((v, vi) => v.events.forEach((ev, ei) => {
+        const row = document.createElement("div");
+        row.className = "ed-note";
+        row.innerHTML = `
+          <span style="font-size:11px;color:var(--muted-2)">${ei + 1}</span>
+          <input value="${(ev.pitches || []).join(" ")}" placeholder="쉼표는 비워 둡니다"
+                 data-tip="음이름을 띄어쓰기로 나눕니다. 화음은 C5 E5 G5 처럼.&#10;내림표는 B-4, 올림표는 F#5 입니다.">
+          <select data-tip="한 마디의 길이 합이 박자와 맞아야 저장됩니다.">
+            ${OK_DUR.map(d => `<option value="${d}" ${d === ev.dur ? "selected" : ""}>${d}박</option>`).join("")}
+          </select>
+          <select data-tip="아티큘레이션입니다.">
+            ${["none", "staccato", "accent", "tenuto", "marcato"].map(a =>
+              `<option value="${a}" ${a === (ev.artic || "none") ? "selected" : ""}>${a}</option>`).join("")}
+          </select>
+          <button class="ghost mini del" type="button" data-tip="이 음을 쉼표로 바꿉니다.">·</button>`;
+        const [pit, dur, art] = row.querySelectorAll("input,select");
+        pit.oninput = () => {
+          ev.pitches = pit.value.trim() ? pit.value.trim().split(/\s+/) : [];
+        };
+        dur.onchange = () => { ev.dur = Number(dur.value); };
+        art.onchange = () => { ev.artic = art.value; };
+        row.querySelector(".del").onclick = () => { ev.pitches = []; pit.value = ""; };
+        bar.appendChild(row);
+      }));
+    });
+    wrap.appendChild(bar);
+  });
+}
+
+$("btnEdCancel").onclick = () => {
+  edMeasures = null;
+  $("secEditor").classList.add("hidden");
+};
+
+$("btnEdSave").onclick = async () => {
+  if (!edMeasures) return;
+  $("btnEdSave").disabled = true;
+  $("edOut").innerHTML = "<div class='msg'>검증기와 지표를 다시 돌리는 중…</div>";
+  try {
+    const b = await api(`/api/compositions/${compositionId}/measures`, {
+      method: "PUT", body: JSON.stringify({ measures: edMeasures }),
+    });
+    const cls = b.validation.passed ? "ok" : "bad";
+    $("edOut").innerHTML = `<div class="msg ${cls}">
+      ${b.changed_measures.join(", ")}마디 저장 · ${b.version}판 ·
+      난이도 ${b.difficulty} · 종합 ${b.combined_score} · 검증 ${b.validation.summary}
+      ${b.validation.passed ? "" :
+        `<pre>${b.validation.issues.filter(i => i.severity === "hard")
+          .map(i => `${i.rule}: ${i.message}`).join("\n")}</pre>`}</div>`;
+    chatSay("sys", `${b.changed_measures.join(", ")}마디를 직접 편집했습니다 · ${b.version}판 · 검증 ${b.validation.summary}`,
+            b.validation.passed ? "" : "bad");
+    playMeasures = null;
+    await showComposition(compositionId);
+    await refreshLibrary();
+  } catch (e) {
+    $("edOut").innerHTML = `<div class="msg bad">${e.message}</div>`;
+  } finally { $("btnEdSave").disabled = false; }
 };
 
 </script>

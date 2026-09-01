@@ -91,6 +91,7 @@ GET  /api/presets?student_id=...                    컨셉 카드 12가지(학�
 POST /api/compositions/auto                         컨셉 하나로 모티브~작곡~사전 심사까지
 GET  /api/compositions                              만든 곡 목록(사전 심사 통과 여부 포함)
 POST /api/compositions/{id}/rearrange               지정한 구간만 다시 쓰기(편곡)
+PUT  /api/compositions/{id}/measures                원장이 직접 고친 마디 저장(M4) + 재검증
 
 POST /api/requests                                  요청 등록 → 하드 제약 + 실현 가능 난이도 대역
 POST /api/requests/{id}/motifs                      Stage 1 모티브 후보
