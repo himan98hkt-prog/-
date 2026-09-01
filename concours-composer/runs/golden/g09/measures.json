@@ -1822,9 +1822,9 @@
           {
             "dur": 4.0,
             "pitches": [
+              "D3",
               "F3",
-              "A3",
-              "D4"
+              "A3"
             ],
             "tie": null,
             "artic": "none",
@@ -7620,7 +7620,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "A2"
+              "F2"
             ],
             "tie": null,
             "artic": "none",
@@ -7629,9 +7629,9 @@
           {
             "dur": 1.0,
             "pitches": [
+              "A2",
               "C3",
-              "F3",
-              "A3"
+              "F3"
             ],
             "tie": null,
             "artic": "none",
@@ -7640,7 +7640,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "A2"
+              "F2"
             ],
             "tie": null,
             "artic": "none",
@@ -7649,9 +7649,9 @@
           {
             "dur": 1.0,
             "pitches": [
+              "A2",
               "C3",
-              "F3",
-              "A3"
+              "F3"
             ],
             "tie": null,
             "artic": "none",

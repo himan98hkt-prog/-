@@ -7,7 +7,7 @@
         "value": 0.8125,
         "target": 0.7,
         "met": true,
-        "detail": "13/16 프레이즈에 등장 · 1-8:statement, 9-12:statement, 17-24:fragment_head, 25-32:fragment_head, 33-38:fragment_head, 39-42:fragment_head"
+        "detail": "13/16 프레이즈에 등장 · 없는 곳 13-16, 49-56, 85-90 · 1-8:statement, 9-12:statement, 17-24:fragment_head, 25-32:fragment_head, 33-38:fragment_head, 39-42:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "폭풍→눈: 리듬; 눈→폭풍 재현: 리듬; 폭풍 재현→종결: 리듬"
+        "detail": "폭풍→눈: 왼손 리듬; 눈→폭풍 재현: 왼손 리듬; 폭풍 재현→종결: 왼손 리듬, 오른손 동시음"
       },
       "playability": {
         "value": 0.7991,
@@ -112,9 +112,11 @@
   "combined_score": 8.64,
   "notes": [
     "난이도 7.02 → 목표 8.0 (올려야 한다, 차이 0.98)",
+    "이미 상한에 걸린 특징(더 밀어도 점수가 오르지 않는다): note_density 11.06 / 상한 10 (초당 음 수) — 1.1배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배",
     "simultaneity 0.32 — 강박에 3도·6도를 겹쳐 오른손을 두껍게 하라",
     "hand_motion 0.37 — 선율에 옥타브 자리바꿈을 넣어 손이 크게 움직이게 하라",
     "lh_texture 0.57 — 왼손을 지속음에서 분산화음이나 도약 반주로 바꿔라",
-    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다"
+    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다",
+    "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): note_density 11.06 / 상한 10 (초당 음 수) — 1.1배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배"
   ]
 }

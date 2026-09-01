@@ -2,34 +2,34 @@
   "verdicts": [
     {
       "persona": "technique",
-      "accuracy": 8.1,
+      "accuracy": 8.2,
       "expression": 9.0,
       "structure": 9.0,
       "difficulty_fit": 8.1,
-      "impression": 7.6,
-      "comment": "난이도 4.8(초등 고학년부)로 목표 4.0 대비 적절. 스팬 초과 0회 · 평균 이동 6.1반음 · 연속 도약 최대 16회.",
+      "impression": 7.3,
+      "comment": "난이도 4.8(초등 고학년부)로 목표 4.0 대비 적절. 스팬 초과 0회 · 평균 이동 6.0반음 · 연속 도약 최대 16회.",
       "fix_in_score": [],
       "fix_in_practice": [
         "느린 템포에서 손 이동 구간만 분리 연습",
         "메트로놈으로 템포 유지 확인"
       ],
-      "total": 8.36,
+      "total": 8.32,
       "persona_label": "테크닉 중시"
     },
     {
       "persona": "musicality",
-      "accuracy": 9.0,
+      "accuracy": 8.7,
       "expression": 10.0,
-      "structure": 9.0,
+      "structure": 8.6,
       "difficulty_fit": 8.1,
-      "impression": 8.1,
-      "comment": "프레이즈 호흡 — 15/15 프레이즈가 호흡으로 끝난다. 다이내믹 — Plan 대비 상관 1.00 (10개 지점).",
+      "impression": 7.8,
+      "comment": "프레이즈 호흡 — 14/15 프레이즈가 호흡으로 끝난다 · 숨 못 쉬는 마디 [16]. 다이내믹 — Plan 대비 상관 1.00 (10개 지점).",
       "fix_in_score": [],
       "fix_in_practice": [
         "프레이즈 끝을 손목으로 놓아주는 연습",
         "노래하듯 선율만 따로 쳐보기"
       ],
-      "total": 8.84,
+      "total": 8.64,
       "persona_label": "음악성 중시"
     },
     {
@@ -48,5 +48,5 @@
       "persona_label": "구조·형식 중시"
     }
   ],
-  "average": 8.69
+  "average": 8.61
 }

@@ -29,7 +29,8 @@
     "difficulty_feasible_range": [
       1.55,
       8.51
-    ]
+    ],
+    "difficulty_key_advice": null
   },
   "student": {
     "level": 7,

@@ -1,13 +1,13 @@
 {
   "musicality": {
-    "score": 0.9117,
-    "score_10": 9.12,
+    "score": 0.9297,
+    "score_10": 9.3,
     "metrics": {
       "motif_consistency": {
         "value": 0.8125,
         "target": 0.7,
         "met": true,
-        "detail": "13/16 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-16:statement, 17-24:statement, 25-28:fragment_head, 29-32:fragment_head"
+        "detail": "13/16 프레이즈에 등장 · 없는 곳 33-40, 45-48, 91-96 · 1-4:statement, 5-8:fragment_head, 9-16:statement, 17-24:statement, 25-28:fragment_head, 29-32:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -40,10 +40,10 @@
         "detail": "Plan 대비 상관 1.00 (14개 지점)"
       },
       "texture_contrast": {
-        "value": 0.8,
+        "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "서주→제1주제: 동시음·음역·리듬; 제1주제→제2주제: 동시음·음역·리듬; 제2주제→전개: 동시음·음역·리듬; 재현→코다: 리듬"
+        "detail": "서주→제1주제: 왼손 동시음·음역·리듬; 제1주제→제2주제: 왼손 동시음·음역·리듬, 오른손 음역; 제2주제→전개: 왼손 동시음·음역·리듬, 오른손 동시음·음역·리듬; 전개→재현: 오른손 동시음; 재현→코다: 왼손 리듬"
       },
       "playability": {
         "value": 0.8,
@@ -110,12 +110,13 @@
   "revision_round": 0,
   "passed": true,
   "threshold": 7.0,
-  "combined_score": 8.78,
+  "combined_score": 8.85,
   "notes": [
     "난이도 8.42 → 목표 9.0 (올려야 한다, 차이 0.58)",
+    "이미 상한에 걸린 특징(더 밀어도 점수가 오르지 않는다): note_density 22.16 / 상한 10 (초당 음 수) — 2.2배, hand_span 19.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.4배, rhythm 8.00 / 상한 7 (쓰인 음길이 종류) — 1.1배, lh_texture 12.55 / 상한 12 (왼손 저음 평균 도약(반음)) — 1.0배",
     "hand_motion 0.37 — 선율에 옥타브 자리바꿈을 넣어 손이 크게 움직이게 하라",
     "simultaneity 0.78 — 강박에 3도·6도를 겹쳐 오른손을 두껍게 하라",
-    "note_density 1.00 — 오른손 음을 더 잘게 쪼개라(4분→8분, 8분→16분)",
-    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다"
+    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다",
+    "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): note_density 22.16 / 상한 10 (초당 음 수) — 2.2배, hand_span 19.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.4배, rhythm 8.00 / 상한 7 (쓰인 음길이 종류) — 1.1배, lh_texture 12.55 / 상한 12 (왼손 저음 평균 도약(반음)) — 1.0배"
   ]
 }

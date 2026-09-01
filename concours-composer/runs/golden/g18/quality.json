@@ -7,7 +7,7 @@
         "value": 0.8,
         "target": 0.7,
         "met": true,
-        "detail": "8/10 프레이즈에 등장 · 1-6:statement, 7-10:statement, 11-18:fragment_head, 19-22:statement, 29-32:fragment_tail, 33-36:statement"
+        "detail": "8/10 프레이즈에 등장 · 없는 곳 23-26, 27-28 · 1-6:statement, 7-10:statement, 11-18:fragment_head, 19-22:statement, 29-32:fragment_tail, 33-36:statement"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "꿈→깨어남: 동시음·리듬; 깨어남→꿈 다시: 동시음·리듬"
+        "detail": "꿈→깨어남: 왼손 동시음·리듬; 깨어남→꿈 다시: 왼손 동시음·리듬, 오른손 음역·리듬"
       },
       "playability": {
         "value": 0.9,
@@ -106,7 +106,7 @@
     "overall_comment": "초6 에게 잘 맞는 곡이다. 50마디 158초로 210초 제한의 75% 를 쓰고, 병행 5·8도가 한 곳도 없으며, 난이도 5.5 로 목표 6.0 에서 한 칸 안이다. 학생 맞춤이 특히 정확하다 — 옥타브가 약점이라 오른손을 끝까지 홑음으로 두고, 페달이 강점이라 페달 밟기를 세 가지로 나누고, 서정적 표현이 강점이라 ♩=76 에서 2분음표 구간을 여덟 마디나 준다. 약점은 되풀이다. 50마디 중 16마디가 앞서 나온 것의 완전 복사이고, 그중 여덟 마디가 11~18마디 한 자리에 몰려 있다. ♩=76 은 느린 템포라 같은 것이 두 번 오면 실제로 25초가 지나간다. 위 세 곳 중 17~18마디만 한 계단 올려도 확대 악절이 살아난다.",
     "total": 8.05
   },
-  "revision_round": 0,
+  "revision_round": 1,
   "passed": true,
   "threshold": 7.0,
   "combined_score": 8.58,

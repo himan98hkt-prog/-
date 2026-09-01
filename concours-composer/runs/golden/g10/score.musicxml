@@ -1874,7 +1874,7 @@
       </note>
       <note id="m12-lhc-1">
         <pitch>
-          <step>D</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -2139,7 +2139,7 @@
       </note>
       <note id="m16-lhc-1">
         <pitch>
-          <step>D</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>

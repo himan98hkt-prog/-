@@ -7,7 +7,7 @@
         "value": 0.875,
         "target": 0.7,
         "met": true,
-        "detail": "14/16 프레이즈에 등장 · 1-4:statement, 9-12:statement, 13-16:statement, 17-22:statement, 23-28:fragment_head, 29-32:fragment_head"
+        "detail": "14/16 프레이즈에 등장 · 없는 곳 5-8, 37-40 · 1-4:statement, 9-12:statement, 13-16:statement, 17-22:statement, 23-28:fragment_head, 29-32:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "전주→A: 동시음·리듬; A→B: 동시음·음역·리듬; B→A': 동시음·음역·리듬; A'→후주: 동시음·음역·리듬"
+        "detail": "전주→A: 왼손 동시음·리듬, 오른손 음역·리듬; A→B: 왼손 동시음·음역·리듬; B→A': 왼손 동시음·음역·리듬; A'→후주: 왼손 동시음·음역·리듬, 오른손 음역"
       },
       "playability": {
         "value": 0.95,

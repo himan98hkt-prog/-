@@ -7,7 +7,7 @@
         "value": 0.7143,
         "target": 0.7,
         "met": true,
-        "detail": "10/14 프레이즈에 등장 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-16:fragment_head, 17-22:fragment_head, 23-26:fragment_head"
+        "detail": "10/14 프레이즈에 등장 · 없는 곳 27-28, 29-30, 35-38, 43-46 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-16:fragment_head, 17-22:fragment_head, 23-26:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,10 +43,10 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "제시부→발전부: 동시음·리듬; 발전부→재현부: 동시음·리듬"
+        "detail": "제시부→발전부: 왼손 동시음·리듬; 발전부→재현부: 왼손 동시음·리듬"
       },
       "playability": {
-        "value": 0.746,
+        "value": 0.7465,
         "target": 0.7,
         "met": true,
         "detail": "스팬 초과 0회 · 평균 이동 6.8반음 · 연속 도약 최대 56회"
@@ -106,7 +106,7 @@
     "overall_comment": "초5 에게 잘 맞는 곡이다. 58마디 139초로 180초 제한의 77% 를 쓰고, 병행 5·8도가 한 곳도 없으며, 난이도 5.2 로 목표 5.0 에 거의 정확히 맞는다. 소나티네를 요청받아 소나티네를 냈다는 점이 가장 큰 미덕이다 — 제시부·발전부·재현부의 경계가 조성과 왼손 텍스처 양쪽으로 갈리고, 제2주제가 딸림조에서 으뜸조로 해결되는 형식의 핵심이 실제로 작동한다. 약한 곳은 두 가지다. 발전부의 마지막 네 마디에서 두 손이 함께 멈추고 모티브도 사라진다는 것, 그리고 제2주제 여섯 마디에 리듬이 다섯 가지나 들어가 성격 대신 산만함이 된다는 것. 독창성 7.0 은 소나티네라는 형식 자체가 교재의 관용구이기 때문이고, 표절 검사에는 걸린 것이 없다.",
     "total": 8.0
   },
-  "revision_round": 0,
+  "revision_round": 1,
   "passed": true,
   "threshold": 7.0,
   "combined_score": 8.45,

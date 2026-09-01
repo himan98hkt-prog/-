@@ -2696,7 +2696,7 @@
     <measure implicit="no" number="4">
       <note id="m4-lh1-0">
         <pitch>
-          <step>C</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>20160</duration>
@@ -2943,8 +2943,8 @@
     <measure implicit="no" number="17">
       <note id="m17-lh1-0">
         <pitch>
-          <step>A</step>
-          <octave>2</octave>
+          <step>C</step>
+          <octave>3</octave>
         </pitch>
         <duration>40320</duration>
         <type>whole</type>
@@ -3126,7 +3126,7 @@
     <measure implicit="no" number="30">
       <note id="m30-lh1-0">
         <pitch>
-          <step>F</step>
+          <step>C</step>
           <octave>2</octave>
         </pitch>
         <duration>20160</duration>
@@ -3183,7 +3183,7 @@
     <measure implicit="no" number="33">
       <note id="m33-lh1-0">
         <pitch>
-          <step>C</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>20160</duration>
@@ -3240,7 +3240,7 @@
     <measure implicit="no" number="36">
       <note id="m36-lh1-0">
         <pitch>
-          <step>C</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>20160</duration>
@@ -3305,8 +3305,8 @@
       </note>
       <note id="m39-lh1-1">
         <pitch>
-          <step>D</step>
-          <octave>3</octave>
+          <step>B</step>
+          <octave>2</octave>
         </pitch>
         <duration>20160</duration>
         <type>half</type>
@@ -3468,7 +3468,7 @@
     <measure implicit="no" number="48">
       <note id="m48-lh1-0">
         <pitch>
-          <step>C</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>40320</duration>

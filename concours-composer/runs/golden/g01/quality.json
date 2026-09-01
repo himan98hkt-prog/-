@@ -1,19 +1,19 @@
 {
   "musicality": {
-    "score": 0.9487,
-    "score_10": 9.49,
+    "score": 0.9452,
+    "score_10": 9.45,
     "metrics": {
       "motif_consistency": {
         "value": 0.9231,
         "target": 0.7,
         "met": true,
-        "detail": "12/13 프레이즈에 등장 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-16:fragment_head, 17-20:fragment_head, 21-24:inversion"
+        "detail": "12/13 프레이즈에 등장 · 없는 곳 29-32 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-16:fragment_head, 17-20:fragment_head, 21-24:inversion"
       },
       "repetition_balance": {
         "value": 1.0,
         "target": 0.6,
         "met": true,
-        "detail": "정확 반복 29% (권장 20~45%)"
+        "detail": "정확 반복 27% (권장 20~45%)"
       },
       "melodic_contour": {
         "value": 0.8749,
@@ -43,13 +43,13 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "A→B: 리듬; B→A': 리듬"
+        "detail": "A→B: 왼손 리듬; B→A': 왼손 리듬"
       },
       "playability": {
-        "value": 0.95,
+        "value": 0.9,
         "target": 0.7,
         "met": true,
-        "detail": "스팬 초과 0회 · 평균 이동 3.9반음 · 연속 도약 최대 1회"
+        "detail": "스팬 초과 0회 · 평균 이동 3.9반음 · 연속 도약 최대 2회"
       },
       "expressive_variety": {
         "value": 1.0,
@@ -108,10 +108,10 @@
     "overall_comment": "잘 만든 콩쿨용 소품이다. 형식이 또렷하고, 모티브가 곡을 관통하고, 학생 제약을 하나도 어기지 않았으며, 115초로 150초 슬롯의 77% 를 쓴다. 문제는 재료다 — 도-레-미-파-솔이라는 상행 음계는 피아노 교재의 가장 흔한 재료이고, 이 곡은 그것을 48마디 동안 성실하게 굴린다. 심사위원이 '잘 썼네' 라고는 하겠지만 '이 곡 뭐지?' 라고 묻지는 않을 것이다. 독창성 5.5 는 그 뜻이다. 다만 이 점수를 올리려고 재료를 어렵게 만들면 난이도 3.0 목표가 무너지고 초2 학생이 못 친다 — 원장이 선택할 문제이지 작곡가가 혼자 결정할 문제가 아니다. 지금 이대로도 무대에 올릴 수 있고, 세 번째 수정 지시(27~28마디 왼손 선율)만 받아들이면 곡의 인상이 눈에 띄게 달라진다.",
     "total": 7.9
   },
-  "revision_round": 1,
+  "revision_round": 2,
   "passed": true,
   "threshold": 7.0,
-  "combined_score": 8.54,
+  "combined_score": 8.52,
   "notes": [
     "약한 루브릭: originality 5.5",
     "[1-16] (곡 전체) A 섹션 16마디 중 9마디가 같은 세 마디의 되풀이다(1~3, 5~7, 13~15). 초2 학생에게 반복은 무기지만, 세 번째 되풀이는 심사위원 귀에 '또?' 로 들릴 수 있다 → 13~15마디 중 14마디만 오른손을 한 옥타브 올려라(F6-A6-G6-F6-A6). 화성·리듬·왼손을 건드리지 않으므로 '같은 것이 돌아왔다'는 인상은 유지되고, 세 번째 등장에만 색이 생긴다. 다만 이 학생의 손 크기(6도)와 무대 긴장을 고려해 원장이 판단하라",

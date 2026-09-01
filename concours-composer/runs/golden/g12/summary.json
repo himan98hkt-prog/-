@@ -39,9 +39,9 @@
   "projection": {
     "model": "claude-opus-5",
     "calls": 13,
-    "input_tokens": 61297,
+    "input_tokens": 62788,
     "output_tokens": 15310,
-    "cost_usd_no_cache": 0.6892,
-    "cost_usd_with_cache": 0.4961
+    "cost_usd_no_cache": 0.6967,
+    "cost_usd_with_cache": 0.4989
   }
 }

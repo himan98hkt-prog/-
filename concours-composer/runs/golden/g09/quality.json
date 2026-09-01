@@ -7,7 +7,7 @@
         "value": 0.8235,
         "target": 0.7,
         "met": true,
-        "detail": "14/17 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-14:fragment_head, 15-18:fragment_head, 23-24:fragment_head, 25-26:fragment_head"
+        "detail": "14/17 프레이즈에 등장 · 없는 곳 19-22, 43-48, 57-58 · 1-4:statement, 5-8:fragment_head, 9-14:fragment_head, 15-18:fragment_head, 23-24:fragment_head, 25-26:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,13 +43,13 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "A→B: 동시음·리듬; B→A': 동시음·리듬; A'→C: 동시음; C→A'': 동시음"
+        "detail": "A→B: 왼손 동시음·리듬, 오른손 리듬; B→A': 왼손 동시음·리듬, 오른손 리듬; A'→C: 왼손 동시음; C→A'': 왼손 동시음"
       },
       "playability": {
         "value": 0.8,
         "target": 0.7,
         "met": true,
-        "detail": "스팬 초과 0회 · 평균 이동 4.8반음 · 연속 도약 최대 16회"
+        "detail": "스팬 초과 0회 · 평균 이동 4.7반음 · 연속 도약 최대 15회"
       },
       "expressive_variety": {
         "value": 0.9833,
@@ -114,7 +114,7 @@
     "overall_comment": "초5 에게 잘 맞는 곡이다. 72마디 137초로 180초 제한의 76% 를 쓰고, 약점인 여린 소리를 한 번도 요구하지 않는다 — 가장 여린 자리가 mp 다. 스타카토 8분음표 넷이라는 한 가지 손 모양이 곡 전체를 끌고 가면서 35~42마디에서 16분음표로 두 배 빨라지는 구간이 빠른 손가락을 정확히 겨냥한다. 걱정은 그 손 모양이 너무 많이 나온다는 것이다 — 같은 리듬형이 전체의 40% 이고, 그중 상당수가 A 의 세 번 반복이다. 43~48마디는 그 단조로움을 깰 유일한 자리인데 지금은 오른손이 멈춰 있어서 기회를 놓치고 있다. 병행 두 곳과 함께 이 세 가지를 손보면 콩쿨에 그대로 낼 수 있다.",
     "total": 7.9
   },
-  "revision_round": 1,
+  "revision_round": 0,
   "passed": true,
   "threshold": 7.0,
   "combined_score": 8.45,

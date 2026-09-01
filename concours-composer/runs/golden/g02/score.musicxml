@@ -3221,7 +3221,8 @@
     <measure implicit="no" number="9">
       <note id="m9-lh1-0">
         <pitch>
-          <step>D</step>
+          <step>F</step>
+          <alter>1</alter>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -3321,11 +3322,13 @@
       </note>
       <note id="m11-lh1-3">
         <pitch>
-          <step>B</step>
+          <step>A</step>
+          <alter>-1</alter>
           <octave>2</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <accidental>flat</accidental>
       </note>
     </measure>
     
@@ -3368,8 +3371,9 @@
     <measure implicit="no" number="13">
       <note id="m13-lh1-0">
         <pitch>
-          <step>A</step>
-          <octave>2</octave>
+          <step>C</step>
+          <alter>1</alter>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -3551,11 +3555,13 @@
     <measure implicit="no" number="18">
       <note id="m18-lh1-0">
         <pitch>
-          <step>E</step>
+          <step>A</step>
+          <alter>-1</alter>
           <octave>2</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <accidental>flat</accidental>
       </note>
       <note id="m18-lh1-1">
         <pitch>

@@ -7,13 +7,13 @@
         "value": 0.8462,
         "target": 0.7,
         "met": true,
-        "detail": "11/13 프레이즈에 등장 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-18:fragment_head, 19-22:fragment_tail, 23-26:fragment_head"
+        "detail": "11/13 프레이즈에 등장 · 없는 곳 29-30, 39-42 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-18:fragment_head, 19-22:fragment_tail, 23-26:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
         "target": 0.6,
         "met": true,
-        "detail": "정확 반복 26% (권장 20~45%)"
+        "detail": "정확 반복 24% (권장 20~45%)"
       },
       "melodic_contour": {
         "value": 1.0,
@@ -43,13 +43,13 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "A→B: 리듬; B→A': 리듬"
+        "detail": "A→B: 왼손 리듬; B→A': 왼손 리듬"
       },
       "playability": {
         "value": 0.95,
         "target": 0.7,
         "met": true,
-        "detail": "스팬 초과 0회 · 평균 이동 4.1반음 · 연속 도약 최대 1회"
+        "detail": "스팬 초과 0회 · 평균 이동 4.0반음 · 연속 도약 최대 1회"
       },
       "expressive_variety": {
         "value": 1.0,
@@ -108,7 +108,7 @@
     "overall_comment": "다섯 곡 중 형식이 가장 단단하다. 모티브가 분명하고, 변형이 실제로 다르게 들리고, 정점이 제자리에 있고, 마무리가 거짓 종지로 한 번 접었다가 닫힌다. 난이도 4.34 는 목표 4.0 에서 조금 높지만 도약이 3~4도까지이고 옥타브가 없으므로 초3 학생이 감당할 수 있다. 약점은 B 섹션이다 — A 와 A' 는 할 일이 분명한데 19~34마디 열여섯 마디는 '조용한 구간'이라는 것 외에 자기 얼굴이 없다. 첫 번째와 세 번째 수정 지시가 그 자리를 겨냥한 것이고, 둘 다 화성과 형식을 건드리지 않으므로 위험이 없다. 독창성 6.5 는 A장조 상행 아르페지오라는 재료 자체의 평범함이지, 다루는 솜씨의 문제는 아니다.",
     "total": 8.1
   },
-  "revision_round": 1,
+  "revision_round": 2,
   "passed": true,
   "threshold": 7.0,
   "combined_score": 8.66,

@@ -11,8 +11,8 @@
   "time_limit_sec": 180,
   "validation_passed": true,
   "hard_failures": [],
-  "warnings": 0,
-  "parallels": 0,
+  "warnings": 1,
+  "parallels": 1,
   "musicality": 9.33,
   "unmet": [],
   "critic_total": 7.9,
@@ -34,14 +34,14 @@
     "[1-56] (곡 전체) 56마디 동안 조성을 벗어나는 화음이 11마디의 B 내추럴 하나뿐이다. 바장조 안에서 I-V-vi-IV 를 성실하게 돌 뿐이라, 화성이 곡을 밀어주지 않고 따라만 온다. 서정적인 곡일수록 화성이 한 번은 예상 밖으로 가야 '표현'할 자리가 생긴다 → 34마디의 IV(내림나장조)를 iv(내림나단조 — B♭ D♭ F)로 바꿔라. 재현 직전에 차용화음이 한 번 그늘을 만들고, 35마디 딸림7화음으로 풀리면 37마디 재현이 훨씬 밝게 들린다. 오른손 F5-A5 는 F5-A♭5 로 따라 바꾸고, 임시표는 두 개만 늘어난다",
     "[1-20] (곡 전체) 난이도가 4.33 으로 목표 5.0 보다 낮다. 레벨 5·손 스팬 8도인 학생에게 이 곡은 여유가 있다 — 여유는 좋지만, 콩쿨에서는 '이 학생이 여기까지 할 수 있다'를 보여줄 자리도 필요하다 → 9~12마디 오른손을 한 옥타브 위로 올리고(F6-B♭6 는 음역 상한 안에 든다) 왼손 왈츠를 그대로 두어라. 네 마디만 음역이 벌어져 손 이동이 커지고, 빠른 패시지를 요구하지 않으므로 이 학생의 약점을 건드리지 않는다. 다만 무대에서 손이 큰 이동을 감당할지는 원장이 판단하라"
   ],
-  "prompts": 20,
-  "responses": 20,
+  "prompts": 23,
+  "responses": 23,
   "projection": {
     "model": "claude-opus-5",
-    "calls": 20,
-    "input_tokens": 139500,
-    "output_tokens": 32568,
-    "cost_usd_no_cache": 1.5117,
-    "cost_usd_with_cache": 1.0723
+    "calls": 23,
+    "input_tokens": 160835,
+    "output_tokens": 37642,
+    "cost_usd_no_cache": 1.7452,
+    "cost_usd_with_cache": 1.2386
   }
 }

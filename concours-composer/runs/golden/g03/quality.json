@@ -7,7 +7,7 @@
         "value": 0.8,
         "target": 0.7,
         "met": true,
-        "detail": "12/15 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-12:fragment_head, 13-14:fragment_head, 15-20:statement, 21-24:fragment_tail"
+        "detail": "12/15 프레이즈에 등장 · 없는 곳 33-36, 41-44, 51-56 · 1-4:statement, 5-8:fragment_head, 9-12:fragment_head, 13-14:fragment_head, 15-20:statement, 21-24:fragment_tail"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "A→B: 리듬; B→A': 리듬"
+        "detail": "A→B: 왼손 리듬; B→A': 왼손 리듬"
       },
       "playability": {
         "value": 0.7699,

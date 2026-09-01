@@ -3704,11 +3704,13 @@
     <measure implicit="no" number="17">
       <note id="m17-lh1-0">
         <pitch>
-          <step>B</step>
-          <octave>2</octave>
+          <step>E</step>
+          <alter>-1</alter>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <accidental>flat</accidental>
       </note>
       <note id="m17-lhc-1">
         <pitch>

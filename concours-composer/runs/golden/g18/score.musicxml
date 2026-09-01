@@ -6093,8 +6093,7 @@
     <measure implicit="no" number="14">
       <note id="m14-lhc-0">
         <pitch>
-          <step>E</step>
-          <alter>-1</alter>
+          <step>G</step>
           <octave>2</octave>
         </pitch>
         <duration>2520</duration>
@@ -6934,8 +6933,7 @@
     <measure implicit="no" number="18">
       <note id="m18-lhc-0">
         <pitch>
-          <step>E</step>
-          <alter>-1</alter>
+          <step>G</step>
           <octave>2</octave>
         </pitch>
         <duration>2520</duration>
@@ -10558,8 +10556,7 @@
       </note>
       <note id="m45-lh1-12">
         <pitch>
-          <step>D</step>
-          <alter>-1</alter>
+          <step>F</step>
           <octave>4</octave>
         </pitch>
         <duration>2520</duration>

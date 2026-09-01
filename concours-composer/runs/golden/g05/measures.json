@@ -1163,7 +1163,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "C3",
+              "E3",
               "E3",
               "A3"
             ],
@@ -1647,7 +1647,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "C3",
+              "E3",
               "C4"
             ],
             "tie": null,
@@ -1904,7 +1904,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
+              "C3",
               "D4"
             ],
             "tie": null,
@@ -2454,7 +2454,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "G2",
+              "B2",
               "G3"
             ],
             "tie": null,
@@ -3403,7 +3403,7 @@
             "slur": null
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
               "G5"
             ],
@@ -3412,27 +3412,9 @@
             "slur": null
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
               "F#5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 0.5,
-            "pitches": [
-              "E5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 0.5,
-            "pitches": [
-              "D5"
             ],
             "tie": null,
             "artic": "none",
@@ -3546,7 +3528,7 @@
             "slur": "start"
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
               "B5"
             ],
@@ -3555,7 +3537,7 @@
             "slur": null
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
               "A5"
             ],
@@ -3567,15 +3549,6 @@
             "dur": 1.0,
             "pitches": [
               "G5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 1.0,
-            "pitches": [
-              "E5"
             ],
             "tie": null,
             "artic": "none",
@@ -4533,8 +4506,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "B5",
-              "D6"
+              "B5"
             ],
             "tie": null,
             "artic": "none",
@@ -4543,8 +4515,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "A5",
-              "C6"
+              "A5"
             ],
             "tie": null,
             "artic": "none",
@@ -4553,17 +4524,6 @@
           {
             "dur": 0.5,
             "pitches": [
-              "G5",
-              "B5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 0.5,
-            "pitches": [
-              "E5",
               "G5"
             ],
             "tie": null,
@@ -4571,9 +4531,8 @@
             "slur": null
           },
           {
-            "dur": 1.0,
+            "dur": 0.5,
             "pitches": [
-              "C5",
               "E5"
             ],
             "tie": null,
@@ -4583,8 +4542,16 @@
           {
             "dur": 1.0,
             "pitches": [
-              "A4",
               "C5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 1.0,
+            "pitches": [
+              "A4"
             ],
             "tie": null,
             "artic": "none",
@@ -5150,7 +5117,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
+              "C3",
               "D4"
             ],
             "tie": null,
@@ -6939,7 +6906,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "C3",
+              "E3",
               "E3",
               "A3"
             ],
@@ -8716,7 +8683,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "G2",
+              "B2",
               "G3"
             ],
             "tie": null,

@@ -7,7 +7,7 @@
         "value": 0.8889,
         "target": 0.7,
         "met": true,
-        "detail": "8/9 프레이즈에 등장 · 1-4:statement, 5-8:inversion, 9-16:fragment_head, 17-22:fragment_head, 23-24:fragment_head, 29-32:statement"
+        "detail": "8/9 프레이즈에 등장 · 없는 곳 25-28 · 1-4:statement, 5-8:inversion, 9-16:fragment_head, 17-22:fragment_head, 23-24:fragment_head, 29-32:statement"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "바깥놀이→속삭임: 리듬; 속삭임→바깥놀이 다시: 리듬"
+        "detail": "바깥놀이→속삭임: 왼손 리듬, 오른손 리듬; 속삭임→바깥놀이 다시: 왼손 리듬, 오른손 음역·리듬"
       },
       "playability": {
         "value": 0.95,

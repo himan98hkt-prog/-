@@ -7,7 +7,7 @@
         "value": 0.875,
         "target": 0.7,
         "met": true,
-        "detail": "14/16 프레이즈에 등장 · 1-4:statement, 5-8:statement, 9-16:fragment_head, 17-20:statement, 21-24:fragment_head, 25-26:fragment_head"
+        "detail": "14/16 프레이즈에 등장 · 없는 곳 27-28, 29-32 · 1-4:statement, 5-8:statement, 9-16:fragment_head, 17-20:statement, 21-24:fragment_head, 25-26:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "행진→트리오: 리듬; 트리오→재현: 리듬"
+        "detail": "행진→트리오: 왼손 리듬; 트리오→재현: 왼손 리듬"
       },
       "playability": {
         "value": 0.7893,

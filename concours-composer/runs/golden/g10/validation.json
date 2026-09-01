@@ -1,5 +1,15 @@
 {
   "passed": true,
-  "summary": "통과 (경고 0건)",
-  "issues": []
+  "summary": "통과 (경고 1건)",
+  "issues": [
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "39→40마디 병행 8도",
+      "measures": [
+        39,
+        40
+      ]
+    }
+  ]
 }

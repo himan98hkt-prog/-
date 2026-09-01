@@ -31,7 +31,8 @@
     "difficulty_feasible_range": [
       2.54,
       9.62
-    ]
+    ],
+    "difficulty_key_advice": "목표 난이도 9.0 은 조표를 7개까지 올려도 8.8 가 한계다 (템포 138bpm · 손 스팬 19반음). 템포를 올리거나 목표를 낮춰야 한다 — 조성만으로는 닿지 않는다."
   },
   "student": {
     "level": 9,

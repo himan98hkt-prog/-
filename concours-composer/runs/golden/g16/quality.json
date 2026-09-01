@@ -7,7 +7,7 @@
         "value": 0.7,
         "target": 0.7,
         "met": true,
-        "detail": "7/10 프레이즈에 등장 · 1-6:fragment_head, 11-14:fragment_head, 15-18:fragment_head, 19-20:fragment_head, 29-32:fragment_head, 33-40:fragment_head"
+        "detail": "7/10 프레이즈에 등장 · 없는 곳 7-10, 21-24, 25-28 · 1-6:fragment_head, 11-14:fragment_head, 15-18:fragment_head, 19-20:fragment_head, 29-32:fragment_head, 33-40:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "비가→회상: 동시음·리듬; 회상→비가 재현: 동시음·리듬; 비가 재현→종결: 동시음"
+        "detail": "비가→회상: 왼손 동시음·리듬; 회상→비가 재현: 왼손 동시음·리듬, 오른손 동시음·리듬; 비가 재현→종결: 왼손 동시음, 오른손 리듬"
       },
       "playability": {
         "value": 0.85,
@@ -120,9 +120,11 @@
   "combined_score": 8.41,
   "notes": [
     "난이도 6.00 → 목표 7.0 (올려야 한다, 차이 1.00)",
+    "이미 상한에 걸린 특징(더 밀어도 점수가 오르지 않는다): note_density 10.21 / 상한 10 (초당 음 수) — 1.0배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배",
     "simultaneity 0.17 — 강박에 3도·6도를 겹쳐 오른손을 두껍게 하라",
     "hand_motion 0.24 — 선율에 옥타브 자리바꿈을 넣어 손이 크게 움직이게 하라",
     "lh_texture 0.46 — 왼손을 지속음에서 분산화음이나 도약 반주로 바꿔라",
-    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다"
+    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다",
+    "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): note_density 10.21 / 상한 10 (초당 음 수) — 1.0배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배"
   ]
 }

@@ -1907,7 +1907,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "B2"
+              "D3"
             ],
             "tie": null,
             "artic": "none",
@@ -2262,7 +2262,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "B2"
+              "D3"
             ],
             "tie": null,
             "artic": "none",
@@ -6447,7 +6447,7 @@
           {
             "dur": 1.0,
             "pitches": [
-              "E3"
+              "G3"
             ],
             "tie": null,
             "artic": "none",

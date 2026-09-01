@@ -70,7 +70,8 @@ B축 제외에 따라 torch·chromium 검사는 선택 항목으로 남겨두었
 - [x] **세션 엔진(`GOLDEN_ENGINE=session`)** — API 없이 이 Claude 세션이 작곡가·비평가를 맡는다.
       프롬프트를 파일로 내놓고 응답 JSON 을 기다린다. 검증기·지표·표절 검사는 코드가 그대로 실행.
       문서: docs/SESSION_ENGINE.md
-- [x] **세션 작곡 5곡 완료** — 전부 하드 검증 통과, 병행 5·8도 0건, 비평 총점 7.55~7.95.
+- [x] **세션 작곡 20곡 완료** — 전부 하드 검증 통과, 비평 총점 7.8~8.55.
+      병행 5·8도는 검사를 타건 시점 단위로 넓힌 뒤 곡마다 0~12건이 남아 있다(소프트).
       결과·비용: runs/golden/SUMMARY.md
 - [x] 프롬프트 캐싱(고정 컨텍스트) · Batch API 경로 · 곡당 토큰·비용 로깅
 - [ ] **실제 Claude API 골든 실측** — `.env` 에 키를 넣고 `GOLDEN_ENGINE=claude make golden`.

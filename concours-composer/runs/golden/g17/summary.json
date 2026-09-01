@@ -11,8 +11,8 @@
   "time_limit_sec": 150,
   "validation_passed": true,
   "hard_failures": [],
-  "warnings": 0,
-  "parallels": 0,
+  "warnings": 6,
+  "parallels": 6,
   "musicality": 9.55,
   "unmet": [],
   "critic_total": 8.15,
@@ -31,14 +31,14 @@
     "rhythm 0.67 — 쓰는 음길이 종류를 줄여라",
     "note_density 0.53 — 오른손 음을 합쳐라(8분 둘을 4분 하나로)"
   ],
-  "prompts": 19,
-  "responses": 19,
+  "prompts": 21,
+  "responses": 21,
   "projection": {
     "model": "claude-opus-5",
-    "calls": 19,
-    "input_tokens": 146226,
-    "output_tokens": 38438,
-    "cost_usd_no_cache": 1.6921,
-    "cost_usd_with_cache": 1.2315
+    "calls": 21,
+    "input_tokens": 168025,
+    "output_tokens": 42951,
+    "cost_usd_no_cache": 1.9139,
+    "cost_usd_with_cache": 1.3846
   }
 }

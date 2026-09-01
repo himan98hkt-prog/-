@@ -1,5 +1,39 @@
 {
   "passed": true,
-  "summary": "통과 (경고 0건)",
-  "issues": []
+  "summary": "통과 (경고 4건)",
+  "issues": [
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "20→21마디 병행 8도",
+      "measures": [
+        20,
+        21
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "35마디 2.5→2.625박 병행 8도",
+      "measures": [
+        35
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "37마디 2.125→2.25박 병행 8도",
+      "measures": [
+        37
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "40마디 2.875→3박 병행 8도",
+      "measures": [
+        40
+      ]
+    }
+  ]
 }

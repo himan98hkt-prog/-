@@ -7,7 +7,7 @@
         "value": 0.9167,
         "target": 0.7,
         "met": true,
-        "detail": "11/12 프레이즈에 등장 · 1-4:statement, 5-8:fragment_head, 9-12:statement, 13-20:fragment_head, 21-26:fragment_head, 27-28:fragment_head"
+        "detail": "11/12 프레이즈에 등장 · 없는 곳 29-32 · 1-4:statement, 5-8:fragment_head, 9-12:statement, 13-20:fragment_head, 21-26:fragment_head, 27-28:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -43,7 +43,7 @@
         "value": 1.0,
         "target": 0.5,
         "met": true,
-        "detail": "춤→쉼: 동시음·리듬; 쉼→춤 재현: 동시음·리듬; 춤 재현→맺음: 동시음·리듬"
+        "detail": "춤→쉼: 왼손 동시음·리듬; 쉼→춤 재현: 왼손 동시음·리듬, 오른손 음역·리듬; 춤 재현→맺음: 왼손 동시음·리듬"
       },
       "playability": {
         "value": 0.7981,

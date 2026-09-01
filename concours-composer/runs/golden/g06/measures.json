@@ -330,7 +330,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "F#2"
+              "D3"
             ],
             "tie": null,
             "artic": "none",
@@ -339,9 +339,9 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
               "F#3",
-              "A3"
+              "A3",
+              "D4"
             ],
             "tie": null,
             "artic": "none",
@@ -359,9 +359,9 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
               "F#3",
-              "A3"
+              "A3",
+              "D4"
             ],
             "tie": null,
             "artic": "none",
@@ -1109,7 +1109,7 @@
               "F#4"
             ],
             "tie": null,
-            "artic": "accent",
+            "artic": "none",
             "slur": "start"
           },
           {
@@ -1292,7 +1292,7 @@
               "G4"
             ],
             "tie": null,
-            "artic": "accent",
+            "artic": "none",
             "slur": "start"
           },
           {
@@ -1401,7 +1401,16 @@
             "slur": null
           },
           {
-            "dur": 1.5,
+            "dur": 1.0,
+            "pitches": [
+              "B4"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 0.5,
             "pitches": [
               "A4"
             ],
@@ -1419,7 +1428,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "F#2"
+              "D3"
             ],
             "tie": null,
             "artic": "none",
@@ -1428,9 +1437,9 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
               "F#3",
-              "A3"
+              "A3",
+              "D4"
             ],
             "tie": null,
             "artic": "none",
@@ -1448,9 +1457,9 @@
           {
             "dur": 1.0,
             "pitches": [
-              "D3",
               "F#3",
-              "A3"
+              "A3",
+              "D4"
             ],
             "tie": null,
             "artic": "none",
@@ -1554,7 +1563,7 @@
             ],
             "tie": null,
             "artic": "none",
-            "slur": null
+            "slur": "start"
           },
           {
             "dur": 1.0,
@@ -1568,11 +1577,11 @@
           {
             "dur": 1.0,
             "pitches": [
-              "A4"
+              "F#4"
             ],
             "tie": null,
             "artic": "none",
-            "slur": "stop"
+            "slur": null
           }
         ]
       }
@@ -1740,7 +1749,7 @@
           {
             "dur": 0.5,
             "pitches": [
-              "E2"
+              "A2"
             ],
             "tie": null,
             "artic": "none",
@@ -1749,9 +1758,9 @@
           {
             "dur": 1.0,
             "pitches": [
+              "A2",
               "C#3",
-              "E3",
-              "A3"
+              "E3"
             ],
             "tie": "start",
             "artic": "none",
@@ -1760,9 +1769,9 @@
           {
             "dur": 1.5,
             "pitches": [
+              "A2",
               "C#3",
-              "E3",
-              "A3"
+              "E3"
             ],
             "tie": "stop",
             "artic": "none",

@@ -11,8 +11,8 @@
   "time_limit_sec": 240,
   "validation_passed": true,
   "hard_failures": [],
-  "warnings": 0,
-  "parallels": 0,
+  "warnings": 4,
+  "parallels": 4,
   "musicality": 9.02,
   "unmet": [],
   "critic_total": 8.0,
@@ -27,19 +27,21 @@
   "guide_sections": 4,
   "advisory": [
     "난이도 6.00 → 목표 7.0 (올려야 한다, 차이 1.00)",
+    "이미 상한에 걸린 특징(더 밀어도 점수가 오르지 않는다): note_density 10.21 / 상한 10 (초당 음 수) — 1.0배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배",
     "simultaneity 0.17 — 강박에 3도·6도를 겹쳐 오른손을 두껍게 하라",
     "hand_motion 0.24 — 선율에 옥타브 자리바꿈을 넣어 손이 크게 움직이게 하라",
     "lh_texture 0.46 — 왼손을 지속음에서 분산화음이나 도약 반주로 바꿔라",
-    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다"
+    "겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다",
+    "난이도 특징이 상한에 걸렸다(더 밀어도 점수가 오르지 않는다): note_density 10.21 / 상한 10 (초당 음 수) — 1.0배, hand_span 16.00 / 상한 14 (동시 타건 최대 폭(반음)) — 1.1배"
   ],
-  "prompts": 18,
-  "responses": 18,
+  "prompts": 20,
+  "responses": 20,
   "projection": {
     "model": "claude-opus-5",
-    "calls": 18,
-    "input_tokens": 262012,
-    "output_tokens": 87348,
-    "cost_usd_no_cache": 3.4938,
-    "cost_usd_with_cache": 2.6684
+    "calls": 20,
+    "input_tokens": 293938,
+    "output_tokens": 104156,
+    "cost_usd_no_cache": 4.0736,
+    "cost_usd_with_cache": 3.1477
   }
 }

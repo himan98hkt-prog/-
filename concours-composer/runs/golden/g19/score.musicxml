@@ -4773,12 +4773,12 @@
       </note>
       <note id="m17-lh1-6">
         <pitch>
-          <step>B</step>
-          <octave>2</octave>
+          <step>D</step>
+          <octave>3</octave>
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
-        <stem>up</stem>
+        <stem>down</stem>
         <beam number="1">begin</beam>
       </note>
       <note id="m17-lh1-7">
@@ -4788,7 +4788,7 @@
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
-        <stem>up</stem>
+        <stem>down</stem>
         <beam number="1">end</beam>
       </note>
     </measure>
@@ -4941,12 +4941,12 @@
       </note>
       <note id="m19-lh1-6">
         <pitch>
-          <step>B</step>
-          <octave>2</octave>
+          <step>D</step>
+          <octave>3</octave>
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
-        <stem>up</stem>
+        <stem>down</stem>
         <beam number="1">begin</beam>
       </note>
       <note id="m19-lh1-7">
@@ -4956,7 +4956,7 @@
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
-        <stem>up</stem>
+        <stem>down</stem>
         <beam number="1">end</beam>
       </note>
     </measure>
@@ -7390,7 +7390,7 @@
     <measure implicit="no" number="54">
       <note id="m54-lh1-0">
         <pitch>
-          <step>E</step>
+          <step>G</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>

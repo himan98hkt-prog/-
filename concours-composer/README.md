@@ -52,7 +52,7 @@ Stage 7  원장 편곡           ★   구간 재생성·직접 편집
 | `StubComposerEngine` | 테스트·CI·오프라인 데모 | 그대로 적용 |
 
 세션 엔진 사용법과 산출물은 [docs/SESSION_ENGINE.md](docs/SESSION_ENGINE.md).
-실제로 만든 **20곡**(22~96마디 · 난이도 2.8~8.4 · 전곡 검증 통과 · 병행 5·8도 0건)의
+실제로 만든 **20곡**(22~96마디 · 난이도 2.8~8.4 · 전곡 하드 검증 통과)의
 결과·비용은 [runs/golden/SUMMARY.md](runs/golden/SUMMARY.md). 개선 전 판은 `runs/golden-v1/`.
 
 **API 키는 프로젝트 `.env` 파일에서만 읽는다.** 시스템 환경변수는 쓰지 않는다.

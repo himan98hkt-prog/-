@@ -1,79 +1,91 @@
 {
-  "recorded_at": "2026-09-01T16:27:38+00:00",
+  "recorded_at": "2026-09-01T21:33:40+00:00",
   "summary": {
     "composition_id": "g04",
     "engine": "session",
     "total_usd": 0.0,
     "limit_usd": 2.5,
-    "calls": 12,
-    "input_tokens": 58615,
-    "output_tokens": 11272,
+    "calls": 15,
+    "input_tokens": 72926,
+    "output_tokens": 15900,
     "cache_read_tokens": 0,
     "cache_write_tokens": 0,
     "by_stage": {
       "motif": {
         "calls": 1,
-        "input_tokens": 1058,
+        "input_tokens": 1073,
         "output_tokens": 2110,
         "cost_usd": 0.0
       },
       "plan": {
         "calls": 1,
-        "input_tokens": 2144,
+        "input_tokens": 2159,
         "output_tokens": 2562,
         "cost_usd": 0.0
       },
       "phrase_01_04": {
         "calls": 1,
-        "input_tokens": 2762,
+        "input_tokens": 2777,
         "output_tokens": 654,
         "cost_usd": 0.0
       },
       "phrase_05_08": {
         "calls": 1,
-        "input_tokens": 4681,
+        "input_tokens": 4696,
         "output_tokens": 619,
         "cost_usd": 0.0
       },
       "phrase_09_12": {
         "calls": 1,
-        "input_tokens": 6509,
+        "input_tokens": 6524,
         "output_tokens": 546,
         "cost_usd": 0.0
       },
       "phrase_13_14": {
         "calls": 1,
-        "input_tokens": 6173,
+        "input_tokens": 6188,
         "output_tokens": 281,
         "cost_usd": 0.0
       },
       "phrase_15_16": {
         "calls": 1,
-        "input_tokens": 5921,
+        "input_tokens": 5936,
         "output_tokens": 273,
         "cost_usd": 0.0
       },
       "phrase_17_18": {
         "calls": 1,
-        "input_tokens": 5863,
+        "input_tokens": 5878,
         "output_tokens": 343,
         "cost_usd": 0.0
       },
       "phrase_19_24": {
         "calls": 1,
-        "input_tokens": 6100,
+        "input_tokens": 6115,
         "output_tokens": 949,
         "cost_usd": 0.0
       },
       "critic": {
-        "calls": 2,
-        "input_tokens": 11444,
-        "output_tokens": 1776,
+        "calls": 3,
+        "input_tokens": 19306,
+        "output_tokens": 2664,
+        "cost_usd": 0.0
+      },
+      "phrase_01_04_fix": {
+        "calls": 1,
+        "input_tokens": 2190,
+        "output_tokens": 1904,
+        "cost_usd": 0.0
+      },
+      "phrase_05_08_fix": {
+        "calls": 1,
+        "input_tokens": 4109,
+        "output_tokens": 1836,
         "cost_usd": 0.0
       },
       "phrase_09_12_fix": {
         "calls": 1,
-        "input_tokens": 5960,
+        "input_tokens": 5975,
         "output_tokens": 1159,
         "cost_usd": 0.0
       }
@@ -83,7 +95,7 @@
     {
       "stage": "motif",
       "model": "claude-opus-5",
-      "input_tokens": 1058,
+      "input_tokens": 1073,
       "output_tokens": 2110,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -94,7 +106,7 @@
     {
       "stage": "plan",
       "model": "claude-opus-5",
-      "input_tokens": 2144,
+      "input_tokens": 2159,
       "output_tokens": 2562,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -105,7 +117,7 @@
     {
       "stage": "phrase_01_04",
       "model": "claude-opus-5",
-      "input_tokens": 2762,
+      "input_tokens": 2777,
       "output_tokens": 654,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -116,7 +128,7 @@
     {
       "stage": "phrase_05_08",
       "model": "claude-opus-5",
-      "input_tokens": 4681,
+      "input_tokens": 4696,
       "output_tokens": 619,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -127,7 +139,7 @@
     {
       "stage": "phrase_09_12",
       "model": "claude-opus-5",
-      "input_tokens": 6509,
+      "input_tokens": 6524,
       "output_tokens": 546,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -138,7 +150,7 @@
     {
       "stage": "phrase_13_14",
       "model": "claude-opus-5",
-      "input_tokens": 6173,
+      "input_tokens": 6188,
       "output_tokens": 281,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -149,7 +161,7 @@
     {
       "stage": "phrase_15_16",
       "model": "claude-opus-5",
-      "input_tokens": 5921,
+      "input_tokens": 5936,
       "output_tokens": 273,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -160,7 +172,7 @@
     {
       "stage": "phrase_17_18",
       "model": "claude-opus-5",
-      "input_tokens": 5863,
+      "input_tokens": 5878,
       "output_tokens": 343,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -171,7 +183,7 @@
     {
       "stage": "phrase_19_24",
       "model": "claude-opus-5",
-      "input_tokens": 6100,
+      "input_tokens": 6115,
       "output_tokens": 949,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -182,7 +194,40 @@
     {
       "stage": "critic",
       "model": "claude-opus-5",
-      "input_tokens": 5720,
+      "input_tokens": 6441,
+      "output_tokens": 888,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_01_04_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 2190,
+      "output_tokens": 1904,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_05_08_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 4109,
+      "output_tokens": 1836,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "critic",
+      "model": "claude-opus-5",
+      "input_tokens": 6429,
       "output_tokens": 888,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -193,7 +238,7 @@
     {
       "stage": "phrase_09_12_fix",
       "model": "claude-opus-5",
-      "input_tokens": 5960,
+      "input_tokens": 5975,
       "output_tokens": 1159,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -204,7 +249,7 @@
     {
       "stage": "critic",
       "model": "claude-opus-5",
-      "input_tokens": 5724,
+      "input_tokens": 6436,
       "output_tokens": 888,
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
@@ -215,10 +260,10 @@
   ],
   "projection": {
     "model": "claude-opus-5",
-    "calls": 12,
-    "input_tokens": 58615,
-    "output_tokens": 11272,
-    "cost_usd_no_cache": 0.5749,
-    "cost_usd_with_cache": 0.3902
+    "calls": 15,
+    "input_tokens": 72926,
+    "output_tokens": 15900,
+    "cost_usd_no_cache": 0.7621,
+    "cost_usd_with_cache": 0.5324
   }
 }
