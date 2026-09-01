@@ -1,0 +1,62 @@
+{
+  "spec": {
+    "id": "g19",
+    "level": 5,
+    "span": 8,
+    "grade": "초4",
+    "strengths": [
+      "또렷한 리듬",
+      "균형 잡힌 양손"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "tempo": 104,
+    "comfort": 116,
+    "key": "D",
+    "meter": "4/4",
+    "difficulty": 5.0,
+    "mood": "변주곡풍",
+    "limit": 180,
+    "form": "variations"
+  },
+  "constraints": {
+    "max_span_semitones": 12,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 116,
+    "max_accidental_ratio": 0.2,
+    "time_limit_sec": 180,
+    "target_difficulty": 5.0,
+    "difficulty_feasible_range": [
+      1.8,
+      8.46
+    ]
+  },
+  "student": {
+    "level": 5,
+    "grade": "초4",
+    "years_of_study": 0,
+    "hand_span_interval": 8,
+    "strengths": [
+      "또렷한 리듬",
+      "균형 잡힌 양손"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "repertoire_done": [],
+    "reading_level": 6,
+    "tempo_comfort_max_bpm": 116,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초4",
+    "time_limit_sec": 180,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "g19",
+  "title": "주제와 세 변주",
+  "motif": "motif-1 · 또박또박 주제",
+  "key": "D",
+  "meter": "4/4",
+  "tempo": 104,
+  "measures": 60,
+  "planned_measures": 60,
+  "duration_sec": 138.5,
+  "time_limit_sec": 180,
+  "validation_passed": true,
+  "hard_failures": [],
+  "warnings": 0,
+  "parallels": 0,
+  "musicality": 9.64,
+  "unmet": [
+    "harmonic_consistency"
+  ],
+  "critic_total": 8.2,
+  "combined": 8.78,
+  "quality_passed": true,
+  "revision_rounds": 0,
+  "difficulty": 4.93,
+  "difficulty_target": 5.0,
+  "difficulty_division": "초등 고학년부",
+  "judge_average": 9.27,
+  "judge_consensus_fixes": [],
+  "guide_sections": 5,
+  "advisory": [],
+  "prompts": 15,
+  "responses": 15,
+  "projection": {
+    "model": "claude-opus-5",
+    "calls": 15,
+    "input_tokens": 120052,
+    "output_tokens": 37027,
+    "cost_usd_no_cache": 1.5259,
+    "cost_usd_with_cache": 1.1478
+  }
+}
