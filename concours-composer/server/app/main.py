@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api import compositions, corpus, feedback, health, judge, recitals, students
 from app.api.deps import get_store
@@ -65,3 +68,15 @@ app.include_router(compositions.router)
 app.include_router(judge.router)
 app.include_router(recitals.router)
 app.include_router(feedback.router)
+
+# 원장 화면을 API 와 **같은 주소**로 내보낸다. 학원 PC 에서 서버 하나만 띄우면
+# 브라우저에서 바로 열린다 — 정적 파일 서버를 따로 돌리지 않아도 된다.
+WEB_DIR = Path(__file__).resolve().parents[2] / "web"
+if WEB_DIR.is_dir():
+    app.mount("/app", StaticFiles(directory=WEB_DIR, html=True), name="web")
+
+    @app.get("/", include_in_schema=False)
+    def _home() -> RedirectResponse:
+        return RedirectResponse("/app/")
+else:  # pragma: no cover - 배포 형태에 따라 web/ 이 없을 수 있다
+    log.warning("web/ 디렉터리를 찾지 못했다 — 화면 없이 API 만 돈다: %s", WEB_DIR)

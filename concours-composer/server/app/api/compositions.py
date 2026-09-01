@@ -173,13 +173,22 @@ def custom_motif(
 def _previous_plans(store: Store, exclude: str) -> list[tuple[str, CompositionPlan]]:
     """이미 만든 다른 곡들의 설계도. 형식이 겹치는지 볼 때 쓴다.
 
-    같은 학원이 같은 콩쿨에 형제 같은 곡을 여러 개 내보내는 것을 막는다 —
-    곡 하나만 보는 지표로는 절대 잡을 수 없는 결함이다.
+    **같은 콩쿨에 나가는 곡끼리만** 비교한다. 형제 같은 곡이 문제가 되는 것은
+    한 무대에서 잇따라 들릴 때이지, 다른 대회·다른 해의 곡과 형식이 닮은 것은
+    막을 이유가 없다 — 그렇게까지 막으면 쓸 수 있는 형식이 금세 바닥난다.
+    콩쿨 정보가 없는 요청은 다른 '콩쿨 없음' 요청들과만 비교한다.
     """
+    mine = store.requests.get(exclude)
+    my_comp = getattr(getattr(mine, "competition", None), "id", None)
+
+    def same_competition(rid: str) -> bool:
+        req = store.requests.get(rid)
+        return getattr(getattr(req, "competition", None), "id", None) == my_comp
+
     return [
         (rid, entry["plan"])
         for rid, entry in store.plans.items()
-        if rid != exclude and entry.get("plan") is not None
+        if rid != exclude and entry.get("plan") is not None and same_competition(rid)
     ]
 
 
