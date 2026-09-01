@@ -34,13 +34,28 @@ def melody_line(measures: list[Measure]) -> list[tuple[int, int]]:
 
 def interval_ngrams(measures: list[Measure], n: int = DEFAULT_N) -> dict[tuple[int, ...], int]:
     """이조 불변 음정 n-gram → 시작 마디번호."""
+    return {gram: span[0] for gram, span in interval_ngram_spans(measures, n).items()}
+
+
+def interval_ngram_spans(
+    measures: list[Measure], n: int = DEFAULT_N
+) -> dict[tuple[int, ...], tuple[int, int]]:
+    """이조 불변 음정 n-gram → (시작 마디, 끝 마디).
+
+    끝 마디를 함께 돌려주는 이유: 표절 보고에 "몇 마디가 겹치는가" 를 적으려면
+    그 n-gram 이 **실제로 걸친 마디**를 알아야 한다. 시작 마디만 알면 길이를
+    추측할 수밖에 없고, 원장은 그 숫자로 판단할 수 없다.
+    """
     line = melody_line(measures)
-    intervals = [(line[i][0], line[i + 1][1] - line[i][1]) for i in range(len(line) - 1)]
-    out: dict[tuple[int, ...], int] = {}
+    # 음정 i 는 line[i] 에서 line[i+1] 로 가는 움직임이므로 두 마디에 걸쳐 있다.
+    intervals = [
+        (line[i][0], line[i + 1][0], line[i + 1][1] - line[i][1]) for i in range(len(line) - 1)
+    ]
+    out: dict[tuple[int, ...], tuple[int, int]] = {}
     for i in range(len(intervals) - n + 1):
         window = intervals[i : i + n]
-        key = tuple(v for _, v in window)
-        out.setdefault(key, window[0][0])
+        key = tuple(v for _, _, v in window)
+        out.setdefault(key, (window[0][0], window[-1][1]))
     return out
 
 
@@ -54,10 +69,14 @@ def build_corpus_index(corpus_measures: list[list[Measure]], n: int = DEFAULT_N)
 def find_plagiarism(
     measures: list[Measure], corpus_index: set[tuple[int, ...]], n: int = DEFAULT_N
 ) -> list[PlagiarismHit]:
-    hits: list[PlagiarismHit] = []
-    line = melody_line(measures)
-    for gram, start_measure in interval_ngrams(measures, n).items():
-        if gram in corpus_index:
-            spanned = {mn for mn, _ in line if mn >= start_measure}
-            hits.append(PlagiarismHit(start_measure, min(len(spanned), n // 2), gram))
-    return sorted(hits, key=lambda h: h.start_measure)
+    """코퍼스와 겹치는 n-gram 을 찾는다. `length` 는 **실제로 걸친 마디 수**다.
+
+    예전에는 시작 마디부터 곡 끝까지를 세서 길이가 늘 `n//2` 로 고정됐다 —
+    48마디 곡을 자기 자신과 대조하면 195건이 전부 "8마디" 로 보고됐다.
+    """
+    hits = [
+        PlagiarismHit(lo, hi - lo + 1, gram)
+        for gram, (lo, hi) in interval_ngram_spans(measures, n).items()
+        if gram in corpus_index
+    ]
+    return sorted(hits, key=lambda h: (h.start_measure, -h.length))

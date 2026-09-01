@@ -600,7 +600,7 @@
             ],
             "tie": null,
             "artic": "none",
-            "slur": null
+            "slur": "stop"
           }
         ]
       }
@@ -638,7 +638,7 @@
             ],
             "tie": null,
             "artic": "none",
-            "slur": null
+            "slur": "start"
           },
           {
             "dur": 1.0,
@@ -729,9 +729,18 @@
         "voice": 1,
         "events": [
           {
-            "dur": 4.0,
+            "dur": 2.0,
             "pitches": [
               "F2"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 2.0,
+            "pitches": [
+              "C3"
             ],
             "tie": null,
             "artic": "none",
@@ -757,7 +766,7 @@
             ],
             "tie": null,
             "artic": "none",
-            "slur": null
+            "slur": "start"
           },
           {
             "dur": 1.0,
@@ -775,7 +784,7 @@
             ],
             "tie": null,
             "artic": "none",
-            "slur": null
+            "slur": "stop"
           },
           {
             "dur": 0.5,
@@ -792,9 +801,18 @@
         "voice": 1,
         "events": [
           {
-            "dur": 4.0,
+            "dur": 2.0,
             "pitches": [
               "D3"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 2.0,
+            "pitches": [
+              "A3"
             ],
             "tie": null,
             "artic": "none",

@@ -1,13 +1,13 @@
 {
-  "recorded_at": "2026-08-31T16:14:10+00:00",
+  "recorded_at": "2026-09-01T12:47:40+00:00",
   "summary": {
     "composition_id": "g05",
     "engine": "session",
     "total_usd": 0.0,
     "limit_usd": 2.5,
-    "calls": 24,
-    "input_tokens": 218375,
-    "output_tokens": 52503,
+    "calls": 30,
+    "input_tokens": 272670,
+    "output_tokens": 59319,
     "cache_read_tokens": 0,
     "cache_write_tokens": 0,
     "by_stage": {
@@ -150,9 +150,39 @@
         "cost_usd": 0.0
       },
       "critic": {
+        "calls": 2,
+        "input_tokens": 26850,
+        "output_tokens": 2150,
+        "cost_usd": 0.0
+      },
+      "phrase_25_28_fix": {
         "calls": 1,
-        "input_tokens": 13415,
-        "output_tokens": 1075,
+        "input_tokens": 10534,
+        "output_tokens": 1160,
+        "cost_usd": 0.0
+      },
+      "phrase_29_32_fix": {
+        "calls": 1,
+        "input_tokens": 8417,
+        "output_tokens": 1267,
+        "cost_usd": 0.0
+      },
+      "phrase_33_36_fix": {
+        "calls": 1,
+        "input_tokens": 6765,
+        "output_tokens": 911,
+        "cost_usd": 0.0
+      },
+      "phrase_41_42_fix": {
+        "calls": 1,
+        "input_tokens": 6867,
+        "output_tokens": 1255,
+        "cost_usd": 0.0
+      },
+      "phrase_43_44_fix": {
+        "calls": 1,
+        "input_tokens": 8277,
+        "output_tokens": 1148,
         "cost_usd": 0.0
       }
     }
@@ -254,7 +284,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 44,
+      "latency_ms": 0,
       "batched": false
     },
     {
@@ -386,7 +416,7 @@
       "cache_read_tokens": 0,
       "cache_write_tokens": 0,
       "cost_usd": 0.0,
-      "latency_ms": 1,
+      "latency_ms": 0,
       "batched": false
     },
     {
@@ -421,14 +451,80 @@
       "cost_usd": 0.0,
       "latency_ms": 0,
       "batched": false
+    },
+    {
+      "stage": "phrase_25_28_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 10534,
+      "output_tokens": 1160,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_29_32_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 8417,
+      "output_tokens": 1267,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_33_36_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 6765,
+      "output_tokens": 911,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_41_42_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 6867,
+      "output_tokens": 1255,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "phrase_43_44_fix",
+      "model": "claude-opus-5",
+      "input_tokens": 8277,
+      "output_tokens": 1148,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
+    },
+    {
+      "stage": "critic",
+      "model": "claude-opus-5",
+      "input_tokens": 13435,
+      "output_tokens": 1075,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "batched": false
     }
   ],
   "projection": {
     "model": "claude-opus-5",
-    "calls": 24,
-    "input_tokens": 218375,
-    "output_tokens": 52503,
-    "cost_usd_no_cache": 2.4045,
-    "cost_usd_with_cache": 1.7166
+    "calls": 30,
+    "input_tokens": 272670,
+    "output_tokens": 59319,
+    "cost_usd_no_cache": 2.8463,
+    "cost_usd_with_cache": 1.9874
   }
 }

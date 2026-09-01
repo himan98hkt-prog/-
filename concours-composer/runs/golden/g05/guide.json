@@ -1,0 +1,118 @@
+{
+  "overview": "G 4/4 120bpm, 80마디 곡이다. 형식은 A-B-A', 난이도 5.34(초등 고학년부) 수준이다. 57마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        24
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: statement, repeat, sequence_up_2nd, transpose_to_dominant, fragment_head",
+        "왼손: 왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+        "다이내믹 mf → f → mf → f → mf → f"
+      ]
+    },
+    {
+      "measures": [
+        25,
+        52
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, inversion, augmentation, sequence_down_3rd, fragment_head, fragment_tail, rhythmic_variation, texture_swap",
+        "왼손: 왼손 온음표 화음으로 깔고 베이스만 낮게 이동. 스케일을 멈추고 숨을 고른다",
+        "다이내믹 mp → mp → mf → mf → f → f → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        53,
+        80
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: statement, octave_shift, sequence_up_2nd, fragment_head, fragment_tail, rhythmic_variation",
+        "왼손: 왼손 옥타브 베이스 + 화음 — 첫 박 옥타브, 나머지는 3음 화음. 소리가 얇아지지 않게 받친다",
+        "다이내믹 f → ff → f → f → f → mf → f",
+        "57마디가 클라이맥스 — 스케일이 한 옥타브 위로 올라가 58마디 A6 에서 곡의 최고음에 닿는다. ff + 왼손 옥타브 베이스. 여린 소리가 약점인 학생에게 가장 크게 칠 자리를 정확히 만들어 준다"
+      ]
+    }
+  ],
+  "fingering_notes": [
+    {
+      "measure": 1,
+      "note": "왼손 화음 폭 12반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 2,
+      "note": "왼손 화음 폭 12반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 3,
+      "note": "왼손 화음 폭 12반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 4,
+      "note": "왼손 화음 폭 12반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 5,
+      "note": "왼손 화음 폭 12반음 — 손목을 낮추고 미리 벌려 둔다"
+    }
+  ],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 72
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 90
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "57마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 108
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 120
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "57마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 77~80마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        24
+      ],
+      "cue": "A 시작음 G4"
+    },
+    {
+      "measures": [
+        25,
+        52
+      ],
+      "cue": "B 시작음 E5"
+    },
+    {
+      "measures": [
+        53,
+        80
+      ],
+      "cue": "A' 시작음 G4"
+    }
+  ]
+}

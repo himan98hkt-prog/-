@@ -1,0 +1,97 @@
+{
+  "overview": "A 4/4 104bpm, 50마디 곡이다. 형식은 A-B-A', 난이도 4.35(초등 저학년부) 수준이다. 39마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        18
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: statement, repeat, transpose_to_dominant",
+        "왼손: 왼손 4분음표 분산화음(근음-5음-3음-5음) 단음. 화음을 쥐지 않아 옥타브 약점을 건드리지 않는다",
+        "다이내믹 mp → mf → mp → mf"
+      ]
+    },
+    {
+      "measures": [
+        19,
+        34
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, sequence_down_3rd, fragment_head, fragment_tail, augmentation",
+        "왼손: 왼손 온음표 단음 하나. A 의 네 번 걸음과 확실히 다르게 한 마디에 한 번만 짚는다",
+        "다이내믹 p → p → mp → mp → mf"
+      ]
+    },
+    {
+      "measures": [
+        35,
+        50
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: statement, octave_shift, fragment_head, rhythmic_variation",
+        "왼손: 왼손 4분음표 분산화음(근음-5음-3음-5음) 단음. 화음을 쥐지 않아 옥타브 약점을 건드리지 않는다",
+        "다이내믹 mf → f → mf → mf",
+        "39마디가 클라이맥스 — 도약 음형이 한 옥타브 위로 올라가 39마디 E6 에서 곡의 최고음에 닿는다. f + 왼손 분산화음이 가장 넓게 벌어진다"
+      ]
+    }
+  ],
+  "fingering_notes": [],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 62
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 78
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "39마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 93
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 104
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "39마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 47~50마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        18
+      ],
+      "cue": "A 시작음 A4"
+    },
+    {
+      "measures": [
+        19,
+        34
+      ],
+      "cue": "B 시작음 C#5"
+    },
+    {
+      "measures": [
+        35,
+        50
+      ],
+      "cue": "A' 시작음 A4"
+    }
+  ]
+}

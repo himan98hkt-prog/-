@@ -162,7 +162,7 @@
             50
           ],
           "motif_treatment": "rhythmic_variation",
-          "texture_rh": "여섯 마디 확장 코다. 48마디 거짓 종지(vi)에서 한 번 더 밀고 49마디 상행 뒤 50마디 온음표 A5 로 닫는다",
+          "texture_rh": "여섯 마디 확장 코다. 47마디에서 으뜸화음에 한 번 닿았다가 48~49마디 IV-V7 로 한 번 더 확인하고 50마디 온음표 A5 로 닫는다. 거짓 종지를 쓰지 않는다 — 같은 학원 다른 곡과 마무리가 겹치지 않게",
           "texture_lh": "분산화음 단음. 마지막 50마디만 왼손 5도(A2+E3) 온음표로 넓게 닫는다",
           "dynamic": "mf"
         }
@@ -392,23 +392,23 @@
     },
     {
       "measure": 45,
-      "roman": "IV",
-      "bass_note": "D3"
-    },
-    {
-      "measure": 46,
       "roman": "ii",
       "bass_note": "B2"
     },
     {
-      "measure": 47,
+      "measure": 46,
       "roman": "V7",
       "bass_note": "E2"
     },
     {
+      "measure": 47,
+      "roman": "I",
+      "bass_note": "A2"
+    },
+    {
       "measure": 48,
-      "roman": "vi",
-      "bass_note": "F#2"
+      "roman": "IV",
+      "bass_note": "D3"
     },
     {
       "measure": 49,
@@ -440,7 +440,7 @@
   },
   "modulations": [],
   "ending": {
-    "type": "거짓 종지(48마디 vi) 뒤 완전종지 V7-I + 온음표 마무리",
+    "type": "확인 종지 — ii-V7-I 로 닿은 뒤 IV-V7-I 로 한 번 더 다지고 온음표 마무리",
     "measures": [
       45,
       50

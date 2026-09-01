@@ -6,7 +6,7 @@
   <identification>
     <creator type="composer">AI 초안 · 원장 편곡</creator>
     <encoding>
-      <encoding-date>2026-08-31</encoding-date>
+      <encoding-date>2026-09-01</encoding-date>
       <software>music21 v.10.5.0</software>
       <supports element="beam" type="yes" />
       <supports element="stem" type="yes" />
@@ -2418,8 +2418,10 @@
           <step>G</step>
           <octave>5</octave>
         </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">begin</beam>
       </note>
       <note id="m29-rh1-3">
         <pitch>
@@ -2427,8 +2429,30 @@
           <alter>1</alter>
           <octave>5</octave>
         </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">end</beam>
+      </note>
+      <note id="m29-rh1-4">
+        <pitch>
+          <step>E</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">begin</beam>
+      </note>
+      <note id="m29-rh1-5">
+        <pitch>
+          <step>D</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">end</beam>
         <notations>
           <slur number="5" type="stop" />
         </notations>
@@ -2493,20 +2517,32 @@
           <step>B</step>
           <octave>5</octave>
         </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">begin</beam>
       </note>
       <note id="m31-rh1-2">
         <pitch>
           <step>A</step>
           <octave>5</octave>
         </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">end</beam>
       </note>
       <note id="m31-rh1-3">
         <pitch>
           <step>G</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m31-rh1-4">
+        <pitch>
+          <step>E</step>
           <octave>5</octave>
         </pitch>
         <duration>10080</duration>
@@ -3163,7 +3199,7 @@
         </direction-type>
         <sound dynamics="88" />
       </direction>
-      <note id="m43-rh1-0">
+      <note id="m43-rhc-0">
         <pitch>
           <step>B</step>
           <octave>5</octave>
@@ -3176,7 +3212,16 @@
           <slur number="1" type="start" />
         </notations>
       </note>
-      <note id="m43-rh1-1">
+      <note id="m43-rhc-0+1">
+        <chord />
+        <pitch>
+          <step>D</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+      </note>
+      <note id="m43-rhc-2">
         <pitch>
           <step>A</step>
           <octave>5</octave>
@@ -3186,7 +3231,16 @@
         <stem>down</stem>
         <beam number="1">end</beam>
       </note>
-      <note id="m43-rh1-2">
+      <note id="m43-rhc-2+1">
+        <chord />
+        <pitch>
+          <step>C</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+      </note>
+      <note id="m43-rhc-4">
         <pitch>
           <step>G</step>
           <octave>5</octave>
@@ -3196,7 +3250,16 @@
         <stem>down</stem>
         <beam number="1">begin</beam>
       </note>
-      <note id="m43-rh1-3">
+      <note id="m43-rhc-4+1">
+        <chord />
+        <pitch>
+          <step>B</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+      </note>
+      <note id="m43-rhc-6">
         <pitch>
           <step>E</step>
           <octave>5</octave>
@@ -3206,7 +3269,16 @@
         <stem>down</stem>
         <beam number="1">end</beam>
       </note>
-      <note id="m43-rh1-4">
+      <note id="m43-rhc-6+1">
+        <chord />
+        <pitch>
+          <step>G</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+      </note>
+      <note id="m43-rhc-8">
         <pitch>
           <step>C</step>
           <octave>5</octave>
@@ -3214,7 +3286,16 @@
         <duration>10080</duration>
         <type>quarter</type>
       </note>
-      <note id="m43-rh1-5">
+      <note id="m43-rhc-8+1">
+        <chord />
+        <pitch>
+          <step>E</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m43-rhc-10">
         <pitch>
           <step>A</step>
           <octave>4</octave>
@@ -3224,6 +3305,15 @@
         <notations>
           <slur number="1" type="stop" />
         </notations>
+      </note>
+      <note id="m43-rhc-10+1">
+        <chord />
+        <pitch>
+          <step>C</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
       </note>
     </measure>
     

@@ -170,6 +170,19 @@ def custom_motif(
     )
 
 
+def _previous_plans(store: Store, exclude: str) -> list[tuple[str, CompositionPlan]]:
+    """이미 만든 다른 곡들의 설계도. 형식이 겹치는지 볼 때 쓴다.
+
+    같은 학원이 같은 콩쿨에 형제 같은 곡을 여러 개 내보내는 것을 막는다 —
+    곡 하나만 보는 지표로는 절대 잡을 수 없는 결함이다.
+    """
+    return [
+        (rid, entry["plan"])
+        for rid, entry in store.plans.items()
+        if rid != exclude and entry.get("plan") is not None
+    ]
+
+
 @router.post("/requests/{request_id}/motifs/{motif_id}/select", response_model=PlanResponse)
 def select_motif_and_plan(
     request_id: str,
@@ -190,7 +203,9 @@ def select_motif_and_plan(
     store.motifs[request_id] = [
         m.model_copy(update={"selected": m.id == motif_id}) for m in candidates
     ]
-    plan, report = pipeline.plan(ctx, locked)
+    plan, report = pipeline.plan(
+        ctx, locked, previous_plans=_previous_plans(store, request_id)
+    )
     store.plans[request_id] = {"plan": plan, "motif": locked, "approved": report.passed}
     return PlanResponse(
         request_id=request_id, plan=plan, passed=report.passed, issues=_issues(report)
@@ -210,7 +225,11 @@ def edit_plan(
     ctx = _ctx(store, request_id)
     from app.generation.plan_rules import check_plan
 
-    report = check_plan(plan, ctx.student, time_limit_sec=ctx.hard.time_limit_sec)
+    report = check_plan(
+        plan, ctx.student,
+        time_limit_sec=ctx.hard.time_limit_sec,
+        previous_plans=_previous_plans(store, request_id),
+    )
     entry["plan"] = plan
     entry["approved"] = report.passed
     return PlanResponse(
@@ -264,6 +283,17 @@ def realize(
         ))
     res = results[0]
     cid = summaries[0].composition_id
+
+    # 만든 곡을 코퍼스에 등록해 **다음 곡의 표절 검사**가 이 곡을 보게 한다.
+    # 이게 없으면 같은 학원이 같은 콩쿨에 거의 같은 곡을 두 개 내보내도 통과한다.
+    if res.savable:
+        get_corpus().register_generated(
+            res.measures,
+            score_id=f"gen-{cid}",
+            title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
+            key=res.plan.key, meter=res.plan.meter, tempo=res.plan.tempo,
+            division_tags=[ctx.competition.division] if ctx.competition else [],
+        )
 
     return ComposeResponse(
         composition_id=cid,

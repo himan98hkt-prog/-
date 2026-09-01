@@ -1,0 +1,97 @@
+{
+  "overview": "C 4/4 100bpm, 48마디 곡이다. 형식은 A-B-A', 난이도 3.21(초등 저학년부) 수준이다. 37마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        16
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: statement, repeat, transpose_to_dominant",
+        "왼손: 왼손 단음 2분음표 두 번(근음→5음). 약한 왼손이므로 화음을 쥐지 않는다",
+        "다이내믹 mp → mf → mp → mf"
+      ]
+    },
+    {
+      "measures": [
+        17,
+        32
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, inversion, fragment_head, fragment_tail, augmentation",
+        "왼손: 왼손 온음표 단음 하나. A 의 두 번 걸음과 확실히 다르게 한 마디에 한 번만 짚는다",
+        "다이내믹 p → mp → mp → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        33,
+        48
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: statement, fragment_head, rhythmic_variation",
+        "왼손: 왼손 단음 2분음표 두 번(근음→5음). 약한 왼손이므로 화음을 쥐지 않는다",
+        "다이내믹 mf → f → mf → mf",
+        "37마디가 클라이맥스 — 37마디부터 달리기가 한 옥타브 위로 올라가고 39마디 E6 에서 곡의 최고음에 닿는다. f + 상행 분산화음 + 왼손이 딸림화음으로 버틴다"
+      ]
+    }
+  ],
+  "fingering_notes": [],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 60
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 75
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "37마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 90
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 100
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "37마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 45~48마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        16
+      ],
+      "cue": "A 시작음 C5"
+    },
+    {
+      "measures": [
+        17,
+        32
+      ],
+      "cue": "B 시작음 A4"
+    },
+    {
+      "measures": [
+        33,
+        48
+      ],
+      "cue": "A' 시작음 C5"
+    }
+  ]
+}

@@ -44,6 +44,9 @@ class CorpusScore:
     # 저작권곡은 항상 None 이다. 코드가 그렇게 강제한다.
     measures: list[Measure] | None = None
     needs_review: bool = False
+    # 이 곡을 우리가 만들었는가. 만든 곡은 **표절 인덱스에는 들어가되**
+    # 스타일 검색에서는 빠진다 — 자기가 만든 곡을 참고해 또 만들면 곡이 서로 닮는다.
+    generated: bool = False
 
     @property
     def difficulty(self) -> float:
@@ -73,6 +76,7 @@ class CorpusScore:
             "key": self.profile.key, "meter": self.profile.meter, "tempo": self.profile.tempo,
             "has_notes": self.measures is not None,
             "needs_review": self.needs_review,
+            "generated": self.generated,
         }
 
 
@@ -100,6 +104,7 @@ class Corpus:
         division_tags: list[str] | None = None,
         teacher_difficulty: float | None = None,
         needs_review: bool = False,
+        generated: bool = False,
     ) -> CorpusScore:
         profile = extract(measures, key=key, meter=meter, tempo=tempo)
         entry = CorpusScore(
@@ -110,6 +115,7 @@ class Corpus:
             # 저작권곡의 음표열은 애초에 보관하지 않는다 — 새어나갈 경로를 없앤다.
             measures=None if copyright_status == "copyrighted" else list(measures),
             needs_review=needs_review,
+            generated=generated,
         )
         self.scores[score_id] = entry
         # 표절 검사용 n-gram 은 저작권 상태와 무관하게 만든다(음표열을 밖으로 내보내지
@@ -128,6 +134,31 @@ class Corpus:
         kwargs.setdefault("meter", str(meta["meter"]))
         kwargs.setdefault("tempo", int(str(meta["tempo"])))
         return self.add(measures, **kwargs)
+
+    def register_generated(
+        self,
+        measures: list[Measure],
+        *,
+        score_id: str,
+        title: str,
+        key: str = "C",
+        meter: str = "4/4",
+        tempo: int = 100,
+        division_tags: list[str] | None = None,
+    ) -> CorpusScore:
+        """우리가 만든 곡을 표절 인덱스에 등록한다.
+
+        이걸 하지 않으면 다음 곡을 쓸 때 **이전에 만든 곡을 한 번도 보지 않는다** —
+        같은 학원이 같은 콩쿨에 거의 같은 곡을 두 개 내보내도 검증기가 통과시킨다.
+        스타일 검색에서는 빠진다(`generated=True`).
+        """
+        return self.add(
+            measures,
+            score_id=score_id, title=title, composer="ConcoursComposer",
+            copyright_status="own", key=key, meter=meter, tempo=tempo,
+            source="generated", division_tags=division_tags or [],
+            generated=True,
+        )
 
     def remove(self, score_id: str) -> bool:
         self._ngrams.pop(score_id, None)
@@ -174,8 +205,12 @@ class Corpus:
                 return cosine(tv, cand.vector())
             return self._request_similarity(target, cand)
 
+        # 우리가 만든 곡은 스타일 참고에서 뺀다. 자기 출력을 다시 참고하면
+        # 곡들이 서로를 닮아가고, 그것을 잡아 줄 지표가 없다.
         scored = [
-            (s, sim(s.profile)) for s in self.scores.values() if s.id not in pinned
+            (s, sim(s.profile))
+            for s in self.scores.values()
+            if s.id not in pinned and not s.generated
         ]
         scored.sort(key=lambda kv: kv[1], reverse=True)
         pool = scored[:SEARCH_POOL]

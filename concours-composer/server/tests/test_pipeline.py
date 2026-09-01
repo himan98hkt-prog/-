@@ -136,3 +136,81 @@ def test_deterministic_offline_engine_is_reproducible(pipeline, ctx):
     a = pipeline.compose(ctx, motif)
     b = pipeline.compose(ctx, motif)
     assert a.musicxml == b.musicxml, "골든 회귀가 성립하려면 스텁이 결정적이어야 한다"
+
+
+# ── 겨냥 수정 라운드 (문턱을 넘어도 약한 항목은 고친다) ─────────────────────
+
+
+def _critic(scores: dict[str, float], requests: list[tuple[list[int], str]]):
+    from app.schemas.quality import CriticReport, RevisionRequest, RubricScores
+
+    base = dict.fromkeys(RubricScores.model_fields, 9.0)
+    base.update(scores)
+    return CriticReport(
+        scores=RubricScores(**base),
+        revision_requests=[
+            RevisionRequest(measures=m, issue="약함", instruction=i) for m, i in requests
+        ],
+    )
+
+
+def test_targeted_round_runs_even_when_the_total_passes(ctx) -> None:
+    """종합 8점대라도 개별 루브릭이 문턱 아래면 겨냥 수정이 돈다."""
+    from app.generation.engines.stub import StubComposerEngine
+    from app.generation.pipeline import CompositionPipeline
+
+    pipe = CompositionPipeline(StubComposerEngine())
+    motifs = pipe.motifs(ctx, 2)
+    plan, _ = pipe.plan(ctx, motifs[0])
+    measures, _ = pipe.realize(ctx, plan, motifs[0])
+    critic = _critic({"originality": 5.5}, [([1, 4], "1~4마디를 다시 써라")])
+
+    _, tuned, notes = pipe._targeted(ctx, measures, plan, motifs[0], critic, combined=8.5)
+    assert any("originality" in n for n in notes), notes
+    # 채택 여부는 결과에 달렸지만, 시도는 반드시 있어야 한다
+    assert tuned is not None or any("유지" in n or "없다" in n for n in notes), notes
+
+
+def test_targeted_round_leaves_whole_piece_remarks_to_the_director(ctx) -> None:
+    """곡 전체를 가리키는 지적은 프레이즈 재생성으로 옮기지 않고 글로 남긴다."""
+    from app.generation.engines.stub import StubComposerEngine
+    from app.generation.pipeline import CompositionPipeline
+
+    pipe = CompositionPipeline(StubComposerEngine())
+    motifs = pipe.motifs(ctx, 2)
+    plan, _ = pipe.plan(ctx, motifs[0])
+    measures, _ = pipe.realize(ctx, plan, motifs[0])
+    critic = _critic(
+        {"originality": 5.0},
+        [([1, plan.total_measures], "재료가 평범하다")],
+    )
+    out, tuned, notes = pipe._targeted(ctx, measures, plan, motifs[0], critic, combined=8.5)
+    assert out is measures and tuned is None
+    assert any("재료가 평범하다" in n for n in notes), notes
+
+
+def test_targeted_round_is_quiet_when_nothing_is_weak(ctx) -> None:
+    from app.generation.engines.stub import StubComposerEngine
+    from app.generation.pipeline import CompositionPipeline
+
+    pipe = CompositionPipeline(StubComposerEngine())
+    motifs = pipe.motifs(ctx, 2)
+    plan, _ = pipe.plan(ctx, motifs[0])
+    measures, _ = pipe.realize(ctx, plan, motifs[0])
+    # 난이도까지 맞다고 가정할 수 없으므로 허용 오차를 넓혀 둔다
+    pipe.settings = pipe.settings.model_copy(update={"difficulty_tolerance": 2.0})
+    critic = _critic({}, [([1, 4], "사소한 것")])
+    out, tuned, notes = pipe._targeted(ctx, measures, plan, motifs[0], critic, combined=9.0)
+    assert out is measures and tuned is None and notes == []
+
+
+def test_difficulty_advice_names_a_lever() -> None:
+    from app.analysis.difficulty import DifficultyReport, difficulty_advice
+
+    rep = DifficultyReport(score=3.0, features={"note_density": 0.1, "simultaneity": 0.9})
+    up = difficulty_advice(rep, 6.0)
+    assert "올려야" in up[0]
+    assert any("note_density" in line for line in up)      # 가장 낮은 축부터 만진다
+    down = difficulty_advice(rep, 1.5)
+    assert "내려야" in down[0]
+    assert any("simultaneity" in line for line in down)    # 가장 높은 축부터 만진다

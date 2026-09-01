@@ -30,6 +30,10 @@ from app.export.midi import measures_to_midi  # noqa: E402
 from app.generation.client import CostLedger  # noqa: E402
 from app.generation.engines.session import AwaitingResponse, SessionComposerEngine  # noqa: E402
 from app.generation.pipeline import CompositionPipeline  # noqa: E402
+from app.guide.writer import rule_based_guide  # noqa: E402
+from app.ingest.corpus import Corpus  # noqa: E402
+from app.judge.panel import run_panel_rules  # noqa: E402
+from app.schemas.music import CompositionPlan, Measure  # noqa: E402
 from golden_specs import GOLDEN, make_context  # noqa: E402
 
 RUNS = ROOT / "runs" / "golden"
@@ -37,6 +41,30 @@ RUNS = ROOT / "runs" / "golden"
 
 def _dump(path: Path, obj: object) -> None:
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
+def _already_made(exclude: str) -> tuple[list[tuple[str, CompositionPlan]], Corpus]:
+    """이미 만든 곡들의 설계도와, 그 곡들이 들어간 표절 코퍼스.
+
+    이게 없으면 새 곡이 앞서 만든 곡과 형식이 같아도, 선율이 겹쳐도 아무도 모른다.
+    골든은 품질을 재는 유일한 자리인데 지금까지 이 두 관문이 비어 있었다.
+    """
+    plans: list[tuple[str, CompositionPlan]] = []
+    corpus = Corpus()
+    for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
+        if not d.is_dir() or d.name == exclude:
+            continue
+        pf, mf = d / "plan.json", d / "measures.json"
+        if not (pf.exists() and mf.exists()):
+            continue
+        plan = CompositionPlan.model_validate(json.loads(pf.read_text(encoding="utf-8")))
+        plans.append((d.name, plan))
+        corpus.register_generated(
+            [Measure.model_validate(x) for x in json.loads(mf.read_text(encoding="utf-8"))],
+            score_id=d.name, title=(plan.title_candidates or [d.name])[0],
+            key=plan.key, meter=plan.meter, tempo=plan.tempo,
+        )
+    return plans, corpus
 
 
 def run_one(spec: dict, *, measures_override: int | None, wait: bool) -> dict:
@@ -77,7 +105,8 @@ def run_one(spec: dict, *, measures_override: int | None, wait: bool) -> dict:
         chosen_id = json.loads(choice_path.read_text(encoding="utf-8"))["motif_id"]
     motif = next((m for m in motifs if m.id == chosen_id), motifs[0])
 
-    plan, plan_report = pipe.plan(ctx, motif)
+    previous, made_corpus = _already_made(spec["id"])
+    plan, plan_report = pipe.plan(ctx, motif, previous_plans=previous)
     _dump(run_dir / "plan.json", plan.model_dump())
     _dump(run_dir / "plan_check.json", {
         "passed": plan_report.passed,
@@ -89,7 +118,7 @@ def run_one(spec: dict, *, measures_override: int | None, wait: bool) -> dict:
             + "; ".join(i.message for i in plan_report.hard_failures)
         )
 
-    res = pipe.compose(ctx, motif, plan)
+    res = pipe.compose(ctx, motif, plan, corpus_ngrams=made_corpus.ngram_index() or None)
 
     (run_dir / "score.musicxml").write_text(res.musicxml, encoding="utf-8")
     (run_dir / "score.mid").write_bytes(
@@ -105,6 +134,13 @@ def run_one(spec: dict, *, measures_override: int | None, wait: bool) -> dict:
         "issues": [asdict(i) for i in res.validation.issues],
     })
     _dump(run_dir / "quality.json", res.quality.model_dump())
+
+    # 모의 심사(§6.13)와 연주법 해설(§6.6)은 품질 층인데 지금까지 골든에서 한 번도
+    # 돌지 않았다. 규칙 기반 대역을 돌려 산출물로 남긴다 — 모델이 쓰는 판은 별개다.
+    panel = run_panel_rules(ctx, res.measures, plan, motif)
+    _dump(run_dir / "judge.json", panel.model_dump())
+    guide = rule_based_guide(ctx, res.measures, plan)
+    _dump(run_dir / "guide.json", guide.model_dump())
     ledger.write(run_dir / "cost.json", model=get_settings().composer_model)
 
     diff = difficulty_score(res.measures, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key)
@@ -134,6 +170,10 @@ def run_one(spec: dict, *, measures_override: int | None, wait: bool) -> dict:
         "difficulty": diff.score,
         "difficulty_target": spec["difficulty"],
         "difficulty_division": diff.division_hint(),
+        "judge_average": panel.average,
+        "judge_consensus_fixes": panel.consensus_fixes(),
+        "guide_sections": len(guide.sections),
+        "advisory": [n for n in res.quality.notes if not n.startswith("프레이즈")],
         "prompts": engine.stats.prompts_written,
         "responses": engine.stats.responses_read,
         "projection": ledger.projected_cost(get_settings().composer_model),
@@ -152,8 +192,8 @@ def write_summary_table(rows: list[dict]) -> Path:
         "- 검증기·음악성 지표·표절 검사는 코드가 그대로 실행했다",
         "",
         "| id | 제목 | 조성/박자/템포 | 마디 | 연주시간 | 검증 | 병행 |"
-        " musicality | 비평 | 종합 | 난이도(목표) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        " musicality | 비평 | 심사 | 종합 | 난이도(목표) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         verdict = "통과" if r["validation_passed"] else "실패 " + ",".join(r["hard_failures"])
@@ -161,8 +201,8 @@ def write_summary_table(rows: list[dict]) -> Path:
         lines.append(
             f"| {r['id']} | {r['title']} | {r['key']} {r['meter']} ♩={r['tempo']} | "
             f"{r['measures']} | {r['duration_sec']}초{limit} | {verdict} | {r['parallels']} | "
-            f"{r['musicality']} | {r['critic_total']} | {r['combined']} | "
-            f"{r['difficulty']}({r['difficulty_target']}) |"
+            f"{r['musicality']} | {r['critic_total']} | {r.get('judge_average', '-')} | "
+            f"{r['combined']} | {r['difficulty']}({r['difficulty_target']}) |"
         )
 
     prev = RUNS.parent / "golden-v1"
@@ -195,6 +235,16 @@ def write_summary_table(rows: list[dict]) -> Path:
     lines += ["", "## 미달 지표", ""]
     for r in rows:
         lines.append(f"- **{r['id']}** {r['title']}: {', '.join(r['unmet']) or '없음'}")
+
+    advisory_rows = [(r["id"], r.get("advisory") or []) for r in rows]
+    if any(a for _, a in advisory_rows):
+        lines += ["", "## 파이프라인이 실행하지 못하고 넘긴 지적", "",
+                  "프레이즈 재생성으로 옮길 수 없는 지적(곡 전체를 가리키는 말, 재료 선택)은",
+                  "코드가 고치지 않고 원장에게 넘긴다.", ""]
+        for gid, adv in advisory_rows:
+            if adv:
+                lines.append(f"- **{gid}**")
+                lines += [f"  - {a}" for a in adv]
 
     lines += ["", "## API 전환 시 예상 비용 (토큰 실측 기반)", "",
               "| id | 호출 | 입력 토큰 | 출력 토큰 | 캐시 없이 | 캐시 적용 |", "|---|---|---|---|---|---|"]

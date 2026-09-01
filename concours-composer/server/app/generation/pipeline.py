@@ -6,19 +6,19 @@ CLAUDE.md 절대 규칙 9: 모티브 잠금 → Plan → **프레이즈 단위**
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.analysis import musicality as musicality_mod
-from app.analysis.difficulty import difficulty_score
+from app.analysis.difficulty import difficulty_advice, difficulty_score
 from app.config import Settings, get_settings
 from app.generation.assemble import AssembleOptions, measures_to_musicxml
 from app.generation.context import ComposerContext
 from app.generation.engines.base import ComposerEngine, PhraseRequest
 from app.generation.plan_rules import check_plan
 from app.schemas.music import MAX_PHRASE_MEASURES, CompositionPlan, Measure, MotifCandidate
-from app.schemas.quality import CriticReport, QualityReport
+from app.schemas.quality import CriticReport, QualityReport, RevisionRequest
 from app.validate.validator import Issue, ValidationReport, validate_score
 
 log = logging.getLogger(__name__)
@@ -96,12 +96,26 @@ class CompositionPipeline:
         return ok
 
     # ── Stage 2 ──────────────────────────────────────────────────────────
-    def plan(self, ctx: ComposerContext, motif: MotifCandidate) -> tuple[CompositionPlan, ValidationReport]:
+    def plan(
+        self,
+        ctx: ComposerContext,
+        motif: MotifCandidate,
+        *,
+        previous_plans: Sequence[tuple[str, CompositionPlan]] = (),
+    ) -> tuple[CompositionPlan, ValidationReport]:
+        """설계도 생성 + 규칙 검사.
+
+        `previous_plans` 는 같은 학원이 이미 만든 곡들의 설계도다. 형식이 겹치면
+        여기서 막는다 — 음표를 쓰기 전이라 가장 싸다.
+        """
         if not motif.selected:
             motif = motif.model_copy(update={"selected": True})   # motif_locked
         self.progress("plan", 0.0, "설계도 생성")
         plan = self.engine.plan(ctx, motif)
-        report = check_plan(plan, ctx.student, time_limit_sec=ctx.hard.time_limit_sec)
+        report = check_plan(
+            plan, ctx.student,
+            time_limit_sec=ctx.hard.time_limit_sec, previous_plans=previous_plans,
+        )
         self.progress("plan", 1.0, f"Plan 규칙 검사: {report.summary()}")
         return plan, report
 
@@ -308,6 +322,107 @@ class CompositionPipeline:
         )
         return candidate, (new_musicality, new_critic, new_combined)
 
+    # 한 번의 겨냥 수정이 손댈 수 있는 최대 구간. 이보다 넓은 지적("곡 전체가
+    # 평범하다")은 프레이즈 재생성으로 실행할 수 없다 — 원장에게 글로 넘긴다.
+    TARGETED_SPAN_LIMIT = 12
+
+    def _objective(self, combined: float, difficulty: float, target: float) -> float:
+        """종합 점수와 난이도를 하나의 값으로. 난이도는 허용 오차 밖의 초과분만 벌한다."""
+        over = max(0.0, abs(difficulty - target) - self.settings.difficulty_tolerance)
+        return combined - 2.0 * over
+
+    def _targeted(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
+        motif: MotifCandidate, critic: CriticReport, combined: float,
+    ) -> tuple[list[Measure], tuple[dict, CriticReport, float] | None, list[str]]:
+        """종합 점수가 문턱을 넘어도 **약한 루브릭 항목과 빗나간 난이도**는 고친다.
+
+        이 패스가 없으면 비평가가 낸 수정 지시가 한 건도 실행되지 않는다. 실제로
+        다섯 곡에서 지시 15건이 나왔는데 종합 8.4~8.6 이 문턱 7.0 을 넘는다는
+        이유로 전부 버려졌다 — 곡이 좋았던 것은 루프가 아니라 사람이 고쳐서였다.
+
+        돌려주는 셋째 값은 **실행하지 못한 지적**이다. 곡 전체를 가리키는 말은
+        프레이즈 재생성으로 옮길 수 없으므로 원장에게 글로 남긴다.
+        """
+        notes: list[str] = []
+        weak = [
+            f"{k} {v}" for k, v in critic.scores.as_dict().items()
+            if v < self.settings.rubric_floor
+        ]
+        diff = difficulty_score(measures, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key)
+        target = ctx.hard.target_difficulty
+        advice = (
+            difficulty_advice(diff, target)
+            if abs(diff.score - target) > self.settings.difficulty_tolerance
+            else []
+        )
+        if not weak and not advice:
+            return measures, None, notes
+
+        if weak:
+            notes.append("약한 루브릭: " + ", ".join(weak))
+        notes.extend(advice)
+
+        actionable: list[RevisionRequest] = []
+        too_broad: list[RevisionRequest] = []
+        # 모티브가 처음 제시되는 마디는 손대지 않는다. 모티브는 원장이 듣고 고른
+        # 뒤 **잠긴** 것이고(절대 규칙 9), 머리를 바꾸면 그것을 되풀이하는 모든
+        # 자리가 함께 바뀌어야 하는데 프레이즈 단위 재생성으로는 그럴 수 없다.
+        locked_until = len(motif.measures)
+        for rr in critic.revision_requests:
+            span = rr.measures[1] - rr.measures[0] + 1
+            touches_motif = rr.measures[0] <= locked_until
+            (too_broad if span > self.TARGETED_SPAN_LIMIT or touches_motif
+             else actionable).append(rr)
+        for rr in too_broad:
+            span = rr.measures[1] - rr.measures[0] + 1
+            why = (
+                "곡 전체" if span > self.TARGETED_SPAN_LIMIT
+                else "모티브 잠금 구간"
+            )
+            notes.append(
+                f"[{rr.measures[0]}-{rr.measures[1]}] ({why}) {rr.issue} → {rr.instruction}"
+            )
+        if not actionable:
+            notes.append("겨냥해서 고칠 수 있는 지시가 없다 — 원장 판단이 필요하다")
+            return measures, None, notes
+
+        if advice:
+            hint = " / ".join(advice[1:])
+            actionable = [
+                rr.model_copy(update={"instruction": f"{rr.instruction} · 난이도 조정: {hint}"})
+                for rr in actionable
+            ]
+        self.progress("targeted", 0.3, f"겨냥 수정 {len(actionable)}건 ({', '.join(weak) or '난이도'})")
+
+        trimmed = critic.model_copy(update={"revision_requests": actionable})
+        candidate = self.revise(ctx, measures, plan, motif, trimmed)
+        new_musicality, new_critic = self.evaluate(ctx, candidate, plan, motif)
+        new_combined = self._combined(new_musicality, new_critic)
+        new_diff = difficulty_score(
+            candidate, meter=plan.meter, tempo=plan.tempo, key_sig=plan.key
+        )
+        # 채택 기준은 두 값을 합친 하나의 목표다. 난이도는 **허용 오차를 벗어난 만큼만**
+        # 벌점이 된다 — 이미 오차 안에 있는 곡을 0.01 흔들렸다고 버리면, 점수가 오른
+        # 수정도 통째로 날아간다(실제로 g02 에서 8.60→8.66 이 그렇게 버려졌다).
+        if self._objective(new_combined, new_diff.score, target) < self._objective(
+            combined, diff.score, target
+        ):
+            self.progress(
+                "targeted", 1.0,
+                f"겨냥 수정 폐기 (점수 {combined:.2f}→{new_combined:.2f}, "
+                f"난이도 {diff.score:.2f}→{new_diff.score:.2f})",
+            )
+            notes.append("겨냥 수정을 시도했으나 더 나아지지 않아 원본을 유지했다")
+            return measures, None, notes
+
+        self.progress(
+            "targeted", 1.0,
+            f"겨냥 수정 채택 (점수 {combined:.2f}→{new_combined:.2f}, "
+            f"난이도 {diff.score:.2f}→{new_diff.score:.2f})",
+        )
+        return candidate, (new_musicality, new_critic, new_combined), notes
+
     # ── 3안 생성 (§7.9 원칙 5) ───────────────────────────────────────────
     def compose_candidates(
         self,
@@ -413,6 +528,16 @@ class CompositionPipeline:
                 musicality, critic, combined = polished
                 rounds += 1
 
+        # 종합 점수가 문턱을 넘어도 약한 루브릭 항목과 빗나간 난이도는 남는다.
+        advisory: list[str] = []
+        if rounds < self.settings.max_revision_rounds:
+            measures, tuned, advisory = self._targeted(
+                ctx, measures, plan, motif, critic, combined
+            )
+            if tuned is not None:
+                musicality, critic, combined = tuned
+                rounds += 1
+
         validation = validate_score(
             measures, ctx.student,
             meter=plan.meter, tempo=plan.tempo, key_sig=plan.key, plan=plan,
@@ -437,7 +562,7 @@ class CompositionPipeline:
             passed=combined >= self.settings.quality_threshold,
             threshold=self.settings.quality_threshold,
             combined_score=combined,
-            notes=failures,
+            notes=failures + advisory,
         )
 
         cost: dict[str, Any] = {}

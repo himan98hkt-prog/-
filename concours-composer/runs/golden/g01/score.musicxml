@@ -6,7 +6,7 @@
   <identification>
     <creator type="composer">AI 초안 · 원장 편곡</creator>
     <encoding>
-      <encoding-date>2026-08-31</encoding-date>
+      <encoding-date>2026-09-01</encoding-date>
       <software>music21 v.10.5.0</software>
       <supports element="beam" type="yes" />
       <supports element="stem" type="yes" />
@@ -713,7 +713,7 @@
       </note>
       <note id="m11-rh1-1">
         <pitch>
-          <step>B</step>
+          <step>A</step>
           <octave>5</octave>
         </pitch>
         <duration>5040</duration>
@@ -723,8 +723,8 @@
       </note>
       <note id="m11-rh1-2">
         <pitch>
-          <step>D</step>
-          <octave>6</octave>
+          <step>B</step>
+          <octave>5</octave>
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
@@ -733,8 +733,8 @@
       </note>
       <note id="m11-rh1-3">
         <pitch>
-          <step>B</step>
-          <octave>5</octave>
+          <step>C</step>
+          <octave>6</octave>
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
@@ -743,11 +743,19 @@
       </note>
       <note id="m11-rh1-4">
         <pitch>
-          <step>G</step>
+          <step>D</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m11-rh1-5">
+        <pitch>
+          <step>B</step>
           <octave>5</octave>
         </pitch>
-        <duration>20160</duration>
-        <type>half</type>
+        <duration>10080</duration>
+        <type>quarter</type>
         <notations>
           <slur number="5" type="stop" />
         </notations>

@@ -6,7 +6,7 @@
   <identification>
     <creator type="composer">AI 초안 · 원장 편곡</creator>
     <encoding>
-      <encoding-date>2026-08-31</encoding-date>
+      <encoding-date>2026-09-01</encoding-date>
       <software>music21 v.10.5.0</software>
       <supports element="beam" type="yes" />
       <supports element="stem" type="yes" />
@@ -381,6 +381,9 @@
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <notations>
+          <slur number="2" type="start" />
+        </notations>
       </note>
       <note id="m9-rh1-1">
         <pitch>
@@ -405,6 +408,9 @@
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <notations>
+          <slur number="2" type="stop" />
+        </notations>
       </note>
     </measure>
     
@@ -416,6 +422,9 @@
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <notations>
+          <slur number="3" type="start" />
+        </notations>
       </note>
       <note id="m10-rh1-1">
         <pitch>
@@ -433,6 +442,9 @@
         <duration>15120</duration>
         <type>quarter</type>
         <dot />
+        <notations>
+          <slur number="3" type="stop" />
+        </notations>
       </note>
       <note id="m10-rh1-3">
         <rest />
@@ -450,7 +462,7 @@
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
-          <slur number="2" type="start" />
+          <slur number="4" type="start" />
         </notations>
       </note>
       <note id="m11-rh1-1">
@@ -469,7 +481,7 @@
         <duration>20160</duration>
         <type>half</type>
         <notations>
-          <slur number="2" type="stop" />
+          <slur number="4" type="stop" />
         </notations>
       </note>
     </measure>
@@ -482,6 +494,9 @@
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <notations>
+          <slur number="5" type="start" />
+        </notations>
       </note>
       <note id="m12-rh1-1">
         <pitch>
@@ -499,6 +514,9 @@
         <duration>15120</duration>
         <type>quarter</type>
         <dot />
+        <notations>
+          <slur number="5" type="stop" />
+        </notations>
       </note>
       <note id="m12-rh1-3">
         <rest />
@@ -608,7 +626,7 @@
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
-          <slur number="3" type="start" />
+          <slur number="6" type="start" />
         </notations>
       </note>
       <note id="m15-rh1-1">
@@ -627,7 +645,7 @@
         <duration>20160</duration>
         <type>half</type>
         <notations>
-          <slur number="3" type="stop" />
+          <slur number="6" type="stop" />
         </notations>
       </note>
     </measure>
@@ -872,7 +890,7 @@
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
-          <slur number="4" type="start" />
+          <slur number="1" type="start" />
         </notations>
       </note>
       <note id="m22-rh1-1">
@@ -891,7 +909,7 @@
         <duration>20160</duration>
         <type>half</type>
         <notations>
-          <slur number="4" type="stop" />
+          <slur number="1" type="stop" />
         </notations>
       </note>
     </measure>
@@ -905,7 +923,7 @@
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
-          <slur number="5" type="start" />
+          <slur number="2" type="start" />
         </notations>
       </note>
       <note id="m23-rh1-1">
@@ -932,7 +950,7 @@
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
-          <slur number="5" type="stop" />
+          <slur number="2" type="stop" />
         </notations>
       </note>
     </measure>
@@ -1146,8 +1164,16 @@
           <step>F</step>
           <octave>2</octave>
         </pitch>
-        <duration>40320</duration>
-        <type>whole</type>
+        <duration>20160</duration>
+        <type>half</type>
+      </note>
+      <note id="m11-lh1-1">
+        <pitch>
+          <step>C</step>
+          <octave>3</octave>
+        </pitch>
+        <duration>20160</duration>
+        <type>half</type>
       </note>
     </measure>
     
@@ -1157,8 +1183,16 @@
           <step>D</step>
           <octave>3</octave>
         </pitch>
-        <duration>40320</duration>
-        <type>whole</type>
+        <duration>20160</duration>
+        <type>half</type>
+      </note>
+      <note id="m12-lh1-1">
+        <pitch>
+          <step>A</step>
+          <octave>3</octave>
+        </pitch>
+        <duration>20160</duration>
+        <type>half</type>
       </note>
     </measure>
     

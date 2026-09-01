@@ -1,13 +1,13 @@
 {
   "musicality": {
-    "score": 0.9354,
-    "score_10": 9.35,
+    "score": 0.9501,
+    "score_10": 9.5,
     "metrics": {
       "motif_consistency": {
-        "value": 0.7692,
+        "value": 0.8462,
         "target": 0.7,
         "met": true,
-        "detail": "10/13 프레이즈에 등장 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-18:fragment_head, 19-22:fragment_tail, 23-26:fragment_head"
+        "detail": "11/13 프레이즈에 등장 · 1-4:fragment_head, 5-8:fragment_head, 9-12:fragment_head, 13-18:fragment_head, 19-22:fragment_tail, 23-26:fragment_head"
       },
       "repetition_balance": {
         "value": 1.0,
@@ -22,7 +22,7 @@
         "detail": "도약 21% (권장 15~35%) · 최고음 39마디 / 클라이맥스 39마디"
       },
       "harmonic_consistency": {
-        "value": 0.885,
+        "value": 0.8796,
         "target": 0.85,
         "met": true,
         "detail": "코드톤 비율 88%"
@@ -55,7 +55,7 @@
         "value": 1.0,
         "target": 0.65,
         "met": true,
-        "detail": "난이도 4.0 기준 · 리듬 어휘 5종(기대 4.6) · 선율 음역 22반음(기대 17) · 같은 리듬형 44% · 다이내믹 4종"
+        "detail": "난이도 4.0 기준 · 리듬 어휘 5종(기대 4.6) · 선율 음역 22반음(기대 17) · 같은 리듬형 42% · 다이내믹 4종"
       }
     },
     "unmet": []
@@ -108,9 +108,12 @@
     "overall_comment": "다섯 곡 중 형식이 가장 단단하다. 모티브가 분명하고, 변형이 실제로 다르게 들리고, 정점이 제자리에 있고, 마무리가 거짓 종지로 한 번 접었다가 닫힌다. 난이도 4.34 는 목표 4.0 에서 조금 높지만 도약이 3~4도까지이고 옥타브가 없으므로 초3 학생이 감당할 수 있다. 약점은 B 섹션이다 — A 와 A' 는 할 일이 분명한데 19~34마디 열여섯 마디는 '조용한 구간'이라는 것 외에 자기 얼굴이 없다. 첫 번째와 세 번째 수정 지시가 그 자리를 겨냥한 것이고, 둘 다 화성과 형식을 건드리지 않으므로 위험이 없다. 독창성 6.5 는 A장조 상행 아르페지오라는 재료 자체의 평범함이지, 다루는 솜씨의 문제는 아니다.",
     "total": 8.1
   },
-  "revision_round": 0,
+  "revision_round": 1,
   "passed": true,
   "threshold": 7.0,
-  "combined_score": 8.6,
-  "notes": []
+  "combined_score": 8.66,
+  "notes": [
+    "약한 루브릭: originality 6.5",
+    "[1-18] (곡 전체) A 섹션 18마디 중 1~3마디가 세 번(1~3, 5~7, 13~15) 그대로 나온다. 형식은 또렷해지지만 세 번째는 심사위원 귀에 '또' 로 들린다. 게다가 A 전체가 8분음표 네 개 + 4분음표 두 개라는 한 가지 리듬형으로 덮여 있다 → 14마디만 리듬을 바꿔라 — D5-E5-F#5-A5(8분음표 넷) 대신 D5(붙점 4분음표)-E5(8분음표)-F#5-A5(8분음표 둘)로. 음은 그대로이므로 '같은 것이 돌아왔다'는 인상은 유지되고, 세 번째 등장에만 리듬의 색이 생긴다"
+  ]
 }

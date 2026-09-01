@@ -194,3 +194,76 @@ def test_plan_rule_flags_piece_that_wastes_the_time_limit(student) -> None:
     assert any(
         i.rule == "plan_time_limit" and "밖에 쓰지 않는다" in i.message for i in rep.warnings
     ), rep.issues
+
+
+# ── 곡 사이 다양성 (§7.9 — 곡 하나만 보는 지표가 못 잡는 것) ────────────────
+
+
+def _plan_with(*, cadence, lengths, treatments, labels=("A", "B"), total=16, climax=11):
+    from app.schemas.music import (
+        Climax,
+        CompositionPlan,
+        Ending,
+        HarmonyStep,
+        PhrasePlan,
+        SectionPlan,
+    )
+
+    phrases, m = [], 1
+    for n, tr in zip(lengths, treatments, strict=True):
+        phrases.append(PhrasePlan(measures=[m, m + n - 1], motif_treatment=tr,
+                                  texture_rh="x", texture_lh="y"))
+        m += n
+    half = len(phrases) // 2
+    return CompositionPlan(
+        key="C", meter="4/4", tempo=100, total_measures=total, duration_est=38.4,
+        form=[
+            SectionPlan(label=labels[0], measures=[1, phrases[half - 1].measures[1]],
+                        phrases=phrases[:half]),
+            SectionPlan(label=labels[1], measures=[phrases[half].measures[0], total],
+                        phrases=phrases[half:]),
+        ],
+        harmony=[HarmonyStep(measure=total - len(cadence) + 1 + i, roman=r)
+                 for i, r in enumerate(cadence)],
+        climax=Climax(measure=climax, how="f"),
+        ending=Ending(type="완전종지", measures=[total - 3, total]),
+        difficulty_target=4,
+    )
+
+
+def test_diversity_flags_two_pieces_with_the_same_skeleton(student) -> None:
+    """형식·종지·처리·클라이맥스가 함께 겹치면 Plan 단계에서 막는다."""
+    from app.generation.plan_rules import check_plan
+
+    a = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    b = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    rep = check_plan(b, student, previous_plans=[("g01", a)])
+    hits = [i for i in rep.hard_failures if i.rule == "plan_diversity"]
+    assert hits, rep.issues
+    assert "g01" in hits[0].message
+    assert "종지 공식" in hits[0].message
+
+
+def test_diversity_allows_a_genuinely_different_piece(student) -> None:
+    from app.generation.plan_rules import check_plan
+
+    a = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    b = _plan_with(cadence=["ii", "V", "I", "IV", "V7", "I"], lengths=[6, 2, 4, 4],
+                   treatments=["statement", "augmentation", "fragment_tail", "diminution"],
+                   labels=("A", "C"), climax=13)
+    rep = check_plan(b, student, previous_plans=[("g01", a)])
+    assert not [i for i in rep.hard_failures if i.rule == "plan_diversity"], rep.issues
+
+
+def test_diversity_ignores_key_and_tempo() -> None:
+    """조만 바꾼 같은 곡도 같은 곡이다."""
+    from app.generation.diversity import FormFingerprint, compare
+
+    a = _plan_with(cadence=["IV", "ii", "V7", "vi", "V7", "I"], lengths=[4, 4, 4, 4],
+                   treatments=["statement", "repeat", "inversion", "rhythmic_variation"])
+    b = a.model_copy(update={"key": "A", "tempo": 132})
+    sim, _ = compare(FormFingerprint.of(a), FormFingerprint.of(b))
+    assert sim == 1.0

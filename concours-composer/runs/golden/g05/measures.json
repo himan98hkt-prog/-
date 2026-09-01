@@ -3403,7 +3403,7 @@
             "slur": null
           },
           {
-            "dur": 1.0,
+            "dur": 0.5,
             "pitches": [
               "G5"
             ],
@@ -3412,9 +3412,27 @@
             "slur": null
           },
           {
-            "dur": 1.0,
+            "dur": 0.5,
             "pitches": [
               "F#5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 0.5,
+            "pitches": [
+              "E5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 0.5,
+            "pitches": [
+              "D5"
             ],
             "tie": null,
             "artic": "none",
@@ -3528,7 +3546,7 @@
             "slur": "start"
           },
           {
-            "dur": 1.0,
+            "dur": 0.5,
             "pitches": [
               "B5"
             ],
@@ -3537,7 +3555,7 @@
             "slur": null
           },
           {
-            "dur": 1.0,
+            "dur": 0.5,
             "pitches": [
               "A5"
             ],
@@ -3549,6 +3567,15 @@
             "dur": 1.0,
             "pitches": [
               "G5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 1.0,
+            "pitches": [
+              "E5"
             ],
             "tie": null,
             "artic": "none",
@@ -4506,7 +4533,8 @@
           {
             "dur": 0.5,
             "pitches": [
-              "B5"
+              "B5",
+              "D6"
             ],
             "tie": null,
             "artic": "none",
@@ -4515,7 +4543,8 @@
           {
             "dur": 0.5,
             "pitches": [
-              "A5"
+              "A5",
+              "C6"
             ],
             "tie": null,
             "artic": "none",
@@ -4524,6 +4553,17 @@
           {
             "dur": 0.5,
             "pitches": [
+              "G5",
+              "B5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 0.5,
+            "pitches": [
+              "E5",
               "G5"
             ],
             "tie": null,
@@ -4531,8 +4571,9 @@
             "slur": null
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
+              "C5",
               "E5"
             ],
             "tie": null,
@@ -4542,16 +4583,8 @@
           {
             "dur": 1.0,
             "pitches": [
+              "A4",
               "C5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 1.0,
-            "pitches": [
-              "A4"
             ],
             "tie": null,
             "artic": "none",

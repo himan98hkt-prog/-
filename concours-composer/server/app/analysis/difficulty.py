@@ -218,3 +218,60 @@ def feasible_range(
             "max_accidental_ratio": max_accidental_ratio,
         },
     )
+
+
+# 난이도 특징을 '작곡가가 실행할 수 있는 지시' 로 옮기는 표.
+# 값을 올리려면 왼쪽, 내리려면 오른쪽.
+_LEVERS: dict[str, tuple[str, str]] = {
+    "note_density": (
+        "오른손 음을 더 잘게 쪼개라(4분→8분, 8분→16분)",
+        "오른손 음을 합쳐라(8분 둘을 4분 하나로)",
+    ),
+    "simultaneity": (
+        "강박에 3도·6도를 겹쳐 오른손을 두껍게 하라",
+        "화음을 단음으로 풀어라",
+    ),
+    "hand_span": (
+        "왼손 베이스를 옥타브로 잡아라",
+        "동시 타건 폭을 좁혀라(옥타브를 5도로)",
+    ),
+    "rhythm": (
+        "붙점·당김음·쉼표 뒤 진입 중 안 쓴 것을 하나 넣어라",
+        "쓰는 음길이 종류를 줄여라",
+    ),
+    "lh_texture": (
+        "왼손을 지속음에서 분산화음이나 도약 반주로 바꿔라",
+        "왼손을 지속 화음으로 단순화하라",
+    ),
+    "hand_motion": (
+        "선율에 옥타브 자리바꿈을 넣어 손이 크게 움직이게 하라",
+        "선율을 한 자리 안에서 움직이게 하라",
+    ),
+}
+
+
+def difficulty_advice(report: DifficultyReport, target: float, top: int = 3) -> list[str]:
+    """목표 난이도에 맞추려면 무엇을 만져야 하는가.
+
+    난이도 점수만 알려 주면 작곡가가 할 수 있는 일이 없다. 어느 특징이 얼마나
+    모자란지와 **그 특징을 움직이는 손잡이**를 함께 줘야 다음 라운드가 의미를 갖는다.
+    """
+    gap = target - report.score
+    if abs(gap) < 1e-9:
+        return []
+    up = gap > 0
+    # 올려야 하면 낮은 특징부터, 내려야 하면 높은 특징부터 만진다.
+    # 리포트에 실제로 있는 특징만 본다 — 없는 축을 0 으로 치면 늘 그것부터 만지게 된다.
+    ranked = sorted(
+        ((k, v) for k, v in report.features.items() if k in _LEVERS),
+        key=lambda kv: kv[1], reverse=not up,
+    )
+    out = [
+        f"난이도 {report.score:.2f} → 목표 {target:.1f} "
+        f"({'올려야' if up else '내려야'} 한다, 차이 {abs(gap):.2f})"
+    ]
+    out += [
+        f"{k} {v:.2f} — {_LEVERS[k][0 if up else 1]}"
+        for k, v in ranked[:top]
+    ]
+    return out

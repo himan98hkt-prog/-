@@ -6,7 +6,7 @@
   <identification>
     <creator type="composer">AI 초안 · 원장 편곡</creator>
     <encoding>
-      <encoding-date>2026-08-31</encoding-date>
+      <encoding-date>2026-09-01</encoding-date>
       <software>music21 v.10.5.0</software>
       <supports element="beam" type="yes" />
       <supports element="stem" type="yes" />
@@ -1477,16 +1477,25 @@
           <slur number="5" type="start" />
         </notations>
       </note>
-      <note id="m41-rh1-2">
+      <note id="m41-rhc-2">
         <pitch>
-          <step>C</step>
-          <octave>6</octave>
+          <step>A</step>
+          <octave>5</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
         <notations>
           <slur number="5" type="stop" />
         </notations>
+      </note>
+      <note id="m41-rhc-2+1">
+        <chord />
+        <pitch>
+          <step>C</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
       </note>
     </measure>
     
@@ -1496,37 +1505,36 @@
           <step>D</step>
           <octave>6</octave>
         </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <stem>down</stem>
+        <beam number="1">begin</beam>
         <notations>
           <slur number="6" type="start" />
         </notations>
       </note>
       <note id="m42-rh1-1">
         <pitch>
-          <step>C</step>
+          <step>E</step>
           <octave>6</octave>
-        </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">begin</beam>
-      </note>
-      <note id="m42-rh1-2">
-        <pitch>
-          <step>B</step>
-          <alter>-1</alter>
-          <octave>5</octave>
         </pitch>
         <duration>5040</duration>
         <type>eighth</type>
         <stem>down</stem>
         <beam number="1">end</beam>
       </note>
+      <note id="m42-rh1-2">
+        <pitch>
+          <step>F</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
       <note id="m42-rh1-3">
         <pitch>
-          <step>A</step>
-          <octave>5</octave>
+          <step>E</step>
+          <octave>6</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -1537,9 +1545,9 @@
     </measure>
     
     <measure implicit="no" number="43">
-      <note id="m43-rh1-0">
+      <note id="m43-rhc-0">
         <pitch>
-          <step>F</step>
+          <step>C</step>
           <octave>6</octave>
         </pitch>
         <duration>20160</duration>
@@ -1550,7 +1558,26 @@
           </articulations>
         </notations>
       </note>
-      <note id="m43-rh1-1">
+      <note id="m43-rhc-0+1">
+        <chord />
+        <pitch>
+          <step>F</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>20160</duration>
+        <type>half</type>
+      </note>
+      <note id="m43-rhc-2">
+        <pitch>
+          <step>B</step>
+          <alter>-1</alter>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m43-rhc-2+1">
+        <chord />
         <pitch>
           <step>E</step>
           <octave>6</octave>
@@ -1561,10 +1588,10 @@
     </measure>
     
     <measure implicit="no" number="44">
-      <note id="m44-rh1-0">
+      <note id="m44-rhc-0">
         <pitch>
-          <step>C</step>
-          <octave>6</octave>
+          <step>A</step>
+          <octave>5</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -1572,9 +1599,18 @@
           <slur number="1" type="start" />
         </notations>
       </note>
-      <note id="m44-rh1-1">
+      <note id="m44-rhc-0+1">
+        <chord />
         <pitch>
-          <step>A</step>
+          <step>C</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m44-rhc-2">
+        <pitch>
+          <step>F</step>
           <octave>5</octave>
         </pitch>
         <duration>20160</duration>
@@ -1582,6 +1618,15 @@
         <notations>
           <slur number="1" type="stop" />
         </notations>
+      </note>
+      <note id="m44-rhc-2+1">
+        <chord />
+        <pitch>
+          <step>A</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>20160</duration>
+        <type>half</type>
       </note>
     </measure>
     
@@ -1812,48 +1857,23 @@
           <alter>-1</alter>
           <octave>5</octave>
         </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">begin</beam>
+        <duration>10080</duration>
+        <type>quarter</type>
         <notations>
           <slur number="2" type="start" />
         </notations>
       </note>
       <note id="m51-rh1-1">
         <pitch>
-          <step>C</step>
-          <octave>6</octave>
+          <step>A</step>
+          <octave>5</octave>
         </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">end</beam>
+        <duration>10080</duration>
+        <type>quarter</type>
       </note>
       <note id="m51-rh1-2">
         <pitch>
-          <step>D</step>
-          <octave>6</octave>
-        </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">begin</beam>
-      </note>
-      <note id="m51-rh1-3">
-        <pitch>
-          <step>B</step>
-          <alter>-1</alter>
-          <octave>5</octave>
-        </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">end</beam>
-      </note>
-      <note id="m51-rh1-4">
-        <pitch>
-          <step>A</step>
+          <step>F</step>
           <octave>5</octave>
         </pitch>
         <duration>10080</duration>
@@ -1867,52 +1887,35 @@
     <measure implicit="no" number="52">
       <note id="m52-rh1-0">
         <pitch>
-          <step>F</step>
-          <octave>5</octave>
+          <step>D</step>
+          <alter>-1</alter>
+          <octave>6</octave>
         </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">begin</beam>
+        <duration>10080</duration>
+        <type>quarter</type>
+        <accidental>flat</accidental>
         <notations>
-          <slur number="3" type="start" />
+          <articulations>
+            <accent />
+          </articulations>
         </notations>
       </note>
       <note id="m52-rh1-1">
-        <pitch>
-          <step>G</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">end</beam>
-      </note>
-      <note id="m52-rh1-2">
         <pitch>
           <step>B</step>
           <alter>-1</alter>
           <octave>5</octave>
         </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">begin</beam>
+        <duration>10080</duration>
+        <type>quarter</type>
+        <notations>
+          <slur number="3" type="start" />
+        </notations>
       </note>
-      <note id="m52-rh1-3">
+      <note id="m52-rh1-2">
         <pitch>
-          <step>D</step>
-          <octave>6</octave>
-        </pitch>
-        <duration>5040</duration>
-        <type>eighth</type>
-        <stem>down</stem>
-        <beam number="1">end</beam>
-      </note>
-      <note id="m52-rh1-4">
-        <pitch>
-          <step>C</step>
-          <octave>6</octave>
+          <step>F</step>
+          <octave>5</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -1960,32 +1963,8 @@
     <measure implicit="no" number="54">
       <note id="m54-rh1-0">
         <pitch>
-          <step>D</step>
+          <step>C</step>
           <octave>6</octave>
-        </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
-        <notations>
-          <articulations>
-            <accent />
-          </articulations>
-        </notations>
-      </note>
-      <note id="m54-rh1-1">
-        <pitch>
-          <step>A</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>20160</duration>
-        <type>half</type>
-      </note>
-    </measure>
-    
-    <measure implicit="no" number="55">
-      <note id="m55-rh1-0">
-        <pitch>
-          <step>E</step>
-          <octave>5</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -1993,15 +1972,7 @@
           <slur number="5" type="start" />
         </notations>
       </note>
-      <note id="m55-rh1-1">
-        <pitch>
-          <step>G</step>
-          <octave>5</octave>
-        </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
-      </note>
-      <note id="m55-rh1-2">
+      <note id="m54-rh1-1">
         <pitch>
           <step>B</step>
           <alter>-1</alter>
@@ -2009,8 +1980,50 @@
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+      </note>
+      <note id="m54-rh1-2">
+        <pitch>
+          <step>G</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
         <notations>
           <slur number="5" type="stop" />
+        </notations>
+      </note>
+    </measure>
+    
+    <measure implicit="no" number="55">
+      <note id="m55-rh1-0">
+        <pitch>
+          <step>D</step>
+          <octave>6</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+        <notations>
+          <slur number="6" type="start" />
+        </notations>
+      </note>
+      <note id="m55-rh1-1">
+        <pitch>
+          <step>B</step>
+          <alter>-1</alter>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+      </note>
+      <note id="m55-rh1-2">
+        <pitch>
+          <step>F</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+        <notations>
+          <slur number="6" type="stop" />
         </notations>
       </note>
     </measure>
@@ -4852,14 +4865,6 @@
     <measure implicit="no" number="52">
       <note id="m52-lh1-0">
         <pitch>
-          <step>G</step>
-          <octave>2</octave>
-        </pitch>
-        <duration>10080</duration>
-        <type>quarter</type>
-      </note>
-      <note id="m52-lhc-1">
-        <pitch>
           <step>B</step>
           <alter>-1</alter>
           <octave>2</octave>
@@ -4867,10 +4872,20 @@
         <duration>10080</duration>
         <type>quarter</type>
       </note>
+      <note id="m52-lhc-1">
+        <pitch>
+          <step>D</step>
+          <alter>-1</alter>
+          <octave>3</octave>
+        </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+        <accidental>flat</accidental>
+      </note>
       <note id="m52-lhc-1+1">
         <chord />
         <pitch>
-          <step>D</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4879,7 +4894,8 @@
       <note id="m52-lhc-1+2">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>B</step>
+          <alter>-1</alter>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4887,17 +4903,18 @@
       </note>
       <note id="m52-lhc-4">
         <pitch>
-          <step>B</step>
+          <step>D</step>
           <alter>-1</alter>
-          <octave>2</octave>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
+        <accidental>flat</accidental>
       </note>
       <note id="m52-lhc-4+1">
         <chord />
         <pitch>
-          <step>D</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4906,7 +4923,8 @@
       <note id="m52-lhc-4+2">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>B</step>
+          <alter>-1</alter>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4917,15 +4935,15 @@
     <measure implicit="no" number="53">
       <note id="m53-lh1-0">
         <pitch>
-          <step>C</step>
-          <octave>3</octave>
+          <step>A</step>
+          <octave>2</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
       </note>
       <note id="m53-lhc-1">
         <pitch>
-          <step>E</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4934,7 +4952,7 @@
       <note id="m53-lhc-1+1">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>A</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4943,16 +4961,15 @@
       <note id="m53-lhc-1+2">
         <chord />
         <pitch>
-          <step>B</step>
-          <alter>-1</alter>
-          <octave>3</octave>
+          <step>C</step>
+          <octave>4</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
       </note>
       <note id="m53-lhc-4">
         <pitch>
-          <step>E</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4961,7 +4978,7 @@
       <note id="m53-lhc-4+1">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>A</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4970,9 +4987,8 @@
       <note id="m53-lhc-4+2">
         <chord />
         <pitch>
-          <step>B</step>
-          <alter>-1</alter>
-          <octave>3</octave>
+          <step>C</step>
+          <octave>4</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -4982,15 +4998,15 @@
     <measure implicit="no" number="54">
       <note id="m54-lh1-0">
         <pitch>
-          <step>F</step>
-          <octave>2</octave>
+          <step>C</step>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
       </note>
       <note id="m54-lhc-1">
         <pitch>
-          <step>D</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -4999,7 +5015,7 @@
       <note id="m54-lhc-1+1">
         <chord />
         <pitch>
-          <step>A</step>
+          <step>G</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5008,15 +5024,16 @@
       <note id="m54-lhc-1+2">
         <chord />
         <pitch>
-          <step>D</step>
-          <octave>4</octave>
+          <step>B</step>
+          <alter>-1</alter>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
       </note>
       <note id="m54-lhc-4">
         <pitch>
-          <step>D</step>
+          <step>E</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5025,7 +5042,7 @@
       <note id="m54-lhc-4+1">
         <chord />
         <pitch>
-          <step>A</step>
+          <step>G</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5034,8 +5051,9 @@
       <note id="m54-lhc-4+2">
         <chord />
         <pitch>
-          <step>D</step>
-          <octave>4</octave>
+          <step>B</step>
+          <alter>-1</alter>
+          <octave>3</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
@@ -5045,15 +5063,16 @@
     <measure implicit="no" number="55">
       <note id="m55-lh1-0">
         <pitch>
-          <step>C</step>
-          <octave>3</octave>
+          <step>B</step>
+          <alter>-1</alter>
+          <octave>2</octave>
         </pitch>
         <duration>10080</duration>
         <type>quarter</type>
       </note>
       <note id="m55-lhc-1">
         <pitch>
-          <step>E</step>
+          <step>D</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5062,7 +5081,7 @@
       <note id="m55-lhc-1+1">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5080,7 +5099,7 @@
       </note>
       <note id="m55-lhc-4">
         <pitch>
-          <step>E</step>
+          <step>D</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>
@@ -5089,7 +5108,7 @@
       <note id="m55-lhc-4+1">
         <chord />
         <pitch>
-          <step>G</step>
+          <step>F</step>
           <octave>3</octave>
         </pitch>
         <duration>10080</duration>

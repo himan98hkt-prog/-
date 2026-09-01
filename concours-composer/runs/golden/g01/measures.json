@@ -892,6 +892,15 @@
           {
             "dur": 0.5,
             "pitches": [
+              "A5"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 0.5,
+            "pitches": [
               "B5"
             ],
             "tie": null,
@@ -900,6 +909,15 @@
           },
           {
             "dur": 0.5,
+            "pitches": [
+              "C6"
+            ],
+            "tie": null,
+            "artic": "none",
+            "slur": null
+          },
+          {
+            "dur": 1.0,
             "pitches": [
               "D6"
             ],
@@ -908,18 +926,9 @@
             "slur": null
           },
           {
-            "dur": 0.5,
+            "dur": 1.0,
             "pitches": [
               "B5"
-            ],
-            "tie": null,
-            "artic": "none",
-            "slur": null
-          },
-          {
-            "dur": 2.0,
-            "pitches": [
-              "G5"
             ],
             "tie": null,
             "artic": "none",

@@ -68,6 +68,7 @@ def test_golden_case(golden_spec, engine_name):
         "unmet": res.quality.musicality["unmet"],
         "cost": res.cost.get("total_usd", 0.0),
     }
+    row["plan"] = res.plan
     _RESULTS.append(row)
 
     assert len(res.measures) == res.plan.total_measures, (
@@ -95,6 +96,21 @@ def test_golden_aggregate(golden_report_path, engine_name):
     quality_rate = sum(1 for r in _RESULTS if r["quality_passed"]) / n
     diff_ok = sum(1 for r in _RESULTS if abs(r["difficulty"] - r["difficulty_target"]) <= 1.0) / n
 
+    # 곡 사이 다양성 — 곡 하나만 보는 지표가 절대 잡지 못하는 축이다.
+    # 여기서는 **막지 않고 재기만 한다**: 규칙 기반 스텁은 모든 요청에 같은 설계
+    # 뼈대를 내놓으므로 20건이 전부 걸린다. 그것이 스텁의 알려진 한계이고,
+    # 실제 작곡 경로(API·세션)에서는 Plan 규칙이 하드로 막는다.
+    from itertools import combinations
+
+    from app.generation.diversity import SIMILARITY_LIMIT, FormFingerprint, compare
+
+    prints = [(r["id"], FormFingerprint.of(r["plan"])) for r in _RESULTS]
+    pairs = [
+        (a, b, compare(fa, fb)[0]) for (a, fa), (b, fb) in combinations(prints, 2)
+    ]
+    worst = max((s for _, _, s in pairs), default=0.0)
+    colliding = sum(1 for _, _, s in pairs if s >= SIMILARITY_LIMIT)
+
     summary = {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "engine": engine_name,
@@ -107,6 +123,9 @@ def test_golden_aggregate(golden_report_path, engine_name):
         "difficulty_within_1": round(diff_ok, 3),
         "difficulty_baseline": DIFFICULTY_BASELINE.get(engine_name, 0.55),
         "total_cost_usd": round(sum(r["cost"] for r in _RESULTS), 4),
+        "form_similarity_max": round(worst, 3),
+        "form_similarity_colliding_pairs": colliding,
+        "form_similarity_limit": SIMILARITY_LIMIT,
     }
 
     if golden_report_path:
@@ -148,6 +167,13 @@ def _write_report(path, summary: dict, rows: list[dict]) -> None:
         f"| 난이도 ±1 적중률 | {summary['difficulty_within_1']:.0%} "
         f"(기준선 {summary['difficulty_baseline']:.0%}) |",
         f"| 총 API 비용 | ${summary['total_cost_usd']} |",
+        f"| 형식 유사도 최대 | {summary['form_similarity_max']:.2f} "
+        f"(한계 {summary['form_similarity_limit']:.2f}) |",
+        f"| 같은 틀로 걸리는 쌍 | {summary['form_similarity_colliding_pairs']}쌍 |",
+        "",
+        "> 형식 유사도는 **재기만 한다**. 규칙 기반 스텁은 모든 요청에 같은 설계",
+        "> 뼈대를 내놓으므로 여기서는 높게 나오는 것이 정상이다 — 스텁의 알려진",
+        "> 한계다. 실제 작곡 경로(API·세션 엔진)에서는 Plan 규칙이 하드로 막는다.",
         "",
         "## 케이스별",
         "",

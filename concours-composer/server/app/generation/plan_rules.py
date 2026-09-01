@@ -5,8 +5,11 @@ Plan 이 틀리면 뒤 단계가 전부 틀린다. 원장에게 보여주기 전
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from music21 import meter as m21meter
 
+from app.generation.diversity import collisions, suggest
 from app.schemas.music import MAX_PHRASE_MEASURES, MIN_PHRASE_MEASURES, CompositionPlan
 from app.schemas.student import Student
 from app.validate.validator import ValidationReport
@@ -17,6 +20,7 @@ def check_plan(
     student: Student,
     *,
     time_limit_sec: int | None = None,
+    previous_plans: Sequence[tuple[str, CompositionPlan]] = (),
 ) -> ValidationReport:
     r = ValidationReport()
 
@@ -136,5 +140,13 @@ def check_plan(
     head = [d.dyn for d in plan.dynamics_curve if d.measure <= 8]
     if len(set(head)) < 2:
         r.add("plan_first_eight", "soft", "첫 8마디 다이내믹 곡선에 대비가 없다")
+
+    # 10. 이미 만든 곡과 같은 틀인가 (§7.9 — 곡 하나만 보는 지표가 못 잡는 것)
+    for c in collisions(plan, previous_plans):
+        r.add(
+            "plan_diversity", "hard",
+            f"{c.other_id} 과(와) 형식이 {c.similarity:.0%} 같다 — 겹치는 축: "
+            f"{', '.join(c.shared)}. {suggest(c.shared)}",
+        )
 
     return r

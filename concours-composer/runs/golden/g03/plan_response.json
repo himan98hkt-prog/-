@@ -182,7 +182,7 @@
             56
           ],
           "motif_treatment": "rhythmic_variation",
-          "texture_rh": "여섯 마디 확장 코다. 54마디 거짓 종지(vi)에서 한 번 더 밀고 56마디 F5+A5 화음으로 넓게 닫는다",
+          "texture_rh": "여섯 마디 확장 코다. 52마디에서 내림나단조(차용화음 iv)가 한 번 그늘을 지우고, 55~56마디 IV-I 변격 종지로 넓고 따뜻하게 닫는다. 56마디는 오른손 F5+A5 화음",
           "texture_lh": "왼손 3박 왈츠 — 첫 박 단음 베이스, 2·3박에 3음 화음(폭 최대 9반음)",
           "dynamic": "mf"
         }
@@ -447,23 +447,23 @@
     },
     {
       "measure": 52,
-      "roman": "ii",
-      "bass_note": "G2"
+      "roman": "iv",
+      "bass_note": "B-2"
     },
     {
       "measure": 53,
-      "roman": "V7",
-      "bass_note": "C3"
+      "roman": "I",
+      "bass_note": "A2"
     },
     {
       "measure": 54,
-      "roman": "vi",
-      "bass_note": "D3"
+      "roman": "V7",
+      "bass_note": "C3"
     },
     {
       "measure": 55,
-      "roman": "V7",
-      "bass_note": "C3"
+      "roman": "IV",
+      "bass_note": "B-2"
     },
     {
       "measure": 56,
@@ -490,7 +490,7 @@
   },
   "modulations": [],
   "ending": {
-    "type": "거짓 종지(54마디 vi) 뒤 완전종지 V7-I + 화음 마무리",
+    "type": "차용화음 iv 로 그늘을 지운 뒤 변격(아멘) 종지 IV-I",
     "measures": [
       51,
       56

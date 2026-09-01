@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     # 비평 루프
     quality_threshold: float = Field(default=7.0, ge=0, le=10)
     max_revision_rounds: int = Field(default=2, ge=0, le=4)
+    # 종합 점수가 문턱을 넘어도 **개별 루브릭**이 이보다 낮으면 그 항목을 겨냥해
+    # 한 라운드 더 고친다. 종합 8.5 인 곡도 독창성 5.5 면 고칠 것이 있는 것이다.
+    rubric_floor: float = Field(default=7.0, ge=0, le=10)
+    # 목표 난이도에서 이만큼 벗어나면 텍스처를 조정하는 지시를 만든다.
+    difficulty_tolerance: float = Field(default=0.5, ge=0.1, le=2.0)
 
     def __init__(self, **data: object) -> None:
         super().__init__(**data)  # type: ignore[arg-type]

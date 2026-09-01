@@ -8,34 +8,22 @@
      "voice": 1,
      "events": [
       {
-       "dur": 0.5,
+       "dur": 1.0,
        "pitches": [
         "B-5"
        ],
        "slur": "start"
       },
       {
-       "dur": 0.5,
+       "dur": 1.0,
        "pitches": [
-        "C6"
-       ]
-      },
-      {
-       "dur": 0.5,
-       "pitches": [
-        "D6"
-       ]
-      },
-      {
-       "dur": 0.5,
-       "pitches": [
-        "B-5"
+        "A5"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "A5"
+        "F5"
        ],
        "slur": "stop"
       }
@@ -81,34 +69,23 @@
      "voice": 1,
      "events": [
       {
-       "dur": 0.5,
+       "dur": 1.0,
        "pitches": [
-        "F5"
+        "D-6"
        ],
-       "slur": "start"
-      },
-      {
-       "dur": 0.5,
-       "pitches": [
-        "G5"
-       ]
-      },
-      {
-       "dur": 0.5,
-       "pitches": [
-        "B-5"
-       ]
-      },
-      {
-       "dur": 0.5,
-       "pitches": [
-        "D6"
-       ]
+       "artic": "accent"
       },
       {
        "dur": 1.0,
        "pitches": [
-        "C6"
+        "B-5"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F5"
        ],
        "slur": "stop"
       }
@@ -122,23 +99,23 @@
       {
        "dur": 1.0,
        "pitches": [
-        "G2"
+        "B-2"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "B-2",
-        "D3",
-        "G3"
+        "D-3",
+        "F3",
+        "B-3"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "B-2",
-        "D3",
-        "G3"
+        "D-3",
+        "F3",
+        "B-3"
        ]
       }
      ]
@@ -182,23 +159,23 @@
       {
        "dur": 1.0,
        "pitches": [
-        "C3"
+        "A2"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "E3",
-        "G3",
-        "B-3"
+        "F3",
+        "A3",
+        "C4"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "E3",
-        "G3",
-        "B-3"
+        "F3",
+        "A3",
+        "C4"
        ]
       }
      ]
@@ -215,73 +192,20 @@
       {
        "dur": 1.0,
        "pitches": [
-        "D6"
-       ],
-       "artic": "accent"
-      },
-      {
-       "dur": 2.0,
-       "pitches": [
-        "A5"
-       ]
-      }
-     ]
-    }
-   ],
-   "lh": [
-    {
-     "voice": 1,
-     "events": [
-      {
-       "dur": 1.0,
-       "pitches": [
-        "F2"
-       ]
-      },
-      {
-       "dur": 1.0,
-       "pitches": [
-        "D3",
-        "A3",
-        "D4"
-       ]
-      },
-      {
-       "dur": 1.0,
-       "pitches": [
-        "D3",
-        "A3",
-        "D4"
-       ]
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "number": 55,
-   "pedal": false,
-   "rh": [
-    {
-     "voice": 1,
-     "events": [
-      {
-       "dur": 1.0,
-       "pitches": [
-        "E5"
+        "C6"
        ],
        "slur": "start"
       },
       {
        "dur": 1.0,
        "pitches": [
-        "G5"
+        "B-5"
        ]
       },
       {
        "dur": 1.0,
        "pitches": [
-        "B-5"
+        "G5"
        ],
        "slur": "stop"
       }
@@ -311,6 +235,66 @@
        "pitches": [
         "E3",
         "G3",
+        "B-3"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 55,
+   "pedal": false,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D6"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B-5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F5"
+       ],
+       "slur": "stop"
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B-2"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D3",
+        "F3",
+        "B-3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D3",
+        "F3",
         "B-3"
        ]
       }
