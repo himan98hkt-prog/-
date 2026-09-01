@@ -1,0 +1,467 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "G",
+   "meter": "2/4",
+   "tempo": 92,
+   "source": "ai",
+   "character_label": "발 맞춘 넷",
+   "why_it_works": "긴 음 하나에 짧은 음 둘이 붙는 '쿵-따다' 가 행진의 발이고, 네 음이 한 걸음씩 올라가다 다섯째 음에서 한 번 내려앉아 두 마디가 딱 떨어진다. 리듬이 또렷한 학생의 강점이 첫 박부터 드러나고, 올라가는 네 음은 어느 화음 위로도 옮길 수 있어 동형진행이 자유롭다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G4"
+         ],
+         "artic": "accent",
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A4"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "D3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D2",
+          "A2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D2",
+          "A2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "G",
+   "meter": "2/4",
+   "tempo": 92,
+   "source": "ai",
+   "character_label": "북 치는 넷",
+   "why_it_works": "같은 음 세 번을 스타카토로 두드리고 한 음 떨어지는 반복음이 각인점이라, 선율보다 리듬이 먼저 기억된다. 두드리는 자리에 화음만 갈아 끼우면 화성 변화가 그대로 들리고, 떨어지는 두 음만 떼면 짧은 되묻기가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ],
+         "artic": "staccato"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "G",
+   "meter": "2/4",
+   "tempo": 92,
+   "source": "ai",
+   "character_label": "쉬고 올라가는 나팔",
+   "why_it_works": "8분쉼표 뒤에 화음 세 음(솔-시-레)을 밟아 올라가는 나팔 신호가 각인점이고, 둘째 마디에서 그대로 내려와 짝을 이룬다. 펼침화음이라 상행·하행 두 조각으로 나눌 수 있고, 쉼표가 매번 숨을 만들어 초2 가 박을 놓치지 않는다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G4"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "B2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "B2"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D2",
+          "A2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D2",
+          "A2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "G",
+   "meter": "2/4",
+   "tempo": 92,
+   "source": "ai",
+   "character_label": "내려오는 인사",
+   "why_it_works": "앞의 세 후보와 반대로 위에서 내려오다 마지막에 한 음 되올라가 인사하듯 닫는다. 리듬도 4분음표 위주라 가장 조용한 성격이고, 뒤집으면 상행 행진이 되어 한 곡 안에서 두 얼굴로 쓸 수 있다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A4"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G2",
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D2",
+          "A2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

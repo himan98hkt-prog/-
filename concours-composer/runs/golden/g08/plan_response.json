@@ -1,0 +1,572 @@
+{
+ "title_candidates": [
+  "작은 병정의 행진",
+  "발 맞춰 넷",
+  "북과 나팔"
+ ],
+ "key": "G",
+ "meter": "2/4",
+ "tempo": 92,
+ "total_measures": 70,
+ "duration_est": 91.3,
+ "form": [
+  {
+   "label": "행진",
+   "measures": [
+    1,
+    24
+   ],
+   "phrases": [
+    {
+     "measures": [
+      1,
+      4
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "모티브 그대로 — '쿵-따다' 로 솔·라·시·도를 밟아 올라가고 레에서 시로 내려앉는다. 3~4마디는 같은 걸음을 딸림화음 위에서",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      5,
+      8
+     ],
+     "motif_treatment": "rhythmic_variation",
+     "texture_rh": "같은 음높이를 4분음표 둘로 펴서 걸음을 넓게 뗀다. 리듬만 바뀌고 음은 그대로",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      9,
+      16
+     ],
+     "motif_treatment": "sequence_up_2nd",
+     "texture_rh": "같은 걸음을 한 음씩 올려 두 번, 그 다음 원래 자리로. 여덟 마디를 한 악절로 붙여 행진이 길게 이어진다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      17,
+      20
+     ],
+     "motif_treatment": "repeat",
+     "texture_rh": "1~4마디를 음 하나 바꾸지 않고 그대로. 다이내믹만 f 로 올린다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      21,
+      24
+     ],
+     "motif_treatment": "fragment_head",
+     "texture_rh": "머리 두 음만 떼어 네 마디로 조인다. 마지막 마디는 으뜸화음으로 확실히 닫고 트리오를 연다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "mf"
+    }
+   ]
+  },
+  {
+   "label": "트리오",
+   "measures": [
+    25,
+    46
+   ],
+   "phrases": [
+    {
+     "measures": [
+      25,
+      26
+     ],
+     "motif_treatment": "mode_change",
+     "texture_rh": "버금딸림조(다장조) 색으로 갈아탄다. 스타카토를 풀고 4분음표로 노래한다",
+     "texture_lh": "왼손 온음표 5도 — 소리를 깔아 두고 발을 멈춘다. 트리오라 행진이 아니다",
+     "dynamic": "p"
+    },
+    {
+     "measures": [
+      27,
+      28
+     ],
+     "motif_treatment": "inversion",
+     "texture_rh": "올라가던 걸음을 뒤집어 내려온다",
+     "texture_lh": "왼손 온음표 5도 — 소리를 깔아 두고 발을 멈춘다. 트리오라 행진이 아니다",
+     "dynamic": "p"
+    },
+    {
+     "measures": [
+      29,
+      32
+     ],
+     "motif_treatment": "augmentation",
+     "texture_rh": "2분음표로 늘여 한 마디에 한 음씩. 행진이 완전히 멈춘 자리다",
+     "texture_lh": "왼손 온음표 5도 — 소리를 깔아 두고 발을 멈춘다. 트리오라 행진이 아니다",
+     "dynamic": "mp"
+    },
+    {
+     "measures": [
+      33,
+      36
+     ],
+     "motif_treatment": "texture_swap",
+     "texture_rh": "선율을 왼손으로 넘기고 오른손이 5도 화음을 얹는다. 29~32마디와 화성이 같아 같은 자리가 다른 손으로 들린다",
+     "texture_lh": "왼손이 선율을 4분음표로 노래하고 오른손이 5도 화음을 얹는다",
+     "dynamic": "mp"
+    },
+    {
+     "measures": [
+      37,
+      40
+     ],
+     "motif_treatment": "sequence_down_3rd",
+     "texture_rh": "가단조 색으로 3도 내려가는 동형진행. 39~40마디는 37~38마디를 그대로 되풀이한다",
+     "texture_lh": "왼손 온음표 5도 — 소리를 깔아 두고 발을 멈춘다. 트리오라 행진이 아니다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      41,
+      46
+     ],
+     "motif_treatment": "diminution",
+     "texture_rh": "8분음표로 축소해 걸음이 잘게 돌아온다. 여섯 마디로 늘여 행진 복귀를 준비한다",
+     "texture_lh": "왼손 8분음표 두 음(베이스-5도)이 번갈아. 발이 반으로 잘게 쪼개진다",
+     "dynamic": "mf"
+    }
+   ]
+  },
+  {
+   "label": "재현",
+   "measures": [
+    47,
+    70
+   ],
+   "phrases": [
+    {
+     "measures": [
+      47,
+      50
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "행진이 돌아온다. 곡의 꼭대기 — 오른손이 처음으로 솔5 를 짚고 다이내믹은 ff",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "ff"
+    },
+    {
+     "measures": [
+      51,
+      54
+     ],
+     "motif_treatment": "repeat",
+     "texture_rh": "5~8마디를 그대로 되풀이한다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      55,
+      62
+     ],
+     "motif_treatment": "sequence_up_2nd",
+     "texture_rh": "9~16마디를 음 하나 바꾸지 않고 그대로. 여덟 마디가 통째로 돌아오는 것이 이 곡의 뼈대다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      63,
+      64
+     ],
+     "motif_treatment": "fragment_tail",
+     "texture_rh": "꼬리 두 음만 남겨 두 마디로 조인다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      65,
+      70
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "마지막 걸음. 67마디에서 vi 로 한 번 속이고 ii-V7-I 로 확실히 닫는다",
+     "texture_lh": "왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+     "dynamic": "f"
+    }
+   ]
+  }
+ ],
+ "harmony": [
+  {
+   "measure": 1,
+   "roman": "I"
+  },
+  {
+   "measure": 2,
+   "roman": "I"
+  },
+  {
+   "measure": 3,
+   "roman": "V7"
+  },
+  {
+   "measure": 4,
+   "roman": "I"
+  },
+  {
+   "measure": 5,
+   "roman": "I"
+  },
+  {
+   "measure": 6,
+   "roman": "IV"
+  },
+  {
+   "measure": 7,
+   "roman": "V7"
+  },
+  {
+   "measure": 8,
+   "roman": "I"
+  },
+  {
+   "measure": 9,
+   "roman": "ii"
+  },
+  {
+   "measure": 10,
+   "roman": "V"
+  },
+  {
+   "measure": 11,
+   "roman": "ii"
+  },
+  {
+   "measure": 12,
+   "roman": "V"
+  },
+  {
+   "measure": 13,
+   "roman": "IV"
+  },
+  {
+   "measure": 14,
+   "roman": "I"
+  },
+  {
+   "measure": 15,
+   "roman": "V7"
+  },
+  {
+   "measure": 16,
+   "roman": "I"
+  },
+  {
+   "measure": 17,
+   "roman": "I"
+  },
+  {
+   "measure": 18,
+   "roman": "I"
+  },
+  {
+   "measure": 19,
+   "roman": "V7"
+  },
+  {
+   "measure": 20,
+   "roman": "I"
+  },
+  {
+   "measure": 21,
+   "roman": "IV"
+  },
+  {
+   "measure": 22,
+   "roman": "I"
+  },
+  {
+   "measure": 23,
+   "roman": "V7"
+  },
+  {
+   "measure": 24,
+   "roman": "I"
+  },
+  {
+   "measure": 25,
+   "roman": "IV"
+  },
+  {
+   "measure": 26,
+   "roman": "IV"
+  },
+  {
+   "measure": 27,
+   "roman": "ii"
+  },
+  {
+   "measure": 28,
+   "roman": "V7"
+  },
+  {
+   "measure": 29,
+   "roman": "IV"
+  },
+  {
+   "measure": 30,
+   "roman": "I"
+  },
+  {
+   "measure": 31,
+   "roman": "ii"
+  },
+  {
+   "measure": 32,
+   "roman": "V"
+  },
+  {
+   "measure": 33,
+   "roman": "IV"
+  },
+  {
+   "measure": 34,
+   "roman": "I"
+  },
+  {
+   "measure": 35,
+   "roman": "ii"
+  },
+  {
+   "measure": 36,
+   "roman": "V"
+  },
+  {
+   "measure": 37,
+   "roman": "vi"
+  },
+  {
+   "measure": 38,
+   "roman": "iii"
+  },
+  {
+   "measure": 39,
+   "roman": "vi"
+  },
+  {
+   "measure": 40,
+   "roman": "iii"
+  },
+  {
+   "measure": 41,
+   "roman": "IV"
+  },
+  {
+   "measure": 42,
+   "roman": "V7"
+  },
+  {
+   "measure": 43,
+   "roman": "I"
+  },
+  {
+   "measure": 44,
+   "roman": "vi"
+  },
+  {
+   "measure": 45,
+   "roman": "ii"
+  },
+  {
+   "measure": 46,
+   "roman": "V7"
+  },
+  {
+   "measure": 47,
+   "roman": "I"
+  },
+  {
+   "measure": 48,
+   "roman": "I"
+  },
+  {
+   "measure": 49,
+   "roman": "V7"
+  },
+  {
+   "measure": 50,
+   "roman": "I"
+  },
+  {
+   "measure": 51,
+   "roman": "I"
+  },
+  {
+   "measure": 52,
+   "roman": "IV"
+  },
+  {
+   "measure": 53,
+   "roman": "V7"
+  },
+  {
+   "measure": 54,
+   "roman": "I"
+  },
+  {
+   "measure": 55,
+   "roman": "ii"
+  },
+  {
+   "measure": 56,
+   "roman": "V"
+  },
+  {
+   "measure": 57,
+   "roman": "ii"
+  },
+  {
+   "measure": 58,
+   "roman": "V"
+  },
+  {
+   "measure": 59,
+   "roman": "IV"
+  },
+  {
+   "measure": 60,
+   "roman": "I"
+  },
+  {
+   "measure": 61,
+   "roman": "V7"
+  },
+  {
+   "measure": 62,
+   "roman": "I"
+  },
+  {
+   "measure": 63,
+   "roman": "V7"
+  },
+  {
+   "measure": 64,
+   "roman": "I"
+  },
+  {
+   "measure": 65,
+   "roman": "ii"
+  },
+  {
+   "measure": 66,
+   "roman": "V7"
+  },
+  {
+   "measure": 67,
+   "roman": "vi"
+  },
+  {
+   "measure": 68,
+   "roman": "ii"
+  },
+  {
+   "measure": 69,
+   "roman": "V7"
+  },
+  {
+   "measure": 70,
+   "roman": "I"
+  }
+ ],
+ "climax": {
+  "measure": 47,
+  "how": "트리오가 8분음표로 잘게 돌아온 끝에 47마디에서 행진이 ff 로 복귀한다. 오른손이 곡에서 처음이자 유일하게 솔5 를 짚고, 왼손 5도 베이스가 다시 매 박을 밟는다"
+ },
+ "showcase_measures": [
+  {
+   "range": [
+    1,
+    8
+   ],
+   "strength_used": "또렷한 리듬"
+  },
+  {
+   "range": [
+    41,
+    46
+   ],
+   "strength_used": "또렷한 리듬"
+  },
+  {
+   "range": [
+    47,
+    54
+   ],
+   "strength_used": "또렷한 리듬"
+  }
+ ],
+ "contrast_section": {
+  "key": "행진은 사장조, 트리오는 버금딸림조(다장조) 색 — 37마디부터 가단조",
+  "texture_lh": "행진의 4분음표 5도 베이스가 트리오에서 온음표 지속 5도로 멈춘다",
+  "register": "33~36마디는 선율이 왼손으로 내려간다",
+  "rhythm": "행진은 '4분+8분+8분', 트리오는 4분·2분음표 → 41마디부터 8분음표 축소"
+ },
+ "modulations": [
+  "25마디 다장조 색으로",
+  "37마디 가단조 색으로",
+  "47마디 사장조 복귀"
+ ],
+ "ending": {
+  "type": "vi 로 한 번 속인 뒤 ii-V7-I 정격 종지",
+  "measures": [
+   65,
+   70
+  ]
+ },
+ "dynamics_curve": [
+  {
+   "measure": 1,
+   "dyn": "f"
+  },
+  {
+   "measure": 5,
+   "dyn": "mf"
+  },
+  {
+   "measure": 17,
+   "dyn": "f"
+  },
+  {
+   "measure": 25,
+   "dyn": "p"
+  },
+  {
+   "measure": 29,
+   "dyn": "mp"
+  },
+  {
+   "measure": 37,
+   "dyn": "mf"
+  },
+  {
+   "measure": 47,
+   "dyn": "ff"
+  },
+  {
+   "measure": 51,
+   "dyn": "f"
+  },
+  {
+   "measure": 55,
+   "dyn": "mf"
+  },
+  {
+   "measure": 65,
+   "dyn": "f"
+  }
+ ],
+ "pedal_plan": "행진은 페달을 쓰지 않는다 — 5도 베이스가 또렷하게 끊겨야 발이 보인다. 트리오(25~40마디)만 한 마디 한 페달로 지속 5도를 남기고, 41마디부터 다시 뗀다",
+ "difficulty_target": 3.0
+}
