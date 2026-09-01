@@ -1,0 +1,355 @@
+{
+ "measures": [
+  {
+   "number": 85,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D5",
+        "F#5",
+        "A5"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D6",
+        "F#6",
+        "A6"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D5",
+        "F#5",
+        "A5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D6",
+        "F#6",
+        "A6"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "D2",
+        "D3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A2",
+        "A3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "f",
+   "pedal": true
+  },
+  {
+   "number": 86,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C#5",
+        "E5",
+        "A5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C#6",
+        "E6",
+        "A6"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A4",
+        "C#5",
+        "E5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A2",
+        "A3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E2",
+        "E3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 87,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B4",
+        "D5",
+        "F#5"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B5",
+        "D6",
+        "F#6"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B4",
+        "D5",
+        "F#5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B5",
+        "D6",
+        "F#6"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B2",
+        "B3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F#2",
+        "F#3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 88,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B4",
+        "E5",
+        "G#5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B5",
+        "E6",
+        "G#6"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "G#4",
+        "B4",
+        "E5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E2",
+        "E3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B2",
+        "B3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 89,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A4",
+        "C#5"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A4",
+        "E5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C#5",
+        "A5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A2",
+        "A3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E2",
+        "E3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 90,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A4",
+        "E5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C#5",
+        "A5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E5",
+        "C#6"
+       ],
+       "slur": "stop"
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "A2",
+        "A3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E3",
+        "A3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  }
+ ]
+}
