@@ -1,0 +1,420 @@
+{
+  "title_candidates": [
+    "통통 튀는 공",
+    "바깥놀이",
+    "쉼표 놀이"
+  ],
+  "key": "C",
+  "meter": "4/4",
+  "tempo": 112,
+  "total_measures": 42,
+  "duration_est": 90.0,
+  "form": [
+    {
+      "label": "바깥놀이",
+      "measures": [
+        1,
+        16
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 스타카토 8분음표가 화음을 타고 올라갔다 내려오고 4분음표와 쉼표로 딱 멈춘다. 3~4마디는 1~2마디를 음 하나 바꾸지 않고 되풀이한다",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리(내려오는 세 음)만 떼어 네 마디. 쉼표는 그대로 남긴다",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            9,
+            16
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 튀는 모양을 한 음 위 자리에서 두 번, 그 다음 원래 자리로. 11~12마디는 9~10마디를 그대로",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "속삭임",
+      "measures": [
+        17,
+        28
+      ],
+      "phrases": [
+        {
+          "measures": [
+            17,
+            22
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "가단조 색. 스타카토를 풀고 4분음표로 이어 노래한다. 왼손이 온음표로 눕는다 — 통통 튀던 것이 처음으로 멈춘다",
+          "texture_lh": "왼손 온음표 5도 하나 — 소리를 깔아 두고 손을 쉰다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            23,
+            24
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 넓게 벌린다",
+          "texture_lh": "왼손 온음표 5도 하나 — 소리를 깔아 두고 손을 쉰다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            25,
+            28
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "올라가던 것을 뒤집어 내려온다. 27~28마디는 25~26마디를 그대로",
+          "texture_lh": "왼손 온음표 5도 하나 — 소리를 깔아 두고 손을 쉰다",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "바깥놀이 다시",
+      "measures": [
+        29,
+        42
+      ],
+      "phrases": [
+        {
+          "measures": [
+            29,
+            32
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "1~4마디가 음 하나 바꾸지 않고 돌아온다. 스타카토도 왼손 5도도 함께",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            33,
+            36
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "곡의 꼭대기. 튀는 모양이 한 옥타브 위에서, 33마디에서 도6 을 짚는다 — 곡 전체의 최고음",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "ff"
+        },
+        {
+          "measures": [
+            37,
+            42
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "마지막 놀이. 40마디에서 으뜸화음으로 한 번 닫고 41~42마디 딸림7-으뜸으로 못을 박는다",
+          "texture_lh": "왼손 2분음표 5도 두 번 — 한 마디에 두 번만 누른다. 오른손 스타카토가 튀는 동안 바닥은 조용히",
+          "dynamic": "f"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 17,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 18,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 19,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 20,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 21,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 22,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 23,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 24,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 25,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 26,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 27,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 28,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 29,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 30,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 31,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 32,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 33,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 34,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 35,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 36,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 37,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 38,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 39,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 40,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 41,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 42,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 33,
+    "how": "속삭임이 끝나고 튀는 모양이 한 옥타브 위에서 ff 로 돌아온다. 33마디의 도6 이 곡의 유일한 최고음이고, 왼손 5도는 그대로 두 번만 눌러 오른손만 커진다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        1,
+        8
+      ],
+      "strength_used": "리듬감"
+    },
+    {
+      "range": [
+        29,
+        36
+      ],
+      "strength_used": "리듬감"
+    }
+  ],
+  "contrast_section": {
+    "key": "바깥놀이는 다장조, 속삭임은 가단조 색",
+    "texture_lh": "바깥놀이의 2분음표 5도 두 번이 속삭임에서 온음표 하나로 눕는다",
+    "register": "속삭임은 선율이 라4~미5 로 좁아지고, 33마디에서 도6 까지 열린다",
+    "rhythm": "바깥놀이는 스타카토 8분음표 + 쉼표, 속삭임은 이어진 4분·2분음표"
+  },
+  "modulations": [
+    "17마디 가단조 색으로",
+    "29마디 다장조 복귀"
+  ],
+  "ending": {
+    "type": "버금딸림-ii-딸림7-으뜸으로 한 번 닫고 딸림7-으뜸을 한 번 더 박는 정격 종지",
+    "measures": [
+      37,
+      42
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "f"
+    },
+    {
+      "measure": 5,
+      "dyn": "mf"
+    },
+    {
+      "measure": 9,
+      "dyn": "mf"
+    },
+    {
+      "measure": 17,
+      "dyn": "p"
+    },
+    {
+      "measure": 23,
+      "dyn": "mp"
+    },
+    {
+      "measure": 25,
+      "dyn": "mf"
+    },
+    {
+      "measure": 29,
+      "dyn": "f"
+    },
+    {
+      "measure": 33,
+      "dyn": "ff"
+    },
+    {
+      "measure": 37,
+      "dyn": "f"
+    }
+  ],
+  "pedal_plan": "바깥놀이는 페달을 쓰지 않는다 — 스타카토와 쉼표가 뭉치면 통통 튀지 않는다. 속삭임(17~28마디)만 한 마디 한 페달로 온음표 5도를 남기고, 29마디부터 다시 뗀다",
+  "difficulty_target": 3.0
+}
