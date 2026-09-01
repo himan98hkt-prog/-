@@ -1,0 +1,477 @@
+{
+  "title_candidates": [
+    "꿈결",
+    "라♭의 안개",
+    "숨을 고르는 밤"
+  ],
+  "key": "A-",
+  "meter": "4/4",
+  "tempo": 76,
+  "total_measures": 50,
+  "duration_est": 157.9,
+  "form": [
+    {
+      "label": "꿈",
+      "measures": [
+        1,
+        18
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            6
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로 — 붙점4분음표로 버티다 한 음 올라갔다 그대로 내려온다. 3~4마디는 1~2마디를 음 하나 바꾸지 않고 되풀이하고, 5~6마디에서 버금딸림으로 밀어 여섯 마디 악절을 닫는다",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            7,
+            10
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 호흡을 한 음 위 자리에서. 9~10마디는 7~8마디를 그대로",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            11,
+            18
+          ],
+          "motif_treatment": "augmentation",
+          "texture_rh": "2분음표로 늘여 한 마디에 한 호흡씩. ♩=76 이라 한 음이 3초 넘게 울린다 — 서정적 표현이 강점인 학생의 자리다. 15~18마디는 11~14마디를 그대로",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "mp"
+        }
+      ]
+    },
+    {
+      "label": "깨어남",
+      "measures": [
+        19,
+        32
+      ],
+      "phrases": [
+        {
+          "measures": [
+            19,
+            22
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "바단조 색. 왼손이 2분음표 화음으로 멈추고 페달이 얕아진다 — 꿈에서 깨는 자리다. 21~22마디는 19~20마디를 그대로",
+          "texture_lh": "왼손 2분음표 화음 — 흐르던 것을 멈추고 소리만 남긴다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            23,
+            26
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "올라갔다 내려오던 호흡을 뒤집어 내려갔다 올라온다",
+          "texture_lh": "왼손 2분음표 화음 — 흐르던 것을 멈추고 소리만 남긴다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            27,
+            28
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 두 음만 떼어 두 마디로 조인다",
+          "texture_lh": "왼손 2분음표 화음 — 흐르던 것을 멈추고 소리만 남긴다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            29,
+            32
+          ],
+          "motif_treatment": "texture_swap",
+          "texture_rh": "선율을 왼손으로 넘기고 오른손이 위에서 화음을 얹는다. 31~32마디는 29~30마디를 그대로",
+          "texture_lh": "왼손이 선율을 노래하고 오른손이 위에서 화음을 얹는다",
+          "dynamic": "mp"
+        }
+      ]
+    },
+    {
+      "label": "꿈 다시",
+      "measures": [
+        33,
+        50
+      ],
+      "phrases": [
+        {
+          "measures": [
+            33,
+            36
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "1~4마디가 음 하나 바꾸지 않고 돌아온다. 왼손 16분음표도 함께",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            37,
+            44
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "곡의 꼭대기. 호흡을 32분음표로 잘게 흩어 37마디에서 도6 을 짚는다 — 곡 전체의 최고음이자 유일한 f. 옥타브를 쓰지 않고도 소리를 가장 넓게 벌린다",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            45,
+            50
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "마지막 호흡. 48마디에서 으뜸화음으로 한 번 닫고 49~50마디 버금딸림-으뜸의 변격(아멘) 종지로 잦아든다",
+          "texture_lh": "왼손 16분음표 분산화음 — 첫 박은 9도로 넓게 벌려 짚고 나머지는 손 안에서 흐른다. 페달로 통째로 울린다",
+          "dynamic": "p"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 17,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 18,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 19,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 20,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 21,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 22,
+      "roman": "iii",
+      "bass_note": null
+    },
+    {
+      "measure": 23,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 24,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 25,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 26,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 27,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 28,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 29,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 30,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 31,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 32,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 33,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 34,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 35,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 36,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 37,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 38,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 39,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 40,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 41,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 42,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 43,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 44,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 45,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 46,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 47,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 48,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 49,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 50,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 37,
+    "how": "꿈이 돌아온 뒤 37마디에서 호흡이 32분음표로 흩어지며 라♭5 에 닿는다. 곡의 유일한 f 이자 최고음이고, 옥타브 없이 왼손의 9도 벌림과 오른손의 높은 자리만으로 넓이를 만든다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        11,
+        18
+      ],
+      "strength_used": "서정적 표현"
+    },
+    {
+      "range": [
+        1,
+        6
+      ],
+      "strength_used": "페달"
+    },
+    {
+      "range": [
+        37,
+        44
+      ],
+      "strength_used": "서정적 표현"
+    }
+  ],
+  "contrast_section": {
+    "key": "꿈은 내림가장조, 깨어남은 바단조 색, 재현은 내림가장조 복귀",
+    "texture_lh": "꿈은 16분음표 분산화음, 깨어남은 2분음표 화음과 선율, 재현은 다시 16분음표",
+    "register": "깨어남은 선율이 한 옥타브 내려가고 37마디에서 도6 까지 열린다",
+    "rhythm": "꿈은 붙점4분+8분, 11마디부터 2분음표 확대, 재현의 37마디부터 32분음표"
+  },
+  "modulations": [
+    "19마디 바단조 색으로",
+    "33마디 내림가장조 복귀"
+  ],
+  "ending": {
+    "type": "정격 종지 뒤 버금딸림-으뜸의 변격(아멘) 종지로 잦아든다",
+    "measures": [
+      45,
+      50
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "p"
+    },
+    {
+      "measure": 5,
+      "dyn": "mp"
+    },
+    {
+      "measure": 7,
+      "dyn": "mp"
+    },
+    {
+      "measure": 11,
+      "dyn": "mp"
+    },
+    {
+      "measure": 19,
+      "dyn": "mf"
+    },
+    {
+      "measure": 27,
+      "dyn": "mp"
+    },
+    {
+      "measure": 33,
+      "dyn": "mf"
+    },
+    {
+      "measure": 37,
+      "dyn": "f"
+    },
+    {
+      "measure": 45,
+      "dyn": "p"
+    }
+  ],
+  "pedal_plan": "이 곡은 페달이 반주다. 꿈(1~18마디)은 한 마디 한 페달로 16분음표를 통째로 울리고, 깨어남(19~32마디)은 반 마디마다 얕게 바꿔 소리를 마르게 한다. 37~44마디의 32분음표 구간은 한 박마다 바꿔 흩어진 음이 뭉치지 않게 하고, 마지막 두 마디는 한 페달로 묶어 여운을 남긴다",
+  "difficulty_target": 6.0
+}
