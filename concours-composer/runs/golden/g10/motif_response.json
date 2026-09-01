@@ -1,0 +1,466 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "B-",
+   "meter": "3/4",
+   "tempo": 66,
+   "source": "ai",
+   "character_label": "내려앉는 숨",
+   "why_it_works": "4분음표 셋이 순차로 내려오다 둘째 마디에서 2분음표로 한 번 길게 머무는 '걷다가 멈춤' 이 각인점이고, 느린 왈츠에서 첫 박마다 무겁게 짚지 않아도 세 박이 느껴진다. 하행 순차 네 음뿐이라 초4 가 바로 노래할 수 있고, 뒤집으면 그대로 상행이 되어 클라이맥스를 밀어 올린다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3",
+          "B-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3",
+          "B-3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "F3",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "F3",
+          "A3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "B-",
+   "meter": "3/4",
+   "tempo": 66,
+   "source": "ai",
+   "character_label": "올려다보는",
+   "why_it_works": "긴 음으로 버티다 3도씩 뛰어올라 파5 에 닿는 상행 도약이 각인점이라, 앞으로 나아가는 성격이 첫 두 마디에 정해진다. 도약 사이를 순차로 메우면 여덟 마디가 그대로 나오고, 도약 폭만 줄이면 조용한 판이 된다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B-4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3",
+          "B-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3",
+          "B-3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E-5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "F3",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "F3",
+          "A3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "B-",
+   "meter": "3/4",
+   "tempo": 66,
+   "source": "ai",
+   "character_label": "쉼표 뒤 두 알",
+   "why_it_works": "첫 박을 통째로 쉬고 8분음표 둘이 굴러 들어오는 늦은 출발이 각인점이며, 왈츠의 첫 박을 비워 두는 것 자체가 성격이 된다. 상행과 하행이 짝을 이루므로 문답 구조를 짜기 쉽고, 쉼표를 채우면 그대로 확대판이 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "F3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "E-3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "B-",
+   "meter": "3/4",
+   "tempo": 66,
+   "source": "ai",
+   "character_label": "높은 데서 부는 바람",
+   "why_it_works": "펼침화음으로 한 옥타브를 뛰어올라 시♭5 에 닿았다가 붙점으로 천천히 내려오는 큰 아치라, 앞 세 후보와 달리 음역이 각인점이고 가장 화려하다. 아치를 반으로 접으면 상행 도약과 하행 순차라는 성격이 다른 두 재료가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B-5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 3.0,
+         "pitches": [
+          "B-2",
+          "B-3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 3.0,
+         "pitches": [
+          "F2",
+          "F3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
