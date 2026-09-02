@@ -4,6 +4,7 @@ v1 은 단일 학원 PC 배포다. 버킷은 프로세스 메모리에 두되, �
 SQLite 파일로 스냅샷을 남긴다 — 서버를 재시작해도 만든 곡이 사라지지 않는다.
 PostgreSQL 전환 지점은 여전히 `Store` 한 군데다.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,8 +25,16 @@ log = logging.getLogger(__name__)
 
 # 파일로 내리는 버킷. 순서가 곧 저장 순서다.
 PERSISTED = (
-    "students", "competitions", "requests", "motifs",
-    "plans", "compositions", "versions", "jobs", "recitals", "judgements",
+    "students",
+    "competitions",
+    "requests",
+    "motifs",
+    "plans",
+    "compositions",
+    "versions",
+    "jobs",
+    "recitals",
+    "judgements",
     "rights",
 )
 
@@ -65,6 +74,10 @@ class Store:
     # 만든 곡이 파일 하나에 들어 있다 — 한 번의 사고로 전부 잃지 않게 사본을 뜬다.
     backups: BackupKeeper | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
+    # 저장은 요청 밖에서 몰아 한다 — 곡이 쌓여도 버튼이 느려지지 않게.
+    _dirty: bool = False
+    _dirty_lock: threading.Lock = field(default_factory=threading.Lock)
+    _writer: threading.Thread | None = None
 
     def next_id(self, prefix: str, bucket: dict) -> str:
         with self._lock:
@@ -106,6 +119,41 @@ class Store:
         for name, value in self.persistence.load().items():
             if name in PERSISTED and isinstance(value, dict):
                 setattr(self, name, value)
+
+    def save_soon(self) -> None:
+        """저장을 예약한다 — 요청을 붙잡아 두지 않는다.
+
+        저장은 버킷 전체를 다시 직렬화하는 일이라 곡이 쌓일수록 느려진다(200곡에 2초).
+        그것을 요청 경로에 두면 곡이 늘수록 버튼 하나가 느려진다. 그래서 표시만 해 두고
+        일꾼 하나가 몰아서 저장한다 — 연달아 눌러도 저장은 한 번이면 된다.
+
+        대신 저장 전에 프로그램이 죽으면 마지막 몇 초를 잃는다. 끄기 버튼과 종료 훅이
+        동기 저장을 하므로 정상 종료에서는 잃지 않고, 비정상 종료는 백업이 받는다.
+        """
+        if self.persistence is None:
+            return
+        with self._dirty_lock:
+            self._dirty = True
+            if self._writer is not None and self._writer.is_alive():
+                return
+            self._writer = threading.Thread(target=self._drain, daemon=True, name="store-save")
+            self._writer.start()
+
+    def _drain(self) -> None:
+        """더러운 표시가 사라질 때까지 저장한다. 몰린 쓰기를 한 번으로 합친다."""
+        while True:
+            with self._dirty_lock:
+                if not self._dirty:
+                    return
+                self._dirty = False
+            self.save()
+
+    def flush(self) -> None:
+        """예약된 저장이 끝날 때까지 기다린다 — 종료 직전에 쓴다."""
+        writer = self._writer
+        if writer is not None and writer.is_alive():
+            writer.join(timeout=20)
+        self.save()
 
     def save(self) -> None:
         if self.persistence is None:

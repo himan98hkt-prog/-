@@ -1,4 +1,5 @@
 """FastAPI 앱. 시작 시 모델 문자열 유효성을 확인한다(절대 규칙 12)."""
+
 from __future__ import annotations
 
 import logging
@@ -31,12 +32,14 @@ log = logging.getLogger("concours")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     s = get_settings()
-    problems = validate_models(s)          # strict 모드면 여기서 기동이 멈춘다
+    problems = validate_models(s)  # strict 모드면 여기서 기동이 멈춘다
     for p in problems:
         log.warning("모델 설정 확인: %s", p)
     log.info(
         "ConcoursComposer 시작 · COMPOSER_MODEL=%s · WRITER_MODEL=%s · API키=%s · 비용상한=$%.2f",
-        s.composer_model, s.writer_model, "있음" if s.has_api_key else "없음(스텁 엔진)",
+        s.composer_model,
+        s.writer_model,
+        "있음" if s.has_api_key else "없음(스텁 엔진)",
         s.max_cost_per_composition,
     )
     app.state.model_problems = problems
@@ -58,7 +61,7 @@ async def lifespan(app: FastAPI):
         app.state.reference_scores = r
         if r["added"] or r["failed"]:
             log.info("참고 악보 적재 %s", r)
-    except Exception:                                  # 참고 악보가 없다고 기동을 막지 않는다
+    except Exception:  # 참고 악보가 없다고 기동을 막지 않는다
         log.warning("참고 악보 폴더를 읽지 못했다", exc_info=True)
         app.state.reference_scores = {"added": 0, "skipped": 0, "failed": 0}
 
@@ -73,10 +76,10 @@ async def lifespan(app: FastAPI):
         from app.identity import set_alias
 
         set_alias(get_composer(get_store()).alias)
-    except Exception:                                  # 이름 때문에 기동을 막지 않는다
+    except Exception:  # 이름 때문에 기동을 막지 않는다
         log.warning("작곡가 예명을 불러오지 못했다", exc_info=True)
     yield
-    get_store().save()          # 종료 직전에 한 번 더
+    get_store().flush()  # 예약된 저장까지 마치고 끝낸다
 
 
 app = FastAPI(
@@ -86,8 +89,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 @app.middleware("http")
 async def persist_after_write(request, call_next):  # type: ignore[no-untyped-def]
@@ -98,7 +105,9 @@ async def persist_after_write(request, call_next):  # type: ignore[no-untyped-de
     """
     response = await call_next(request)
     if request.method in ("POST", "PUT", "PATCH", "DELETE") and response.status_code < 400:
-        get_store().save()
+        # 저장을 예약만 한다. 곡이 200개면 통째 저장에 2초가 걸리는데,
+        # 그것을 응답 앞에 두면 곡이 늘수록 버튼 하나가 느려진다.
+        get_store().save_soon()
     return response
 
 

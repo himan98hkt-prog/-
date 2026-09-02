@@ -577,3 +577,56 @@ def test_spending_reports_this_month(client, req_id):
     body = s.json()
     assert body["this_month"]["pieces"] == 0 and body["this_month"]["usd"] == 0.0
     assert "last_month" in body and "total_usd" in body
+
+
+def test_version_rollback_is_real_not_a_promise(client, req_id):
+    """화면이 '되돌릴 수 있습니다' 라고 적어 두었으면 실제로 되돌아가야 한다."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    v1 = client.get(f"/api/compositions/{cid}/versions").json()
+    assert len(v1) == 1 and v1[0]["current"] is True
+
+    before = client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"]
+
+    measures = client.get(f"/api/compositions/{cid}/measures").json()
+    edited = measures[0]
+    edited["rh"][0]["events"][0]["pitches"] = ["C6"]
+    client.put(f"/api/compositions/{cid}/measures", json={"measures": [edited]})
+
+    after = client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"]
+    assert after != before, "직접 편집이 악보를 바꾸지 않았다"
+
+    v2 = client.get(f"/api/compositions/{cid}/versions").json()
+    assert len(v2) == 2 and v2[-1]["current"] is True
+
+    r = client.post(f"/api/compositions/{cid}/versions/1/restore")
+    assert r.status_code == 200, r.text
+    assert client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"] == before
+
+    # 되돌리기도 한 판으로 쌓인다 — 덮어쓰면 다시 앞으로 갈 수 없다.
+    v3 = client.get(f"/api/compositions/{cid}/versions").json()
+    assert len(v3) == 3
+    assert client.post(f"/api/compositions/{cid}/versions/2/restore").status_code == 200
+    assert client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"] == after
+
+    assert client.post(f"/api/compositions/{cid}/versions/99/restore").status_code == 422
+    assert client.get("/api/compositions/nope/versions").status_code == 404
+
+
+def test_audio_follows_the_edited_score(client, req_id):
+    """악보를 고쳤는데 옛 음원이 나가면 악보와 다른 MP3 를 학원에 보내게 된다."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    before = client.get(f"/api/compositions/{cid}/audio").content
+    assert client.get(f"/api/compositions/{cid}/audio").content == before, "캐시가 안 듣는다"
+
+    measures = client.get(f"/api/compositions/{cid}/measures").json()
+    edited = measures[0]
+    edited["rh"][0]["events"][0]["pitches"] = ["C6"]
+    client.put(f"/api/compositions/{cid}/measures", json={"measures": [edited]})
+
+    assert client.get(f"/api/compositions/{cid}/audio").content != before

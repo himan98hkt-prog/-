@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import Store, get_pipeline, get_store
 from app.api.rights import get_rights
 from app.config import Settings, get_settings
+from app.generation.client import CostLimitExceeded
 from app.generation.context import InfeasibleRequest, build_context
 from app.generation.pipeline import CompositionPipeline, PlanRejected
 from app.generation.presets import BY_ID, PRESETS, pick_key, pick_tempo, suitable
@@ -305,8 +306,19 @@ def auto_compose(
     단계를 건너뛰지 않는다. 원장이 나중에 모티브나 Plan 을 바꾸고 싶으면 기존
     워크플로 API 로 같은 request_id 위에서 이어서 하면 된다.
     """
-    req = build_request(body, store)
-    ctx = build_context(req)
+    try:
+        req = build_request(body, store)
+        ctx = build_context(req)
+    except InfeasibleRequest as e:
+        # 이 학생·이 대회로는 만들 수 없는 주문이다. 돈을 쓰기 전에 여기서 멈춘다.
+        raise HTTPException(
+            422,
+            {
+                "message": "이 학생 조건으로는 곡을 만들 수 없습니다",
+                "what_to_do": "손 스팬·템포 상한·목표 난이도·제한 시간을 다시 보십시오.",
+                "issues": [str(e)],
+            },
+        ) from e
 
     motifs = _ranked_motifs(ctx, pipeline, max(3, body.n_candidates + 2))
     try:
@@ -329,6 +341,22 @@ def auto_compose(
         results = pipeline.compose_candidates(ctx, locked, plan, n=body.n_candidates, corpus_ngrams=ngrams)
     except (PlanRejected, InfeasibleRequest) as e:
         raise HTTPException(422, str(e)) from e
+    except CostLimitExceeded as e:
+        # 이미 쓴 돈은 돌아오지 않는다 — 그 사실을 숨기지 않고 알린다.
+        raise HTTPException(
+            409,
+            {
+                "message": (
+                    f"곡 하나에 정한 비용 상한(${settings.max_cost_per_composition})을 넘어 멈췄습니다"
+                ),
+                "what_to_do": (
+                    "여기까지 쓴 API 비용은 되돌아오지 않습니다. "
+                    "짧은 컨셉(소품·연습곡)을 고르거나, .env 의 MAX_COST_PER_COMPOSITION 을 "
+                    "올린 뒤 다시 시도하십시오."
+                ),
+                "issues": [str(e)],
+            },
+        ) from e
 
     res = results[0]
 
@@ -585,6 +613,11 @@ def compose_batch(
             message = detail.get("message", str(detail)) if isinstance(detail, dict) else str(detail)
             rows.append(BatchRow(level=level, preset_id=preset_id, ok=False, message=message))
             continue
+        except (CostLimitExceeded, PlanRejected, InfeasibleRequest) as e:
+            # 한 곡이 터졌다고 이미 만든 곡까지 잃으면 묶음 생성의 뜻이 없다.
+            log.warning("묶음 생성 %d레벨 실패: %s", level, e)
+            rows.append(BatchRow(level=level, preset_id=preset_id, ok=False, message=str(e)))
+            continue
 
         # 제목이 겹치면 파는 쪽에서 사고가 난다 — 같은 이름의 상품 셋을 내놓는 셈이다.
         # 겹칠 때만 컨셉 이름을 붙여 가른다. 원장이 나중에 얼마든지 고칠 수 있다.
@@ -619,6 +652,81 @@ def compose_batch(
         failed=sum(1 for r in rows if not r.ok),
         total_cost_usd=round(sum(r.cost_usd for r in rows), 4),
         rows=rows,
+    )
+
+
+class DirectEditOut(BaseModel):
+    composition_id: str
+    version: int
+    changed_measures: list[int]
+    difficulty: float
+    combined_score: float
+    musicality: float
+    validation: dict
+    savable: bool
+
+
+class VersionRow(BaseModel):
+    version: int
+    measures: int
+    difficulty: float
+    combined_score: float
+    validation_passed: bool
+    current: bool
+
+
+@router.get("/compositions/{composition_id}/versions", response_model=list[VersionRow])
+def list_versions(composition_id: str, store: Store = Depends(get_store)) -> list[VersionRow]:
+    """이 곡의 판 목록. 편곡·직접 편집을 할 때마다 한 판씩 쌓인다."""
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    saved = store.versions.get(composition_id, [])
+    current = store.compositions[composition_id]
+    return [
+        VersionRow(
+            version=i + 1,
+            measures=len(v.measures),
+            difficulty=v.difficulty,
+            combined_score=v.quality.combined_score,
+            validation_passed=v.validation.passed,
+            current=v is current,
+        )
+        for i, v in enumerate(saved)
+    ]
+
+
+@router.post("/compositions/{composition_id}/versions/{version}/restore", response_model=DirectEditOut)
+def restore_version(composition_id: str, version: int, store: Store = Depends(get_store)) -> DirectEditOut:
+    """이전 판으로 되돌린다.
+
+    되돌리기도 **한 판으로 쌓는다** — 덮어쓰지 않는다. 되돌린 뒤 마음이 바뀌면
+    다시 앞으로 갈 수 있어야 한다. 편곡을 마음 놓고 시도하게 하는 것이 목적이다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    saved = store.versions.get(composition_id, [])
+    if not (1 <= version <= len(saved)):
+        raise HTTPException(422, f"그런 판이 없다: {version} (1~{len(saved)})")
+
+    older = saved[version - 1]
+    store.compositions[composition_id] = older
+    store.versions.setdefault(composition_id, []).append(older)
+
+    from app.api.compositions import _issues
+
+    return DirectEditOut(
+        composition_id=composition_id,
+        version=len(store.versions[composition_id]),
+        changed_measures=[m.number for m in older.measures],
+        difficulty=older.difficulty,
+        combined_score=older.quality.combined_score,
+        musicality=float(older.quality.musicality["score_10"]),
+        savable=older.savable,
+        validation={
+            "passed": older.validation.passed,
+            "summary": older.validation.summary(),
+            "issues": _issues(older.validation),
+        },
     )
 
 
@@ -669,17 +777,6 @@ class DirectEditIn(BaseModel):
     model_config = {"extra": "forbid"}
 
     measures: list[Measure] = Field(min_length=1, description="고친 마디만 보낸다")
-
-
-class DirectEditOut(BaseModel):
-    composition_id: str
-    version: int
-    changed_measures: list[int]
-    difficulty: float
-    combined_score: float
-    musicality: float
-    validation: dict
-    savable: bool
 
 
 @router.put("/compositions/{composition_id}/measures", response_model=DirectEditOut)

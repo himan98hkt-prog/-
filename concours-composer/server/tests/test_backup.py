@@ -105,3 +105,48 @@ def test_summary_reports_what_the_screen_needs(tmp_path: Path) -> None:
     assert str(s["newest"]).startswith("store-")
     assert s["newest_at"]
     assert str(s["folder"]).endswith("backups")
+
+
+def test_total_size_is_capped(tmp_path: Path) -> None:
+    """개수로만 제한하면 곡이 쌓일수록 사본이 집 PC 디스크를 먹는다."""
+    from app.store.backup import ALWAYS_KEEP, MAX_TOTAL_MB
+
+    src = tmp_path / "store.sqlite3"
+    _make_db(src)
+    keeper = BackupKeeper(src)
+    keeper.folder.mkdir(parents=True, exist_ok=True)
+
+    # 큰 사본을 여러 개. 하나가 상한의 1/3 이면 셋까지만 들어간다.
+    chunk = (MAX_TOTAL_MB * 1_048_576) // 3
+    now = datetime(2026, 9, 2, 12, 0, 0)
+    for i in range(8):
+        f = keeper.folder / f"store-{(now - timedelta(minutes=i)).strftime(STAMP)}.sqlite3"
+        f.write_bytes(b"\0" * chunk)
+
+    keeper.prune()
+    left = keeper.backups()
+    total = sum(f.stat().st_size for f in left)
+
+    assert len(left) >= ALWAYS_KEEP, "사본이 하나도 없는 것이 최악이다"
+    assert len(left) < 8, "크기 상한이 전혀 듣지 않았다"
+    # 최근 ALWAYS_KEEP 개는 크기와 상관없이 남으므로 그만큼은 넘을 수 있다.
+    assert total <= MAX_TOTAL_MB * 1_048_576 * 1.1, f"{total / 1_048_576:.0f}MB 나 남았다"
+
+
+def test_the_newest_backup_always_survives_the_size_cap(tmp_path: Path) -> None:
+    """상한이 아무리 빡빡해도 가장 최근 사본은 남아야 한다."""
+    src = tmp_path / "store.sqlite3"
+    _make_db(src)
+    keeper = BackupKeeper(src)
+    keeper.folder.mkdir(parents=True, exist_ok=True)
+
+    huge = 500 * 1_048_576
+    now = datetime(2026, 9, 2, 12, 0, 0)
+    newest = keeper.folder / f"store-{now.strftime(STAMP)}.sqlite3"
+    newest.write_bytes(b"\0" * 1024)
+    for i in range(1, 4):
+        f = keeper.folder / f"store-{(now - timedelta(minutes=i)).strftime(STAMP)}.sqlite3"
+        f.write_bytes(b"\0" * huge)
+
+    keeper.prune()
+    assert newest.exists(), "가장 최근 사본이 지워졌다"

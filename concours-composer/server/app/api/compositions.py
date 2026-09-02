@@ -391,9 +391,17 @@ def get_midi(composition_id: str, store: Store = Depends(get_store)) -> Response
     )
 
 
-# 같은 곡을 다시 눌렀을 때 3초를 또 기다리지 않는다. 곡이 바뀌면 키가 달라져 저절로 비켜난다.
+# 같은 곡을 다시 눌렀을 때 3초를 또 기다리지 않는다.
+#
+# 열쇠에 **판 번호**가 들어가야 한다. 마디 수로만 잡으면 편곡·직접 편집으로 음이 바뀌어도
+# 마디 수는 그대로라 옛 음원이 그대로 나간다 — 악보와 다른 MP3 를 학원에 보내는 셈이다.
+# 판 번호는 편곡·직접 편집·재작곡 모두에서 하나씩 올라가므로 그것만으로 충분하다.
 _AUDIO_CACHE: dict[tuple[str, str, int], tuple[bytes, str]] = {}
 _AUDIO_CACHE_MAX = 8
+
+
+def _audio_key(store: Store, composition_id: str, hands: str) -> tuple[str, str, int]:
+    return (composition_id, hands, len(store.versions.get(composition_id, [])))
 
 
 @router.get("/compositions/{composition_id}/audio")
@@ -410,7 +418,7 @@ def get_audio(
         raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
     res = store.compositions[composition_id]
 
-    key = (composition_id, hands, len(res.measures))
+    key = _audio_key(store, composition_id, hands)
     hit = _AUDIO_CACHE.get(key)
     if hit is None:
         from app.export.audio import render_audio
