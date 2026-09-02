@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
@@ -24,6 +24,25 @@ RUBRIC: dict[str, str] = {
     "notation": "기보 정합 — 임시표·이명동음·성부 배치가 읽기 좋은가",
     "originality": "독창성 — 참고 스타일을 닮되 특정 곡을 베낀 느낌이 없는가",
 }
+
+
+def _drop_computed(cls: type[BaseModel], data: Any) -> Any:
+    """저장했다 되읽을 때 **계산해서 만든 값**을 입력에서 걷어 낸다.
+
+    `@computed_field` 는 `model_dump()` 에 함께 나가지만, 모델은 `extra="forbid"` 라
+    그것을 다시 넣으면 거부한다. LLM 이 엉뚱한 열쇠를 지어내는 것을 잡으려고 forbid 를
+    쓰고 있으므로 그것을 풀 수는 없다 — 대신 우리가 낸 값만 조용히 걷어 낸다.
+
+    이걸 안 하면 **껐다 켤 때마다 사전 심사 결과가 통째로 사라진다.** 저장은 되는데
+    복원에서 튕겨 나가기 때문이다. 화면에는 심사 칸이 "—" 로 남고, 곡집의 "팔 수 있는
+    곡" 이 0이 된다. 파는 프로그램에서 이보다 나쁜 침묵은 없다.
+    """
+    if not isinstance(data, dict):
+        return data
+    computed = {name for name, f in cls.model_computed_fields.items()}
+    if not computed or not (computed & data.keys()):
+        return data
+    return {k: v for k, v in data.items() if k not in computed}
 
 
 class RevisionRequest(BaseModel):
@@ -70,6 +89,11 @@ class CriticReport(BaseModel):
     revision_requests: list[RevisionRequest] = Field(default_factory=list)
     overall_comment: str = ""
 
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed(cls, data: Any) -> Any:
+        return _drop_computed(cls, data)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def total(self) -> float:
@@ -96,6 +120,11 @@ class JudgeVerdict(BaseModel):
     fix_in_score: list[str] = Field(default_factory=list, description="곡에서 고칠 점")
     fix_in_practice: list[str] = Field(default_factory=list, description="연습에서 보완할 점")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed(cls, data: Any) -> Any:
+        return _drop_computed(cls, data)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def total(self) -> float:
@@ -115,6 +144,11 @@ class JudgeVerdict(BaseModel):
 class JudgePanel(BaseModel):
     model_config = ConfigDict(extra="forbid")
     verdicts: list[JudgeVerdict] = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed(cls, data: Any) -> Any:
+        return _drop_computed(cls, data)
 
     @computed_field  # type: ignore[prop-decorator]
     @property

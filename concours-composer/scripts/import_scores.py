@@ -19,8 +19,14 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 
-SCORE_DIR = ROOT / "data" / "reference_scores"
-LEDGER = ROOT / "data" / "reference_scores.imported.json"
+# 참고 악보도 만든 곡과 같은 자리에 둔다 — **프로그램 폴더 바깥**.
+# 프로그램 폴더 안에 두면 새 판을 받으려고 폴더를 지울 때 함께 사라진다.
+# 원장이 모아 둔 악보를 그렇게 잃게 할 수는 없다.
+from app.config import resolve_data_dir  # noqa: E402
+
+DATA = resolve_data_dir()
+SCORE_DIR = DATA / "reference_scores"
+LEDGER = DATA / "reference_scores.imported.json"
 SUFFIXES = {".musicxml", ".xml", ".mxl", ".mid", ".midi"}
 
 

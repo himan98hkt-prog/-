@@ -109,3 +109,20 @@ def test_the_screen_can_tell_where_the_pieces_live(client) -> None:
     assert "data_dir" in s and "pieces" in s
     # 프로그램 폴더 안이면 위험을 **말해야** 한다. 아니면 경고가 없어야 한다.
     assert bool(s["warning"]) == bool(s["inside_program_folder"])
+
+
+def test_an_empty_setting_does_not_land_in_the_program_folder(monkeypatch, tmp_path: Path) -> None:
+    """`DATA_DIR=` 처럼 값만 지운 줄은 흔하다.
+
+    파이썬은 빈 경로를 현재 폴더(`.`)로 읽는다. 그러면 자료가 프로그램 폴더 안에
+    떨어지고, 새 판을 받을 때 곡이 사라진다 — 고치려던 바로 그 사고다.
+    """
+    from app.config import get_settings, resolve_data_dir
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    for value in ("", "  ", "."):
+        monkeypatch.setenv("DATA_DIR", value)
+        get_settings.cache_clear()
+        got = resolve_data_dir()
+        assert "ConcoursComposer" in str(got), f"DATA_DIR={value!r} 가 {got} 로 떨어졌다"
+    get_settings.cache_clear()

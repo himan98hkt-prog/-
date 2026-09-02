@@ -168,7 +168,9 @@ def preflight() -> int:
     enc = mp3_encoder()
     print(f"  [O] 음원 형식            {'MP3' if enc else 'WAV — MP3 인코더가 없다'}")
 
-    refs = ROOT / "data" / "reference_scores"
+    from app.config import resolve_data_dir
+
+    refs = resolve_data_dir() / "reference_scores"
     n = (
         len(
             [

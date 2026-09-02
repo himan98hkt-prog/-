@@ -141,7 +141,9 @@ class Settings(BaseSettings):
             object.__setattr__(self, "anthropic_api_key", read_api_key_from_env_file())
 
     def resolved_store_path(self) -> Path:
-        return self.store_path or (self.data_dir / "store.sqlite3")
+        # 빈 data_dir 은 현재 폴더(.)가 되어 프로그램 폴더 안에 떨어진다 — 막는다.
+        base = self.data_dir if str(self.data_dir).strip() not in ("", ".") else user_data_dir()
+        return self.store_path or (base / "store.sqlite3")
 
     @property
     def has_api_key(self) -> bool:
@@ -199,8 +201,16 @@ def validate_models(settings: Settings | None = None) -> list[str]:
 
 
 def resolve_data_dir() -> Path:
-    """자료가 사는 폴더. 없으면 만들고, 프로그램 폴더 안의 옛 자료는 옮겨 온다."""
-    d = Path(os.environ.get("DATA_DIR", get_settings().data_dir))
+    """자료가 사는 폴더. 없으면 만들고, 프로그램 폴더 안의 옛 자료는 옮겨 온다.
+
+    빈 값(`DATA_DIR=`)은 **없는 것으로 본다**. 파이썬은 빈 경로를 현재 폴더(`.`)로
+    읽는데, 그러면 자료가 프로그램 폴더 안에 떨어져 새 판을 받을 때 곡이 사라진다 —
+    고치려던 바로 그 사고다. 설정 파일에 줄만 남기고 값을 지우는 일은 흔하다.
+    """
+    raw = (os.environ.get("DATA_DIR") or "").strip()
+    d = Path(raw) if raw else Path(get_settings().data_dir)
+    if not str(d).strip() or str(d) == ".":
+        d = user_data_dir()
     d.mkdir(parents=True, exist_ok=True)
     migrate_old_data(d)
     return d

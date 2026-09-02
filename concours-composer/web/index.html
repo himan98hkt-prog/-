@@ -853,8 +853,9 @@
   </section>
 
   <details class="fold" id="refBox" style="margin:0 0 26px">
-    <summary data-tip="컴퓨터의 data\reference_scores 폴더에 악보 파일을 넣어 두면&#10;프로그램이 켜질 때 저절로 읽어 참고합니다.">참고하는 악보 <span class="why" id="refCount">— 아직 없습니다</span></summary>
-    <p class="hint">좋아하는 콩쿨곡 악보를 <code>data\reference_scores</code> 폴더에 넣고 프로그램을 다시 켜면
+    <summary data-tip="아래에 적힌 폴더에 악보 파일을 넣어 두면&#10;프로그램이 켜질 때 저절로 읽어 참고합니다.">참고하는 악보 <span class="why" id="refCount">— 아직 없습니다</span></summary>
+    <p class="hint" id="refWhere" style="margin:0 0 10px"></p>
+    <p class="hint">좋아하는 콩쿨곡 악보를 <strong>위 폴더</strong>에 넣고 프로그램을 다시 켜면
       저절로 읽습니다. <strong>MusicXML · MXL · MIDI</strong> 를 읽습니다.</p>
     <div class="warn-box">저작권 표시가 없는 악보는 <strong>저작권곡으로 간주</strong>해
       길이·난이도 같은 <strong>통계만</strong> 참고하고 음표는 보관하지 않습니다.
@@ -3097,6 +3098,13 @@ $("libWho").querySelectorAll(".chip").forEach(b => {
 // ── 곡이 어디에 저장되는가 ─────────────────────────────────────────────────
 // 원장이 "저장은 도대체 어디에 있는가" 에서 막혔다. 곡이 프로그램 폴더 안에 저장되던
 // 탓에 새 판을 받으려고 폴더를 지우자 곡이 함께 사라졌기 때문이다. 자리를 숨기지 않는다.
+async function refreshRefWhere(dataDir) {
+  const box = $("refWhere");
+  if (!box) return;
+  const dir = dataDir.replace(/[\\/]$/, "") + (dataDir.includes("\\") ? "\\" : "/") + "reference_scores";
+  box.innerHTML = `참고 악보를 넣는 곳 — <code>${esc(dir)}</code>`;
+}
+
 async function refreshStorageWhere() {
   const box = $("storeWhere");
   if (!box) return;
@@ -3108,6 +3116,7 @@ async function refreshStorageWhere() {
       + "프로그램을 끄면 만든 곡이 사라집니다.</span>";
     return;
   }
+  refreshRefWhere(s.data_dir);
   box.className = "where" + (s.inside_program_folder ? " bad" : "");
   box.innerHTML =
     `<span>만든 곡 <b>${s.pieces}곡</b>${s.books ? ` · 곡집 <b>${s.books}권</b>` : ""}이
