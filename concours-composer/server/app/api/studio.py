@@ -92,6 +92,9 @@ class AutoComposeIn(BaseModel):
     total_measures: int | None = Field(default=None, ge=8, le=200)
     n_candidates: int = Field(default=1, ge=1, le=3)
     must_include: str = ""
+    # 학원에 팔 대중곡으로 만든 것이면 그 급수. 목록에서 맞춤곡과 섞이면 안 된다 —
+    # 원장은 "이건 민준이 것" 과 "이건 파는 것" 을 한눈에 구분해야 한다.
+    market_tier: str = ""
     # 화면이 만들어 보내는 표. 이 값으로 진행 상태를 물어볼 수 있다(GET /api/progress/{id}).
     # 없으면 진행 보고만 안 할 뿐, 작곡은 똑같이 된다.
     progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
@@ -433,6 +436,7 @@ def _auto_compose(
         {
             "composition_id": cid,
             "preset_id": body.preset_id,
+            "market_tier": body.market_tier,
             # 이번 달 얼마 썼는지 보려면 언제·얼마가 남아 있어야 한다.
             "at": datetime.now(UTC).isoformat(timespec="seconds"),
             "cost_usd": float((res.cost or {}).get("total_usd", 0.0) or 0.0),
@@ -497,6 +501,92 @@ class RearrangeOut(BaseModel):
     combined_score: float
     musicality: float
     validation: dict
+
+
+class MarketTierOut(BaseModel):
+    id: str
+    name: str
+    who: str
+    level: int
+    span: int
+    tempo: int
+    limit_sec: int
+    presets: list[str]
+
+
+@router.get("/market/tiers", response_model=list[MarketTierOut])
+def market_tiers() -> list[MarketTierOut]:
+    """학원에 팔 곡의 급수 목록. 원장은 '누가 치는 곡인가' 만 보고 고른다."""
+    from app.generation.market import TIERS, recommended_presets
+
+    return [
+        MarketTierOut(
+            id=t.id,
+            name=t.name,
+            who=t.who,
+            level=t.level,
+            span=t.span,
+            tempo=t.tempo,
+            limit_sec=t.limit_sec,
+            presets=[p.id for p in recommended_presets(t)],
+        )
+        for t in TIERS
+    ]
+
+
+class MarketComposeIn(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    tier_id: str
+    # 비우면 그 급수에서 심사에 가장 안전한 성격을 프로그램이 고른다.
+    preset_id: str | None = None
+    progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+@router.post("/compositions/market", response_model=AutoComposeOut)
+def compose_for_market(
+    body: MarketComposeIn,
+    store: Store = Depends(get_store),
+    pipeline: CompositionPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings),
+) -> AutoComposeOut:
+    """학원에 팔 대중 콩쿨곡 — 한 아이가 아니라 그 급수 아이들 전부를 위한 곡.
+
+    맞춤곡과 기준이 뒤집힌다. 맞춤곡은 이 아이가 할 수 있는 최대를 쓰고, 파는 곡은
+    그 급수 아이들이 **모두** 할 수 있는 선을 쓴다. 손이 큰 아이는 작은 곡을 칠 수
+    있지만 손이 작은 아이는 큰 곡을 못 친다 — 실패가 한 방향으로만 나므로, 작은 쪽에
+    맞춘다. 자세한 근거는 app/generation/market.py 에 적어 두었다.
+
+    만드는 과정은 맞춤곡과 똑같다(모티브 → 설계 → 작곡 → 사전 전문심사). 다른 것은
+    **누구를 기준으로 세우느냐** 하나뿐이다.
+    """
+    from app.generation.market import BY_TIER, recommended_presets, standard_competition, standard_student
+
+    tier = BY_TIER.get(body.tier_id)
+    if tier is None:
+        raise HTTPException(404, f"급수를 찾을 수 없다: {body.tier_id}")
+
+    preset_id = body.preset_id
+    if not preset_id:
+        picks = recommended_presets(tier)
+        if not picks:
+            raise HTTPException(422, f"{tier.name} 에 맞는 컨셉이 없습니다")
+        preset_id = picks[0].id
+
+    return auto_compose(
+        AutoComposeIn(
+            preset_id=preset_id,
+            student=standard_student(tier),
+            competition=standard_competition(tier),
+            target_difficulty=float(tier.level),
+            n_candidates=1,
+            progress_id=body.progress_id,
+            market_tier=tier.id,
+        ),
+        store=store,
+        pipeline=pipeline,
+        settings=settings,
+    )
 
 
 @router.post("/compositions/{composition_id}/rearrange", response_model=RearrangeOut)
@@ -564,6 +654,8 @@ class LibraryItem(BaseModel):
     work_type: str = "original"
     rights_ready: bool = True
     rights_note: str = ""
+    # 학원에 팔려고 만든 대중곡이면 그 급수 이름. 맞춤곡이면 빈 문자열이다.
+    market_tier: str = ""
     versions: int
 
 
@@ -770,6 +862,16 @@ def library(
     store: Store = Depends(get_store), settings: Settings = Depends(get_settings)
 ) -> list[LibraryItem]:
     """만든 곡 목록. 대시보드의 두 번째 탭이다."""
+    from app.generation.market import BY_TIER
+
+    # 어느 곡이 판매용인지 — 만들 때 남긴 기록에서 되찾는다.
+    tier_of: dict[str, str] = {}
+    for j in store.jobs.get("auto_history", []):
+        if isinstance(j, dict) and j.get("market_tier"):
+            tier = BY_TIER.get(str(j["market_tier"]))
+            if tier:
+                tier_of[str(j.get("composition_id", ""))] = tier.name
+
     out: list[LibraryItem] = []
     for cid, res in store.compositions.items():
         avg, judge_passed = judge_summary(store, cid, settings)
@@ -799,6 +901,7 @@ def library(
                 work_type=rights.work_type,
                 rights_ready=ready,
                 rights_note=note,
+                market_tier=tier_of.get(cid, ""),
                 versions=len(store.versions.get(cid, [res])),
             )
         )
