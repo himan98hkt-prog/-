@@ -226,3 +226,38 @@ def test_the_set_reports_progress_piece_by_piece(client) -> None:
     assert p["known"] is True and p["done"] is True
     assert p["total"] == 2, "몇 곡짜리인지 화면이 알아야 한다"
     assert p["pct"] == 1.0
+
+
+def test_every_concept_stays_reachable_for_every_tier() -> None:
+    """급수에 안 맞는 성격을 화면에서 아예 빼면 안 된다.
+
+    원장이 "토카타가 왜 없지?" 에서 막혔다 — 없는 것인지, 숨은 것인지, 고장인지
+    알 길이 없었다. 토카타는 레벨 5~10 이라 초급·초중급에서 목록에 뜨지 않았다.
+
+    맞춤곡 화면은 이미 권하지 않는 컨셉도 흐리게 보여 주고 있었다. 두 화면이 다르게
+    굴면 그 자체가 결함이다. 일부러 어려운 성격을 고를 수 있어야 하고, 대신 왜 권하지
+    않는지를 적어 준다.
+
+    화면 동작이라 여기서는 그 자리를 지키는지만 본다.
+    """
+    from pathlib import Path
+
+    web = Path(__file__).resolve().parents[2] / "web" / "index.html"
+    text = web.read_text(encoding="utf-8")
+    grid = text[text.index('$("btnMarketPick").onclick') : text.index('$("btnMarketGo").onclick')]
+    assert "const rest = all.filter" in grid, "맞지 않는 성격을 목록에서 빼고 있다"
+    assert "권하지 않습니다" in grid, "왜 흐린지 말해 주지 않으면 고장으로 보인다"
+    assert "level_range" in grid, "어느 레벨에서 살아나는 성격인지 알려 줘야 한다"
+
+
+def test_no_tier_can_reach_every_concept_by_itself() -> None:
+    """이 검사가 전제를 못 박아 둔다 — 그래서 위의 '전부 보여 주기' 가 필요하다.
+
+    어느 급수에서든 권장 목록만으로 열두 가지가 다 나온다면 화면이 굳이 나머지를
+    보여 줄 이유가 없다. 실제로는 급수마다 두세 가지가 빠진다.
+    """
+    from app.generation.presets import PRESETS
+
+    for tier in TIERS:
+        got = {p.id for p in recommended_presets(tier)}
+        assert len(got) < len(PRESETS), f"{tier.name} 이 모든 성격을 권한다 — 전제가 바뀌었다"

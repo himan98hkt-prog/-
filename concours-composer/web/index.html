@@ -659,7 +659,8 @@
       <h2>성격</h2>
       <p class="hint">고르지 않으셔도 됩니다. <strong>알아서 고르기</strong>를 누르면 그 급수에서
         <strong>심사에 가장 안전한 성격</strong>부터 씁니다 — 형식이 뚜렷하고 클라이맥스가 분명한 곡을
-        심사표는 후하게 봅니다.</p>
+        심사표는 후하게 봅니다.<br>직접 고르시면 <strong>열두 가지가 모두</strong> 나옵니다.
+        그 급수에 권하지 않는 것은 흐리게 표시하지만, 눌러서 만들 수 있습니다.</p>
       <div class="row" style="margin-top:0">
         <button id="btnMarketGo" class="go"
           data-tip="급수에 맞는 표준 조건으로 곡을 만듭니다.&#10;모티브 → 설계 → 작곡 → 사전 전문심사까지 한 번에 돕니다.">알아서 고르고 만들기</button>
@@ -2219,15 +2220,30 @@ $("btnMarketPick").onclick = async () => {
   const r = marketTiers.find(x => x.id === marketTier);
   if (!r) return;
   const all = await api("/api/presets");
-  const mine = r.presets.map(id => all.find(p => p.id === id)).filter(Boolean);
-  grid.innerHTML = mine.map((p, i) => `
-    <button class="card" data-preset="${p.id}"
-      data-tip="${esc(p.mood)}&#10;박자 ${p.meter} · 권장 ♩=${p.tempo[0]}~${p.tempo[1]} · 형식 ${p.form}&#10;누르면 작곡이 시작됩니다.">
+  // 이 급수에 맞는 것을 앞에, 나머지도 **숨기지 않고** 뒤에 흐리게 보여 준다.
+  //
+  // 맞지 않는 성격을 아예 빼 버리면 원장은 "토카타가 왜 없지?" 에서 막힌다 —
+  // 없는 것인지, 숨은 것인지, 고장인지 알 길이 없다. 맞춤곡 화면은 이미 권하지 않는
+  // 컨셉도 흐리게 보여 주고 있었다. 두 화면이 다르게 굴면 그 자체가 결함이다.
+  // 일부러 어려운 성격을 고를 수 있어야 하고, 대신 왜 권하지 않는지는 적어 준다.
+  const fits = r.presets.map(id => all.find(p => p.id === id)).filter(Boolean);
+  const rest = all.filter(p => !r.presets.includes(p.id));
+  const mine = [...fits.map(p => ({ p, ok: true })), ...rest.map(p => ({ p, ok: false }))];
+  grid.innerHTML = mine.map(({ p, ok }, i) => {
+    const why = ok
+      ? "누르면 작곡이 시작됩니다."
+      : `${r.name} 에는 권하지 않습니다 — 이 성격은 레벨 ${p.level_range[0]}~${p.level_range[1]} 에서 살아납니다.\n`
+        + "그래도 누르면 그 성격으로 만듭니다.";
+    return `
+    <button class="card${ok ? "" : " dim"}" data-preset="${p.id}"
+      data-tip="${esc(p.mood)}&#10;박자 ${esc(p.meter)} · 권장 ♩=${p.tempo[0]}~${p.tempo[1]} · 형식 ${esc(p.form)}&#10;${esc(why)}">
       ${i === 0 ? '<span class="flag" style="color:var(--ok);background:#eef5f0">심사에 안전</span>' : ""}
+      ${ok ? "" : `<span class="flag">레벨 ${p.level_range[0]}~${p.level_range[1]}</span>`}
       <h3>${esc(p.name)}</h3>
       <p class="why">${esc(p.blurb)}</p>
       <p class="meta">${esc(p.meter)} · ♩=${p.tempo[0]}~${p.tempo[1]} · ${esc(p.form)}</p>
-    </button>`).join("");
+    </button>`;
+  }).join("");
   grid.querySelectorAll(".card").forEach(b => {
     b.onclick = () => marketCompose(b.dataset.preset);
   });
@@ -2244,6 +2260,10 @@ async function marketCompose(presetId) {
   const jobId = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const bar = makeBinding("mk", "marketBox");
   bar.start();
+  // 컨셉 카드는 열두 장이라 목록이 길다. 위쪽 카드를 누르면 진행 칸과 결과가 화면
+  // 한참 아래에 그려져 **아무 일도 안 일어난 것처럼 보인다** — 실제로 그랬다.
+  // 누르는 순간 눈이 갈 곳으로 데려간다.
+  $("marketBox").scrollIntoView({ block: "center", behavior: "smooth" });
   const poll = async () => {
     try { bar.tick(await api("/api/progress/" + jobId)); } catch (_) { bar.tick(null); }
   };
@@ -2276,7 +2296,22 @@ async function marketCompose(presetId) {
   } catch (e) {
     clearInterval(timer); bar.stop(false);
     out.className = "msg bad";
-    out.innerHTML = `<strong>${esc(e.message)}</strong>` + (e.hint ? `<br>${esc(e.hint)}` : "");
+    // 막혔을 때 "안 됩니다" 로 끝내지 않는다. 바로 누를 수 있는 다음 수를 함께 낸다.
+    // 특히 '방금 만든 곡과 너무 닮았다' 는 다른 성격을 고르면 곧바로 풀린다.
+    const alt = (e.alternatives || []).map(a =>
+      `<button class="ghost mini alt-mk" data-preset="${a.id}">${esc(a.name)} 으로 만들기</button>`
+    ).join(" ");
+    out.innerHTML = `<strong>${esc(e.message)}</strong>`
+      + (e.hint ? `<br>${esc(e.hint)}` : "")
+      + (alt ? `<div class="row" style="margin-top:10px">${alt}</div>` : "")
+      + (e.issues && e.issues.length
+          ? `<details style="margin-top:8px"><summary>왜 그런지 자세히</summary><pre>${
+              esc([...new Set(e.issues)].join("\n\n"))}</pre></details>`
+          : "");
+    out.querySelectorAll(".alt-mk").forEach(b => {
+      b.onclick = () => marketCompose(b.dataset.preset);
+    });
+    out.scrollIntoView({ block: "center", behavior: "smooth" });
   } finally {
     busy.forEach(b => b.disabled = false);
   }
@@ -2346,6 +2381,7 @@ $("btnSetGo").onclick = async () => {
   const jobId = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const bar = makeBinding("mk", "marketBox");
   bar.start();
+  $("marketBox").scrollIntoView({ block: "center", behavior: "smooth" });
   const poll = async () => {
     try { bar.tick(await api("/api/progress/" + jobId)); } catch (_) { bar.tick(null); }
   };
@@ -2379,6 +2415,7 @@ $("btnSetGo").onclick = async () => {
     clearInterval(timer); bar.stop(false);
     out.className = "msg bad";
     out.innerHTML = `<strong>${esc(e.message)}</strong>` + (e.hint ? `<br>${esc(e.hint)}` : "");
+    out.scrollIntoView({ block: "center", behavior: "smooth" });
   } finally {
     $("btnSetGo").disabled = false;
   }
