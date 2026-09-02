@@ -382,3 +382,66 @@ def test_composer_identity_and_registration(client, req_id):
     assert md.status_code == 200 and "저작권 등록 신청 초안" in md.text
 
     assert client.get("/api/compositions/nope/registration").status_code == 404
+
+
+def test_sales_package(client, req_id):
+    """판매 꾸러미 — 받는 사람이 압축을 풀면 무엇부터 열면 되는지 알 수 있어야 한다."""
+    import io
+    import zipfile
+
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    r = client.get(f"/api/compositions/{cid}/package")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "application/zip"
+
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = z.namelist()
+    assert all(n.count("/") == 1 for n in names), f"폴더 하나로 묶여야 한다: {names}"
+    tails = {n.split("/", 1)[1] for n in names}
+    assert "읽어보세요.txt" in tails
+    assert any(t.endswith(".musicxml") for t in tails)
+    assert any(t.startswith("연주.") for t in tails)
+    assert any(t.endswith(".mid") for t in tails)
+    assert "곡 정보.md" in tails and "권리 정보.md" in tails
+
+    readme = z.read(next(n for n in names if n.endswith("읽어보세요.txt"))).decode("utf-8")
+    assert "accelssam" in readme
+    assert "musescore.org" in readme          # 악보를 열 방법을 알려 줘야 한다
+
+    # 창작곡이면 경고가 없다.
+    assert "!! 주의" not in readme
+
+    # 편곡인데 원곡이 불분명하면 꾸러미 안에서 경고해야 한다.
+    client.put(f"/api/compositions/{cid}/rights", json={
+        "work_type": "arrangement", "original_title": "", "original_composer": "",
+        "original_status": "unknown", "license_note": "", "first_published": "", "note": "",
+    })
+    z2 = zipfile.ZipFile(io.BytesIO(client.get(f"/api/compositions/{cid}/package").content))
+    warned = z2.read(next(n for n in z2.namelist() if n.endswith("읽어보세요.txt"))).decode("utf-8")
+    assert "!! 주의" in warned
+    rights_doc = z2.read(next(n for n in z2.namelist() if n.endswith("권리 정보.md"))).decode("utf-8")
+    assert "등록하거나 판매하면 안 됩니다" in rights_doc
+
+    assert client.get("/api/compositions/nope/package").status_code == 404
+
+
+def test_library_shows_rights_state(client, req_id):
+    """목록에서 팔 수 있는 곡과 권리 미정리 곡이 구분돼야 한다."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    row = next(i for i in client.get("/api/compositions").json() if i["composition_id"] == cid)
+    assert row["work_type"] == "original" and row["rights_ready"] is True
+
+    client.put(f"/api/compositions/{cid}/rights", json={
+        "work_type": "arrangement", "original_title": "어떤 곡",
+        "original_composer": "어떤 사람", "original_status": "copyrighted",
+        "license_note": "", "first_published": "", "note": "",
+    })
+    row = next(i for i in client.get("/api/compositions").json() if i["composition_id"] == cid)
+    assert row["work_type"] == "arrangement" and row["rights_ready"] is False
+    assert "확인 필요" in row["rights_note"]

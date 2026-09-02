@@ -442,6 +442,68 @@ def get_audio(
     )
 
 
+@router.get("/compositions/{composition_id}/package")
+def get_package(composition_id: str, store: Store = Depends(get_store)) -> Response:
+    """판매 꾸러미 — 악보·음원·MIDI·해설·권리 정보를 ZIP 하나로.
+
+    학원에 팔 때 파일을 하나씩 받아 모으는 일은 사람이 할 일이 아니다. 받는 쪽은
+    이 프로그램을 모르므로, 무엇이 들었고 무엇부터 열면 되는지를 안에 적어 보낸다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+
+    from app.api.rights import get_composer, get_rights
+    from app.export.audio import render_audio
+    from app.export.midi import measures_to_midi
+    from app.export.package import PackageInput, build_package
+    from app.generation.assemble import measures_to_note_events
+
+    title = res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
+    events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
+    audio, ext = render_audio(events, title=title)
+    rights = get_rights(store, composition_id)
+    ready, blockers = rights.clearance()
+    from app.api.studio import judge_summary
+    from app.config import get_settings
+
+    judge_average, judge_passed = judge_summary(store, composition_id, get_settings())
+
+    data, filename = build_package(
+        PackageInput(
+            composition_id=composition_id,
+            title=title,
+            composer=get_composer(store).display(),
+            key=res.plan.key,
+            meter=res.plan.meter,
+            tempo=res.plan.tempo,
+            measures=len(res.measures),
+            difficulty=res.difficulty,
+            duration_sec=round(events.notes[-1].offset) if events.notes else 0,
+            musicxml=res.musicxml,
+            audio=audio,
+            audio_ext=ext,
+            midi=measures_to_midi(res.measures, res.plan.tempo, res.plan.meter),
+            guide=store.jobs.get("guides", {}).get(composition_id),
+            rights=rights,
+            rights_ready=ready,
+            rights_blockers=blockers,
+            combined_score=res.quality.combined_score,
+            judge_average=judge_average,
+            judge_passed=judge_passed,
+        )
+    )
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{composition_id}.zip\"; filename*=UTF-8''{quote(filename)}"
+            )
+        },
+    )
+
+
 @router.post("/compositions/{composition_id}/guide", response_model=Guide)
 def make_guide(composition_id: str, store: Store = Depends(get_store)) -> Guide:
     """§6.6 연주법 해설. 모든 마디 참조가 곡 안에 있어야 통과한다."""

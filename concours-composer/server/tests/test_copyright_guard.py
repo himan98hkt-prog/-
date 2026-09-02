@@ -58,3 +58,34 @@ def test_prompt_payload_never_contains_copyrighted_notes(request_obj):
     cr = next(o for o in payload["style_context"] if o["id"] == "cr")
     assert "excerpt_measures" not in cr
     assert text.count('"excerpt_measures"') <= 1     # own 곡 하나만
+
+
+def test_imported_copyrighted_score_keeps_no_notes():
+    """폴더에서 읽은 저작권곡은 음표열을 아예 보관하지 않는다.
+
+    프롬프트에 안 넣는 것만으로는 부족하다 — 저장하지 않으면 새어 나갈 데가 없다.
+    저작권 표시가 없는 파일은 안전한 쪽(저작권곡)으로 간주해야 한다.
+    """
+    from app.ingest.corpus import Corpus
+    from app.schemas.music import Measure, ScoreEvent, Voice
+
+    measures = [
+        Measure(number=i + 1, rh=[Voice(events=[ScoreEvent(dur=1.0, pitches=["C5"])])])
+        for i in range(8)
+    ]
+    corpus = Corpus()
+    protected = corpus.add(
+        measures, score_id="ref-protected", title="보호 중인 곡",
+        copyright_status="copyrighted",
+    )
+    free = corpus.add(
+        measures, score_id="ref-free", title="옛 곡", copyright_status="public_domain",
+    )
+
+    assert protected.measures is None, "저작권곡의 음표열을 들고 있으면 안 된다"
+    assert protected.summary()["has_notes"] is False
+    # 통계는 남는다 — 길이·난이도는 참고해도 되는 정보다.
+    assert protected.profile.measures == 8
+
+    assert free.measures is not None, "보호 기간이 끝난 곡은 선율까지 참고한다"
+    assert free.summary()["has_notes"] is True

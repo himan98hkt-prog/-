@@ -287,6 +287,8 @@
 
   .verdict{font:400 15px/1.65 var(--serif);color:var(--ink);margin:0 0 10px;
            padding-left:12px;border-left:2px solid var(--gold)}
+  .lib-act{white-space:nowrap}
+  .lib-act .mini + .mini{margin-left:5px}
   .hidden{display:none}
   footer{color:var(--muted);font-size:12px;text-align:center;padding:26px 24px 40px;
          border-top:1px solid var(--line);margin-top:10px}
@@ -399,6 +401,18 @@
       <span id="dashInfo" class="hint" style="margin:0"></span>
     </div>
   </section>
+
+  <details class="fold" id="refBox" style="margin:0 0 26px">
+    <summary data-tip="컴퓨터의 data\reference_scores 폴더에 악보 파일을 넣어 두면&#10;프로그램이 켜질 때 저절로 읽어 참고합니다.">참고하는 악보 <span class="why" id="refCount">— 아직 없습니다</span></summary>
+    <p class="hint">좋아하는 콩쿨곡 악보를 <code>data\reference_scores</code> 폴더에 넣고 프로그램을 다시 켜면
+      저절로 읽습니다. <strong>MusicXML · MXL · MIDI</strong> 를 읽습니다.</p>
+    <div class="warn-box">저작권 표시가 없는 악보는 <strong>저작권곡으로 간주</strong>해
+      길이·난이도 같은 <strong>통계만</strong> 참고하고 음표는 보관하지 않습니다.
+      보호 기간이 끝난 곡이라면 악보 파일 옆에 같은 이름의
+      <code>.json</code> 파일을 만들어 <code>{"copyright_status": "public_domain"}</code> 이라고
+      적어 두십시오 — 그때만 선율까지 참고합니다.</div>
+    <div id="refTable"></div>
+  </details>
 
   <section id="secPresets" class="hidden">
     <span class="step">2단계</span>
@@ -525,6 +539,8 @@
       <button class="ghost" id="btnGuide" data-tip="4주 연습 계획·암보 구획·구간별 주의점을 만듭니다.">연주법 해설</button>
       <button class="ghost" id="btnXml" data-tip="MuseScore·Sibelius 로 열 수 있는 표준 악보 파일입니다.">MusicXML 내려받기</button>
       <button class="ghost" id="btnMidi" data-tip="오른손·왼손이 트랙으로 나뉜 MIDI 입니다.">MIDI 내려받기</button>
+      <button id="btnPackage"
+        data-tip="악보·음원·MIDI·연주법 해설·권리 정보를 압축 파일 하나로 받습니다.&#10;학원에 그대로 보낼 수 있고, 받는 분이 무엇부터 열면 되는지도 안에 적혀 있습니다.">판매 꾸러미 내려받기</button>
       <button class="ghost" id="btnAudio"
         data-tip="곡을 소리 파일로 만들어 내려받습니다.&#10;학생·학부모 휴대폰에서 그냥 열립니다.&#10;위 '양손/오른손/왼손' 선택이 그대로 적용됩니다.">음원 내려받기</button>
       <span id="audioState" style="font-size:12.5px;color:var(--muted)"></span>
@@ -1583,6 +1599,8 @@ $("btnFeedback").onclick = async () => {
   } catch (e) { $("fbOut").innerHTML = `<span class="tag bad">${e.message}</span>`; }
 };
 
+$("btnPackage").onclick = () => downloadPackage(compositionId, $("btnPackage"));
+
 $("btnMidi").onclick = () => {
   window.location.href = `${API}/api/compositions/${compositionId}/midi`;
 };
@@ -1734,13 +1752,68 @@ async function autoCompose(presetId, cardEl) {
   }
 }
 
+// 목록에서 팔 수 있는 곡과 아직 권리가 정리 안 된 곡이 섞이면 사고가 난다.
+function rightsTag(i) {
+  if (i.work_type === "original") return '<span class="tag ok">창작곡</span>';
+  return i.rights_ready
+    ? '<span class="tag ok">편곡 · 정리됨</span>'
+    : '<span class="tag bad">원곡 확인 필요</span>';
+}
+
+// 판매 꾸러미. 만드는 데 몇 초 걸리므로 누른 버튼에 상태를 적는다.
+async function downloadPackage(cid, btn) {
+  const label = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "만드는 중…"; }
+  try {
+    const r = await fetch(`${API}/api/compositions/${cid}/package`);
+    if (!r.ok) throw new Error(`꾸러미를 만들지 못했습니다 (${r.status})`);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (shownMeta && shownMeta.title && cid === compositionId ? shownMeta.title : cid) + ".zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+// 폴더에 넣은 참고 악보가 실제로 읽혔는지 보여 준다.
+// "넣었는데 반영이 되나?" 를 알 수 없으면 아무도 폴더를 쓰지 않는다.
+const COPYRIGHT_KO = {
+  public_domain: '<span class="tag ok">보호 기간 끝남 · 선율까지 참고</span>',
+  own: '<span class="tag ok">내 곡</span>',
+  licensed: '<span class="tag ok">허락받음 · 선율까지 참고</span>',
+  copyrighted: '<span class="tag warn">저작권곡 · 통계만 참고</span>',
+};
+
+async function refreshReferences() {
+  let items = [];
+  try { items = await api("/api/corpus"); } catch (_) { return; }
+  const refs = items.filter(i => !i.generated);
+  $("refCount").textContent = refs.length
+    ? `— ${refs.length}개를 읽었습니다`
+    : "— 아직 없습니다";
+  $("refTable").innerHTML = refs.length
+    ? "<table><tr><th>제목</th><th>작곡가</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>어떻게 참고하나</th></tr>" +
+      refs.map(r => `<tr><td>${r.title}</td><td>${r.composer || "—"}</td>
+        <td>${r.key || "—"} ${r.meter || ""}</td><td>${r.measures || "—"}</td>
+        <td>${r.difficulty != null ? r.difficulty.toFixed(1) : "—"}</td>
+        <td>${COPYRIGHT_KO[r.copyright_status] || r.copyright_status}</td></tr>`).join("") +
+      "</table>"
+    : "<p class='hint'>폴더가 비어 있습니다. 악보를 넣고 프로그램을 다시 켜면 여기에 나옵니다.</p>";
+}
+
 async function refreshLibrary() {
   const items = await api("/api/compositions");
   $("secLibrary").classList.toggle("hidden", items.length === 0);
   if (!items.length) return;
   $("libraryTable").innerHTML =
     "<table><tr><th>곡</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>종합</th>" +
-    "<th>검증</th><th>사전 심사</th><th>판</th><th></th></tr>" +
+    "<th>검증</th><th>사전 심사</th><th>권리</th><th>판</th><th></th></tr>" +
     items.map(i => `<tr>
       <td>${i.title}</td><td>${i.key} ${i.meter} ♩=${i.tempo}</td>
       <td>${i.measures}</td><td>${i.difficulty}</td><td>${i.combined_score}</td>
@@ -1749,12 +1822,18 @@ async function refreshLibrary() {
         ? (i.judge_passed ? `<span class="tag ok">통과 ${i.judge_average}</span>`
                           : `<span class="tag warn">미달 ${i.judge_average}</span>`)
         : "—"}</td>
+      <td>${rightsTag(i)}</td>
       <td>${i.versions}</td>
-      <td><button class="ghost mini open" data-cid="${i.composition_id}"
-        data-tip="이 곡을 악보·재생·편곡 화면으로 엽니다." data-tip-side="right">열기</button></td>
+      <td class="lib-act"><button class="ghost mini open" data-cid="${i.composition_id}"
+          data-tip="이 곡을 악보·재생·편곡 화면으로 엽니다." data-tip-side="right">열기</button>
+        <button class="ghost mini pack" data-cid="${i.composition_id}"
+          data-tip="악보·음원·해설·권리 정보를 압축 파일 하나로 받습니다.&#10;학원에 그대로 보낼 수 있습니다." data-tip-side="right">꾸러미</button></td>
     </tr>`).join("") + "</table>";
   $("libraryTable").querySelectorAll(".open").forEach(b => {
     b.onclick = () => { compositionId = b.dataset.cid; showComposition(b.dataset.cid); };
+  });
+  $("libraryTable").querySelectorAll(".pack").forEach(b => {
+    b.onclick = () => downloadPackage(b.dataset.cid, b);
   });
 }
 
@@ -2342,6 +2421,7 @@ $("btnEdSave").onclick = async () => {
 
 // ── 처음 켤 때 ──────────────────────────────────────────────────────────────
 loadComposer();
+refreshReferences();
 syncArrangeRange();
 rightsFormType();
 

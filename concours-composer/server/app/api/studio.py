@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.deps import Store, get_pipeline, get_store
+from app.api.rights import get_rights
 from app.config import Settings, get_settings
 from app.generation.context import InfeasibleRequest, build_context
 from app.generation.pipeline import CompositionPipeline, PlanRejected
@@ -265,6 +266,21 @@ def _plan_with_retry(
     )
 
 
+def judge_summary(store: Store, composition_id: str, settings: Settings) -> tuple[float | None, bool | None]:
+    """이 곡의 사전 심사 (평균, 통과 여부). 심사 전이면 (None, None).
+
+    보관함·판매 꾸러미·화면이 서로 다른 답을 내면 안 되므로 판정은 여기 한 군데다.
+    """
+    panel = store.judgements.get(composition_id)
+    if panel is None:
+        return None, None
+    low = min((v.total for v in panel.verdicts), default=None)
+    if low is None:
+        return panel.average, None
+    passed = panel.average >= settings.judge_gate_average and low >= settings.judge_gate_minimum
+    return panel.average, passed
+
+
 def _judge(ctx: Any, measures: list, plan: CompositionPlan, s: Settings) -> JudgePanel:
     from app.judge.panel import run_panel_claude, run_panel_rules
 
@@ -472,6 +488,10 @@ class LibraryItem(BaseModel):
     judged: bool
     judge_average: float | None = None
     judge_passed: bool | None = None
+    # 팔 수 있는 곡과 아직 권리가 정리 안 된 곡이 목록에서 섞이지 않게.
+    work_type: str = "original"
+    rights_ready: bool = True
+    rights_note: str = ""
     versions: int
 
 
@@ -482,9 +502,16 @@ def library(
     """만든 곡 목록. 대시보드의 두 번째 탭이다."""
     out: list[LibraryItem] = []
     for cid, res in store.compositions.items():
-        panel = store.judgements.get(cid)
-        avg = panel.average if panel else None
-        low = min((v.total for v in panel.verdicts), default=None) if panel else None
+        avg, judge_passed = judge_summary(store, cid, settings)
+        rights = get_rights(store, cid)
+        ready, blockers = rights.clearance()
+        note = (
+            "창작곡"
+            if rights.work_type == "original"
+            else ("편곡 · 권리 정리됨" if ready else "편곡 · 원곡 확인 필요")
+        )
+        if not ready and blockers:
+            note = "원곡 확인 필요"
         out.append(
             LibraryItem(
                 composition_id=cid,
@@ -496,15 +523,12 @@ def library(
                 difficulty=res.difficulty,
                 combined_score=res.quality.combined_score,
                 savable=res.savable,
-                judged=panel is not None,
+                judged=avg is not None,
                 judge_average=avg,
-                judge_passed=(
-                    None
-                    if panel is None or low is None
-                    else avg is not None
-                    and avg >= settings.judge_gate_average
-                    and low >= settings.judge_gate_minimum
-                ),
+                judge_passed=judge_passed,
+                work_type=rights.work_type,
+                rights_ready=ready,
+                rights_note=note,
                 versions=len(store.versions.get(cid, [res])),
             )
         )
