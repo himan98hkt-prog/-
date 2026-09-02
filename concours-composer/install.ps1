@@ -3,8 +3,9 @@
 # 하는 일: 파이썬 확인 -> 가상환경 -> 의존성 -> .env 생성 -> 자기 점검.
 # 인터넷과 Python 3.12 이상만 있으면 된다. 관리자 권한은 필요 없다.
 #
-# 실행이 막히면 PowerShell 에서 한 번만:
-#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+# 이 파일을 직접 실행하다 막혔다면(PSSecurityException) 두 가지 길이 있다.
+#   가장 쉬운 길: 이 폴더의 '설치.bat' 을 두 번 누른다.
+#   PowerShell 에서 하려면 한 번만:  Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
