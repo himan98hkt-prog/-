@@ -1,0 +1,24 @@
+# 원장 PC(윈도우 한 대)에 까는 것만. 서버 배포용 전체 목록은 requirements.txt 다.
+#
+# 왜 나눴는가 — 전체 목록을 그대로 깔면 **566MB 짜리 VTK 가 딸려 온다**.
+# pianoplayer(자동 운지) 가 vedo → vtk 라는 3D 시각화 도구를 끌고 오기 때문이다.
+# 운지는 server/app/analysis/teaching.py 에서 직접 계산하므로 pianoplayer 는
+# 코드 어디에서도 import 하지 않는다. 마찬가지로 PostgreSQL·Celery·Redis 도
+# 도커 배포용이고, 한 대짜리 설치는 SQLite 파일 하나로 돈다.
+#
+# 그래서 원장 PC 설치는 내려받을 것이 1/5 로 줄고, 5~15분 걸리던 3/7 단계가
+# 2~3분으로 끝난다. 회사 PC 에서 10분 넘게 멈춘 것처럼 보이던 것이 이것이었다.
+#
+# 여기에 무엇을 넣을지는 "코드가 실제로 import 하는가" 하나로 정한다.
+# 새 의존성을 추가하면 requirements.txt 와 이 파일 **양쪽**을 봐야 한다 —
+# server/tests/test_desktop_requirements.py 가 어긋남을 잡는다.
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+pydantic==2.*
+pydantic-settings==2.*
+anthropic>=1,<2
+music21>=9.1
+numpy>=1.26
+scipy>=1.11
+python-multipart==0.0.*  # 참고 악보 업로드에 FastAPI 가 요구한다
+imageio-ffmpeg>=0.5  # MP3 인코딩용 ffmpeg 동봉. 없으면 WAV 로 준다.

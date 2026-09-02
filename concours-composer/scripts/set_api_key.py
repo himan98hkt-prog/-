@@ -8,55 +8,22 @@
 
 키는 **이 파일에서만** 읽힌다(app/config.py). 시스템 환경변수는 쓰지 않는다.
 `.env` 는 .gitignore 에 있으므로 커밋되지 않는다.
+
+검사·저장 규칙은 `app/apikey.py` 한 곳에 있다 — 화면에서 넣는 길과 규칙이
+갈라지면 한쪽에서만 통과하는 키가 생기기 때문이다.
 """
+
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 from getpass import getpass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = "ANTHROPIC_API_KEY"
+sys.path.insert(0, str(ROOT / "server"))
 
-
-def mask(key: str) -> str:
-    return f"{key[:11]}…{key[-4:]}" if len(key) > 20 else "(너무 짧다)"
-
-
-def looks_valid(key: str) -> str | None:
-    """형식만 본다. 진짜 쓸 수 있는 키인지는 서버가 안다."""
-    if not key:
-        return "아무것도 입력되지 않았다"
-    if key in ("sk-ant-...", "sk-ant-"):
-        return "예시 문자열 그대로다 — 콘솔에서 복사한 진짜 키를 넣어라"
-    if not key.startswith("sk-ant-"):
-        return "Anthropic 키는 sk-ant- 로 시작한다"
-    if len(key) <= 20:
-        return "키가 너무 짧다 — 복사가 잘렸는지 확인하라"
-    if any(c.isspace() for c in key):
-        return "가운데에 공백이나 줄바꿈이 섞여 있다 — 한 줄로 복사하라"
-    return None
-
-
-def write_key(env: Path, key: str) -> None:
-    lines = env.read_text(encoding="utf-8").splitlines() if env.exists() else []
-    out, found = [], False
-    for raw in lines:
-        name = raw.split("=", 1)[0].strip()
-        if name == NAME and not raw.lstrip().startswith("#"):
-            out.append(f"{NAME}={key}")
-            found = True
-        else:
-            out.append(raw)
-    if not found:
-        out.insert(0, f"{NAME}={key}")
-    if env.exists():
-        # with_suffix 는 이름이 `.env` 일 때 `.env.env.bak` 을 만든다 — 이름을 직접 붙인다.
-        shutil.copy2(env, env.with_name(env.name + ".bak"))
-    env.write_text("\n".join(out) + "\n", encoding="utf-8")
-    env.chmod(0o600)          # 같은 컴퓨터의 다른 계정이 읽지 못하게
+from app.apikey import NAME, clean, looks_valid, mask, write_key  # noqa: E402
 
 
 def main() -> int:
@@ -66,9 +33,13 @@ def main() -> int:
     env = Path(args.file)
 
     print("Anthropic 콘솔에서 만든 키를 붙여 넣어라. 화면에는 보이지 않는다.")
-    print("  https://console.anthropic.com/settings/keys\n")
+    print("  https://console.anthropic.com/settings/keys")
+    # 윈도우 PowerShell 의 숨김 입력에서는 Ctrl+V 가 듣지 않는다. 미리 말해 주지
+    # 않으면 반드시 한 번 막힌다 — 실제로 막혔다.
+    print("  붙여넣기는 마우스 오른쪽 버튼 한 번. (Ctrl+V 는 이 창에서 듣지 않는다)")
+    print("  프로그램 화면 오른쪽 위 '설정' 에서 넣는 편이 더 쉽다.\n")
     try:
-        key = getpass(f"{NAME}: ").strip().strip("\"'")
+        key = clean(getpass(f"{NAME}: "))
     except (EOFError, KeyboardInterrupt):
         print("\n취소했다 — 아무것도 바꾸지 않았다")
         return 1

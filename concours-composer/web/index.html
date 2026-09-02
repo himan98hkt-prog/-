@@ -382,7 +382,21 @@
 <!-- 작곡가 이름 — 밖으로 나가는 예명과, 등록에만 쓰는 실명 -->
 <div id="composerPanel" class="sheet hidden">
   <div class="sheet-in">
-    <h2>작곡가 이름</h2>
+    <h2>API 키</h2>
+    <p class="hint">키를 넣으면 <strong>클로드가 작곡</strong>합니다. 넣지 않아도 프로그램은
+      규칙 기반(무료)으로 전 과정이 돌아가지만, 콩쿨에 낼 품질은 키를 넣어야 나옵니다.</p>
+    <p class="hint">키는 <strong>이 컴퓨터의 .env 파일에만</strong> 저장되고 밖으로 나가지 않습니다.
+      한 번 넣으면 다시 보이지 않고, 가린 모양으로만 확인됩니다.</p>
+    <div class="row" style="margin-top:10px">
+      <input id="apiKeyIn" type="password" autocomplete="off" spellcheck="false"
+             placeholder="sk-ant-... 를 붙여넣으세요 (Ctrl+V)" style="flex:1;min-width:280px">
+      <button id="btnKeySave">저장</button>
+    </div>
+    <p id="apiKeyState" class="hint" style="margin:8px 0 0"></p>
+    <p class="hint" style="margin:6px 0 0">키는 여기서 만듭니다 —
+      <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></p>
+
+    <h2 style="margin-top:26px">작곡가 이름</h2>
     <p class="hint">악보·음원·프로그램북에 나가는 이름은 <strong>예명 하나</strong>입니다.
       실명과 연락처는 <strong>저작권 등록 서류에만</strong> 쓰이고 이 컴퓨터 밖으로 나가지 않습니다.</p>
     <div class="grid">
@@ -2464,7 +2478,37 @@ async function loadComposer() {
   } catch (_) { /* 이름을 못 읽었다고 작곡을 막지 않는다 */ }
 }
 
-$("btnComposer").onclick = () => { $("composerPanel").classList.remove("hidden"); };
+
+// ── API 키 ────────────────────────────────────────────────────────────────
+// 명령창에 붙여넣게 하지 않는다. 윈도우 PowerShell 의 숨김 입력에서는 Ctrl+V 가
+// 듣지 않아 보이지 않는 글자 하나가 들어가고, 원장은 분명히 복사했는데 왜 틀렸다는지
+// 알 수가 없다. 브라우저 입력칸에서는 Ctrl+V 가 늘 된다.
+async function refreshApiKey() {
+  const box = $("apiKeyState");
+  if (!box) return;
+  try {
+    const s = await api("/api/api-key");
+    box.innerHTML = s.present
+      ? `<span class="tag ok">넣었습니다</span> ${s.masked} — 클로드가 작곡합니다`
+      : `<span class="tag warn">아직 없습니다</span> 지금은 규칙 기반(무료)으로 돕니다`;
+  } catch (_) { /* 못 읽어도 화면은 뜬다 */ }
+}
+
+$("btnKeySave").onclick = async () => {
+  const el = $("apiKeyIn"), box = $("apiKeyState");
+  const key = el.value.trim();
+  if (!key) { box.textContent = "키를 붙여넣으십시오."; return; }
+  box.textContent = "저장하는 중…";
+  try {
+    const s = await api("/api/api-key", { method: "PUT", body: JSON.stringify({ key }) });
+    el.value = "";
+    box.innerHTML = `<span class="tag ok">저장했습니다</span> ${s.masked} — 이제 클로드가 작곡합니다`;
+  } catch (e) {
+    box.innerHTML = `<span class="tag warn">넣지 못했습니다</span> ${e.message}`;
+  }
+};
+
+$("btnComposer").onclick = () => { $("composerPanel").classList.remove("hidden"); refreshApiKey(); };
 $("btnComposerClose").onclick = () => { $("composerPanel").classList.add("hidden"); };
 $("composerPanel").onclick = (e) => {
   if (e.target === $("composerPanel")) $("composerPanel").classList.add("hidden");

@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
+    apikey,
     compositions,
     corpus,
     feedback,
@@ -112,6 +113,7 @@ async def persist_after_write(request, call_next):  # type: ignore[no-untyped-de
 
 
 app.include_router(health.router)
+app.include_router(apikey.router)
 app.include_router(students.router)
 app.include_router(corpus.router)
 app.include_router(compositions.router)

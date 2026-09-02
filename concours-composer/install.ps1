@@ -9,6 +9,12 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+# 설치 과정을 파일로 남긴다.
+#
+# 검은 창은 닫히면 사라진다. 원장이 "설치가 안 된다"고 할 때 화면을 사진으로
+# 찍어 보내지 않으면 무슨 일이 있었는지 알 방법이 없다. 이 파일 하나만 보내면 된다.
+try { Start-Transcript -Path (Join-Path $PSScriptRoot "설치기록.txt") -Force | Out-Null } catch { }
+
 function Step($m) { Write-Host $m -ForegroundColor White }
 function Ok($m)   { Write-Host "  OK  $m" -ForegroundColor Green }
 function Die($m)  { Write-Host "  X   $m" -ForegroundColor Red; exit 1 }
@@ -36,6 +42,79 @@ function Find-Python {
     return $null
 }
 
+# 파이썬을 대신 깔아 준다.
+#
+# winget 이 있으면 그것이 가장 깔끔하다. 다만 회사 PC·구형 윈도우10 에는 winget 이
+# 없는 경우가 흔하다. 그때 브라우저로 보내면 원장은 설치창의 체크박스 하나 때문에
+# 또 막힌다("Add python.exe to PATH"). 그래서 python.org 의 공식 설치 파일을
+# 직접 받아 조용히 실행한다 — PATH 등록까지 우리가 켜 준다.
+
+# 방금 깐 파이썬은 이 창의 PATH 에 아직 없다 — 다시 읽어 온 뒤 찾는다.
+function Find-PythonAfterRefresh {
+    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                [Environment]::GetEnvironmentVariable("Path", "User")
+    $script:py = Find-Python
+    return $script:py
+}
+
+function Install-Python {
+    $saved = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            Write-Host "  파이썬을 내려받아 설치합니다. 몇 분 걸립니다..." -ForegroundColor White
+            winget install --id Python.Python.3.12 --exact --source winget --accept-package-agreements --accept-source-agreements
+            if (Find-PythonAfterRefresh) { return $true }
+            Write-Host "  다른 방법으로 다시 시도합니다..." -ForegroundColor DarkGray
+        }
+
+        # winget 이 없거나 실패했다 — 설치 파일을 직접 받는다.
+        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" }
+                elseif ([Environment]::Is64BitOperatingSystem) { "amd64" }
+                else { "" }
+        # 판올림이 잦아 한 주소를 박아 두면 언젠가 죽는다. 있는 것을 찾아 쓴다.
+        $vers = @("3.12.12", "3.12.11", "3.12.10", "3.12.9", "3.12.8", "3.12.7", "3.12.3")
+        $url = $null
+        foreach ($v in $vers) {
+            $u = if ($arch) { "https://www.python.org/ftp/python/$v/python-$v-$arch.exe" }
+                 else       { "https://www.python.org/ftp/python/$v/python-$v.exe" }
+            try {
+                Invoke-WebRequest -Uri $u -Method Head -UseBasicParsing -TimeoutSec 20 | Out-Null
+                $url = $u
+                break
+            } catch { continue }
+        }
+        if (-not $url) {
+            Write-Host "  python.org 에 연결하지 못했습니다(회사 방화벽일 수 있습니다)." -ForegroundColor Yellow
+            return $false
+        }
+
+        $exe = Join-Path $env:TEMP "python-setup.exe"
+        Write-Host "  파이썬을 내려받습니다 (약 25MB)..." -ForegroundColor White
+        try {
+            $keep = $ProgressPreference
+            $ProgressPreference = "SilentlyContinue"
+            Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing -TimeoutSec 900
+            $ProgressPreference = $keep
+        } catch {
+            Write-Host "  내려받지 못했습니다: $_" -ForegroundColor Yellow
+            return $false
+        }
+
+        Write-Host "  설치 중입니다. 2~3분 걸립니다. 창을 닫지 마십시오..." -ForegroundColor White
+        # PrependPath=1 이 바로 그 체크박스다. 원장이 놓쳐서 막히던 자리를 여기서 없앤다.
+        $flags = "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0 Include_doc=0"
+        $proc = Start-Process -FilePath $exe -ArgumentList $flags -Wait -PassThru
+        Remove-Item $exe -ErrorAction SilentlyContinue
+        if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            Write-Host "  설치 프로그램이 오류로 끝났습니다(코드 $($proc.ExitCode))." -ForegroundColor Yellow
+            return $false
+        }
+        if (Find-PythonAfterRefresh) { return $true }
+        return $false
+    } finally { $ErrorActionPreference = $saved }
+}
+
 Step "1/7 파이썬 확인"
 $py = Find-Python
 
@@ -43,24 +122,11 @@ if (-not $py) {
     Write-Host ""
     Write-Host "  이 컴퓨터에 파이썬이 없습니다." -ForegroundColor Yellow
     Write-Host "  콩쿨 작곡기가 돌아가려면 파이썬 3.12 이상이 필요합니다(무료)."
+    Write-Host "  지금 대신 설치해 드리겠습니다 - 그대로 두고 기다리십시오." -ForegroundColor White
     Write-Host ""
-
-    # winget 이 있으면 여기서 바로 깔아 준다. 원장이 브라우저를 열고 설치 창을
-    # 헤매는 단계를 통째로 없애는 것이 목적이다.
-    $winget = Get-Command winget -ErrorAction SilentlyContinue
-    if ($winget) {
-        $ans = Read-Host "  지금 자동으로 설치할까요? (Y = 예 / N = 아니요)"
-        if ($ans -match "^[Yy]") {
-            Write-Host "  파이썬을 내려받아 설치합니다. 몇 분 걸립니다..." -ForegroundColor White
-            $saved = $ErrorActionPreference
-            $ErrorActionPreference = "Continue"
-            winget install --id Python.Python.3.12 --exact --source winget --accept-package-agreements --accept-source-agreements
-            $ErrorActionPreference = $saved
-            # 방금 깐 파이썬은 이 창의 PATH 에 아직 없다 — 다시 읽어 온다.
-            $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
-            $py = Find-Python
-            if ($py) { Write-Host "  파이썬이 설치되었습니다." -ForegroundColor Green }
-        }
+    if (Install-Python) {
+        $py = $script:py
+        Write-Host "  파이썬이 설치되었습니다." -ForegroundColor Green
     }
 }
 
@@ -92,11 +158,17 @@ $vpy = ".\.venv\Scripts\python.exe"
 if (-not (Test-Path $vpy)) { Die "가상환경을 만들지 못했다" }
 Ok ".venv"
 
-Step "3/7 의존성 설치 (처음 한 번은 몇 분 걸린다)"
-& $vpy -m pip install -q --upgrade pip
-& $vpy -m pip install -q -r server\requirements.txt
-if ($LASTEXITCODE -ne 0) { Die "의존성 설치 실패" }
-Ok "설치 완료"
+Step "3/7 필요한 부품 내려받기"
+# 여기가 가장 오래 걸린다. -q 로 조용히 돌리면 화면이 몇 분 동안 아무것도 안 바뀌어서
+# 멈춘 줄 알고 창을 닫게 된다(실제로 그랬다). 그래서 pip 의 진행 표시를 그대로 보여 준다.
+Write-Host "      2~5분쯤 걸립니다. 줄이 계속 올라가면 잘 되고 있는 것입니다." -ForegroundColor DarkGray
+Write-Host "      창을 닫지 마십시오." -ForegroundColor DarkGray
+# 원장 PC 용 목록을 쓴다. 전체 목록에는 도커 배포용(PostgreSQL·Celery·Redis)과
+# 코드가 쓰지도 않는 3D 도구(vtk, 내려받기 133MB)가 들어 있어 다섯 배 느리다.
+& $vpy -m pip install --disable-pip-version-check --upgrade pip
+& $vpy -m pip install --disable-pip-version-check -r server\requirements-desktop.txt
+if ($LASTEXITCODE -ne 0) { Die "부품을 내려받지 못했다 - 인터넷 연결을 확인하고 다시 실행하라" }
+Ok "완료"
 
 Step "4/7 설정 파일"
 if (Test-Path ".env") {
@@ -150,3 +222,4 @@ Write-Host "설치 끝." -ForegroundColor White
 Write-Host "  바탕화면의 '콩쿨 작곡기' 아이콘을 두 번 누르십시오."
 Write-Host "  (아이콘이 없으면 이 폴더에서  .\start.ps1  을 실행하십시오)"
 Write-Host ""
+try { Stop-Transcript | Out-Null } catch { }
