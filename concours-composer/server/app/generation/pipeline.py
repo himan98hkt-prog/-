@@ -557,7 +557,6 @@ class CompositionPipeline:
             )
         opts = AssembleOptions(
             title=title or (plan.title_candidates[0] if plan.title_candidates else "무제"),
-            composer="AI 초안 · 원장 편곡",
             key_sig=plan.key, meter=plan.meter, tempo=plan.tempo,
         )
         quality = QualityReport(
@@ -709,7 +708,6 @@ class CompositionPipeline:
             )
         opts = AssembleOptions(
             title=title or (plan.title_candidates[0] if plan.title_candidates else "무제"),
-            composer="AI 초안 · 원장 편곡",
             key_sig=plan.key, meter=plan.meter, tempo=plan.tempo,
         )
         xml = measures_to_musicxml(measures, opts)

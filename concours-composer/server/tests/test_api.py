@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 def client():
     for bucket in (STORE.students, STORE.competitions, STORE.requests, STORE.motifs,
                    STORE.plans, STORE.compositions, STORE.versions, STORE.recitals,
-                   STORE.judgements):
+                   STORE.judgements, STORE.rights):
         bucket.clear()
     STORE.jobs.clear()
     # 코퍼스는 모듈 싱글턴이다. 앞 테스트가 만든 곡이 남아 있으면 다음 곡이
@@ -336,3 +336,49 @@ def test_audio_download(client, req_id):
     assert again.content == r.content
 
     assert client.get("/api/compositions/nope/audio").status_code == 404
+
+
+def test_composer_identity_and_registration(client, req_id):
+    """예명은 악보로, 실명은 등록 서류로 — 두 길이 섞이지 않아야 한다."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    assert client.get("/api/composer").json()["alias"] == "accelssam"
+
+    who = client.put("/api/composer", json={
+        "alias": "accelssam", "legal_name": "이경실", "birth_date": "1985-04-02",
+        "nationality": "대한민국", "email": "a@b.kr", "phone": "", "address": "서울시",
+    })
+    assert who.status_code == 200, who.text
+
+    # 실명은 악보에 나가지 않는다.
+    xml = client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"]
+    assert "accelssam" in xml and "이경실" not in xml
+
+    # 창작곡이면 등록 초안이 바로 준비된다.
+    d = client.get(f"/api/compositions/{cid}/registration").json()
+    assert d["ready"] is True and d["blockers"] == []
+    assert "이경실" in d["markdown"] and "accelssam" in d["markdown"]
+
+    # 편곡으로 바꾸고 원곡을 비워 두면 막힌다.
+    client.put(f"/api/compositions/{cid}/rights", json={
+        "work_type": "arrangement", "original_title": "", "original_composer": "",
+        "original_status": "unknown", "license_note": "", "first_published": "", "note": "",
+    })
+    blocked = client.get(f"/api/compositions/{cid}/registration").json()
+    assert blocked["ready"] is False and blocked["blockers"]
+
+    # 보호 기간이 끝난 원곡이면 통과한다.
+    client.put(f"/api/compositions/{cid}/rights", json={
+        "work_type": "arrangement", "original_title": "G선상의 아리아",
+        "original_composer": "J.S. Bach", "original_status": "public_domain",
+        "license_note": "", "first_published": "", "note": "",
+    })
+    cleared = client.get(f"/api/compositions/{cid}/registration").json()
+    assert cleared["ready"] is True
+
+    md = client.get(f"/api/compositions/{cid}/registration.md")
+    assert md.status_code == 200 and "저작권 등록 신청 초안" in md.text
+
+    assert client.get("/api/compositions/nope/registration").status_code == 404

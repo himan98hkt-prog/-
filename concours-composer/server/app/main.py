@@ -17,6 +17,7 @@ from app.api import (
     health,
     judge,
     recitals,
+    rights,
     students,
     studio,
 )
@@ -65,6 +66,15 @@ async def lifespan(app: FastAPI):
         path = s.resolved_store_path()
         get_store().attach(path)
         log.info("저장소 파일 %s", path)
+
+    # 저장해 둔 예명을 불러온다. 악보에 찍히는 이름은 이것 하나다(실명은 등록 서류에만).
+    try:
+        from app.api.rights import get_composer
+        from app.identity import set_alias
+
+        set_alias(get_composer(get_store()).alias)
+    except Exception:                                  # 이름 때문에 기동을 막지 않는다
+        log.warning("작곡가 예명을 불러오지 못했다", exc_info=True)
     yield
     get_store().save()          # 종료 직전에 한 번 더
 
@@ -97,6 +107,7 @@ app.include_router(students.router)
 app.include_router(corpus.router)
 app.include_router(compositions.router)
 app.include_router(studio.router)
+app.include_router(rights.router)
 app.include_router(judge.router)
 app.include_router(recitals.router)
 app.include_router(feedback.router)

@@ -6,7 +6,7 @@ CLAUDE.md 절대 규칙 1(LLM 이 XML 을 만들지 않는다)과 4(모든 <note
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from music21 import (
     articulations,
@@ -29,6 +29,7 @@ from music21 import (
     tempo as m21tempo,
 )
 
+from app.identity import current_alias
 from app.schemas.music import Measure, NoteEvent, NoteEvents, PedalSpan, Voice
 
 HAND_STAFF = {"rh": 1, "lh": 2}
@@ -37,7 +38,8 @@ HAND_STAFF = {"rh": 1, "lh": 2}
 @dataclass(frozen=True)
 class AssembleOptions:
     title: str = "무제"
-    composer: str = "AI 초안 · 원장 편곡"
+    # 악보에 찍히는 이름은 예명 하나뿐이다(app/identity.py). 실명은 여기 오지 않는다.
+    composer: str = field(default_factory=current_alias)
     key_sig: str = "C"
     meter: str = "4/4"
     tempo: int = 100

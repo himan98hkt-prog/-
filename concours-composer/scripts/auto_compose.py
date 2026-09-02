@@ -123,7 +123,7 @@ def main() -> int:
 
     (d / "score.mid").write_bytes(measures_to_midi(res.measures, res.plan.tempo, res.plan.meter))
     events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
-    data, ext = render_audio(events)
+    data, ext = render_audio(events, title=out.title)
     (d / f"연주.{ext}").write_bytes(data)
     print(f"  → {d.relative_to(ROOT)}  (악보·{ext.upper()}·MIDI)")
     return 0 if out.savable else 1

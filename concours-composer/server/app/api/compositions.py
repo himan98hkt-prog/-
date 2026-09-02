@@ -417,7 +417,8 @@ def get_audio(
         from app.generation.assemble import measures_to_note_events
 
         events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
-        hit = render_audio(events, hands=hands)
+        song = res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
+        hit = render_audio(events, hands=hands, title=song)
         if len(_AUDIO_CACHE) >= _AUDIO_CACHE_MAX:
             _AUDIO_CACHE.pop(next(iter(_AUDIO_CACHE)))
         _AUDIO_CACHE[key] = hit

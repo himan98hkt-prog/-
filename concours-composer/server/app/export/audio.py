@@ -22,6 +22,7 @@ from typing import Literal
 
 import numpy as np
 
+from app.identity import current_alias
 from app.schemas.music import NoteEvents
 
 try:  # 울림(리버브) 합성용. 없으면 마른 소리로 낸다 — 소리는 나야 한다.
@@ -273,11 +274,24 @@ def mp3_encoder() -> list[str] | None:
     return None
 
 
-def wav_to_mp3(wav: bytes) -> bytes | None:
-    """WAV → MP3. 인코더가 없거나 실패하면 None (호출한 쪽이 WAV 를 준다)."""
+def wav_to_mp3(wav: bytes, *, title: str = "", artist: str = "") -> bytes | None:
+    """WAV → MP3. 인코더가 없거나 실패하면 None (호출한 쪽이 WAV 를 준다).
+
+    제목·작곡가를 태그로 박는다. 파일 하나만 건네받은 사람도 누구 곡인지 알아야 한다.
+    작곡가는 언제나 **예명**이다 — 실명은 저작권 등록 서류에만 쓴다.
+    """
     cmd = mp3_encoder()
     if cmd is None:
         return None
+    if title or artist:
+        tags: list[str] = []
+        if title:
+            tags += ["-metadata", f"title={title}"]
+        if artist:
+            tags += ["-metadata", f"artist={artist}", "-metadata", f"album_artist={artist}"]
+        # 출력 인자(-codec:a ...) 앞에 끼워 넣어야 출력 파일의 태그가 된다.
+        at = cmd.index("-codec:a") if "-codec:a" in cmd else len(cmd)
+        cmd = cmd[:at] + tags + cmd[at:]
     try:
         proc = subprocess.run(cmd, input=wav, capture_output=True, timeout=180, check=False)
     except (OSError, subprocess.TimeoutExpired):
@@ -293,11 +307,13 @@ def render_audio(
     hands: Hands = "both",
     prefer_mp3: bool = True,
     sample_rate: int = SAMPLE_RATE,
+    title: str = "",
+    artist: str = "",
 ) -> tuple[bytes, str]:
     """곡 → (파일 바이트, 확장자). MP3 가 안 되면 WAV 로 준다 — 빈손으로 보내지 않는다."""
     wav = pcm_to_wav(render_pcm(events, hands=hands, sample_rate=sample_rate), sample_rate)
     if prefer_mp3:
-        mp3 = wav_to_mp3(wav)
+        mp3 = wav_to_mp3(wav, title=title, artist=artist or current_alias())
         if mp3 is not None:
             return mp3, "mp3"
     return wav, "wav"

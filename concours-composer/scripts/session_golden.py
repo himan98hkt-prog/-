@@ -197,10 +197,10 @@ def write_summary_table(rows: list[dict]) -> Path:
     ]
     for r in rows:
         verdict = "통과" if r["validation_passed"] else "실패 " + ",".join(r["hard_failures"])
-        limit = f" / {r['time_limit_sec']}초" if r["time_limit_sec"] else ""
+        limit_note = f" / {r['time_limit_sec']}초" if r["time_limit_sec"] else ""
         lines.append(
             f"| {r['id']} | {r['title']} | {r['key']} {r['meter']} ♩={r['tempo']} | "
-            f"{r['measures']} | {r['duration_sec']}초{limit} | {verdict} | {r['parallels']} | "
+            f"{r['measures']} | {r['duration_sec']}초{limit_note} | {verdict} | {r['parallels']} | "
             f"{r['musicality']} | {r['critic_total']} | {r.get('judge_average', '-')} | "
             f"{r['combined']} | {r['difficulty']}({r['difficulty_target']}) |"
         )
@@ -219,11 +219,11 @@ def write_summary_table(rows: list[dict]) -> Path:
             if not old_path.exists():
                 continue
             o = json.loads(old_path.read_text(encoding="utf-8"))
-            limit = r["time_limit_sec"] or 1
+            limit_sec = r["time_limit_sec"] or 1
             lines.append(
                 f"| {r['id']} | {o['measures']} → {r['measures']} | "
                 f"{o['duration_sec']}초 → {r['duration_sec']}초 | "
-                f"{o['duration_sec'] / limit:.0%} → {r['duration_sec'] / limit:.0%} |"
+                f"{o['duration_sec'] / limit_sec:.0%} → {r['duration_sec'] / limit_sec:.0%} |"
             )
         lines += [
             "",

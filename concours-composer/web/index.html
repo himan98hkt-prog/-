@@ -14,6 +14,7 @@
     --line:#e5dbcb; --line-2:#d6c9b4;
     --muted:#7d7365; --muted-2:#9a8f7f;
     --accent:#6d1f2e; --accent-2:#8d2c3e; --gold:#a8853c; --gold-2:#c9a55f;
+    --gold-soft:#e6d9bd;
     --ok:#2c6a45; --warn:#8f6310; --bad:#9d2b21;
     --shadow:0 1px 2px rgba(26,21,18,.05), 0 8px 24px -12px rgba(26,21,18,.16);
     --serif:"Nanum Myeongjo","Apple SD Gothic Neo",Georgia,"Times New Roman",serif;
@@ -66,8 +67,8 @@
 
   /* ── 레이아웃 ───────────────────────────────────────────────────────── */
   main{max-width:1180px;margin:0 auto;padding:26px 24px 40px}
-  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-          padding:22px 24px;margin-bottom:20px;box-shadow:var(--shadow)}
+  section{scroll-margin-top:86px;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+          padding:26px 28px;margin-bottom:26px;box-shadow:var(--shadow)}
   section > h2{margin:0 0 5px;font:600 17px/1.35 var(--serif);
                display:flex;align-items:center;gap:9px}
   section > h2::before{content:"";width:3px;height:16px;background:var(--gold);border-radius:2px}
@@ -148,6 +149,7 @@
   .scoretab:hover:not(:disabled){border-color:var(--gold)}
   .scoretab.on{background:var(--ink);color:#f7f3ec;border-color:var(--ink)}
   .scoretab:disabled{opacity:.4;cursor:not-allowed}
+  .why{font-size:11.5px;color:var(--muted-2);line-height:1.45}
   .scoreview{background:var(--score);padding:10px 12px;overflow:auto;min-height:150px;
              max-height:560px;position:relative}
   .mini-svg{display:block}
@@ -232,6 +234,59 @@
   .ed-hand{font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;
            margin:9px 0 5px}
 
+  /* 머리말의 작은 단추 — 이름과 끄기 */
+  .head-btn{background:transparent;border:1px solid rgba(232,222,205,.28);color:#e8decd;
+            padding:6px 12px;border-radius:999px;font:500 12px/1 var(--sans);cursor:pointer;
+            transition:.15s;white-space:nowrap}
+  .head-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .head-btn.quit:hover{border-color:#c98b8b;color:#e7b3b3}
+
+  /* 덮개 — 작곡가 이름처럼 가끔 여는 것 */
+  .sheet{position:fixed;inset:0;background:rgba(26,21,18,.55);z-index:60;
+         display:flex;align-items:flex-start;justify-content:center;padding:70px 20px;
+         overflow:auto}
+  .sheet-in{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+            padding:26px 28px 22px;max-width:720px;width:100%;
+            box-shadow:0 24px 60px rgba(26,21,18,.28)}
+  .sheet-in h2{margin:0 0 6px;font:600 19px/1.3 var(--serif)}
+
+  /* 첫 사용 안내 */
+  .guide{margin:0 0 22px}
+  .guide-in{background:linear-gradient(180deg,#fffdf8,#faf5ea);
+            border:1px solid var(--gold-soft);border-left:3px solid var(--gold);
+            padding:16px 20px 14px}
+  .guide-h{margin:0 0 8px;font:600 14px/1.4 var(--serif);color:var(--accent)}
+  .guide-steps{margin:0 0 10px;padding-left:20px;font-size:13.5px;line-height:1.85;color:var(--ink)}
+  .guide-steps b{font-weight:600}
+  .guide-steps i{font-style:normal;color:var(--accent);font-weight:600}
+
+  /* 편곡이 아닐 때 원곡 칸은 숨긴다 — 안 쓰는 칸이 보이면 헷갈린다 */
+  #rightsBox.original .arr-only{display:none}
+  #rightsBox summary{cursor:pointer;font:600 15px/1.4 var(--serif);padding:6px 0}
+  .warn-box{background:#fbeeee;border-left:3px solid #a33;padding:12px 14px;margin:12px 0;
+            font-size:13.5px;line-height:1.7}
+  .warn-box b{color:#8f2b2b}
+  .ok-box{background:#eef4ee;border-left:3px solid #2f6b46;padding:12px 14px;margin:12px 0;
+          font-size:13.5px;line-height:1.7}
+
+  /* 접어 두는 전문가용 내용 — 기본 화면은 듣고 고치는 것만 남긴다 */
+  .fold{border-top:1px solid var(--line);padding:2px 0}
+  .fold > summary{cursor:pointer;padding:13px 2px;font:600 14.5px/1.4 var(--serif);
+                  color:var(--ink);list-style:none;display:flex;align-items:baseline;gap:7px}
+  .fold > summary::-webkit-details-marker{display:none}
+  .fold > summary::before{content:"▸";color:var(--gold);font-size:11px;transition:.15s}
+  .fold[open] > summary::before{transform:rotate(90deg)}
+  .fold > summary:hover{color:var(--accent)}
+  .fold > table{margin-bottom:14px}
+
+  /* 지표 표 — 이름·값·근거가 서로 밀지 않게 */
+  #metrics td:first-child{min-width:132px}
+  #metrics td:nth-child(2){white-space:nowrap;font-variant-numeric:tabular-nums;
+                           text-align:right;padding-right:14px}
+  #metrics .bar{min-width:70px}
+
+  .verdict{font:400 15px/1.65 var(--serif);color:var(--ink);margin:0 0 10px;
+           padding-left:12px;border-left:2px solid var(--gold)}
   .hidden{display:none}
   footer{color:var(--muted);font-size:12px;text-align:center;padding:26px 24px 40px;
          border-top:1px solid var(--line);margin-top:10px}
@@ -259,13 +314,58 @@
       <button class="switch on" id="tipSwitch" role="switch" aria-checked="true"
         aria-label="버튼 설명 표시"><span></span></button>
       <span id="tipState">켬</span>
+      <button class="head-btn" id="btnComposer"
+        data-tip="악보에 찍히는 예명과, 저작권 등록에만 쓰는 실명을 관리합니다."
+        data-tip-side="right"><span id="composerName">accelssam</span></button>
+      <button class="head-btn quit" id="btnQuit"
+        data-tip="프로그램을 끕니다.&#10;다시 쓸 때는 바탕화면 아이콘을 누르십시오."
+        data-tip-side="right">끄기</button>
     </div>
   </div>
 </header>
 
+<!-- 작곡가 이름 — 밖으로 나가는 예명과, 등록에만 쓰는 실명 -->
+<div id="composerPanel" class="sheet hidden">
+  <div class="sheet-in">
+    <h2>작곡가 이름</h2>
+    <p class="hint">악보·음원·프로그램북에 나가는 이름은 <strong>예명 하나</strong>입니다.
+      실명과 연락처는 <strong>저작권 등록 서류에만</strong> 쓰이고 이 컴퓨터 밖으로 나가지 않습니다.</p>
+    <div class="grid">
+      <div data-tip="악보 표지·MP3 태그·콩쿨 제출본에 찍히는 이름입니다."><label>예명 (밖으로 나가는 이름)</label>
+        <input id="cAlias" value="accelssam"></div>
+      <div data-tip="저작권 등록 신청서에만 들어갑니다. 악보에는 찍히지 않습니다."><label>실명 (등록용)</label>
+        <input id="cLegal" placeholder="예: 이경실"></div>
+      <div data-tip="등록 신청서의 필수 항목입니다."><label>생년월일</label>
+        <input id="cBirth" placeholder="1985-04-02"></div>
+      <div><label>이메일</label><input id="cEmail" placeholder="name@example.com"></div>
+      <div><label>전화</label><input id="cPhone" placeholder="010-0000-0000"></div>
+      <div><label>주소 (등록용)</label><input id="cAddress" placeholder="시·구·동까지"></div>
+    </div>
+    <div class="row">
+      <button id="btnComposerSave">저장</button>
+      <button class="ghost" id="btnComposerClose">닫기</button>
+      <span id="composerState" class="hint" style="margin:0"></span>
+    </div>
+  </div>
+</div>
+
 <main>
   <!-- ══ 대시보드 ═══════════════════════════════════════════════════════ -->
   <div id="tabDash">
+
+  <!-- 처음 여는 사람에게 순서를 알려 준다. 한 곡이라도 만들면 사라진다. -->
+  <div id="firstRun" class="guide hidden">
+    <div class="guide-in">
+      <p class="guide-h">처음이시면 이 순서로 하시면 됩니다</p>
+      <ol class="guide-steps">
+        <li><b>학생을 적고</b> 아래 <i>학생 저장하고 컨셉 보기</i> 를 누릅니다</li>
+        <li>마음에 드는 <b>컨셉 카드 하나</b>를 누릅니다 — 곡이 만들어집니다</li>
+        <li><b>▶ 재생</b> 으로 들어 보고, 악보에서 지금 어디를 치는지 봅니다</li>
+        <li>고칠 곳이 있으면 <b>말로 적어</b> 보내거나, 악보의 음표를 <b>끌어서</b> 고칩니다</li>
+      </ol>
+      <button class="ghost mini" id="btnGuideClose">알겠습니다</button>
+    </div>
+  </div>
 
   <section>
     <span class="step">1단계</span>
@@ -432,14 +532,51 @@
     <div id="judgeOut"></div>
     <div id="guideOut"></div>
 
-    <h3 style="margin-top:24px">음악성 지표</h3>
-    <table id="metrics"></table>
-    <h3>비평가의 수정 지시</h3>
-    <table id="revisions"></table>
-    <div id="candidateBox" class="hidden">
-      <h3>생성된 안 비교</h3>
+    <details id="rightsBox" style="margin-top:22px">
+      <summary data-tip="저작권 등록과 판매에 필요한 것들입니다.&#10;편곡이면 원곡의 권리 상태를 반드시 적어야 합니다.">저작권 · 등록 준비</summary>
+      <p class="hint">이 곡을 등록하고 팔려면 <strong>권리가 정리돼 있어야</strong> 합니다.
+        창작곡이면 그대로 됩니다. 남의 곡을 편곡한 것이라면 원곡의 보호 기간이 끝났거나
+        허락을 받았어야 합니다.</p>
+      <div class="grid">
+        <div data-tip="처음부터 새로 쓴 곡이면 '창작곡',&#10;기존 곡을 바꾼 것이면 '편곡' 입니다."><label>이 곡은</label>
+          <select id="rType">
+            <option value="original">창작곡 (처음부터 새로 씀)</option>
+            <option value="arrangement">편곡 (기존 곡을 바꿈)</option>
+          </select></div>
+        <div class="arr-only"><label>원곡 제목</label><input id="rOrigTitle" placeholder="예: G선상의 아리아"></div>
+        <div class="arr-only"><label>원곡 작곡가</label><input id="rOrigComposer" placeholder="예: J.S. Bach"></div>
+        <div class="arr-only" data-tip="작곡가 사후 70년이 지났으면 보호 기간이 끝난 것입니다.&#10;확실하지 않으면 '확인 안 됨' 으로 두십시오 — 프로그램이 막아 줍니다."><label>원곡의 권리</label>
+          <select id="rStatus">
+            <option value="unknown">확인 안 됨</option>
+            <option value="public_domain">보호 기간 끝남 (사후 70년 경과)</option>
+            <option value="licensed">원저작자에게 허락받음</option>
+            <option value="own_work">내가 쓴 곡</option>
+            <option value="copyrighted">보호 기간 중 · 허락 없음</option>
+          </select></div>
+        <div class="arr-only"><label>허락 근거 (계약·메일·출처)</label><input id="rLicense"></div>
+        <div><label>공표일 (발표한 날)</label><input id="rPublished" placeholder="2026-09-02"></div>
+      </div>
+      <div class="row">
+        <button class="ghost" id="btnRightsSave">권리 정보 저장</button>
+        <button class="ghost" id="btnRegistration"
+          data-tip="등록 신청서에 옮겨 적을 내용을 문서로 만듭니다.">등록 신청서 초안 만들기</button>
+        <span id="rightsState" class="hint" style="margin:0"></span>
+      </div>
+      <div id="registrationOut"></div>
+    </details>
+
+    <details class="fold" style="margin-top:22px">
+      <summary data-tip="곡의 어디가 좋고 어디가 아쉬운지 아홉 가지로 나눠 봅니다.&#10;굳이 안 보셔도 곡은 이미 이 기준을 통과했습니다.">이 곡을 어떻게 평가했는지 <span class="why">— 아홉 가지 기준</span></summary>
+      <table id="metrics"></table>
+    </details>
+    <details class="fold">
+      <summary data-tip="곡 안에서 더 손보면 좋을 자리입니다.&#10;그대로 두셔도 되고, 4단계에서 말로 고치셔도 됩니다.">더 손보면 좋을 곳 <span class="why">— 비평가가 짚은 자리</span></summary>
+      <table id="revisions"></table>
+    </details>
+    <details class="fold hidden" id="candidateBox">
+      <summary>여러 안을 비교한 결과</summary>
       <table id="candidates"></table>
-    </div>
+    </details>
   </section>
 
   <section id="secArrange" class="hidden">
@@ -460,6 +597,7 @@
         <button id="btnRearrange" data-tip="이 구간을 다시 씁니다. 검증기와 지표를 다시 돌려 결과를 알려 줍니다.">보내기</button>
         <button class="ghost" id="btnDirectEdit"
           data-tip="말로 하는 대신 음표를 직접 고칩니다.&#10;위에 적은 마디 범위가 편집기로 열립니다.">직접 편집 →</button>
+        <span id="arrRangeNote" class="why" style="flex-basis:100%"></span>
       </div>
     </div>
   </section>
@@ -540,6 +678,7 @@ async function api(path, options = {}) {
       const err = new Error(d.message);
       err.hint = d.what_to_do || "";
       err.issues = d.issues || [];
+      err.alternatives = d.alternatives || [];
       throw err;
     }
     throw new Error(typeof d === "string" ? d : JSON.stringify(d || body));
@@ -733,20 +872,28 @@ function renderResult(b) {
       markMini(0);
     }
   });
+  // 숫자 앞에 한 줄로 결론부터 말한다. 점수표를 읽을 줄 몰라도 알 수 있어야 한다.
   const status = !b.savable ? '<span class="tag bad">저장 불가</span>'
-    : b.shown_as_draft ? '<span class="tag warn">초안(비평 문턱 미달)</span>'
+    : b.shown_as_draft ? '<span class="tag warn">초안</span>'
     : '<span class="tag ok">통과</span>';
-  $("resultSummary").innerHTML = `<p>${status}
+  const verdict = !b.savable
+    ? "규칙을 어긴 자리가 있어 이대로는 쓸 수 없습니다 — 아래 '검증' 을 펴서 보십시오."
+    : b.shown_as_draft
+      ? "쓸 수는 있지만 아직 초안입니다. 4단계에서 몇 군데만 고치면 좋아집니다."
+      : "콩쿨에 내도 되는 곡입니다. 들어 보시고 마음에 들면 그대로 쓰십시오.";
+  $("resultSummary").innerHTML = `<p class="verdict">${verdict}</p><p>${status}
     ${b.measures}마디 · 난이도 <strong>${b.difficulty}</strong> ·
     품질 종합 <strong>${q.combined_score}</strong>/${q.threshold} ·
-    수정 ${b.revision_rounds}라운드 · 엔진 <code>${b.engine}</code>
+    ${b.revision_rounds ? `고쳐 쓴 횟수 ${b.revision_rounds}회 · ` : ""}${engineKo(b.engine)}
     ${b.cost && b.cost.total_usd ? `· API $${b.cost.total_usd}` : ""}</p>
     ${b.validation.issues.length ? `<details><summary>검증 ${b.validation.summary}</summary>
       <pre>${b.validation.issues.map(i => `[${i.severity}] ${i.rule}: ${i.message}`).join("\n")}</pre></details>` : ""}`;
 
-  let rows = "<tr><th>지표</th><th>값</th><th></th><th>설명</th></tr>";
+  let rows = "<tr><th>무엇을 보는가</th><th>이 곡</th><th></th><th>근거</th></tr>";
   Object.entries(q.musicality.metrics).forEach(([k, m]) => {
-    rows += `<tr><td>${k}</td><td>${m.value.toFixed(2)} / ${m.target}</td>
+    const t = METRIC_KO[k] || { name: k, why: "" };
+    rows += `<tr><td><strong>${t.name}</strong>${t.why ? `<br><span class="why">${t.why}</span>` : ""}</td>
+      <td>${m.met ? "○" : "△"} ${m.value.toFixed(2)}<br><span class="why">기준 ${m.target}</span></td>
       <td><div class="bar"><i class="${m.met ? "" : "miss"}" style="width:${m.value * 100}%"></i></div></td>
       <td>${m.detail}</td></tr>`;
   });
@@ -756,7 +903,7 @@ function renderResult(b) {
   if (cands.length > 1) {
     $("candidateBox").classList.remove("hidden");
     $("candidates").innerHTML =
-      "<tr><th></th><th>종합</th><th>musicality</th><th>난이도</th><th>수정 라운드</th><th></th></tr>" +
+      "<tr><th></th><th>종합</th><th>음악성</th><th>난이도</th><th>고쳐 쓴 횟수</th><th></th></tr>" +
       cands.map((c, i) => `<tr><td>${i === 0 ? "<strong>기본</strong>" : i + 1 + "안"}</td>
         <td>${c.combined_score}</td><td>${c.musicality}</td><td>${c.difficulty}</td>
         <td>${c.revision_rounds}</td>
@@ -771,6 +918,29 @@ function renderResult(b) {
         `<tr><td>${r.measures[0]}-${r.measures[1]}</td><td>${r.issue}</td><td>${r.instruction}</td></tr>`).join("")
     : "<tr><td class='hint'>수정 지시 없음</td></tr>";
 }
+
+// 엔진 이름도 우리말로. 'stub-rule-based' 는 원장에게 아무 뜻도 아니다.
+function engineKo(engine) {
+  return String(engine).startsWith("claude")
+    ? '<span data-tip="Anthropic API 로 작곡했습니다. 곡당 비용이 듭니다.">AI 작곡</span>'
+    : '<span data-tip="API 키 없이 규칙만으로 만든 곡입니다. 돈이 들지 않지만 품질은 AI 작곡보다 낮습니다.">규칙 기반(무료)</span>';
+}
+
+// ── 지표 이름 사전 ─────────────────────────────────────────────────────────
+//
+// 화면에 motif_consistency 라고 적혀 있으면 원장은 그것이 좋은 소식인지 나쁜 소식인지
+// 알 수 없다. 이름은 우리말로, 그 아래 한 줄로 "왜 이걸 보는가" 를 적는다.
+const METRIC_KO = {
+  motif_consistency:   { name: "주제 일관성",   why: "처음 나온 가락이 곡 내내 되살아나는가" },
+  repetition_balance:  { name: "반복의 균형",   why: "너무 똑같지도, 너무 흩어지지도 않았는가" },
+  melodic_contour:     { name: "선율의 굴곡",   why: "올라가고 내려오는 모양이 살아 있는가" },
+  harmonic_consistency:{ name: "화성의 일치",   why: "음이 코드에서 벗어나 어색하지 않은가" },
+  phrase_balance:      { name: "숨의 자리",     why: "프레이즈가 호흡으로 끝맺는가" },
+  dynamic_curve:       { name: "셈여림의 흐름", why: "여리고 세짐이 설계대로 흐르는가" },
+  texture_contrast:    { name: "짜임새 대비",   why: "구간마다 손의 모양이 달라지는가" },
+  playability:         { name: "칠 수 있는가",  why: "이 학생의 손과 나이에 무리가 없는가" },
+  expressive_variety:  { name: "표현의 다양함", why: "리듬·음역·셈여림이 단조롭지 않은가" },
+};
 
 // ── 악보 보기 ──────────────────────────────────────────────────────────────
 //
@@ -1544,12 +1714,20 @@ async function autoCompose(presetId, cardEl) {
     await refreshLibrary();
   } catch (e) {
     box.className = "msg bad";
+    // 막혔을 때 "안 됩니다" 로 끝내지 않는다. 바로 누를 수 있는 다음 수를 함께 낸다.
+    const alt = (e.alternatives || []).map(a =>
+      `<button class="ghost mini alt-preset" data-preset="${a.id}" ` +
+      `title="${(a.blurb || "").replace(/"/g, "&quot;")}">${a.name} 으로 만들기</button>`).join(" ");
     box.innerHTML = `<strong>${e.message}</strong>`
       + (e.hint ? `<br>${e.hint}` : "")
+      + (alt ? `<div class="row" style="margin-top:10px">${alt}</div>` : "")
       + (e.issues && e.issues.length
-          ? `<details style="margin-top:6px"><summary>자세히</summary><pre>${
+          ? `<details style="margin-top:8px"><summary>왜 그런지 자세히</summary><pre>${
               [...new Set(e.issues)].join("\n\n")}</pre></details>`
           : "");
+    box.querySelectorAll(".alt-preset").forEach(b => {
+      b.onclick = () => autoCompose(b.dataset.preset, null);
+    });
   } finally {
     document.querySelectorAll("#presetGrid .card").forEach(c => c.disabled = false);
     if (cardEl) cardEl.disabled = false;
@@ -1593,6 +1771,7 @@ async function showComposition(cid) {
     // 편곡 채팅의 기본 구간을 곡 앞머리로 맞춰 둔다.
     $("arrFrom").max = b.measures; $("arrTo").max = b.measures;
     if (num("arrTo") > b.measures) $("arrTo").value = Math.min(4, b.measures);
+    loadRights(cid);
     $("secResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
 }
@@ -1855,6 +2034,153 @@ $("btnScoreSave").onclick = async () => {
   }
 };
 
+// ── 작곡가 이름 · 저작권 ───────────────────────────────────────────────────
+//
+// 곡을 만드는 것과 곡으로 돈을 버는 것은 다른 일이다. 뒤쪽은 **이름과 권리**가
+// 정리돼야 시작된다. 악보에 나가는 이름은 예명 하나뿐이고, 실명은 저작권 등록
+// 서류에만 쓰인다 — 이 컴퓨터를 떠나지 않는다.
+let composerCache = null;
+
+async function loadComposer() {
+  try {
+    composerCache = await api("/api/composer");
+    $("composerName").textContent = composerCache.alias || "accelssam";
+    $("cAlias").value = composerCache.alias || "";
+    $("cLegal").value = composerCache.legal_name || "";
+    $("cBirth").value = composerCache.birth_date || "";
+    $("cEmail").value = composerCache.email || "";
+    $("cPhone").value = composerCache.phone || "";
+    $("cAddress").value = composerCache.address || "";
+  } catch (_) { /* 이름을 못 읽었다고 작곡을 막지 않는다 */ }
+}
+
+$("btnComposer").onclick = () => { $("composerPanel").classList.remove("hidden"); };
+$("btnComposerClose").onclick = () => { $("composerPanel").classList.add("hidden"); };
+$("composerPanel").onclick = (e) => {
+  if (e.target === $("composerPanel")) $("composerPanel").classList.add("hidden");
+};
+
+$("btnComposerSave").onclick = async () => {
+  $("composerState").textContent = "저장하는 중…";
+  try {
+    composerCache = await api("/api/composer", {
+      method: "PUT",
+      body: JSON.stringify({
+        alias: val("cAlias").trim() || "accelssam",
+        legal_name: val("cLegal").trim(),
+        birth_date: val("cBirth").trim(),
+        nationality: "대한민국",
+        email: val("cEmail").trim(),
+        phone: val("cPhone").trim(),
+        address: val("cAddress").trim(),
+      }),
+    });
+    $("composerName").textContent = composerCache.alias;
+    $("composerState").textContent =
+      "저장했습니다 — 이제부터 만드는 악보에는 " + composerCache.alias + " 가 찍힙니다";
+  } catch (e) { $("composerState").textContent = e.message; }
+};
+
+function rightsFormType() {
+  $("rightsBox").classList.toggle("original", val("rType") === "original");
+}
+$("rType").onchange = rightsFormType;
+
+async function loadRights(cid) {
+  try {
+    const r = await api(`/api/compositions/${cid}/rights`);
+    $("rType").value = r.work_type;
+    $("rOrigTitle").value = r.original_title || "";
+    $("rOrigComposer").value = r.original_composer || "";
+    $("rStatus").value = r.original_status;
+    $("rLicense").value = r.license_note || "";
+    $("rPublished").value = r.first_published || "";
+    $("rightsState").textContent = "";
+    $("registrationOut").innerHTML = "";
+    rightsFormType();
+  } catch (_) { /* 권리 정보가 없어도 곡은 보인다 */ }
+}
+
+function rightsPayload() {
+  return {
+    work_type: val("rType"),
+    original_title: val("rOrigTitle").trim(),
+    original_composer: val("rOrigComposer").trim(),
+    original_status: val("rStatus"),
+    license_note: val("rLicense").trim(),
+    first_published: val("rPublished").trim(),
+    note: "",
+  };
+}
+
+$("btnRightsSave").onclick = async () => {
+  if (!compositionId) return;
+  $("rightsState").textContent = "저장하는 중…";
+  try {
+    await api(`/api/compositions/${compositionId}/rights`, {
+      method: "PUT", body: JSON.stringify(rightsPayload()),
+    });
+    $("rightsState").textContent = "저장했습니다";
+  } catch (e) { $("rightsState").textContent = e.message; }
+};
+
+$("btnRegistration").onclick = async () => {
+  if (!compositionId) return;
+  const out = $("registrationOut");
+  out.innerHTML = "<p class='hint'>초안을 만드는 중…</p>";
+  try {
+    // 화면에 적힌 것을 먼저 저장하고 초안을 만든다 — 방금 고친 값이 반영돼야 한다.
+    await api(`/api/compositions/${compositionId}/rights`, {
+      method: "PUT", body: JSON.stringify(rightsPayload()),
+    });
+    const d = await api(`/api/compositions/${compositionId}/registration`);
+    let head = "";
+    if (d.blockers.length) {
+      head += `<div class="warn-box"><b>이대로는 등록·판매하면 안 됩니다.</b><br>` +
+        d.blockers.map(b => "· " + b).join("<br>") + "</div>";
+    }
+    if (d.missing_fields.length) {
+      head += `<div class="warn-box">등록 신청서에 필요한 칸이 비어 있습니다 — ` +
+        `<b>${d.missing_fields.join(", ")}</b>. 오른쪽 위 이름 단추에서 채워 주십시오.</div>`;
+    }
+    if (d.ready) {
+      head += `<div class="ok-box"><b>준비됐습니다.</b> 아래 내용을 등록 신청서에 옮겨 적으십시오.</div>`;
+    }
+    out.innerHTML = head +
+      `<ul class="hint" style="margin:10px 0 12px;padding-left:20px">` +
+      d.checklist.map(c => `<li>${c}</li>`).join("") + `</ul>` +
+      `<pre style="white-space:pre-wrap">${d.markdown.replace(/</g, "&lt;")}</pre>` +
+      `<div class="row"><button class="ghost mini" id="btnRegDl">신청서 초안 내려받기</button></div>`;
+    $("btnRegDl").onclick = () => {
+      window.location.href = `${API}/api/compositions/${compositionId}/registration.md`;
+    };
+  } catch (e) { out.innerHTML = `<div class="msg bad">${e.message}</div>`; }
+};
+
+// ── 첫 사용 안내 · 프로그램 끄기 ────────────────────────────────────────────
+(function firstRunGuide() {
+  if (localStorage.getItem("cc_guide_done") !== "1") {
+    $("firstRun").classList.remove("hidden");
+  }
+  $("btnGuideClose").onclick = () => {
+    localStorage.setItem("cc_guide_done", "1");
+    $("firstRun").classList.add("hidden");
+  };
+})();
+
+$("btnQuit").onclick = async () => {
+  if (!confirm("프로그램을 끕니다.\n만든 곡은 저장돼 있으니 다시 켜면 그대로 있습니다.")) return;
+  try {
+    await fetch(`${API}/api/shutdown`, { method: "POST" });
+    document.body.innerHTML =
+      '<div style="padding:80px 24px;text-align:center;font:400 15px/1.9 var(--sans)">' +
+      '<p style="font:600 22px/1.4 var(--serif);color:var(--accent)">프로그램을 껐습니다</p>' +
+      '<p>이 창은 닫으셔도 됩니다.<br>다시 쓰실 때는 바탕화면의 <b>콩쿨 작곡기</b> 아이콘을 누르십시오.</p></div>';
+  } catch (_) {
+    alert("끄지 못했습니다. 명령창에서 띄우셨다면 그 창에서 Ctrl+C 를 누르십시오.");
+  }
+};
+
 // ── 편곡 채팅 ───────────────────────────────────────────────────────────────
 function chatSay(who, text, cls = "") {
   const log = $("chatLog");
@@ -1867,7 +2193,31 @@ function chatSay(who, text, cls = "") {
   return b;
 }
 
+// 문장 안의 "9~16마디" 같은 말을 읽는다. 숫자 칸을 따로 만지게 하면
+// 컴퓨터에 익숙하지 않은 분은 거기서 막힌다 — 말한 대로 알아듣는 것이 맞다.
+function measuresFromText(text) {
+  const range = /(\d{1,3})\s*(?:~|-|–|—|부터|에서)\s*(\d{1,3})\s*마디/.exec(text);
+  if (range) return [Number(range[1]), Number(range[2])];
+  const one = /(\d{1,3})\s*마디/.exec(text);
+  if (one) return [Number(one[1]), Number(one[1])];
+  return null;
+}
+
+// 무엇을 고칠지 적는 동안 어느 구간이 바뀔지 미리 보여 준다.
+function syncArrangeRange() {
+  const found = measuresFromText(val("arrHow"));
+  if (found) { $("arrFrom").value = found[0]; $("arrTo").value = found[1]; }
+  const lo = num("arrFrom"), hi = num("arrTo");
+  $("arrRangeNote").textContent = found
+    ? `적어 주신 대로 ${lo}~${hi}마디를 고칩니다`
+    : `${lo}~${hi}마디를 고칩니다 — 문장에 "9~16마디" 처럼 적으시면 그대로 따릅니다`;
+}
+$("arrHow").addEventListener("input", syncArrangeRange);
+$("arrFrom").addEventListener("input", syncArrangeRange);
+$("arrTo").addEventListener("input", syncArrangeRange);
+
 $("btnRearrange").onclick = async () => {
+  syncArrangeRange();
   const lo = num("arrFrom"), hi = num("arrTo"), how = val("arrHow");
   if (!compositionId) { chatSay("sys", "먼저 곡을 만들거나 보관함에서 열어 주십시오.", "bad"); return; }
   if (!(lo >= 1 && hi >= lo)) { chatSay("sys", "마디 범위를 확인해 주십시오.", "bad"); return; }
@@ -1989,6 +2339,11 @@ $("btnEdSave").onclick = async () => {
     $("edOut").innerHTML = `<div class="msg bad">${e.message}</div>`;
   } finally { $("btnEdSave").disabled = false; }
 };
+
+// ── 처음 켤 때 ──────────────────────────────────────────────────────────────
+loadComposer();
+syncArrangeRange();
+rightsFormType();
 
 </script>
 </body>

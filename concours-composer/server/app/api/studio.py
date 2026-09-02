@@ -8,6 +8,7 @@
 그리고 원클릭으로 나온 곡은 **모의 심사 3인을 통과해야** '심사 통과' 로 표시된다.
 문턱 미달이면 심사위원들이 공통으로 지적한 곳을 겨냥해 한 번 더 고친다.
 """
+
 from __future__ import annotations
 
 import logging
@@ -49,9 +50,7 @@ class PresetOut(BaseModel):
 
 
 @router.get("/presets", response_model=list[PresetOut])
-def list_presets(
-    student_id: str | None = None, store: Store = Depends(get_store)
-) -> list[PresetOut]:
+def list_presets(student_id: str | None = None, store: Store = Depends(get_store)) -> list[PresetOut]:
     """컨셉 카드 목록. 학생을 주면 권할 만한 것을 앞에 놓고 나머지도 함께 준다.
 
     권하지 않는 것을 **숨기지는 않는다** — 원장이 일부러 어려운 성격을 고를 수 있어야 한다.
@@ -164,7 +163,7 @@ def build_request(body: AutoComposeIn, store: Store) -> CompositionRequest:
         competition=competition,
         target_difficulty=target,
         mood=preset.mood,
-        form=preset.form,          # type: ignore[arg-type]
+        form=preset.form,  # type: ignore[arg-type]
         key_preference=[key],
         meter=preset.meter,
         tempo=tempo,
@@ -205,9 +204,32 @@ def _ranked_motifs(ctx: Any, pipeline: CompositionPipeline, n: int) -> list[Moti
     return sorted(candidates, key=rank, reverse=True)
 
 
+def _other_concepts(store: Store, ctx: Any, used_preset: str) -> list[dict[str, str]]:
+    """막혔을 때 대신 눌러 볼 컨셉. 최근에 쓴 것과 지금 것은 뺀다.
+
+    "겹칩니다" 로 끝내면 컴퓨터에 익숙하지 않은 원장은 거기서 멈춘다. 다음에 무엇을
+    누르면 되는지까지 줘야 프로그램이 길을 막지 않는다.
+    """
+    recent = {
+        j.get("preset_id") for j in list(store.jobs.get("auto_history", []))[-4:] if isinstance(j, dict)
+    }
+    recent.add(used_preset)
+    out: list[dict[str, str]] = []
+    for preset in suitable(ctx.student.level, ctx.student.weaknesses):
+        if preset.id in recent:
+            continue
+        out.append({"id": preset.id, "name": preset.name, "blurb": preset.blurb})
+        if len(out) == 3:
+            break
+    return out
+
+
 def _plan_with_retry(
-    ctx: Any, pipeline: CompositionPipeline, motifs: list[MotifCandidate],
+    ctx: Any,
+    pipeline: CompositionPipeline,
+    motifs: list[MotifCandidate],
     previous: list[tuple[str, CompositionPlan]],
+    alternatives: list[dict[str, str]] | None = None,
 ) -> tuple[MotifCandidate, CompositionPlan]:
     """설계가 이미 만든 곡과 겹치면 **다른 모티브로 다시** 시도한다.
 
@@ -226,12 +248,21 @@ def _plan_with_retry(
         if report.passed:
             return locked, plan
         blocked.extend(i.message for i in report.hard_failures)
-    raise HTTPException(409, {
-        "message": "이 학생·이 컨셉으로는 이미 만든 곡과 형식이 겹친다",
-        "what_to_do": "다른 컨셉을 고르거나, 목표 난이도·박자를 바꾸거나, "
-                      "'단계별로 만들기' 에서 설계를 직접 손보라",
-        "issues": blocked[:3],
-    })
+    alt = alternatives or []
+    tip = (
+        "아래 컨셉 중 하나를 눌러 보십시오 — 이 학생에게 맞으면서 방금 만든 곡과 겹치지 않습니다."
+        if alt
+        else "목표 난이도나 박자를 바꾸거나, '단계별로 만들기' 에서 설계를 직접 손보십시오."
+    )
+    raise HTTPException(
+        409,
+        {
+            "message": "방금 만든 곡과 형식이 너무 닮아서 멈췄습니다",
+            "what_to_do": tip,
+            "issues": blocked[:3],
+            "alternatives": alt,
+        },
+    )
 
 
 def _judge(ctx: Any, measures: list, plan: CompositionPlan, s: Settings) -> JudgePanel:
@@ -240,7 +271,7 @@ def _judge(ctx: Any, measures: list, plan: CompositionPlan, s: Settings) -> Judg
     if s.has_api_key:
         try:
             return run_panel_claude(ctx, measures, plan, settings=s)
-        except Exception:                     # 심사가 안 돌아도 곡은 나와야 한다
+        except Exception:  # 심사가 안 돌아도 곡은 나와야 한다
             log.warning("모의 심사 호출 실패 — 규칙 기반으로 대체한다", exc_info=True)
     return run_panel_rules(ctx, measures, plan)
 
@@ -263,7 +294,11 @@ def auto_compose(
     motifs = _ranked_motifs(ctx, pipeline, max(3, body.n_candidates + 2))
     try:
         locked, plan = _plan_with_retry(
-            ctx, pipeline, motifs, _previous_plans(store, req.id)
+            ctx,
+            pipeline,
+            motifs,
+            _previous_plans(store, req.id),
+            _other_concepts(store, ctx, body.preset_id),
         )
     except InfeasibleRequest as e:
         raise HTTPException(422, str(e)) from e
@@ -274,9 +309,7 @@ def auto_compose(
 
     ngrams = get_corpus().ngram_index() or None
     try:
-        results = pipeline.compose_candidates(
-            ctx, locked, plan, n=body.n_candidates, corpus_ngrams=ngrams
-        )
+        results = pipeline.compose_candidates(ctx, locked, plan, n=body.n_candidates, corpus_ngrams=ngrams)
     except (PlanRejected, InfeasibleRequest) as e:
         raise HTTPException(422, str(e)) from e
 
@@ -302,8 +335,7 @@ def auto_compose(
 
     lowest = min(v.total for v in panel.verdicts)
     gate = JudgeGate(
-        passed=panel.average >= settings.judge_gate_average
-        and lowest >= settings.judge_gate_minimum,
+        passed=panel.average >= settings.judge_gate_average and lowest >= settings.judge_gate_minimum,
         average=panel.average,
         minimum=round(lowest, 2),
         required_average=settings.judge_gate_average,
@@ -316,23 +348,37 @@ def auto_compose(
     cid = store.next_id("comp", store.compositions)
     store.compositions[cid] = res
     store.versions.setdefault(cid, []).append(res)
+    # 어떤 컨셉을 최근에 썼는지 남긴다 — 겹쳐서 막혔을 때 다른 컨셉을 권하는 근거다.
+    store.jobs.setdefault("auto_history", []).append({"composition_id": cid, "preset_id": body.preset_id})
     store.judgements[cid] = panel
 
     title = res.plan.title_candidates[0] if res.plan.title_candidates else cid
     if res.savable:
         get_corpus().register_generated(
-            res.measures, score_id=f"gen-{cid}", title=title,
-            key=res.plan.key, meter=res.plan.meter, tempo=res.plan.tempo,
+            res.measures,
+            score_id=f"gen-{cid}",
+            title=title,
+            key=res.plan.key,
+            meter=res.plan.meter,
+            tempo=res.plan.tempo,
             division_tags=[ctx.competition.division] if ctx.competition else [],
         )
 
     from app.api.compositions import _issues
 
     return AutoComposeOut(
-        request_id=req.id, composition_id=cid, preset_id=body.preset_id, title=title,
-        engine=res.engine, measures=len(res.measures), difficulty=res.difficulty,
-        key=res.plan.key, meter=res.plan.meter, tempo=res.plan.tempo,
-        savable=res.savable, shown_as_draft=res.shown_as_draft,
+        request_id=req.id,
+        composition_id=cid,
+        preset_id=body.preset_id,
+        title=title,
+        engine=res.engine,
+        measures=len(res.measures),
+        difficulty=res.difficulty,
+        key=res.plan.key,
+        meter=res.plan.meter,
+        tempo=res.plan.tempo,
+        savable=res.savable,
+        shown_as_draft=res.shown_as_draft,
         combined_score=res.quality.combined_score,
         musicality=float(res.quality.musicality["score_10"]),
         validation={
@@ -340,7 +386,8 @@ def auto_compose(
             "summary": res.validation.summary(),
             "issues": _issues(res.validation),
         },
-        judge=gate, cost=res.cost,
+        judge=gate,
+        cost=res.cost,
     )
 
 
@@ -438,21 +485,29 @@ def library(
         panel = store.judgements.get(cid)
         avg = panel.average if panel else None
         low = min((v.total for v in panel.verdicts), default=None) if panel else None
-        out.append(LibraryItem(
-            composition_id=cid,
-            title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
-            key=res.plan.key, meter=res.plan.meter, tempo=res.plan.tempo,
-            measures=len(res.measures), difficulty=res.difficulty,
-            combined_score=res.quality.combined_score, savable=res.savable,
-            judged=panel is not None, judge_average=avg,
-            judge_passed=(
-                None if panel is None or low is None
-                else avg is not None
-                and avg >= settings.judge_gate_average
-                and low >= settings.judge_gate_minimum
-            ),
-            versions=len(store.versions.get(cid, [res])),
-        ))
+        out.append(
+            LibraryItem(
+                composition_id=cid,
+                title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
+                key=res.plan.key,
+                meter=res.plan.meter,
+                tempo=res.plan.tempo,
+                measures=len(res.measures),
+                difficulty=res.difficulty,
+                combined_score=res.quality.combined_score,
+                savable=res.savable,
+                judged=panel is not None,
+                judge_average=avg,
+                judge_passed=(
+                    None
+                    if panel is None or low is None
+                    else avg is not None
+                    and avg >= settings.judge_gate_average
+                    and low >= settings.judge_gate_minimum
+                ),
+                versions=len(store.versions.get(cid, [res])),
+            )
+        )
     return sorted(out, key=lambda x: x.composition_id, reverse=True)
 
 
@@ -505,7 +560,10 @@ def direct_edit(
     merged = [edited.get(m.number, m) for m in res.measures]
     ctx = build_context(req)
     out = pipeline.finish_edited(
-        ctx, merged, res.plan, res.motif,
+        ctx,
+        merged,
+        res.plan,
+        res.motif,
         rounds=res.revision_rounds,
         notes=[*res.quality.notes, f"원장 직접 편집 {sorted(edited)}마디"],
     )

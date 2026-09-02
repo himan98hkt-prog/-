@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 PERSISTED = (
     "students", "competitions", "requests", "motifs",
     "plans", "compositions", "versions", "jobs", "recitals", "judgements",
+    "rights",
 )
 
 
@@ -55,6 +56,8 @@ class Store:
     versions: dict[str, list] = field(default_factory=dict)
     # 사전 전문심사 결과. 곡을 내놓기 전에 통과했는지 판단하는 근거이므로 함께 남긴다.
     judgements: dict[str, Any] = field(default_factory=dict)
+    # 작곡가 신원(예명·실명)과 곡별 권리 상태. 실명은 이 파일 밖으로 나가지 않는다.
+    rights: dict[str, Any] = field(default_factory=dict)
     jobs: dict[str, Any] = field(default_factory=dict)
     recitals: dict[str, Any] = field(default_factory=dict)
     persistence: SqlitePersistence | None = None
