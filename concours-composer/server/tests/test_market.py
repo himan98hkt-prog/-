@@ -261,3 +261,29 @@ def test_no_tier_can_reach_every_concept_by_itself() -> None:
     for tier in TIERS:
         got = {p.id for p in recommended_presets(tier)}
         assert len(got) < len(PRESETS), f"{tier.name} 이 모든 성격을 권한다 — 전제가 바뀌었다"
+
+
+def test_the_preflight_survives_data_living_outside_the_program_folder() -> None:
+    """실측 준비 점검이 참고 악보 경로에서 죽지 않아야 한다.
+
+    자료를 프로그램 폴더 바깥으로 옮기자 `refs.relative_to(ROOT)` 가 ValueError 로
+    터졌다 — 원장이 실측을 시작하는 바로 그 자리에서. 돈을 쓰기 전에 죽는 것이
+    그나마 다행이지만, 죽는 것은 죽는 것이다.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    r = subprocess.run(
+        [sys.executable, str(root / "scripts" / "auto_compose.py"), "--preflight"],
+        capture_output=True,
+        text=True,
+        cwd=str(root),
+        timeout=180,
+        check=False,
+    )
+    # 키가 없으면 종료코드는 0이 아니다 — 그것은 옳다. 여기서 보는 것은 **죽지 않는가**다.
+    assert "Traceback" not in r.stderr, f"준비 점검이 터졌다:\n{r.stderr}"
+    assert "참고 악보" in r.stdout, f"점검이 끝까지 가지 못했다:\n{r.stdout}\n{r.stderr}"
+    assert "컨셉" in r.stdout

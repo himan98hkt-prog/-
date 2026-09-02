@@ -6,9 +6,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
@@ -90,6 +90,52 @@ app = FastAPI(
     description="학생 맞춤형 AI 콩쿨 독창곡 생성기 (SPEC.md v3 · A축)",
     lifespan=lifespan,
 )
+# ── 어떤 오류든 원장에게 말이 되게 ────────────────────────────────────────────
+#
+# 처리하지 못한 예외가 나면 Starlette 는 **평문** "Internal Server Error" 를 돌려준다.
+# 화면은 JSON 을 기다리므로 그것을 읽지 못하고, 원장 눈에는 `{}` 만 남는다.
+# 무엇이 잘못됐는지도, 다음에 무엇을 할지도 알 수 없는 화면이다 — 실제로 그렇게 막혔다.
+#
+# 그래서 여기서 붙잡아 **읽을 수 있는 말**로 돌려주고, 자국(traceback)은 파일에 남긴다.
+# 원장은 그 파일만 보내면 되고, 화면은 무엇을 할지 알려 준다.
+@app.exception_handler(Exception)
+async def _any_error(request: Request, exc: Exception) -> JSONResponse:
+    import traceback
+    import uuid
+    from datetime import UTC, datetime
+
+    mark = uuid.uuid4().hex[:8]
+    detail = "".join(traceback.format_exception(exc))
+    log.error("[%s] %s %s 에서 처리하지 못한 오류\n%s", mark, request.method, request.url.path, detail)
+    try:
+        from app.config import resolve_data_dir
+
+        book = resolve_data_dir() / "오류기록.txt"
+        with book.open("a", encoding="utf-8") as f:
+            f.write(
+                f"\n[{datetime.now(UTC).isoformat(timespec='seconds')}] {mark} "
+                f"{request.method} {request.url.path}\n{detail}"
+            )
+        where = str(book)
+    except OSError:
+        where = ""
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": {
+                "message": "프로그램 안에서 처리하지 못한 오류가 났습니다",
+                "what_to_do": (
+                    "여기까지 쓴 API 비용은 되돌아오지 않습니다. "
+                    "다른 성격으로 다시 만들어 보시고, 계속 같은 자리에서 막히면 "
+                    + (f"'{where}' 파일을 보내 주십시오." if where else "실행기록.txt 를 보내 주십시오.")
+                ),
+                "issues": [f"오류 표시 {mark}", detail.strip().splitlines()[-1] if detail else ""],
+            }
+        },
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

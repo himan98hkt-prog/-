@@ -102,7 +102,8 @@
     padding:2px 7px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--ink-2);
     word-break:break-all}
   .where.bad{background:#fdf3f1;border-color:#e6c6bf;color:var(--bad)}
-  .where button{padding:5px 11px;font-size:12px;margin-left:auto}
+  .where-acts{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .where button{padding:5px 11px;font-size:12px}
 
   /* 곡 찾기 */
   .find{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:0 0 14px}
@@ -1248,7 +1249,19 @@ async function api(path, options = {}) {
       err.alternatives = d.alternatives || [];
       throw err;
     }
-    throw new Error(typeof d === "string" ? d : JSON.stringify(d || body));
+    if (typeof d === "string" && d.trim()) throw new Error(d);
+    // 여기까지 왔다는 것은 서버가 **JSON 이 아닌 것**을 돌려줬다는 뜻이다.
+    // 예전에는 그때 화면에 `{}` 만 떴다 — 무엇이 잘못됐는지도, 다음에 뭘 할지도
+    // 알 수 없는 화면이다. 원장이 실제로 그 앞에서 막혔다. 말이 되게 바꾼다.
+    const err = new Error(
+      res.status >= 500
+        ? "프로그램 안에서 오류가 났습니다"
+        : `서버가 요청을 받지 못했습니다 (${res.status})`);
+    err.hint = res.status >= 500
+      ? "다른 성격으로 다시 만들어 보십시오. 같은 자리에서 계속 막히면 오류기록.txt 를 보내 주십시오."
+      : "프로그램을 껐다가 바탕화면 아이콘으로 다시 켜 보십시오.";
+    err.issues = [`응답 코드 ${res.status}`];
+    throw err;
   }
   return body;
 }
@@ -2337,7 +2350,7 @@ async function marketCompose(presetId) {
     await refreshLibrary();
     await refreshSpending();
   } catch (e) {
-    clearInterval(timer); bar.stop(false);
+    bar.stop(false);
     out.className = "msg bad";
     // 막혔을 때 "안 됩니다" 로 끝내지 않는다. 바로 누를 수 있는 다음 수를 함께 낸다.
     // 특히 '방금 만든 곡과 너무 닮았다' 는 다른 성격을 고르면 곧바로 풀린다.
@@ -2356,7 +2369,14 @@ async function marketCompose(presetId) {
     });
     out.scrollIntoView({ block: "center", behavior: "smooth" });
   } finally {
-    busy.forEach(b => b.disabled = false);
+    // 무슨 일이 있어도 화면은 다시 눌리는 상태로 돌아와야 한다.
+    // 굳은 화면 앞에서는 원장이 할 수 있는 것이 프로그램을 끄는 것뿐이다.
+    clearInterval(timer);
+    busy.forEach(b => { b.disabled = false; });
+    document.querySelectorAll("#marketGrid .card, #tierGrid .tier, #presetGrid .card")
+      .forEach(b => { b.disabled = false; });
+    $("btnMarketGo").disabled = false;
+    $("btnMarketPick").disabled = false;
   }
 }
 
@@ -2939,7 +2959,8 @@ async function autoCompose(presetId, cardEl) {
       b.onclick = () => autoCompose(b.dataset.preset, null);
     });
   } finally {
-    document.querySelectorAll("#presetGrid .card").forEach(c => c.disabled = false);
+    if (makeTimer) { clearInterval(makeTimer); makeTimer = null; }
+    document.querySelectorAll("#presetGrid .card").forEach(c => { c.disabled = false; });
     if (cardEl) cardEl.disabled = false;
   }
 }
@@ -3122,13 +3143,50 @@ async function refreshStorageWhere() {
     `<span>만든 곡 <b>${s.pieces}곡</b>${s.books ? ` · 곡집 <b>${s.books}권</b>` : ""}이
        여기에 저장됩니다 — <code>${esc(s.store_file)}</code> (${s.size_mb}MB)</span>`
     + (s.warning ? `<br><span><b>${esc(s.warning)}</b></span>` : "")
-    + `<button class="ghost" id="btnWhereCopy"
-         data-tip="폴더 경로를 복사합니다. 탐색기 주소창에 붙여넣으면 그 폴더가 열립니다.">경로 복사</button>`;
-  const btn = $("btnWhereCopy");
-  if (btn) btn.onclick = async () => {
-    try { await navigator.clipboard.writeText(s.data_dir); btn.textContent = "복사했습니다"; }
-    catch (_) { btn.textContent = s.data_dir; }
-    setTimeout(() => { btn.textContent = "경로 복사"; }, 2500);
+    + `<div class="where-acts">
+         <button class="ghost" id="btnOpenFolder"
+           data-tip="탐색기로 이 폴더를 엽니다.">폴더 열기</button>
+         <button class="ghost" id="btnExportAll"
+           data-tip="만든 곡을 곡마다 폴더로 꺼내 둡니다.&#10;악보·지도용 악보·음원·MIDI 가 파일로 생겨 탐색기에서 바로 보입니다.">곡을 파일로 꺼내기</button>
+         <button class="ghost" id="btnWhereCopy"
+           data-tip="폴더 경로를 복사합니다.">경로 복사</button>
+       </div>`;
+
+  const copy = $("btnWhereCopy");
+  if (copy) copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(s.data_dir); copy.textContent = "복사했습니다"; }
+    catch (_) { copy.textContent = s.data_dir; }
+    setTimeout(() => { copy.textContent = "경로 복사"; }, 2500);
+  };
+
+  // 경로를 글로 적어 주는 것만으로는 부족하다 — 탐색기 주소창에 붙여넣는 것도
+  // 배워야 하는 일이다. 눌러서 열리게 한다.
+  const open = $("btnOpenFolder");
+  if (open) open.onclick = async () => {
+    open.disabled = true;
+    try { await api("/api/open-folder?which=data", { method: "POST" }); }
+    catch (e) { alert(e.message + (e.hint ? "\n" + e.hint : "")); }
+    finally { open.disabled = false; }
+  };
+
+  // 만든 곡은 저장 파일 하나 안에 들어 있다 — 프로그램을 켜야만 보인다.
+  // 탐색기에서 눈으로 찾고 싶을 때가 있다. 한 번 눌러 파일로 꺼내 준다.
+  const ex = $("btnExportAll");
+  if (ex) ex.onclick = async () => {
+    ex.disabled = true;
+    const was = ex.textContent;
+    ex.textContent = "꺼내는 중…";
+    try {
+      const r = await api("/api/export-all", { method: "POST" });
+      ex.textContent = `${r.made.length}곡 꺼냈습니다`;
+      try { await api("/api/open-folder?which=exports", { method: "POST" }); } catch (_) { /* 폴더는 못 열어도 파일은 났다 */ }
+    } catch (e) {
+      alert(e.message + (e.hint ? "\n" + e.hint : ""));
+      ex.textContent = was;
+    } finally {
+      ex.disabled = false;
+      setTimeout(() => { ex.textContent = was; }, 4000);
+    }
   };
 }
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request
@@ -188,4 +189,105 @@ def storage() -> dict:
             ".env 의 DATA_DIR 줄을 지우고 프로그램을 다시 켜면 안전한 자리로 옮깁니다."
             if inside else ""
         ),
+    }
+
+
+@router.post("/api/open-folder")
+def open_folder(request: Request, which: str = "data") -> dict:
+    """만든 것이 있는 폴더를 탐색기로 연다.
+
+    원장이 "저장은 도대체 어디에 있는가" 에서 막혔다. 경로를 글로 적어 주는 것만으로는
+    부족하다 — 탐색기 주소창에 붙여넣는 것도 배워야 하는 일이다. 눌러서 열리게 한다.
+
+    이 PC 에서만 연다. 원격에서 남의 폴더를 열게 할 수는 없다.
+    """
+    import subprocess
+    import sys
+
+    from app.config import ROOT, resolve_data_dir
+
+    if request.client and request.client.host not in {"127.0.0.1", "::1", "localhost"}:
+        raise HTTPException(403, "이 PC 에서만 열 수 있다")
+
+    places = {
+        "data": resolve_data_dir(),
+        "exports": resolve_data_dir() / "내보낸 곡",
+        "references": resolve_data_dir() / "reference_scores",
+        "program": ROOT,
+    }
+    target = places.get(which)
+    if target is None:
+        raise HTTPException(404, f"그런 폴더는 없다: {which}")
+    target.mkdir(parents=True, exist_ok=True)
+
+    try:
+        if sys.platform == "win32":
+            import os
+
+            os.startfile(target)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(target)])
+        else:
+            subprocess.Popen(["xdg-open", str(target)])
+    except (OSError, AttributeError) as e:
+        # 열지 못해도 경로는 알려 준다 — 그것만으로도 손으로 찾아갈 수 있다.
+        raise HTTPException(500, f"폴더를 열지 못했습니다: {e}. 경로는 {target} 입니다") from e
+    return {"opened": str(target)}
+
+
+@router.post("/api/export-all")
+def export_all(request: Request) -> dict:
+    """만든 곡을 **파일로** 한꺼번에 꺼내 둔다.
+
+    지금 만든 곡은 저장 파일 하나 안에 들어 있다. 프로그램을 켜야만 보인다는 뜻이다.
+    원장은 탐색기에서 곡을 눈으로 찾고 싶어 한다 — 악보를 남에게 보내거나, 백업을
+    따로 두거나, 그냥 "내 곡이 여기 있구나" 를 확인하려고.
+
+    그래서 한 번 눌러 곡마다 폴더를 만들어 준다. 이미 있는 것은 다시 만들지 않는다.
+    """
+    from app.api.compositions import package_input
+    from app.api.deps import get_store
+    from app.config import resolve_data_dir
+    from app.export.package import _safe, write_piece
+
+    if request.client and request.client.host not in {"127.0.0.1", "::1", "localhost"}:
+        raise HTTPException(403, "이 PC 에서만 내보낼 수 있다")
+
+    store = get_store()
+    if not store.compositions:
+        raise HTTPException(409, "아직 만든 곡이 없습니다")
+
+    root = resolve_data_dir() / "내보낸 곡"
+    root.mkdir(parents=True, exist_ok=True)
+
+    made, skipped = [], []
+    for cid in list(store.compositions):
+        title = _safe(store.title_of(cid)) or cid
+        folder = root / f"{title} ({cid})"
+        if folder.exists() and any(folder.iterdir()):
+            skipped.append(title)
+            continue
+        try:
+            data = package_input(store, cid)
+        except (OSError, ValueError, KeyError) as e:
+            logging.getLogger(__name__).warning("%s 를 내보내지 못했다: %s", cid, e)
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        # ZIP 과 같은 함수로 담는다 — 갈라지면 한쪽에만 파일이 빠진다.
+        import zipfile
+
+        tmp = folder / "_tmp.zip"
+        with zipfile.ZipFile(tmp, "w") as z:
+            write_piece(z, "x", data)
+            for info in z.infolist():
+                out = folder / info.filename.split("/", 1)[1]
+                out.write_bytes(z.read(info))
+        tmp.unlink(missing_ok=True)
+        made.append(title)
+
+    return {
+        "folder": str(root),
+        "made": made,
+        "skipped": skipped,
+        "total": len(store.compositions),
     }

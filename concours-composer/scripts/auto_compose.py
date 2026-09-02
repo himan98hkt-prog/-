@@ -182,7 +182,8 @@ def preflight() -> int:
         if refs.exists()
         else 0
     )
-    print(f"  [O] 참고 악보            {n}개 ({refs.relative_to(ROOT)})")
+    # 참고 악보는 이제 프로그램 폴더 **바깥**에 산다 — ROOT 기준 상대경로가 안 된다.
+    print(f"  [O] 참고 악보            {n}개 ({refs})")
 
     print(f"  [O] 컨셉                 {len(BY_ID)}개 — {', '.join(list(BY_ID)[:6])} …")
     print(
