@@ -224,13 +224,10 @@ def _out_of_the_program_folder(d: Path) -> Path:
     """
     if d.is_absolute():
         return d
-    try:
-        inside = (Path.cwd() / d).resolve().is_relative_to(ROOT.resolve())
-    except (OSError, ValueError):
-        return d
-    if not inside:
-        return d
-    log.info("옛 설정(DATA_DIR=%s)이 프로그램 폴더 안을 가리켜 안전한 자리로 옮긴다", d)
+    # 상대 경로는 **어디서 켰느냐**에 따라 자리가 달라진다. 바탕화면 아이콘으로 켜면
+    # 현재 폴더가 C:\Windows\System32 일 수도 있고, 그러면 곡이 거기 떨어진다.
+    # 원장이 상대 경로를 일부러 적을 일은 없다 — 옛 예시 파일에서 온 것이다.
+    log.info("옛 설정(DATA_DIR=%s)은 자리가 흔들린다 — 안전한 자리로 옮긴다", d)
     return user_data_dir()
 
 def resolve_data_dir() -> Path:
