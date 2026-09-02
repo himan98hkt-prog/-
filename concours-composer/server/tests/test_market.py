@@ -287,3 +287,81 @@ def test_the_preflight_survives_data_living_outside_the_program_folder() -> None
     assert "Traceback" not in r.stderr, f"준비 점검이 터졌다:\n{r.stderr}"
     assert "참고 악보" in r.stdout, f"점검이 끝까지 가지 못했다:\n{r.stdout}\n{r.stderr}"
     assert "컨셉" in r.stdout
+
+
+def _fake_out(preset_id: str, *, passed: bool = True):
+    """`run_auto` 가 돌려주는 모양만 흉내낸다 — 여기서 보는 것은 재시도 규칙뿐이다."""
+    from app.api.studio import AutoComposeOut, JudgeGate
+
+    return AutoComposeOut(
+        request_id="req-x",
+        composition_id=f"comp-{preset_id}",
+        preset_id=preset_id,
+        title="시험곡",
+        engine="stub",
+        measures=32,
+        difficulty=3.0,
+        key="C major",
+        meter="4/4",
+        tempo=100,
+        savable=True,
+        shown_as_draft=not passed,
+        combined_score=8.0,
+        musicality=8.0,
+        validation={},
+        judge=JudgeGate(
+            passed=passed, average=8.2 if passed else 7.2, minimum=7.5 if passed else 6.5,
+            required_average=8.0, required_minimum=7.0, rounds=0,
+        ),
+        cost={},
+    )
+
+
+def test_a_blocked_concept_does_not_cost_the_tier_its_place_in_the_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """형식이 겹쳐 막힌 급수는 **다른 성격으로** 넘어가야 한다.
+
+    실측에서 잡힌 결함이다. 다섯 급수 한 벌을 만들었더니 초급이 통째로 비고
+    "방금 만든 곡과 형식이 너무 닮아서 멈췄습니다" 한 줄만 남았다. 원인은 시도
+    횟수(기본 1회)를 **곡이 안 나온 실패에도** 썼기 때문이다. 그 실패는 같은
+    성격으로 다시 해도 같은 자리에서 막히므로, 시도 횟수를 쓰면 안 된다.
+    """
+    from app.api import studio
+    from fastapi import HTTPException
+
+    tried: list[str] = []
+
+    def fake_run_auto(body, store, pipeline, settings):  # type: ignore[no-untyped-def]
+        tried.append(body.preset_id)
+        if len(tried) < 3:
+            raise HTTPException(409, {"message": "방금 만든 곡과 형식이 너무 닮아서 멈췄습니다"})
+        return _fake_out(body.preset_id)
+
+    monkeypatch.setattr(studio, "run_auto", fake_run_auto)
+    got = studio._compose_one_for_market(
+        "beginner", None, 1, None, object(), object(), object()
+    )
+    assert len(tried) == 3, f"막힌 성격에서 멈췄다: {tried}"
+    assert got.composition_id
+
+
+def test_the_paid_retry_budget_still_counts_pieces_that_were_actually_made(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """곡이 나왔는데 심사만 미달인 경우는 다르다 — 다시 만들면 **또 돈이 든다**.
+
+    그래서 그쪽은 원장이 정한 횟수를 정확히 지켜야 한다. 위 수정이 이것까지
+    풀어 버리면 한 곡 값으로 다섯 곡 값이 나간다.
+    """
+    from app.api import studio
+
+    made: list[str] = []
+
+    def fake_run_auto(body, store, pipeline, settings):  # type: ignore[no-untyped-def]
+        made.append(body.preset_id)
+        return _fake_out(body.preset_id, passed=False)
+
+    monkeypatch.setattr(studio, "run_auto", fake_run_auto)
+    studio._compose_one_for_market("beginner", None, 2, None, object(), object(), object())
+    assert len(made) == 2, f"돈이 드는 재시도가 {len(made)}번 일어났다 (정한 것은 2번)"

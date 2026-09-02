@@ -580,6 +580,11 @@ def _market_body(tier: object, preset_id: str, progress_id: str | None) -> AutoC
     )
 
 
+# 곡이 아예 안 나온 실패(형식 중복 등)일 때 **추가로** 훑어볼 성격 수.
+# 무한정은 아니다 — 이만큼 해도 안 되면 그 급수는 진짜로 막힌 것이고, 그 사실을 말해야 한다.
+_EXTRA_CONCEPTS = 4
+
+
 def _compose_one_for_market(
     tier_id: str,
     preset_id: str | None,
@@ -619,23 +624,33 @@ def _compose_one_for_market(
         # 그것은 곡집이 아니라 같은 곡 다섯 벌이다 — 학원에 그렇게 팔 수 없다.
         # 그래서 이미 쓴 성격은 뒤로 미룬다. 다 썼으면 그때는 다시 처음부터 쓴다.
         fresh = [p.id for p in picks if p.id not in (used or set())]
-        order = (fresh or [p.id for p in picks])[:max_attempts]
+        order = (fresh or [p.id for p in picks])[: max_attempts + _EXTRA_CONCEPTS]
 
     best: AutoComposeOut | None = None
     last_error: HTTPException | None = None
-    for i, pid in enumerate(order[:max_attempts]):
-        if progress_id and i:
+    made = 0        # **곡이 실제로 나온** 횟수. 돈이 드는 것은 이쪽뿐이다.
+    for pid in order:
+        if made >= max_attempts:
+            break
+        if progress_id and (made or last_error):
+            why = "형식이 겹쳐" if last_error else "심사 문턱에 못 미쳐"
             tracker().report(
-                progress_id, "motif", 0.0,
-                f"심사 문턱에 못 미쳐 다른 성격으로 다시 만드는 중({i + 1}번째)",
+                progress_id, "motif", 0.0, f"{why} 다른 성격으로 다시 만드는 중"
             )
         try:
             got = run_auto(
                 _market_body(tier, pid, progress_id), store, pipeline, settings
             )
         except HTTPException as e:
+            # 곡이 아예 안 나온 경우다(형식 중복·설계 불가). 이것은 **다음 성격으로
+            # 넘어가야만** 풀린다 — 같은 성격으로 다시 해도 같은 자리에서 막힌다.
+            # 게다가 이 실패는 설계 단계에서 나므로 프레이즈 작곡 비용이 들지 않는다.
+            # 그래서 원장이 정한 '몇 번까지' 를 여기에 쓰지 않는다. 이걸 시도 횟수로
+            # 세면 한 벌 다섯 곡 중 한 급수가 통째로 비는데, 실제로 그렇게 비었다.
             last_error = e
             continue
+        made += 1
+        last_error = None
         if best is None or _market_rank(got) > _market_rank(best):
             best = got
         if used is not None:

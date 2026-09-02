@@ -26,6 +26,7 @@ from app.api import (
 )
 from app.api.deps import get_store
 from app.config import get_settings, validate_models
+from app.generation.apierrors import ClaudeUnavailable
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("concours")
@@ -92,6 +93,15 @@ app = FastAPI(
 )
 # ── 어떤 오류든 원장에게 말이 되게 ────────────────────────────────────────────
 #
+# Claude 를 부르지 못한 것은 **프로그램 결함이 아니다** — 키가 거절됐거나, 잔액이 없거나,
+# 인터넷이 끊긴 것이다. 그런데 여태 그것이 처리되지 않은 예외로 올라가 `{}` 화면이 됐다.
+# 원인마다 원장이 할 일이 다르므로(키 고치기 / 충전하기 / 인터넷 보기), 그 말을 그대로 보낸다.
+@app.exception_handler(ClaudeUnavailable)
+async def _claude_down(request: Request, exc: ClaudeUnavailable) -> JSONResponse:
+    log.warning("%s %s — Claude 호출 실패: %s", request.method, request.url.path, exc.message)
+    return JSONResponse(status_code=502, content={"detail": exc.as_detail()})
+
+
 # 처리하지 못한 예외가 나면 Starlette 는 **평문** "Internal Server Error" 를 돌려준다.
 # 화면은 JSON 을 기다리므로 그것을 읽지 못하고, 원장 눈에는 `{}` 만 남는다.
 # 무엇이 잘못됐는지도, 다음에 무엇을 할지도 알 수 없는 화면이다 — 실제로 그렇게 막혔다.

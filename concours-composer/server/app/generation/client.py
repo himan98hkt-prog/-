@@ -18,6 +18,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel
 
 from app.config import Settings, get_settings
+from app.generation.apierrors import reraise_friendly
 
 log = logging.getLogger(__name__)
 
@@ -265,13 +266,17 @@ class ClaudeClient:
 
         client = self._get_client()
         started = time.monotonic()
-        response = client.messages.parse(
-            model=model_id,
-            max_tokens=max_tokens,
-            system=self._system_blocks(system, fixed_context),
-            messages=[{"role": "user", "content": user}],
-            output_format=output_model,
-        )
+        try:
+            response = client.messages.parse(
+                model=model_id,
+                max_tokens=max_tokens,
+                system=self._system_blocks(system, fixed_context),
+                messages=[{"role": "user", "content": user}],
+                output_format=output_model,
+            )
+        except Exception as e:  # 키·잔액·네트워크 문제를 원장이 읽을 수 있는 말로 바꾼다
+            reraise_friendly(e)
+            raise
         self._record(stage, model_id, response.usage, started)
 
         parsed = getattr(response, "parsed_output", None)
@@ -332,18 +337,23 @@ class ClaudeClient:
         ]
         models = {cid: m for cid, _, _, m in items}
 
-        batch = client.messages.batches.create(requests=requests)
-        deadline = time.monotonic() + timeout_seconds
-        while True:
-            batch = client.messages.batches.retrieve(batch.id)
-            if batch.processing_status == "ended":
-                break
-            if time.monotonic() > deadline:
-                raise TimeoutError(f"배치 {batch.id} 가 {timeout_seconds}초 안에 끝나지 않았다")
-            time.sleep(poll_seconds)
+        try:
+            batch = client.messages.batches.create(requests=requests)
+            deadline = time.monotonic() + timeout_seconds
+            while True:
+                batch = client.messages.batches.retrieve(batch.id)
+                if batch.processing_status == "ended":
+                    break
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"배치 {batch.id} 가 {timeout_seconds}초 안에 끝나지 않았다")
+                time.sleep(poll_seconds)
+            results = list(client.messages.batches.results(batch.id))
+        except Exception as e:  # 배치도 같은 이유로 실패한다 — 같은 말로 바꾼다
+            reraise_friendly(e)
+            raise
 
         out: dict[str, BaseModel] = {}
-        for result in client.messages.batches.results(batch.id):
+        for result in results:
             cid = result.custom_id
             if result.result.type != "succeeded":
                 log.warning("배치 항목 실패 %s: %s", cid, result.result.type)

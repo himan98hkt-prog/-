@@ -1,15 +1,19 @@
 """설정. 모델 문자열은 여기서만 읽는다(CLAUDE.md 절대 규칙 12)."""
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import sys
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+log = logging.getLogger("concours")
 
 ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT / ".env"
@@ -211,6 +215,50 @@ def resolve_data_dir() -> Path:
     d = Path(raw) if raw else Path(get_settings().data_dir)
     if not str(d).strip() or str(d) == ".":
         d = user_data_dir()
-    d.mkdir(parents=True, exist_ok=True)
+    d = _writable_or_fallback(d)
     migrate_old_data(d)
     return d
+
+
+# 자리를 못 잡았을 때 남기는 한 줄. 화면의 저장 위치 안내가 이것을 읽어 보여 준다.
+_DATA_DIR_WARNING: list[str] = [""]
+
+
+def data_dir_warning() -> str:
+    """저장 폴더를 원래 자리에 못 잡았다면 그 사정. 정상이면 빈 문자열."""
+    return _DATA_DIR_WARNING[0]
+
+
+def _writable_or_fallback(preferred: Path) -> Path:
+    """쓸 수 있는 폴더를 반드시 하나 돌려준다 — 여기서 죽으면 아이콘이 먹통이 된다.
+
+    백신이 폴더를 잠그거나, 회사 PC 정책이 AppData 쓰기를 막거나, 디스크가 꽉 차면
+    `mkdir` 이 실패한다. 그 예외가 그대로 올라가면 창 없는 실행(`pythonw`)에서는
+    **아무 일도 일어나지 않는다** — 원장이 겪은 "아이콘 눌렀는데 아무 변화가 없어" 다.
+    그래서 자리를 옮겨서라도 켜지게 하고, 옮겼다는 사실을 화면에 알린다.
+    """
+    candidates = [preferred, Path.home() / f".{APP_NAME}", Path(tempfile.gettempdir()) / APP_NAME]
+    problems: list[str] = []
+    for i, cand in enumerate(candidates):
+        try:
+            cand.mkdir(parents=True, exist_ok=True)
+            probe = cand / ".쓰기시험"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink()
+        except OSError as e:
+            problems.append(f"{cand}: {e.strerror or e}")
+            continue
+        if i:
+            _DATA_DIR_WARNING[0] = (
+                f"원래 저장하려던 폴더에 쓸 수 없어 '{cand}' 에 저장합니다. "
+                "백신이나 회사 PC 정책이 폴더를 막고 있을 수 있습니다. "
+                "곡은 정상으로 만들어지지만, 저장 위치를 확인해 두십시오."
+            )
+            log.warning("%s (막힌 곳: %s)", _DATA_DIR_WARNING[0], "; ".join(problems))
+        else:
+            _DATA_DIR_WARNING[0] = ""
+        return cand
+
+    # 세 자리가 다 막히는 일은 사실상 없다. 그래도 조용히 죽지는 않는다.
+    _DATA_DIR_WARNING[0] = "저장할 수 있는 폴더를 찾지 못했습니다: " + "; ".join(problems)
+    raise OSError(_DATA_DIR_WARNING[0])

@@ -156,7 +156,7 @@ def storage() -> dict:
     원장은 여전히 알 수 없다. 그래서 자리를 숨기지 않고 그대로 알려 준다.
     """
     from app.api.deps import get_store
-    from app.config import ROOT, get_settings, resolve_data_dir
+    from app.config import ROOT, data_dir_warning, get_settings, resolve_data_dir
 
     s = get_settings()
     data_dir = resolve_data_dir()
@@ -187,7 +187,10 @@ def storage() -> dict:
             "만든 곡이 프로그램 폴더 안에 저장되고 있습니다. "
             "새 판을 받으려고 이 폴더를 지우면 곡도 함께 사라집니다. "
             ".env 의 DATA_DIR 줄을 지우고 프로그램을 다시 켜면 안전한 자리로 옮깁니다."
-            if inside else ""
+            if inside
+            # 백신·회사 PC 정책·디스크 부족으로 제자리에 못 잡고 옮겨 앉은 경우.
+            # 곡은 정상으로 만들어지지만 어디에 쌓이는지는 반드시 보여야 한다.
+            else data_dir_warning()
         ),
     }
 

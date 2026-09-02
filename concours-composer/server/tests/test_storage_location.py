@@ -126,3 +126,33 @@ def test_an_empty_setting_does_not_land_in_the_program_folder(monkeypatch, tmp_p
         got = resolve_data_dir()
         assert "ConcoursComposer" in str(got), f"DATA_DIR={value!r} 가 {got} 로 떨어졌다"
     get_settings.cache_clear()
+
+
+def test_a_blocked_folder_moves_aside_instead_of_killing_the_icon(
+    monkeypatch, tmp_path
+) -> None:
+    """저장 폴더를 못 만들면 **아이콘이 먹통이 된다** — 그래서 자리를 옮겨서라도 켜진다.
+
+    백신이 AppData 를 잠그거나, 회사 PC 정책이 쓰기를 막거나, 디스크가 꽉 차면
+    `mkdir` 이 실패한다. 창 없는 실행(pythonw)에서는 그 예외가 화면 어디에도
+    안 보이고 그냥 아무 일도 안 일어난다 — 원장이 실제로 겪은 그 증상이다.
+    """
+    import app.config as cfg
+
+    blocked = tmp_path / "막힌곳"
+    real_mkdir = Path.mkdir
+
+    def picky_mkdir(self, *a, **kw):  # type: ignore[no-untyped-def]
+        if str(self).startswith(str(blocked)):
+            raise OSError(13, "액세스가 거부되었습니다")
+        return real_mkdir(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "mkdir", picky_mkdir)
+    monkeypatch.setattr(cfg.Path, "home", classmethod(lambda cls: tmp_path / "집"))
+
+    got = cfg._writable_or_fallback(blocked)
+
+    assert got.exists(), "쓸 수 있는 자리를 하나도 못 잡았다 — 프로그램이 안 켜진다"
+    assert not str(got).startswith(str(blocked))
+    assert cfg.data_dir_warning(), "옮겨 앉았는데 화면에 알리지 않으면 곡을 잃어버린 것처럼 보인다"
+    assert "저장" in cfg.data_dir_warning()

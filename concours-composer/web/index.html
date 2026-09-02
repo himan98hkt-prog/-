@@ -585,6 +585,7 @@
       <input id="apiKeyIn" type="password" autocomplete="off" spellcheck="false"
              placeholder="sk-ant-... 를 붙여넣으세요 (Ctrl+V)" style="flex:1;min-width:280px">
       <button id="btnKeySave">저장</button>
+      <button id="btnKeyCheck" class="ghost" data-tip="키가 실제로 통하는지 확인합니다. 무료입니다.">키 점검</button>
     </div>
     <p id="apiKeyState" class="hint" style="margin:8px 0 0"></p>
     <p class="hint" style="margin:6px 0 0">키는 여기서 만듭니다 —
@@ -3138,7 +3139,8 @@ async function refreshStorageWhere() {
     return;
   }
   refreshRefWhere(s.data_dir);
-  box.className = "where" + (s.inside_program_folder ? " bad" : "");
+  // 자리를 옮겨 앉은 경우에도 눈에 띄어야 한다 — 곡이 어디 쌓이는지 모르면 잃어버린 셈이다.
+  box.className = "where" + (s.inside_program_folder || s.warning ? " bad" : "");
   box.innerHTML =
     `<span>만든 곡 <b>${s.pieces}곡</b>${s.books ? ` · 곡집 <b>${s.books}권</b>` : ""}이
        여기에 저장됩니다 — <code>${esc(s.store_file)}</code> (${s.size_mb}MB)</span>`
@@ -3851,11 +3853,34 @@ $("btnKeySave").onclick = async () => {
   try {
     const s = await api("/api/api-key", { method: "PUT", body: JSON.stringify({ key }) });
     el.value = "";
-    box.innerHTML = `<span class="tag ok">저장했습니다</span> ${s.masked} — 이제 클로드가 작곡합니다`;
+    box.innerHTML = `<span class="tag ok">저장했습니다</span> ${s.masked}`;
+    await checkApiKey(box);
   } catch (e) {
     box.innerHTML = `<span class="tag warn">넣지 못했습니다</span> ${e.message}`;
   }
 };
+
+// 형식이 맞는 키도 폐기됐거나 잔액이 없으면 26초쯤 돌다가 죽는다 — 실제로 그렇게 막혔다.
+// 모델 목록만 불러오는 **무료** 호출로 돈을 쓰기 전에 확인한다.
+async function checkApiKey(box) {
+  box = box || $("apiKeyState");
+  if (!box) return null;
+  const before = box.innerHTML;
+  box.textContent = "키가 통하는지 확인하는 중…";
+  try {
+    const r = await api("/api/api-key/check", { method: "POST" });
+    box.innerHTML = r.ok
+      ? `<span class="tag ok">확인했습니다</span> ${esc(r.message)}`
+      : `<span class="tag warn">막혔습니다</span> ${esc(r.message)}` +
+        (r.what_to_do ? `<br><span class="hint">${esc(r.what_to_do)}</span>` : "");
+    return r;
+  } catch (e) {
+    box.innerHTML = before + `<br><span class="hint">확인하지 못했습니다 — ${esc(e.message)}</span>`;
+    return null;
+  }
+}
+
+$("btnKeyCheck").onclick = () => checkApiKey();
 
 $("btnComposer").onclick = () => { $("composerPanel").classList.remove("hidden"); refreshApiKey(); };
 $("btnComposerClose").onclick = () => { $("composerPanel").classList.add("hidden"); };
