@@ -145,9 +145,15 @@ class Settings(BaseSettings):
             object.__setattr__(self, "anthropic_api_key", read_api_key_from_env_file())
 
     def resolved_store_path(self) -> Path:
-        # 빈 data_dir 은 현재 폴더(.)가 되어 프로그램 폴더 안에 떨어진다 — 막는다.
-        base = self.data_dir if str(self.data_dir).strip() not in ("", ".") else user_data_dir()
-        return self.store_path or (base / "store.sqlite3")
+        """저장 파일의 자리. **자리를 정하는 곳은 여기 하나뿐이어야 한다.**
+
+        예전에는 이 함수와 `resolve_data_dir()` 이 각자 계산했다. 둘이 어긋나면
+        화면은 A 를 가리키는데 곡은 B 에 쌓인다 — 곡을 잃어버린 것과 다르지 않다.
+        그래서 판단을 `resolve_data_dir()` 한 곳에 모으고 여기서는 그것을 따른다.
+        """
+        if self.store_path:
+            return self.store_path
+        return resolve_data_dir() / "store.sqlite3"
 
     @property
     def has_api_key(self) -> bool:
@@ -204,6 +210,29 @@ def validate_models(settings: Settings | None = None) -> list[str]:
     return problems
 
 
+
+def _out_of_the_program_folder(d: Path) -> Path:
+    """프로그램 폴더 안을 가리키는 **상대 경로** 설정은 옛 함정이다 — 비켜 세운다.
+
+    예전 `.env.example` 에 `DATA_DIR=./data` 가 박혀 있었다. 그 시절에 설치한 PC 는
+    `.env` 를 그대로 들고 있고, 설치 스크립트는 이미 있는 `.env` 를 건드리지 않는다.
+    그러면 새 판을 받으려고 폴더를 지울 때 만든 곡이 함께 사라진다 — 실제로 그렇게
+    사라졌고, 그건 내가 만든 함정이었다. 그래서 옛 설정이 남아 있어도 곡은 바깥에
+    저장하고, 안에 있던 것은 `migrate_old_data` 가 **복사해서** 가져온다(지우지 않는다).
+
+    절대 경로는 손대지 않는다. 그건 원장이 일부러 정한 자리다.
+    """
+    if d.is_absolute():
+        return d
+    try:
+        inside = (Path.cwd() / d).resolve().is_relative_to(ROOT.resolve())
+    except (OSError, ValueError):
+        return d
+    if not inside:
+        return d
+    log.info("옛 설정(DATA_DIR=%s)이 프로그램 폴더 안을 가리켜 안전한 자리로 옮긴다", d)
+    return user_data_dir()
+
 def resolve_data_dir() -> Path:
     """자료가 사는 폴더. 없으면 만들고, 프로그램 폴더 안의 옛 자료는 옮겨 온다.
 
@@ -215,6 +244,7 @@ def resolve_data_dir() -> Path:
     d = Path(raw) if raw else Path(get_settings().data_dir)
     if not str(d).strip() or str(d) == ".":
         d = user_data_dir()
+    d = _out_of_the_program_folder(d)
     d = _writable_or_fallback(d)
     migrate_old_data(d)
     return d

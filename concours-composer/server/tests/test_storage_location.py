@@ -156,3 +156,49 @@ def test_a_blocked_folder_moves_aside_instead_of_killing_the_icon(
     assert not str(got).startswith(str(blocked))
     assert cfg.data_dir_warning(), "옮겨 앉았는데 화면에 알리지 않으면 곡을 잃어버린 것처럼 보인다"
     assert "저장" in cfg.data_dir_warning()
+
+
+def test_an_old_env_can_no_longer_park_the_pieces_inside_the_program_folder(
+    monkeypatch, tmp_path
+) -> None:
+    """예전에 설치한 PC 는 `.env` 에 DATA_DIR=./data 를 그대로 들고 있다.
+
+    설치 스크립트는 이미 있는 `.env` 를 건드리지 않으므로, 그 PC 는 새 판을 받아도
+    여전히 프로그램 폴더 안에 저장한다 — 폴더를 지우면 곡이 사라지던 그 함정이다.
+    내가 만든 함정이니 프로그램이 스스로 비켜서야 한다.
+    """
+    import app.config as cfg
+
+    monkeypatch.setenv("DATA_DIR", "./data")
+    monkeypatch.setattr(cfg, "user_data_dir", lambda: tmp_path / "안전한자리")
+    monkeypatch.setattr(cfg, "migrate_old_data", lambda d: "")
+
+    got = cfg.resolve_data_dir()
+
+    assert not got.resolve().is_relative_to(cfg.ROOT.resolve()), f"아직 프로그램 폴더 안이다: {got}"
+
+
+def test_an_absolute_data_dir_is_the_owner_s_choice_and_is_respected(
+    monkeypatch, tmp_path
+) -> None:
+    """절대 경로는 원장이 일부러 정한 자리다 — 마음대로 옮기면 그게 더 나쁘다."""
+    import app.config as cfg
+
+    mine = tmp_path / "내가 정한 자리"
+    monkeypatch.setenv("DATA_DIR", str(mine))
+    monkeypatch.setattr(cfg, "migrate_old_data", lambda d: "")
+
+    assert cfg.resolve_data_dir().resolve() == mine.resolve()
+
+
+def test_the_screen_and_the_database_never_point_at_different_folders(
+    monkeypatch, tmp_path
+) -> None:
+    """화면이 A 를 가리키는데 곡이 B 에 쌓이면 곡을 잃어버린 것과 같다."""
+    import app.config as cfg
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "한 자리"))
+    monkeypatch.setattr(cfg, "migrate_old_data", lambda d: "")
+    s = cfg.Settings(anthropic_api_key="")
+
+    assert s.resolved_store_path().parent.resolve() == cfg.resolve_data_dir().resolve()

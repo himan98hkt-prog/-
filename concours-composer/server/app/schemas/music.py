@@ -78,6 +78,33 @@ class NoteEvents(BaseModel):
 # ── 작곡 축: LLM 이 출력하는 구조화 JSON ────────────────────────────────────
 
 Articulation = Literal["staccato", "accent", "tenuto", "marcato", "none"]
+
+
+def _nullable_choice(schema: dict[str, object]) -> None:
+    """`Literal[..., None]` 이 만드는 **type 없는 enum** 을 anyOf 로 바꾼다.
+
+    이것이 없으면 실제 Claude 호출이 네트워크에 닿기도 전에 죽는다. pydantic 은
+    `Literal["start", "stop", None]` 을 `{"enum": ["start", "stop", null]}` 로 내놓는데,
+    거기에는 `type` 이 없다. Anthropic SDK 는 Structured Outputs 스키마를 보내기 직전에
+    변환하면서 type/anyOf/oneOf/allOf 가 하나도 없는 자리를 거부한다 —
+    `ValueError: Schema must have a 'type', 'anyOf', 'oneOf', or 'allOf' field.`
+
+    그 예외는 SDK 예외가 아니라서 한국어 안내로도 안 바뀌고, 화면에는 `{}` 만 남는다.
+    음표를 만드는 모든 단계(모티브·프레이즈 실현)가 이 스키마를 쓰므로, 키를 넣는
+    순간부터 곡이 **한 곡도** 만들어지지 않는다. 스텁 엔진은 API 를 안 부르니 조용했다.
+    """
+    raw = schema.pop("enum", [])
+    values = [v for v in raw if v is not None] if isinstance(raw, list) else []
+    schema.pop("type", None)
+    schema["anyOf"] = [{"type": "string", "enum": values}, {"type": "null"}]
+
+
+# 붙임줄·이음줄은 "없음" 이 정상 상태다. 그래서 None 을 품은 채로 스키마가 성립해야 한다.
+Tie = Annotated[
+    Literal["start", "stop", "continue", None], Field(json_schema_extra=_nullable_choice)
+]
+Slur = Annotated[Literal["start", "stop", None], Field(json_schema_extra=_nullable_choice)]
+
 Dynamic = Literal["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"]
 
 
@@ -88,9 +115,9 @@ class ScoreEvent(BaseModel):
 
     dur: float = Field(gt=0, description="4분음표 = 1.0 인 길이")
     pitches: list[str] = Field(default_factory=list, description='["C4","E4"] 형식. 빈 배열 = 쉼표')
-    tie: Literal["start", "stop", "continue", None] = None
+    tie: Tie = None
     artic: Articulation = "none"
-    slur: Literal["start", "stop", None] = None
+    slur: Slur = None
 
     @field_validator("pitches")
     @classmethod
