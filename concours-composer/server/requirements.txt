@@ -13,6 +13,7 @@ music21>=9.1
 mido==1.3.*
 pretty_midi==0.2.*
 numpy>=1.26
+imageio-ffmpeg>=0.5  # MP3 인코딩용 ffmpeg 동봉(윈도우·맥·리눅스). 없으면 WAV 로 준다.
 scipy>=1.11
 python-multipart==0.0.*
 httpx==0.27.*

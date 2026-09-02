@@ -3,10 +3,13 @@
 모티브 → Plan → Realize 순서를 URL 로 강제한다. Plan 없이 realize 를 부를 수 없고,
 모티브를 고르지 않고 plan 을 부를 수 없다 — 절대 규칙 9 를 API 층에서도 지킨다.
 """
+
 from __future__ import annotations
 
 import base64
 import logging
+from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -88,9 +91,7 @@ def _ctx(store: Store, request_id: str):
 
     corpus = get_corpus()
     entries = search_corpus_entries(req, corpus) if corpus.scores else []
-    academy = summarize_results(
-        store.jobs.get("competition_results", []), store.compositions
-    )
+    academy = summarize_results(store.jobs.get("competition_results", []), store.compositions)
     return build_context(req, corpus=entries, academy_data=academy)
 
 
@@ -141,7 +142,9 @@ def create_motifs(
         raise HTTPException(422, "학생 제약을 지키는 모티브 후보를 만들지 못했다")
     store.motifs[request_id] = candidates
     return MotifResponse(
-        request_id=request_id, candidates=candidates, previews=_previews(candidates),
+        request_id=request_id,
+        candidates=candidates,
+        previews=_previews(candidates),
         engine=getattr(pipeline.engine, "name", "unknown"),
     )
 
@@ -157,15 +160,21 @@ def custom_motif(
     from app.validate.validator import validate_score
 
     rep = validate_score(
-        list(motif.measures), ctx.student, meter=motif.meter, tempo=motif.tempo,
-        key_sig=motif.key, max_accidental_ratio=ctx.hard.max_accidental_ratio,
+        list(motif.measures),
+        ctx.student,
+        meter=motif.meter,
+        tempo=motif.tempo,
+        key_sig=motif.key,
+        max_accidental_ratio=ctx.hard.max_accidental_ratio,
     )
     if not rep.passed:
         raise HTTPException(422, {"message": "모티브가 학생 제약을 벗어난다", "issues": _issues(rep)})
     existing = store.motifs.setdefault(request_id, [])
     existing.append(motif)
     return MotifResponse(
-        request_id=request_id, candidates=existing, previews=_previews(existing),
+        request_id=request_id,
+        candidates=existing,
+        previews=_previews(existing),
         engine="director",
     )
 
@@ -209,16 +218,10 @@ def select_motif_and_plan(
 
     ctx = _ctx(store, request_id)
     locked = motif.model_copy(update={"selected": True})
-    store.motifs[request_id] = [
-        m.model_copy(update={"selected": m.id == motif_id}) for m in candidates
-    ]
-    plan, report = pipeline.plan(
-        ctx, locked, previous_plans=_previous_plans(store, request_id)
-    )
+    store.motifs[request_id] = [m.model_copy(update={"selected": m.id == motif_id}) for m in candidates]
+    plan, report = pipeline.plan(ctx, locked, previous_plans=_previous_plans(store, request_id))
     store.plans[request_id] = {"plan": plan, "motif": locked, "approved": report.passed}
-    return PlanResponse(
-        request_id=request_id, plan=plan, passed=report.passed, issues=_issues(report)
-    )
+    return PlanResponse(request_id=request_id, plan=plan, passed=report.passed, issues=_issues(report))
 
 
 @router.patch("/requests/{request_id}/plan", response_model=PlanResponse)
@@ -235,15 +238,14 @@ def edit_plan(
     from app.generation.plan_rules import check_plan
 
     report = check_plan(
-        plan, ctx.student,
+        plan,
+        ctx.student,
         time_limit_sec=ctx.hard.time_limit_sec,
         previous_plans=_previous_plans(store, request_id),
     )
     entry["plan"] = plan
     entry["approved"] = report.passed
-    return PlanResponse(
-        request_id=request_id, plan=plan, passed=report.passed, issues=_issues(report)
-    )
+    return PlanResponse(request_id=request_id, plan=plan, passed=report.passed, issues=_issues(report))
 
 
 @router.post("/requests/{request_id}/realize", response_model=ComposeResponse)
@@ -268,9 +270,7 @@ def realize(
     ngrams = get_corpus().ngram_index() or None
 
     try:
-        results = pipeline.compose_candidates(
-            ctx, entry["motif"], entry["plan"], n=n, corpus_ngrams=ngrams
-        )
+        results = pipeline.compose_candidates(ctx, entry["motif"], entry["plan"], n=n, corpus_ngrams=ngrams)
     except PlanRejected as e:
         raise HTTPException(422, str(e)) from e
     except InfeasibleRequest as e:
@@ -282,14 +282,16 @@ def realize(
         rid_ = store.next_id("comp", store.compositions)
         store.compositions[rid_] = r
         store.versions.setdefault(rid_, []).append(r)
-        summaries.append(CandidateSummary(
-            composition_id=rid_,
-            combined_score=r.quality.combined_score,
-            musicality=float(r.quality.musicality["score_10"]),
-            difficulty=r.difficulty,
-            savable=r.savable,
-            revision_rounds=r.revision_rounds,
-        ))
+        summaries.append(
+            CandidateSummary(
+                composition_id=rid_,
+                combined_score=r.quality.combined_score,
+                musicality=float(r.quality.musicality["score_10"]),
+                difficulty=r.difficulty,
+                savable=r.savable,
+                revision_rounds=r.revision_rounds,
+            )
+        )
     res = results[0]
     cid = summaries[0].composition_id
 
@@ -300,7 +302,9 @@ def realize(
             res.measures,
             score_id=f"gen-{cid}",
             title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
-            key=res.plan.key, meter=res.plan.meter, tempo=res.plan.tempo,
+            key=res.plan.key,
+            meter=res.plan.meter,
+            tempo=res.plan.tempo,
             division_tags=[ctx.competition.division] if ctx.competition else [],
         )
 
@@ -384,6 +388,56 @@ def get_midi(composition_id: str, store: Store = Depends(get_store)) -> Response
         content=data,
         media_type="audio/midi",
         headers={"Content-Disposition": f'attachment; filename="{composition_id}.mid"'},
+    )
+
+
+# 같은 곡을 다시 눌렀을 때 3초를 또 기다리지 않는다. 곡이 바뀌면 키가 달라져 저절로 비켜난다.
+_AUDIO_CACHE: dict[tuple[str, str, int], tuple[bytes, str]] = {}
+_AUDIO_CACHE_MAX = 8
+
+
+@router.get("/compositions/{composition_id}/audio")
+def get_audio(
+    composition_id: str,
+    hands: Literal["both", "rh", "lh"] = "both",
+    store: Store = Depends(get_store),
+) -> Response:
+    """곡을 소리 파일로 준다 — 학생·학부모에게 그대로 보낼 수 있는 형태로.
+
+    MIDI 는 재생기를 가리지만 MP3 는 어디서나 열린다. 인코더가 없으면 WAV 로 준다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+
+    key = (composition_id, hands, len(res.measures))
+    hit = _AUDIO_CACHE.get(key)
+    if hit is None:
+        from app.export.audio import render_audio
+        from app.generation.assemble import measures_to_note_events
+
+        events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
+        hit = render_audio(events, hands=hands)
+        if len(_AUDIO_CACHE) >= _AUDIO_CACHE_MAX:
+            _AUDIO_CACHE.pop(next(iter(_AUDIO_CACHE)))
+        _AUDIO_CACHE[key] = hit
+
+    data, ext = hit
+    # HTTP 헤더는 latin-1 만 담는다. 한글 제목은 RFC 5987 의 filename* 로만 보내고
+    # 옛 브라우저용 filename= 은 ASCII 로 남긴다 — 둘을 섞으면 응답 자체가 깨진다.
+    ascii_suffix = {"both": "", "rh": "_rh", "lh": "_lh"}[hands]
+    korean_suffix = {"both": "", "rh": "_오른손", "lh": "_왼손"}[hands]
+    stem = (res.plan.title_candidates[0] if res.plan.title_candidates else composition_id).replace('"', "")
+    return Response(
+        content=data,
+        media_type="audio/mpeg" if ext == "mp3" else "audio/wav",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{composition_id}{ascii_suffix}.{ext}"; '
+                f"filename*=UTF-8''{quote(stem + korean_suffix)}.{ext}"
+            ),
+            "X-Audio-Format": ext,
+        },
     )
 
 

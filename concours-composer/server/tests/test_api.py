@@ -316,3 +316,23 @@ def test_direct_edit_reports_a_broken_bar_instead_of_saving_it_silently(client, 
     assert r.status_code == 200, r.text
     assert r.json()["savable"] is False
     assert any(i["rule"] == "measure_length" for i in r.json()["validation"]["issues"])
+
+
+def test_audio_download(client, req_id):
+    """곡을 소리 파일로 받는다 — 학부모에게 그대로 보낼 수 있어야 한다."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    r = client.get(f"/api/compositions/{cid}/audio?hands=rh")
+    assert r.status_code == 200, r.text
+    assert r.headers["x-audio-format"] in {"mp3", "wav"}
+    assert r.headers["content-type"] in {"audio/mpeg", "audio/wav"}
+    assert len(r.content) > 4096
+    assert "attachment" in r.headers["content-disposition"]
+
+    # 두 번째 호출은 캐시라 같은 바이트가 나와야 한다.
+    again = client.get(f"/api/compositions/{cid}/audio?hands=rh")
+    assert again.content == r.content
+
+    assert client.get("/api/compositions/nope/audio").status_code == 404

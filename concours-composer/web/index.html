@@ -162,8 +162,23 @@
   .mini-svg .acc{font:600 11px/1 var(--sans);fill:var(--accent)}
   .mini-svg .mn{font:600 9.5px/1 var(--sans);fill:var(--muted-2)}
   .mini-svg .clef{font:600 10px/1 var(--sans);fill:var(--muted-2)}
+  .mini-svg .clefg{font-family:Bravura,"Segoe UI Symbol","Noto Music",Symbola,serif;
+                   fill:var(--ink)}
+  .mini-svg .sig{font:600 13px/1 var(--sans);fill:var(--ink)}
+  .mini-svg .time{font:700 13px/1 var(--serif);fill:var(--ink);text-anchor:middle}
   .mini-svg .rest{fill:#a2977f}
+  .mini-svg .art{fill:var(--ink)}
+  .mini-svg .artline{stroke:var(--ink);stroke-width:1.4}
+  .mini-svg .art-t{font:700 11px/1 var(--sans);fill:var(--ink);text-anchor:middle}
+  .mini-svg .slur{fill:none;stroke:var(--ink);stroke-width:1.1;opacity:.55}
+  .mini-svg .dyn{font:italic 700 13px/1 var(--serif);fill:var(--accent)}
+  .mini-svg .ped{font:italic 600 10px/1 var(--serif);fill:var(--muted-2)}
+  .mini-svg .pedline{stroke:var(--muted-2);stroke-width:1}
   .mini-svg .hit{fill:transparent;cursor:pointer}
+  .scoreview.editing .mini-svg .hit{pointer-events:none}
+  .scoreview.editing .mini-svg .nh{cursor:ns-resize}
+  .scoreview.editing .mini-svg .nh:hover{fill:var(--accent)}
+  .mini-svg .nh.picked{fill:var(--accent);stroke:var(--accent);stroke-width:3;opacity:.9}
   .mini-svg .hit:hover{fill:var(--gold);opacity:.13}
   .mini-svg .now{fill:var(--gold);opacity:.22;pointer-events:none}
   .mini-svg .bar{fill:var(--accent);pointer-events:none}
@@ -383,7 +398,13 @@
           data-tip="음표만으로 대보표를 직접 그립니다.&#10;인터넷이 없어도 항상 보이고, 재생 막대가 이 악보 위를 지나갑니다.">간이 악보</button>
         <button class="scoretab" id="tabScoreFull" disabled
           data-tip="새김 품질의 정식 악보입니다.&#10;악보 렌더러 파일이 있어야 켜집니다.">정식 악보</button>
+        <button class="scoretab" id="btnScoreEdit"
+          data-tip="악보의 음표를 위아래로 끌어 음높이를 고칩니다.&#10;음표를 누른 뒤 ↑ ↓ 키로도 움직일 수 있습니다.&#10;저장하면 검증기와 지표를 다시 돌립니다.">악보에서 편집</button>
         <span style="flex:1"></span>
+        <span id="edScoreBar" hidden>
+          <button class="mini" id="btnScoreUndo" data-tip="마지막으로 고친 음을 되돌립니다.">되돌리기</button>
+          <button class="mini" id="btnScoreSave" data-tip="고친 마디를 곡에 넣고 검증기·지표를 다시 돌립니다.">저장하고 검증</button>
+        </span>
         <span id="scoreNote"></span>
       </div>
       <div id="mini" class="scoreview"></div>
@@ -404,6 +425,9 @@
       <button class="ghost" id="btnGuide" data-tip="4주 연습 계획·암보 구획·구간별 주의점을 만듭니다.">연주법 해설</button>
       <button class="ghost" id="btnXml" data-tip="MuseScore·Sibelius 로 열 수 있는 표준 악보 파일입니다.">MusicXML 내려받기</button>
       <button class="ghost" id="btnMidi" data-tip="오른손·왼손이 트랙으로 나뉜 MIDI 입니다.">MIDI 내려받기</button>
+      <button class="ghost" id="btnAudio"
+        data-tip="곡을 소리 파일로 만들어 내려받습니다.&#10;학생·학부모 휴대폰에서 그냥 열립니다.&#10;위 '양손/오른손/왼손' 선택이 그대로 적용됩니다.">음원 내려받기</button>
+      <span id="audioState" style="font-size:12.5px;color:var(--muted)"></span>
     </div>
     <div id="judgeOut"></div>
     <div id="guideOut"></div>
@@ -795,8 +819,11 @@ const DIA = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };  // 온음계 계이�
 const LS = 7;                    // 오선 간격
 const TREBLE_BOTTOM = 4 * 7 + DIA.E;   // 높은음자리 첫째 줄 = E4
 const BASS_BOTTOM = 2 * 7 + DIA.G;     // 낮은음자리 첫째 줄 = G2
-const SYS_GAP = 46, SYS_PAD = 74, LEFT_W = 32, MEASURE_W = 132;
+const SYS_GAP = 46, SYS_PAD = 104, MEASURE_W = 132;
+const CLEF_W = 26, TIME_W = 22;   // 음자리표·박자표에 내주는 폭
+const BRACE_X = 5, HEAD_X = 15;   // 묶음선 자리, 오선이 시작하는 자리
 let miniBoxes = [], miniBar = null, miniNow = null;
+let miniKeyAlter = [0, 0, 0, 0, 0, 0, 0];
 
 function parsePitch(p) {
   const m = /^([A-G])([#b\-]*)(\d+)$/.exec(String(p));
@@ -817,21 +844,105 @@ function ledgerLines(di, bottomDi) {
   return out;
 }
 
+// ── 조표(조성 기호) ─────────────────────────────────────────────────────────
+// 임시표를 음마다 붙이면 악보가 아니라 표가 된다. 조표를 앞에 한 번 그리고
+// 거기 든 음은 다시 표시하지 않아야 실제 출판 악보처럼 읽힌다.
+// music21 표기를 그대로 받는다 — 내림표는 "B-" 처럼 쓴다.
+const _FIFTHS_MAJOR = {
+  "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5, "F#": 6, "C#": 7,
+  "F": -1, "B-": -2, "E-": -3, "A-": -4, "D-": -5, "G-": -6, "C-": -7,
+  "Bb": -2, "Eb": -3, "Ab": -4, "Db": -5, "Gb": -6, "Cb": -7,
+};
+const _FIFTHS_MINOR = {
+  "A": 0, "E": 1, "B": 2, "F#": 3, "C#": 4, "G#": 5, "D#": 6, "A#": 7,
+  "D": -1, "G": -2, "C": -3, "F": -4, "B-": -5, "E-": -6, "A-": -7,
+  "Bb": -5, "Eb": -6, "Ab": -7,
+};
+function keyFifths(key) {
+  const raw = String(key || "C").trim();
+  const minor = /(minor|min\b|단조)/i.test(raw) || /^[a-g][#b-]?$/.test(raw);
+  const base = raw.replace(/\s*(major|minor|maj|min|장조|단조)\s*$/i, "").trim();
+  const norm = base.charAt(0).toUpperCase() + base.slice(1);
+  const table = minor ? _FIFTHS_MINOR : _FIFTHS_MAJOR;
+  return norm in table ? table[norm] : (_FIFTHS_MAJOR[norm] ?? 0);
+}
+
+// 조표가 놓이는 자리. 올림표·내림표마다 순서와 높이가 정해져 있다.
+const _SIG_POS = {
+  rh: { sharp: [38, 35, 39, 36, 33, 37, 34], flat: [34, 37, 33, 36, 32, 35, 31] },
+  lh: { sharp: [24, 21, 25, 22, 19, 23, 20], flat: [20, 23, 19, 22, 18, 21, 17] },
+};
+const _SIG_STEPS = { sharp: [3, 0, 4, 1, 5, 2, 6], flat: [6, 2, 5, 1, 4, 0, 3] };
+
+// 계이름별로 조표가 몇 반음 올리고 내리는지. 임시표를 생략할 판단에 쓴다.
+function keyAlterByStep(fifths) {
+  const out = [0, 0, 0, 0, 0, 0, 0];
+  const kind = fifths >= 0 ? "sharp" : "flat";
+  for (let i = 0; i < Math.abs(fifths); i++) out[_SIG_STEPS[kind][i]] = fifths >= 0 ? 1 : -1;
+  return out;
+}
+
+// 음자리표 글자가 이 컴퓨터에 있는지 한 번만 재 본다. 없으면 손 이름을 대신 적는다 —
+// 네모(두부)가 뜨는 것보다 낫다.
+let _clefGlyphOk = null;
+function clefGlyphAvailable() {
+  if (_clefGlyphOk !== null) return _clefGlyphOk;
+  try {
+    const el = document.createElement("span");
+    el.style.cssText = "position:absolute;visibility:hidden;display:inline-block;" +
+      'font:40px Bravura,"Segoe UI Symbol","Noto Music",Symbola,serif';
+    document.body.appendChild(el);
+    const w = (g) => { el.textContent = g; return el.getBoundingClientRect().width; };
+    const tofu = w("￿");
+    _clefGlyphOk = Math.abs(w("\u{1D11E}") - tofu) > 1 && Math.abs(w("\u{1D122}") - tofu) > 1;
+    el.remove();
+  } catch (_) { _clefGlyphOk = false; }
+  return _clefGlyphOk;
+}
+
+// 아티큘레이션 기호. 스타카토는 점, 테누토는 선, 악센트는 >, 마르카토는 ^.
+function articMark(artic, x, y, hand) {
+  if (artic === "staccato") return `<circle class="art" cx="${x}" cy="${y}" r="1.5"/>`;
+  if (artic === "tenuto") return `<line class="artline" x1="${x - 4}" y1="${y}" x2="${x + 4}" y2="${y}"/>`;
+  const glyph = artic === "accent" ? ">" : "^";
+  const dy = hand === "rh" ? 3 : 0;
+  return `<text class="art-t" x="${x}" y="${y + dy}">${glyph}</text>`;
+}
+
+// 이음줄. 같은 단 안에서만 잇고, 단을 넘어가면 그 단 끝까지만 긋는다.
+function slurArc(from, to, hand) {
+  const sameRow = from.row === to.row;
+  const x2 = sameRow ? to.x : from.right - 4;
+  const y2 = sameRow ? to.y : from.y;
+  const lift = hand === "rh" ? 9 : -9;
+  const mx = (from.x + x2) / 2, my = (from.y + y2) / 2 + lift;
+  return `<path class="slur" d="M${from.x} ${from.y} Q${mx} ${my} ${x2} ${y2}"/>`;
+}
+
 function renderMiniScore() {
   const box = $("mini");
   if (!playMeasures || !playMeasures.length) {
     box.innerHTML = "<p class='hint'>곡을 고르면 악보가 여기에 그려집니다.</p>";
     return;
   }
-  const beats = barBeats(currentMeter());
+  const meter = currentMeter();
+  const beats = barBeats(meter);
+  const fifths = keyFifths((shownMeta && shownMeta.key) || (plan && plan.key));
+  const keyAlter = keyAlterByStep(fifths);
+  miniKeyAlter = keyAlter;   // 편집기가 새 음이름을 지을 때 쓴다
+  // 음자리표 + 조표 + 박자표가 들어갈 만큼만 왼쪽을 비운다. 조표가 없으면 좁아진다.
+  const sigW = Math.abs(fifths) * 8 + (fifths ? 5 : 0);
+  const leftW = HEAD_X + 4 + CLEF_W + sigW + TIME_W;
   const width = Math.max(520, box.clientWidth - 24);
-  const perSys = Math.max(2, Math.floor((width - LEFT_W) / MEASURE_W));
-  const mw = (width - LEFT_W) / perSys;
+  const perSys = Math.max(2, Math.floor((width - leftW) / MEASURE_W));
+  const mw = (width - leftW) / perSys;
   const sysH = 4 * LS + SYS_GAP + 4 * LS + SYS_PAD;      // 오선+사이+오선+여백
   const rows = Math.ceil(playMeasures.length / perSys);
   const height = rows * sysH + 16;
   const g = [];
   miniBoxes = [];
+  const slurOpen = {};        // 성부별로 아직 닫히지 않은 이음줄
+  let lastDynamic = null;     // 바뀔 때만 적기 위해 직전 값을 기억한다
 
   const yOf = (di, bottomY, bottomDi) => bottomY - (di - bottomDi) * (LS / 2);
 
@@ -841,31 +952,65 @@ function renderMiniScore() {
     const bassTop = trebleBottom + SYS_GAP;
     const bassBottom = bassTop + 4 * LS;
     const cols = Math.min(perSys, playMeasures.length - r * perSys);
-    const right = LEFT_W + cols * mw;
+    const right = leftW + cols * mw;
     for (let i = 0; i <= 4; i++) {
-      g.push(`<line class="stf" x1="${LEFT_W}" y1="${sy + i * LS}" x2="${right}" y2="${sy + i * LS}"/>`);
-      g.push(`<line class="stf" x1="${LEFT_W}" y1="${bassTop + i * LS}" x2="${right}" y2="${bassTop + i * LS}"/>`);
+      g.push(`<line class="stf" x1="${HEAD_X}" y1="${sy + i * LS}" x2="${right}" y2="${sy + i * LS}"/>`);
+      g.push(`<line class="stf" x1="${HEAD_X}" y1="${bassTop + i * LS}" x2="${right}" y2="${bassTop + i * LS}"/>`);
     }
     // 대보표 묶음선 — 두 오선이 한 악기임을 보여 준다.
-    g.push(`<path class="brace" d="M${LEFT_W - 6} ${sy} L${LEFT_W - 9} ${(sy + bassBottom) / 2} L${LEFT_W - 6} ${bassBottom}"/>`);
-    g.push(`<text class="clef" x="2" y="${sy + 2 * LS + 4}">오른손</text>`);
-    g.push(`<text class="clef" x="2" y="${bassTop + 2 * LS + 4}">왼손</text>`);
+    g.push(`<path class="brace" d="M${HEAD_X - 3} ${sy} L${BRACE_X} ${(sy + bassBottom) / 2} L${HEAD_X - 3} ${bassBottom}"/>`);
+    g.push(`<line class="bl" x1="${HEAD_X}" y1="${sy}" x2="${HEAD_X}" y2="${bassBottom}"/>`);
+
+    // 음자리표. 글자가 없는 컴퓨터에서는 손 이름으로 대신한다.
+    if (clefGlyphAvailable()) {
+      g.push(`<text class="clefg" x="${HEAD_X + 3}" y="${trebleBottom + 2}" style="font-size:${5.4 * LS}px">\u{1D11E}</text>`);
+      g.push(`<text class="clefg" x="${HEAD_X + 3}" y="${bassTop + 2.4 * LS}" style="font-size:${3.6 * LS}px">\u{1D122}</text>`);
+    } else {
+      g.push(`<text class="clef" x="${HEAD_X + 2}" y="${sy + 2 * LS + 4}">오른손</text>`);
+      g.push(`<text class="clef" x="${HEAD_X + 2}" y="${bassTop + 2 * LS + 4}">왼손</text>`);
+    }
+
+    // 조표. 올림표·내림표를 정해진 순서와 높이로 늘어놓는다.
+    if (fifths) {
+      const kind = fifths > 0 ? "sharp" : "flat";
+      const glyph = fifths > 0 ? "♯" : "♭";
+      for (let i = 0; i < Math.abs(fifths); i++) {
+        const kx = HEAD_X + 4 + CLEF_W + i * 8;
+        g.push(`<text class="sig" x="${kx}" y="${yOf(_SIG_POS.rh[kind][i], trebleBottom, TREBLE_BOTTOM) + 4}">${glyph}</text>`);
+        g.push(`<text class="sig" x="${kx}" y="${yOf(_SIG_POS.lh[kind][i], bassBottom, BASS_BOTTOM) + 4}">${glyph}</text>`);
+      }
+    }
+
+    // 박자표는 첫 단에만. 자리는 모든 단에서 비워 둬 마디가 세로로 맞는다.
+    if (r === 0) {
+      const [beatsTop, beatUnit] = String(meter).split("/");
+      const tx = HEAD_X + 4 + CLEF_W + sigW + 8;
+      for (const [topY, botY] of [[trebleBottom - 3 * LS, trebleBottom - LS],
+                                  [bassBottom - 3 * LS, bassBottom - LS]]) {
+        g.push(`<text class="time" x="${tx}" y="${topY + 4}">${beatsTop}</text>`);
+        g.push(`<text class="time" x="${tx}" y="${botY + 4}">${beatUnit}</text>`);
+      }
+    }
 
     for (let c = 0; c < cols; c++) {
       const idx = r * perSys + c;
       const m = playMeasures[idx];
-      const x0 = LEFT_W + c * mw;
+      const x0 = leftW + c * mw;
       g.push(`<line class="bl" x1="${x0}" y1="${sy}" x2="${x0}" y2="${bassBottom}"/>`);
       if (c === cols - 1) g.push(`<line class="bl" x1="${right}" y1="${sy}" x2="${right}" y2="${bassBottom}"/>`);
       if (c === 0 || m.number % 4 === 0) g.push(`<text class="mn" x="${x0 + 3}" y="${sy - 20}">${m.number}</text>`);
-      miniBoxes.push({ number: m.number, x: x0, w: mw, y: sy - 30, h: bassBottom - sy + 62 });
+      miniBoxes.push({ number: m.number, x: x0, w: mw, y: sy - 30, h: bassBottom - sy + 84 });
 
+      // 임시표는 마디 안에서만 유효하다. 마디가 바뀌면 조표 상태로 돌아간다.
+      const accInMeasure = new Map();
       for (const [hand, voices] of [["rh", m.rh || []], ["lh", m.lh || []]]) {
         const bottomY = hand === "rh" ? trebleBottom : bassBottom;
         const bottomDi = hand === "rh" ? TREBLE_BOTTOM : BASS_BOTTOM;
-        for (const v of voices) {
-          let off = 0;
+        voices.forEach((v, vi) => {
+          const slurKey = `${hand}${vi}`;
+          let off = 0, ei = -1;
           for (const ev of v.events) {
+            ei += 1;
             const x = x0 + 10 + (off / beats) * (mw - 20);
             off += ev.dur;
             if (!ev.pitches || !ev.pitches.length) {          // 쉼표
@@ -874,7 +1019,9 @@ function renderMiniScore() {
             }
             const held = ev.tie === "stop" || ev.tie === "continue";
             const op = held ? ' opacity="0.42"' : "";
-            const ps = ev.pitches.map(parsePitch).filter(Boolean)
+            const ps = ev.pitches
+              .map((name, pi) => { const q = parsePitch(name); return q && { ...q, pi }; })
+              .filter(Boolean)
               .map(q => ({ ...q, y: yOf(q.di, bottomY, bottomDi) }))
               .sort((a, b) => b.y - a.y);                     // 아래→위
             if (!ps.length) continue;
@@ -884,20 +1031,58 @@ function renderMiniScore() {
                 const ly = yOf(d, bottomY, bottomDi);
                 g.push(`<line class="led" x1="${x - 7}" y1="${ly}" x2="${x + 7}" y2="${ly}"/>`);
               }
-              g.push(`<ellipse class="nh ${hand}${open ? " open" : ""}" cx="${x}" cy="${q.y}" rx="4.1" ry="3.1"${op}/>`);
-              if (q.alter) g.push(`<text class="acc" x="${x - 15}" y="${q.y + 4}"${op}>${accGlyph(q.alter)}</text>`);
+              g.push(`<ellipse class="nh ${hand}${open ? " open" : ""}" cx="${x}" cy="${q.y}" rx="4.1" ry="3.1"${op}` +
+                ` data-m="${m.number}" data-h="${hand}" data-v="${vi}" data-e="${ei}" data-p="${q.pi}" data-di="${q.di}"/>`);
+              // 조표에 이미 든 음은 표를 붙이지 않는다. 한 마디 안에서 이미 적은 음도
+              // 다시 적지 않는다 — 실제 악보의 규칙이고, 이것만으로 표가 절반 이하로 준다.
+              const inEffect = accInMeasure.has(q.di) ? accInMeasure.get(q.di) : keyAlter[q.di % 7];
+              if (q.alter !== inEffect) {
+                const mark = q.alter === 0 ? "♮" : accGlyph(q.alter);
+                g.push(`<text class="acc" x="${x - 15}" y="${q.y + 4}"${op}>${mark}</text>`);
+                accInMeasure.set(q.di, q.alter);
+              }
             }
+            const lo = ps[0].y, hi = ps[ps.length - 1].y;
             if (ev.dur < 4) {                                  // 온음표는 기둥이 없다
-              const lo = ps[0].y, hi = ps[ps.length - 1].y;
               const [sx, y1, y2] = hand === "rh"
                 ? [x + 4.0, lo, hi - 3.2 * LS]
                 : [x - 4.0, hi, lo + 3.2 * LS];
               g.push(`<line class="stem" x1="${sx}" y1="${y1}" x2="${sx}" y2="${y2}"${op}/>`);
             }
+            // 아티큘레이션과 이음줄은 기둥 반대쪽에 붙인다 — 실제 악보의 규칙이고,
+            // 그래야 기둥·머리와 겹치지 않는다.
+            const ay = hand === "rh" ? lo + 10 : hi - 10;
+            if (ev.artic && ev.artic !== "none") g.push(articMark(ev.artic, x, ay, hand));
+            if (ev.slur === "start") {
+              slurOpen[slurKey] = { x, y: ay, row: r, right };
+            } else if (ev.slur === "stop") {
+              const from = slurOpen[slurKey];
+              if (from) {
+                g.push(slurArc(from, { x, y: ay, row: r }, hand));
+                delete slurOpen[slurKey];
+              }
+            }
           }
-        }
+        });
       }
-      g.push(`<rect class="hit" data-m="${m.number}" x="${x0}" y="${sy - 30}" width="${mw}" height="${bassBottom - sy + 62}"/>`);
+
+      // 셈여림은 바뀔 때만 적는다. 마디마다 mf 가 붙어 있으면 아무 뜻도 없다.
+      if (m.dynamics && m.dynamics !== lastDynamic) {
+        g.push(`<text class="dyn" x="${x0 + 8}" y="${bassBottom + 32}">${m.dynamics}</text>`);
+        lastDynamic = m.dynamics;
+      }
+      // 페달은 이어지는 구간을 한 줄로 잇는다. 마디마다 'Ped.' 를 찍으면
+      // 곡 전체에 페달이 걸린 곡에서는 글자만 72개 남고 아무 정보도 안 준다.
+      if (m.pedal) {
+        const py = bassBottom + 45;
+        const runStart = c === 0 || !playMeasures[idx - 1] || !playMeasures[idx - 1].pedal;
+        const runEnd = c === cols - 1 || !playMeasures[idx + 1] || !playMeasures[idx + 1].pedal;
+        const from = runStart ? x0 + 32 : x0;
+        if (runStart) g.push(`<text class="ped" x="${x0 + 4}" y="${py}">Ped.</text>`);
+        g.push(`<line class="pedline" x1="${from}" y1="${py - 3}" x2="${x0 + mw}" y2="${py - 3}"/>`);
+        if (runEnd) g.push(`<line class="pedline" x1="${x0 + mw}" y1="${py - 3}" x2="${x0 + mw}" y2="${py - 10}"/>`);
+      }
+      g.push(`<rect class="hit" data-m="${m.number}" x="${x0}" y="${sy - 30}" width="${mw}" height="${bassBottom - sy + 84}"/>`);
     }
   }
 
@@ -1232,6 +1417,31 @@ $("btnMidi").onclick = () => {
   window.location.href = `${API}/api/compositions/${compositionId}/midi`;
 };
 
+// 음원 파일. 서버가 합성하므로 몇 초 걸린다 — 눌러 놓고 기다릴 수 있게 상태를 적는다.
+$("btnAudio").onclick = async () => {
+  const btn = $("btnAudio"), state = $("audioState");
+  const hands = val("playHands");
+  btn.disabled = true;
+  state.textContent = "소리로 만드는 중… (곡 길이에 따라 몇 초)";
+  try {
+    const r = await fetch(`${API}/api/compositions/${compositionId}/audio?hands=${hands}`);
+    if (!r.ok) throw new Error(`음원을 만들지 못했습니다 (${r.status})`);
+    const fmt = r.headers.get("X-Audio-Format") || "wav";
+    const blob = await r.blob();
+    const name = (shownMeta && shownMeta.title ? shownMeta.title : compositionId)
+      + ({ both: "", rh: "_오른손", lh: "_왼손" })[hands] + "." + fmt;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+    state.textContent = `${fmt.toUpperCase()} ${Math.round(blob.size / 1024 / 102.4) / 10} MB 내려받음`;
+  } catch (e) {
+    state.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 $("btnXml").onclick = async () => {
   try {
     const b = await api(`/api/compositions/${compositionId}/musicxml`);
@@ -1482,6 +1692,168 @@ function stopTimelineClock() {
   if (tlRaf) cancelAnimationFrame(tlRaf);
   tlRaf = null; tlClock = null;
 }
+
+// ── 악보에서 바로 편집 ─────────────────────────────────────────────────────
+//
+// 표로 고치는 것(직접 편집 M4)은 정확하지만 느리다. 원장이 실제로 하고 싶은 일은
+// "이 음이 너무 높다" 를 **보면서 끌어내리는** 것이다. 그래서 악보의 음표를 직접
+// 잡아 끌게 하고, 저장은 기존 M4 저장 경로(검증기·지표 재실행)를 그대로 탄다 —
+// 편집 창구가 둘이어도 통과 기준은 하나여야 한다(절대 규칙 2).
+let scoreEdit = false, edPick = null, edSel = null;
+const edUndo = [];
+const edDirty = new Set();
+
+const LETTERS = "CDEFGAB";
+
+function diToPitch(di) {
+  const step = ((di % 7) + 7) % 7;
+  const octave = Math.floor(di / 7);
+  const alter = miniKeyAlter[step] || 0;
+  const acc = alter > 0 ? "#".repeat(alter) : "-".repeat(-alter);
+  return `${LETTERS[step]}${acc}${octave}`;
+}
+
+function clampDi(di) {
+  return Math.max(1 * 7, Math.min(7 * 7 + 6, di));   // C1 ~ B7 — 건반 밖으로 못 나간다
+}
+
+function measureByNumber(n) {
+  return (playMeasures || []).find(m => m.number === n);
+}
+
+function setScoreEdit(on) {
+  scoreEdit = on;
+  $("btnScoreEdit").classList.toggle("on", on);
+  $("edScoreBar").hidden = !on;
+  $("mini").classList.toggle("editing", on);
+  edSel = null;
+  updateEditState();
+  if (playMeasures) renderMiniScore();
+}
+
+function updateEditState() {
+  const n = edUndo.length;
+  $("btnScoreUndo").disabled = n === 0;
+  $("btnScoreSave").disabled = n === 0;
+  $("scoreNote").textContent = !scoreEdit ? ""
+    : n === 0 ? "음표를 위아래로 끌거나, 누른 뒤 ↑ ↓ 키를 쓰십시오"
+    : `고친 음 ${n}개 · ${[...edDirty].sort((a, b) => a - b).join(", ")}마디 — 아직 저장 전`;
+}
+
+// 음 하나를 옮긴다. 조표에 맞춰 음이름을 다시 짓는다 — 올림표가 셋인 곡에서
+// '파' 로 끌면 '파♯' 이 되는 것이 연주자가 기대하는 동작이다.
+function moveNote(ref, steps) {
+  const m = measureByNumber(ref.m);
+  if (!m || !steps) return false;
+  const voices = ref.h === "rh" ? m.rh : m.lh;
+  const ev = voices && voices[ref.v] && voices[ref.v].events[ref.e];
+  if (!ev || !ev.pitches[ref.p]) return false;
+  const di = clampDi(ref.di + steps);
+  if (di === ref.di) return false;
+  edUndo.push({ ...ref, was: ev.pitches[ref.p] });
+  ev.pitches[ref.p] = diToPitch(di);
+  edDirty.add(ref.m);
+  return true;
+}
+
+function refreshAfterEdit() {
+  renderMiniScore();
+  updateEditState();
+  markMini(0);
+}
+
+$("btnScoreEdit").onclick = () => setScoreEdit(!scoreEdit);
+
+$("btnScoreUndo").onclick = () => {
+  const last = edUndo.pop();
+  if (!last) return;
+  const m = measureByNumber(last.m);
+  const voices = last.h === "rh" ? m.rh : m.lh;
+  voices[last.v].events[last.e].pitches[last.p] = last.was;
+  if (!edUndo.some(u => u.m === last.m)) edDirty.delete(last.m);
+  refreshAfterEdit();
+};
+
+$("mini").addEventListener("mousedown", (e) => {
+  if (!scoreEdit) return;
+  const el = e.target.closest(".nh");
+  if (!el) return;
+  e.preventDefault();
+  const d = el.dataset;
+  edPick = {
+    el, m: +d.m, h: d.h, v: +d.v, e: +d.e, p: +d.p, di: +d.di,
+    y0: e.clientY, cy0: parseFloat(el.getAttribute("cy")), steps: 0,
+  };
+  edSel = { ...edPick };
+  el.classList.add("picked");
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!edPick) return;
+  const steps = Math.round((edPick.y0 - e.clientY) / (LS / 2));
+  if (steps === edPick.steps) return;
+  edPick.steps = steps;
+  // 끄는 동안에는 음표 머리만 따라 움직인다. 덧줄까지 다시 그리면 뚝뚝 끊긴다.
+  edPick.el.setAttribute("cy", edPick.cy0 - steps * (LS / 2));
+  $("scoreNote").textContent = `→ ${diToPitch(clampDi(edPick.di + steps))}`;
+});
+
+window.addEventListener("mouseup", () => {
+  if (!edPick) return;
+  const ref = edPick;
+  edPick = null;
+  ref.el.classList.remove("picked");
+  if (moveNote(ref, ref.steps)) {
+    edSel = { ...ref, di: clampDi(ref.di + ref.steps) };
+    refreshAfterEdit();
+  } else {
+    ref.el.setAttribute("cy", ref.cy0);
+    updateEditState();
+  }
+});
+
+// 화살표로도 옮긴다 — 한 반음이 아니라 한 계단씩이라 조성을 벗어나지 않는다.
+window.addEventListener("keydown", (e) => {
+  if (!scoreEdit || !edSel || edPick) return;
+  const step = e.key === "ArrowUp" ? 1 : e.key === "ArrowDown" ? -1 : 0;
+  if (!step) return;
+  e.preventDefault();
+  const by = e.shiftKey ? step * 7 : step;
+  if (moveNote(edSel, by)) {
+    edSel = { ...edSel, di: clampDi(edSel.di + by) };
+    refreshAfterEdit();
+  }
+});
+
+$("btnScoreSave").onclick = async () => {
+  if (!edDirty.size) return;
+  const btn = $("btnScoreSave");
+  btn.disabled = true;
+  $("scoreNote").textContent = "검증기와 지표를 다시 돌리는 중…";
+  try {
+    const changed = [...edDirty].sort((a, b) => a - b).map(measureByNumber).filter(Boolean);
+    const b = await api(`/api/compositions/${compositionId}/measures`, {
+      method: "PUT", body: JSON.stringify({ measures: changed }),
+    });
+    chatSay("sys",
+      `악보에서 ${b.changed_measures.join(", ")}마디를 고쳤습니다 · ${b.version}판 · ` +
+      `난이도 ${b.difficulty} · 종합 ${b.combined_score} · 검증 ${b.validation.summary}`,
+      b.validation.passed ? "" : "bad");
+    edUndo.length = 0;
+    edDirty.clear();
+    playMeasures = null;
+    await showComposition(compositionId);
+    await refreshLibrary();
+    setScoreEdit(true);
+    $("scoreNote").textContent = b.validation.passed
+      ? `저장했습니다 · ${b.version}판 · 검증 ${b.validation.summary}`
+      : `저장했지만 검증에 걸렸습니다 — ${b.validation.summary}`;
+  } catch (e) {
+    $("scoreNote").textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 // ── 편곡 채팅 ───────────────────────────────────────────────────────────────
 function chatSay(who, text, cls = "") {
