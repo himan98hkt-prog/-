@@ -25,6 +25,7 @@ from app.generation.client import CostLimitExceeded
 from app.generation.context import InfeasibleRequest, build_context
 from app.generation.pipeline import CompositionPipeline, PlanRejected
 from app.generation.presets import BY_ID, PRESETS, pick_key, pick_tempo, suitable
+from app.progress import tracker
 from app.schemas.music import CompositionPlan, Measure, MotifCandidate
 from app.schemas.quality import JudgePanel
 from app.schemas.student import CompetitionProfile, CompositionRequest, Student
@@ -91,6 +92,9 @@ class AutoComposeIn(BaseModel):
     total_measures: int | None = Field(default=None, ge=8, le=200)
     n_candidates: int = Field(default=1, ge=1, le=3)
     must_include: str = ""
+    # 화면이 만들어 보내는 표. 이 값으로 진행 상태를 물어볼 수 있다(GET /api/progress/{id}).
+    # 없으면 진행 보고만 안 할 뿐, 작곡은 똑같이 된다.
+    progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
 
 
 class JudgeGate(BaseModel):
@@ -306,6 +310,31 @@ def auto_compose(
     단계를 건너뛰지 않는다. 원장이 나중에 모티브나 Plan 을 바꾸고 싶으면 기존
     워크플로 API 로 같은 request_id 위에서 이어서 하면 된다.
     """
+    # 곡 하나에 수십 초에서 몇 분이 걸린다. 그동안 화면이 멈춰 보이지 않게, 파이프라인이
+    # 이미 내고 있던 단계 보고를 화면이 물어볼 수 있는 곳으로 흘려 보낸다.
+    job = body.progress_id
+    if job:
+        tracker().start(job)
+        pipeline.progress = lambda stage, pct, msg: tracker().report(job, stage, pct, msg)
+
+    try:
+        return _auto_compose(body, store, pipeline, settings)
+    except Exception as e:
+        if job:
+            tracker().finish(job, failed=getattr(e, "detail", None) or str(e) or "알 수 없는 오류")
+        raise
+    finally:
+        if job:
+            tracker().finish(job)
+
+
+def _auto_compose(
+    body: AutoComposeIn,
+    store: Store,
+    pipeline: CompositionPipeline,
+    settings: Settings,
+) -> AutoComposeOut:
+    job = body.progress_id
     try:
         req = build_request(body, store)
         ctx = build_context(req)
@@ -361,6 +390,8 @@ def auto_compose(
     res = results[0]
 
     # ── 사전 전문심사 게이트 ────────────────────────────────────────────────
+    if job:
+        tracker().report(job, "judge", 0.1, "심사위원 3인이 읽는 중")
     panel = _judge(ctx, res.measures, res.plan, settings)
     rounds = 0
     for _ in range(settings.judge_gate_rounds):
@@ -376,6 +407,8 @@ def auto_compose(
             break
         rounds += 1
         res = retry
+        if job:
+            tracker().report(job, "judge", 0.6, f"심사 지적을 반영해 고쳐 쓰는 중({rounds}회)")
         panel = _judge(ctx, res.measures, res.plan, settings)
 
     lowest = min(v.total for v in panel.verdicts)
@@ -390,6 +423,8 @@ def auto_compose(
         panel=panel,
     )
 
+    if job:
+        tracker().report(job, "save", 0.3, "악보와 음원을 갈무리하는 중")
     cid = store.next_id("comp", store.compositions)
     store.compositions[cid] = res
     store.versions.setdefault(cid, []).append(res)

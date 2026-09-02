@@ -128,3 +128,18 @@ def spending() -> dict:
         "total_pieces": int(sum(v["pieces"] for v in by_month.values())),
         "months": [row(m) for m in sorted(by_month, reverse=True)[:12]],
     }
+
+
+@router.get("/api/progress/{job_id}")
+def progress(job_id: str) -> dict:
+    """곡이 만들어지는 동안 어디까지 왔는지.
+
+    화면이 0.7초마다 물어본다. 아직 시작 전이거나 기록이 지워졌으면 그렇게 알린다 —
+    없는 것을 있는 척하지 않는다.
+    """
+    from app.progress import tracker
+
+    got = tracker().get(job_id)
+    if got is None:
+        return {"known": False, "pct": 0.0, "stage": "", "stage_ko": "", "message": "", "steps": []}
+    return {"known": True, **got}
