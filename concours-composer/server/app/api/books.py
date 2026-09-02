@@ -72,6 +72,21 @@ class CoverStyleOut(BaseModel):
     blurb: str
 
 
+def _dedupe(ids: list[str]) -> list[str]:
+    """같은 곡이 한 권에 두 번 들어가지 않게. 차례 순서는 그대로 지킨다.
+
+    화면에서 여러 번 고르거나 이미 든 곡을 다시 넣으면 생긴다. 한 권에 같은 곡이
+    두 번 실린 것은 원장이 학원에 보낸 뒤에야 드러난다.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in ids:
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
 def _books(store: Store) -> dict[str, Songbook]:
     raw = store.books
     for key, value in list(raw.items()):
@@ -153,7 +168,7 @@ def create_book(body: BookIn, store: Store = Depends(get_store)) -> BookOut:
         title=body.title,
         subtitle=body.subtitle,
         cover_style=body.cover_style,
-        composition_ids=list(body.composition_ids),
+        composition_ids=_dedupe(body.composition_ids),
         note=body.note,
     )
     books[bid] = book
@@ -183,6 +198,8 @@ def update_book(book_id: str, body: BookPatch, store: Store = Depends(get_store)
             raise HTTPException(404, f"곡을 찾을 수 없다: {', '.join(missing)}")
 
     fields = body.model_dump(exclude_none=True)
+    if "composition_ids" in fields:
+        fields["composition_ids"] = _dedupe(fields["composition_ids"])
     books[book_id] = book.model_copy(update=fields)
     store.save_soon()
     return _out(store, books[book_id])

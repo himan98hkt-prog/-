@@ -220,3 +220,40 @@ def test_books_survive_a_restart(client) -> None:
     from app.api.deps import PERSISTED
 
     assert "books" in PERSISTED, "곡집이 저장 목록에 없다 — 껐다 켜면 사라진다"
+
+
+def test_the_same_piece_never_lands_in_one_book_twice(client) -> None:
+    """한 권에 같은 곡이 두 번 실린 것은 학원에 보낸 뒤에야 드러난다."""
+    ids = _two_pieces(client)
+    book = client.post(
+        "/api/books", json={"title": "1권", "composition_ids": [ids[0], ids[1], ids[0]]}
+    ).json()
+    assert [p["composition_id"] for p in book["pieces"]] == [ids[0], ids[1]]
+
+    got = client.put(
+        f"/api/books/{book['id']}", json={"composition_ids": [ids[1], ids[1], ids[0]]}
+    ).json()
+    assert [p["composition_id"] for p in got["pieces"]] == [ids[1], ids[0]]
+
+
+def test_the_library_is_shown_the_moment_the_program_opens() -> None:
+    """저장은 되어 있는데 화면에만 안 나오면 원장은 곡이 사라진 줄 안다.
+
+    실제로 프로그램을 다시 켜면 보관함이 비어 있었다 — 곡을 하나 더 만들기 전까지는.
+    """
+    from pathlib import Path
+
+    web = Path(__file__).resolve().parents[2] / "web" / "index.html"
+    text = web.read_text(encoding="utf-8")
+    boot = text[text.index("// ── 처음 켤 때"):]
+    assert "refreshLibrary();" in boot, "켤 때 보관함을 읽지 않는다 — 곡이 사라진 것처럼 보인다"
+    assert "refreshBooks();" in boot, "켤 때 곡집을 읽지 않는다"
+
+
+def test_the_printed_score_can_stretch_to_the_paper() -> None:
+    """viewBox 가 없으면 종이 폭에 늘려도 그림은 그대로라 오른쪽이 빈다."""
+    from pathlib import Path
+
+    web = Path(__file__).resolve().parents[2] / "web" / "index.html"
+    text = web.read_text(encoding="utf-8")
+    assert 'viewBox="0 0 ${width} ${height}"' in text, "악보 SVG 에 viewBox 가 없다"
