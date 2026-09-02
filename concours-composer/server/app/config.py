@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     composer_model: str = "claude-opus-5"
     writer_model: str = "claude-sonnet-5"
-    max_cost_per_composition: float = 2.50
+    # 골든 20곡 실측: 평균 $1.59, 최고 $3.15(96마디). 상한을 그 아래로 두면
+    # 긴 곡이 파이프라인 도중에 끊긴다 — 돈은 이미 쓰고 곡은 못 얻는 최악이다.
+    max_cost_per_composition: float = 4.00
     model_validation: Literal["strict", "warn", "off"] = "warn"
 
     # 저장소 — 기본은 data_dir/store.sqlite3. STORE_PERSIST=0 이면 메모리만 쓴다.
