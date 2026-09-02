@@ -15,6 +15,7 @@ import httpx
 import pytest
 from app.generation.apierrors import ClaudeUnavailable, translate
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
 
 def _resp(status: int, body: dict | None = None) -> httpx.Response:
@@ -104,3 +105,35 @@ def test_key_check_costs_nothing_and_speaks_korean_when_there_is_no_key(
     body = r.json()
     assert body["ok"] is False
     assert body["what_to_do"]
+
+
+def test_the_whole_way_from_a_rejected_key_to_the_screen() -> None:
+    """실제 경로 그대로: Claude 가 401 을 주면 화면에 무엇이 닿는가.
+
+    조각으로만 확인하면 배선이 빠져도 모른다 — `{}` 사고가 바로 그랬다.
+    SDK 예외를 진짜 호출 자리에서 일으켜 화면까지 따라간다.
+    """
+    import anthropic
+    from app.config import Settings
+    from app.generation.client import ClaudeClient
+
+    class Rejecting:
+        class messages:  # noqa: N801
+            @staticmethod
+            def parse(**_: object) -> object:
+                raise _status_error(401, "invalid x-api-key")
+
+    c = ClaudeClient(settings=Settings(anthropic_api_key="sk-ant-" + "x" * 30))
+    c._client = Rejecting()
+
+    with pytest.raises(ClaudeUnavailable) as caught:
+        c.parse(stage="motif", system="s", user="u", output_model=_Tiny)
+
+    assert "API 키" in caught.value.message
+    assert ".env" in caught.value.what_to_do
+    # 원래 예외도 잃지 않는다 — 오류기록.txt 에 남아야 원인을 찾을 수 있다.
+    assert isinstance(caught.value.__cause__, anthropic.AnthropicError)
+
+
+class _Tiny(BaseModel):
+    ok: bool = True

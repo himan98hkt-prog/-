@@ -148,7 +148,8 @@ def preflight() -> int:
     else:
         ok = False
         print("  [X] ANTHROPIC_API_KEY  .env 가 비어 있다")
-        print("      .venv/bin/python scripts/set_api_key.py  로 넣어라")
+        print("      프로그램을 켜고 오른쪽 위 작곡가 이름을 누르면 'API 키' 칸이 있다.")
+        print("      거기에 붙여넣고 '저장' → '키 점검' 을 누르면 통하는지 바로 확인된다.")
         print("      (시스템 환경변수에는 절대 넣지 않는다 — 이 프로그램은 .env 만 읽는다)")
 
     print(f"  [O] 작곡 모델            {s.composer_model}")

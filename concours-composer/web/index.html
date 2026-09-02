@@ -1895,7 +1895,8 @@ async function renderScore() {
   const ok = await ensureLib("opensheetmusicdisplay", OSMD_SRC);
   if (!ok) {
     $("tabScoreFull").disabled = true;
-    $("scoreNote").textContent = "정식 악보는 렌더러 파일이 없어 꺼져 있습니다 — 간이 악보로 봅니다";
+    $("scoreNote").textContent = "정식 악보는 렌더러 파일이 없어 꺼져 있습니다 — 간이 악보로 봅니다. "
+      + "인터넷이 되는 곳에서 '설치.bat' 을 한 번 더 실행하면 켜집니다.";
     return;
   }
   try {
