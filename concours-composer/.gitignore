@@ -28,3 +28,5 @@ web/vendor/
 
 # 저장소 자동 백업 사본
 data/backups/
+실행기록.txt
+설치기록.txt

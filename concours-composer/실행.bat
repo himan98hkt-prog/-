@@ -1,11 +1,31 @@
-@echo off
-REM 아이콘이 없거나 지워졌을 때 쓰는 예비 실행기. 두 번 눌러 실행하십시오.
-cd /d "%~dp0"
-if not exist ".venv\Scripts\python.exe" (
-  echo.
-  echo   먼저 "설치.bat" 을 두 번 눌러 설치하십시오.
-  echo.
-  pause
-  exit /b 1
-)
-start "" ".venv\Scripts\pythonw.exe" "scripts\launch.py"
+@echo off
+REM ConcoursComposer 실행 - 아이콘이 안 될 때 이것을 두 번 누르십시오.
+REM
+REM 바탕화면 아이콘은 검은 창 없이 조용히 뜨게 만들어져 있다(pythonw). 조용하다는 것은
+REM 잘 될 때는 깔끔하지만, 안 될 때는 아무 일도 안 일어난 것처럼 보인다는 뜻이다.
+REM 이 파일은 같은 것을 창을 열어 놓고 실행한다 - 무엇이 잘못됐는지 글씨로 보인다.
+cd /d "%~dp0"
+title 콩쿨 작곡기 - 창 안을 클릭하지 마십시오
+REM 윈도우 명령창은 "빠른 편집" 이 기본으로 켜져 있다. 창 안을 클릭하면 제목이
+REM "선택 ..." 으로 바뀌면서 **돌던 작업이 그 자리에서 멈춘다.** 화면은 그대로라
+REM 고장 난 것처럼 보이는데, 사실은 사람이 멈춰 세운 것이다. 실제로 여기서 막혔다.
+REM 끄는 것은 사용자 전체 설정이라 함부로 건드리지 않고, 대신 미리 말해 준다.
+echo.
+echo   [알림] 이 창 안을 마우스로 클릭하지 마십시오 - 클릭하면 작업이 멈춥니다.
+echo          이미 멈췄다면 이 창을 한 번 누르고 Esc 를 누르면 이어서 돌아갑니다.
+if not exist ".venv\Scripts\python.exe" (
+  echo.
+  echo   아직 설치가 되어 있지 않습니다.
+  echo   이 폴더의 "설치.bat" 을 먼저 두 번 누르십시오.
+  echo.
+  pause
+  exit /b 1
+)
+echo.
+echo   콩쿨 작곡기를 켭니다. 잠시 뒤 브라우저가 저절로 열립니다.
+echo   끌 때는 화면 오른쪽 위 "끄기" 를 누르거나 이 창을 닫으십시오.
+echo.
+".venv\Scripts\python.exe" scripts\launch.py
+echo.
+echo   프로그램이 끝났습니다. 위에 붉은 글씨가 있으면 그대로 알려 주십시오.
+pause

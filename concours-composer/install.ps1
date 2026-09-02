@@ -187,7 +187,9 @@ Ok "완료"
 Step "6/7 바탕화면 아이콘 만들기"
 # 원장이 하는 일은 아이콘 한 번 누르는 것뿐이어야 한다. 검은 창도 주소 입력도 없다.
 $pyw = Join-Path $PSScriptRoot ".venv\Scripts\pythonw.exe"
-if (-not (Test-Path $pyw)) { $pyw = $vpy }   # pythonw 가 없으면 python 으로라도 만든다
+# pythonw 가 없으면 python 으로라도 만든다. 다만 **절대 경로**여야 한다 —
+# 바로가기에 상대 경로를 넣으면 윈도우가 아무 말 없이 아무것도 하지 않는다.
+if (-not (Test-Path $pyw)) { $pyw = Join-Path $PSScriptRoot ".venv\Scripts\python.exe" }
 $launch = Join-Path $PSScriptRoot "scripts\launch.py"
 $icon   = Join-Path $PSScriptRoot "assets\app\icon.ico"
 try {
@@ -220,6 +222,8 @@ Ok "정상"
 Write-Host ""
 Write-Host "설치 끝." -ForegroundColor White
 Write-Host "  바탕화면의 '콩쿨 작곡기' 아이콘을 두 번 누르십시오."
-Write-Host "  (아이콘이 없으면 이 폴더에서  .\start.ps1  을 실행하십시오)"
+Write-Host "  아이콘을 눌러도 아무 변화가 없으면 이 폴더의 '실행.bat' 을 두 번 누르십시오 -"
+Write-Host "  창이 열린 채로 돌아서 무엇이 잘못됐는지 글씨로 보입니다."
+Write-Host "  이 폴더: $PSScriptRoot" -ForegroundColor DarkGray
 Write-Host ""
 try { Stop-Transcript | Out-Null } catch { }
