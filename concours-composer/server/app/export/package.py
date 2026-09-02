@@ -45,6 +45,9 @@ class PackageInput:
     combined_score: float
     judge_average: float | None
     judge_passed: bool | None
+    # 지도용 판 — 원장이 보고 가르치는 쪽. 없으면 꾸러미에서 빠진다.
+    teaching_musicxml: str = ""
+    teaching_notes: str = ""
 
 
 def _safe(name: str) -> str:
@@ -151,11 +154,23 @@ def _readme(p: PackageInput, names: dict[str, str]) -> str:
         f"  {names['audio']}",
         "      먼저 이것부터 들어 보십시오. 어느 기기에서나 열립니다.",
         f"  {names['xml']}",
-        "      악보 원본입니다. MuseScore·Sibelius·Finale 에서 열어 인쇄하십시오.",
+        "      **아이에게 줄 악보**입니다. 음표만 있는 깨끗한 판입니다.",
+        "      MuseScore·Sibelius·Finale 에서 열어 인쇄하십시오.",
         "      (MuseScore 는 무료입니다: https://musescore.org)",
         f"  {names['midi']}",
         "      오른손·왼손이 트랙으로 나뉜 MIDI 입니다. 손 나눠 연습할 때 씁니다.",
     ]
+    if "teaching" in names:
+        lines += [
+            f"  {names['teaching']}",
+            "      **가르치실 때 보는 악보**입니다. 손가락 번호와 지도 요점이 얹혀 있습니다.",
+            "      아이에게는 위의 깨끗한 악보를 주십시오.",
+        ]
+    if "teaching_notes" in names:
+        lines += [
+            f"  {names['teaching_notes']}",
+            "      악보를 열지 않고도 읽는 지도 메모입니다 — 아이가 걸리는 자리가 적혀 있습니다.",
+        ]
     if "guide" in names:
         lines += [
             f"  {names['guide']}",
@@ -201,6 +216,10 @@ def build_package(p: PackageInput) -> tuple[bytes, str]:
     }
     if p.guide is not None:
         names["guide"] = "연주법 해설.md"
+    if p.teaching_musicxml:
+        names["teaching"] = f"{stem} (지도용).musicxml"
+    if p.teaching_notes:
+        names["teaching_notes"] = "지도 메모.md"
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -213,4 +232,8 @@ def build_package(p: PackageInput) -> tuple[bytes, str]:
         z.writestr(f"{root}/{names['rights']}", _rights_markdown(p))
         if p.guide is not None:
             z.writestr(f"{root}/{names['guide']}", _guide_markdown(p.guide, p.title))
+        if p.teaching_musicxml:
+            z.writestr(f"{root}/{names['teaching']}", p.teaching_musicxml)
+        if p.teaching_notes:
+            z.writestr(f"{root}/{names['teaching_notes']}", p.teaching_notes)
     return buf.getvalue(), f"{stem}.zip"

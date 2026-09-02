@@ -509,3 +509,71 @@ def test_backup_endpoint_reports_state(client):
     # 테스트는 파일 저장을 쓰지 않으므로 꺼진 상태를 정확히 알려야 한다.
     assert body["enabled"] is False and body["why"]
     assert client.post("/api/backups").status_code == 409
+
+
+def test_teaching_edition_is_a_second_score(client, req_id):
+    """지도용 악보는 연주용과 음표가 같고 표기만 다른 별개 파일이어야 한다."""
+    import io
+    import zipfile
+
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    t = client.get(f"/api/compositions/{cid}/teaching")
+    assert t.status_code == 200, t.text
+    body = t.json()
+    assert body["fingering_count"] > 0
+    assert "제안" in body["caution"]
+    assert "제안" in body["markdown"]
+
+    x = client.get(f"/api/compositions/{cid}/teaching.musicxml")
+    assert x.status_code == 200
+    assert "<fingering" in x.text and "지도용" in x.text
+
+    plain = client.get(f"/api/compositions/{cid}/musicxml").json()["musicxml"]
+    assert "<fingering" not in plain, "아이에게 줄 악보는 깨끗해야 한다"
+
+    z = zipfile.ZipFile(io.BytesIO(client.get(f"/api/compositions/{cid}/package").content))
+    tails = {n.split("/", 1)[1] for n in z.namelist()}
+    assert any("(지도용)" in t for t in tails), tails
+    assert "지도 메모.md" in tails
+    readme = z.read(next(n for n in z.namelist() if n.endswith("읽어보세요.txt"))).decode("utf-8")
+    assert "가르치실 때 보는 악보" in readme
+    assert "아이에게 줄 악보" in readme
+
+    assert client.get("/api/compositions/nope/teaching").status_code == 404
+
+
+def test_batch_makes_one_piece_per_level(client, student, competition):
+    """레벨 묶음 — 한 곡이 막혀도 나머지는 만들어야 한다."""
+    client.post("/api/students", json=student.model_dump(mode="json"))
+    r = client.post("/api/compositions/batch", json={
+        "levels": [3, 5],
+        "preset_ids": [],
+        "student": student.model_dump(mode="json"),
+        "competition": competition.model_dump(mode="json"),
+    })
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["made"] + b["failed"] == 2
+    assert len(b["rows"]) == 2
+    assert [row["level"] for row in b["rows"]] == [3, 5]
+    # 컨셉이 겹치면 형제 같은 곡이 나온다 — 알아서 다른 것을 골라야 한다.
+    used = [row["preset_id"] for row in b["rows"] if row["preset_id"]]
+    assert len(used) == len(set(used)), used
+    for row in b["rows"]:
+        assert row["ok"] or row["message"], row
+
+    # 제목이 겹치면 같은 이름의 상품을 여럿 내놓는 셈이다 — 겹치지 않아야 한다.
+    titles = [row["title"] for row in b["rows"] if row["ok"]]
+    assert len(titles) == len(set(titles)), titles
+
+
+def test_spending_reports_this_month(client, req_id):
+    """이번 달 얼마 썼는지 — 곡당 비용만으로는 달이 끝나야 총액을 안다."""
+    s = client.get("/api/spending")
+    assert s.status_code == 200
+    body = s.json()
+    assert body["this_month"]["pieces"] == 0 and body["this_month"]["usd"] == 0.0
+    assert "last_month" in body and "total_usd" in body

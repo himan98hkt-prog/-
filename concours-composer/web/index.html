@@ -402,6 +402,10 @@
       <span id="composerState" class="hint" style="margin:0"></span>
     </div>
 
+    <h2 style="margin-top:26px">API 비용</h2>
+    <p class="hint">곡을 만들 때 드는 비용입니다. 규칙 기반(무료)으로 만든 곡은 0원이라 빠집니다.</p>
+    <p id="spendState" class="hint" style="margin:0 0 6px"></p>
+
     <h2 style="margin-top:26px">자동 백업</h2>
     <p class="hint">만든 곡은 컴퓨터의 파일 하나에 들어 있습니다. 그 파일이 지워지면
       그동안 만든 곡이 전부 사라지므로, 저장될 때마다 <strong>사본을 따로 남깁니다</strong>.</p>
@@ -481,6 +485,21 @@
       <code>.json</code> 파일을 만들어 <code>{"copyright_status": "public_domain"}</code> 이라고
       적어 두십시오 — 그때만 선율까지 참고합니다.</div>
     <div id="refTable"></div>
+  </details>
+
+  <details class="fold" id="batchBox" style="margin:0 0 26px">
+    <summary data-tip="레벨 3~7 처럼 여러 곡을 한 번에 만듭니다.&#10;학원에 팔 때는 한 곡이 아니라 묶음이 필요합니다.">레벨별로 한꺼번에 만들기 <span class="why">— 학원에 팔 묶음</span></summary>
+    <p class="hint">레벨을 쉼표로 적으면 그 레벨마다 한 곡씩 이어서 만듭니다.
+      컨셉은 겹치지 않게 알아서 고릅니다. 한 곡이 막혀도 나머지는 계속 만듭니다.</p>
+    <div class="grid">
+      <div data-tip="예: 3,4,5,6,7 — 최대 8개까지."><label>레벨(쉼표)</label>
+        <input id="batchLevels" value="3,4,5,6,7"></div>
+    </div>
+    <div class="row">
+      <button id="btnBatch">묶음 만들기</button>
+      <span id="batchState" class="hint" style="margin:0"></span>
+    </div>
+    <div id="batchOut"></div>
   </details>
 
   <section id="secPresets" class="hidden">
@@ -614,6 +633,8 @@
       <button class="ghost" id="btnGuide" data-tip="4주 연습 계획·암보 구획·구간별 주의점을 만듭니다.">연주법 해설</button>
       <button class="ghost" id="btnXml" data-tip="MuseScore·Sibelius 로 열 수 있는 표준 악보 파일입니다.">MusicXML 내려받기</button>
       <button class="ghost" id="btnMidi" data-tip="오른손·왼손이 트랙으로 나뉜 MIDI 입니다.">MIDI 내려받기</button>
+      <button class="ghost" id="btnTeaching"
+        data-tip="가르칠 때 보는 악보입니다.&#10;손가락 번호와 지도 요점이 얹혀 있고, 아이에게 줄 깨끗한 악보는 따로 나옵니다.">지도용 악보 내려받기</button>
       <button class="ghost" id="btnPrint"
         data-tip="표지와 악보를 인쇄합니다.&#10;인쇄 창에서 프린터 대신 'PDF로 저장' 을 고르면 PDF 파일이 됩니다.">악보 인쇄 · PDF</button>
       <button id="btnPackage"
@@ -624,6 +645,11 @@
     </div>
     <div id="judgeOut"></div>
     <div id="guideOut"></div>
+
+    <details class="fold" id="teachBox">
+      <summary data-tip="이 곡으로 가르칠 때 짚어 줄 자리입니다.&#10;악보에서 센 것이라 의견이 아니라 사실입니다.">가르칠 때 짚을 곳 <span class="why" id="teachCount"></span></summary>
+      <div id="teachOut"></div>
+    </details>
 
     <details id="rightsBox" style="margin-top:22px">
       <summary data-tip="저작권 등록과 판매에 필요한 것들입니다.&#10;편곡이면 원곡의 권리 상태를 반드시 적어야 합니다.">저작권 · 등록 준비</summary>
@@ -1807,6 +1833,7 @@ async function autoCompose(presetId, cardEl) {
     compositionId = body.composition_id;
     await showComposition(body.composition_id);
     await refreshLibrary();
+    await refreshSpending();
   } catch (e) {
     box.className = "msg bad";
     // 막혔을 때 "안 됩니다" 로 끝내지 않는다. 바로 누를 수 있는 다음 수를 함께 낸다.
@@ -1929,6 +1956,7 @@ async function showComposition(cid) {
     if (num("arrTo") > b.measures) $("arrTo").value = Math.min(4, b.measures);
     loadRights(cid);
     loadTitle(cid);
+    loadTeaching(cid);
     $("secResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
 }
@@ -2190,6 +2218,97 @@ $("btnScoreSave").onclick = async () => {
     btn.disabled = false;
   }
 };
+
+// ── 지도용 악보 ────────────────────────────────────────────────────────────
+//
+// 이 곡을 사 가는 사람은 원장이고, 그는 곡을 치는 게 아니라 아이에게 가르친다.
+// 그래서 악보가 두 벌이다 — 아이에게 줄 깨끗한 판과, 손가락 번호·지도 요점이
+// 얹힌 판. 화면에는 "가르칠 때 짚을 곳" 만 요약해 보여 준다.
+const SPOT_KO = {
+  leap: "도약", stretch: "손 벌림", accidentals: "임시표",
+  climax: "클라이맥스", rhythm_change: "리듬 변화", peak: "최고음", hand_cross: "손 교차",
+};
+
+async function loadTeaching(cid) {
+  const out = $("teachOut");
+  if (!out) return;
+  try {
+    const t = await api(`/api/compositions/${cid}/teaching`);
+    $("teachCount").textContent =
+      `— 짚을 곳 ${t.spots.length}군데 · 손가락 번호 ${t.fingering_count}개`;
+    const sections = t.section_notes.length
+      ? `<h3 style="margin:6px 0 4px">구간</h3><ul class="hint" style="padding-left:20px">` +
+        t.section_notes.map(([n, txt]) => `<li><strong>${n}마디부터</strong> — ${txt}</li>`).join("") +
+        `</ul>`
+      : "";
+    const spots = t.spots.length
+      ? `<h3 style="margin:12px 0 4px">아이가 걸리는 자리</h3>` +
+        `<table><tr><th>마디</th><th>무엇</th><th>어떻게 가르치나</th></tr>` +
+        t.spots.map(x => `<tr>
+          <td><button class="ghost mini spot-go" data-m="${x.measure}">${x.measure}마디</button></td>
+          <td>${SPOT_KO[x.kind] || x.kind}${x.hand ? " · " + (x.hand === "rh" ? "오른손" : "왼손") : ""}</td>
+          <td>${x.message}</td></tr>`).join("") + `</table>`
+      : "<p class='hint'>특별히 걸릴 만한 자리가 없습니다 — 순한 곡입니다.</p>";
+    out.innerHTML = `<p class="hint">${t.caution}</p>` + sections + spots;
+    out.querySelectorAll(".spot-go").forEach(b => {
+      b.onclick = () => startPlayback(Number(b.dataset.m));   // 그 자리부터 들려준다
+    });
+  } catch (_) { /* 지도 표기를 못 만들어도 곡은 보인다 */ }
+}
+
+$("btnTeaching").onclick = () => {
+  window.location.href = `${API}/api/compositions/${compositionId}/teaching.musicxml`;
+};
+
+// ── 레벨별 묶음 만들기 ─────────────────────────────────────────────────────
+$("btnBatch").onclick = async () => {
+  const levels = val("batchLevels").split(/[,\s]+/).map(Number).filter(n => n >= 1 && n <= 10);
+  if (!levels.length) { $("batchState").textContent = "레벨을 1~10 사이로 적어 주십시오"; return; }
+  const btn = $("btnBatch");
+  btn.disabled = true;
+  $("batchState").textContent = `${levels.length}곡을 이어서 만드는 중… (한 곡에 수십 초)`;
+  $("batchOut").innerHTML = "";
+  try {
+    const b = await api("/api/compositions/batch", {
+      method: "POST",
+      body: JSON.stringify({ levels, preset_ids: [], student: dashStudent(), competition: dashCompetition() }),
+    });
+    $("batchState").textContent =
+      `${b.made}곡 완성 · ${b.failed}곡 실패` + (b.total_cost_usd ? ` · API $${b.total_cost_usd}` : "");
+    $("batchOut").innerHTML =
+      `<table><tr><th>레벨</th><th>컨셉</th><th>곡</th><th>난이도</th><th>종합</th><th>심사</th><th></th></tr>` +
+      b.rows.map(r => r.ok
+        ? `<tr><td>${r.level}</td><td>${r.preset_id}</td><td>${r.title}</td>
+             <td>${r.difficulty}</td><td>${r.combined_score}</td>
+             <td>${r.judge_passed ? '<span class="tag ok">통과</span>' : '<span class="tag warn">초안</span>'}</td>
+             <td><button class="ghost mini open" data-cid="${r.composition_id}">열기</button></td></tr>`
+        : `<tr><td>${r.level}</td><td>${r.preset_id || "—"}</td>
+             <td colspan="4" class="hint">${r.message}</td><td></td></tr>`).join("") +
+      `</table>`;
+    $("batchOut").querySelectorAll(".open").forEach(x => {
+      x.onclick = () => { compositionId = x.dataset.cid; showComposition(x.dataset.cid); };
+    });
+    await refreshLibrary();
+    await refreshSpending();
+  } catch (e) {
+    $("batchState").textContent = e.message;
+  } finally { btn.disabled = false; }
+};
+
+// ── 이번 달 API 비용 ───────────────────────────────────────────────────────
+// 곡 하나당 얼마인지만 알면 달이 끝나고 나서야 총액을 안다.
+async function refreshSpending() {
+  const box = $("spendState");
+  if (!box) return;
+  try {
+    const s = await api("/api/spending");
+    const t = s.this_month, l = s.last_month;
+    box.innerHTML =
+      `<strong>이번 달</strong> ${t.pieces}곡 · $${t.usd}` +
+      (t.per_piece ? ` <span class="why">(곡당 $${t.per_piece})</span>` : "") +
+      `<br><span class="why">지난달 ${l.pieces}곡 · $${l.usd} · 지금까지 모두 ${s.total_pieces}곡 · $${s.total_usd}</span>`;
+  } catch (_) { /* 비용을 못 읽어도 작곡은 된다 */ }
+}
 
 // ── 곡 제목 · 인쇄(표지 + 악보) ────────────────────────────────────────────
 async function loadTitle(cid) {
@@ -2586,6 +2705,7 @@ $("btnEdSave").onclick = async () => {
 loadComposer();
 refreshReferences();
 refreshBackups();
+refreshSpending();
 syncArrangeRange();
 rightsFormType();
 

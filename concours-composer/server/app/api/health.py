@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import APIRouter, HTTPException, Request
 
 from app.config import get_settings
@@ -79,3 +81,50 @@ def make_backup() -> dict:
     if made is None:
         raise HTTPException(500, "사본을 뜨지 못했습니다")
     return {"created": made.name, **keeper.summary()}
+
+
+@router.get("/api/spending")
+def spending() -> dict:
+    """이번 달·지난 달 API 비용.
+
+    키를 넣고 쓰기 시작하면 "이번 달 얼마 썼나" 가 보여야 한다. 곡 하나당 얼마인지만
+    알면 달이 끝나고 나서야 총액을 안다.
+
+    곡을 만들 때 남긴 기록(auto_history)을 달별로 더한다. 규칙 기반(무료)으로 만든
+    곡은 0원이므로 자연히 빠진다.
+    """
+    from collections import defaultdict
+    from datetime import UTC, datetime
+
+    from app.api.deps import get_store
+
+    rows = [j for j in get_store().jobs.get("auto_history", []) if isinstance(j, dict) and j.get("at")]
+    by_month: dict[str, dict[str, float]] = defaultdict(lambda: {"pieces": 0.0, "usd": 0.0})
+    for j in rows:
+        month = str(j["at"])[:7]
+        by_month[month]["pieces"] += 1
+        by_month[month]["usd"] += float(j.get("cost_usd", 0.0) or 0.0)
+
+    now = datetime.now(UTC)
+    this_month = now.strftime("%Y-%m")
+    prev = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+
+    def row(month: str) -> dict:
+        got = by_month.get(month, {"pieces": 0.0, "usd": 0.0})
+        pieces = int(got["pieces"])
+        usd = round(got["usd"], 4)
+        return {
+            "month": month,
+            "pieces": pieces,
+            "usd": usd,
+            "per_piece": round(usd / pieces, 4) if pieces else 0.0,
+        }
+
+    total_usd = round(sum(v["usd"] for v in by_month.values()), 4)
+    return {
+        "this_month": row(this_month),
+        "last_month": row(prev),
+        "total_usd": total_usd,
+        "total_pieces": int(sum(v["pieces"] for v in by_month.values())),
+        "months": [row(m) for m in sorted(by_month, reverse=True)[:12]],
+    }

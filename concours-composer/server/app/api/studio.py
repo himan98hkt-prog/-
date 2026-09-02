@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -365,7 +366,15 @@ def auto_compose(
     store.compositions[cid] = res
     store.versions.setdefault(cid, []).append(res)
     # 어떤 컨셉을 최근에 썼는지 남긴다 — 겹쳐서 막혔을 때 다른 컨셉을 권하는 근거다.
-    store.jobs.setdefault("auto_history", []).append({"composition_id": cid, "preset_id": body.preset_id})
+    store.jobs.setdefault("auto_history", []).append(
+        {
+            "composition_id": cid,
+            "preset_id": body.preset_id,
+            # 이번 달 얼마 썼는지 보려면 언제·얼마가 남아 있어야 한다.
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "cost_usd": float((res.cost or {}).get("total_usd", 0.0) or 0.0),
+        }
+    )
     store.judgements[cid] = panel
 
     title = store.title_of(cid)
@@ -493,6 +502,124 @@ class LibraryItem(BaseModel):
     rights_ready: bool = True
     rights_note: str = ""
     versions: int
+
+
+class BatchIn(BaseModel):
+    """레벨 여러 개를 한 번에. 학원에 팔려면 한 곡이 아니라 묶음이 필요하다."""
+
+    levels: list[int] = Field(min_length=1, max_length=8)
+    preset_ids: list[str] = Field(default_factory=list, description="비우면 레벨마다 알아서 고른다")
+    student: Student
+    competition: CompetitionProfile | None = None
+
+
+class BatchRow(BaseModel):
+    level: int
+    preset_id: str
+    ok: bool
+    composition_id: str = ""
+    title: str = ""
+    difficulty: float = 0.0
+    combined_score: float = 0.0
+    judge_passed: bool | None = None
+    cost_usd: float = 0.0
+    message: str = ""
+
+
+class BatchOut(BaseModel):
+    made: int
+    failed: int
+    total_cost_usd: float
+    rows: list[BatchRow]
+
+
+@router.post("/compositions/batch", response_model=BatchOut)
+def compose_batch(
+    body: BatchIn,
+    store: Store = Depends(get_store),
+    pipeline: CompositionPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings),
+) -> BatchOut:
+    """레벨별로 한 곡씩 이어서 만든다.
+
+    한 곡이 막혀도 나머지를 만든다 — 다섯 곡 중 하나가 겹쳤다고 넷을 잃으면
+    묶음 생성의 뜻이 없다. 막힌 곡은 왜 막혔는지 줄로 남긴다.
+
+    컨셉을 지정하지 않으면 레벨마다 **아직 안 쓴 컨셉**을 고른다. 같은 컨셉으로
+    다섯 곡을 만들면 형제 같은 곡이 나오고, 그것은 다양성 검사가 어차피 막는다.
+    """
+    rows: list[BatchRow] = []
+    used: list[str] = [
+        j.get("preset_id", "") for j in list(store.jobs.get("auto_history", []))[-6:] if isinstance(j, dict)
+    ]
+
+    for i, level in enumerate(body.levels):
+        student = body.student.model_copy(update={"level": level})
+        if i < len(body.preset_ids) and body.preset_ids[i]:
+            preset_id = body.preset_ids[i]
+        else:
+            fits = [p for p in suitable(level, student.weaknesses) if p.id not in used]
+            fits = fits or suitable(level, student.weaknesses)
+            if not fits:
+                rows.append(
+                    BatchRow(level=level, preset_id="", ok=False, message="이 레벨에 맞는 컨셉이 없습니다")
+                )
+                continue
+            preset_id = fits[0].id
+        used.append(preset_id)
+
+        try:
+            out = auto_compose(
+                AutoComposeIn(
+                    preset_id=preset_id,
+                    student=student,
+                    competition=body.competition,
+                    target_difficulty=float(level),
+                ),
+                store=store,
+                pipeline=pipeline,
+                settings=settings,
+            )
+        except HTTPException as e:
+            detail = e.detail
+            message = detail.get("message", str(detail)) if isinstance(detail, dict) else str(detail)
+            rows.append(BatchRow(level=level, preset_id=preset_id, ok=False, message=message))
+            continue
+
+        # 제목이 겹치면 파는 쪽에서 사고가 난다 — 같은 이름의 상품 셋을 내놓는 셈이다.
+        # 겹칠 때만 컨셉 이름을 붙여 가른다. 원장이 나중에 얼마든지 고칠 수 있다.
+        title = out.title
+        taken = {store.title_of(other) for other in store.compositions if other != out.composition_id}
+        if title in taken:
+            preset = BY_ID.get(preset_id)
+            suffix = preset.name if preset else f"레벨 {level}"
+            candidate = f"{title} ({suffix})"
+            n = 2
+            while candidate in taken:
+                candidate = f"{title} ({suffix} {n})"
+                n += 1
+            title = store.set_title(out.composition_id, candidate)
+
+        rows.append(
+            BatchRow(
+                level=level,
+                preset_id=preset_id,
+                ok=True,
+                composition_id=out.composition_id,
+                title=title,
+                difficulty=out.difficulty,
+                combined_score=out.combined_score,
+                judge_passed=out.judge.passed,
+                cost_usd=float((out.cost or {}).get("total_usd", 0.0) or 0.0),
+            )
+        )
+
+    return BatchOut(
+        made=sum(1 for r in rows if r.ok),
+        failed=sum(1 for r in rows if not r.ok),
+        total_cost_usd=round(sum(r.cost_usd for r in rows), 4),
+        rows=rows,
+    )
 
 
 @router.get("/compositions", response_model=list[LibraryItem])

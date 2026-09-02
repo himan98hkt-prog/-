@@ -537,6 +537,89 @@ def get_cover(composition_id: str, store: Store = Depends(get_store)) -> CoverOu
     )
 
 
+def _teaching(store: Store, composition_id: str):  # type: ignore[no-untyped-def]
+    """이 곡의 지도용 표기. 해설이 이미 있으면 그 요점까지 끌어다 쓴다."""
+    from app.analysis.teaching import teaching_marks
+
+    res = store.compositions[composition_id]
+    guide = store.jobs.get("guides", {}).get(composition_id)
+    return teaching_marks(res.measures, res.plan, guide)
+
+
+class SpotOut(BaseModel):
+    measure: int
+    hand: str | None
+    kind: str
+    message: str
+
+
+class TeachingOut(BaseModel):
+    composition_id: str
+    caution: str
+    fingering_count: int
+    section_notes: list[tuple[int, str]]
+    spots: list[SpotOut]
+    markdown: str
+
+
+@router.get("/compositions/{composition_id}/teaching", response_model=TeachingOut)
+def get_teaching(composition_id: str, store: Store = Depends(get_store)) -> TeachingOut:
+    """지도용 표기 — 원장이 이 곡으로 가르칠 때 필요한 것.
+
+    손가락 번호는 제안이고, 걸리는 자리는 악보에서 센 사실이다. 둘을 섞어 내되
+    어느 쪽이 어느 쪽인지 화면에 적어 준다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    from app.export.teaching_score import teaching_markdown
+
+    marks = _teaching(store, composition_id)
+    title = store.title_of(composition_id)
+    return TeachingOut(
+        composition_id=composition_id,
+        caution=marks.caution,
+        fingering_count=len(marks.fingering),
+        section_notes=marks.section_notes,
+        spots=[SpotOut(measure=x.measure, hand=x.hand, kind=x.kind, message=x.message) for x in marks.spots],
+        markdown=teaching_markdown(marks, title),
+    )
+
+
+@router.get("/compositions/{composition_id}/teaching.musicxml")
+def get_teaching_score(composition_id: str, store: Store = Depends(get_store)) -> Response:
+    """지도용 악보 파일. 연주용과 음표는 같고 표기만 다르다."""
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+
+    from app.api.rights import get_composer
+    from app.export.teaching_score import build_teaching_score
+    from app.generation.assemble import AssembleOptions
+
+    title = store.title_of(composition_id)
+    xml = build_teaching_score(
+        res.measures,
+        AssembleOptions(
+            title=title,
+            composer=get_composer(store).display(),
+            key_sig=res.plan.key,
+            meter=res.plan.meter,
+            tempo=res.plan.tempo,
+        ),
+        _teaching(store, composition_id),
+    )
+    return Response(
+        content=xml,
+        media_type="application/vnd.recordare.musicxml+xml; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{composition_id}-teaching.musicxml"; '
+                f"filename*=UTF-8''{quote(title + ' (지도용)')}.musicxml"
+            )
+        },
+    )
+
+
 @router.get("/compositions/{composition_id}/package")
 def get_package(composition_id: str, store: Store = Depends(get_store)) -> Response:
     """판매 꾸러미 — 악보·음원·MIDI·해설·권리 정보를 ZIP 하나로.
@@ -552,7 +635,8 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
     from app.export.audio import render_audio
     from app.export.midi import measures_to_midi
     from app.export.package import PackageInput, build_package
-    from app.generation.assemble import measures_to_note_events
+    from app.export.teaching_score import build_teaching_score, teaching_markdown
+    from app.generation.assemble import AssembleOptions, measures_to_note_events
 
     title = store.title_of(composition_id)
     events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
@@ -564,11 +648,26 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
 
     judge_average, judge_passed = judge_summary(store, composition_id, get_settings())
 
+    # 지도용 판 — 원장이 보고 가르치는 쪽. 연주용과 음표는 같고 표기만 다르다.
+    marks = _teaching(store, composition_id)
+    composer = get_composer(store).display()
+    teaching_xml = build_teaching_score(
+        res.measures,
+        AssembleOptions(
+            title=title,
+            composer=composer,
+            key_sig=res.plan.key,
+            meter=res.plan.meter,
+            tempo=res.plan.tempo,
+        ),
+        marks,
+    )
+
     data, filename = build_package(
         PackageInput(
             composition_id=composition_id,
             title=title,
-            composer=get_composer(store).display(),
+            composer=composer,
             key=res.plan.key,
             meter=res.plan.meter,
             tempo=res.plan.tempo,
@@ -586,6 +685,8 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
             combined_score=res.quality.combined_score,
             judge_average=judge_average,
             judge_passed=judge_passed,
+            teaching_musicxml=teaching_xml,
+            teaching_notes=teaching_markdown(marks, title),
         )
     )
     return Response(
