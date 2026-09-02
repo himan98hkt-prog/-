@@ -143,3 +143,49 @@ def progress(job_id: str) -> dict:
     if got is None:
         return {"known": False, "pct": 0.0, "stage": "", "stage_ko": "", "message": "", "steps": []}
     return {"known": True, **got}
+
+
+@router.get("/api/storage")
+def storage() -> dict:
+    """만든 곡이 **어디에** 저장되는지.
+
+    원장이 "저장은 도대체 어디에 있는가" 에서 막혔다. 곡이 프로그램 폴더 안에
+    저장되던 탓에, 새 판을 받으려고 폴더를 지우자 만든 곡이 함께 사라졌기 때문이다.
+    지금은 프로그램 폴더 바깥에 저장하지만, 그 사실이 화면에 보이지 않으면
+    원장은 여전히 알 수 없다. 그래서 자리를 숨기지 않고 그대로 알려 준다.
+    """
+    from app.api.deps import get_store
+    from app.config import ROOT, get_settings, resolve_data_dir
+
+    s = get_settings()
+    data_dir = resolve_data_dir()
+    store_file = s.resolved_store_path()
+    try:
+        size_mb = round(store_file.stat().st_size / 1_048_576, 2) if store_file.exists() else 0.0
+    except OSError:
+        size_mb = 0.0
+
+    import contextlib
+
+    inside = False
+    with contextlib.suppress(OSError, ValueError):
+        inside = data_dir.resolve().is_relative_to(ROOT.resolve())
+
+    return {
+        "persist": s.store_persist,
+        "data_dir": str(data_dir),
+        "store_file": str(store_file),
+        "exists": store_file.exists(),
+        "size_mb": size_mb,
+        "pieces": len(get_store().compositions),
+        "books": len(get_store().books),
+        # 프로그램 폴더 안에 저장되고 있으면 **새 판을 받을 때 곡이 지워진다**.
+        # 그 위험은 원장이 알아야 한다.
+        "inside_program_folder": inside,
+        "warning": (
+            "만든 곡이 프로그램 폴더 안에 저장되고 있습니다. "
+            "새 판을 받으려고 이 폴더를 지우면 곡도 함께 사라집니다. "
+            ".env 의 DATA_DIR 줄을 지우고 프로그램을 다시 켜면 안전한 자리로 옮깁니다."
+            if inside else ""
+        ),
+    }

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -11,6 +13,63 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT / ".env"
+
+APP_NAME = "ConcoursComposer"
+
+
+def user_data_dir() -> Path:
+    r"""만든 곡이 사는 곳 — **프로그램 폴더 바깥**이다.
+
+    처음에는 프로그램 폴더 안(`ROOT/data`)에 두었다. 그것이 원장의 곡을 통째로
+    날렸다. 새 판을 받는 방법이 "ZIP 을 다시 받아 폴더를 지우고 새로 푼다" 이기
+    때문이다 — 폴더를 지우는 순간 만든 곡도 함께 지워진다. 실제로 그렇게 잃었다.
+
+    그래서 사람 계정에 딸린 자리로 옮긴다. 프로그램을 몇 번을 다시 깔아도 그대로다.
+
+        윈도우  %LOCALAPPDATA%\ConcoursComposer
+        맥      ~/Library/Application Support/ConcoursComposer
+        리눅스  ~/.local/share/ConcoursComposer
+
+    DATA_DIR 로 덮어쓸 수 있다 — 두 대에서 같은 폴더를 쓰거나 시험할 때 필요하다.
+    """
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        root = Path(base) if base else Path.home() / "AppData" / "Local"
+    elif sys.platform == "darwin":
+        root = Path.home() / "Library" / "Application Support"
+    else:
+        root = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
+    return root / APP_NAME
+
+
+def migrate_old_data(new_dir: Path) -> str:
+    """프로그램 폴더 안에 있던 예전 자료를 새 자리로 옮겨 온다.
+
+    **지우지 않는다.** 옛 폴더는 그대로 두고 복사만 한다 — 옮기다 잘못되면 원장의
+    곡이 사라지고, 그것은 되돌릴 수 없다. 새 자리에 이미 저장 파일이 있으면 손대지
+    않는다(그쪽이 최신이다).
+    """
+    old = ROOT / "data"
+    if not old.exists() or old.resolve() == new_dir.resolve():
+        return ""
+    if (new_dir / "store.sqlite3").exists():
+        return ""
+    moved = []
+    for item in old.iterdir():
+        if item.name == "backups":
+            continue          # 사본까지 옮길 필요는 없다. 원본이 옮겨 가면 새로 뜬다.
+        target = new_dir / item.name
+        if target.exists():
+            continue
+        try:
+            if item.is_dir():
+                shutil.copytree(item, target)
+            else:
+                shutil.copy2(item, target)
+            moved.append(item.name)
+        except OSError:
+            continue
+    return ", ".join(moved)
 
 
 def read_api_key_from_env_file(path: Path | None = None) -> str:
@@ -51,7 +110,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://concours:concours@localhost:5432/concours"
     redis_url: str = "redis://localhost:6379/0"
-    data_dir: Path = ROOT / "data"
+    data_dir: Path = Field(default_factory=user_data_dir)
 
     mscore_bin: str = "mscore"
     audiveris_bin: str = "audiveris"
@@ -140,6 +199,8 @@ def validate_models(settings: Settings | None = None) -> list[str]:
 
 
 def resolve_data_dir() -> Path:
+    """자료가 사는 폴더. 없으면 만들고, 프로그램 폴더 안의 옛 자료는 옮겨 온다."""
     d = Path(os.environ.get("DATA_DIR", get_settings().data_dir))
     d.mkdir(parents=True, exist_ok=True)
+    migrate_old_data(d)
     return d
