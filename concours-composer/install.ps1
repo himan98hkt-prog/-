@@ -1,4 +1,4 @@
-# ConcoursComposer 설치 - Windows (PowerShell)
+﻿# ConcoursComposer 설치 - Windows (PowerShell)
 #
 # 하는 일: 파이썬 확인 -> 가상환경 -> 의존성 -> .env 생성 -> 자기 점검.
 # 인터넷과 Python 3.12 이상만 있으면 된다. 관리자 권한은 필요 없다.

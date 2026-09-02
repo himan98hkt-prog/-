@@ -1,4 +1,4 @@
-# ConcoursComposer 실행 - 서버를 띄우고 브라우저를 연다.
+﻿# ConcoursComposer 실행 - 서버를 띄우고 브라우저를 연다.
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
