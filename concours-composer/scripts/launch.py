@@ -18,6 +18,7 @@ Ctrl+C 를 누를 곳도 없기 때문이다.
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 import threading
@@ -32,9 +33,36 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 
-DEFAULT_PORT = 8000
+# 자리는 8000 부터 찾는다. start.ps1 과 마찬가지로 PORT 로 지정할 수 있다.
+DEFAULT_PORT = int(os.environ.get("PORT") or 8000)
 HOST = "127.0.0.1"
 LOG = ROOT / "실행기록.txt"
+
+
+def ensure_streams() -> None:
+    """`pythonw.exe` 로 뜨면 표준 출력·오류가 아예 없다(None).
+
+    이것이 아이콘을 눌러도 아무 일도 안 일어나던 진짜 이유다. uvicorn 은 로그를
+    stderr 로 내보내도록 설정하는데, stderr 가 None 이면 그 설정이
+    `ValueError: Unable to configure formatter 'default'` 로 죽는다. 검은 창이 없으니
+    죽는 것도 안 보인다 — 화면에는 아무 변화가 없다.
+
+    그래서 실행기가 먼저 자리를 만들어 준다. 어차피 남길 기록이 필요하므로
+    실행기록.txt 로 보낸다. 로그가 없어지는 것이 아니라 파일에 쌓인다.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        f = LOG.open("a", encoding="utf-8", buffering=1)
+    except OSError:
+        import os
+
+        # 기록조차 못 남기는 상황이라도 프로그램은 떠야 한다. 버리는 자리로 보낸다.
+        f = Path(os.devnull).open("w", encoding="utf-8")  # noqa: SIM115
+    if sys.stdout is None:
+        sys.stdout = f
+    if sys.stderr is None:
+        sys.stderr = f
 
 
 def note(line: str) -> None:
@@ -82,8 +110,9 @@ def port_taken(port: int) -> bool:
         return s.connect_ex((HOST, port)) == 0
 
 
-def pick_port(start: int = DEFAULT_PORT) -> int:
+def pick_port(start: int | None = None) -> int:
     """기본 포트를 남이 쓰고 있으면 옆 칸으로 비켜난다."""
+    start = DEFAULT_PORT if start is None else start
     for port in range(start, start + 12):
         if already_running(port) or not port_taken(port):
             return port
@@ -134,6 +163,7 @@ def guarded() -> int:
     아이콘을 눌렀는데 아무 일도 일어나지 않는 것이 원장에게는 가장 나쁘다 —
     고장인지, 느린 건지, 자기가 잘못 누른 건지 알 수가 없다.
     """
+    ensure_streams()
     try:
         return main()
     except ImportError as e:
