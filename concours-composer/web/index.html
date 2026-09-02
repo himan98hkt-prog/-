@@ -141,7 +141,32 @@
              padding:12px 14px;background:linear-gradient(180deg,#fffdfa,#f7f3ec);
              border-bottom:1px solid var(--line)}
   .transport .sp{flex:1}
-  .scoreview{background:var(--score);padding:10px 12px;overflow-x:auto;min-height:120px}
+  .scorehead{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f2ece1;
+             border-bottom:1px solid var(--line);font-size:12px;color:var(--muted-2)}
+  .scoretab{border:1px solid var(--line);background:#fffdfa;color:var(--ink);
+            padding:5px 13px;border-radius:999px;font:600 12px/1 var(--sans);cursor:pointer}
+  .scoretab:hover:not(:disabled){border-color:var(--gold)}
+  .scoretab.on{background:var(--ink);color:#f7f3ec;border-color:var(--ink)}
+  .scoretab:disabled{opacity:.4;cursor:not-allowed}
+  .scoreview{background:var(--score);padding:10px 12px;overflow:auto;min-height:150px;
+             max-height:560px;position:relative}
+  .mini-svg{display:block}
+  .mini-svg .stf{stroke:#b9ad98;stroke-width:1}
+  .mini-svg .bl{stroke:#8d8272;stroke-width:1.2}
+  .mini-svg .brace{stroke:#8d8272;stroke-width:2;fill:none}
+  .mini-svg .nh{fill:var(--ink)}
+  .mini-svg .nh.lh{fill:#4d4336}
+  .mini-svg .nh.open{fill:#fffdfa;stroke:var(--ink);stroke-width:1.3}
+  .mini-svg .stem{stroke:var(--ink);stroke-width:1.1}
+  .mini-svg .led{stroke:var(--ink);stroke-width:1}
+  .mini-svg .acc{font:600 11px/1 var(--sans);fill:var(--accent)}
+  .mini-svg .mn{font:600 9.5px/1 var(--sans);fill:var(--muted-2)}
+  .mini-svg .clef{font:600 10px/1 var(--sans);fill:var(--muted-2)}
+  .mini-svg .rest{fill:#a2977f}
+  .mini-svg .hit{fill:transparent;cursor:pointer}
+  .mini-svg .hit:hover{fill:var(--gold);opacity:.13}
+  .mini-svg .now{fill:var(--gold);opacity:.22;pointer-events:none}
+  .mini-svg .bar{fill:var(--accent);pointer-events:none}
   .timeline{position:relative;background:#f7f3ec;border-top:1px solid var(--line);
             padding:10px 12px 12px;user-select:none}
   .tl-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted-2);
@@ -353,7 +378,16 @@
         <span id="playState" style="font-size:12.5px;color:var(--muted)"></span>
       </div>
 
-      <div id="osmd" class="scoreview"></div>
+      <div class="scorehead">
+        <button class="scoretab on" id="tabScoreMini"
+          data-tip="음표만으로 대보표를 직접 그립니다.&#10;인터넷이 없어도 항상 보이고, 재생 막대가 이 악보 위를 지나갑니다.">간이 악보</button>
+        <button class="scoretab" id="tabScoreFull" disabled
+          data-tip="새김 품질의 정식 악보입니다.&#10;악보 렌더러 파일이 있어야 켜집니다.">정식 악보</button>
+        <span style="flex:1"></span>
+        <span id="scoreNote"></span>
+      </div>
+      <div id="mini" class="scoreview"></div>
+      <div id="osmd" class="scoreview" hidden></div>
 
       <div class="timeline" data-tip="지금 연주되는 자리를 실시간으로 보여줍니다.&#10;칸을 클릭하면 그 마디부터 다시 재생합니다." data-tip-side="right">
         <div class="tl-label">
@@ -456,8 +490,6 @@
   약점을 미리 찾아 <strong>입상 확률을 높이는 것</strong>까지가 역할이다.
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.7/build/opensheetmusicdisplay.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
 <script>
 // 같은 서버에서 화면을 받았으면 API 도 같은 주소다(설치본 기본형).
 // 화면만 따로 열었을 때만 localStorage 의 주소나 8000 포트로 떨어진다.
@@ -669,8 +701,13 @@ function renderResult(b) {
     $("playTempo").value = plan.tempo;
     $("playTempoLabel").textContent = plan.tempo + " bpm";
   }
+  // 다른 곡을 열었을 수 있다 — 이전 곡의 음표를 그대로 쓰지 않는다.
+  playMeasures = null;
   renderScore().then(() => {
-    if (playMeasures) buildTimeline(playMeasures, b.meter || currentMeter(), num("playTempo"));
+    if (playMeasures) {
+      buildTimeline(playMeasures, b.meter || currentMeter(), num("playTempo"));
+      markMini(0);
+    }
   });
   const status = !b.savable ? '<span class="tag bad">저장 불가</span>'
     : b.shown_as_draft ? '<span class="tag warn">초안(비평 문턱 미달)</span>'
@@ -711,28 +748,220 @@ function renderResult(b) {
     : "<tr><td class='hint'>수정 지시 없음</td></tr>";
 }
 
-// ── 악보 렌더(OSMD) · 재생(Tone.js) ─────────────────────────────────────────
+// ── 악보 보기 ──────────────────────────────────────────────────────────────
 //
-// 원장이 품질을 판단하려면 **보고 들어야** 한다. 지표 표만으로는 곡이 좋은지 알 수 없다.
-// 둘 다 CDN 이 막히면 조용히 실패하지 않고 왜 안 되는지 적는다 —
-// MusicXML·MIDI 내려받기는 그때도 그대로 쓸 수 있다.
+// 원장이 품질을 판단하려면 **보면서 들어야** 한다. 지표 표만으로는 곡이 좋은지 알 수 없다.
+// 그래서 악보를 두 가지로 낸다.
+//   간이 악보 — 음표열만으로 대보표를 직접 그린다. 인터넷도 외부 파일도 필요 없어
+//               **항상 보인다**. 새김 품질은 아니지만 윤곽·화성·손 배치를 읽고
+//               재생 막대로 자리를 짚기에는 충분하다.
+//   정식 악보 — OpenSheetMusicDisplay 로 제대로 새긴다. web/vendor/ 에 렌더러 파일이
+//               있거나 인터넷이 되면 켜진다(scripts/fetch_vendor.py 가 받아 둔다).
 let osmd = null, playMeasures = null, sampler = null, playing = false;
+let scoreMode = "mini";
 
 function barBeats(meter) {
   const [n, d] = String(meter || "4/4").split("/").map(Number);
   return (n || 4) * (4 / (d || 4));
 }
 
+// 외부 라이브러리는 vendor(오프라인) → CDN 순으로 찾는다. 둘 다 없으면 조용히 포기하고
+// 내장 기능으로 떨어진다 — 화면이 멈추는 일은 없어야 한다.
+const _libTried = {};
+function loadScript(src) {
+  return new Promise((ok, no) => {
+    const el = document.createElement("script");
+    el.src = src; el.onload = ok; el.onerror = () => no(new Error(src));
+    document.head.appendChild(el);
+  });
+}
+async function ensureLib(globalName, srcs) {
+  if (window[globalName]) return true;
+  if (_libTried[globalName]) return !!window[globalName];
+  _libTried[globalName] = true;
+  for (const src of srcs) {
+    try { await loadScript(src); } catch (_) { continue; }
+    if (window[globalName]) return true;
+  }
+  return false;
+}
+const OSMD_SRC = ["vendor/opensheetmusicdisplay.min.js",
+  "https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.7/build/opensheetmusicdisplay.min.js"];
+const TONE_SRC = ["vendor/Tone.js",
+  "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"];
+
+// ── 간이 악보(내장 렌더러) ─────────────────────────────────────────────────
+const DIA = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };  // 온음계 계이름 순번
+const LS = 7;                    // 오선 간격
+const TREBLE_BOTTOM = 4 * 7 + DIA.E;   // 높은음자리 첫째 줄 = E4
+const BASS_BOTTOM = 2 * 7 + DIA.G;     // 낮은음자리 첫째 줄 = G2
+const SYS_GAP = 46, SYS_PAD = 74, LEFT_W = 32, MEASURE_W = 132;
+let miniBoxes = [], miniBar = null, miniNow = null;
+
+function parsePitch(p) {
+  const m = /^([A-G])([#b\-]*)(\d+)$/.exec(String(p));
+  if (!m) return null;
+  const acc = m[2].replace(/-/g, "b");
+  const alter = (acc.match(/#/g) || []).length - (acc.match(/b/g) || []).length;
+  return { di: Number(m[3]) * 7 + DIA[m[1]], alter };
+}
+function accGlyph(alter) {
+  if (!alter) return "";
+  return alter > 0 ? "♯".repeat(Math.min(2, alter)) : "♭".repeat(Math.min(2, -alter));
+}
+// 오선 밖으로 나간 음에 덧줄을 긋는다.
+function ledgerLines(di, bottomDi) {
+  const out = [];
+  for (let d = bottomDi - 2; d >= di; d -= 2) out.push(d);
+  for (let d = bottomDi + 10; d <= di; d += 2) out.push(d);
+  return out;
+}
+
+function renderMiniScore() {
+  const box = $("mini");
+  if (!playMeasures || !playMeasures.length) {
+    box.innerHTML = "<p class='hint'>곡을 고르면 악보가 여기에 그려집니다.</p>";
+    return;
+  }
+  const beats = barBeats(currentMeter());
+  const width = Math.max(520, box.clientWidth - 24);
+  const perSys = Math.max(2, Math.floor((width - LEFT_W) / MEASURE_W));
+  const mw = (width - LEFT_W) / perSys;
+  const sysH = 4 * LS + SYS_GAP + 4 * LS + SYS_PAD;      // 오선+사이+오선+여백
+  const rows = Math.ceil(playMeasures.length / perSys);
+  const height = rows * sysH + 16;
+  const g = [];
+  miniBoxes = [];
+
+  const yOf = (di, bottomY, bottomDi) => bottomY - (di - bottomDi) * (LS / 2);
+
+  for (let r = 0; r < rows; r++) {
+    const sy = 34 + r * sysH;                             // 높은음자리 첫 줄(위)
+    const trebleBottom = sy + 4 * LS;
+    const bassTop = trebleBottom + SYS_GAP;
+    const bassBottom = bassTop + 4 * LS;
+    const cols = Math.min(perSys, playMeasures.length - r * perSys);
+    const right = LEFT_W + cols * mw;
+    for (let i = 0; i <= 4; i++) {
+      g.push(`<line class="stf" x1="${LEFT_W}" y1="${sy + i * LS}" x2="${right}" y2="${sy + i * LS}"/>`);
+      g.push(`<line class="stf" x1="${LEFT_W}" y1="${bassTop + i * LS}" x2="${right}" y2="${bassTop + i * LS}"/>`);
+    }
+    // 대보표 묶음선 — 두 오선이 한 악기임을 보여 준다.
+    g.push(`<path class="brace" d="M${LEFT_W - 6} ${sy} L${LEFT_W - 9} ${(sy + bassBottom) / 2} L${LEFT_W - 6} ${bassBottom}"/>`);
+    g.push(`<text class="clef" x="2" y="${sy + 2 * LS + 4}">오른손</text>`);
+    g.push(`<text class="clef" x="2" y="${bassTop + 2 * LS + 4}">왼손</text>`);
+
+    for (let c = 0; c < cols; c++) {
+      const idx = r * perSys + c;
+      const m = playMeasures[idx];
+      const x0 = LEFT_W + c * mw;
+      g.push(`<line class="bl" x1="${x0}" y1="${sy}" x2="${x0}" y2="${bassBottom}"/>`);
+      if (c === cols - 1) g.push(`<line class="bl" x1="${right}" y1="${sy}" x2="${right}" y2="${bassBottom}"/>`);
+      if (c === 0 || m.number % 4 === 0) g.push(`<text class="mn" x="${x0 + 3}" y="${sy - 20}">${m.number}</text>`);
+      miniBoxes.push({ number: m.number, x: x0, w: mw, y: sy - 30, h: bassBottom - sy + 62 });
+
+      for (const [hand, voices] of [["rh", m.rh || []], ["lh", m.lh || []]]) {
+        const bottomY = hand === "rh" ? trebleBottom : bassBottom;
+        const bottomDi = hand === "rh" ? TREBLE_BOTTOM : BASS_BOTTOM;
+        for (const v of voices) {
+          let off = 0;
+          for (const ev of v.events) {
+            const x = x0 + 10 + (off / beats) * (mw - 20);
+            off += ev.dur;
+            if (!ev.pitches || !ev.pitches.length) {          // 쉼표
+              g.push(`<rect class="rest" x="${x - 3}" y="${bottomY - 2 * LS - 2}" width="7" height="4"/>`);
+              continue;
+            }
+            const held = ev.tie === "stop" || ev.tie === "continue";
+            const op = held ? ' opacity="0.42"' : "";
+            const ps = ev.pitches.map(parsePitch).filter(Boolean)
+              .map(q => ({ ...q, y: yOf(q.di, bottomY, bottomDi) }))
+              .sort((a, b) => b.y - a.y);                     // 아래→위
+            if (!ps.length) continue;
+            const open = ev.dur >= 2;
+            for (const q of ps) {
+              for (const d of ledgerLines(q.di, bottomDi)) {
+                const ly = yOf(d, bottomY, bottomDi);
+                g.push(`<line class="led" x1="${x - 7}" y1="${ly}" x2="${x + 7}" y2="${ly}"/>`);
+              }
+              g.push(`<ellipse class="nh ${hand}${open ? " open" : ""}" cx="${x}" cy="${q.y}" rx="4.1" ry="3.1"${op}/>`);
+              if (q.alter) g.push(`<text class="acc" x="${x - 15}" y="${q.y + 4}"${op}>${accGlyph(q.alter)}</text>`);
+            }
+            if (ev.dur < 4) {                                  // 온음표는 기둥이 없다
+              const lo = ps[0].y, hi = ps[ps.length - 1].y;
+              const [sx, y1, y2] = hand === "rh"
+                ? [x + 4.0, lo, hi - 3.2 * LS]
+                : [x - 4.0, hi, lo + 3.2 * LS];
+              g.push(`<line class="stem" x1="${sx}" y1="${y1}" x2="${sx}" y2="${y2}"${op}/>`);
+            }
+          }
+        }
+      }
+      g.push(`<rect class="hit" data-m="${m.number}" x="${x0}" y="${sy - 30}" width="${mw}" height="${bassBottom - sy + 62}"/>`);
+    }
+  }
+
+  box.innerHTML = `<svg class="mini-svg" width="${width}" height="${height}">${g.join("")}` +
+    `<rect class="now" x="0" y="0" width="0" height="0"/>` +
+    `<rect class="bar" x="-4" y="0" width="1.8" height="0"/></svg>`;
+  const svg = box.querySelector("svg");
+  miniNow = svg.querySelector(".now");
+  miniBar = svg.querySelector(".bar");
+  svg.querySelectorAll(".hit").forEach(h => {
+    h.onclick = () => startPlayback(Number(h.dataset.m));
+  });
+}
+
+// 재생 위치를 악보 위에 겹쳐 표시한다 — 지금 마디를 옅게 칠하고, 그 안에서 막대가 흐른다.
+function markMini(sec) {
+  if (!miniBar || !tlSpans.length) return;
+  const i = tlSpans.findIndex(s => sec >= s.start && sec < s.end);
+  const cur = i < 0 ? (sec >= tlTotalSec ? tlSpans.length - 1 : 0) : i;
+  const box = miniBoxes[cur];
+  if (!box) return;
+  const sp = tlSpans[cur];
+  const frac = Math.min(1, Math.max(0, (sec - sp.start) / Math.max(0.001, sp.end - sp.start)));
+  miniNow.setAttribute("x", box.x); miniNow.setAttribute("y", box.y);
+  miniNow.setAttribute("width", box.w); miniNow.setAttribute("height", box.h);
+  miniBar.setAttribute("x", box.x + frac * box.w);
+  miniBar.setAttribute("y", box.y); miniBar.setAttribute("height", box.h);
+  if (playing) scrollIntoScore($("mini"), box.y, box.h);
+}
+
+// 긴 곡에서 재생 위치가 화면 밖으로 나가면 따라 내려간다.
+function scrollIntoScore(pane, y, h) {
+  const top = pane.scrollTop, bottom = top + pane.clientHeight;
+  if (y < top + 8 || y + h > bottom - 8) pane.scrollTop = Math.max(0, y - 24);
+}
+
+// ── 정식 악보(OSMD) ────────────────────────────────────────────────────────
+function setScoreMode(mode) {
+  scoreMode = mode;
+  $("mini").hidden = mode !== "mini";
+  $("osmd").hidden = mode !== "full";
+  $("tabScoreMini").classList.toggle("on", mode === "mini");
+  $("tabScoreFull").classList.toggle("on", mode === "full");
+}
+$("tabScoreMini").onclick = () => setScoreMode("mini");
+$("tabScoreFull").onclick = () => setScoreMode("full");
+
 async function renderScore() {
-  const box = $("osmd");
-  if (!window.opensheetmusicdisplay) {
-    box.innerHTML = "<p class='hint'>악보 렌더러(OSMD)를 불러오지 못했습니다 — 이 화면은 첫 " +
-      "실행에 인터넷이 필요합니다. 재생은 내장 음원으로 그대로 되고, " +
-      "악보는 아래 <strong>MusicXML</strong> 을 내려받아 MuseScore 로 열면 됩니다.</p>";
+  if (!playMeasures && compositionId) {
+    try { playMeasures = await api(`/api/compositions/${compositionId}/measures`); } catch (_) {}
+  }
+  renderMiniScore();
+  setScoreMode("mini");
+  $("scoreNote").textContent = "";
+
+  const ok = await ensureLib("opensheetmusicdisplay", OSMD_SRC);
+  if (!ok) {
+    $("tabScoreFull").disabled = true;
+    $("scoreNote").textContent = "정식 악보는 렌더러 파일이 없어 꺼져 있습니다 — 간이 악보로 봅니다";
     return;
   }
   try {
     const b = await api(`/api/compositions/${compositionId}/musicxml`);
+    const box = $("osmd");
     box.innerHTML = "";
     osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(box, {
       autoResize: true, drawTitle: true, drawPartNames: false,
@@ -740,8 +969,12 @@ async function renderScore() {
     await osmd.load(b.musicxml);
     osmd.render();
     osmd.cursor.show();
+    $("tabScoreFull").disabled = false;
+    setScoreMode("full");
   } catch (e) {
-    box.innerHTML = `<div class="msg bad">악보를 그리지 못했습니다: ${e.message}</div>`;
+    osmd = null;
+    $("tabScoreFull").disabled = true;
+    $("scoreNote").textContent = `정식 악보를 그리지 못했습니다(${e.message}) — 간이 악보로 봅니다`;
   }
 }
 
@@ -754,8 +987,19 @@ function cursorToMeasure(index) {
     while (osmd.cursor.iterator.currentMeasureIndex < index && !osmd.cursor.iterator.endReached && guard++ < 400) {
       osmd.cursor.next();
     }
+    const el = osmd.cursor.cursorElement;
+    if (el && playing && scoreMode === "full") {
+      scrollIntoScore($("osmd"), el.offsetTop, el.offsetHeight || 60);
+    }
   } catch (_) { /* 커서는 보조 기능이다 — 실패해도 재생은 계속한다 */ }
 }
+
+// 창 폭이 바뀌면 한 줄에 들어가는 마디 수가 달라진다 — 다시 그린다.
+let _miniResize = null;
+window.addEventListener("resize", () => {
+  clearTimeout(_miniResize);
+  _miniResize = setTimeout(() => { if (playMeasures) renderMiniScore(); }, 200);
+});
 
 async function ensureSampler() {
   if (sampler || !window.Tone) return sampler;
@@ -857,6 +1101,7 @@ async function startPlayback(fromMeasure) {
   const notes = all.filter(n => n.measure >= from).map(n => ({ ...n, time: n.time - offset }));
   if (!notes.length) { $("playState").textContent = "재생할 음이 없습니다"; return; }
 
+  await ensureLib("Tone", TONE_SRC);
   if (!window.Tone) { playWithOscillator(notes, offset); return; }
   await Tone.start();
   const inst = await ensureSampler();
@@ -1138,8 +1383,6 @@ async function showComposition(cid) {
     // 편곡 채팅의 기본 구간을 곡 앞머리로 맞춰 둔다.
     $("arrFrom").max = b.measures; $("arrTo").max = b.measures;
     if (num("arrTo") > b.measures) $("arrTo").value = Math.min(4, b.measures);
-    playMeasures = await api(`/api/compositions/${cid}/measures`);
-    buildTimeline(playMeasures, b.meter || "4/4", num("playTempo"));
     $("secResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { $("resultSummary").innerHTML = `<div class="msg bad">${e.message}</div>`; }
 }
@@ -1220,6 +1463,7 @@ function markTimeline(sec) {
   const pct = tlTotalSec ? Math.min(1, Math.max(0, sec / tlTotalSec)) : 0;
   $("tlCursor").style.left = (pct * 100) + "%";
   $("tlNow").textContent = `${tlSpans[cur].number}마디`;
+  markMini(sec);
   if (osmd && osmd.cursor) cursorToMeasure(cur);
 }
 

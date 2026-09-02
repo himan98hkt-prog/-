@@ -22,3 +22,6 @@ runs/golden/*/*_prompt.md
 runs/golden/*/*_error.txt
 # scripts/auto_compose.py 의 실행 결과 — 실측할 때마다 쌓이므로 커밋하지 않는다
 runs/auto/
+
+# 설치 시 내려받는 프런트 라이브러리(저장소에 담지 않는다)
+web/vendor/

@@ -12,7 +12,7 @@ step() { printf '%s\n' "${BOLD}$1${OFF}"; }
 fail() { printf '%s\n' "${RED}✗ $1${OFF}" >&2; exit 1; }
 ok()   { printf '%s\n' "${GREEN}✓${OFF} $1"; }
 
-step "1/5 파이썬 확인"
+step "1/6 파이썬 확인"
 PY=""
 for c in python3.13 python3.12 python3 python; do
   if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3,12) else 1)' 2>/dev/null; then
@@ -22,17 +22,17 @@ done
 [ -n "$PY" ] || fail "Python 3.12 이상이 필요하다. https://www.python.org/downloads/ 에서 설치한 뒤 다시 실행하라."
 ok "$($PY --version)"
 
-step "2/5 가상환경"
+step "2/6 가상환경"
 [ -d .venv ] || "$PY" -m venv .venv
 VPY=".venv/bin/python"
 ok ".venv"
 
-step "3/5 의존성 설치 ${DIM}(처음 한 번은 몇 분 걸린다)${OFF}"
+step "3/6 의존성 설치 ${DIM}(처음 한 번은 몇 분 걸린다)${OFF}"
 "$VPY" -m pip install -q --upgrade pip
 "$VPY" -m pip install -q -r server/requirements.txt
 ok "설치 완료"
 
-step "4/5 설정 파일"
+step "4/6 설정 파일"
 if [ -f .env ]; then
   ok ".env 가 이미 있다 — 건드리지 않는다"
 else
@@ -42,7 +42,11 @@ else
   say "  ${DIM}실제 작곡 품질을 쓰려면 .env 의 ANTHROPIC_API_KEY 를 채워라.${OFF}"
 fi
 
-step "5/5 자기 점검"
+step "5/6 악보 렌더러 내려받기 ${DIM}(없어도 프로그램은 돈다)${OFF}"
+"$VPY" scripts/fetch_vendor.py || true
+ok "완료"
+
+step "6/6 자기 점검"
 "$VPY" scripts/self_check.py
 ok "정상"
 
