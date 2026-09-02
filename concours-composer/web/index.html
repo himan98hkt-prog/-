@@ -94,6 +94,23 @@
   .tier.on{border-color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent);background:#fffaf9}
   .tier.on .tier-n{color:var(--accent)}
 
+  /* ── 곡집 ───────────────────────────────────────────────────────────────
+     책장에 나란히 꽂힌 모양으로 보여 준다. 표지를 보고 어느 것이 초급이고 어느 것이
+     상급인지 알아야 하므로, 표지가 목록의 주인공이다. */
+  .books{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:18px}
+  .book{display:flex;flex-direction:column;gap:9px}
+  .book-cover{border:1px solid var(--line);border-radius:3px;overflow:hidden;
+    background:#fff;box-shadow:0 2px 10px -4px rgba(26,21,18,.35);
+    aspect-ratio:210/297;display:block;padding:0;cursor:pointer;
+    transition:transform .16s,box-shadow .16s}
+  .book-cover:hover{transform:translateY(-3px) rotate(-.4deg);
+    box-shadow:0 10px 26px -10px rgba(26,21,18,.5)}
+  .book-cover svg{display:block;width:100%;height:100%}
+  .book-t{font:600 14px/1.35 var(--serif);margin:0}
+  .book-s{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0}
+  .book-acts{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  .book-acts button{padding:5px 10px;font-size:11.5px}
+
   /* ── 묻는 칸 ────────────────────────────────────────────────────────────
      원장이 손으로 적는 것은 **이름 하나**다. 나머지는 학년에 맞게 채워 두고, 바꾸고
      싶을 때만 막대를 끌면 된다. 숫자를 몰라도 옆에 말로 무슨 뜻인지 적어 준다. */
@@ -641,6 +658,42 @@
       </div>
       <div id="marketGrid" class="cards hidden" style="margin-top:16px"></div>
 
+      <details class="fold" id="setBox" style="margin-top:18px">
+        <summary data-tip="급수마다 한 곡씩 이어서 만들고, 표지를 붙여 한 권으로 묶습니다.&#10;학원에 파는 단위는 한 곡이 아니라 묶음입니다.">급수별로 한 벌 만들기
+          <span class="why">— 표지까지 붙은 곡집 한 권</span></summary>
+        <p class="hint">고른 급수마다 한 곡씩 만듭니다. <strong>성격이 겹치지 않게</strong> 돌아가며
+          고르므로, 다섯 곡이 서로 다른 곡이 됩니다. 한 곡이 막혀도 나머지는 계속 만듭니다.</p>
+        <div class="ask">
+          <div class="ask-row">
+            <span class="ask-lab">넣을 급수</span>
+            <div class="chips" id="setTiers"></div>
+          </div>
+          <div class="ask-row">
+            <label class="ask-lab" for="setTitle">곡집 이름</label>
+            <input id="setTitle" class="big" placeholder="비우면 날짜로 지어집니다" autocomplete="off"
+              data-tip="표지에 큰 글씨로 들어갑니다. 나중에 바꿀 수 있습니다."></div>
+          <div class="ask-row">
+            <span class="ask-lab">표지</span>
+            <div class="chips" id="setCovers"
+              data-tip="곡집을 여러 권 내면 표지가 같아서는 서로 구분되지 않습니다."></div>
+          </div>
+          <div class="ask-row">
+            <label class="ask-lab" for="setTries">다시 시도</label>
+            <div class="slide">
+              <input id="setTries" type="range" min="1" max="3" step="1" value="1"
+                data-tip="사전 심사에 못 미치면 다른 성격으로 몇 번까지 더 만들어 볼지.&#10;한 번 더 만들 때마다 비용이 또 듭니다.">
+              <output id="setTriesOut" class="slide-out"></output>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnSetGo" class="go"
+            data-tip="고른 급수만큼 이어서 만들고 한 권으로 묶습니다.">한 벌 만들기</button>
+          <span id="setInfo" class="hint" style="margin:0"></span>
+        </div>
+        <div id="setOut" class="msg hidden"></div>
+      </details>
+
       <div id="marketBox" class="make hidden" aria-live="polite">
         <div class="make-head">
           <span class="make-spin" aria-hidden="true"></span>
@@ -820,6 +873,14 @@
   </section>
 
   </div><!-- /paneStudent -->
+
+  <section id="secBooks" class="hidden">
+    <span class="step">곡집</span>
+    <h2>한 권으로 묶은 곡</h2>
+    <p class="hint">낱장 악보 다섯 장과 표지가 붙은 한 권은 다른 물건입니다.
+      학원 원장이 사는 것은 <strong>한 권</strong>입니다.</p>
+    <div id="bookList" class="books"></div>
+  </section>
 
   <section id="secLibrary" class="hidden">
     <span class="step">보관함</span>
@@ -2106,6 +2167,8 @@ async function loadTiers() {
     b.onclick = () => pickTier(b.dataset.tier);
   });
   pickTier(marketTiers[Math.min(2, marketTiers.length - 1)].id);   // 중급을 먼저 짚어 둔다
+  paintSetTiers();
+  loadCovers();
 }
 
 function pickTier(id) {
@@ -2199,6 +2262,180 @@ $("modeMarket").onclick = () => setMode(true);
   try { saved = localStorage.getItem("cc_mode") || "student"; } catch (_) { /* 무시 */ }
   setMode(saved === "market");
 })();
+
+// ── 급수별 한 벌 · 곡집 ─────────────────────────────────────────────────────
+// 낱장 다섯 장과 표지가 붙은 한 권은 다른 물건이다. 학원 원장이 사는 것은 한 권이다.
+
+let coverStyles = [], setCover = "classic";
+
+async function loadCovers() {
+  if (coverStyles.length) return;
+  try { coverStyles = await api("/api/books/cover-styles"); } catch (_) { return; }
+  $("setCovers").innerHTML = coverStyles.map(s =>
+    `<button type="button" class="chip${s.id === setCover ? " on" : ""}" data-c="${s.id}"
+       data-tip="${esc(s.blurb)}">${esc(s.name)}</button>`).join("");
+  $("setCovers").querySelectorAll(".chip").forEach(b => {
+    b.onclick = () => {
+      setCover = b.dataset.c;
+      $("setCovers").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+    };
+  });
+}
+
+function paintSetTiers() {
+  $("setTiers").innerHTML = marketTiers.map((r, i) =>
+    `<button type="button" class="chip${i < 5 ? " on" : ""}" data-t="${r.id}"
+       data-tip="${esc(r.who)}">${esc(r.name)}</button>`).join("");
+  $("setTiers").querySelectorAll(".chip").forEach(b => {
+    b.onclick = () => { b.classList.toggle("on"); paintSetInfo(); };
+  });
+  paintSetInfo();
+}
+
+function chosenTiers() {
+  return [...$("setTiers").querySelectorAll(".chip.on")].map(b => b.dataset.t);
+}
+
+function paintSetInfo() {
+  const n = chosenTiers().length, tries = num("setTries");
+  const el = $("setTriesOut");
+  if (el) {
+    el.innerHTML = tries === 1
+      ? "<b>한 번만</b> · 미달이면 초안으로 남깁니다"
+      : `<b>${tries}번까지</b> · 성격을 바꿔 다시 만듭니다 (비용도 그만큼)`;
+    const lo = Number($("setTries").min), hi = Number($("setTries").max);
+    $("setTries").style.setProperty("--fill", ((tries - lo) / (hi - lo) * 100) + "%");
+  }
+  $("setInfo").textContent = n ? `${n}곡짜리 한 권` : "급수를 하나 이상 고르십시오.";
+}
+
+$("setTries").addEventListener("input", paintSetInfo);
+
+$("btnSetGo").onclick = async () => {
+  const tiers = chosenTiers();
+  if (!tiers.length) { $("setInfo").textContent = "급수를 하나 이상 고르십시오."; return; }
+  const out = $("setOut");
+  out.className = "msg hidden";
+  const jobId = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const bar = makeBinding("mk", "marketBox");
+  bar.start();
+  const poll = async () => {
+    try { bar.tick(await api("/api/progress/" + jobId)); } catch (_) { bar.tick(null); }
+  };
+  poll();
+  const timer = setInterval(poll, 700);
+  $("btnSetGo").disabled = true;
+  try {
+    const r = await api("/api/compositions/market/set", { method: "POST", body: JSON.stringify({
+      tier_ids: tiers, max_attempts: num("setTries"),
+      book_title: val("setTitle"), cover_style: setCover, progress_id: jobId,
+    })});
+    clearInterval(timer); bar.stop(true);
+    out.className = "msg " + (r.sellable === r.made ? "ok" : "warn");
+    out.innerHTML = `<strong>${esc(r.book_title)}</strong> — ${r.made}곡을 만들어 한 권으로 묶었습니다`
+      + (r.sellable < r.made
+          ? `<br>그중 <strong>${r.sellable}곡</strong>이 사전 심사를 통과했습니다. 나머지는 초안입니다.`
+          : "<br>모두 사전 심사를 통과했습니다 — 팔 수 있는 한 권입니다.")
+      + "<table style=\"margin-top:10px\"><tr><th>급수</th><th>곡</th><th>마디</th><th>난이도</th><th>심사</th></tr>"
+      + r.rows.map(x => `<tr><td>${esc(x.tier_name)}</td>`
+          + (x.ok
+              ? `<td>${esc(x.title)}</td><td>${x.measures}</td><td>${x.difficulty}</td>
+                 <td>${x.judge_passed ? '<span class="tag ok">통과</span>'
+                                      : `<span class="tag warn">미달 ${x.judge_average}</span>`}</td>`
+              : `<td colspan="4" class="hint">${esc(x.message)}</td>`) + "</tr>").join("")
+      + "</table>";
+    await refreshBooks();
+    await refreshLibrary();
+    await refreshSpending();
+    $("secBooks").scrollIntoView({ block: "start" });
+  } catch (e) {
+    clearInterval(timer); bar.stop(false);
+    out.className = "msg bad";
+    out.innerHTML = `<strong>${esc(e.message)}</strong>` + (e.hint ? `<br>${esc(e.hint)}` : "");
+  } finally {
+    $("btnSetGo").disabled = false;
+  }
+};
+
+async function refreshBooks() {
+  let books = [];
+  try { books = await api("/api/books"); } catch (_) { return; }
+  $("secBooks").classList.toggle("hidden", books.length === 0);
+  if (!books.length) return;
+  await loadCovers();
+  $("bookList").innerHTML = books.map(b => `
+    <div class="book">
+      <button class="book-cover" data-book="${b.id}" data-act="print"
+        data-tip="표지를 크게 보고 인쇄합니다."></button>
+      <p class="book-t">${esc(b.title)}</p>
+      <p class="book-s">${b.pieces.length}곡 · 팔 수 있는 곡 ${b.sellable}곡 · 표지 ${esc(b.cover_style_name)}</p>
+      <div class="book-acts">
+        <button class="ghost" data-book="${b.id}" data-act="zip"
+          data-tip="표지·차례와 곡마다의 악보·음원·지도용 악보를 압축 파일 하나로 받습니다.">한 권 내려받기</button>
+        <button class="ghost" data-book="${b.id}" data-act="rename"
+          data-tip="곡집 이름을 바꿉니다. 표지에 곧바로 반영됩니다.">이름</button>
+        <button class="ghost" data-book="${b.id}" data-act="cover"
+          data-tip="표지를 다른 것으로 바꿉니다.">표지</button>
+      </div>
+    </div>`).join("");
+
+  // 표지는 서버가 그려 준다 — 화면과 인쇄와 ZIP 이 같은 그림이어야 한다.
+  for (const b of books) {
+    const holder = $("bookList").querySelector(`.book-cover[data-book="${b.id}"]`);
+    try {
+      const r = await fetch(`${API}/api/books/${b.id}/cover.svg`);
+      holder.innerHTML = await r.text();
+    } catch (_) { holder.textContent = b.title; }
+  }
+  $("bookList").querySelectorAll("[data-book]").forEach(el => {
+    el.onclick = () => bookAction(el.dataset.book, el.dataset.act, books);
+  });
+}
+
+async function bookAction(id, act, books) {
+  const book = books.find(b => b.id === id);
+  if (act === "zip") return downloadBook(id);
+  if (act === "print") return printCoverOf(id, book);
+  if (act === "rename") {
+    const name = prompt("곡집 이름", book ? book.title : "");
+    if (!name) return;
+    await api(`/api/books/${id}`, { method: "PUT", body: JSON.stringify({ title: name }) });
+    return refreshBooks();
+  }
+  if (act === "cover") {
+    const now = coverStyles.findIndex(s => s.id === (book && book.cover_style));
+    const next = coverStyles[(now + 1 + coverStyles.length) % coverStyles.length];
+    await api(`/api/books/${id}`, { method: "PUT", body: JSON.stringify({ cover_style: next.id }) });
+    return refreshBooks();
+  }
+}
+
+async function downloadBook(id) {
+  try {
+    const r = await fetch(`${API}/api/books/${id}/package`);
+    if (!r.ok) throw new Error("내려받지 못했습니다");
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = decodeURIComponent(
+      (r.headers.get("content-disposition") || "").split("filename*=UTF-8''")[1] || `${id}.zip`);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { alert(e.message); }
+}
+
+// 표지를 새 창에 크게 띄우고 곧바로 인쇄할 수 있게 한다 — A4 한 장으로 나온다.
+function printCoverOf(id, book) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(
+    `<title>${(book ? book.title : "곡집")} 표지</title>` +
+    `<style>@page{size:A4;margin:0}body{margin:0;display:grid;place-items:center;background:#e8e4dc}
+      img{width:210mm;height:297mm;background:#fff;box-shadow:0 6px 30px -10px rgba(0,0,0,.4)}
+      @media print{body{background:#fff}img{box-shadow:none}}</style>` +
+    `<img src="${API}/api/books/${id}/cover.svg" alt="표지">`);
+  w.document.close();
+}
 
 // ── 1단계 묻는 칸 ──────────────────────────────────────────────────────────
 // 원장이 손으로 적는 것은 이름 하나다. 나머지는 학년에 맞게 채워 두고, 막대를 끌면
@@ -3461,6 +3698,7 @@ loadComposer();
 refreshReferences();
 refreshBackups();
 refreshSpending();
+refreshBooks();
 syncArrangeRange();
 rightsFormType();
 

@@ -133,3 +133,96 @@ def test_a_market_piece_is_marked_in_the_library(client) -> None:
 def test_an_unknown_tier_says_so(client) -> None:
     r = client.post("/api/compositions/market", json={"tier_id": "없는급수"})
     assert r.status_code == 404
+
+
+# ── 심사 통과할 때까지 다시 시도 ────────────────────────────────────────────
+
+
+def test_a_chosen_concept_is_not_swapped_out(client) -> None:
+    """원장이 성격을 직접 골랐으면 그 성격으로 만든다 — 마음대로 바꾸지 않는다."""
+    r = client.post(
+        "/api/compositions/market",
+        json={"tier_id": "middle", "preset_id": "waltz", "max_attempts": 3},
+    )
+    assert r.status_code == 200, r.text
+    # 왈츠는 3박이다. 다른 성격으로 갈아탔다면 박자가 달라진다.
+    assert r.json()["meter"].startswith("3"), "고른 성격을 지키지 않았다"
+
+
+def test_retrying_costs_money_so_it_is_bounded() -> None:
+    """한 번 더 만들 때마다 돈이 또 든다 — 무한정 시도할 수 없다."""
+    from app.api.studio import MarketComposeIn
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        MarketComposeIn(tier_id="middle", max_attempts=9)
+    assert MarketComposeIn(tier_id="middle").max_attempts == 1, "기본이 1이어야 돈이 안 샌다"
+
+
+def test_retry_keeps_the_best_when_none_passes(client) -> None:
+    """통과한 것이 없어도 버리지 않는다 — 원장이 돈을 낸 곡이다.
+
+    규칙 기반 엔진에서는 심사 문턱을 넘기 어렵다. 그때도 곡은 나와야 하고,
+    나온 것은 그중 **가장 나은 것**이어야 한다.
+    """
+    r = client.post("/api/compositions/market", json={"tier_id": "beginner", "max_attempts": 2})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["savable"] is True
+
+    # 시도한 곡은 모두 보관함에 남는다 — 미달본도 원장의 것이다.
+    rows = client.get("/api/compositions").json()
+    assert len(rows) >= 1
+    assert all(x["market_tier"] == "초급" for x in rows)
+
+
+# ── 급수별 한 벌 ────────────────────────────────────────────────────────────
+
+
+def test_a_whole_set_is_made_in_one_go(client) -> None:
+    """학원에 파는 단위는 한 곡이 아니라 묶음이다."""
+    r = client.post(
+        "/api/compositions/market/set",
+        json={"tier_ids": ["beginner", "middle", "advanced"]},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["made"] == 3, f"{body['rows']}"
+    names = [row["tier_name"] for row in body["rows"]]
+    assert names == ["초급", "중급", "상급"], "고른 순서대로 나와야 한다"
+
+    # 급수가 오르면 곡도 어려워져야 한다 — 그래야 한 벌로 쓸 수 있다.
+    diffs = [row["difficulty"] for row in body["rows"] if row["ok"]]
+    assert diffs == sorted(diffs), f"급수 순서와 난이도가 어긋난다: {diffs}"
+
+
+def test_one_blocked_tier_does_not_lose_the_others(client) -> None:
+    """다섯 곡을 기다렸는데 세 번째에서 통째로 엎어지면 앞의 둘까지 잃는다."""
+    r = client.post(
+        "/api/compositions/market/set",
+        json={"tier_ids": ["beginner", "middle"]},
+    )
+    assert r.status_code == 200
+    assert r.json()["made"] >= 1
+
+
+def test_an_unknown_tier_in_a_set_is_refused_before_spending(client) -> None:
+    """돈을 쓰기 전에 막는다 — 네 곡 만들고 다섯 번째에서 실패하면 늦다."""
+    r = client.post(
+        "/api/compositions/market/set",
+        json={"tier_ids": ["beginner", "없는급수"]},
+    )
+    assert r.status_code == 404
+    assert not client.get("/api/compositions").json(), "돈을 쓰고 나서 막혔다"
+
+
+def test_the_set_reports_progress_piece_by_piece(client) -> None:
+    """다섯 곡을 만드는 동안 막대가 곡마다 처음으로 돌아가면 안 된다."""
+    client.post(
+        "/api/compositions/market/set",
+        json={"tier_ids": ["beginner", "middle"], "progress_id": "setwatch"},
+    )
+    p = client.get("/api/progress/setwatch").json()
+    assert p["known"] is True and p["done"] is True
+    assert p["total"] == 2, "몇 곡짜리인지 화면이 알아야 한다"
+    assert p["pct"] == 1.0

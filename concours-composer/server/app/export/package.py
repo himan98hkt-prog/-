@@ -201,11 +201,8 @@ def _readme(p: PackageInput, names: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_package(p: PackageInput) -> tuple[bytes, str]:
-    """꾸러미 ZIP 과 파일 이름을 만든다.
-
-    압축을 풀면 곡 제목 폴더 하나가 나오게 담는다 — 바탕화면에 파일이 흩어지지 않는다.
-    """
+def piece_files(p: PackageInput) -> dict[str, str]:
+    """곡 하나가 내놓는 파일 이름들. 꾸러미와 곡집이 같은 이름을 쓰게 한 곳에 둔다."""
     stem = _safe(p.title)
     names = {
         "audio": f"연주.{p.audio_ext}",
@@ -220,20 +217,38 @@ def build_package(p: PackageInput) -> tuple[bytes, str]:
         names["teaching"] = f"{stem} (지도용).musicxml"
     if p.teaching_notes:
         names["teaching_notes"] = "지도 메모.md"
+    return names
 
+
+def write_piece(z: zipfile.ZipFile, root: str, p: PackageInput, *, readme: bool = True) -> None:
+    """곡 하나를 ZIP 안의 `root` 폴더에 담는다.
+
+    꾸러미(한 곡)와 곡집(여러 곡)이 같은 함수를 쓴다 — 갈라지면 한쪽에만 파일이
+    빠지고, 그것은 학원에 보낸 뒤에야 드러난다.
+    """
+    names = piece_files(p)
+    if readme:
+        z.writestr(f"{root}/읽어보세요.txt", _readme(p, names))
+    z.writestr(f"{root}/{names['audio']}", p.audio)
+    z.writestr(f"{root}/{names['xml']}", p.musicxml)
+    z.writestr(f"{root}/{names['midi']}", p.midi)
+    z.writestr(f"{root}/{names['info']}", _info_markdown(p))
+    z.writestr(f"{root}/{names['rights']}", _rights_markdown(p))
+    if p.guide is not None:
+        z.writestr(f"{root}/{names['guide']}", _guide_markdown(p.guide, p.title))
+    if p.teaching_musicxml:
+        z.writestr(f"{root}/{names['teaching']}", p.teaching_musicxml)
+    if p.teaching_notes:
+        z.writestr(f"{root}/{names['teaching_notes']}", p.teaching_notes)
+
+
+def build_package(p: PackageInput) -> tuple[bytes, str]:
+    """꾸러미 ZIP 과 파일 이름을 만든다.
+
+    압축을 풀면 곡 제목 폴더 하나가 나오게 담는다 — 바탕화면에 파일이 흩어지지 않는다.
+    """
+    stem = _safe(p.title)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        root = stem
-        z.writestr(f"{root}/읽어보세요.txt", _readme(p, names))
-        z.writestr(f"{root}/{names['audio']}", p.audio)
-        z.writestr(f"{root}/{names['xml']}", p.musicxml)
-        z.writestr(f"{root}/{names['midi']}", p.midi)
-        z.writestr(f"{root}/{names['info']}", _info_markdown(p))
-        z.writestr(f"{root}/{names['rights']}", _rights_markdown(p))
-        if p.guide is not None:
-            z.writestr(f"{root}/{names['guide']}", _guide_markdown(p.guide, p.title))
-        if p.teaching_musicxml:
-            z.writestr(f"{root}/{names['teaching']}", p.teaching_musicxml)
-        if p.teaching_notes:
-            z.writestr(f"{root}/{names['teaching_notes']}", p.teaching_notes)
+        write_piece(z, stem, p)
     return buf.getvalue(), f"{stem}.zip"

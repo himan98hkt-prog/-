@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 
 # 파일로 내리는 버킷. 순서가 곧 저장 순서다.
 PERSISTED = (
+    "books",
     "students",
     "competitions",
     "requests",
@@ -68,6 +69,8 @@ class Store:
     judgements: dict[str, Any] = field(default_factory=dict)
     # 작곡가 신원(예명·실명)과 곡별 권리 상태. 실명은 이 파일 밖으로 나가지 않는다.
     rights: dict[str, Any] = field(default_factory=dict)
+    # 곡집 — 여러 곡을 한 권으로 묶은 것. 곡은 여기 없고 번호만 든다.
+    books: dict[str, Any] = field(default_factory=dict)
     jobs: dict[str, Any] = field(default_factory=dict)
     recitals: dict[str, Any] = field(default_factory=dict)
     persistence: SqlitePersistence | None = None

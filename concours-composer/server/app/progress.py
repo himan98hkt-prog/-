@@ -53,7 +53,12 @@ MAX_STEPS = 60
 
 @dataclass
 class Job:
-    """작업 하나의 진행 상태."""
+    """작업 하나의 진행 상태.
+
+    한 번에 여러 곡을 만들 수도 있다(급수별 한 벌). 그때 막대가 곡마다 처음으로
+    돌아가면 사람은 얼마나 남았는지 알 수 없다 — 그래서 **몇 곡 중 몇 번째**를
+    함께 담고, 전체 막대는 그것까지 셈해서 낸다.
+    """
 
     stage: str = "motif"
     pct: float = 0.0
@@ -63,6 +68,10 @@ class Job:
     done: bool = False
     failed: str = ""
     steps: list[dict] = field(default_factory=list)
+    # 여러 곡을 만들 때만 쓴다. 한 곡이면 total=1, index=0 이다.
+    total: int = 1
+    index: int = 0
+    label: str = ""
 
     def snapshot(self) -> dict:
         return {
@@ -74,6 +83,9 @@ class Job:
             "done": self.done,
             "failed": self.failed,
             "steps": list(self.steps),
+            "total": self.total,
+            "index": self.index,
+            "label": self.label,
         }
 
 
@@ -84,19 +96,32 @@ class Tracker:
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def start(self, job_id: str) -> None:
+    def start(self, job_id: str, *, total: int = 1) -> None:
         with self._lock:
             self._prune()
-            self._jobs[job_id] = Job()
+            self._jobs[job_id] = Job(total=max(1, total))
 
-    def report(self, job_id: str, stage: str, pct: float, message: str) -> None:
-        """파이프라인이 부르는 자리. 여기서 막히면 작곡이 막힌다 — 절대 예외를 내지 않는다."""
-        lo, hi = STAGE_SPAN.get(stage, (0.0, 1.0))
-        overall = lo + (hi - lo) * max(0.0, min(1.0, pct))
+    def begin_piece(self, job_id: str, index: int, label: str) -> None:
+        """여러 곡 중 다음 곡으로 넘어간다. 막대는 그만큼에서 다시 오른다."""
         with self._lock:
             job = self._jobs.get(job_id)
             if job is None or job.done:
                 return
+            job.index = index
+            job.label = label
+            job.steps.clear()   # 앞 곡의 발자국이 남아 있으면 헷갈린다
+            job.touched = time.monotonic()
+
+    def report(self, job_id: str, stage: str, pct: float, message: str) -> None:
+        """파이프라인이 부르는 자리. 여기서 막히면 작곡이 막힌다 — 절대 예외를 내지 않는다."""
+        lo, hi = STAGE_SPAN.get(stage, (0.0, 1.0))
+        within = lo + (hi - lo) * max(0.0, min(1.0, pct))
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None or job.done:
+                return
+            # 여러 곡이면 이 곡의 진행을 전체 안에서의 자리로 옮긴다.
+            overall = (job.index + within) / job.total
             # 막대는 뒤로 가지 않는다. 단계가 겹쳐 보고돼도 사람 눈에는 한 방향이어야 한다.
             job.pct = max(job.pct, overall)
             job.stage = stage
@@ -119,6 +144,7 @@ class Tracker:
             job.touched = time.monotonic()
             if not failed:
                 job.pct = 1.0
+                job.index = job.total
                 job.stage = "save"
                 job.message = "다 됐습니다"
 

@@ -313,15 +313,11 @@ def auto_compose(
     단계를 건너뛰지 않는다. 원장이 나중에 모티브나 Plan 을 바꾸고 싶으면 기존
     워크플로 API 로 같은 request_id 위에서 이어서 하면 된다.
     """
-    # 곡 하나에 수십 초에서 몇 분이 걸린다. 그동안 화면이 멈춰 보이지 않게, 파이프라인이
-    # 이미 내고 있던 단계 보고를 화면이 물어볼 수 있는 곳으로 흘려 보낸다.
     job = body.progress_id
     if job:
-        tracker().start(job)
-        pipeline.progress = lambda stage, pct, msg: tracker().report(job, stage, pct, msg)
-
+        tracker().start(job, total=1)
     try:
-        return _auto_compose(body, store, pipeline, settings)
+        return run_auto(body, store, pipeline, settings)
     except Exception as e:
         if job:
             tracker().finish(job, failed=getattr(e, "detail", None) or str(e) or "알 수 없는 오류")
@@ -329,6 +325,26 @@ def auto_compose(
     finally:
         if job:
             tracker().finish(job)
+
+
+def run_auto(
+    body: AutoComposeIn,
+    store: Store,
+    pipeline: CompositionPipeline,
+    settings: Settings,
+) -> AutoComposeOut:
+    """곡 하나를 만든다. **진행 기록의 시작과 끝은 부르는 쪽이 책임진다.**
+
+    한 번에 여러 곡을 만들 때(급수별 한 벌) 곡마다 기록을 새로 시작하면 막대가
+    곡마다 처음으로 돌아가고, 첫 곡이 끝나는 순간 기록이 닫혀 나머지가 보이지 않는다.
+    그래서 시작·끝은 밖에서 한 번만 하고, 여기서는 **보고만** 흘려 보낸다.
+    """
+    # 곡 하나에 수십 초에서 몇 분이 걸린다. 그동안 화면이 멈춰 보이지 않게, 파이프라인이
+    # 이미 내고 있던 단계 보고를 화면이 물어볼 수 있는 곳으로 흘려 보낸다.
+    job = body.progress_id
+    if job:
+        pipeline.progress = lambda stage, pct, msg: tracker().report(job, stage, pct, msg)
+    return _auto_compose(body, store, pipeline, settings)
 
 
 def _auto_compose(
@@ -540,7 +556,101 @@ class MarketComposeIn(BaseModel):
     tier_id: str
     # 비우면 그 급수에서 심사에 가장 안전한 성격을 프로그램이 고른다.
     preset_id: str | None = None
+    # 심사 문턱에 못 미치면 **다른 성격으로** 몇 번까지 더 만들어 볼 것인가.
+    #
+    # 파는 곡에 미달본을 낼 수는 없다. 다만 한 번 더 만들 때마다 돈이 또 든다
+    # (골든 20곡 실측 평균 $1.59). 그래서 기본은 한 번이고, 몇 번까지 할지는
+    # 원장이 정한다. 상한 3은 최악의 경우 곡 하나에 $5 안팎이라는 뜻이다.
+    max_attempts: int = Field(default=1, ge=1, le=3)
     progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+def _market_body(tier: object, preset_id: str, progress_id: str | None) -> AutoComposeIn:
+    from app.generation.market import Tier, standard_competition, standard_student
+
+    assert isinstance(tier, Tier)
+    return AutoComposeIn(
+        preset_id=preset_id,
+        student=standard_student(tier),
+        competition=standard_competition(tier),
+        target_difficulty=float(tier.level),
+        n_candidates=1,
+        progress_id=progress_id,
+        market_tier=tier.id,
+    )
+
+
+def _compose_one_for_market(
+    tier_id: str,
+    preset_id: str | None,
+    max_attempts: int,
+    progress_id: str | None,
+    store: Store,
+    pipeline: CompositionPipeline,
+    settings: Settings,
+    used: set[str] | None = None,
+) -> AutoComposeOut:
+    """대중곡 한 곡 — 심사에 못 미치면 **다른 성격으로** 다시 만들어 본다.
+
+    맞춤곡이라면 미달본도 원장이 보고 판단하면 된다. 파는 곡은 다르다 — 학원에
+    미달본을 팔 수는 없다. 그래서 통과할 때까지 성격을 바꿔 가며 다시 만든다.
+
+    다만 무한정 하지 않는다. 한 번 더 만들 때마다 돈이 또 들기 때문이다. 몇 번까지
+    할지는 원장이 정하고, 그 안에서 통과한 것이 없으면 **가장 높은 것**을 준다 —
+    버리지 않는다. 만든 곡은 미달본도 보관함에 남는다. 원장이 돈을 낸 것이고,
+    그중 하나가 마음에 들 수도 있다.
+    """
+    from app.generation.market import BY_TIER, recommended_presets
+
+    tier = BY_TIER.get(tier_id)
+    if tier is None:
+        raise HTTPException(404, f"급수를 찾을 수 없다: {tier_id}")
+
+    if preset_id:
+        # 성격을 직접 고른 것은 그 성격으로 만들라는 뜻이다 — 마음대로 바꾸지 않는다.
+        order = [preset_id]
+    else:
+        picks = recommended_presets(tier)
+        if not picks:
+            raise HTTPException(422, f"{tier.name} 에 맞는 컨셉이 없습니다")
+        # 한 벌 안에서 성격이 겹치지 않게 한다.
+        #
+        # 급수마다 "가장 안전한 성격" 을 그대로 고르면 다섯 곡이 전부 행진곡이 된다.
+        # 그것은 곡집이 아니라 같은 곡 다섯 벌이다 — 학원에 그렇게 팔 수 없다.
+        # 그래서 이미 쓴 성격은 뒤로 미룬다. 다 썼으면 그때는 다시 처음부터 쓴다.
+        fresh = [p.id for p in picks if p.id not in (used or set())]
+        order = (fresh or [p.id for p in picks])[:max_attempts]
+
+    best: AutoComposeOut | None = None
+    last_error: HTTPException | None = None
+    for i, pid in enumerate(order[:max_attempts]):
+        if progress_id and i:
+            tracker().report(
+                progress_id, "motif", 0.0,
+                f"심사 문턱에 못 미쳐 다른 성격으로 다시 만드는 중({i + 1}번째)",
+            )
+        try:
+            got = run_auto(
+                _market_body(tier, pid, progress_id), store, pipeline, settings
+            )
+        except HTTPException as e:
+            last_error = e
+            continue
+        if best is None or _market_rank(got) > _market_rank(best):
+            best = got
+        if used is not None:
+            used.add(pid)
+        if got.savable and got.judge.passed:
+            return got
+
+    if best is None:
+        raise last_error or HTTPException(422, f"{tier.name} 곡을 만들지 못했습니다")
+    return best
+
+
+def _market_rank(out: AutoComposeOut) -> tuple[int, float, float]:
+    """어느 곡이 더 나은가. 저장 가능 → 심사 통과 → 심사 평균 순으로 본다."""
+    return (int(out.savable) * 2 + int(out.judge.passed), out.judge.average, out.combined_score)
 
 
 @router.post("/compositions/market", response_model=AutoComposeOut)
@@ -557,35 +667,141 @@ def compose_for_market(
     있지만 손이 작은 아이는 큰 곡을 못 친다 — 실패가 한 방향으로만 나므로, 작은 쪽에
     맞춘다. 자세한 근거는 app/generation/market.py 에 적어 두었다.
 
-    만드는 과정은 맞춤곡과 똑같다(모티브 → 설계 → 작곡 → 사전 전문심사). 다른 것은
-    **누구를 기준으로 세우느냐** 하나뿐이다.
+    만드는 과정은 맞춤곡과 똑같다(모티브 → 설계 → 작곡 → 사전 전문심사).
     """
-    from app.generation.market import BY_TIER, recommended_presets, standard_competition, standard_student
+    job = body.progress_id
+    if job:
+        tracker().start(job, total=1)
+    try:
+        return _compose_one_for_market(
+            body.tier_id, body.preset_id, body.max_attempts, job, store, pipeline, settings
+        )
+    except Exception as e:
+        if job:
+            tracker().finish(job, failed=getattr(e, "detail", None) or str(e) or "알 수 없는 오류")
+        raise
+    finally:
+        if job:
+            tracker().finish(job)
 
-    tier = BY_TIER.get(body.tier_id)
-    if tier is None:
-        raise HTTPException(404, f"급수를 찾을 수 없다: {body.tier_id}")
 
-    preset_id = body.preset_id
-    if not preset_id:
-        picks = recommended_presets(tier)
-        if not picks:
-            raise HTTPException(422, f"{tier.name} 에 맞는 컨셉이 없습니다")
-        preset_id = picks[0].id
+class MarketSetIn(BaseModel):
+    """급수별로 한 벌. 학원에 파는 단위는 한 곡이 아니라 **묶음**이다."""
 
-    return auto_compose(
-        AutoComposeIn(
-            preset_id=preset_id,
-            student=standard_student(tier),
-            competition=standard_competition(tier),
-            target_difficulty=float(tier.level),
-            n_candidates=1,
-            progress_id=body.progress_id,
-            market_tier=tier.id,
-        ),
-        store=store,
-        pipeline=pipeline,
-        settings=settings,
+    model_config = {"extra": "forbid"}
+
+    tier_ids: list[str] = Field(min_length=1, max_length=8)
+    max_attempts: int = Field(default=1, ge=1, le=3)
+    # 만든 곡들을 곡집 한 권으로 묶는다. 비우면 만든 날짜로 이름을 짓는다.
+    # 낱장 다섯 장과 표지가 붙은 한 권은 다른 물건이고, 원장이 사는 것은 뒤쪽이다.
+    book_title: str = Field(default="", max_length=80)
+    cover_style: str = "classic"
+    progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+
+
+class MarketSetRow(BaseModel):
+    tier_id: str
+    tier_name: str
+    ok: bool
+    composition_id: str = ""
+    title: str = ""
+    measures: int = 0
+    difficulty: float = 0.0
+    combined_score: float = 0.0
+    judge_passed: bool = False
+    judge_average: float = 0.0
+    message: str = ""
+
+
+class MarketSetOut(BaseModel):
+    rows: list[MarketSetRow]
+    made: int
+    sellable: int
+    # 만든 곡을 묶어 놓은 곡집. 한 권으로 내려받을 수 있다.
+    book_id: str = ""
+    book_title: str = ""
+
+
+@router.post("/compositions/market/set", response_model=MarketSetOut)
+def compose_market_set(
+    body: MarketSetIn,
+    store: Store = Depends(get_store),
+    pipeline: CompositionPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings),
+) -> MarketSetOut:
+    """급수별로 한 벌을 이어서 만든다.
+
+    한 곡이 막혀도 나머지는 계속 만든다 — 다섯 곡을 기다렸는데 세 번째에서 통째로
+    엎어지면 앞의 둘까지 잃는다. 막힌 급수는 왜 막혔는지 줄로 남긴다.
+    """
+    from app.generation.market import BY_TIER
+
+    unknown = [t for t in body.tier_ids if t not in BY_TIER]
+    if unknown:
+        raise HTTPException(404, f"급수를 찾을 수 없다: {', '.join(unknown)}")
+
+    job = body.progress_id
+    if job:
+        tracker().start(job, total=len(body.tier_ids))
+
+    rows: list[MarketSetRow] = []
+    used: set[str] = set()   # 한 벌 안에서 성격이 겹치지 않게
+    for i, tier_id in enumerate(body.tier_ids):
+        tier = BY_TIER[tier_id]
+        if job:
+            tracker().begin_piece(job, i, f"{i + 1}/{len(body.tier_ids)} · {tier.name}")
+        try:
+            got = _compose_one_for_market(
+                tier_id, None, body.max_attempts, job, store, pipeline, settings, used
+            )
+        except HTTPException as e:
+            detail = e.detail
+            why = detail.get("message", str(detail)) if isinstance(detail, dict) else str(detail)
+            rows.append(MarketSetRow(tier_id=tier_id, tier_name=tier.name, ok=False, message=why))
+            continue
+        rows.append(
+            MarketSetRow(
+                tier_id=tier_id,
+                tier_name=tier.name,
+                ok=True,
+                composition_id=got.composition_id,
+                title=got.title,
+                measures=got.measures,
+                difficulty=got.difficulty,
+                combined_score=got.combined_score,
+                judge_passed=got.judge.passed,
+                judge_average=got.judge.average,
+                message="" if got.judge.passed else "심사 문턱 미달 — 초안입니다",
+            )
+        )
+    if job:
+        tracker().finish(job)
+
+    # 만든 곡을 한 권으로 묶는다. 낱장 다섯 장과 표지가 붙은 한 권은 다른 물건이다.
+    made_ids = [r.composition_id for r in rows if r.ok and r.composition_id]
+    book_id = book_title = ""
+    if made_ids:
+        from app.api.books import BookIn, create_book
+
+        names = " · ".join(BY_TIER[t].name for t in body.tier_ids if t in BY_TIER)
+        title = body.book_title.strip() or f"콩쿨 곡집 {datetime.now(UTC):%Y-%m-%d}"
+        book = create_book(
+            BookIn(
+                title=title,
+                subtitle=f"{names} · {len(made_ids)}곡",
+                cover_style=body.cover_style,
+                composition_ids=made_ids,
+            ),
+            store=store,
+        )
+        book_id, book_title = book.id, book.title
+
+    return MarketSetOut(
+        rows=rows,
+        made=sum(1 for r in rows if r.ok),
+        sellable=sum(1 for r in rows if r.ok and r.judge_passed),
+        book_id=book_id,
+        book_title=book_title,
     )
 
 

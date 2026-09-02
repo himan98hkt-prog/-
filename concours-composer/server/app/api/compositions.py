@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
@@ -22,6 +22,9 @@ from app.schemas.music import CompositionPlan, Measure, MotifCandidate
 from app.schemas.student import CompositionRequest
 
 log = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from app.export.package import PackageInput
+
 router = APIRouter(prefix="/api", tags=["compositions"])
 
 
@@ -628,21 +631,20 @@ def get_teaching_score(composition_id: str, store: Store = Depends(get_store)) -
     )
 
 
-@router.get("/compositions/{composition_id}/package")
-def get_package(composition_id: str, store: Store = Depends(get_store)) -> Response:
-    """판매 꾸러미 — 악보·음원·MIDI·해설·권리 정보를 ZIP 하나로.
+def package_input(store: Store, composition_id: str) -> PackageInput:
+    """꾸러미 하나를 만드는 재료를 모은다.
 
-    학원에 팔 때 파일을 하나씩 받아 모으는 일은 사람이 할 일이 아니다. 받는 쪽은
-    이 프로그램을 모르므로, 무엇이 들었고 무엇부터 열면 되는지를 안에 적어 보낸다.
+    한 곡 꾸러미와 곡집이 같은 재료를 쓴다 — 갈라지면 한쪽에만 파일이 빠지고,
+    그것은 학원에 보낸 뒤에야 드러난다.
     """
-    if composition_id not in store.compositions:
-        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
     res = store.compositions[composition_id]
 
     from app.api.rights import get_composer, get_rights
+    from app.api.studio import judge_summary
+    from app.config import get_settings
     from app.export.audio import render_audio
     from app.export.midi import measures_to_midi
-    from app.export.package import PackageInput, build_package
+    from app.export.package import PackageInput
     from app.export.teaching_score import build_teaching_score, teaching_markdown
     from app.generation.assemble import AssembleOptions, measures_to_note_events
 
@@ -651,9 +653,6 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
     audio, ext = render_audio(events, title=title)
     rights = get_rights(store, composition_id)
     ready, blockers = rights.clearance()
-    from app.api.studio import judge_summary
-    from app.config import get_settings
-
     judge_average, judge_passed = judge_summary(store, composition_id, get_settings())
 
     # 지도용 판 — 원장이 보고 가르치는 쪽. 연주용과 음표는 같고 표기만 다르다.
@@ -670,33 +669,45 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
         ),
         marks,
     )
-
-    data, filename = build_package(
-        PackageInput(
-            composition_id=composition_id,
-            title=title,
-            composer=composer,
-            key=res.plan.key,
-            meter=res.plan.meter,
-            tempo=res.plan.tempo,
-            measures=len(res.measures),
-            difficulty=res.difficulty,
-            duration_sec=round(events.notes[-1].offset) if events.notes else 0,
-            musicxml=res.musicxml,
-            audio=audio,
-            audio_ext=ext,
-            midi=measures_to_midi(res.measures, res.plan.tempo, res.plan.meter),
-            guide=store.jobs.get("guides", {}).get(composition_id),
-            rights=rights,
-            rights_ready=ready,
-            rights_blockers=blockers,
-            combined_score=res.quality.combined_score,
-            judge_average=judge_average,
-            judge_passed=judge_passed,
-            teaching_musicxml=teaching_xml,
-            teaching_notes=teaching_markdown(marks, title),
-        )
+    return PackageInput(
+        composition_id=composition_id,
+        title=title,
+        composer=composer,
+        key=res.plan.key,
+        meter=res.plan.meter,
+        tempo=res.plan.tempo,
+        measures=len(res.measures),
+        difficulty=res.difficulty,
+        duration_sec=round(events.notes[-1].offset) if events.notes else 0,
+        musicxml=res.musicxml,
+        audio=audio,
+        audio_ext=ext,
+        midi=measures_to_midi(res.measures, res.plan.tempo, res.plan.meter),
+        guide=store.jobs.get("guides", {}).get(composition_id),
+        rights=rights,
+        rights_ready=ready,
+        rights_blockers=blockers,
+        combined_score=res.quality.combined_score,
+        judge_average=judge_average,
+        judge_passed=judge_passed,
+        teaching_musicxml=teaching_xml,
+        teaching_notes=teaching_markdown(marks, title),
     )
+
+
+@router.get("/compositions/{composition_id}/package")
+def get_package(composition_id: str, store: Store = Depends(get_store)) -> Response:
+    """판매 꾸러미 — 악보·음원·MIDI·해설·권리 정보를 ZIP 하나로.
+
+    학원에 팔 때 파일을 하나씩 받아 모으는 일은 사람이 할 일이 아니다. 받는 쪽은
+    이 프로그램을 모르므로, 무엇이 들었고 무엇부터 열면 되는지를 안에 적어 보낸다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+
+    from app.export.package import build_package
+
+    data, filename = build_package(package_input(store, composition_id))
     return Response(
         content=data,
         media_type="application/zip",

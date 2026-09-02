@@ -453,7 +453,7 @@ class StubComposerEngine:
         dyn_curve = list(deduped.values())
 
         return CompositionPlan(
-            title_candidates=["작은 행진", "봄날의 문답", "노래하는 손"],
+            title_candidates=_stub_titles(ctx.request.mood, meter),
             key=key,
             meter=meter,
             tempo=tempo,
@@ -954,3 +954,33 @@ class StubComposerEngine:
         if rng[1] < rng[0]:
             rng = [rng[0], rng[0]]
         return rng, issue, how
+
+
+# 규칙 기반(무료) 엔진이 짓는 이름.
+#
+# 하나로 고정하면 곡집 다섯 곡이 전부 "작은 행진" 이 된다 — 곡집이 아니라 같은 곡
+# 다섯 벌로 보인다. 키를 넣으면 모델이 이름을 짓지만, 키 없이 써 보는 원장에게도
+# 책의 모양은 보여야 한다. 성격과 박자에서 이름을 고른다.
+_TITLE_BY_MOOD: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("행진", "씩씩"), ("작은 행진", "고른 걸음", "깃발 아래")),
+    (("왈츠", "3박", "흔들"), ("첫 왈츠", "느린 회전", "달빛 왈츠")),
+    (("노래", "레가토", "긴 호흡"), ("노래하는 손", "저녁의 노래", "먼 곳의 편지")),
+    (("소나티네", "제시", "형식"), ("소나티네풍 소품", "세 개의 문", "봄날의 문답")),
+    (("변주", "주제"), ("주제와 네 얼굴", "같은 노래 다른 옷")),
+    (("춤", "민속"), ("마을의 춤", "둥근 춤")),
+    (("연습", "기교", "스케일", "속도"), ("빠른 손가락", "층계 오르기", "구르는 알갱이")),
+    (("야상", "분산화음", "페달"), ("밤의 물결", "창가의 야상")),
+    (("토카타", "16분", "쉬지"), ("멈추지 않는 바퀴", "작은 토카타")),
+    (("피날레", "옥타브", "화려"), ("마지막 계단", "환한 마무리")),
+)
+
+
+def _stub_titles(mood: str, meter: str) -> list[str]:
+    for keys, names in _TITLE_BY_MOOD:
+        if any(k in mood for k in keys):
+            return list(names)
+    return ["작은 소품", "이름 없는 노래", "세 박의 그림"] if meter.startswith("3") else [
+        "작은 소품",
+        "이름 없는 노래",
+        "네 박의 그림",
+    ]
