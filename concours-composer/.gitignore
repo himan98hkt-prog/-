@@ -25,3 +25,6 @@ runs/auto/
 
 # 설치 시 내려받는 프런트 라이브러리(저장소에 담지 않는다)
 web/vendor/
+
+# 저장소 자동 백업 사본
+data/backups/

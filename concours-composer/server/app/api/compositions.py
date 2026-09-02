@@ -301,7 +301,7 @@ def realize(
         get_corpus().register_generated(
             res.measures,
             score_id=f"gen-{cid}",
-            title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
+            title=store.title_of(cid),
             key=res.plan.key,
             meter=res.plan.meter,
             tempo=res.plan.tempo,
@@ -354,7 +354,7 @@ def get_quality(composition_id: str, store: Store = Depends(get_store)) -> dict:
         "engine": res.engine,
         "measures": len(res.measures),
         "revision_rounds": res.revision_rounds,
-        "title": res.plan.title_candidates[0] if res.plan.title_candidates else composition_id,
+        "title": store.title_of(composition_id),
         "key": res.plan.key,
         "meter": res.plan.meter,
         "tempo": res.plan.tempo,
@@ -417,7 +417,7 @@ def get_audio(
         from app.generation.assemble import measures_to_note_events
 
         events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
-        song = res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
+        song = store.title_of(composition_id)
         hit = render_audio(events, hands=hands, title=song)
         if len(_AUDIO_CACHE) >= _AUDIO_CACHE_MAX:
             _AUDIO_CACHE.pop(next(iter(_AUDIO_CACHE)))
@@ -428,7 +428,7 @@ def get_audio(
     # 옛 브라우저용 filename= 은 ASCII 로 남긴다 — 둘을 섞으면 응답 자체가 깨진다.
     ascii_suffix = {"both": "", "rh": "_rh", "lh": "_lh"}[hands]
     korean_suffix = {"both": "", "rh": "_오른손", "lh": "_왼손"}[hands]
-    stem = (res.plan.title_candidates[0] if res.plan.title_candidates else composition_id).replace('"', "")
+    stem = store.title_of(composition_id).replace('"', "")
     return Response(
         content=data,
         media_type="audio/mpeg" if ext == "mp3" else "audio/wav",
@@ -439,6 +439,101 @@ def get_audio(
             ),
             "X-Audio-Format": ext,
         },
+    )
+
+
+class TitleIn(BaseModel):
+    """원장이 정한 제목. 비우면 프로그램이 지은 이름으로 돌아간다."""
+
+    title: str = Field(default="", max_length=120)
+
+
+class TitleOut(BaseModel):
+    composition_id: str
+    title: str
+    suggested: list[str] = Field(default_factory=list)
+
+
+@router.get("/compositions/{composition_id}/title-current", response_model=TitleOut)
+def read_title(composition_id: str, store: Store = Depends(get_store)) -> TitleOut:
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+    return TitleOut(
+        composition_id=composition_id,
+        title=store.title_of(composition_id),
+        suggested=list(res.plan.title_candidates),
+    )
+
+
+@router.put("/compositions/{composition_id}/title-current", response_model=TitleOut)
+def write_title(composition_id: str, body: TitleIn, store: Store = Depends(get_store)) -> TitleOut:
+    """제목을 바꾼다.
+
+    파는 곡의 제목은 상품명이다. 여기서 바꾸면 악보·음원 태그·판매 꾸러미·저작권
+    등록 초안 전부가 같은 이름을 쓴다 — 파일마다 다른 이름이 찍히면 안 된다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    title = store.set_title(composition_id, body.title)
+    # 제목이 바뀌면 이미 만들어 둔 음원의 태그가 낡는다 — 다음 요청에 다시 만든다.
+    for key in [k for k in _AUDIO_CACHE if k[0] == composition_id]:
+        _AUDIO_CACHE.pop(key, None)
+    store.save()
+    res = store.compositions[composition_id]
+    return TitleOut(composition_id=composition_id, title=title, suggested=list(res.plan.title_candidates))
+
+
+class CoverOut(BaseModel):
+    """콩쿨 제출용 표지에 들어가는 것들."""
+
+    composition_id: str
+    title: str
+    composer: str
+    student_name: str
+    student_grade: str
+    division: str
+    time_limit_sec: int | None
+    key: str
+    meter: str
+    tempo: int
+    measures: int
+    difficulty: float
+    duration_sec: int
+
+
+@router.get("/compositions/{composition_id}/cover", response_model=CoverOut)
+def get_cover(composition_id: str, store: Store = Depends(get_store)) -> CoverOut:
+    """표지에 찍을 것들.
+
+    학생 이름은 **반드시 display_name() 을 거친다**(절대 규칙 7). 악보 표지는 밖으로
+    나가는 산출물이고, 미디어 동의가 없는 학생의 본명이 콩쿨 제출본에 실리면 안 된다.
+    """
+    if composition_id not in store.compositions:
+        raise HTTPException(404, f"곡을 찾을 수 없다: {composition_id}")
+    res = store.compositions[composition_id]
+    req = store.requests.get(res.request_id)
+
+    from app.api.rights import get_composer
+    from app.generation.assemble import measures_to_note_events
+
+    events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
+    student = getattr(req, "student", None)
+    competition = getattr(req, "competition", None)
+    return CoverOut(
+        composition_id=composition_id,
+        title=store.title_of(composition_id),
+        composer=get_composer(store).display(),
+        student_name=student.display_name() if student else "",
+        student_grade=getattr(student, "grade", "") if student else "",
+        division=getattr(competition, "division", "") if competition else "",
+        time_limit_sec=getattr(competition, "time_limit_sec", None) if competition else None,
+        key=res.plan.key,
+        meter=res.plan.meter,
+        tempo=res.plan.tempo,
+        measures=len(res.measures),
+        difficulty=res.difficulty,
+        duration_sec=round(events.notes[-1].offset) if events.notes else 0,
     )
 
 
@@ -459,7 +554,7 @@ def get_package(composition_id: str, store: Store = Depends(get_store)) -> Respo
     from app.export.package import PackageInput, build_package
     from app.generation.assemble import measures_to_note_events
 
-    title = res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
+    title = store.title_of(composition_id)
     events = measures_to_note_events(res.measures, res.plan.tempo, res.plan.meter)
     audio, ext = render_audio(events, title=title)
     rights = get_rights(store, composition_id)

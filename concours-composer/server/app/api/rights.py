@@ -70,11 +70,6 @@ def write_rights(composition_id: str, body: WorkRights, store: Store = Depends(g
     return body
 
 
-def _title(store: Store, composition_id: str) -> str:
-    res = store.compositions[composition_id]
-    return res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
-
-
 @router.get("/compositions/{composition_id}/registration", response_model=RegistrationDraft)
 def registration_draft(composition_id: str, store: Store = Depends(get_store)) -> RegistrationDraft:
     """저작권 등록 신청서 초안.
@@ -91,7 +86,7 @@ def registration_draft(composition_id: str, store: Store = Depends(get_store)) -
     rights = get_rights(store, composition_id)
     ok, blockers = rights.clearance()
     missing = who.missing_for_registration()
-    title = _title(store, composition_id)
+    title = store.title_of(composition_id)
 
     lines = [
         f"# 저작권 등록 신청 초안 — {title}",

@@ -38,3 +38,44 @@ def shutdown(request: Request) -> dict:
         raise HTTPException(409, "명령창에서 띄운 서버다 — 그 창에서 Ctrl+C 로 끄십시오")
     server.should_exit = True
     return {"status": "shutting_down"}
+
+
+@router.get("/api/backups")
+def backups() -> dict:
+    """백업 상태 — 언제 몇 개가 어디에 있는지.
+
+    되돌리기는 프로그램이 하지 않는다. 잘못 되돌리면 지금 것까지 잃기 때문이다.
+    어느 파일을 어떻게 되돌리는지 글로 알려 주고, 판단은 사람이 한다.
+    """
+    from app.api.deps import get_store
+
+    keeper = get_store().backups
+    if keeper is None:
+        return {
+            "enabled": False,
+            "why": "저장을 파일에 하지 않는 모드로 켜져 있습니다(STORE_PERSIST=0)",
+        }
+    out = dict(keeper.summary())
+    out["enabled"] = True
+    out["how_to_restore"] = [
+        "1. 오른쪽 위 '끄기' 로 프로그램을 끕니다",
+        f"2. {out['folder']} 폴더에서 되돌리고 싶은 시각의 파일을 복사합니다",
+        "3. data 폴더의 store.sqlite3 를 그 파일로 덮어씁니다(원본은 이름을 바꿔 남겨 두십시오)",
+        "4. 바탕화면 아이콘으로 다시 켭니다",
+    ]
+    return out
+
+
+@router.post("/api/backups")
+def make_backup() -> dict:
+    """지금 곧바로 사본을 뜬다 — 큰 편집을 하기 전에 눌러 두라고."""
+    from app.api.deps import get_store
+
+    keeper = get_store().backups
+    if keeper is None:
+        raise HTTPException(409, "저장을 파일에 하지 않는 모드입니다(STORE_PERSIST=0)")
+    get_store().save()
+    made = keeper.maybe_backup(force=True)
+    if made is None:
+        raise HTTPException(500, "사본을 뜨지 못했습니다")
+    return {"created": made.name, **keeper.summary()}

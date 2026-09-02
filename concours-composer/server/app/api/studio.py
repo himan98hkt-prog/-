@@ -368,7 +368,7 @@ def auto_compose(
     store.jobs.setdefault("auto_history", []).append({"composition_id": cid, "preset_id": body.preset_id})
     store.judgements[cid] = panel
 
-    title = res.plan.title_candidates[0] if res.plan.title_candidates else cid
+    title = store.title_of(cid)
     if res.savable:
         get_corpus().register_generated(
             res.measures,
@@ -515,7 +515,7 @@ def library(
         out.append(
             LibraryItem(
                 composition_id=cid,
-                title=res.plan.title_candidates[0] if res.plan.title_candidates else cid,
+                title=store.title_of(cid),
                 key=res.plan.key,
                 meter=res.plan.meter,
                 tempo=res.plan.tempo,

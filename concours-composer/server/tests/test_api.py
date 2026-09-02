@@ -445,3 +445,67 @@ def test_library_shows_rights_state(client, req_id):
     row = next(i for i in client.get("/api/compositions").json() if i["composition_id"] == cid)
     assert row["work_type"] == "arrangement" and row["rights_ready"] is False
     assert "확인 필요" in row["rights_note"]
+
+
+def test_title_flows_to_every_artifact(client, req_id):
+    """제목을 바꾸면 악보·꾸러미·등록 초안이 모두 같은 이름을 써야 한다.
+
+    파일마다 다른 이름이 찍히면 파는 쪽에서 사고가 난다.
+    """
+    import io
+    import zipfile
+
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    before = client.get(f"/api/compositions/{cid}/title-current").json()
+    assert before["title"] and before["suggested"]
+
+    put = client.put(f"/api/compositions/{cid}/title-current", json={"title": "  봄의 문턱  "})
+    assert put.status_code == 200
+    assert put.json()["title"] == "봄의 문턱", "앞뒤 공백은 다듬어야 한다"
+
+    assert client.get(f"/api/compositions/{cid}/quality").json()["title"] == "봄의 문턱"
+    row = next(i for i in client.get("/api/compositions").json() if i["composition_id"] == cid)
+    assert row["title"] == "봄의 문턱"
+    assert "봄의 문턱" in client.get(f"/api/compositions/{cid}/registration").json()["markdown"]
+
+    z = zipfile.ZipFile(io.BytesIO(client.get(f"/api/compositions/{cid}/package").content))
+    assert any(n.startswith("봄의 문턱/") for n in z.namelist()), z.namelist()
+
+    # 비우면 프로그램이 지은 이름으로 돌아간다.
+    back = client.put(f"/api/compositions/{cid}/title-current", json={"title": "   "})
+    assert back.json()["title"] == before["title"]
+
+    assert client.get("/api/compositions/nope/title-current").status_code == 404
+
+
+def test_cover_masks_the_student_name_without_consent(client, req_id, student):
+    """악보 표지는 밖으로 나가는 산출물이다 — 동의 없는 본명이 실리면 안 된다(절대 규칙 7)."""
+    m = client.post(f"/api/requests/{req_id}/motifs", json={"n": 1})
+    client.post(f"/api/requests/{req_id}/motifs/{m.json()['candidates'][0]['id']}/select")
+    cid = client.post(f"/api/requests/{req_id}/realize").json()["composition_id"]
+
+    c = client.get(f"/api/compositions/{cid}/cover")
+    assert c.status_code == 200, c.text
+    body = c.json()
+    assert body["composer"] == "accelssam"
+    assert body["title"] and body["measures"] > 0 and body["duration_sec"] > 0
+    # 기본 학생은 미디어 동의가 없다 — 마스킹된 이름이어야 한다.
+    real = student.name
+    if len(real) > 1:
+        assert body["student_name"] != real
+        assert "○" in body["student_name"]
+
+    assert client.get("/api/compositions/nope/cover").status_code == 404
+
+
+def test_backup_endpoint_reports_state(client):
+    """백업 상태는 화면에 보여야 한다 — 사본이 있다는 사실을 알아야 안심하고 쓴다."""
+    b = client.get("/api/backups")
+    assert b.status_code == 200
+    body = b.json()
+    # 테스트는 파일 저장을 쓰지 않으므로 꺼진 상태를 정확히 알려야 한다.
+    assert body["enabled"] is False and body["why"]
+    assert client.post("/api/backups").status_code == 409

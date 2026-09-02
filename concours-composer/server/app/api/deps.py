@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.generation.engines.base import ComposerEngine
 from app.generation.engines.stub import StubComposerEngine
 from app.generation.pipeline import CompositionPipeline
+from app.store.backup import BackupKeeper
 from app.store.persistence import SqlitePersistence
 
 log = logging.getLogger(__name__)
@@ -61,16 +62,42 @@ class Store:
     jobs: dict[str, Any] = field(default_factory=dict)
     recitals: dict[str, Any] = field(default_factory=dict)
     persistence: SqlitePersistence | None = None
+    # 만든 곡이 파일 하나에 들어 있다 — 한 번의 사고로 전부 잃지 않게 사본을 뜬다.
+    backups: BackupKeeper | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def next_id(self, prefix: str, bucket: dict) -> str:
         with self._lock:
             return f"{prefix}-{len(bucket) + 1:04d}"
 
+    # ── 곡 제목 ──────────────────────────────────────────────────────────
+    # 파는 곡의 제목은 상품명이다. 프로그램이 지은 이름을 그대로 쓸 수도 있지만,
+    # 원장이 고쳐 두면 그 이름이 악보·음원·꾸러미·등록 서류 전부에 따라간다.
+    # 제목을 여러 군데서 따로 계산하면 파일마다 다른 이름이 찍힌다 — 그래서 여기 하나다.
+    def title_of(self, composition_id: str) -> str:
+        custom = self.jobs.get("titles", {}).get(composition_id)
+        if isinstance(custom, str) and custom.strip():
+            return custom.strip()
+        res = self.compositions.get(composition_id)
+        if res is None:
+            return composition_id
+        return res.plan.title_candidates[0] if res.plan.title_candidates else composition_id
+
+    def set_title(self, composition_id: str, title: str) -> str:
+        """빈 제목이면 프로그램이 지은 이름으로 되돌린다."""
+        titles = self.jobs.setdefault("titles", {})
+        clean = title.strip()
+        if clean:
+            titles[composition_id] = clean
+        else:
+            titles.pop(composition_id, None)
+        return self.title_of(composition_id)
+
     # ── 영속화 ───────────────────────────────────────────────────────────
     def attach(self, path: Path) -> None:
         """SQLite 파일에 붙이고 있던 내용을 곧바로 읽어들인다."""
         self.persistence = SqlitePersistence(path)
+        self.backups = BackupKeeper(path)
         self.load()
 
     def load(self) -> None:
@@ -88,6 +115,10 @@ class Store:
         except (sqlite3.Error, OSError) as e:
             # 저장에 실패해도 응답은 나가야 한다. 다음 쓰기에서 다시 시도한다.
             log.warning("저장소 스냅샷 실패: %s", e)
+            return
+        if self.backups is not None:
+            # 사본은 시간 간격을 두고 뜬다(BackupKeeper). 실패해도 저장을 막지 않는다.
+            self.backups.maybe_backup()
 
 
 STORE = Store()
