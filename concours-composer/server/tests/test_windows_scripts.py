@@ -89,3 +89,37 @@ def test_install_batch_bypasses_the_execution_policy() -> None:
     assert "Unblock-File" in text, "압축을 푼 파일의 다운로드 표시도 벗겨야 한다"
     assert "install.ps1" in text
     assert "pause" in text, "창이 곧바로 닫히면 원장이 오류 글씨를 읽을 수 없다"
+
+
+def _install_text() -> str:
+    return (ROOT / "install.ps1").read_bytes().decode("utf-8-sig")
+
+
+def test_python_probe_does_not_kill_the_installer() -> None:
+    """파이썬을 찾다 난 오류가 설치를 통째로 중단시키면 안 된다.
+
+    `py.exe` 는 맞는 버전이 없으면 붉은 글씨를 표준오류로 뱉는다. 스크립트 맨 위의
+    `$ErrorActionPreference = "Stop"` 아래에서 그것은 **종료성 오류**가 되어, 준비해 둔
+    "파이썬을 설치하십시오" 안내가 한 줄도 뜨지 못한 채 창이 닫힌다. 실제로 원장 PC
+    첫 설치에서 이것에 걸렸다 — 화면에 남은 것은 알 수 없는 붉은 글씨뿐이었다.
+
+    그래서 찾는 동안만 Stop 을 풀어야 한다.
+    """
+    text = _install_text()
+    start = text.find("function Find-Python")
+    assert start != -1, "파이썬 탐색이 함수로 묶여 있어야 오류를 가둘 수 있다"
+    body = text[start : text.find("\nStep ", start)]
+    assert '$ErrorActionPreference = "Continue"' in body, (
+        "탐색 중 Stop 을 풀지 않으면 py.exe 의 붉은 글씨가 설치를 중단시킨다"
+    )
+    assert "finally" in body, "탐색이 끝나면 원래 설정으로 되돌려야 한다"
+
+
+def test_missing_python_is_explained_not_just_failed() -> None:
+    """파이썬이 없을 때 원장이 다음에 무엇을 할지 화면만 보고 알 수 있어야 한다."""
+    text = _install_text()
+    assert "https://www.python.org/downloads/" in text, "받을 곳을 알려 주지 않으면 막힌다"
+    assert "Add python.exe to PATH" in text, (
+        "이 체크를 빠뜨리면 설치하고도 같은 자리에서 또 막힌다 — 반드시 짚어 줘야 한다"
+    )
+    assert "winget install" in text, "가능하면 자동으로 깔아 주는 길이 있어야 원터치다"
