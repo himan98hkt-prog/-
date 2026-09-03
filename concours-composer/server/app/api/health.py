@@ -294,3 +294,21 @@ def export_all(request: Request) -> dict:
         "skipped": skipped,
         "total": len(store.compositions),
     }
+
+
+@router.get("/api/quality-modes")
+def quality_modes() -> dict:
+    """곡 하나에 얼마를 쓸지 원장이 고를 수 있는 등급들.
+
+    원장님이 토카타를 만들다 상한에 걸려 멈췄고, 그때 화면은 '.env 를 고쳐라' 고 했다.
+    컴맹 원장에게 설정 파일을 열라는 것은 답이 아니다 — 화면에서 고르게 한다.
+    """
+    from app.config import get_settings
+    from app.generation.budget import CUSTOM, DEFAULT_MODE, MODES, PICKABLE_MODELS, as_dict
+
+    return {
+        "modes": [as_dict(m) for m in (*MODES, CUSTOM)],
+        "models": list(PICKABLE_MODELS),
+        "default": DEFAULT_MODE,
+        "has_api_key": get_settings().has_api_key,
+    }

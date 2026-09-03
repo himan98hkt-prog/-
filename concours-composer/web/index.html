@@ -115,6 +115,21 @@
     background:#fff;font:13px/1.3 var(--sans);color:var(--ink);cursor:pointer}
   .find .chips{flex:0 1 auto}
 
+  /* 작곡 비용 등급 — 누르면 그 등급으로 만든다 */
+  .budget-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .budget-head h2 { margin:0; }
+  .budgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:12px; }
+  .budget {
+    text-align:left; padding:14px 16px; border:1px solid var(--line); border-radius:14px;
+    background:var(--card); cursor:pointer; display:flex; flex-direction:column; gap:5px;
+    transition:border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+  }
+  .budget:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.07); }
+  .budget.on { border-color:var(--accent); box-shadow:0 0 0 2px var(--gold-soft) inset; }
+  .budget-n { font-weight:700; font-size:15px; }
+  .budget-c { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; }
+  .budget-s { font-size:12.5px; color:var(--muted); line-height:1.5; }
+
   /* 보관함에서 곡을 골라 묶는 줄 */
   .pick-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px;
     padding:12px 14px;background:#fffaf0;border:1px solid var(--gold-soft);border-radius:8px;
@@ -664,6 +679,18 @@
       <span class="mode-s">급수만 고르면 됩니다 · 판매용</span>
     </button>
   </div>
+
+  <!-- 곡 하나에 얼마를 쓸 것인가. 두 종류 모두에 걸리므로 모드 고르기 바로 아래에 둔다.
+       원장님이 토카타를 만들다 상한에 걸려 멈췄고, 그때 화면은 설정 파일을 고치라고 했다.
+       설정 파일이 아니라 여기서 고르는 것이 맞다. -->
+  <section id="secBudget">
+    <div class="budget-head">
+      <h2>작곡 비용</h2>
+      <span class="hint" id="budgetWhy">음표가 많은 곡(토카타·피날레·상급)일수록 비쌉니다.</span>
+    </div>
+    <div class="budgets" id="budgetGrid" role="group" aria-label="곡 하나에 쓸 비용"></div>
+    <p class="hint" id="budgetNote" style="margin:10px 0 0"></p>
+  </section>
 
   <!-- ══ 대중 콩쿨곡 ═══════════════════════════════════════════════════ -->
   <div id="paneMarket" class="hidden">
@@ -2333,7 +2360,7 @@ async function marketCompose(presetId) {
   busy.forEach(b => b.disabled = true);
   try {
     const body = await api("/api/compositions/market", { method: "POST", body: JSON.stringify({
-      tier_id: marketTier, preset_id: presetId, progress_id: jobId,
+      tier_id: marketTier, preset_id: presetId, progress_id: jobId, ...budgetBody(),
     })});
     clearInterval(timer); bar.stop(true);
     const j = body.judge;
@@ -2456,7 +2483,7 @@ $("btnSetGo").onclick = async () => {
   try {
     const r = await api("/api/compositions/market/set", { method: "POST", body: JSON.stringify({
       tier_ids: tiers, max_attempts: num("setTries"),
-      book_title: val("setTitle"), cover_style: setCover, progress_id: jobId,
+      book_title: val("setTitle"), cover_style: setCover, progress_id: jobId, ...budgetBody(),
     })});
     clearInterval(timer); bar.stop(true);
     out.className = "msg " + (r.sellable === r.made ? "ok" : "warn");
@@ -2917,7 +2944,7 @@ async function autoCompose(presetId, cardEl) {
     const body = await api("/api/compositions/auto", { method: "POST", body: JSON.stringify({
       preset_id: presetId, student: dashStudent(), competition: dashCompetition(),
       target_difficulty: diff > 0 ? diff : null, n_candidates: 1,
-      progress_id: jobId,
+      progress_id: jobId, ...budgetBody(),
     })});
     if (makeTimer) { clearInterval(makeTimer); makeTimer = null; }
     mainBar.stop(true);
@@ -3020,6 +3047,88 @@ async function refreshReferences() {
         <td>${COPYRIGHT_KO[r.copyright_status] || r.copyright_status}</td></tr>`).join("") +
       "</table>"
     : "<p class='hint'>폴더가 비어 있습니다. 악보를 넣고 프로그램을 다시 켜면 여기에 나옵니다.</p>";
+}
+
+
+// ── 작곡 비용 등급 ─────────────────────────────────────────────────────────
+// 원장님이 중급 토카타를 만들다 곡당 상한($4)에 걸려 멈췄다. 그때 화면이 한 말은
+// ".env 를 고쳐라" 였는데, 그건 컴맹 원장에게 아무 답도 아니다. 여기서 고르게 한다.
+let budgetMode = localStorage.getItem("ccBudget") || "standard";
+let budgetModel = localStorage.getItem("ccModel") || "claude-sonnet-5";
+let budgetLimit = localStorage.getItem("ccLimit");
+budgetLimit = budgetLimit === null ? 0 : Number(budgetLimit);
+let budgetModes = [], budgetModels = [];
+
+// 작곡 요청에 얹는 값. 모든 만들기 버튼이 이것을 쓴다.
+function budgetBody() {
+  const b = { quality_mode: budgetMode };
+  if (budgetMode === "custom") { b.composer_model = budgetModel; b.cost_limit = budgetLimit; }
+  return b;
+}
+
+async function refreshBudgets() {
+  const grid = $("budgetGrid");
+  if (!grid) return;
+  let d;
+  try { d = await api("/api/quality-modes"); } catch (_) { return; }
+  budgetModes = d.modes || []; budgetModels = d.models || [];
+  if (!budgetModes.some(m => m.id === budgetMode)) budgetMode = d.default;
+  paintBudgets(d);
+}
+
+function paintBudgets(d) {
+  const grid = $("budgetGrid");
+  grid.innerHTML = budgetModes.map(m => {
+    const price = m.id === "custom"
+      ? "내가 정합니다"
+      : `약 $${m.typical_low.toFixed(2)} ~ $${m.typical_high.toFixed(2)}`;
+    return `<button class="budget${m.id === budgetMode ? " on" : ""}" data-mode="${m.id}"
+      data-tip="${esc(m.detail)}">
+      <span class="budget-n">${esc(m.name)}</span>
+      <span class="budget-c">${esc(price)}</span>
+      <span class="budget-s">${esc(m.tagline)}</span>
+    </button>`;
+  }).join("");
+  grid.querySelectorAll(".budget").forEach(b => {
+    b.onclick = () => {
+      budgetMode = b.dataset.mode;
+      localStorage.setItem("ccBudget", budgetMode);
+      paintBudgets(d);
+    };
+  });
+
+  // '직접 고르기' 를 고르면 모델과 상한을 바로 밑에 편다.
+  const note = $("budgetNote");
+  const cur = budgetModes.find(m => m.id === budgetMode);
+  if (budgetMode !== "custom") {
+    note.innerHTML = esc(cur ? cur.detail : "")
+      + (d.has_api_key ? "" : "<br><b>지금은 API 키가 없어 규칙 기반(무료)으로 만듭니다 — 비용이 들지 않습니다.</b>");
+    return;
+  }
+  note.innerHTML =
+    `<div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
+       <label>작곡 모델
+         <select id="cbModel">${budgetModels.map(m =>
+           `<option value="${m.id}"${m.id === budgetModel ? " selected" : ""}>${esc(m.name)} — ${esc(m.note)}</option>`).join("")}</select>
+       </label>
+       <label>곡당 상한 $
+         <input id="cbLimit" type="number" min="0" max="50" step="0.5" value="${budgetLimit}" style="width:90px">
+       </label>
+       <span class="hint" id="cbHint"></span>
+     </div>
+     <p class="hint" style="margin:8px 0 0">${esc(cur ? cur.detail : "")}</p>`;
+  const sel = $("cbModel"), lim = $("cbLimit"), hint = $("cbHint");
+  const say = () => {
+    hint.innerHTML = budgetLimit > 0
+      ? `$${budgetLimit.toFixed(2)} 를 넘으면 멈춥니다 — 그때까지 만든 음표는 <b>사라집니다</b>.`
+      : "<b>상한 없음 — 넘더라도 끝까지 만듭니다.</b> 돈은 썼는데 곡은 못 얻는 일이 없습니다.";
+  };
+  sel.onchange = () => { budgetModel = sel.value; localStorage.setItem("ccModel", budgetModel); };
+  lim.oninput = () => {
+    budgetLimit = Math.max(0, Number(lim.value) || 0);
+    localStorage.setItem("ccLimit", String(budgetLimit)); say();
+  };
+  say();
 }
 
 // ── 보관함 ─────────────────────────────────────────────────────────────────
@@ -4178,6 +4287,7 @@ refreshSpending();
 // 안 나오면 원장은 곡이 사라진 줄 안다 — 실제로 켜자마자 보관함이 비어 있었다.
 refreshLibrary();
 refreshBooks();
+refreshBudgets();
 syncArrangeRange();
 rightsFormType();
 

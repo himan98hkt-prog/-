@@ -98,6 +98,14 @@ class AutoComposeIn(BaseModel):
     # 화면이 만들어 보내는 표. 이 값으로 진행 상태를 물어볼 수 있다(GET /api/progress/{id}).
     # 없으면 진행 보고만 안 할 뿐, 작곡은 똑같이 된다.
     progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+    # 이 곡에 얼마를 쓸 것인가 — 원장이 화면에서 고른다(app/generation/budget.py).
+    # 비우면 '표준'. 모르는 값이 와도 멈추지 않고 표준으로 돌아간다.
+    quality_mode: str = ""
+    # '직접 고르기' 일 때만 쓰인다. 모델은 화면에 늘어놓은 목록 안에서만 받는다.
+    composer_model: str = ""
+    # 곡당 상한(달러). **0 이면 상한 없이 끝까지 만든다** — 돈은 썼는데 곡은 못 얻는
+    # 일이 없도록. 원장님이 토카타에서 정확히 그 일을 겪었다.
+    cost_limit: float = Field(default=-1.0, ge=-1.0, le=50.0)
 
 
 class JudgeGate(BaseModel):
@@ -341,10 +349,51 @@ def run_auto(
     """
     # 곡 하나에 수십 초에서 몇 분이 걸린다. 그동안 화면이 멈춰 보이지 않게, 파이프라인이
     # 이미 내고 있던 단계 보고를 화면이 물어볼 수 있는 곳으로 흘려 보낸다.
+    pipeline, settings = for_mode(
+        body.quality_mode, pipeline, settings,
+        {"model": body.composer_model, "cost_limit": max(0.0, body.cost_limit)},
+    )
     job = body.progress_id
     if job:
         pipeline.progress = lambda stage, pct, msg: tracker().report(job, stage, pct, msg)
     return _auto_compose(body, store, pipeline, settings)
+
+
+def for_mode(
+    mode_id: str,
+    pipeline: CompositionPipeline,
+    settings: Settings,
+    picks: dict[str, str | float] | None = None,
+) -> tuple[CompositionPipeline, Settings]:
+    """원장이 고른 비용 등급으로 이번 곡만 갈아끼운다.
+
+    `.env` 는 건드리지 않는다. 등급을 바꿔 가며 눌러도 서로 영향을 주지 않아야 하고,
+    프로그램을 껐다 켜면 원래대로 돌아와야 한다.
+    """
+    from app.generation.budget import custom_mode, resolve, settings_for
+
+    picks = picks or {}
+    mode = resolve(mode_id)
+    if mode.id == "custom":
+        mode = custom_mode(
+            str(picks.get("model", "")),
+            float(picks.get("cost_limit", 0.0) or 0.0),
+            mode.revision_rounds,
+            mode.judges,
+        )
+    tuned = settings_for(mode, settings)
+    if tuned.composer_model == settings.composer_model and tuned == settings:
+        return pipeline, settings
+    if not tuned.has_api_key:
+        # 키가 없으면 스텁이 만든다 — 등급을 바꿔 봐야 부를 모델이 없다.
+        return CompositionPipeline(pipeline.engine, tuned, progress=pipeline.progress), tuned
+
+    from app.generation.engines.claude_engine import ClaudeComposerEngine
+
+    return (
+        CompositionPipeline(ClaudeComposerEngine(tuned), tuned, progress=pipeline.progress),
+        tuned,
+    )
 
 
 def _auto_compose(
@@ -397,12 +446,15 @@ def _auto_compose(
                 "message": (
                     f"곡 하나에 정한 비용 상한(${settings.max_cost_per_composition})을 넘어 멈췄습니다"
                 ),
+                # 설정 파일을 열라는 안내는 답이 아니다. 원장이 화면에서 바로 할 수 있는
+                # 것을 말한다 — 등급을 낮추거나, 짧은 곡을 고르거나.
                 "what_to_do": (
                     "여기까지 쓴 API 비용은 되돌아오지 않습니다. "
-                    "짧은 컨셉(소품·연습곡)을 고르거나, .env 의 MAX_COST_PER_COMPOSITION 을 "
-                    "올린 뒤 다시 시도하십시오."
+                    "위쪽 '작곡 비용' 에서 한 단계 낮은 등급(표준 또는 아껴 쓰기)을 고르고 "
+                    "다시 만들어 보십시오. 토카타·피날레처럼 음표가 많은 곡은 같은 등급에서도 "
+                    "가장 비쌉니다 — 소품·연습곡은 훨씬 쌉니다."
                 ),
-                "issues": [str(e)],
+                "issues": [str(e), f"이번에 쓴 등급의 상한: ${settings.max_cost_per_composition}"],
             },
         ) from e
 
@@ -563,9 +615,19 @@ class MarketComposeIn(BaseModel):
     # 원장이 정한다. 상한 3은 최악의 경우 곡 하나에 $5 안팎이라는 뜻이다.
     max_attempts: int = Field(default=1, ge=1, le=3)
     progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
+    quality_mode: str = ""
+    composer_model: str = ""
+    cost_limit: float = Field(default=-1.0, ge=-1.0, le=50.0)
 
 
-def _market_body(tier: object, preset_id: str, progress_id: str | None) -> AutoComposeIn:
+def _market_body(
+    tier: object,
+    preset_id: str,
+    progress_id: str | None,
+    quality_mode: str = "",
+    composer_model: str = "",
+    cost_limit: float = -1.0,
+) -> AutoComposeIn:
     from app.generation.market import Tier, standard_competition, standard_student
 
     assert isinstance(tier, Tier)
@@ -575,6 +637,9 @@ def _market_body(tier: object, preset_id: str, progress_id: str | None) -> AutoC
         competition=standard_competition(tier),
         target_difficulty=float(tier.level),
         n_candidates=1,
+        quality_mode=quality_mode,
+        composer_model=composer_model,
+        cost_limit=cost_limit,
         progress_id=progress_id,
         market_tier=tier.id,
     )
@@ -590,6 +655,8 @@ def _compose_one_for_market(
     preset_id: str | None,
     max_attempts: int,
     progress_id: str | None,
+    quality_mode: str,
+    chosen: tuple[str, float],
     store: Store,
     pipeline: CompositionPipeline,
     settings: Settings,
@@ -639,7 +706,8 @@ def _compose_one_for_market(
             )
         try:
             got = run_auto(
-                _market_body(tier, pid, progress_id), store, pipeline, settings
+                _market_body(tier, pid, progress_id, quality_mode, chosen[0], chosen[1]),
+                store, pipeline, settings,
             )
         except HTTPException as e:
             # 곡이 아예 안 나온 경우다(형식 중복·설계 불가). 이것은 **다음 성격으로
@@ -689,7 +757,9 @@ def compose_for_market(
         tracker().start(job, total=1)
     try:
         return _compose_one_for_market(
-            body.tier_id, body.preset_id, body.max_attempts, job, store, pipeline, settings
+            body.tier_id, body.preset_id, body.max_attempts, job,
+            body.quality_mode, (body.composer_model, body.cost_limit),
+            store, pipeline, settings,
         )
     except Exception as e:
         if job:
@@ -711,6 +781,9 @@ class MarketSetIn(BaseModel):
     # 낱장 다섯 장과 표지가 붙은 한 권은 다른 물건이고, 원장이 사는 것은 뒤쪽이다.
     book_title: str = Field(default="", max_length=80)
     cover_style: str = "classic"
+    quality_mode: str = ""
+    composer_model: str = ""
+    cost_limit: float = Field(default=-1.0, ge=-1.0, le=50.0)
     progress_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]*$")
 
 
@@ -767,7 +840,9 @@ def compose_market_set(
             tracker().begin_piece(job, i, f"{i + 1}/{len(body.tier_ids)} · {tier.name}")
         try:
             got = _compose_one_for_market(
-                tier_id, None, body.max_attempts, job, store, pipeline, settings, used
+                tier_id, None, body.max_attempts, job,
+                body.quality_mode, (body.composer_model, body.cost_limit),
+                store, pipeline, settings, used,
             )
         except HTTPException as e:
             detail = e.detail

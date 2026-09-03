@@ -88,16 +88,26 @@ class CostLedger:
     def remaining(self) -> float:
         return max(0.0, self.limit_usd - self.total_usd)
 
+    @property
+    def unlimited(self) -> bool:
+        """상한 0 = **끝까지 간다**.
+
+        원장님이 곡을 만들다 상한에 걸려 멈췄다. 그때 잃은 것은 돈만이 아니다 —
+        여기까지 만든 음표가 통째로 사라진다. 돈은 이미 썼는데 곡은 못 얻는 것이
+        가장 나쁜 결과다. 그래서 "넘더라도 끝까지" 를 고를 수 있어야 한다.
+        """
+        return self.limit_usd <= 0
+
     def add(self, rec: CallRecord) -> None:
         self.calls.append(rec)
-        if self.total_usd > self.limit_usd:
+        if not self.unlimited and self.total_usd > self.limit_usd:
             raise CostLimitExceeded(
                 f"곡 1개 비용 상한 초과: ${self.total_usd:.4f} > ${self.limit_usd:.2f} "
                 f"({len(self.calls)}회 호출). MAX_COST_PER_COMPOSITION 을 조정하거나 마디 수를 줄여라."
             )
 
     def check_before_call(self) -> None:
-        if self.total_usd >= self.limit_usd:
+        if not self.unlimited and self.total_usd >= self.limit_usd:
             raise CostLimitExceeded(f"이미 상한 도달: ${self.total_usd:.4f} / ${self.limit_usd:.2f}")
 
     @property

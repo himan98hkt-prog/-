@@ -340,7 +340,7 @@ def test_a_blocked_concept_does_not_cost_the_tier_its_place_in_the_set(
 
     monkeypatch.setattr(studio, "run_auto", fake_run_auto)
     got = studio._compose_one_for_market(
-        "beginner", None, 1, None, object(), object(), object()
+        "beginner", None, 1, None, "", ("", -1.0), object(), object(), object()
     )
     assert len(tried) == 3, f"막힌 성격에서 멈췄다: {tried}"
     assert got.composition_id
@@ -363,5 +363,7 @@ def test_the_paid_retry_budget_still_counts_pieces_that_were_actually_made(
         return _fake_out(body.preset_id, passed=False)
 
     monkeypatch.setattr(studio, "run_auto", fake_run_auto)
-    studio._compose_one_for_market("beginner", None, 2, None, object(), object(), object())
+    studio._compose_one_for_market(
+        "beginner", None, 2, None, "", ("", -1.0), object(), object(), object()
+    )
     assert len(made) == 2, f"돈이 드는 재시도가 {len(made)}번 일어났다 (정한 것은 2번)"

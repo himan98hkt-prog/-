@@ -38,7 +38,9 @@ def run_panel_claude(
     system = PROMPT.read_text(encoding="utf-8")
 
     verdicts: list[JudgeVerdict] = []
-    for persona in PERSONAS:
+    # 셋 다 부르는 것이 기본이다. 아껴 쓰기 등급에서는 첫 한 사람만 부른다 —
+    # 심사위원 한 사람도 악보 전체를 읽으므로, 인원이 곧 비용이다.
+    for persona in PERSONAS[: max(1, s.judge_count)]:
         payload = {
             "assigned_persona": persona,
             "score_text": score_to_text(measures, plan),
@@ -54,7 +56,7 @@ def run_panel_claude(
             system=system,
             user=json.dumps(payload, ensure_ascii=False, indent=1, default=str),
             output_model=JudgeVerdict,
-            model=s.composer_model,
+            model=s.judge_model or s.composer_model,
         )
         verdicts.append(v.model_copy(update={"persona": persona}))
     return JudgePanel(verdicts=verdicts)

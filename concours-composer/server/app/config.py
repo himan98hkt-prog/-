@@ -103,6 +103,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     composer_model: str = "claude-opus-5"
     writer_model: str = "claude-sonnet-5"
+    # 모의 심사 — 악보 전체를 3인이 각각 읽는다. 작곡과 같은 모델일 필요는 없고,
+    # 여기에 최고가 모델을 쓰면 곡값의 상당 부분이 심사에서 나간다.
+    judge_model: str = "claude-sonnet-5"
     # 골든 20곡 실측: 평균 $1.59, 최고 $3.15(96마디). 상한을 그 아래로 두면
     # 긴 곡이 파이프라인 도중에 끊긴다 — 돈은 이미 쓰고 곡은 못 얻는 최악이다.
     max_cost_per_composition: float = 4.00
@@ -136,6 +139,8 @@ class Settings(BaseSettings):
     judge_gate_average: float = Field(default=8.0, ge=0, le=10)
     judge_gate_minimum: float = Field(default=7.0, ge=0, le=10)
     judge_gate_rounds: int = Field(default=1, ge=0, le=3)
+    # 심사위원 수. 셋이 서로 다른 것을 보지만, 급할 때는 한 사람만 볼 수도 있다.
+    judge_count: int = Field(default=3, ge=1, le=3)
 
     def __init__(self, **data: object) -> None:
         super().__init__(**data)  # type: ignore[arg-type]
