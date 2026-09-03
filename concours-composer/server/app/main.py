@@ -21,6 +21,7 @@ from app.api import (
     health,
     judge,
     recitals,
+    references,
     rights,
     students,
     studio,
@@ -296,6 +297,7 @@ app.include_router(apikey.router)
 app.include_router(books.router)
 app.include_router(students.router)
 app.include_router(corpus.router)
+app.include_router(references.router)
 app.include_router(compositions.router)
 app.include_router(studio.router)
 app.include_router(rights.router)

@@ -138,6 +138,8 @@
   /* 작곡 비용 등급 — 누르면 그 등급으로 만든다 */
   .budget-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
   .budget-head h2 { margin:0; }
+  .upbox { border:1px dashed var(--line); border-radius:12px; padding:14px 16px; background:var(--card); }
+  .upbox input[type=file] { width:100%; padding:8px 0; font-size:13px; }
   .budgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:12px; }
   .budget {
     text-align:left; padding:14px 16px; border:1px solid var(--line); border-radius:14px;
@@ -692,6 +694,13 @@
       <span class="go-t">악보 보기 · 편집</span>
       <span class="go-s">지금 열어 둔 곡</span>
     </button>
+    <!-- 원장님이 "업로드 하는곳이나 폴더를 확인하는곳이 없다" 고 하셨다.
+         실제로 이 구역은 학생 정보 아래에 접힌 채 숨어 있어서, 찾으려면 페이지를
+         내려가며 접힌 것을 열어 봐야 했다. 여기 세워 둔다. -->
+    <button class="go-b" data-go="refBox">
+      <span class="go-t">참고 악보 <b id="goRefN"></b></span>
+      <span class="go-s">좋아하는 곡을 올려 두면 참고합니다</span>
+    </button>
   </nav>
 
 
@@ -929,10 +938,41 @@
   </section>
 
   <details class="fold" id="refBox" style="margin:0 0 26px">
-    <summary data-tip="아래에 적힌 폴더에 악보 파일을 넣어 두면&#10;프로그램이 켜질 때 저절로 읽어 참고합니다.">참고하는 악보 <span class="why" id="refCount">— 아직 없습니다</span></summary>
+    <summary data-tip="좋아하는 콩쿨곡 악보를 올려 두면&#10;새 곡을 만들 때 참고합니다.">참고하는 악보 <span class="why" id="refCount">— 아직 없습니다</span></summary>
+
+    <!-- 원장님이 "업로드 하는곳이나 폴더를 확인하는곳이 없다" 고 하셨다. 맞는 말씀이었다.
+         서버는 처음부터 업로드를 받을 수 있었는데 화면에 단추가 없었다. 있는 기능도
+         누를 데가 없으면 없는 기능이다. 이제 여기서 세 가지를 한다 — 올리고, 폴더를 열고,
+         직접 넣으신 것을 다시 읽는다. 껐다 켜지 않아도 된다. -->
+    <div class="upbox">
+      <div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <label style="flex:1 1 240px">악보 파일 고르기
+          <input type="file" id="refFiles" multiple
+                 accept=".musicxml,.xml,.mxl,.mid,.midi">
+        </label>
+        <label data-tip="표시가 없으면 저작권곡으로 봅니다 —&#10;그때는 음표를 보관하지 않고 통계만 참고합니다.">이 악보는
+          <select id="refRights">
+            <option value="copyrighted">저작권곡 — 통계만 참고(안전)</option>
+            <option value="public_domain">보호 기간 끝남 — 선율까지 참고</option>
+            <option value="own">내가 쓴 곡</option>
+            <option value="licensed">허락받았음</option>
+          </select>
+        </label>
+        <button id="btnRefUpload" class="go">올리기</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0">
+        <strong>MusicXML · MXL · MIDI</strong> 를 읽습니다. 여러 개를 한 번에 고르셔도 됩니다.
+        올리면 <strong>바로</strong> 반영됩니다 — 프로그램을 껐다 켜지 않으셔도 됩니다.</p>
+      <div id="refMsg"></div>
+    </div>
+
+    <div class="row" style="margin:12px 0 10px;gap:8px;flex-wrap:wrap">
+      <button class="ghost mini" id="btnRefOpen"
+        data-tip="악보가 실제로 쌓이는 폴더를 탐색기로 엽니다.">폴더 열기</button>
+      <button class="ghost mini" id="btnRefRescan"
+        data-tip="탐색기로 직접 넣으셨다면 이것을 누르십시오.">폴더 다시 읽기</button>
+    </div>
     <p class="hint" id="refWhere" style="margin:0 0 10px"></p>
-    <p class="hint">좋아하는 콩쿨곡 악보를 <strong>위 폴더</strong>에 넣고 프로그램을 다시 켜면
-      저절로 읽습니다. <strong>MusicXML · MXL · MIDI</strong> 를 읽습니다.</p>
     <div class="warn-box">저작권 표시가 없는 악보는 <strong>저작권곡으로 간주</strong>해
       길이·난이도 같은 <strong>통계만</strong> 참고하고 음표는 보관하지 않습니다.
       보호 기간이 끝난 곡이라면 악보 파일 옆에 같은 이름의
@@ -3099,17 +3139,95 @@ async function refreshReferences() {
   let items = [];
   try { items = await api("/api/corpus"); } catch (_) { return; }
   const refs = items.filter(i => !i.generated);
+  window.refCountN = refs.length;
+  if (typeof paintGoCounts === "function") paintGoCounts();
   $("refCount").textContent = refs.length
     ? `— ${refs.length}개를 읽었습니다`
     : "— 아직 없습니다";
   $("refTable").innerHTML = refs.length
-    ? "<table><tr><th>제목</th><th>작곡가</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>어떻게 참고하나</th></tr>" +
-      refs.map(r => `<tr><td>${r.title}</td><td>${r.composer || "—"}</td>
-        <td>${r.key || "—"} ${r.meter || ""}</td><td>${r.measures || "—"}</td>
+    ? "<table><tr><th>제목</th><th>작곡가</th><th>조성·박자</th><th>마디</th><th>난이도</th><th>어떻게 참고하나</th><th></th></tr>" +
+      refs.map(r => `<tr><td>${esc(r.title)}</td><td>${esc(r.composer) || "—"}</td>
+        <td>${esc(r.key) || "—"} ${esc(r.meter) || ""}</td><td>${r.measures || "—"}</td>
         <td>${r.difficulty != null ? r.difficulty.toFixed(1) : "—"}</td>
-        <td>${COPYRIGHT_KO[r.copyright_status] || r.copyright_status}</td></tr>`).join("") +
+        <td>${COPYRIGHT_KO[r.copyright_status] || esc(r.copyright_status)}</td>
+        <td><button class="ghost mini refdel" data-id="${esc(r.id)}"
+            data-tip="참고 목록에서 뺍니다.&#10;악보 파일은 지우지 않고 '지운 악보' 로 옮깁니다.">치우기</button></td></tr>`).join("") +
       "</table>"
-    : "<p class='hint'>폴더가 비어 있습니다. 악보를 넣고 프로그램을 다시 켜면 여기에 나옵니다.</p>";
+    : "<p class='hint'>아직 없습니다. 위에서 악보 파일을 고르고 <strong>올리기</strong> 를 누르시면 여기에 나옵니다.</p>";
+
+  document.querySelectorAll(".refdel").forEach(b => {
+    b.onclick = async () => {
+      if (!confirm("이 악보를 참고 목록에서 뺄까요?\n악보 파일은 지우지 않고 '지운 악보' 폴더로 옮깁니다.")) return;
+      try {
+        const r = await api(`/api/references/${encodeURIComponent(b.dataset.id)}`, { method: "DELETE" });
+        refMsg("ok", `치웠습니다 — ${esc(r.removed)}` + (r.moved_to ? " (파일은 '지운 악보' 폴더에 있습니다)" : ""));
+      } catch (e) { refMsg("bad", e.message); }
+      await refreshReferences(); await refreshRefWhere();
+    };
+  });
+}
+
+// ── 참고 악보 올리기 ───────────────────────────────────────────────────────
+// 여태 이 자리에 단추가 없어서, 원장님은 폴더 경로를 글로 읽고 탐색기를 열어 찾아
+// 들어가서 파일을 넣고 프로그램을 껐다 켜야 하셨다. 원터치로 판다면서 그럴 수는 없다.
+function refMsg(kind, html) {
+  const box = $("refMsg");
+  if (!box) return;
+  box.innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : "";
+}
+
+function wireReferences() {
+  const up = $("btnRefUpload");
+  if (up) up.onclick = async () => {
+    const picker = $("refFiles");
+    const files = picker && picker.files ? [...picker.files] : [];
+    if (!files.length) { refMsg("warn", "먼저 악보 파일을 고르십시오."); return; }
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+    form.append("copyright_status", $("refRights").value);
+
+    up.disabled = true; up.textContent = "올리는 중…";
+    refMsg("", "");
+    try {
+      // 파일을 보낼 때는 api() 의 JSON 헤더를 쓰지 않는다 — 경계 문자열이 깨진다.
+      const res = await fetch(`${API}/api/references/upload`, { method: "POST", body: form });
+      if (!res.ok) {
+        let m = `올리지 못했습니다 (HTTP ${res.status})`;
+        try { const j = await res.json(); m = (j.detail && (j.detail.message || j.detail)) || m; } catch (_) {}
+        throw new Error(m);
+      }
+      const r = await res.json();
+      const lines = [];
+      if (r.saved.length) lines.push(`<b>${r.saved.length}개를 올렸습니다</b> — ${r.saved.map(esc).join(", ")}`);
+      if (r.added) lines.push(`그중 ${r.added}개를 새로 읽었습니다.`);
+      if (r.skipped) lines.push(`${r.skipped}개는 이미 읽어 둔 것과 같아 건너뛰었습니다.`);
+      if (r.failed) lines.push(`${r.failed}개는 읽지 못했습니다 — 파일이 손상됐거나 악보가 아닐 수 있습니다.`);
+      r.rejected.forEach(x => lines.push(esc(x)));
+      refMsg(r.saved.length ? "ok" : "warn", lines.join("<br>") || "올릴 것이 없었습니다.");
+      picker.value = "";
+    } catch (e) { refMsg("bad", esc(e.message)); }
+    finally { up.disabled = false; up.textContent = "올리기"; }
+    await refreshReferences(); await refreshRefWhere();
+  };
+
+  const open = $("btnRefOpen");
+  if (open) open.onclick = async () => {
+    try { await api("/api/open-folder?which=references", { method: "POST" }); }
+    catch (_) { refMsg("warn", "폴더를 열지 못했습니다 — 위에 적힌 경로를 탐색기 주소창에 붙여넣으십시오."); }
+  };
+
+  const again = $("btnRefRescan");
+  if (again) again.onclick = async () => {
+    again.disabled = true; again.textContent = "읽는 중…";
+    try {
+      const r = await api("/api/references/rescan", { method: "POST" });
+      refMsg(r.added ? "ok" : "warn", r.added
+        ? `${r.added}개를 새로 읽었습니다.`
+        : `새로 읽을 것이 없었습니다. (이미 읽어 둔 것 ${r.skipped}개` + (r.failed ? ` · 읽지 못한 것 ${r.failed}개` : "") + ")");
+    } catch (e) { refMsg("bad", esc(e.message)); }
+    finally { again.disabled = false; again.textContent = "폴더 다시 읽기"; }
+    await refreshReferences(); await refreshRefWhere();
+  };
 }
 
 
@@ -3149,9 +3267,10 @@ if (backTop) {
 
 // 몇 곡·몇 권인지 단추에 적어 준다 — 눌러 보기 전에 알 수 있게.
 function paintGoCounts() {
-  const n = $("goLibN"), b = $("goBookN");
+  const n = $("goLibN"), b = $("goBookN"), r = $("goRefN");
   if (n) n.textContent = libItems.length ? `${libItems.length}곡` : "";
   if (b) b.textContent = (window.bookItems || []).length ? `${window.bookItems.length}권` : "";
+  if (r) r.textContent = (window.refCountN || 0) ? `${window.refCountN}개` : "";
 }
 
 // ── 새 판 알림 ─────────────────────────────────────────────────────────────
@@ -3397,11 +3516,19 @@ $("libWho").querySelectorAll(".chip").forEach(b => {
 // ── 곡이 어디에 저장되는가 ─────────────────────────────────────────────────
 // 원장이 "저장은 도대체 어디에 있는가" 에서 막혔다. 곡이 프로그램 폴더 안에 저장되던
 // 탓에 새 판을 받으려고 폴더를 지우자 곡이 함께 사라졌기 때문이다. 자리를 숨기지 않는다.
-async function refreshRefWhere(dataDir) {
+async function refreshRefWhere() {
   const box = $("refWhere");
   if (!box) return;
-  const dir = dataDir.replace(/[\\/]$/, "") + (dataDir.includes("\\") ? "\\" : "/") + "reference_scores";
-  box.innerHTML = `참고 악보를 넣는 곳 — <code>${esc(dir)}</code>`;
+  let w;
+  try { w = await api("/api/references/where"); }
+  catch (_) { box.innerHTML = ""; return; }
+  // 경로만 적어 두면 "넣긴 넣었는데 반영이 된 건가?" 를 알 수 없다.
+  // 폴더에 있는 파일 수와 실제로 읽은 수를 나란히 보여 준다 — 다르면 그게 신호다.
+  const mismatch = w.files > w.loaded
+    ? ` <b>— 폴더에 ${w.files}개가 있는데 ${w.loaded}개만 읽혔습니다. '폴더 다시 읽기' 를 눌러 보십시오.</b>`
+    : "";
+  box.innerHTML = `악보가 쌓이는 곳 — <code>${esc(w.folder)}</code>`
+    + `<br>폴더 안 악보 파일 ${w.files}개 · 읽어 둔 것 ${w.loaded}개${mismatch}`;
 }
 
 async function refreshStorageWhere() {
@@ -3415,7 +3542,7 @@ async function refreshStorageWhere() {
       + "프로그램을 끄면 만든 곡이 사라집니다.</span>";
     return;
   }
-  refreshRefWhere(s.data_dir);
+  refreshRefWhere();
   // 자리를 옮겨 앉은 경우에도 눈에 띄어야 한다 — 곡이 어디 쌓이는지 모르면 잃어버린 셈이다.
   box.className = "where" + (s.inside_program_folder || s.warning ? " bad" : "");
   box.innerHTML =
@@ -4448,6 +4575,7 @@ $("btnEdSave").onclick = async () => {
 // ── 처음 켤 때 ──────────────────────────────────────────────────────────────
 loadComposer();
 refreshReferences();
+wireReferences();
 refreshBackups();
 refreshSpending();
 // 프로그램을 다시 켜면 만든 곡이 그대로 보여야 한다. 저장은 되어 있는데 화면에만
