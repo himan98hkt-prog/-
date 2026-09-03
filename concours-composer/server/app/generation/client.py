@@ -106,16 +106,33 @@ class CostLedger:
         return self.limit_usd <= 0
 
     def add(self, rec: CallRecord) -> None:
+        """값을 치른 호출을 원장에 적는다. **여기서는 절대 막지 않는다.**
+
+        예전에는 이 자리에서 상한을 검사해 예외를 던졌다. 그런데 이 함수가 불리는
+        시점은 **이미 돈이 나간 뒤**다 — 모델이 답을 다 써서 보내 준 다음이다.
+        거기서 던지면, 방금 값을 치르고 제대로 받아 온 프레이즈가 파이프라인에
+        닿지도 못하고 사라졌다. 산 물건을 문 앞에서 버리는 셈이고, 원장님이
+        "비용은 나왔는데 결과물은 없다" 고 하신 손해가 정확히 이 모양이다.
+
+        상한은 **다음 호출을 막는 것**으로 지킨다 — `check_before_call()`.
+        """
         self.calls.append(rec)
-        if not self.unlimited and self.total_usd > self.limit_usd:
-            raise CostLimitExceeded(
-                f"곡 1개 비용 상한 초과: ${self.total_usd:.4f} > ${self.limit_usd:.2f} "
-                f"({len(self.calls)}회 호출). MAX_COST_PER_COMPOSITION 을 조정하거나 마디 수를 줄여라."
-            )
 
     def check_before_call(self) -> None:
+        """이 자리가 상한을 지키는 유일한 자리다. **돈이 나가기 전**이기 때문이다."""
         if not self.unlimited and self.total_usd >= self.limit_usd:
             raise CostLimitExceeded(f"이미 상한 도달: ${self.total_usd:.4f} / ${self.limit_usd:.2f}")
+
+    def can_afford(self, model: str, output_tokens: int) -> bool:
+        """이 모델로 `output_tokens` 만큼 더 받아도 상한 안에 드는가.
+
+        잘린 답을 다시 부를 때 쓴다. 낼 수 없는 값을 부르면 그 한 번이 상한을
+        넘겨 곡을 통째로 잃는다 — 부르기 전에 물어야 한다.
+        """
+        if self.unlimited:
+            return True
+        _, out_price = PRICES.get(model, _FALLBACK_PRICE)
+        return self.total_usd + output_tokens * out_price / 1_000_000 <= self.limit_usd
 
     @property
     def total_input_tokens(self) -> int:
@@ -336,6 +353,21 @@ class ClaudeClient:
             # 그때 다시 부르는 것은 **돈만 한 번 더 쓰는 일**이다 — 하지 않는다.
             grown = min(budget * 2, _MAX_BUDGET)
             if cut_off and attempt < _RETRY_ON_CUTOFF and grown > budget:
+                # **낼 수 있는 값인지 먼저 묻는다.**
+                # 잘렸다고 무턱대고 더 크게 부르면, 그 한 번이 곡의 비용 상한을
+                # 넘겨 버린다. 그러면 잘린 것 때문이 아니라 돈 때문에 곡을 잃고,
+                # 원장님 눈에는 또 "돈만 나가고 결과물은 없다" 로 보인다.
+                if not self.ledger.can_afford(model_id, grown):
+                    raise ClaudeUnavailable(
+                        "이 곡에 정한 비용 상한이 남지 않아 더 만들지 못했습니다",
+                        "여기까지 쓴 비용은 되돌아오지 않습니다. 화면 위쪽 '작곡 비용' 에서 "
+                        "'넘더라도 끝까지' 를 고르시면 이 자리에서 멈추지 않습니다. "
+                        "비용을 아끼시려면 음표가 적은 성격(소품·연습곡)이나 낮은 급수를 "
+                        "고르십시오 — 토카타·피날레가 같은 등급에서 가장 비쌉니다.",
+                        [f"{stage} · 지금까지 ${self.ledger.total_usd:.4f} / "
+                         f"상한 ${self.ledger.limit_usd:.2f} · 다시 부르려면 한도 {grown} 필요"],
+                        per_request=True,
+                    )
                 budget = grown
                 log.warning(
                     "%s: 글자 수 한도(%s)에 걸려 잘렸다 — 한도를 %s 로 키워 다시 부른다",

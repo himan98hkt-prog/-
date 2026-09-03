@@ -120,8 +120,14 @@ def test_the_screen_can_ask_what_the_choices_are() -> None:
         d = c.get("/api/quality-modes").json()
 
     ids = [m["id"] for m in d["modes"]]
-    assert ids == ["saver", "standard", "best", "custom"]
+    # 화면에 놓이는 순서 그대로다. 싼 것에서 비싼 것으로 가고, 마지막이 직접 고르기다.
+    # 'finish'(끝까지 만들기)는 상한에 걸려 곡을 못 얻는 일을 없애려고 뒤에 붙였다.
+    assert ids == ["saver", "standard", "best", "finish", "custom"]
     assert d["default"] == "standard"
+    # 상한 없이 만드는 길이 **한 번에 고를 수 있는 자리**에 있어야 한다.
+    # 예전에는 '직접 고르기' 를 누르고 숫자를 0 으로 바꿔야만 열렸는데,
+    # 컴맹 원장님께 그것은 없는 길이나 같다.
+    assert any(m["cost_limit"] == 0 and m["id"] != "custom" for m in d["modes"])
     assert [m["id"] for m in d["models"]] == [
         "claude-haiku-4-5",
         "claude-sonnet-5",

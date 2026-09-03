@@ -103,6 +103,26 @@ MODES: tuple[Mode, ...] = (
             "정말 낼 곡 하나에만 쓰십시오."
         ),
     ),
+    Mode(
+        id="finish",
+        name="끝까지 만들기",
+        tagline="상한 없이, 반드시 곡을 얻습니다",
+        composer_model="claude-opus-5",
+        judge_model="claude-sonnet-5",
+        revision_rounds=1,
+        judge_rounds=1,
+        judges=3,
+        # 0 = 상한 없음. 이 등급의 존재 이유가 이것 하나다.
+        cost_limit=0.0,
+        typical_low=2.00,
+        typical_high=6.00,
+        detail=(
+            "**중간에 멈추지 않습니다.** 다른 등급은 정한 금액에 닿으면 거기서 멈추는데, "
+            "토카타·피날레처럼 음표가 촘촘한 곡은 그 금액을 넘기 쉽습니다. "
+            "'또 돈만 쓰고 곡을 못 얻는' 일을 겪고 싶지 않은 곡은 이것으로 만드십시오. "
+            "대신 얼마가 나올지 미리 정해지지 않습니다 — 보통 $2~6 사이입니다."
+        ),
+    ),
 )
 
 # 원장이 직접 고르는 등급. 모델과 상한을 요청에서 받아 이 틀 위에 덮어쓴다.

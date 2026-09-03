@@ -16,11 +16,12 @@ from app.analysis.difficulty import difficulty_advice, difficulty_score
 from app.config import Settings, get_settings
 from app.generation.apierrors import ClaudeUnavailable
 from app.generation.assemble import AssembleOptions, measures_to_musicxml
+from app.generation.client import CostLimitExceeded
 from app.generation.context import ComposerContext
 from app.generation.engines.base import ComposerEngine, PhraseRequest
 from app.generation.plan_rules import check_plan
 from app.schemas.music import MAX_PHRASE_MEASURES, CompositionPlan, Measure, MotifCandidate
-from app.schemas.quality import CriticReport, QualityReport, RevisionRequest
+from app.schemas.quality import CriticReport, QualityReport, RevisionRequest, RubricScores
 from app.validate.validator import Issue, ValidationReport, validate_score
 
 log = logging.getLogger(__name__)
@@ -160,8 +161,11 @@ class CompositionPipeline:
         phrases = plan.phrases()
         produced: dict[int, Measure] = {}
         failures: list[str] = []
+        budget_gone = ""
 
         for i, p in enumerate(phrases):
+            if budget_gone:
+                break
             lo, hi = p.measures
             if hi - lo + 1 > MAX_PHRASE_MEASURES:
                 raise PhraseTooLongError(
@@ -183,6 +187,14 @@ class CompositionPipeline:
                     )
                 try:
                     out = self.engine.realize_phrase(ctx, req)
+                except CostLimitExceeded as e:
+                    # 예산이 바닥났다. 남은 프레이즈는 부를 수 없다 — 불러 봐야 같은
+                    # 자리에서 막힌다. 그렇다고 **여기까지 만든 마디를 버리면 안 된다.**
+                    # 그것은 이미 값을 치른 것이고, 버리는 순간 원장님 눈에는
+                    # "돈만 나가고 결과물은 없다" 가 된다.
+                    log.warning("프레이즈 %d 에서 예산이 바닥났다 — 만든 데까지 지킨다: %s", i, e)
+                    budget_gone = str(e)
+                    break
                 except ClaudeUnavailable as e:
                     # **여기서 곡 전체를 버리면 안 된다.**
                     #
@@ -219,6 +231,8 @@ class CompositionPipeline:
                 last_reason = blocking[0].message
                 log.warning("프레이즈 %d 재시도 %d: %s", i, attempt + 1, last_reason)
 
+            if budget_gone:
+                break
             if realized is None:
                 failures.append(f"프레이즈 {i}({lo}-{hi}) 실패: {last_reason}")
                 continue
@@ -226,6 +240,12 @@ class CompositionPipeline:
                 produced[m.number] = m
             self.progress("realize", (i + 1) / len(phrases), f"{lo}-{hi}마디 완료")
 
+        if budget_gone:
+            done = len(produced)
+            failures.append(
+                f"정한 비용 상한에 닿아 {done}마디까지만 만들었습니다. "
+                "'작곡 비용' 에서 '넘더라도 끝까지' 를 고르시면 끝까지 만듭니다."
+            )
         return [produced[n] for n in sorted(produced)], failures
 
     # ── Stage 5 ──────────────────────────────────────────────────────────
@@ -261,6 +281,33 @@ class CompositionPipeline:
         ).as_dict()
         warnings = self.soft_warnings(ctx, measures, plan)
         critic = self.engine.critique(ctx, measures, plan, motif, musicality, warnings)
+        return musicality, critic
+
+    def _unjudged(
+        self, ctx: ComposerContext, measures: list[Measure], plan: CompositionPlan,
+        motif: MotifCandidate,
+    ) -> tuple[dict, CriticReport]:
+        """비평가를 부를 돈이 없을 때 쓰는 **채점 없는 성적표**.
+
+        규칙 지표(musicality)는 코드가 계산하므로 공짜다 — 그것만 낸다. 비평 점수는
+        0 으로 두어 곡이 자동으로 '통과' 로 표시되지 않게 한다. 곡은 초안으로 남고,
+        원장님은 화면에서 왜 채점이 없는지 함께 보시게 된다.
+        """
+        musicality = musicality_mod.evaluate(
+            measures, motif=motif, plan=plan, max_span_semitones=ctx.hard.max_span_semitones,
+            difficulty_target=ctx.hard.target_difficulty,
+        ).as_dict()
+        blank = RubricScores(
+            motif_development=0, form_clarity=0, harmony=0, voice_leading=0, phrasing=0,
+            climax_ending=0, student_fit=0, competition_effect=0, notation=0, originality=0,
+        )
+        critic = CriticReport(
+            scores=blank,
+            overall_comment=(
+                "비용 상한에 닿아 비평을 하지 못했습니다 — "
+                "점수가 없는 것이지 곡이 나쁜 것이 아닙니다."
+            ),
+        )
         return musicality, critic
 
     def _combined(self, musicality: dict, critic: CriticReport) -> float:
@@ -666,7 +713,22 @@ class CompositionPipeline:
                 )
 
         measures, failures = self.realize(ctx, plan, motif)
-        musicality, critic = self.evaluate(ctx, measures, plan, motif)
+
+        # **여기서부터는 전부 '더 좋게 만드는' 일이다 — 곡은 이미 있다.**
+        # 채점·비평·수정은 모두 돈이 드는 호출이고, 예산이 바닥나면 그 자리에서
+        # 예외가 난다. 그때 예외를 그대로 올려 보내면 방금 만든 마디가 통째로
+        # 사라진다. 값은 이미 치렀는데 곡은 못 얻는 — 가장 나쁜 결과다.
+        # 그래서 여기서부터는 예산 부족을 **실패가 아니라 '여기까지'** 로 다룬다.
+        try:
+            musicality, critic = self.evaluate(ctx, measures, plan, motif)
+        except CostLimitExceeded as e:
+            log.warning("채점 전에 예산이 바닥났다 — 곡은 그대로 두고 마무리한다: %s", e)
+            musicality, critic = self._unjudged(ctx, measures, plan, motif)
+            failures.append(
+                "정한 비용 상한에 닿아 비평(채점)까지는 하지 못했습니다. "
+                "곡은 그대로 있습니다 — 4단계에서 직접 고치시거나, "
+                "'작곡 비용' 을 올려 다시 만들어 보십시오."
+            )
         combined = self._combined(musicality, critic)
         rounds = 0
 
@@ -677,8 +739,14 @@ class CompositionPipeline:
                 rounds / (self.settings.max_revision_rounds + 1),
                 f"{rounds}라운드 수정 — 현재 {combined:.2f} / 문턱 {self.settings.quality_threshold}",
             )
-            measures = self.revise(ctx, measures, plan, motif, critic)
-            musicality, critic = self.evaluate(ctx, measures, plan, motif)
+            try:
+                measures = self.revise(ctx, measures, plan, motif, critic)
+                musicality, critic = self.evaluate(ctx, measures, plan, motif)
+            except CostLimitExceeded as e:
+                log.warning("수정 라운드 중 예산이 바닥났다 — 직전 상태로 마무리한다: %s", e)
+                failures.append("정한 비용 상한에 닿아 고쳐 쓰기를 멈췄습니다. 곡은 그대로 있습니다.")
+                rounds -= 1
+                break
             new_combined = self._combined(musicality, critic)
             if new_combined <= combined:
                 log.info("비평 루프가 더 나아지지 않는다(%.2f → %.2f). 중단.", combined, new_combined)
@@ -689,7 +757,10 @@ class CompositionPipeline:
         # 문턱을 넘었더라도 검증기가 잡아낸 흠(병행 5·8도, 밋밋한 첫 8마디, 약한 마무리)이
         # 남아 있으면 한 번 더 다듬는다. 문턱 통과가 '고칠 게 없다' 는 뜻은 아니다.
         if rounds < self.settings.max_revision_rounds:
-            measures, polished = self._polish(ctx, measures, plan, motif, critic, combined)
+            try:
+                measures, polished = self._polish(ctx, measures, plan, motif, critic, combined)
+            except CostLimitExceeded:
+                polished = None          # 다듬기는 없어도 곡은 곡이다
             if polished is not None:
                 musicality, critic, combined = polished
                 rounds += 1
@@ -697,9 +768,12 @@ class CompositionPipeline:
         # 종합 점수가 문턱을 넘어도 약한 루브릭 항목과 빗나간 난이도는 남는다.
         advisory: list[str] = []
         if rounds < self.settings.max_revision_rounds:
-            measures, tuned, advisory = self._targeted(
-                ctx, measures, plan, motif, critic, combined
-            )
+            try:
+                measures, tuned, advisory = self._targeted(
+                    ctx, measures, plan, motif, critic, combined
+                )
+            except CostLimitExceeded:
+                tuned = None             # 겨냥 수정도 마찬가지다
             if tuned is not None:
                 musicality, critic, combined = tuned
                 rounds += 1

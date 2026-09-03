@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import Store, get_pipeline, get_store
 from app.api.rights import get_rights
 from app.config import Settings, get_settings
+from app.generation.apierrors import ClaudeUnavailable
 from app.generation.client import CostLimitExceeded
 from app.generation.context import InfeasibleRequest, build_context
 from app.generation.pipeline import CompositionPipeline, PlanRejected
@@ -473,7 +474,17 @@ def _auto_compose(
         if not fixes:
             break
         # 심사위원 둘 이상이 같은 취지로 지적한 것만 실행한다. 한 명의 취향은 취향이다.
-        retry = pipeline.revise_with_notes(ctx, res, fixes)
+        #
+        # **이 호출은 돈이 들고, 곡은 이미 다 만들어져 있다.**
+        # 여기서 예산이 바닥나거나 답이 잘리면 예외가 그대로 올라가, 저장되기도 전에
+        # 곡이 사라진다 — 값은 치렀는데 결과물은 없는, 원장님이 겪으신 바로 그 손해다.
+        # 심사 지적 반영은 '더 좋게 만드는 일' 이지 곡 자체가 아니다. 못 하면 못 한 채로
+        # 지금 곡을 들고 나간다.
+        try:
+            retry = pipeline.revise_with_notes(ctx, res, fixes)
+        except (CostLimitExceeded, ClaudeUnavailable) as e:
+            log.warning("심사 지적 반영 중 멈췄다 — 지금 곡을 그대로 지킨다: %s", e)
+            break
         if retry is None:
             break
         rounds += 1

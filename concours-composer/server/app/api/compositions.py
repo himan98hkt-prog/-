@@ -15,6 +15,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.api.deps import Store, get_pipeline, get_store
+from app.generation.client import CostLimitExceeded
 from app.generation.context import InfeasibleRequest, build_context, check_feasibility
 from app.generation.pipeline import CompositionPipeline, PlanRejected
 from app.schemas.guide import Guide, TitleSuggestion
@@ -278,6 +279,24 @@ def realize(
         raise HTTPException(422, str(e)) from e
     except InfeasibleRequest as e:
         raise HTTPException(422, str(e)) from e
+    except CostLimitExceeded as e:
+        # 이 경로(모티브 고르기 → 설계 승인 → 작곡)에는 이 안내가 없어서, 상한에
+        # 걸리면 화면에 '처리하지 못한 오류' 만 떴다. 원장님은 프로그램이 고장난
+        # 줄 아셨다. 무엇이 일어났고 지금 무엇을 하면 되는지 말해야 한다.
+        raise HTTPException(
+            409,
+            {
+                "message": "곡 하나에 정한 비용 상한을 넘어 멈췄습니다",
+                "what_to_do": (
+                    "여기까지 쓴 API 비용은 되돌아오지 않습니다. "
+                    "화면 위쪽 '작곡 비용' 에서 '넘더라도 끝까지' 를 고르시면 멈추지 않고 "
+                    "끝까지 만듭니다. 비용을 아끼시려면 한 단계 낮은 등급을 고르시거나, "
+                    "음표가 적은 성격(소품·연습곡)으로 만들어 보십시오 — "
+                    "토카타·피날레가 같은 등급에서 가장 비쌉니다."
+                ),
+                "issues": [str(e)],
+            },
+        ) from e
 
     # 종합 점수 내림차순이므로 첫 항목이 기본 표시안이다(§7.9 원칙 5).
     summaries: list[CandidateSummary] = []
