@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from app.api import (
     apikey,
@@ -138,7 +139,53 @@ def _useful_lines(exc: BaseException) -> list[str]:
             ours.append(f"{where}:{f.lineno} 에서 ({f.name})")
     if ours:
         out.append("우리 코드 마지막 자리 — " + ours[-1])
+    else:
+        # 남의 라이브러리 안에서만 터진 경우도 있다. 그래도 마지막 자리는 알려 준다 —
+        # "어디인지 모른다" 보다는 언제나 낫다.
+        frames = traceback.extract_tb(exc.__traceback__)
+        if frames:
+            last = frames[-1]
+            out.append(f"마지막 자리 — {last.filename.split('/')[-1]}:{last.lineno} ({last.name})")
     return [x for x in out if x]
+
+
+# 스키마 검사에서 걸린 것은 **프로그램이 부서진 것이 아니다** — 값 하나가 안 맞는 것이다.
+#
+# 원장님 화면에 pydantic 의 `json_invalid` 가 떴다. 그때 화면이 한 말은 "처리하지 못한
+# 오류" 였고, 원장은 프로그램이 통째로 망가진 줄 아셨다. 실제로는 어떤 값 하나가
+# 모양에 안 맞았을 뿐이고, 그런 것은 **다음 곡을 만드는 데 아무 지장이 없다.**
+#
+# 그래서 따로 잡아 그 사실을 말한다. 곡은 이미 저장돼 있고, 다시 눌러도 된다.
+@app.exception_handler(ValidationError)
+async def _bad_shape(request: Request, exc: ValidationError) -> JSONResponse:
+    import uuid
+
+    mark = uuid.uuid4().hex[:8]
+    log.warning("[%s] %s %s — 값이 모양에 맞지 않는다\n%s", mark, request.method, request.url.path, exc)
+    _keep_what_was_made()
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "message": "값 하나가 모양에 맞지 않아 이 요청만 멈췄습니다",
+                "what_to_do": (
+                    "프로그램이 망가진 것이 아닙니다 — 방금까지 만든 곡은 그대로 있고, "
+                    "다시 누르셔도 됩니다. 계속 같은 자리에서 막히면 아래 줄을 보내 주십시오."
+                ),
+                "issues": [f"오류 표시 {mark}", *_useful_lines(exc)],
+            }
+        },
+    )
+
+
+def _keep_what_was_made() -> None:
+    """무슨 일이 나든 **이미 만든 곡부터 파일에 남긴다.**"""
+    try:
+        from app.api.deps import get_store
+
+        get_store().save_soon()
+    except Exception:  # 곡을 지키려다 오류 처리가 또 넘어지면 안 된다
+        log.exception("저장 예약에 실패했다")
 
 
 # Claude 를 부르지 못한 것은 **프로그램 결함이 아니다** — 키가 거절됐거나, 잔액이 없거나,

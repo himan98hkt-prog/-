@@ -115,6 +115,26 @@
     background:#fff;font:13px/1.3 var(--sans);color:var(--ink);cursor:pointer}
   .find .chips{flex:0 1 auto}
 
+  /* 어디로 갈까 — 대시보드 맨 위. 만들기만 있는 화면이 아니게 한다 */
+  .gonav{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:0 0 18px}
+  .go-b{
+    text-align:left;padding:13px 15px;border:1px solid var(--line);border-radius:14px;
+    background:var(--card);cursor:pointer;display:flex;flex-direction:column;gap:3px;
+    transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease;
+  }
+  .go-b:hover{transform:translateY(-2px);border-color:var(--gold);box-shadow:0 6px 18px rgba(0,0,0,.07)}
+  .go-t{font-weight:700;font-size:14.5px}
+  .go-t b{color:var(--accent);font-variant-numeric:tabular-nums}
+  .go-s{font-size:12px;color:var(--muted)}
+  /* 어디에 있든 처음으로 돌아갈 수 있어야 한다 */
+  .backtop{
+    position:fixed;right:22px;bottom:22px;z-index:40;padding:11px 16px;border-radius:999px;
+    border:1px solid var(--line-2);background:var(--card);box-shadow:var(--shadow);cursor:pointer;
+    font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s ease;
+  }
+  .backtop.on{opacity:1;pointer-events:auto}
+  .empty-note{color:var(--muted);font-size:13px;padding:10px 0}
+
   /* 작곡 비용 등급 — 누르면 그 등급으로 만든다 */
   .budget-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
   .budget-head h2 { margin:0; }
@@ -652,6 +672,29 @@
   <!-- ══ 대시보드 ═══════════════════════════════════════════════════════ -->
   <div id="tabDash">
 
+  <!-- 원장님이 "맨 처음 대시보드에는 작곡 제작만 있는 것 같다" 고 하셨다. 실제로 그랬다 —
+       만든 곡과 곡집은 페이지 한참 아래에 있고, 비어 있으면 아예 감춰져 있었다.
+       곡을 만들고 나면 그것을 **찾아보는 일**이 훨씬 잦다. 맨 위에 둔다. -->
+  <nav class="gonav" aria-label="어디로 갈까요">
+    <button class="go-b" data-go="secBudget">
+      <span class="go-t">곡 만들기</span>
+      <span class="go-s">컨셉을 고르면 곡이 나옵니다</span>
+    </button>
+    <button class="go-b" data-go="secLibrary">
+      <span class="go-t">만든 곡 <b id="goLibN"></b></span>
+      <span class="go-s">듣기 · 악보 · 내려받기</span>
+    </button>
+    <button class="go-b" data-go="secBooks">
+      <span class="go-t">곡집 <b id="goBookN"></b></span>
+      <span class="go-s">표지까지 붙은 한 권</span>
+    </button>
+    <button class="go-b" data-go="secResult">
+      <span class="go-t">악보 보기 · 편집</span>
+      <span class="go-s">지금 열어 둔 곡</span>
+    </button>
+  </nav>
+
+
   <!-- 처음 여는 사람에게 순서를 알려 준다. 한 곡이라도 만들면 사라진다. -->
   <div id="firstRun" class="guide hidden">
     <div class="guide-in">
@@ -940,15 +983,17 @@
 
   </div><!-- /paneStudent -->
 
-  <section id="secBooks" class="hidden">
+  <section id="secBooks">
     <span class="step">곡집</span>
     <h2>한 권으로 묶은 곡</h2>
     <p class="hint">낱장 악보 다섯 장과 표지가 붙은 한 권은 다른 물건입니다.
       학원 원장이 사는 것은 <strong>한 권</strong>입니다.</p>
     <div id="bookList" class="books"></div>
+    <p class="empty-note" id="bookEmpty" hidden>아직 묶은 곡집이 없습니다 —
+      아래 보관함에서 곡을 고르고 <strong>곡집으로 묶기</strong> 를 누르시면 한 권이 됩니다.</p>
   </section>
 
-  <section id="secLibrary" class="hidden">
+  <section id="secLibrary">
     <span class="step">보관함</span>
     <h2>만든 곡</h2>
     <p class="hint">사전 심사를 통과한 곡만 학생에게 건네십시오. 미달은 초안입니다.
@@ -1248,6 +1293,8 @@
   약점을 미리 찾아 <strong>입상 확률을 높이는 것</strong>까지가 역할이다.
 </footer>
 
+  <button class="backtop" id="btnTop"
+    data-tip="맨 위 대시보드로 돌아갑니다.">↑ 처음으로</button>
 <script>
 // 같은 서버에서 화면을 받았으면 API 도 같은 주소다(설치본 기본형).
 // 화면만 따로 열었을 때만 localStorage 의 주소나 8000 포트로 떨어진다.
@@ -2520,7 +2567,11 @@ $("btnSetGo").onclick = async () => {
 async function refreshBooks() {
   let books = [];
   try { books = await api("/api/books"); } catch (_) { return; }
-  $("secBooks").classList.toggle("hidden", books.length === 0);
+  $("secBooks").classList.remove("hidden");
+  const be = $("bookEmpty");
+  if (be) be.hidden = books.length > 0;
+  window.bookItems = books;
+  paintGoCounts();
   if (!books.length) return;
   await loadCovers();
   $("bookList").innerHTML = books.map(b => `
@@ -2665,7 +2716,7 @@ async function printWholeBook(id, book) {
         <p class="foot">이 곡집의 악보는 화면에서 보시는 것과 같습니다.</p>
       </div>
       ${body}
-      </body></html>`);
+</body></html>`);
     w.document.close();
     // 표지 그림이 다 그려진 뒤에 인쇄 창을 연다 — 먼저 열면 표지가 빈 칸으로 찍힌다.
     w.addEventListener("load", () => setTimeout(() => w.print(), 250));
@@ -3055,6 +3106,46 @@ async function refreshReferences() {
 
 
 
+
+// ── 어디로 갈까 · 돌아가기 ─────────────────────────────────────────────────
+// 원장님이 "맨 처음 대시보드에는 작곡 제작만 있는 것 같다" 고 하셨다. 맞는 말이었다 —
+// 만든 곡과 곡집은 페이지 한참 아래에 있었고, **비어 있으면 아예 감춰져** 있었다.
+// 곡을 한 번 만들고 나면 그것을 다시 찾아보는 일이 훨씬 잦다.
+function goTo(id) {
+  const el = $(id);
+  if (!el) return;
+  // 감춰져 있으면 펼친다. 눌렀는데 아무 일도 없으면 고장으로 보인다.
+  el.classList.remove("hidden");
+  // 대시보드 탭이 아니면 먼저 그쪽으로 돌린다.
+  const dashTab = document.querySelector('.tab[data-tab="dash"]');
+  if (dashTab && !dashTab.classList.contains("on")) dashTab.click();
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // 어디로 갔는지 잠깐 표시해 준다.
+  el.style.transition = "box-shadow .5s ease";
+  el.style.boxShadow = "0 0 0 2px var(--gold-soft)";
+  setTimeout(() => { el.style.boxShadow = ""; }, 1400);
+}
+
+document.querySelectorAll(".gonav .go-b").forEach(b => {
+  b.onclick = () => goTo(b.dataset.go);
+});
+
+// 아래로 내려가면 처음으로 돌아갈 길이 늘 보여야 한다.
+const backTop = $("btnTop");
+if (backTop) {
+  backTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const seeScroll = () => backTop.classList.toggle("on", window.scrollY > 500);
+  window.addEventListener("scroll", seeScroll, { passive: true });
+  seeScroll();
+}
+
+// 몇 곡·몇 권인지 단추에 적어 준다 — 눌러 보기 전에 알 수 있게.
+function paintGoCounts() {
+  const n = $("goLibN"), b = $("goBookN");
+  if (n) n.textContent = libItems.length ? `${libItems.length}곡` : "";
+  if (b) b.textContent = (window.bookItems || []).length ? `${window.bookItems.length}권` : "";
+}
+
 // ── 새 판 알림 ─────────────────────────────────────────────────────────────
 // 원장님은 새 판이 나올 때마다 폴더를 지우고 다시 받고 다시 설치하셨다.
 // 이제 '업데이트.bat' 한 번이면 되는데, **나왔다는 것을 알아야** 누른다.
@@ -3192,9 +3283,13 @@ let libItems = [];
 
 async function refreshLibrary() {
   libItems = await api("/api/compositions");
-  $("secLibrary").classList.toggle("hidden", libItems.length === 0);
+  // 비어도 감추지 않는다. 위의 '만든 곡' 단추가 가리키는 자리가 사라지면
+  // 눌러도 아무 일이 없고, 그것은 고장으로 보인다.
+  $("secLibrary").classList.remove("hidden");
+  paintGoCounts();
   refreshStorageWhere();
-  if (!libItems.length) return;
+  // 비어 있어도 그린다. 안 그리면 화면이 텅 빈 채로 남아, 원장은 눌러도 아무 일이
+  // 없는 줄 안다 — 빈 보관함에는 "무엇을 하면 되는지" 가 적혀 있어야 한다.
   paintLibrary();
 }
 
@@ -3227,8 +3322,11 @@ function paintLibrary() {
     : `${libItems.length}곡 중 ${items.length}곡`;
 
   if (!items.length) {
-    $("libraryTable").innerHTML =
-      "<p class='hint'>찾는 곡이 없습니다. 글자를 지우거나 '전체' 를 눌러 보십시오.</p>";
+    // 곡이 한 곡도 없는 것과, 걸러서 안 보이는 것은 다르다 — 할 말도 달라야 한다.
+    $("libraryTable").innerHTML = libItems.length === 0
+      ? "<p class='empty-note'>아직 만든 곡이 없습니다. 위의 <strong>곡 만들기</strong> 에서 "
+        + "급수와 성격을 고르시면 첫 곡이 여기에 쌓입니다.</p>"
+      : "<p class='hint'>찾는 곡이 없습니다. 글자를 지우거나 '전체' 를 눌러 보십시오.</p>";
     return;
   }
   $("libraryTable").innerHTML =

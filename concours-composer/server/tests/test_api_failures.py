@@ -163,7 +163,7 @@ def test_the_screen_shows_what_broke_not_a_web_address() -> None:
     joined = " | ".join(issues)
     assert "ValidationError" in joined, f"무엇이 잘못됐는지 안 나온다: {joined}"
     assert "Invalid JSON" in joined, f"왜 거절됐는지 안 나온다: {joined}"
-    assert any("우리 코드" in x for x in issues), f"어느 자리인지 안 나온다: {joined}"
+    assert any("자리" in x for x in issues), f"어느 자리인지 안 나온다: {joined}"
 
 
 def test_the_real_cause_is_found_inside_the_wrapper() -> None:
@@ -179,3 +179,53 @@ def test_the_real_cause_is_found_inside_the_wrapper() -> None:
         lines = _useful_lines(outer)
 
     assert any("진짜 원인" in x for x in lines), f"껍데기만 보고 있다: {lines}"
+
+
+def test_a_shape_mismatch_does_not_look_like_a_broken_program() -> None:
+    """값 하나가 안 맞은 것과 프로그램이 부서진 것은 다르다.
+
+    원장님 화면에 pydantic 의 json_invalid 가 "처리하지 못한 오류" 로 떴고, 그래서
+    프로그램이 통째로 망가진 줄 아셨다. 실제로는 다음 곡을 만드는 데 지장이 없다.
+    """
+    from app.main import app
+    from pydantic import BaseModel
+
+    class Shape(BaseModel):
+        n: int
+
+    @app.post("/__test_bad_shape")
+    def _bad() -> None:
+        Shape.model_validate_json("{깨진 JSON")
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r = c.post("/__test_bad_shape")
+
+    assert r.status_code == 422, "값 문제를 서버 고장(500)으로 보고하고 있다"
+    d = r.json()["detail"]
+    assert "망가진 것이 아닙니다" in d["what_to_do"]
+    assert "그대로 있고" in d["what_to_do"], "곡이 남아 있다는 말을 안 한다"
+    assert any("ValidationError" in x for x in d["issues"])
+
+
+def test_the_pieces_are_saved_even_when_the_shape_is_wrong(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """어떤 오류든 **이미 만든 곡부터** 파일에 남겨야 한다."""
+    from app.api.deps import STORE
+    from app.main import app
+    from pydantic import BaseModel
+
+    saved: list[str] = []
+    monkeypatch.setattr(STORE, "save_soon", lambda: saved.append("저장"))
+
+    class Shape(BaseModel):
+        n: int
+
+    @app.post("/__test_bad_shape_saves")
+    def _bad() -> None:
+        Shape.model_validate_json("{또 깨진 JSON")
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        c.post("/__test_bad_shape_saves")
+
+    assert saved, "값이 안 맞았다고 방금 만든 곡을 디스크에 안 썼다"
