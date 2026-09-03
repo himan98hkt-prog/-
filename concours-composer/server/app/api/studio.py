@@ -512,17 +512,32 @@ def _auto_compose(
     )
     store.judgements[cid] = panel
 
+    # ── 여기서부터 곡은 **이미 다 만들어졌다.** ────────────────────────────
+    #
+    # 이 아래에서 무슨 일이 나든 곡을 잃어서는 안 된다. 그런데 그렇지 않았다:
+    # 오류가 나면 서버는 500 을 돌려주고, 저장 미들웨어는 "실패한 요청" 이라며
+    # 디스크 쓰기를 건너뛴다. 결과는 원장님이 겪은 그대로다 — 돈은 나가고,
+    # 검증까지 통과한 곡은 껐다 켜면 사라진다.
+    #
+    # 그래서 뒷정리보다 **저장을 먼저** 한다. 뒷정리는 실패해도 곡을 건드리지 않는다.
+    store.save_soon()
+
     title = store.title_of(cid)
     if res.savable:
-        get_corpus().register_generated(
-            res.measures,
-            score_id=f"gen-{cid}",
-            title=title,
-            key=res.plan.key,
-            meter=res.plan.meter,
-            tempo=res.plan.tempo,
-            division_tags=[ctx.competition.division] if ctx.competition else [],
-        )
+        try:
+            get_corpus().register_generated(
+                res.measures,
+                score_id=f"gen-{cid}",
+                title=title,
+                key=res.plan.key,
+                meter=res.plan.meter,
+                tempo=res.plan.tempo,
+                division_tags=[ctx.competition.division] if ctx.competition else [],
+            )
+        except Exception:
+            # 코퍼스 등록은 '다음 곡이 이 곡과 겹치지 않게' 하는 장치다.
+            # 그것이 실패했다고 방금 만든 곡을 버릴 이유는 전혀 없다.
+            log.exception("[%s] 코퍼스 등록에 실패했다 — 곡은 그대로 둔다", cid)
 
     from app.api.compositions import _issues
 

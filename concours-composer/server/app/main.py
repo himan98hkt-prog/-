@@ -130,12 +130,36 @@ async def _any_error(request: Request, exc: Exception) -> JSONResponse:
     except OSError:
         where = ""
 
+    # 곡이 이미 만들어졌다면 그 사실부터 말한다. "오류" 라는 말만 보면 원장은
+    # 곡도 돈도 다 날아간 줄 안다 — 실제로는 보관함에 남아 있을 때가 있다.
+    # **곡을 먼저 지킨다.**
+    #
+    # 원장님이 계속 겪으신 것이 이것이다 — "비용은 엄청 나왔는데 결과물은 없다".
+    # 작곡은 곡을 다 만들어 저장소에 넣은 **뒤에도** 할 일이 남아 있다(제목·코퍼스 등록).
+    # 거기서 넘어지면 응답은 500 이 되고, 저장 미들웨어는 그 요청을 실패로 보고
+    # 디스크 쓰기를 건너뛴다. 검증까지 통과한 곡이 그렇게 사라졌다.
+    #
+    # 그 저장을 여기서 한다. 예외는 미들웨어를 뚫고 올라오므로 **이 자리는 반드시 실행된다.**
+    saved = ""
+    try:
+        from app.api.deps import get_store
+
+        store = get_store()
+        store.save_soon()
+        if store.compositions:
+            last = list(store.compositions)[-1]
+            saved = f"방금까지 만든 곡은 보관함에 남아 있습니다({last}). 먼저 보관함을 확인해 주십시오."
+    except Exception:  # 곡을 지키려다 오류 처리가 또 넘어지면 안 된다
+        saved = ""
+
     return JSONResponse(
         status_code=500,
         content={
             "detail": {
                 "message": "프로그램 안에서 처리하지 못한 오류가 났습니다",
                 "what_to_do": (
+                    (saved + " ") if saved else ""
+                ) + (
                     "여기까지 쓴 API 비용은 되돌아오지 않습니다. "
                     "다른 성격으로 다시 만들어 보시고, 계속 같은 자리에서 막히면 "
                     + (f"'{where}' 파일을 보내 주십시오." if where else "실행기록.txt 를 보내 주십시오.")
@@ -161,6 +185,9 @@ async def persist_after_write(request, call_next):  # type: ignore[no-untyped-de
     라우터들이 버킷 안쪽을 직접 고치므로(예: `store.jobs["guides"][cid] = ...`)
     dict 쓰기를 가로채는 방식으로는 변경을 놓친다. 요청 단위로 통째 저장한다.
     """
+    # 오류로 끝난 요청은 여기까지 오지 않는다. 처리되지 않은 예외는 미들웨어를
+    # **뚫고 올라가** 바깥의 오류 처리기가 잡는다 — 그래서 '곡을 만든 뒤 터진'
+    # 경우의 저장은 이 자리가 아니라 그 처리기에서 한다(아래 `_any_error`).
     response = await call_next(request)
     if request.method in ("POST", "PUT", "PATCH", "DELETE") and response.status_code < 400:
         # 저장을 예약만 한다. 곡이 200개면 통째 저장에 2초가 걸리는데,
