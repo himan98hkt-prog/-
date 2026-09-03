@@ -209,7 +209,28 @@ try {
         $lnk.Description      = "콩쿨 작곡기 — 컨셉을 고르면 심사까지 마친 곡이 나옵니다"
         $lnk.Save()
     }
-    Ok "바탕화면과 시작 메뉴에 '콩쿨 작곡기' 아이콘을 만들었다"
+    # 새 판으로 올리는 아이콘도 함께 만든다.
+    #
+    # 원장님 PC 에서 '업데이트.bat' 을 두 번 눌렀더니 메모장이 열렸다 — 윈도우의
+    # .bat 파일 연결이 메모장으로 바뀌어 있으면 그렇게 된다. 파일 두 번 누르기는
+    # 그 PC 설정에 달린 일이라 믿을 수 없다. 바로가기는 powershell 을 직접 부르므로
+    # 파일 연결과 무관하게 늘 실행된다.
+    $upd = Join-Path $PSScriptRoot "update.ps1"
+    if (Test-Path $upd) {
+        foreach ($t in @(
+            (Join-Path ([Environment]::GetFolderPath("Desktop")) "콩쿨 작곡기 업데이트.lnk"),
+            (Join-Path ([Environment]::GetFolderPath("Programs")) "콩쿨 작곡기 업데이트.lnk")
+        )) {
+            $lnk = $shell.CreateShortcut($t)
+            $lnk.TargetPath       = "powershell.exe"
+            $lnk.Arguments        = "-NoProfile -ExecutionPolicy Bypass -File `"$upd`""
+            $lnk.WorkingDirectory = $PSScriptRoot
+            $lnk.IconLocation     = "$icon,0"
+            $lnk.Description      = "새 판으로 올립니다 — 만든 곡과 API 키는 그대로 남습니다"
+            $lnk.Save()
+        }
+    }
+    Ok "바탕화면과 시작 메뉴에 '콩쿨 작곡기'·'콩쿨 작곡기 업데이트' 아이콘을 만들었다"
 } catch {
     Write-Host "      아이콘을 만들지 못했다 — .\start.ps1 로도 실행된다: $_" -ForegroundColor DarkGray
 }

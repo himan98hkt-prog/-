@@ -3067,12 +3067,34 @@ async function checkUpdate() {
   bar.classList.remove("hidden");
   bar.className = "where";
   bar.innerHTML =
-    `<span><b>새 판이 나왔습니다</b> — 프로그램 폴더의 <code>업데이트.bat</code> 을
-       두 번 누르시면 한 번에 올라갑니다. 만든 곡과 API 키는 그대로 남습니다.</span>
+    `<span><b>새 판이 나왔습니다</b> — 아래 단추를 누르시면 한 번에 올라갑니다.
+       만든 곡과 API 키는 그대로 남습니다.</span>
      <div class="where-acts">
+       <button id="btnUpdateNow"
+         data-tip="새 판을 받아 올립니다.&#10;프로그램이 잠시 꺼졌다가 다시 켜집니다.">지금 올리기</button>
        <button class="ghost" id="btnOpenProgram"
-         data-tip="프로그램 폴더를 엽니다. 그 안의 '업데이트.bat' 을 두 번 누르십시오.">폴더 열기</button>
-     </div>`;
+         data-tip="프로그램 폴더를 엽니다.">폴더 열기</button>
+     </div>
+     <p class="hint" id="updNote" style="margin:8px 0 0"></p>`;
+
+  // 파일을 두 번 누르게 하지 않는다. 원장님 PC 는 .bat 연결이 메모장으로 바뀌어 있어서
+  // '업데이트.bat' 을 눌러도 메모장만 열렸다 — 원터치라고 할 수 없다.
+  const go = $("btnUpdateNow"), note = $("updNote");
+  if (go) go.onclick = async () => {
+    go.disabled = true;
+    note.innerHTML = "새 판을 받는 중입니다… <b>이 창을 닫지 마십시오.</b>";
+    try {
+      const r = await api("/api/update", { method: "POST" });
+      note.innerHTML = esc(r.note)
+        + "<br>잠시 뒤 브라우저 새로고침(F5)을 한 번 해 주십시오.";
+      // 갱신 스크립트가 프로그램을 껐다가 다시 켠다. 그동안은 응답이 없는 것이 정상이다.
+      setTimeout(() => { note.innerHTML += "<br>아직이면 30초쯤 더 기다렸다 새로고침해 주십시오."; }, 25000);
+    } catch (e) {
+      note.innerHTML = `<b>${esc(e.message)}</b>` + (e.hint ? "<br>" + esc(e.hint) : "");
+      go.disabled = false;
+    }
+  };
+
   const b = $("btnOpenProgram");
   if (b) b.onclick = async () => {
     b.disabled = true;

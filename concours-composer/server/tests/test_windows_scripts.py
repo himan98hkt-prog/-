@@ -207,3 +207,29 @@ def test_the_update_batch_file_is_readable_on_a_korean_windows() -> None:
     assert "update.ps1" in text
     # 빠른 편집 함정을 여기서도 알려야 한다 — 실제로 그것 때문에 멈춰 있었다.
     assert "클릭하지 마십시오" in text
+
+
+def test_nothing_in_the_update_path_depends_on_a_bat_association() -> None:
+    """윈도우에서 .bat 연결이 메모장으로 바뀌어 있으면 두 번 눌러도 메모장만 열린다.
+
+    원장님 PC 가 정확히 그 상태였다. '두 번 누르십시오' 는 원장 손이 아니라 그 PC
+    설정에 달린 일이라 믿을 수 없다 — 갱신 경로는 .bat 없이도 끝까지 가야 한다.
+    """
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    assert "실행.bat" not in text, "다시 켤 때 .bat 을 거친다 — 연결이 깨져 있으면 안 켜진다"
+    assert "pythonw.exe" in text, "파이썬을 직접 부르지 않는다"
+
+    setup = (ROOT / "install.ps1").read_text(encoding="utf-8-sig")
+    assert "콩쿨 작곡기 업데이트" in setup, "업데이트 바로가기를 만들지 않는다"
+    assert "powershell.exe" in setup, "바로가기가 powershell 을 직접 부르지 않는다"
+
+
+def test_the_app_itself_can_start_the_update() -> None:
+    """가장 확실한 길은 화면의 단추다 — 파일 연결과 아무 상관이 없다."""
+    api = (ROOT / "server" / "app" / "api" / "health.py").read_text(encoding="utf-8")
+    assert '"/api/update"' in api
+    # 프로그램이 꺼질 때 갱신도 같이 죽으면 안 된다 — 떼어 내서 띄워야 한다.
+    assert "creationflags" in api, "갱신을 떼어 내지 않으면 프로그램과 함께 죽는다"
+
+    page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    assert "btnUpdateNow" in page and "지금 올리기" in page

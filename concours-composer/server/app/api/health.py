@@ -367,3 +367,57 @@ def version(check: bool = True) -> dict:
     _VERSION_ANSWER.clear()
     _VERSION_ANSWER.append(fresh)
     return {**out, **fresh}
+
+
+@router.post("/api/update")
+def run_update(request: Request) -> dict:
+    """새 판으로 올리기 — **화면의 버튼으로** 시작한다.
+
+    원장님 PC 에서 '업데이트.bat' 을 두 번 눌렀더니 메모장이 열렸다. 윈도우에서 .bat
+    파일 연결이 메모장으로 바뀌어 있으면 그렇게 된다. 파일을 두 번 누르게 하는 방식은
+    원장 손에 달린 것이 아니라 **그 PC 설정에 달려 있다** — 원터치라고 할 수 없다.
+
+    그래서 프로그램이 직접 시작한다. 여기서 하는 일은 갱신 스크립트를 **떼어 내서**
+    띄우는 것뿐이다. 그 스크립트가 이 프로그램을 끄고, 파일을 바꾸고, 다시 켠다.
+    떼어 내지 않으면 이 프로그램이 꺼질 때 갱신도 같이 죽는다.
+    """
+    import subprocess
+    import sys
+
+    from app.config import ROOT
+
+    if request.client and request.client.host not in {"127.0.0.1", "::1", "localhost"}:
+        raise HTTPException(403, "이 PC 에서만 올릴 수 있다")
+
+    script = ROOT / "update.ps1"
+    if not script.exists():
+        raise HTTPException(
+            404,
+            {
+                "message": "갱신 파일이 없습니다",
+                "what_to_do": "이 판에는 아직 갱신 기능이 없습니다. "
+                "새 압축파일을 한 번만 받아 설치해 주시면 그다음부터는 이 버튼으로 됩니다.",
+            },
+        )
+    if sys.platform != "win32":
+        raise HTTPException(400, "지금은 윈도우에서만 됩니다")
+
+    # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP — 이 프로그램이 꺼져도 살아남는다.
+    flags = 0x00000008 | 0x00000200
+    try:
+        subprocess.Popen(
+            [
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(script),
+            ],
+            cwd=str(ROOT),
+            creationflags=flags,
+            close_fds=True,
+        )
+    except OSError as e:
+        raise HTTPException(500, f"갱신을 시작하지 못했습니다: {e}") from e
+
+    return {
+        "started": True,
+        "note": "새 판을 받는 중입니다. 잠시 뒤 프로그램이 꺼졌다가 다시 켜집니다.",
+    }

@@ -22,6 +22,20 @@ $Branch = "claude/program-development-yi0956"
 $Root   = $PSScriptRoot
 $Stamp  = Join-Path $Root "설치버전.txt"
 
+function Restart-App($root) {
+    """프로그램을 다시 켠다 — **.bat 을 거치지 않는다.**
+
+    윈도우에서 .bat 파일 연결이 메모장으로 바뀌어 있으면 두 번 눌러도 실행되지 않고
+    메모장이 열린다. 원장님 PC 가 정확히 그 상태였다. 그래서 여기서는 파일 연결과
+    무관하게 파이썬을 직접 부른다."""
+    $pyw = Join-Path $root ".venv\Scripts\pythonw.exe"
+    $py  = Join-Path $root ".venv\Scripts\python.exe"
+    $launch = Join-Path $root "scripts\launch.py"
+    if (Test-Path $pyw)     { Start-Process -FilePath $pyw -ArgumentList "`"$launch`"" -WorkingDirectory $root }
+    elseif (Test-Path $py)  { Start-Process -FilePath $py  -ArgumentList "`"$launch`"" -WorkingDirectory $root }
+    else { Write-Host "      바탕화면의 '콩쿨 작곡기' 아이콘을 눌러 주십시오." -ForegroundColor DarkGray }
+}
+
 function Step($m) { Write-Host $m -ForegroundColor White }
 function Ok($m)   { Write-Host "  OK  $m" -ForegroundColor Green }
 function Note($m) { Write-Host "      $m" -ForegroundColor DarkGray }
@@ -67,7 +81,7 @@ if ($latest -and $here -and ($latest -eq $here)) {
     Ok "이미 최신입니다. 바꿀 것이 없습니다."
     Note "판 번호: $($here.Substring(0,7))"
     Write-Host ""
-    if ($wasRunning) { Start-Process -FilePath (Join-Path $Root "실행.bat") }
+    if ($wasRunning) { Restart-App $Root }
     exit 0
 }
 if ($latest) { Note "새 판: $($latest.Substring(0,7))" }
@@ -164,7 +178,7 @@ Note "이전 판이 필요하면: $backup"
 Write-Host ""
 if ($wasRunning) {
     Write-Host "  프로그램을 다시 켭니다..." -ForegroundColor White
-    Start-Process -FilePath (Join-Path $Root "실행.bat")
+    Restart-App $Root
 } else {
     Write-Host "  바탕화면의 '콩쿨 작곡기' 아이콘을 두 번 누르십시오."
 }
