@@ -137,3 +137,45 @@ def test_the_whole_way_from_a_rejected_key_to_the_screen() -> None:
 
 class _Tiny(BaseModel):
     ok: bool = True
+
+
+def test_the_screen_shows_what_broke_not_a_web_address() -> None:
+    """오류 화면이 **쓸모 있는 줄**을 보여 주는가.
+
+    원장님 화면에 실제로 이것만 떴다:
+
+        For further information visit https://errors.pydantic.dev/2.13/v/json_invalid
+
+    traceback 의 마지막 줄을 그대로 보여 주고 있었는데, 그것이 하필 주소였다.
+    어디가 왜 깨졌는지 알 수가 없어서 원인을 짚는 데 한참 걸렸다.
+    필요한 것은 둘이다 — 무엇이 잘못됐는가, 그리고 우리 코드 어디인가.
+    """
+    from app.main import app
+    from app.schemas.music import CompositionPlan
+
+    @app.post("/__test_pydantic_json")
+    def _boom() -> None:
+        CompositionPlan.model_validate_json("{깨진 JSON")
+
+    with TestClient(app, raise_server_exceptions=False) as c:
+        issues = c.post("/__test_pydantic_json").json()["detail"]["issues"]
+
+    joined = " | ".join(issues)
+    assert "ValidationError" in joined, f"무엇이 잘못됐는지 안 나온다: {joined}"
+    assert "Invalid JSON" in joined, f"왜 거절됐는지 안 나온다: {joined}"
+    assert any("우리 코드" in x for x in issues), f"어느 자리인지 안 나온다: {joined}"
+
+
+def test_the_real_cause_is_found_inside_the_wrapper() -> None:
+    """Starlette 는 예외를 다시 던지고 묶어서 올린다 — 뿌리까지 따라가야 한다."""
+    from app.main import _useful_lines
+
+    try:
+        try:
+            raise ValueError("진짜 원인")
+        except ValueError as inner:
+            raise RuntimeError("껍데기") from inner
+    except RuntimeError as outer:
+        lines = _useful_lines(outer)
+
+    assert any("진짜 원인" in x for x in lines), f"껍데기만 보고 있다: {lines}"

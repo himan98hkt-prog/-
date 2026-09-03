@@ -93,6 +93,54 @@ app = FastAPI(
 )
 # ── 어떤 오류든 원장에게 말이 되게 ────────────────────────────────────────────
 #
+
+def _useful_lines(exc: BaseException) -> list[str]:
+    """오류에서 **원인을 짚을 수 있는 줄**만 골라 낸다.
+
+    지금까지는 traceback 의 마지막 줄을 보여 줬는데, 그것이 하필
+    "For further information visit https://errors.pydantic.dev/..." 같은 주소일 때가 있다.
+    원장님 화면에 실제로 그것만 떴고, 그래서 어디가 깨졌는지 알 수가 없었다.
+
+    필요한 것은 둘이다 — **무엇이 잘못됐는가**(예외 종류와 첫 줄), 그리고
+    **우리 코드 어디인가**(마지막 app/ 프레임). 남의 라이브러리 속 줄은 도움이 안 된다.
+    """
+    import traceback
+
+    # 진짜 원인은 껍데기 예외 **안쪽**에 있다. Starlette 가 미들웨어를 거치며 다시
+    # 던지고, 묶음 예외(ExceptionGroup)로 감싸기도 한다. 그대로 읽으면 "미들웨어에서
+    # 났다" 는 쓸모없는 말만 나온다 — 뿌리까지 따라 내려간다.
+    root: BaseException = exc
+    for _ in range(8):
+        inner = getattr(root, "exceptions", None)        # ExceptionGroup
+        if inner:
+            root = inner[0]
+            continue
+        nxt = root.__cause__ or root.__context__
+        if nxt is None or nxt is root:
+            break
+        root = nxt
+    exc = root
+
+    out: list[str] = []
+    first = str(exc).strip().splitlines()
+    out.append(f"{type(exc).__name__}: {first[0][:200]}" if first else type(exc).__name__)
+    # 값이 왜 거절됐는지는 보통 둘째 줄에 있다(예: "Invalid JSON: ... line 1 column 1").
+    for line in first[1:4]:
+        if line.strip():
+            out.append(line.strip()[:200])
+
+    sep = "app/"
+    ours: list[str] = []
+    for f in traceback.extract_tb(exc.__traceback__):
+        path = f.filename.replace("\\", "/")
+        if sep in path:
+            where = path.split(sep)[-1]
+            ours.append(f"{where}:{f.lineno} 에서 ({f.name})")
+    if ours:
+        out.append("우리 코드 마지막 자리 — " + ours[-1])
+    return [x for x in out if x]
+
+
 # Claude 를 부르지 못한 것은 **프로그램 결함이 아니다** — 키가 거절됐거나, 잔액이 없거나,
 # 인터넷이 끊긴 것이다. 그런데 여태 그것이 처리되지 않은 예외로 올라가 `{}` 화면이 됐다.
 # 원인마다 원장이 할 일이 다르므로(키 고치기 / 충전하기 / 인터넷 보기), 그 말을 그대로 보낸다.
@@ -164,7 +212,7 @@ async def _any_error(request: Request, exc: Exception) -> JSONResponse:
                     "다른 성격으로 다시 만들어 보시고, 계속 같은 자리에서 막히면 "
                     + (f"'{where}' 파일을 보내 주십시오." if where else "실행기록.txt 를 보내 주십시오.")
                 ),
-                "issues": [f"오류 표시 {mark}", detail.strip().splitlines()[-1] if detail else ""],
+                "issues": [f"오류 표시 {mark}", *_useful_lines(exc)],
             }
         },
     )
