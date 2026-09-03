@@ -312,3 +312,58 @@ def quality_modes() -> dict:
         "default": DEFAULT_MODE,
         "has_api_key": get_settings().has_api_key,
     }
+
+
+# 새 판이 나왔는지 화면이 알려 준다.
+#
+# 업데이트 스크립트를 만들어 놓아도 **언제 눌러야 하는지** 모르면 소용이 없다.
+# 그렇다고 켤 때마다 인터넷에 물어보면 느려지므로, 한 번 물어본 답은 잠시 들고 있는다.
+_VERSION_ASKED_AT = [0.0]
+_VERSION_ANSWER: list[dict[str, object]] = []
+_VERSION_TTL = 1800.0        # 30분. 새 판이 그보다 자주 나오지는 않는다.
+
+
+@router.get("/api/version")
+def version(check: bool = True) -> dict:
+    """지금 판과 새 판. 물어보지 못해도 화면은 그대로 뜬다."""
+    import contextlib
+    import time
+    import urllib.error
+    import urllib.request
+
+    from app.config import ROOT
+
+    stamp = ROOT / "설치버전.txt"
+    here = ""
+    with contextlib.suppress(OSError):
+        here = stamp.read_text(encoding="utf-8").strip()
+
+    out: dict = {"installed": here[:7], "latest": "", "update_available": False, "asked": False}
+    if not check:
+        return out
+
+    now = time.monotonic()
+    if _VERSION_ANSWER and now - _VERSION_ASKED_AT[0] < _VERSION_TTL:
+        return {**out, **_VERSION_ANSWER[0]}
+
+    url = "https://api.github.com/repos/himan98hkt-prog/-/commits/claude/program-development-yi0956"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ConcoursComposer"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            import json as _json
+
+            latest = str(_json.loads(r.read()).get("sha", ""))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        # 인터넷이 없어도 프로그램은 그대로 돈다 — 조용히 넘어간다.
+        return out
+
+    fresh = {
+        "latest": latest[:7],
+        # 판 번호를 모르면(옛 설치) 비교할 수 없다 — 있다고 우기지 않는다.
+        "update_available": bool(here and latest and not latest.startswith(here)),
+        "asked": True,
+    }
+    _VERSION_ASKED_AT[0] = now
+    _VERSION_ANSWER.clear()
+    _VERSION_ANSWER.append(fresh)
+    return {**out, **fresh}

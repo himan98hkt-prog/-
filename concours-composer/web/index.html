@@ -683,6 +683,10 @@
   <!-- 곡 하나에 얼마를 쓸 것인가. 두 종류 모두에 걸리므로 모드 고르기 바로 아래에 둔다.
        원장님이 토카타를 만들다 상한에 걸려 멈췄고, 그때 화면은 설정 파일을 고치라고 했다.
        설정 파일이 아니라 여기서 고르는 것이 맞다. -->
+  <!-- 새 판이 나왔을 때만 보인다. 업데이트 스크립트를 만들어 놓아도
+       언제 눌러야 하는지 모르면 소용이 없다. -->
+  <div id="updateBar" class="where hidden" style="margin-bottom:14px"></div>
+
   <section id="secBudget">
     <div class="budget-head">
       <h2>작곡 비용</h2>
@@ -3050,6 +3054,34 @@ async function refreshReferences() {
 }
 
 
+
+// ── 새 판 알림 ─────────────────────────────────────────────────────────────
+// 원장님은 새 판이 나올 때마다 폴더를 지우고 다시 받고 다시 설치하셨다.
+// 이제 '업데이트.bat' 한 번이면 되는데, **나왔다는 것을 알아야** 누른다.
+async function checkUpdate() {
+  const bar = $("updateBar");
+  if (!bar) return;
+  let v;
+  try { v = await api("/api/version"); } catch (_) { return; }
+  if (!v.update_available) { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  bar.className = "where";
+  bar.innerHTML =
+    `<span><b>새 판이 나왔습니다</b> — 프로그램 폴더의 <code>업데이트.bat</code> 을
+       두 번 누르시면 한 번에 올라갑니다. 만든 곡과 API 키는 그대로 남습니다.</span>
+     <div class="where-acts">
+       <button class="ghost" id="btnOpenProgram"
+         data-tip="프로그램 폴더를 엽니다. 그 안의 '업데이트.bat' 을 두 번 누르십시오.">폴더 열기</button>
+     </div>`;
+  const b = $("btnOpenProgram");
+  if (b) b.onclick = async () => {
+    b.disabled = true;
+    try { await api("/api/open-folder?which=program", { method: "POST" }); }
+    catch (e) { alert(e.message + (e.hint ? "\n" + e.hint : "")); }
+    finally { b.disabled = false; }
+  };
+}
+
 // ── 작곡 비용 등급 ─────────────────────────────────────────────────────────
 // 원장님이 중급 토카타를 만들다 곡당 상한($4)에 걸려 멈췄다. 그때 화면이 한 말은
 // ".env 를 고쳐라" 였는데, 그건 컴맹 원장에게 아무 답도 아니다. 여기서 고르게 한다.
@@ -4288,6 +4320,7 @@ refreshSpending();
 refreshLibrary();
 refreshBooks();
 refreshBudgets();
+checkUpdate();
 syncArrangeRange();
 rightsFormType();
 

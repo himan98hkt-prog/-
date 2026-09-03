@@ -169,3 +169,41 @@ def test_batch_warns_about_the_click_that_freezes_it(path: Path) -> None:
     text = path.read_bytes().decode("cp949")
     assert "클릭하지 마십시오" in text, f"{path.name} 이 클릭 정지를 알려 주지 않는다"
     assert "Esc" in text, "이미 멈춘 사람에게 빠져나오는 법을 알려 줘야 한다"
+
+
+def test_the_update_script_never_deletes_the_owner_s_own_things() -> None:
+    """새 판으로 올릴 때 **덮어쓰기만** 한다 — 지우기 시작하면 언젠가 곡을 지운다.
+
+    원장님은 지금까지 새 판마다 폴더를 통째로 지우고 다시 설치하셨다. 그 습관이
+    위험해서 이 스크립트를 만들었는데, 스크립트가 같은 짓을 하면 아무 의미가 없다.
+    """
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+
+    for mine in (".env", "web\\vendor", "reference_scores", "data"):
+        assert mine in text, f"{mine} 을 지키지 않는다"
+
+    # 프로그램 폴더를 통째로 지우는 명령이 있으면 안 된다.
+    assert "Remove-Item $Root" not in text
+    assert "Remove-Item -Path $Root" not in text
+    # 임시 폴더를 치우는 것만 허용된다.
+    for line in text.splitlines():
+        if "Remove-Item" in line:
+            assert "$tmp" in line, f"임시 폴더 밖을 지운다: {line.strip()}"
+
+
+def test_the_update_script_can_be_undone() -> None:
+    """되돌릴 길이 없는 작업은 하지 않는다 — 바꾸기 전에 이전 판을 옆에 둔다."""
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    assert "이전판" in text and "Copy-Item" in text
+    assert "self_check.py" in text, "바꾼 뒤 점검하지 않으면 고장난 채로 남는다"
+
+
+def test_the_update_batch_file_is_readable_on_a_korean_windows() -> None:
+    """한글 윈도우 명령창은 CP949 로 읽는다. UTF-8 로 저장하면 글자가 깨진다."""
+    raw = (ROOT / "업데이트.bat").read_bytes()
+    assert not raw.startswith(b"\xef\xbb\xbf"), "BOM 이 붙으면 첫 줄이 깨진다"
+    assert b"\r\n" in raw, "CRLF 가 아니면 줄이 붙어 실행된다"
+    text = raw.decode("cp949")
+    assert "update.ps1" in text
+    # 빠른 편집 함정을 여기서도 알려야 한다 — 실제로 그것 때문에 멈춰 있었다.
+    assert "클릭하지 마십시오" in text

@@ -214,6 +214,13 @@ try {
     Write-Host "      아이콘을 만들지 못했다 — .\start.ps1 로도 실행된다: $_" -ForegroundColor DarkGray
 }
 
+# 어느 판을 깔았는지 남긴다. '업데이트.bat' 이 이것을 보고 "이미 최신입니다" 를 판단한다.
+try {
+    $head = Invoke-RestMethod -TimeoutSec 15 -Headers @{ "User-Agent" = "ConcoursComposer" } `
+        -Uri "https://api.github.com/repos/himan98hkt-prog/-/commits/claude/program-development-yi0956"
+    Set-Content -Path (Join-Path $PSScriptRoot "설치버전.txt") -Value "$($head.sha)" -Encoding UTF8
+} catch { }
+
 Step "7/7 자기 점검"
 & $vpy scripts\self_check.py
 if ($LASTEXITCODE -ne 0) { Die "자기 점검 실패" }
