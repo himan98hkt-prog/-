@@ -15,10 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.config import Settings, get_settings
-from app.generation.apierrors import reraise_friendly
+from app.generation.apierrors import ClaudeUnavailable, reraise_friendly
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,13 @@ PRICES: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5": (1.00, 5.00),
 }
 _FALLBACK_PRICE = (10.00, 50.00)
+
+# 답이 잘렸을 때 한도를 키워 다시 부르는 횟수. 두 번이면 16000 → 32000 → 64000 이다.
+_RETRY_ON_CUTOFF = 2
+# 이보다 크게 요청할 때는 흘려 받는다(한 번에 받으면 연결이 먼저 끊긴다).
+_STREAM_ABOVE = 20000
+# 한도의 천장. 이보다 큰 요청은 모델이 받지 않는다.
+_MAX_BUDGET = 64000
 
 
 class CostLimitExceeded(RuntimeError):
@@ -258,7 +265,10 @@ class ClaudeClient:
         user: str,
         output_model: type[T],
         model: str | None = None,
-        max_tokens: int = 16000,
+        # **한도는 천장이지 요금이 아니다.** 실제로 쓴 만큼만 청구된다.
+        # 그런데 이 값을 아껴 두었다가 원장님 곡이 25~28마디에서 잘렸다 — 아낄 이유가
+        # 없는 것을 아끼다 곡을 잃은 셈이다. 넉넉히 두고, 모자라면 아래에서 더 키운다.
+        max_tokens: int = 32000,
         fixed_context: str = "",
     ) -> T:
         """구조화 출력 1회 호출. 결과는 검증된 Pydantic 인스턴스.
@@ -275,24 +285,75 @@ class ClaudeClient:
         model_id = model or self.settings.composer_model
 
         client = self._get_client()
-        started = time.monotonic()
-        try:
-            response = client.messages.parse(
-                model=model_id,
-                max_tokens=max_tokens,
-                system=self._system_blocks(system, fixed_context),
-                messages=[{"role": "user", "content": user}],
-                output_format=output_model,
-            )
-        except Exception as e:  # 키·잔액·네트워크 문제를 원장이 읽을 수 있는 말로 바꾼다
-            reraise_friendly(e)
-            raise
-        self._record(stage, model_id, response.usage, started)
+        budget = max_tokens
 
-        parsed = getattr(response, "parsed_output", None)
-        if parsed is None:
-            raise RuntimeError(f"{stage}: 구조화 출력 파싱 실패 (stop_reason={response.stop_reason})")
-        return parsed  # type: ignore[return-value]
+        # **글자 수 한도에 걸리면 한 번 더, 더 넉넉하게.**
+        #
+        # 원장님 화면에 이렇게 떴다:
+        #     realize[25-28]: 구조화 출력 파싱 실패 (stop_reason=max_tokens)
+        #
+        # 모델이 JSON 을 쓰다가 한도에 걸려 **중간에 잘린 것**이다. 잘린 JSON 은 읽을 수
+        # 없으니 그 프레이즈가 실패하고, 그러면 곡 전체가 날아간다. 돈은 이미 쓴 뒤다.
+        #
+        # 토카타처럼 16분음표가 쉬지 않고 달리는 곡은 마디마다 음표가 아주 많다.
+        # 게다가 요즘 모델은 답을 쓰기 전에 **생각하는 데도 이 한도를 나눠 쓴다** —
+        # 그래서 넉넉해 보이던 16000 이 실제로는 모자랐다.
+        #
+        # 한 번 잘렸다는 것은 "이 프레이즈는 원래 이만큼으로 안 된다" 는 뜻이므로,
+        # 같은 요청을 그대로 되풀이하지 않고 **한도를 키워서** 다시 부른다.
+        for attempt in range(_RETRY_ON_CUTOFF + 1):
+            started = time.monotonic()
+            try:
+                # 한도가 크면 한 번에 받다가 연결이 끊긴다 — 그럴 때는 흘려 받는다.
+                if budget > _STREAM_ABOVE:
+                    with client.messages.stream(
+                        model=model_id,
+                        max_tokens=budget,
+                        system=self._system_blocks(system, fixed_context),
+                        messages=[{"role": "user", "content": user}],
+                        output_format=output_model,
+                    ) as stream:
+                        response = stream.get_final_message()
+                else:
+                    response = client.messages.parse(
+                        model=model_id,
+                        max_tokens=budget,
+                        system=self._system_blocks(system, fixed_context),
+                        messages=[{"role": "user", "content": user}],
+                        output_format=output_model,
+                    )
+            except Exception as e:  # 키·잔액·네트워크 문제를 읽을 수 있는 말로 바꾼다
+                reraise_friendly(e)
+                raise
+            self._record(stage, model_id, response.usage, started)
+
+            parsed = getattr(response, "parsed_output", None)
+            if parsed is not None:
+                return parsed  # type: ignore[return-value]
+
+            cut_off = response.stop_reason == "max_tokens"
+            # 이미 천장(모델이 받아 주는 최대)까지 올렸다면 또 불러 봐야 똑같이 잘린다.
+            # 그때 다시 부르는 것은 **돈만 한 번 더 쓰는 일**이다 — 하지 않는다.
+            grown = min(budget * 2, _MAX_BUDGET)
+            if cut_off and attempt < _RETRY_ON_CUTOFF and grown > budget:
+                budget = grown
+                log.warning(
+                    "%s: 글자 수 한도(%s)에 걸려 잘렸다 — 한도를 %s 로 키워 다시 부른다",
+                    stage, response.usage.output_tokens, budget,
+                )
+                continue
+
+            # 여기까지 왔으면 키워도 안 됐다는 뜻이다. 무엇이 문제였는지 남긴다.
+            raise ClaudeUnavailable(
+                "곡이 너무 길거나 음표가 많아 한 번에 다 쓰지 못했습니다",
+                "짧은 성격(소품·연습곡)이나 낮은 급수로 만들어 보십시오. "
+                "토카타·피날레처럼 음표가 촘촘한 곡이 이 자리에서 가장 자주 막힙니다.",
+                [f"{stage} · stop_reason={response.stop_reason} · 한도 {budget}"],
+                # 이 프레이즈 하나의 문제다 — 앞서 만든 프레이즈까지 버릴 이유가 없다.
+                per_request=True,
+            )
+
+        raise RuntimeError(f"{stage}: 다시 시도했는데도 답을 받지 못했다")
 
     # ── Batch API ────────────────────────────────────────────────────────
     #
@@ -307,7 +368,8 @@ class ClaudeClient:
         items: list[tuple[str, str, str, type[BaseModel]]],
         *,
         model: str | None = None,
-        max_tokens: int = 16000,
+        # `parse` 와 같은 이유로 넉넉히 둔다 — 한도는 천장이지 요금이 아니다.
+        max_tokens: int = 32000,
         fixed_context: str = "",
         poll_seconds: int = 20,
         timeout_seconds: int = 3600,
@@ -370,8 +432,17 @@ class ClaudeClient:
                 continue
             message = result.result.message
             self._record(f"batch[{cid}]", model_id, message.usage, started, batched=True)
+            if message.stop_reason == "max_tokens":
+                # 잘린 JSON 을 그대로 읽으면 `json_invalid` 라는 알 수 없는 오류가 난다.
+                # 무엇이 일어난 것인지 기록에 남기고 이 항목만 버린다.
+                log.warning("배치 항목 %s: 글자 수 한도(%s)에 걸려 잘렸다 — 버린다",
+                            cid, max_tokens)
+                continue
             text = next((b.text for b in message.content if b.type == "text"), "")
-            out[cid] = models[cid].model_validate_json(text)
+            try:
+                out[cid] = models[cid].model_validate_json(text)
+            except ValidationError as e:
+                log.warning("배치 항목 %s 를 읽지 못했다 — 버린다: %s", cid, e)
         return out
 
 

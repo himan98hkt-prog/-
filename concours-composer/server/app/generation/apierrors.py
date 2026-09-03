@@ -25,11 +25,27 @@ log = logging.getLogger(__name__)
 class ClaudeUnavailable(RuntimeError):
     """Claude 를 부르지 못했다. 이유와 다음 행동을 함께 들고 다닌다."""
 
-    def __init__(self, message: str, what_to_do: str, issues: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        what_to_do: str,
+        issues: list[str] | None = None,
+        *,
+        per_request: bool = False,
+    ) -> None:
+        """`per_request` 는 **이 요청 하나만의 문제**라는 표시다.
+
+        구분이 중요한 이유는 돈이다. 키가 거절됐거나 잔액이 없으면 다음 프레이즈를
+        불러 봐야 똑같이 거절되므로 즉시 멈춰야 한다. 반대로 "이 프레이즈가 너무
+        길어 잘렸다" 는 그 프레이즈만의 문제여서, 여기서 곡 전체를 버리면 앞서
+        만들어 **이미 값을 치른** 프레이즈까지 함께 날아간다. 원장님이 "비용은 엄청
+        나왔는데 결과물은 없다" 고 하신 것이 정확히 그 손해였다.
+        """
         super().__init__(message)
         self.message = message
         self.what_to_do = what_to_do
         self.issues = issues or []
+        self.per_request = per_request
 
     def as_detail(self) -> dict[str, Any]:
         """FastAPI `HTTPException(detail=...)` 에 그대로 넣는 모양."""
@@ -128,6 +144,7 @@ def translate(exc: BaseException) -> ClaudeUnavailable | None:
             "참고 악보 폴더에 아주 큰 파일이 들어 있지 않은지 확인해 주십시오. "
             "계속 같은 자리에서 막히면 참고 악보를 잠시 빼고 만들어 보십시오.",
             tech,
+            per_request=True,
         )
     if status is not None and 500 <= status < 600:
         return ClaudeUnavailable(
@@ -141,6 +158,7 @@ def translate(exc: BaseException) -> ClaudeUnavailable | None:
             "다른 성격이나 다른 급수로 한 번 더 만들어 보십시오. "
             "계속 같은 자리에서 막히면 '오류기록.txt' 파일을 보내 주십시오.",
             tech,
+            per_request=True,
         )
 
     return ClaudeUnavailable(

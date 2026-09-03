@@ -1546,7 +1546,11 @@ function renderResult(b) {
     ${b.revision_rounds ? `고쳐 쓴 횟수 ${b.revision_rounds}회 · ` : ""}${engineKo(b.engine)}
     ${b.cost && b.cost.total_usd ? `· API $${b.cost.total_usd}` : ""}</p>
     ${b.validation.issues.length ? `<details><summary>검증 ${b.validation.summary}</summary>
-      <pre>${b.validation.issues.map(i => `[${i.severity}] ${i.rule}: ${i.message}`).join("\n")}</pre></details>` : ""}`;
+      <pre>${b.validation.issues.map(i => `[${i.severity}] ${i.rule}: ${i.message}`).join("\n")}</pre></details>` : ""}
+    ${(q.notes && q.notes.length) ? `<div class="msg warn"><strong>이 곡에서 짚어 둘 것</strong>
+      <ul style="margin:6px 0 0 18px;padding:0">${q.notes.map(n => `<li>${n}</li>`).join("")}</ul>
+      <p style="margin:8px 0 0">빠진 마디가 있다고 적혀 있으면 4단계에서 그 구간만 다시 쓰시면 됩니다 —
+      곡을 처음부터 다시 만드실 필요는 없습니다.</p></div>` : ""}`;
 
   let rows = "<tr><th>무엇을 보는가</th><th>이 곡</th><th></th><th>근거</th></tr>";
   Object.entries(q.musicality.metrics).forEach(([k, m]) => {

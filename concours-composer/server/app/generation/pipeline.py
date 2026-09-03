@@ -14,6 +14,7 @@ from typing import Any
 from app.analysis import musicality as musicality_mod
 from app.analysis.difficulty import difficulty_advice, difficulty_score
 from app.config import Settings, get_settings
+from app.generation.apierrors import ClaudeUnavailable
 from app.generation.assemble import AssembleOptions, measures_to_musicxml
 from app.generation.context import ComposerContext
 from app.generation.engines.base import ComposerEngine, PhraseRequest
@@ -180,7 +181,22 @@ class CompositionPipeline:
                         motif=motif, plan=plan, phrase_index=i, previous_measures=prev,
                         instruction=f"직전 시도가 검증에 걸렸다: {last_reason}. 이 문제를 피해서 다시 써라.",
                     )
-                out = self.engine.realize_phrase(ctx, req)
+                try:
+                    out = self.engine.realize_phrase(ctx, req)
+                except ClaudeUnavailable as e:
+                    # **여기서 곡 전체를 버리면 안 된다.**
+                    #
+                    # 앞선 프레이즈들은 이미 만들어졌고 이미 값을 치렀다. 프레이즈 하나가
+                    # 안 됐다고 통째로 던지면 그 돈이 전부 사라진다 — 원장님이 "비용은
+                    # 엄청 나왔는데 결과물은 없다" 고 하신 손해가 바로 이것이다.
+                    #
+                    # 단, 키가 거절됐거나 잔액이 없는 것은 다음 프레이즈도 똑같이 막힌다.
+                    # 그때는 계속 부르는 것이 시간 낭비이므로 그대로 올려 보낸다.
+                    if not getattr(e, "per_request", False):
+                        raise
+                    last_reason = e.message
+                    log.warning("프레이즈 %d 를 만들지 못했다 — 나머지는 계속한다: %s", i, e.message)
+                    break
                 if len(out.measures) > MAX_PHRASE_MEASURES:
                     raise PhraseTooLongError(
                         f"엔진이 프레이즈 하나에 {len(out.measures)}마디를 반환했다"

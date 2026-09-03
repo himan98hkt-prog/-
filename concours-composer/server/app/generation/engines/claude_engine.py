@@ -136,10 +136,14 @@ class ClaudeComposerEngine:
         if req.instruction:
             payload["instruction"] = req.instruction
             payload["region"] = [lo, hi]
+        # 음표를 실제로 쓰는 자리 — 이 프로그램에서 답이 가장 긴 곳이다.
+        # 토카타처럼 16분음표가 쉬지 않고 달리면 네 마디에도 음표가 200개를 넘는다.
+        # 원장님 곡이 정확히 여기서 잘렸다(realize[25-28] · stop_reason=max_tokens).
         return self.client.parse(
             stage=f"realize[{lo}-{hi}]",
             system=load_prompt(name),
             user=_j(payload),
+            max_tokens=48000,
             output_model=PhraseRealization,
             model=self.settings.composer_model,
             fixed_context=fixed_context(ctx),

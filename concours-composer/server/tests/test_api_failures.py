@@ -123,6 +123,12 @@ def test_the_whole_way_from_a_rejected_key_to_the_screen() -> None:
             def parse(**_: object) -> object:
                 raise _status_error(401, "invalid x-api-key")
 
+            @staticmethod
+            def stream(**_: object) -> object:
+                # 한도가 크면 흘려 받는다 — 실제 작곡이 지나는 길은 이쪽이다.
+                # 여기서도 401 이 똑같이 한국어로 바뀌어야 한다.
+                raise _status_error(401, "invalid x-api-key")
+
     c = ClaudeClient(settings=Settings(anthropic_api_key="sk-ant-" + "x" * 30))
     c._client = Rejecting()
 
