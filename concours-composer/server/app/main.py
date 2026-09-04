@@ -313,9 +313,33 @@ app.include_router(folder.router)
 
 # 원장 화면을 API 와 **같은 주소**로 내보낸다. 학원 PC 에서 서버 하나만 띄우면
 # 브라우저에서 바로 열린다 — 정적 파일 서버를 따로 돌리지 않아도 된다.
+class FreshHtml(StaticFiles):
+    """화면(HTML)은 **매번 서버에 묻고** 가져가게 한다.
+
+    원장님이 새 판을 올리고도 옛 화면을 보신 일이 여러 번이다. 원인이 여기 있었다.
+    아무 표시도 없이 파일을 내보내면 브라우저는 "얼마나 오래 써도 되나" 를 **스스로
+    어림한다**(마지막 수정 시각의 10% 쯤). 그동안은 서버에 묻지도 않고 기억해 둔
+    옛 화면을 그대로 쓴다. 프로그램은 새 판인데 화면만 옛 판인, 가장 헷갈리는 고장이다.
+
+    Ctrl+F5 를 누르시라고 안내하는 것은 답이 아니다 — 원장님이 그것을 아셔야 할
+    이유가 없다. 서버가 처음부터 제대로 말하면 된다.
+
+    `no-cache` 는 "쓰지 마라" 가 아니라 **"쓰기 전에 반드시 물어보라"** 는 뜻이다.
+    바뀐 것이 없으면 서버가 304 만 돌려주므로 느려지지 않는다.
+    악보 렌더러 같은 받아 둔 부품(web/vendor)은 그대로 캐시하게 둔다 — 그것은
+    이름이 바뀌지 않는 한 내용도 바뀌지 않고, 크다.
+    """
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        resp = await super().get_response(path, scope)
+        if path.endswith((".html", "/")) or path in ("", "."):
+            resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return resp
+
+
 WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 if WEB_DIR.is_dir():
-    app.mount("/app", StaticFiles(directory=WEB_DIR, html=True), name="web")
+    app.mount("/app", FreshHtml(directory=WEB_DIR, html=True), name="web")
 
     @app.get("/", include_in_schema=False)
     def _home() -> RedirectResponse:
