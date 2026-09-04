@@ -186,6 +186,10 @@
   .hoff { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:14px; margin-top:14px; }
   .hoff-step { border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:var(--card); }
   .hoff-step h3 { margin:8px 0 12px; font-size:16px; }
+  .hoff-pick { border:1px dashed var(--line-2); border-radius:12px; padding:12px 14px;
+    background:#fffdf8; display:flex; flex-direction:column; gap:7px; }
+  .hoff-pick.over { border-color:var(--accent); background:var(--gold-soft); }
+  .hoff-pick input[type=file] { font-size:13px; }
   .hoff-step textarea { width:100%; box-sizing:border-box; }
 
   /* 보관함에서 곡을 골라 묶는 줄 */
@@ -861,10 +865,22 @@
       <div class="hoff-step">
         <span class="step">2단계</span>
         <h3>받아온 곡 넣기</h3>
-        <p class="hint" style="margin:0 0 8px">대화창이 돌려준 <b>JSON</b> 을 통째로 붙여 넣으십시오.
+        <p class="hint" style="margin:0 0 8px">둘 중 <b>편하신 쪽</b>으로 하시면 됩니다.</p>
+
+        <!-- 곡 하나가 5만 자를 넘는다. 그것을 메모장에서 복사해 붙여 넣으라는 것은
+             컴맹 원장님께 할 말이 아니다. **파일을 고르는 쪽이 먼저다.** -->
+        <div class="hoff-pick">
+          <b>① 파일로 넣기 <span class="why">(쉽습니다)</span></b>
+          <input type="file" id="hoFile" accept=".json,.txt,.md">
+          <span class="why">받으신 <b>달음질.json</b> 같은 파일을 고르시면 됩니다.
+            끌어다 놓으셔도 됩니다.</span>
+        </div>
+
+        <p class="hint" style="margin:12px 0 6px"><b>② 글로 붙여 넣기</b> —
+          대화창이 돌려준 내용을 통째로 붙여 넣으십시오.
           앞뒤에 설명이 섞여 있어도 괜찮습니다 — 코드블록만 골라 읽습니다.</p>
         <textarea id="hoPaste" rows="7"
-          placeholder='{ "title": "...", "plan": { ... }, "measures": [ ... ] }'
+          placeholder='여기에 붙여 넣으시거나, 위에서 파일을 고르십시오'
           style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px"></textarea>
         <div class="row">
           <button id="btnHoTake">검사하고 보관함에 넣기</button>
@@ -3745,6 +3761,37 @@ function pickJson(text) {
   const i = body.indexOf("{"), j = body.lastIndexOf("}");
   if (i < 0 || j <= i) throw new Error("JSON 을 찾지 못했습니다 — 대화창이 준 내용을 그대로 붙여 넣어 주십시오.");
   return JSON.parse(body.slice(i, j + 1));
+}
+
+// 파일로 넣기 — 곡 하나가 5만 자를 넘는다. 그걸 메모장에서 복사해 오라는 것은
+// 컴맹 원장님께 할 말이 아니다. 고르시면 그 자리에서 읽고, 곧바로 검사까지 간다.
+async function hoLoadFile(file) {
+  const st = $("hoTakeState");
+  if (!file) return;
+  st.textContent = `${file.name} 읽는 중…`;
+  try {
+    const text = await file.text();
+    $("hoPaste").value = text;
+    st.innerHTML = `<b>${esc(file.name)}</b> 를 읽었습니다 (${text.length.toLocaleString()}자) — 이제 검사합니다…`;
+    // 고르셨으면 곧 넣으실 것이다. 단추를 한 번 더 누르시게 하지 않는다.
+    $("btnHoTake").click();
+  } catch (e) {
+    st.textContent = "파일을 읽지 못했습니다: " + e.message;
+  }
+}
+
+if ($("hoFile")) $("hoFile").onchange = (e) => hoLoadFile(e.target.files[0]);
+
+// 끌어다 놓기도 받는다 — 탐색기에서 그대로 끌어오시는 분이 많다.
+const hoDrop = document.querySelector(".hoff-pick");
+if (hoDrop) {
+  ["dragenter", "dragover"].forEach(t => hoDrop.addEventListener(t, e => {
+    e.preventDefault(); hoDrop.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach(t => hoDrop.addEventListener(t, e => {
+    e.preventDefault(); hoDrop.classList.remove("over");
+  }));
+  hoDrop.addEventListener("drop", e => hoLoadFile(e.dataTransfer.files[0]));
 }
 
 if ($("btnHoTake")) $("btnHoTake").onclick = async () => {
