@@ -13,8 +13,16 @@ router = APIRouter(tags=["health"])
 @router.get("/health")
 def health(request: Request) -> dict:
     s = get_settings()
+    from app.config import ROOT
+
     return {
         "status": "ok",
+        # **어느 폴더에서 돌고 있는지.**
+        # 원장님 PC 에는 사본이 둘 있다(바탕화면 · C 드라이브). 갱신 스크립트가
+        # 8000 번을 두드려 "돌고 있네" 하고 껐는데 그게 **다른 폴더의 프로그램**이면,
+        # 남의 것을 꺼 놓고 제 폴더에서 다시 켜려다 아무것도 못 켠다. 그러니 누가
+        # 돌고 있는지부터 밝힌다.
+        "root": str(ROOT),
         "composer_model": s.composer_model,
         "writer_model": s.writer_model,
         "engine": "claude" if s.has_api_key else "stub-rule-based",
@@ -360,6 +368,28 @@ def quality_modes() -> dict:
 #
 # 업데이트 스크립트를 만들어 놓아도 **언제 눌러야 하는지** 모르면 소용이 없다.
 # 그렇다고 켤 때마다 인터넷에 물어보면 느려지므로, 한 번 물어본 답은 잠시 들고 있는다.
+def same_version(a: str, b: str) -> bool:
+    """두 판 번호가 같은 판인가.
+
+    **여기가 두 번 틀렸다.** 한 번은 BOM 때문에(옛 판이 아닌데 옛 판이라고 했다),
+    한 번은 길이 때문에 — 들고 있는 값은 앞 7 자리로 줄여 둔 것이고 도장은 40 자리
+    전체라, 그냥 `startswith` 로 견주면 짧은 쪽이 앞에 올 때 언제나 어긋난다.
+
+    그래서 규칙을 하나로 적어 둔다: **눈에 보이는 16진수만 남기고, 짧은 쪽 길이만큼
+    앞에서부터 견준다.** 7 자리보다 짧으면 견줄 수 없다고 본다.
+    """
+    x, y = clean_sha(a), clean_sha(b)
+    n = min(len(x), len(y))
+    if n < 7:
+        return False
+    return x[:n] == y[:n]
+
+
+def clean_sha(v: str) -> str:
+    """판 번호에서 눈에 안 보이는 것을 걷어낸다 — BOM·공백·줄바꿈."""
+    return "".join(c for c in v if c in "0123456789abcdefABCDEF").lower()
+
+
 _VERSION_ASKED_AT = [0.0]
 _VERSION_ANSWER: list[dict[str, object]] = []
 _VERSION_TTL = 1800.0        # 30분. 새 판이 그보다 자주 나오지는 않는다.
@@ -378,7 +408,21 @@ def version(check: bool = True) -> dict:
     stamp = ROOT / "설치버전.txt"
     here = ""
     with contextlib.suppress(OSError):
-        here = stamp.read_text(encoding="utf-8").strip()
+        # **utf-8-sig 여야 한다. utf-8 이면 BOM 이 값에 섞인다.**
+        #
+        # 이 한 글자가 원장님을 며칠 붙잡았다. 도장을 찍는 쪽은 윈도우 PowerShell 5.1
+        # 의 `Set-Content -Encoding UTF8` 인데, 5.1 의 UTF8 은 **BOM 을 붙인다.**
+        # 그걸 utf-8 로 읽으면 값이 "\ufeffbf43a47..." 이 되고,
+        #
+        #     latest.startswith(here)  →  언제나 False
+        #     update_available         →  언제나 True
+        #
+        # 즉 **몇 번을 올려도 화면은 영영 "새 판이 나왔습니다" 라고 한다.** 원장님이
+        # "새 판이 나왔다고 해서 지금 올리기 눌렀더니 아무 변화없이 있어" 라고 하신
+        # 것이 이것이다. 새 판이 없었다. BOM 이 있었다.
+        here = stamp.read_text(encoding="utf-8-sig").strip()
+    # 눈에 안 보이는 글자가 하나라도 섞이면 같은 일이 다시 벌어진다. 16진수만 남긴다.
+    here = clean_sha(here)
 
     out: dict = {"installed": here[:7], "latest": "", "update_available": False, "asked": False}
     if not check:
@@ -386,7 +430,16 @@ def version(check: bool = True) -> dict:
 
     now = time.monotonic()
     if _VERSION_ANSWER and now - _VERSION_ASKED_AT[0] < _VERSION_TTL:
-        return {**out, **_VERSION_ANSWER[0]}
+        # **들고 있는 것은 "최신 판 번호" 뿐이다.**
+        # 새 판이 있느냐는 지금 도장을 다시 보고 그 자리에서 셈한다. 옛 답을 통째로
+        # 돌려주면, 방금 올리고 났는데도 30분 동안 "새 판이 나왔습니다" 라고 한다.
+        got = str(_VERSION_ANSWER[0].get("latest", ""))
+        return {
+            **out,
+            "latest": got,
+            "update_available": bool(here and got and not same_version(here, got)),
+            "asked": True,
+        }
 
     url = "https://api.github.com/repos/himan98hkt-prog/-/commits/claude/program-development-yi0956"
     try:
@@ -399,10 +452,11 @@ def version(check: bool = True) -> dict:
         # 인터넷이 없어도 프로그램은 그대로 돈다 — 조용히 넘어간다.
         return out
 
+    latest = clean_sha(latest)
     fresh = {
         "latest": latest[:7],
         # 판 번호를 모르면(옛 설치) 비교할 수 없다 — 있다고 우기지 않는다.
-        "update_available": bool(here and latest and not latest.startswith(here)),
+        "update_available": bool(here and latest and not same_version(here, latest)),
         "asked": True,
     }
     _VERSION_ASKED_AT[0] = now
@@ -419,9 +473,24 @@ def run_update(request: Request) -> dict:
     파일 연결이 메모장으로 바뀌어 있으면 그렇게 된다. 파일을 두 번 누르게 하는 방식은
     원장 손에 달린 것이 아니라 **그 PC 설정에 달려 있다** — 원터치라고 할 수 없다.
 
-    그래서 프로그램이 직접 시작한다. 여기서 하는 일은 갱신 스크립트를 **떼어 내서**
-    띄우는 것뿐이다. 그 스크립트가 이 프로그램을 끄고, 파일을 바꾸고, 다시 켠다.
-    떼어 내지 않으면 이 프로그램이 꺼질 때 갱신도 같이 죽는다.
+    그래서 프로그램이 직접 시작한다. 여기서 하는 일은 갱신 스크립트를 **제 창을 가진
+    채로** 띄우는 것뿐이다. 그 스크립트가 이 프로그램을 끄고, 파일을 바꾸고, 다시 켠다.
+
+    **창을 주는 것이 핵심이다.** 앞선 판은 창 없이(DETACHED_PROCESS) 띄웠는데,
+    원장님이 "지금 올리기 눌렀는데 움직임이 없다" 고 하신 것이 그 결과다. 창이 없으면
+    두 가지가 한꺼번에 무너진다.
+
+      1. **원장님 눈에 아무것도 안 보인다.** 받는 중인지, 실패했는지, 애초에 시작이나
+         했는지 알 길이 없다. 화면은 "곧 꺼졌다 켜집니다" 라고 해 놓고 아무 일도
+         일어나지 않는다.
+      2. **스크립트가 시작하자마자 죽는다.** update.ps1 은 둘째 줄에서
+         `[Console]::OutputEncoding` 을 건드리는데, 창이 없으면 이 줄이 "핸들이
+         잘못되었습니다" 로 터진다. 바로 위에 `$ErrorActionPreference = "Stop"` 이
+         있으니 그 자리에서 끝이다 — 프로그램을 끄기도 전에.
+
+    그래서 CREATE_NEW_CONSOLE 로 제 창을 주고 띄운다. 창이 뜨면 원장님은 1/6 부터
+    6/6 까지 진행을 눈으로 보신다. 새 창을 가진 프로세스는 이 프로그램이 꺼져도
+    같이 죽지 않는다(윈도우는 작업 개체를 쓰지 않는 한 자식을 끌고 가지 않는다).
     """
     import subprocess
     import sys
@@ -444,8 +513,10 @@ def run_update(request: Request) -> dict:
     if sys.platform != "win32":
         raise HTTPException(400, "지금은 윈도우에서만 됩니다")
 
-    # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP — 이 프로그램이 꺼져도 살아남는다.
-    flags = 0x00000008 | 0x00000200
+    # CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP
+    #   제 창을 가지고 뜬다 → 원장님이 진행을 보신다 + PowerShell 이 콘솔을 만진다.
+    #   제 프로세스 그룹을 가진다 → 이 프로그램이 꺼져도 함께 죽지 않는다.
+    flags = 0x00000010 | 0x00000200
     try:
         subprocess.Popen(
             [
@@ -461,5 +532,5 @@ def run_update(request: Request) -> dict:
 
     return {
         "started": True,
-        "note": "새 판을 받는 중입니다. 잠시 뒤 프로그램이 꺼졌다가 다시 켜집니다.",
+        "note": "갱신 창이 하나 떴을 것입니다 — 그 창이 다 할 때까지 두십시오.",
     }

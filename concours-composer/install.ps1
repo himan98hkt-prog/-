@@ -239,7 +239,7 @@ try {
 try {
     $head = Invoke-RestMethod -TimeoutSec 15 -Headers @{ "User-Agent" = "ConcoursComposer" } `
         -Uri "https://api.github.com/repos/himan98hkt-prog/-/commits/claude/program-development-yi0956"
-    Set-Content -Path (Join-Path $PSScriptRoot "설치버전.txt") -Value "$($head.sha)" -Encoding UTF8
+    [IO.File]::WriteAllText((Join-Path $PSScriptRoot "설치버전.txt"), "$($head.sha)")
 } catch { }
 
 Step "7/7 자기 점검"

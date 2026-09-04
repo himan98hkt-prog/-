@@ -157,6 +157,13 @@
   .budget-n { font-weight:700; font-size:15px; }
   .budget-c { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; }
   .budget-s { font-size:12.5px; color:var(--muted); line-height:1.5; }
+  /* 남은 돈으로 이 등급이 되는지 — 고른 뒤가 아니라 고르기 전에 보인다 */
+  .budget-w { font-size:12px; font-weight:600; line-height:1.45; margin-top:2px; }
+  .budget.tight   { border-color:var(--gold-2); background:#fffaf0; }
+  .budget.tight   .budget-w { color:var(--warn); }
+  .budget-w.ok { color:var(--muted); font-weight:500; }
+  .budget.nomoney { border-color:#e2b6b1; background:#fdf4f3; }
+  .budget.nomoney .budget-w { color:var(--bad); }
 
   /* 넣어 둔 돈에서 남은 돈 — 돈이 줄어드는 것이 눈에 보이게 */
   .wallet { border:1px solid var(--line); border-radius:14px; padding:14px 16px;
@@ -2540,6 +2547,7 @@ async function marketCompose(presetId) {
   };
   poll();
   const timer = setInterval(poll, 700);
+  if (!moneyOkToStart(1)) { clearInterval(timer); bar.stop(false); return; }
   const busy = [$("btnMarketGo"), $("btnMarketPick"),
                 ...$("marketGrid").querySelectorAll(".card"),
                 ...$("tierGrid").querySelectorAll(".tier")];
@@ -2665,6 +2673,7 @@ $("btnSetGo").onclick = async () => {
   };
   poll();
   const timer = setInterval(poll, 700);
+  if (!moneyOkToStart(tiers.length)) { clearInterval(timer); bar.stop(false); return; }
   $("btnSetGo").disabled = true;
   try {
     const r = await api("/api/compositions/market/set", { method: "POST", body: JSON.stringify({
@@ -3151,6 +3160,11 @@ async function autoCompose(presetId, cardEl) {
   };
   poll();                                   // 첫 번째는 곧바로 — 700ms 를 빈 화면으로 보내지 않는다
   makeTimer = setInterval(poll, 700);
+  if (!moneyOkToStart(1)) {
+    if (makeTimer) { clearInterval(makeTimer); makeTimer = null; }
+    mainBar.stop(false);
+    return;
+  }
   document.querySelectorAll("#presetGrid .card").forEach(c => c.disabled = true);
   try {
     // 0 은 "학생 실력 그대로" 라는 뜻이다 — 서버에는 비워서 보낸다.
@@ -3387,6 +3401,82 @@ function paintGoCounts() {
   if (r) r.textContent = (window.refCountN || 0) ? `${window.refCountN}개` : "";
 }
 
+// ── 갱신이 정말 돌아가고 있는지 지켜본다 ───────────────────────────────────
+//
+// 원장님: "지금 올리기 하고 대기중인데.. 프로그램이 꺼졌다가 다시 켜진다고 했는데
+//          움직임이 없은데.. 어느정도 기댜려야 꺼졌다가 켜질까?"
+//
+// 앞선 판의 화면은 "잠시 뒤 F5 를 눌러 주십시오" 라고 **말만 하고 손을 놓았다.**
+// 그러면 원장님은 아무 근거 없이 기다리다, 새로고침을 눌러 보고, 또 기다리신다.
+// 갱신이 아예 시작조차 못 했을 때도 화면은 똑같은 말을 하고 있었다.
+//
+// 지켜보는 것은 프로그램이 할 일이다. 두 마디로 나눠 본다.
+//
+//   1. **꺼지기를 기다린다** — 갱신 스크립트가 맨 먼저 하는 일이 이 프로그램을
+//      끄는 것이다. 그러니 응답이 끊기면 "갱신이 정말 시작됐다" 는 증거다.
+//      90초가 지나도 멀쩡히 살아 있으면 시작조차 못 한 것이다. 그렇게 말한다.
+//   2. **다시 켜지기를 기다린다** — 켜지면 화면을 저절로 새로 고친다.
+//      F5 를 원장님이 누르실 이유가 없다.
+//
+// 몇 초가 지났는지 계속 보여 준다. "어느 정도 기다려야 하나" 에 대한 답은
+// **지어낸 숫자가 아니라 지금 흐른 시간**이다.
+function watchUpdate(note) {
+  const t0 = Date.now();
+  const secs = () => Math.round((Date.now() - t0) / 1000);
+  const WAIT_OFF = 90;        // 이 안에 안 꺼지면 시작을 못 한 것이다
+  const WAIT_ON = 15 * 60;    // 받고 바꾸고 부품 맞추는 데까지
+
+  // 서버가 살아 있는지만 본다. 죽어 있으면 fetch 자체가 실패한다.
+  const alive = () =>
+    fetch("/health?t=" + Date.now(), { cache: "no-store" })
+      .then(r => r.ok).catch(() => false);
+
+  const stuck = (why, how) => {
+    note.innerHTML =
+      `<b>${why}</b><br>${how}` +
+      `<br><span class="why">프로그램 폴더의 <b>갱신기록.txt</b> 에 무엇이 막았는지 적혀 있습니다.</span>`;
+    const g = $("btnUpdateNow");
+    if (g) { g.disabled = false; g.textContent = "다시 올리기"; }
+  };
+
+  const waitOff = async () => {
+    if (!(await alive())) return waitOn();
+    if (secs() > WAIT_OFF) {
+      return stuck(
+        "갱신이 시작되지 않았습니다.",
+        "프로그램이 90초가 지나도 꺼지지 않았습니다 — 갱신 창이 뜨자마자 닫혔을 수 있습니다." +
+        "<br><b>폴더 열기</b> 를 눌러 <b>업데이트.bat</b> 을 직접 실행해 보십시오.",
+      );
+    }
+    note.innerHTML =
+      `갱신 창이 떴습니다 — <b>그 창을 닫지 마십시오.</b>` +
+      `<br><span class="why">프로그램이 꺼지기를 기다리는 중… ${secs()}초</span>`;
+    setTimeout(waitOff, 2000);
+  };
+
+  const waitOn = async () => {
+    if (await alive()) {
+      note.innerHTML = "<b>다 됐습니다.</b> 화면을 새로 고칩니다…";
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
+    if (secs() > WAIT_ON) {
+      return stuck(
+        "아직 다시 켜지지 않았습니다.",
+        "갱신 창에 무엇이라고 쓰여 있는지 봐 주십시오. 창이 이미 닫혔다면" +
+        " 바탕화면의 <b>콩쿨 작곡기</b> 아이콘을 한 번 눌러 주십시오.",
+      );
+    }
+    note.innerHTML =
+      `프로그램이 꺼졌습니다 — <b>갱신이 제대로 돌고 있습니다.</b>` +
+      `<br><span class="why">새 판을 받아 바꾸는 중… ${secs()}초` +
+      ` · 다 되면 이 화면이 저절로 돌아옵니다. F5 를 누르지 않으셔도 됩니다.</span>`;
+    setTimeout(waitOn, 2000);
+  };
+
+  waitOff();
+}
+
 // ── 새 판 알림 ─────────────────────────────────────────────────────────────
 // 원장님은 새 판이 나올 때마다 폴더를 지우고 다시 받고 다시 설치하셨다.
 // 이제 '업데이트.bat' 한 번이면 되는데, **나왔다는 것을 알아야** 누른다.
@@ -3440,13 +3530,11 @@ async function checkUpdate() {
   const go = $("btnUpdateNow"), note = $("updNote");
   if (go) go.onclick = async () => {
     go.disabled = true;
-    note.innerHTML = "새 판을 받는 중입니다… <b>이 창을 닫지 마십시오.</b>";
+    note.innerHTML = "갱신을 시작합니다…";
     try {
       const r = await api("/api/update", { method: "POST" });
-      note.innerHTML = esc(r.note)
-        + "<br>잠시 뒤 브라우저 새로고침(F5)을 한 번 해 주십시오.";
-      // 갱신 스크립트가 프로그램을 껐다가 다시 켠다. 그동안은 응답이 없는 것이 정상이다.
-      setTimeout(() => { note.innerHTML += "<br>아직이면 30초쯤 더 기다렸다 새로고침해 주십시오."; }, 25000);
+      note.innerHTML = esc(r.note);
+      watchUpdate(note);          // 이제부터는 **화면이 직접 지켜본다**
     } catch (e) {
       note.innerHTML = `<b>${esc(e.message)}</b>` + (e.hint ? "<br>" + esc(e.hint) : "");
       go.disabled = false;
@@ -3470,6 +3558,7 @@ let budgetModel = localStorage.getItem("ccModel") || "claude-sonnet-5";
 let budgetLimit = localStorage.getItem("ccLimit");
 budgetLimit = budgetLimit === null ? 0 : Number(budgetLimit);
 let budgetModes = [], budgetModels = [];
+let walletNow = null;        // 마지막으로 읽은 남은 돈. 없으면 null.
 
 // 작곡 요청에 얹는 값. 모든 만들기 버튼이 이것을 쓴다.
 function budgetBody() {
@@ -3498,11 +3587,27 @@ function paintBudgets(d) {
       : m.cost_limit === 0
         ? `보통 $${m.typical_low.toFixed(2)}~$${m.typical_high.toFixed(2)} · 상한 없음`
         : `약 $${m.typical_low.toFixed(2)} ~ $${m.typical_high.toFixed(2)}`;
-    return `<button class="budget${m.id === budgetMode ? " on" : ""}" data-mode="${m.id}"
-      data-tip="${esc(m.detail)}">
+    // **남은 돈으로 이 등급이 되는지 카드에 바로 적는다.**
+    // 원장님이 20 달러를 넣으시고 곡 하나 못 얻은 채 12 달러를 쓰셨다. 그때 고르신
+    // 것이 '상한 없음' 등급이었다 — 한 번 실패에 최대 $6 이 나가는데, 화면 어디에도
+    // "지금 남은 돈으로는 몇 번 못 한다" 는 말이 없었다. 고른 뒤가 아니라 **고르기
+    // 전에** 보여야 한다.
+    // **남은 돈으로 몇 번 해 볼 수 있는지**를 적는다. 금액만 적으면 원장님은 그것을
+    // 나눗셈해서 헤아리셔야 한다. 원장님이 잃으신 12 달러는 한 번에 나간 것이 아니라
+    // **실패가 쌓여** 나갔다. 그러니 "한 번 하면 끝" 인 것을 그렇게 적어야 한다.
+    const tries = walletNow && m.id !== "custom" && m.typical_high > 0
+      ? Math.floor(walletNow.remaining_usd / m.typical_high) : null;
+    const gone = tries !== null && walletNow.remaining_usd < m.typical_low;
+    const risky = tries !== null && !gone && tries <= 1;
+    return `<button class="budget${m.id === budgetMode ? " on" : ""}${gone ? " nomoney" : risky ? " tight" : ""}"
+      data-mode="${m.id}" data-tip="${esc(m.detail)}">
       <span class="budget-n">${esc(m.name)}</span>
       <span class="budget-c">${esc(price)}</span>
       <span class="budget-s">${esc(m.tagline)}</span>
+      ${gone ? `<span class="budget-w">남은 돈 $${walletNow.remaining_usd.toFixed(2)} 로는 모자랍니다</span>`
+             : risky ? `<span class="budget-w">남은 돈으로 ${tries < 1 ? "될까 말까" : "딱 한 번"} — 실패하면 다시 못 합니다</span>`
+             : tries !== null ? `<span class="budget-w ok">남은 돈으로 ${tries}번쯤</span>`
+             : ""}
     </button>`;
   }).join("");
   grid.querySelectorAll(".budget").forEach(b => {
@@ -3548,6 +3653,48 @@ function paintBudgets(d) {
     localStorage.setItem("ccLimit", String(budgetLimit)); say();
   };
   say();
+}
+
+// ── 돈이 모자란 채로 시작하지 않는다 ──────────────────────────────────────
+//
+// 원장님: "20달러 충천했었는데.. 현재 잔액이 7달러만 남았어..
+//          거의 2만원돈을 아무것도 만든 것도 없이 날리기만 했어."
+//
+// 곡을 못 얻은 시도에도 돈은 나갔다. 그런데 시작하기 **전에** 그 위험을 말해 주는
+// 자리가 화면 어디에도 없었다. 만들기를 누르는 순간이 마지막 기회다.
+//
+// 막지는 않는다 — 원장님 돈이고, 원장님이 정하실 일이다. 다만 **모르고 쓰시는 일이
+// 없게** 한다. 그리고 더 싼 길이 있으면 그 자리에서 알려 드린다.
+function moneyOkToStart(count) {
+  const w = walletNow;
+  if (!w) return true;                       // 충전액을 안 적으셨으면 셈할 것이 없다
+  const m = budgetModes.find(x => x.id === budgetMode);
+  if (!m || budgetMode === "custom") return true;
+  const n = Math.max(1, count || 1);
+  const worst = m.typical_high * n;
+  // 남은 돈이 최악의 경우의 **두 배**는 되어야 마음 놓고 시작하실 수 있다.
+  // 딱 한 번 될 만큼만 남았는데 그냥 시작하면, 실패했을 때 다시 할 길이 없다 —
+  // 원장님이 겪으신 것이 정확히 그것이다.
+  if (w.remaining_usd >= worst * 2) return true;
+
+  const cheap = budgetModes.find(x => x.id === "saver");
+  const canDo = Math.floor(w.remaining_usd / Math.max(0.01, worst));
+  const lines = [
+    `남은 돈이 $${w.remaining_usd.toFixed(2)} 입니다.`,
+    `'${m.name}' 등급은 여기서 최대 $${worst.toFixed(2)} 까지 씁니다.`,
+    canDo < 1
+      ? "→ 이 등급은 남은 돈으로 끝까지 못 갈 수 있습니다."
+      : `→ 남은 돈으로 ${canDo}번 해 볼 수 있습니다. 실패하면 그만큼 줄어듭니다.`,
+    "",
+    "곡을 못 얻고 끝나도 그 돈은 돌아오지 않습니다.",
+  ];
+  if (cheap && budgetMode !== "saver" && w.remaining_usd >= cheap.typical_high) {
+    lines.push("", `'${cheap.name}' 등급(약 $${cheap.typical_low.toFixed(2)}~$${cheap.typical_high.toFixed(2)})으로`
+      + " 먼저 한 곡을 만들어 보시는 편을 권합니다 — 끝까지 되는지부터 확인하고,");
+    lines.push("그다음에 좋은 등급으로 다시 만드시면 됩니다.");
+  }
+  lines.push("", "그래도 이대로 시작할까요?");
+  return confirm(lines.join("\n"));
 }
 
 // ── 보관함 ─────────────────────────────────────────────────────────────────
@@ -4301,6 +4448,9 @@ async function refreshSpending() {
 function drawWallet(w) {
   const bar = $("walletBar"), detail = $("walletDetail"), state = $("walletState");
   if (!w) return;
+  walletNow = w.known ? w : null;
+  // 남은 돈이 바뀌면 등급 카드의 경고도 같이 바뀌어야 한다.
+  if (budgetModes.length) paintBudgets({ modes: budgetModes, models: budgetModels });
   if (bar) {
     if (!w.known) {
       // 모르는 것을 아는 척하지 않는다. 대신 어디서 적는지 한 번에 알려 준다.
