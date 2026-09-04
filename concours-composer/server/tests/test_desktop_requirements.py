@@ -125,8 +125,8 @@ def test_ci_installs_everything_the_program_actually_needs() -> None:
 
     # 원장 PC 에 까는 것 중 '이름[extra]==버전' 에서 이름만 뽑는다.
     wanted = set()
-    for line in desktop.splitlines():
-        line = line.split("#")[0].strip()
+    for raw in desktop.splitlines():
+        line = raw.split("#")[0].strip()
         if not line:
             continue
         name = re.split(r"[\[<>=!;]", line)[0].strip().lower()
