@@ -27,8 +27,23 @@ from __future__ import annotations
 
 from app.generation.context import ComposerContext
 from app.generation.presets import Preset
+from app.handoff.character import describe
 from app.handoff.example import example_json, example_measure_json
-from app.handoff.wishes import tells
+from app.handoff.wishes import names, tells
+
+
+def eun_neun(word: str) -> str:
+    """받침이 있으면 '은', 없으면 '는'.
+
+    "행진곡는", "야상곡풍는" 처럼 적히면 원장님이 읽으실 글이 어색해진다. 의뢰서는
+    사람이 읽는 글이고, 읽는 사람은 그 어색함을 곧 '대충 만든 것' 으로 읽는다.
+    """
+    if not word:
+        return "는"
+    ch = word.strip()[-1]
+    if not ("가" <= ch <= "힣"):
+        return "는"          # 한글이 아니면 건드리지 않는다
+    return "은" if (ord(ch) - 0xAC00) % 28 else "는"
 
 
 def _minutes(sec: int | None) -> str:
@@ -56,6 +71,27 @@ def build_brief(
     lines: list[str] = []
 
     lines.append("# 콩쿨 독창곡 작곡 의뢰서")
+    lines.append("")
+    # **원장님이 고르신 것을 맨 위에 그대로 적는다.**
+    # 원장님이 "세부 요청사항이 전혀 반영되지 않았다" 고 하셨다. 실제로 반영은 되고
+    # 있었지만 **의뢰서 어디에도 "당신이 이렇게 고르셨습니다" 가 없었다.** 그러면
+    # 반영됐는지 확인할 방법이 없다. 눈으로 보이지 않는 것은 없는 것과 같다.
+    chosen: list[str] = []
+    if tier_name:
+        chosen.append(f"급수 **{tier_name}**")
+    chosen.append(f"성격 **{preset.name}**" if preset else "성격 **맡김**")
+    if key_pref:
+        chosen.append(f"조성 **{key_pref}**")
+    picked_names = names(wish_ids or [])
+    chosen.append(f"고르신 항목 **{len(picked_names)}개**" if picked_names else "고르신 항목 없음")
+    if wish.strip():
+        chosen.append("직접 적으신 말씀 있음")
+    if avoid.strip():
+        chosen.append("피할 것 적으심")
+    lines.append("> **원장님이 고르신 것:** " + " · ".join(chosen))
+    if picked_names:
+        lines.append(">")
+        lines.append("> " + " / ".join(picked_names))
     lines.append("")
     lines.append("아래 조건으로 피아노 독주곡 한 곡을 작곡해 주십시오. "
                  "이 의뢰서는 ConcoursComposer 프로그램이 자동으로 만든 것이고, "
@@ -110,10 +146,31 @@ def build_brief(
             lines.append(f"- 학생의 약점이 다음이면 이 성격은 위험합니다: {', '.join(preset.avoid_if)}")
         if preset.texture_options:
             lines.append(f"- 왼손 짜임새 후보: {', '.join(preset.texture_options)}")
-    if key_pref:
-        lines.append(f"- **조성은 {key_pref} 로 해 주십시오** (원장님이 정하셨습니다)")
+        # **여기가 이 의뢰서의 심장이다.**
+        # 프리셋의 값(분위기·형식·조성 후보)은 프로그램이 검사에 쓰려고 만든 것이지
+        # 사람에게 곡을 설명하려고 만든 것이 아니다. 그 값만 옮겨 적어 놓고
+        # "작곡해 주세요" 라고 했더니 토카타 같지 않은 곡이 왔다. 당연한 일이다 —
+        # **무엇을 하라는 말이 없었다.** 손이 무엇을 하는지 적는다.
+        told = describe(preset.id)
+        if told:
+            what, how, breaks = told
+            lines.append("")
+            lines.append(f"**{preset.name}{eun_neun(preset.name)} 이런 곡입니다.** {what}")
+            lines.append("")
+            lines.append("**이렇게 쓰십시오:**")
+            lines.append("")
+            for one in how:          # `h` 는 위에서 ctx.hard 다 — 겹치면 안 된다
+                lines.append(f"- {one}")
+            lines.append("")
+            lines.append(f"**이러면 이 성격이 무너집니다:** {breaks}")
     else:
         lines.append("- 성격은 맡깁니다 — 위 조건에 가장 잘 맞는 것으로 골라 주십시오")
+    # **조성 지정과 성격 지정은 다른 이야기다.**
+    # 이 둘을 if/else 로 묶어 두었더니, 조성을 안 고르셨을 때 토카타를 골라 놓고도
+    # 의뢰서가 "성격은 맡깁니다" 라고 말했다. 작곡하는 쪽은 그 한 줄을 보고 아무 곡이나
+    # 써도 된다고 읽는다. 원장님이 "하나도 토카타 스럽지 않다" 고 하신 이유의 절반이 이것이다.
+    if key_pref:
+        lines.append(f"- **조성은 {key_pref} 로 해 주십시오** (원장님이 정하셨습니다)")
     if measures_hint:
         lines.append(f"- 마디 수는 **{measures_hint}마디 안팎**이 제한 시간에 맞습니다")
     lines.append("")
@@ -170,6 +227,17 @@ def build_brief(
     lines.append("3. **첫 8마디·클라이맥스·마무리에 힘을 쓰십시오** — 심사위원이 기억하는 곳입니다.")
     lines.append("4. **섹션이 바뀌면 왼손도 바뀌어야 합니다** — 오른손만 바뀌고 왼손이 같은 일을 "
                  "계속하면 '대비 없음' 으로 깎입니다.")
+    lines.append("5. **무늬를 여덟 가지 이상 쓰십시오.** 한 가지 음형을 화성 따라 조옮김만 하면 "
+                 "규칙 검사는 통과하지만 **사람 귀에는 같은 마디가 계속되는 곡**입니다. "
+                 "네 마디쯤마다 손이 하는 일이 바뀌어야 합니다 — 음계, 분산화음, 반복음, "
+                 "양손 교대, 끊는 옥타브, 페달 위 축적, 화음, 노래하는 선율.")
+    lines.append("6. **마디를 하나씩 직접 쓰십시오.** 규칙을 정해 놓고 기계적으로 찍어 내면 "
+                 "반드시 밋밋해집니다. 각 마디에 '여기서 무슨 일이 일어나는가' 를 두십시오.")
+    if preset and "달리" in (preset.mood or ""):
+        lines.append("7. **토카타는 달리기가 멈추면 토카타가 아닙니다.** 종지 자리 말고는 "
+                     "16분음표가 **어느 한 손에서든 계속 굴러야** 합니다. 가운데 단락에서 "
+                     "오른손이 4분음표로 노래하게 하지 마십시오 — 그러면 찬송가가 됩니다. "
+                     "역할을 바꾸시려면 **왼손이 선율을 맡고 오른손이 계속 구르게** 하십시오.")
     lines.append("")
 
     lines.append("## 7. 돌려주실 형식")
@@ -205,7 +273,20 @@ def build_brief(
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("받은 JSON 은 프로그램의 **'받아온 곡 넣기'** 에 붙여 넣습니다. "
+    # 원장님이 물으셨다: "요청할때 어떤 문서를 만들어 달라고 해야 정확하게 프로그램에서
+    # 인식이 될까?" — 따로 부탁하실 것이 없어야 맞다. 의뢰서가 스스로 말하면 된다.
+    lines.append("## 돌려주실 것 — 이것 하나면 됩니다")
+    lines.append("")
+    lines.append("위 JSON 을 **`곡이름.json` 파일 하나로 저장해 주십시오.**")
+    lines.append("")
+    lines.append("- 악보(MusicXML)·MIDI·MP3·연주 해설·표지·판매 꾸러미·저작권 서류는 "
+                 "**프로그램이 이 JSON 하나로 다 만듭니다.** 따로 주실 필요가 없습니다.")
+    lines.append("- 파일 이름은 아무거나 괜찮습니다. 확장자만 `.json` 이면 됩니다.")
+    lines.append("- 설명이나 해설을 곁들이고 싶으시면 파일 **밖에** 적어 주십시오. "
+                 "JSON 파일 안에는 위에 적힌 것만 들어가야 합니다.")
+    lines.append("")
+    lines.append("그 파일을 프로그램의 **'② 받아온 곡 넣기 → 파일로 넣기'** 에서 고르면 됩니다. "
                  "그때 검증기·음악성 지표·표절 검사·모의 심사 3인이 그대로 돌고, "
-                 "통과하지 못하면 무엇이 걸렸는지 알려 줍니다.")
+                 "통과하지 못하면 무엇이 걸렸는지 알려 줍니다. 고쳐서 다시 넣는 데도 "
+                 "비용이 들지 않습니다.")
     return "\n".join(lines)

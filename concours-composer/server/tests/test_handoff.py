@@ -376,3 +376,165 @@ def test_reference_scores_never_leak_notes(client) -> None:
     b = client.post("/api/handoff/brief",
                     json={"tier_id": "middle", "use_references": True}).json()["brief"]
     assert "옮겨 적지 마십시오" in b, "표절 경고가 의뢰서에서 사라졌다"
+
+
+# ── 6. 밋밋한 곡을 미리 막는다 ────────────────────────────────────────────
+#
+# 원장님: "악보 및 곡이 토카타가 아닌데.. 다 엉망으로 나와"
+#
+# 실제로 그랬다. 내가 무늬 하나를 만들어 화성 따라 조옮김만 한 곡을 드렸다.
+# 검증기와 음악성 지표는 통과했다(9.61). 지표는 "같은 마디가 열네 번" 을 듣지 못한다.
+# 58마디에 리듬 생김새가 11가지뿐이었고, 가운데 열여섯 마디는 오른손이 4분음표였다 —
+# 토카타에서 달리기가 멈추면 그것은 토카타가 아니다.
+#
+# 지표가 못 듣는 것은 **의뢰서가 미리 말해야** 한다.
+
+
+def test_the_brief_forbids_stamping_one_figure_through_the_whole_piece(client) -> None:
+    b = client.post("/api/handoff/brief", json={"tier_id": "middle"}).json()["brief"]
+    assert "무늬를 여덟 가지 이상" in b, "한 무늬로 곡 전체를 찍어 내는 것을 막지 않는다"
+    assert "조옮김만 하면" in b, "왜 안 되는지 말해 주지 않으면 또 그렇게 만들어 온다"
+    assert "마디를 하나씩 직접" in b, "기계적으로 찍어 내지 말라는 말이 없다"
+
+
+def test_a_toccata_brief_says_the_running_must_not_stop(client) -> None:
+    """성격마다 그 성격이 무너지는 자리가 다르다. 토카타는 달리기가 멈추는 것이다."""
+    b = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "preset_id": "toccata"}).json()["brief"]
+    assert "달리기가 멈추면" in b
+    assert "왼손이 선율을 맡고 오른손이 계속 구르게" in b, (
+        "역할을 바꾸는 올바른 방법을 알려 주지 않으면 가운데가 찬송가가 된다"
+    )
+    # 토카타가 아닌 성격에는 이 말이 붙지 않아야 한다 — 아무 데나 붙는 경고는 안 읽힌다.
+    other = client.post("/api/handoff/brief",
+                        json={"tier_id": "middle", "preset_id": "nocturne"}).json()["brief"]
+    assert "달리기가 멈추면" not in other
+
+
+# ── 7. 의뢰서가 성격을 **제대로** 설명한다 ────────────────────────────────
+#
+# 원장님: "프로그램에서 알려준 프롬프트로 만든것이 하나도 토카타 스럽지 않고 곡도 이상해..
+#          프롬프트가 도데체 어떻게 되어 있는거야."
+#
+# 보니 토카타에 대해 하는 말이 이게 전부였다:
+#     - 토카타 — 쉬지 않고 달리는 16분음표. 손가락이 강점일 때
+#     - 이 성격이 드러내는 것: 손가락 속도, 화려한 스케일, 지구력
+# 이것으로는 토카타를 쓸 수 없다. **무엇을 하라는 말이 없다.**
+
+
+def test_the_brief_never_says_it_is_up_to_you_when_a_character_was_chosen(client) -> None:
+    """**성격을 골라 놓고 "성격은 맡깁니다" 라고 하면 아무 곡이나 온다.**
+
+    조성 지정과 성격 지정을 if/else 로 묶어 둔 탓에, 조성을 안 고르시면 토카타를
+    골라 놓고도 이 줄이 붙었다. 원장님이 겪으신 일의 절반이 이것이다.
+    """
+    picked = client.post("/api/handoff/brief",
+                         json={"tier_id": "middle", "preset_id": "toccata"}).json()["brief"]
+    assert "성격은 맡깁니다" not in picked, "성격을 골랐는데 맡긴다고 한다"
+    # 조성을 함께 골라도 마찬가지여야 한다.
+    both = client.post("/api/handoff/brief",
+                       json={"tier_id": "middle", "preset_id": "toccata", "key_pref": "A"}).json()["brief"]
+    assert "성격은 맡깁니다" not in both
+    assert "조성은 A 로" in both
+    # 정말로 안 고르셨을 때만 나온다.
+    free = client.post("/api/handoff/brief", json={"tier_id": "middle"}).json()["brief"]
+    assert "성격은 맡깁니다" in free
+
+
+def test_every_character_tells_the_composer_what_the_hands_do(client) -> None:
+    """프리셋 값만 옮겨 적는 것은 설명이 아니다. 손이 무엇을 하는지 적혀야 한다."""
+    from app.generation.presets import PRESETS
+    from app.handoff.character import CHARACTER
+
+    for p in PRESETS:
+        assert p.id in CHARACTER, f"{p.name} 에 '이런 곡입니다' 가 없다"
+        what, how, breaks = CHARACTER[p.id]
+        assert len(what) > 40, f"{p.name} 설명이 너무 짧다"
+        assert len(how) >= 3, f"{p.name} 에 '이렇게 쓰십시오' 가 {len(how)}줄뿐이다"
+        assert breaks, f"{p.name} 에 '이러면 무너집니다' 가 없다"
+
+    b = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "preset_id": "toccata"}).json()["brief"]
+    assert "토카타는 이런 곡입니다" in b
+    assert "양손 교대를 반드시 한 번은" in b, "토카타의 얼굴을 안 알려 준다"
+    assert "찬송가가 됩니다" in b, "가운데에서 무너지는 자리를 안 알려 준다"
+
+
+def test_the_brief_says_exactly_what_to_hand_back(client) -> None:
+    """원장님: "어떤 문서를 만들어 달라고 해야 정확하게 프로그램에서 인식이 될까?"
+
+    따로 부탁하실 것이 없어야 맞다 — 의뢰서가 스스로 말해야 한다.
+    """
+    b = client.post("/api/handoff/brief", json={"tier_id": "middle"}).json()["brief"]
+    assert "돌려주실 것" in b
+    assert ".json" in b, "파일 형식을 말해 주지 않는다"
+    assert "프로그램이 이 JSON 하나로 다 만듭니다" in b, (
+        "악보·MP3·해설을 따로 부탁해야 하는 줄 아신다"
+    )
+
+
+# ── 8. 고르신 것이 **의뢰서에 보여야** 한다 ────────────────────────────────
+#
+# 원장님: "지금 원장 세부 요청사항도 전혀 반영되지 않았고, 그냥 최초 프롬프트가
+#          그대로 반영되는 것 같아.. 버튼을 클릭함에 따른 내용들이 반영되어야 하는데"
+#
+# 반영은 되고 있었다. 다만 **의뢰서 어디에도 "당신이 이렇게 고르셨습니다" 가 없었다.**
+# 눈으로 확인할 수 없으면 반영되지 않은 것과 같다.
+
+
+def test_the_brief_shows_back_what_the_owner_chose(client) -> None:
+    b = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "preset_id": "toccata", "key_pref": "E",
+        "wish_ids": ["odd_rhythm", "hand_swap"],
+        "wish": "왼손은 단순하게", "avoid": "옥타브 도약",
+    }).json()["brief"]
+    head = b[:600]
+    assert "원장님이 고르신 것" in head, "고르신 것을 되짚어 주지 않는다"
+    for must in ("중급", "토카타", "E", "2개"):
+        assert must in head, f"머리말에 {must} 가 없다"
+    # 고른 항목 이름도 그대로 보여야 한다.
+    assert "처음 듣는 리듬꼴로 시작한다" in head
+    assert "중간에 손 역할을 뒤집는다" in head
+
+
+def test_every_single_wish_reaches_the_brief(client) -> None:
+    """**하나라도 새면 원장님은 '반영이 안 된다' 고 느끼신다.** 열네 개를 다 확인한다."""
+    from app.handoff.wishes import WISHES
+
+    for w in WISHES:
+        b = client.post("/api/handoff/brief", json={
+            "tier_id": "middle", "preset_id": "toccata", "wish_ids": [w.id],
+        }).json()["brief"]
+        assert w.tell in b, f"'{w.name}' 를 골랐는데 의뢰서에 지시가 없다"
+        assert w.name in b[:600], f"'{w.name}' 가 머리말에 안 보인다"
+
+
+def test_changing_the_character_changes_the_whole_description(client) -> None:
+    """성격을 바꿨는데 설명이 그대로면 '최초 프롬프트가 그대로' 로 보인다."""
+    t = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "preset_id": "toccata"}).json()["brief"]
+    n = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "preset_id": "nocturne"}).json()["brief"]
+    assert "손가락이 쉬지 않고 구르는" in t and "손가락이 쉬지 않고 구르는" not in n
+    assert "밤의 노래입니다" in n and "밤의 노래입니다" not in t
+
+
+def test_korean_particles_are_right() -> None:
+    """"행진곡는" 처럼 적히면 원장님은 그것을 '대충 만든 것' 으로 읽으신다."""
+    from app.handoff.brief import eun_neun
+
+    assert eun_neun("토카타") == "는"      # 받침 없음
+    assert eun_neun("행진곡") == "은"      # 받침 있음
+    assert eun_neun("야상곡풍") == "은"
+    assert eun_neun("") == "는"
+
+
+def test_no_character_name_reads_wrong_in_any_brief(client) -> None:
+    from app.generation.presets import PRESETS
+
+    for p in PRESETS:
+        b = client.post("/api/handoff/brief",
+                        json={"tier_id": "middle", "preset_id": p.id}).json()["brief"]
+        assert f"{p.name}는 이런 곡입니다" in b or f"{p.name}은 이런 곡입니다" in b, (
+            f"{p.name} 의 '이런 곡입니다' 가 없다"
+        )

@@ -196,11 +196,30 @@ def _ensure_note_ids(xml: str) -> str:
     return ET.tostring(root, encoding="unicode")
 
 
+# MusicXML 파일의 머리. **이것이 빠지면 악보가 그려지지 않는다.**
+#
+# 원장님 화면에 "정식 악보를 그리지 못했습니다(OpenSheetMusicDisplay: The document
+# which was provided is invalid)" 가 떴다. 악보 자체는 멀쩡했다 — 파트도 두 개고
+# 마디도 다 있었다. 빠진 것은 **첫 줄**이었다.
+#
+# 악보 그리개(OSMD)는 넘겨받은 글의 앞머리에서 `<?xml` 을 찾는다. 없으면 "이건
+# 악보가 아니다" 하고 통째로 거절한다. 우리는 note 에 id 를 붙이려고 XML 을 한 번
+# 뜯었다 붙이는데, 파이썬의 ElementTree 는 그 과정에서 선언과 DOCTYPE 을 버린다.
+#
+# 그래서 다시 붙인다. 파일로 내보낸 악보를 다른 프로그램(뮤즈스코어·시벨리우스)이
+# 여는 데도 이 머리가 있어야 한다.
+_XML_HEAD = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN"'
+    ' "http://www.musicxml.org/dtds/partwise.dtd">\n'
+)
+
+
 def to_musicxml(score: stream.Score) -> str:
     from music21.musicxml.m21ToXml import GeneralObjectExporter
 
     xml = GeneralObjectExporter().parse(score).decode("utf-8")
-    return _ensure_note_ids(xml)
+    return _XML_HEAD + _ensure_note_ids(xml)
 
 
 def measures_to_musicxml(measures: list[Measure], opts: AssembleOptions) -> str:
