@@ -149,3 +149,38 @@ def test_one_draft_is_not_described_as_several() -> None:
     assert STAGE_KO["candidates"] != "후보곡 만들기", (
         "곡 하나를 만드는 중에도 '후보곡' 이라고 적으면 여러 곡인 줄 아신다"
     )
+
+
+# ── 업데이트가 됐는지 원장님이 확인할 수 있는가 ───────────────────────────
+
+
+def test_the_screen_confirms_when_already_up_to_date() -> None:
+    """**최신일 때 아무 말도 안 하면 확인할 길이 없다.**
+
+    원장님: "업데이터 아이콘을 눌렀는데 작곡기까지 열리는데.. 맞는건가?
+             업데이트가 된건가"
+
+    맞다 — 켜져 있던 프로그램을 끄고, 바꾸고, 다시 켜 준다. 그런데 그 창이
+    '성공해서 다시 켜진 것' 인지 '그냥 실행된 것' 인지 화면만 봐서는 알 수 없었다.
+    새 판이 있을 때만 띠가 뜨고, 최신이면 띠가 사라져 아무것도 안 남았기 때문이다.
+    """
+    import re
+
+    page = WEB.read_text(encoding="utf-8")
+    visible = re.sub(r"<!--.*?-->", "", page, flags=re.S)
+    assert "최신 판입니다" in visible, "최신일 때 최신이라고 말하지 않는다"
+    assert "판 번호" in visible, "어느 판인지 안 알려 준다"
+    assert 'id="btnUpdRecheck"' in visible, "다시 확인할 단추가 없다"
+
+
+def test_the_update_script_tells_the_owner_how_to_check() -> None:
+    """검은 창이 닫히고 나면 원장님께 남는 것은 작곡기 화면뿐이다.
+
+    그 화면에서 무엇을 보면 되는지 스크립트가 알려 줘야 한다.
+    """
+    text = (
+        Path(__file__).resolve().parents[2] / "update.ps1"
+    ).read_text(encoding="utf-8-sig")
+    assert text.count("최신 판입니다") >= 2, (
+        "업데이트를 마친 뒤 무엇을 확인하면 되는지 말하지 않는다"
+    )

@@ -80,6 +80,7 @@ if ($latest -and $here -and ($latest -eq $here)) {
     Write-Host ""
     Ok "이미 최신입니다. 바꿀 것이 없습니다."
     Note "판 번호: $($here.Substring(0,7))"
+    Note "프로그램을 다시 켜 드립니다 — 화면 위쪽에 '최신 판입니다' 라고 나오면 맞습니다."
     Write-Host ""
     if ($wasRunning) { Restart-App $Root }
     exit 0
@@ -173,6 +174,7 @@ try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch { }
 
 Write-Host ""
 Write-Host "  다 됐습니다. 만든 곡과 API 키는 그대로입니다." -ForegroundColor Green
+Write-Host "  화면 위쪽에 '최신 판입니다' 라고 나오면 제대로 올라간 것입니다." -ForegroundColor Green
 if ($latest) { Note "판 번호: $($latest.Substring(0,7))" }
 Note "이전 판이 필요하면: $backup"
 Write-Host ""

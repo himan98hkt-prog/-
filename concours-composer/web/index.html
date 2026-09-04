@@ -145,6 +145,7 @@
   .pdfnote p { margin:8px 0 0; line-height:1.65; }
   .make-left { display:block; font-size:12px; font-weight:600; color:var(--accent); margin-top:2px; }
   .make-of { margin:8px 0 0; font-size:12.5px; font-weight:600; color:var(--accent); }
+  .where.ok { border-color:#c8e0d1; background:#f2f8f4; color:#1f5133; }
   .budgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:12px; }
   .budget {
     text-align:left; padding:14px 16px; border:1px solid var(--line); border-radius:14px;
@@ -3350,7 +3351,33 @@ async function checkUpdate() {
   if (!bar) return;
   let v;
   try { v = await api("/api/version"); } catch (_) { return; }
-  if (!v.update_available) { bar.classList.add("hidden"); return; }
+
+  if (!v.update_available) {
+    // **최신일 때 아무 말도 안 하면 원장님은 확인할 길이 없다.**
+    // 업데이트 아이콘을 누르면 프로그램이 꺼졌다 다시 켜지는데, 그 창이
+    // "성공해서 다시 켜진 것" 인지 "그냥 실행된 것" 인지 구분이 안 된다.
+    // 원장님이 "업데이트가 된건가?" 하고 물으신 이유가 이것이다.
+    // 최신이면 최신이라고 **말해 준다.**
+    bar.classList.remove("hidden");
+    bar.className = "where ok";
+    bar.innerHTML =
+      `<span>✓ <b>최신 판입니다.</b>`
+      + (v.installed ? ` <span class="why">판 번호 ${esc(v.installed)}</span>` : "")
+      + (v.asked ? "" : ` <span class="why">— 인터넷으로 확인하지 못해 지금 있는 판만 보여 드립니다.</span>`)
+      + `</span>
+         <div class="where-acts">
+           <button class="ghost" id="btnUpdRecheck"
+             data-tip="지금 다시 물어봅니다.">다시 확인</button>
+         </div>`;
+    const again = $("btnUpdRecheck");
+    if (again) again.onclick = async () => {
+      again.disabled = true; again.textContent = "확인 중…";
+      try { await api("/api/version?check=true&fresh=1"); } catch (_) { /* 못 물어봐도 화면은 산다 */ }
+      await checkUpdate();
+    };
+    return;
+  }
+
   bar.classList.remove("hidden");
   bar.className = "where";
   bar.innerHTML =
