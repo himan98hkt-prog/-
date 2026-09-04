@@ -38,7 +38,9 @@ STAGE_KO: dict[str, str] = {
     "motif": "모티브 고르기",
     "plan": "설계도 그리기",
     "realize": "마디 쓰기",
-    "candidates": "후보곡 만들기",
+    # "후보곡 만들기" 라고 적어 두었더니, 곡 하나를 만드는 중에도 여러 곡을
+    # 만드는 것처럼 보였다. 몇 가지 안을 만드는지는 메시지 쪽에서 말한다.
+    "candidates": "곡 쓰기",
     "revise": "고쳐 쓰기",
     "polish": "다듬기",
     "targeted": "약한 항목 손보기",
@@ -73,6 +75,25 @@ class Job:
     index: int = 0
     label: str = ""
 
+    def remaining(self) -> float:
+        """앞으로 몇 초 더 걸릴지. **재지 않은 것은 말하지 않는다.**
+
+        성격마다 "토카타는 몇 분" 하는 표를 만들어 두는 방법도 있지만, 그 표는
+        내가 재 본 적 없는 숫자다. 게다가 실제 시간은 성격만으로 정해지지 않는다 —
+        등급(모델), 급수, 곡 길이, 그날 서버 혼잡도가 다 얽힌다. 지어낸 표는
+        원장님을 또 한 번 속이는 일이다.
+
+        그래서 **지금 이 곡이 실제로 간 속도**로 잰다. 5%를 가는 데 1분 걸렸으면
+        남은 95%는 대략 19분이다. 곡이 진행될수록 저절로 정확해진다.
+
+        진행이 너무 이르면(3% 미만) 아직 잴 것이 없다 — 0 을 돌려주고 화면은
+        아무 말도 하지 않는다. 모르면 모른다고 하는 것이 틀린 숫자보다 낫다.
+        """
+        if self.done or self.pct < 0.03:
+            return 0.0
+        spent = time.monotonic() - self.started
+        return max(0.0, spent * (1.0 - self.pct) / self.pct)
+
     def snapshot(self) -> dict:
         return {
             "stage": self.stage,
@@ -80,6 +101,8 @@ class Job:
             "pct": round(self.pct, 4),
             "message": self.message,
             "elapsed": round(time.monotonic() - self.started, 1),
+            # 0 이면 "아직 모른다" 는 뜻이다. 화면은 그때 남은 시간을 감춘다.
+            "remaining": round(self.remaining(), 1),
             "done": self.done,
             "failed": self.failed,
             "steps": list(self.steps),

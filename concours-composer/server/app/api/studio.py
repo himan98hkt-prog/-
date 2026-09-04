@@ -397,6 +397,31 @@ def for_mode(
     )
 
 
+def _spend(store: Store, pipeline: CompositionPipeline, *, ok: bool, what: str) -> None:
+    """이번 시도에 **실제로 나간 돈**을 적는다 — 곡이 안 나왔어도 적는다.
+
+    여태 비용 기록은 곡이 만들어진 뒤에만 남았다. 그래서 실패한 시도에 쓴 돈은
+    화면 어디에도 나타나지 않았다. 원장님이 "내가 비용을 도대체 얼마나 사용한건지"
+    라고 물으신 이유가 이것이다 — 날린 돈일수록 보여야 하는데 그 돈만 안 보였다.
+
+    실패도 같은 장부에 적는다. 그래야 "실수 한 번에 얼마" 를 아신다.
+    """
+    ledger = getattr(getattr(pipeline, "engine", None), "ledger", None)
+    usd = float(getattr(ledger, "total_usd", 0.0) or 0.0)
+    if usd <= 0:
+        return          # 규칙 기반(무료)으로 만든 것은 적을 것이 없다
+    store.jobs.setdefault("spend_log", []).append({
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "usd": round(usd, 6),
+        "ok": ok,
+        "what": what,
+    })
+    try:
+        store.save_soon()
+    except Exception:      # 장부 때문에 작곡을 막지 않는다
+        log.exception("비용 기록 저장에 실패했다")
+
+
 def _auto_compose(
     body: AutoComposeIn,
     store: Store,
@@ -435,12 +460,20 @@ def _auto_compose(
     from app.api.corpus import get_corpus
 
     ngrams = get_corpus().ngram_index() or None
+    what = f"{body.preset_id or '알아서'} · {getattr(body, 'market_tier', '') or ''}".strip(" ·")
     try:
         results = pipeline.compose_candidates(ctx, locked, plan, n=body.n_candidates, corpus_ngrams=ngrams)
     except (PlanRejected, InfeasibleRequest) as e:
+        _spend(store, pipeline, ok=False, what=what)
         raise HTTPException(422, str(e)) from e
+    except BaseException:
+        # 어떤 이유로 죽든 **이미 나간 돈은 적는다.** 그래야 원장님이
+        # "실수 한 번에 얼마" 를 아신다.
+        _spend(store, pipeline, ok=False, what=what)
+        raise
     except CostLimitExceeded as e:
         # 이미 쓴 돈은 돌아오지 않는다 — 그 사실을 숨기지 않고 알린다.
+        _spend(store, pipeline, ok=False, what=what)
         raise HTTPException(
             409,
             {
@@ -532,6 +565,7 @@ def _auto_compose(
     #
     # 그래서 뒷정리보다 **저장을 먼저** 한다. 뒷정리는 실패해도 곡을 건드리지 않는다.
     store.save_soon()
+    _spend(store, pipeline, ok=True, what=what)
 
     title = store.title_of(cid)
     if res.savable:

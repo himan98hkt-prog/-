@@ -12,7 +12,14 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 Hand = Literal["L", "R"]
 Staff = Literal[1, 2]  # 1 = 오른손(높은음자리), 2 = 왼손
@@ -100,6 +107,26 @@ def _nullable_choice(schema: dict[str, object]) -> None:
 
 
 # 붙임줄·이음줄은 "없음" 이 정상 상태다. 그래서 None 을 품은 채로 스키마가 성립해야 한다.
+# 조성 이름은 **들어오는 자리에서** 고쳐 받는다.
+#
+# 모델은 사람이 쓰는 대로 "C major"·"a minor"·"Bb major" 라고 준다. 그런데 music21 은
+# "C"(장조)·"c"(단조) 만 받는다. 그대로 흘려보내면 곡을 다 만들고 **악보로 조립하는
+# 마지막 자리**에서 죽는다 — 원장님이 실제로 그 화면을 보셨다.
+#
+#     AccidentalException: ajor is not a supported accidental type
+#
+# 프롬프트로 "짧게 쓰라" 고 부탁하는 것만으로는 부족하다. 언젠가 또 길게 쓸 것이고,
+# 그때 또 다 만든 곡을 잃는다. 받는 자리에서 고치는 것이 유일하게 확실한 길이다.
+def _clean_key(v: object) -> object:
+    if not isinstance(v, str):
+        return v
+    from app.analysis.keyname import normalize_key
+
+    return normalize_key(v)
+
+
+KeyName = Annotated[str, BeforeValidator(_clean_key)]
+
 Tie = Annotated[
     Literal["start", "stop", "continue", None], Field(json_schema_extra=_nullable_choice)
 ]
@@ -180,7 +207,7 @@ class MotifCandidate(BaseModel):
 
     id: str
     measures: list[Measure] = Field(min_length=2, max_length=4)
-    key: str
+    key: KeyName
     meter: str
     tempo: int = Field(ge=30, le=240)
     character_label: str
@@ -279,7 +306,7 @@ class CompositionPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title_candidates: list[str] = Field(default_factory=list)
-    key: str
+    key: KeyName
     meter: str
     tempo: int = Field(ge=30, le=240)
     total_measures: int = Field(ge=8, le=200)

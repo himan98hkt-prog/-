@@ -549,7 +549,12 @@ class CompositionPipeline:
         n = max(1, min(3, n))
         results: list[CompositionResult] = []
         for i in range(n):
-            self.progress("candidates", (i + 1) / n, f"{i + 1}/{n} 안 생성")
+            # 한 안만 만들 때 "1/1 안 생성" 이라고 적으면 여러 곡을 만드는 것처럼
+            # 읽힌다. 원장님이 실제로 "5곡이 만들어지는거야?" 하고 물으셨다.
+            self.progress(
+                "candidates", (i + 1) / n,
+                "곡을 씁니다" if n == 1 else f"{n}가지 안 중 {i + 1}번째",
+            )
             # 안마다 Plan 을 새로 뽑으면 형식이 달라져 비교가 어렵다. 첫 안의 Plan 을
             # 공유하되, 두 번째 안부터는 텍스처 지시를 바꿔 실제로 다른 곡이 나오게 한다.
             variant_plan = plan if i == 0 else self._variant_plan(plan, i)

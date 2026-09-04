@@ -143,6 +143,8 @@
   .pdfnote { margin-top:10px; font-size:12.5px; color:var(--muted); }
   .pdfnote summary { cursor:pointer; font-weight:600; color:var(--accent); }
   .pdfnote p { margin:8px 0 0; line-height:1.65; }
+  .make-left { display:block; font-size:12px; font-weight:600; color:var(--accent); margin-top:2px; }
+  .make-of { margin:8px 0 0; font-size:12.5px; font-weight:600; color:var(--accent); }
   .budgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-top:12px; }
   .budget {
     text-align:left; padding:14px 16px; border:1px solid var(--line); border-radius:14px;
@@ -821,11 +823,20 @@
             <p class="make-stage" id="mkStage">시작하는 중</p>
             <p class="make-msg" id="mkMsg">급수를 읽고 있습니다</p>
           </div>
-          <span class="make-time" id="mkTime">0초</span>
+          <span class="make-time">
+            <b id="mkTime">0초</b>
+            <span class="make-left" id="mkLeft"></span>
+          </span>
         </div>
         <div class="bar"><i id="mkBar" style="width:2%"></i></div>
+        <p class="make-of" id="mkOf"></p>
         <ol class="make-steps" id="mkSteps"></ol>
-        <p class="make-note">곡 하나에 보통 1~3분 걸립니다. 창을 닫지 마십시오.</p>
+        <!-- 한 곡 만들기와 '급수별로 한 벌 만들기' 가 **이 칸 하나를 같이 쓴다.**
+             그런데 이 칸이 '한 벌 만들기' 제목 아래에 있어서, 한 곡을 만드는 중에도
+             여러 곡을 만드는 것처럼 보였다. 원장님이 "1곡만 나오는 것이 아닌 5곡이
+             만들어지는거야?" 하고 물으신 이유가 이것이다 — 나도 화면만 보고 똑같이
+             잘못 읽었다. 이제 무엇을 몇 개 만드는지 여기에 적는다. -->
+        <p class="make-note" id="mkNote">창을 닫지 마십시오.</p>
       </div>
       <div id="marketOut" class="msg hidden"></div>
     </section>
@@ -1025,11 +1036,20 @@
           <p class="make-stage" id="makeStage">시작하는 중</p>
           <p class="make-msg" id="makeMsg">컨셉을 읽고 있습니다</p>
         </div>
-        <span class="make-time" id="makeTime">0초</span>
+        <span class="make-time">
+          <b id="makeTime">0초</b>
+          <span class="make-left" id="makeLeft"></span>
+        </span>
       </div>
       <div class="bar"><i id="makeBar" style="width:2%"></i></div>
+      <p class="make-of" id="makeOf"></p>
       <ol class="make-steps" id="makeSteps"></ol>
-      <p class="make-note">곡 하나에 보통 1~3분 걸립니다. 창을 닫지 마십시오.</p>
+      <!-- 예전에는 여기에 "곡 하나에 보통 1~3분 걸립니다" 라고 못 박아 두었다.
+           그런데 실제 시간은 등급(모델)·성격·급수에 따라 몇 분에서 30분까지 벌어진다.
+           원장님이 토카타를 '끝까지 만들기' 로 거셨을 때 26분이 걸렸는데 화면은
+           내내 "1~3분" 이라고 말하고 있었다. 그래서 "또 돈만 쓰고 멈추는 것 아닌가"
+           하고 불안해하셨다. 지어낸 시간 대신 **실제로 잰 남은 시간**을 위에 띄운다. -->
+      <p class="make-note" id="makeNote">창을 닫지 마십시오.</p>
     </div>
 
     <div id="autoProgress" class="msg hidden"></div>
@@ -2366,7 +2386,7 @@ document.querySelectorAll(".tab").forEach(t => {
 // 아이는 큰 곡을 못 친다 — 실패가 한 방향으로만 나므로 작은 쪽에 맞춘다.
 // 기준이 뒤집히므로 무엇을 묻기 전에 먼저 고르게 한다.
 
-let marketTiers = [], marketTier = null, marketPreset = null;
+let marketTiers = [], marketTier = null, marketPreset = null, marketPresets = [];
 
 function setMode(market) {
   $("modeStudent").classList.toggle("on", !market);
@@ -2427,6 +2447,8 @@ $("btnMarketPick").onclick = async () => {
   const fits = r.presets.map(id => all.find(p => p.id === id)).filter(Boolean);
   const rest = all.filter(p => !r.presets.includes(p.id));
   const mine = [...fits.map(p => ({ p, ok: true })), ...rest.map(p => ({ p, ok: false }))];
+  // 진행 칸에 "무엇을 만드는 중" 을 적으려면 이름이 필요하다.
+  marketPresets = all;
   grid.innerHTML = mine.map(({ p, ok }, i) => {
     const why = ok
       ? "누르면 작곡이 시작됩니다."
@@ -2457,7 +2479,13 @@ async function marketCompose(presetId) {
   out.className = "msg hidden";
   const jobId = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const bar = makeBinding("mk", "marketBox");
-  bar.start();
+  // 무엇을 만드는지 화면이 직접 말한다 — 이 칸을 '한 벌 만들기' 와 같이 쓰기 때문이다.
+  // marketTier 는 이름이 아니라 id 다. 목록에서 이름을 찾아야 한다.
+  const tierName = ((marketTiers.find(t => t.id === marketTier) || {}).name) || "";
+  const presetName = presetId
+    ? ((marketPresets.find(x => x.id === presetId) || {}).name || "")
+    : "알아서 고른 성격";
+  bar.start(`${tierName} · ${presetName} · 곡 1개`.replace(/^ · /, ""));
   // 컨셉 카드는 열두 장이라 목록이 길다. 위쪽 카드를 누르면 진행 칸과 결과가 화면
   // 한참 아래에 그려져 **아무 일도 안 일어난 것처럼 보인다** — 실제로 그랬다.
   // 누르는 순간 눈이 갈 곳으로 데려간다.
@@ -2585,7 +2613,7 @@ $("btnSetGo").onclick = async () => {
   out.className = "msg hidden";
   const jobId = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const bar = makeBinding("mk", "marketBox");
-  bar.start();
+  bar.start(`급수별 한 벌 · 곡 ${tiers.length}개`);
   $("marketBox").scrollIntoView({ block: "center", behavior: "smooth" });
   const poll = async () => {
     try { bar.tick(await api("/api/progress/" + jobId)); } catch (_) { bar.tick(null); }
@@ -3003,23 +3031,47 @@ function makeBinding(prefix, boxId) {
   const el = (n) => $(prefix + n);
   let t0 = 0;
   return {
-    start() {
+    start(what) {
       $(boxId).classList.remove("hidden");
       el("Bar").style.width = "2%";
       el("Stage").textContent = "시작하는 중";
       el("Msg").textContent = "준비하고 있습니다";
       el("Steps").innerHTML = "";
       el("Time").textContent = "0초";
+      // **무엇을 만들고 있는지 적어 둔다.**
+      // 원장님이 "1곡만 나오는 것이 아닌 5곡이 만들어지는거야?" 하고 물으셨다.
+      // 진행 막대가 '급수별로 한 벌 만들기' 제목 아래에 떠서 묶음처럼 보였기 때문이다.
+      // 무엇을 몇 개 만드는지 화면이 직접 말하면 헷갈릴 일이 없다.
+      const note = el("Note");
+      if (note) note.innerHTML = what
+        ? `${esc(what)} · 창을 닫지 마십시오.`
+        : "창을 닫지 마십시오.";
       t0 = Date.now();
     },
     tick(p) {
       const secs = Math.round((Date.now() - t0) / 1000);
-      el("Time").textContent = secs >= 60
-        ? `${Math.floor(secs / 60)}분 ${secs % 60}초` : `${secs}초`;
+      const mmss = (n) => n >= 60
+        ? `${Math.floor(n / 60)}분 ${n % 60}초` : `${n}초`;
+      el("Time").textContent = mmss(secs);
       if (!p || !p.known) return;
       el("Bar").style.width = Math.max(2, Math.round(p.pct * 100)) + "%";
       el("Stage").textContent = p.stage_ko || "만드는 중";
       el("Msg").textContent = p.message || "";
+
+      // 남은 시간은 **서버가 실제 진행에서 잰 값**이다. 0 이면 아직 잴 것이 없다는
+      // 뜻이고, 그때는 아무 말도 하지 않는다 — 틀린 숫자보다 침묵이 낫다.
+      const left = el("Left");
+      if (left) {
+        const r = Math.round(p.remaining || 0);
+        left.textContent = r > 0 ? `남은 시간 약 ${mmss(r)}` : "";
+      }
+      // 여러 곡을 만들 때만 몇 번째인지 붙인다. 한 곡이면 아무 말도 안 한다.
+      const of = el("Of");
+      if (of) of.textContent = (p.total || 1) > 1
+        ? `${p.total}곡 중 ${Math.min((p.index || 0) + 1, p.total)}번째`
+        + (p.label ? ` — ${p.label}` : "")
+        : "";
+
       const last = (p.steps || []).length - 1;
       el("Steps").innerHTML = (p.steps || []).map((s, i) =>
         `<li class="${i === last ? "now" : "done"}">${esc(s.label)}</li>`).join("");
@@ -4137,10 +4189,33 @@ async function refreshSpending() {
   try {
     const s = await api("/api/spending");
     const t = s.this_month, l = s.last_month;
+    // **곡을 못 얻고 나간 돈을 따로 보여 준다.**
+    // 원장님이 "실수시 얼마가 소비되는지 알고 있어야 할 것 같아" 라고 하셨다.
+    // 여태 이 화면은 성공한 곡만 세고 있었다 — 정작 알고 싶은 돈만 안 보였다.
+    const wasted = t.wasted_usd
+      ? `<div class="msg warn" style="margin-top:8px">
+           <strong>곡을 못 얻고 나간 돈 — 이번 달 $${t.wasted_usd}</strong>
+           (실패 ${t.failed}회)<br>
+           <span class="why">한 번 실패에 평균 $${(t.wasted_usd / Math.max(1, t.failed)).toFixed(2)} 입니다.
+           같은 자리에서 자꾸 막히면 등급을 한 단계 낮추거나 음표가 적은 성격으로 바꿔 보십시오.</span>
+         </div>`
+      : "";
+    const recent = (s.recent || []).length
+      ? `<details style="margin-top:8px"><summary class="why">최근 시도 낱낱 보기</summary>
+           <table style="margin-top:6px"><tr><th>언제</th><th>무엇</th><th>결과</th><th>비용</th></tr>` +
+        s.recent.map(r => `<tr>
+            <td class="why">${esc(String(r.at).replace("T", " ").slice(5, 16))}</td>
+            <td class="why">${esc(r.what) || "—"}</td>
+            <td>${r.ok ? '<span class="tag ok">곡 나옴</span>' : '<span class="tag bad">못 얻음</span>'}</td>
+            <td style="font-variant-numeric:tabular-nums">$${r.usd}</td></tr>`).join("") +
+        `</table></details>`
+      : "";
     box.innerHTML =
       `<strong>이번 달</strong> ${t.pieces}곡 · $${t.usd}` +
       (t.per_piece ? ` <span class="why">(곡당 $${t.per_piece})</span>` : "") +
-      `<br><span class="why">지난달 ${l.pieces}곡 · $${l.usd} · 지금까지 모두 ${s.total_pieces}곡 · $${s.total_usd}</span>`;
+      `<br><span class="why">지난달 ${l.pieces}곡 · $${l.usd} · 지금까지 모두 ${s.total_pieces}곡 · $${s.total_usd}`
+      + (s.total_wasted_usd ? ` · 그중 못 얻고 나간 돈 $${s.total_wasted_usd}` : "")
+      + `</span>` + wasted + recent;
   } catch (_) { /* 비용을 못 읽어도 작곡은 된다 */ }
 }
 

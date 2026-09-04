@@ -29,6 +29,7 @@ from music21 import (
     tempo as m21tempo,
 )
 
+from app.analysis.keyname import normalize_key
 from app.identity import current_alias
 from app.schemas.music import Measure, NoteEvent, NoteEvents, PedalSpan, Voice
 
@@ -123,7 +124,10 @@ def assemble(measures: list[Measure], opts: AssembleOptions) -> stream.Score:
         for hand, part in (("rh", rh_part), ("lh", lh_part)):
             m21m = stream.Measure(number=m.number)
             if idx == 0:
-                m21m.insert(0, key.Key(opts.key_sig))
+                # 마지막 안전망. 스키마에서 이미 고쳐 받지만, 저장소에 든 옛 곡이나
+                # 다른 경로로 들어온 값은 그 검사를 거치지 않았을 수 있다.
+                # 조성 이름 하나 때문에 다 만든 곡을 잃는 일은 두 번 없어야 한다.
+                m21m.insert(0, key.Key(normalize_key(opts.key_sig)))
                 m21m.insert(0, m21meter.TimeSignature(opts.meter))
                 if hand == "rh":
                     m21m.insert(0, m21tempo.MetronomeMark(number=opts.tempo))

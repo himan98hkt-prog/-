@@ -99,19 +99,44 @@ def spending() -> dict:
 
     from app.api.deps import get_store
 
-    rows = [j for j in get_store().jobs.get("auto_history", []) if isinstance(j, dict) and j.get("at")]
-    by_month: dict[str, dict[str, float]] = defaultdict(lambda: {"pieces": 0.0, "usd": 0.0})
-    for j in rows:
-        month = str(j["at"])[:7]
-        by_month[month]["pieces"] += 1
-        by_month[month]["usd"] += float(j.get("cost_usd", 0.0) or 0.0)
+    store = get_store()
+
+    # **성공한 곡만 세면 날린 돈이 안 보인다.**
+    # 원장님이 "내가 비용을 도대체 얼마나 사용한건지" 라고 물으신 것이 이것이다 —
+    # 곡이 안 나온 시도에 쓴 돈이야말로 가장 알고 싶은 돈인데 그것만 빠져 있었다.
+    # spend_log 는 성공·실패를 가리지 않고 적는다.
+    log_rows = [
+        j for j in store.jobs.get("spend_log", [])
+        if isinstance(j, dict) and j.get("at")
+    ]
+    by_month: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"pieces": 0.0, "usd": 0.0, "failed": 0.0, "wasted_usd": 0.0}
+    )
+    if log_rows:
+        for j in log_rows:
+            month = str(j["at"])[:7]
+            usd = float(j.get("usd", 0.0) or 0.0)
+            by_month[month]["usd"] += usd
+            if j.get("ok"):
+                by_month[month]["pieces"] += 1
+            else:
+                by_month[month]["failed"] += 1
+                by_month[month]["wasted_usd"] += usd
+    else:
+        # 옛 기록만 있는 원장님 PC 도 있다. 그때는 지금까지 하던 대로 센다.
+        for j in store.jobs.get("auto_history", []):
+            if not (isinstance(j, dict) and j.get("at")):
+                continue
+            month = str(j["at"])[:7]
+            by_month[month]["pieces"] += 1
+            by_month[month]["usd"] += float(j.get("cost_usd", 0.0) or 0.0)
 
     now = datetime.now(UTC)
     this_month = now.strftime("%Y-%m")
     prev = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 
     def row(month: str) -> dict:
-        got = by_month.get(month, {"pieces": 0.0, "usd": 0.0})
+        got = by_month.get(month) or {"pieces": 0.0, "usd": 0.0, "failed": 0.0, "wasted_usd": 0.0}
         pieces = int(got["pieces"])
         usd = round(got["usd"], 4)
         return {
@@ -119,15 +144,27 @@ def spending() -> dict:
             "pieces": pieces,
             "usd": usd,
             "per_piece": round(usd / pieces, 4) if pieces else 0.0,
+            # 곡을 못 얻고 나간 돈. 이것을 보셔야 등급을 바꾸든 성격을 바꾸든 하신다.
+            "failed": int(got.get("failed", 0.0)),
+            "wasted_usd": round(float(got.get("wasted_usd", 0.0)), 4),
         }
 
     total_usd = round(sum(v["usd"] for v in by_month.values()), 4)
+    recent = [
+        {"at": j["at"], "usd": round(float(j.get("usd", 0.0) or 0.0), 4),
+         "ok": bool(j.get("ok")), "what": str(j.get("what", ""))}
+        for j in sorted(log_rows, key=lambda x: str(x["at"]), reverse=True)[:12]
+    ]
     return {
         "this_month": row(this_month),
         "last_month": row(prev),
         "total_usd": total_usd,
         "total_pieces": int(sum(v["pieces"] for v in by_month.values())),
+        "total_wasted_usd": round(sum(v.get("wasted_usd", 0.0) for v in by_month.values()), 4),
+        "total_failed": int(sum(v.get("failed", 0.0) for v in by_month.values())),
         "months": [row(m) for m in sorted(by_month, reverse=True)[:12]],
+        # 최근 시도 낱낱. "이번에 얼마 나갔나" 를 곧바로 보시라고.
+        "recent": recent,
     }
 
 
