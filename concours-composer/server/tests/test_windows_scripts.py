@@ -474,3 +474,34 @@ def test_already_latest_tells_the_owner_how_to_see_it() -> None:
     assert "Ctrl" in after and "F5" in after, (
         "그냥 F5 는 예전 화면이 그대로 나온다 — Ctrl+F5 를 알려 주지 않는다"
     )
+
+
+# ── 이름이 깨져도 설치할 수 있어야 한다 ──────────────────────────────────
+
+
+def test_there_is_an_ascii_way_in() -> None:
+    """**한글 파일 이름은 압축을 건너다 깨질 수 있다.**
+
+    원장님이 받으신 첫 설치본이 그랬다 — 압축 안의 한글 이름에 UTF-8 표시가 없어
+    윈도우 탐색기가 폴더 이름을 깨진 글자로 읽었고, 원장님 눈에는 "아무것도 없는"
+    압축 파일이었다. 압축을 어떻게 만들든, **영문 이름 하나는 늘 있어야 한다.**
+    """
+    for name, ps in (("INSTALL.bat", "install.ps1"),
+                     ("START.bat", "start.ps1"),
+                     ("UPDATE.bat", "update.ps1")):
+        f = ROOT / name
+        assert f.exists(), f"{name} 이 없다 — 한글 이름이 깨지면 들어갈 길이 없다"
+        raw = f.read_bytes()
+        assert not raw.startswith(b"\xef\xbb\xbf"), f"{name} 에 BOM 이 붙었다 — cmd 가 첫 줄을 못 읽는다"
+        assert b"\r\n" in raw, f"{name} 이 윈도우 줄바꿈이 아니다"
+        assert ps.encode() in raw, f"{name} 이 {ps} 를 부르지 않는다"
+
+
+def test_the_first_thing_to_read_is_there() -> None:
+    """처음 여시는 분이 무엇부터 눌러야 하는지 알 길이 있어야 한다."""
+    for name in ("맨먼저읽어주세요.txt", "README-FIRST.txt"):
+        f = ROOT / name
+        assert f.exists(), f"{name} 이 없다"
+        text = f.read_text(encoding="utf-8")
+        assert "INSTALL.bat" in text, f"{name} 이 영문 단추를 알려 주지 않는다"
+        assert "\r\n" in f.read_bytes().decode("utf-8"), f"{name} 이 메모장에서 한 줄로 붙는다"
