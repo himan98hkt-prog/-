@@ -142,6 +142,7 @@ def take_in_piece(
     from app.api.corpus import get_corpus
     from app.api.studio import _judge
     from app.handoff.receive import numbering_problems, summarize, take_in
+    from app.handoff.spill import spill_to_folder
 
     ctx, _preset, _tier = _context(
         body.tier_id, body.preset_id, body.student, body.competition, body.target_difficulty,
@@ -218,8 +219,25 @@ def take_in_piece(
         # 등록이 실패했다고 방금 들인 곡을 버릴 이유는 없다.
         log.exception("[%s] 코퍼스 등록에 실패했다 — 곡은 그대로 둔다", cid)
 
+    # ── 곡을 **폴더에도 풀어 놓는다** ─────────────────────────────────────
+    #
+    # 원장님: "클로드에 만들고 다운받은 곡에 대한 전체 내용들을 저장할 수 있는
+    #          폴더 설정도 할 수 있었으면 좋겠어."
+    #
+    # 저장 파일 안에만 있으면 프로그램을 켜야 보인다. 집 PC 와 학원 PC 를 오가시려면
+    # 탐색기에서 눈에 보이고 복사할 수 있어야 한다. 그래서 들이는 그 자리에서
+    # 곡마다 폴더 하나를 만들어 악보·MIDI·음원·해설·리포트를 풀어 놓는다.
+    #
+    # **여기서 실패해도 곡을 잃어서는 안 된다.** 곡은 위에서 이미 저장됐다.
+    folder = ""
+    try:
+        folder = spill_to_folder(store, cid)
+    except Exception:
+        log.warning("[%s] 폴더에 풀어 놓지 못했다 — 곡은 이미 저장되었다", cid, exc_info=True)
+
     out = summarize(res)
     out["title"] = store.title_of(cid)
+    out["folder"] = folder
     out.update({
         "composition_id": cid,
         "judge": {

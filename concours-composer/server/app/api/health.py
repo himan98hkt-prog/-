@@ -262,9 +262,13 @@ def open_folder(request: Request, which: str = "data") -> dict:
     if request.client and request.client.host not in {"127.0.0.1", "::1", "localhost"}:
         raise HTTPException(403, "이 PC 에서만 열 수 있다")
 
+    from app.api.folder import chosen_dir
+
     places = {
         "data": resolve_data_dir(),
-        "exports": resolve_data_dir() / "내보낸 곡",
+        # 원장님이 자리를 정하셨으면 그 자리를 연다 — 화면이 말한 곳과 열리는 곳이
+        # 다르면 그것만으로 고장이다.
+        "exports": chosen_dir(),
         "references": resolve_data_dir() / "reference_scores",
         "program": ROOT,
     }
@@ -300,7 +304,6 @@ def export_all(request: Request) -> dict:
     """
     from app.api.compositions import package_input
     from app.api.deps import get_store
-    from app.config import resolve_data_dir
     from app.export.package import _safe, write_piece
 
     if request.client and request.client.host not in {"127.0.0.1", "::1", "localhost"}:
@@ -310,7 +313,9 @@ def export_all(request: Request) -> dict:
     if not store.compositions:
         raise HTTPException(409, "아직 만든 곡이 없습니다")
 
-    root = resolve_data_dir() / "내보낸 곡"
+    from app.api.folder import chosen_dir
+
+    root = chosen_dir()
     root.mkdir(parents=True, exist_ok=True)
 
     made, skipped = [], []

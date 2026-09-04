@@ -711,6 +711,24 @@
       실제 잔액은 이보다 적습니다. 정확한 잔액은
       <strong>console.anthropic.com → Billing</strong> 에서 보십시오.</p>
 
+    <h2 style="margin-top:26px">곡을 쌓을 폴더</h2>
+    <p class="hint">만든 곡이 <strong>파일로</strong> 쌓이는 자리입니다. 곡마다 폴더가 하나씩 생기고
+      악보·MIDI·음원·해설이 그 안에 들어갑니다. 원드라이브·구글 드라이브 폴더나 USB 를 정하시면
+      <strong>집 PC 와 학원 PC 에서 같은 곡을 보실 수 있습니다.</strong></p>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1;min-width:280px"><label>폴더 경로</label>
+        <input id="fldPath" placeholder="예: C:\Users\AK\OneDrive\콩쿨곡"></div>
+      <button id="btnFldSave">이 폴더로 정하기</button>
+      <button class="ghost" id="btnFldOpen">폴더 열기</button>
+      <button class="ghost" id="btnFldReset"
+        data-tip="원래 자리로 되돌립니다.">원래대로</button>
+    </div>
+    <p id="fldState" class="hint" style="margin:10px 0 0"></p>
+    <p class="hint" style="margin:8px 0 0">
+      <b>프로그램 폴더 안은 정하실 수 없습니다</b> — 새 판을 받을 때 덮어쓰이는 자리라
+      곡이 사라집니다. 바탕화면·문서·드라이브 폴더처럼 프로그램 밖을 정해 주십시오.
+      경로를 모르시면 탐색기에서 그 폴더를 열고 <b>주소창을 클릭해 나오는 글</b>을 복사해 붙여 넣으시면 됩니다.</p>
+
     <h2 style="margin-top:26px">자동 백업</h2>
     <p class="hint">만든 곡은 컴퓨터의 파일 하나에 들어 있습니다. 그 파일이 지워지면
       그동안 만든 곡이 전부 사라지므로, 저장될 때마다 <strong>사본을 따로 남깁니다</strong>.</p>
@@ -3611,6 +3629,53 @@ async function checkUpdate() {
   };
 }
 
+// ── 곡을 쌓을 폴더 ─────────────────────────────────────────────────────────
+//
+// 원장님: "클로드에 만들고 다운받은 곡에 대한 전체 내용들을 저장할 수 있는
+//          폴더 설정도 할 수 있었으면 좋겠어."
+//          "실질적인 작곡 작업은 집pc로 진행할 계획이니..."
+//
+// 곡이 저장 파일 안에만 있으면 프로그램을 켜야 보인다. 집 PC 와 학원 PC 를
+// 오가시려면 파일로 눈에 보이고 동기화 폴더에 얹힐 수 있어야 한다.
+async function refreshFolder(got) {
+  const box = $("fldState");
+  if (!box) return;
+  let f = got;
+  if (!f) { try { f = await api("/api/folder"); } catch (_) { return; } }
+  $("fldPath").value = f.is_default ? "" : f.chosen;
+  $("fldPath").placeholder = f.default_path;
+  box.innerHTML =
+    `지금 쌓이는 곳: <b>${esc(f.path)}</b>`
+    + (f.pieces ? ` <span class="why">· 곡 ${f.pieces}개</span>` : "")
+    + (f.is_default ? ` <span class="why">(원래 자리)</span>` : "")
+    + (f.fell_back
+        ? `<br><b>정하신 폴더를 지금 쓸 수 없어 원래 자리에 쌓고 있습니다.</b>
+           <span class="why">USB 를 빼셨거나 드라이브가 연결되지 않았을 수 있습니다 —
+           곡이 사라지는 것은 아니니 안심하십시오.</span>`
+        : "");
+}
+
+if ($("btnFldSave")) $("btnFldSave").onclick = async () => {
+  const b = $("btnFldSave"), box = $("fldState");
+  b.disabled = true;
+  try { await refreshFolder(await api("/api/folder", {
+      method: "PUT", body: JSON.stringify({ path: val("fldPath") }) })); }
+  catch (e) { box.innerHTML = `<b>${esc(e.message)}</b>` + (e.hint ? "<br>" + esc(e.hint) : ""); }
+  finally { b.disabled = false; }
+};
+
+if ($("btnFldReset")) $("btnFldReset").onclick = async () => {
+  $("fldPath").value = "";
+  try { await refreshFolder(await api("/api/folder", {
+      method: "PUT", body: JSON.stringify({ path: "" }) })); }
+  catch (e) { $("fldState").textContent = e.message; }
+};
+
+if ($("btnFldOpen")) $("btnFldOpen").onclick = async () => {
+  try { await api("/api/folder/open", { method: "POST" }); }
+  catch (e) { alert(e.message + (e.hint ? "\n" + e.hint : "")); }
+};
+
 // ── 대화창에서 작곡해 오기 ─────────────────────────────────────────────────
 //
 // 원장님이 내신 설계다. 프로그램은 **규정을 빠짐없이 적는 일**을, 원장님은
@@ -3704,7 +3769,8 @@ if ($("btnHoTake")) $("btnHoTake").onclick = async () => {
       (r.judge.passed
         ? "<b>사전 심사를 통과했습니다.</b> 팔 수 있는 곡입니다."
         : `사전 심사 평균 ${r.judge.average} (최저 ${r.judge.minimum}) — <b>초안</b>으로 넣었습니다.`) +
-      `<br><span class="why">보관함에 들어갔습니다 · API 비용 $0</span>`;
+      `<br><span class="why">보관함에 들어갔습니다 · API 비용 $0</span>`
+      + (r.folder ? `<br><span class="why">폴더에도 풀어 놓았습니다: <b>${esc(r.folder)}</b></span>` : "");
     compositionId = r.composition_id;
     $("hoPaste").value = "";
     await refreshLibrary();
@@ -5164,6 +5230,7 @@ wireReferences();
 refreshBackups();
 refreshSpending();
 initHandoff();
+refreshFolder();
 // 프로그램을 다시 켜면 만든 곡이 그대로 보여야 한다. 저장은 되어 있는데 화면에만
 // 안 나오면 원장은 곡이 사라진 줄 안다 — 실제로 켜자마자 보관함이 비어 있었다.
 refreshLibrary();
