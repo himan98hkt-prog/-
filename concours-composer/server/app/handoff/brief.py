@@ -27,21 +27,7 @@ from __future__ import annotations
 
 from app.generation.context import ComposerContext
 from app.generation.presets import Preset
-
-# 마디 하나의 생김새. 스키마를 글로 설명하는 것보다 **보여 주는 쪽**이 어긋나지 않는다.
-EXAMPLE_MEASURE = """{
-  "number": 1,
-  "rh": [{"voice": 1, "events": [
-      {"dur": 0.5, "pitches": ["G4"], "artic": "staccato"},
-      {"dur": 0.5, "pitches": ["C5"]},
-      {"dur": 1.0, "pitches": ["E5"], "slur": "start"},
-      {"dur": 2.0, "pitches": ["D5"], "slur": "stop"}]}],
-  "lh": [{"voice": 1, "events": [
-      {"dur": 2.0, "pitches": ["C3", "G3"]},
-      {"dur": 2.0, "pitches": ["E3"]}]}],
-  "dynamics": "mf",
-  "pedal": false
-}"""
+from app.handoff.example import example_json, example_measure_json
 
 
 def _minutes(sec: int | None) -> str:
@@ -159,51 +145,33 @@ def build_brief(
     lines.append("## 7. 돌려주실 형식")
     lines.append("")
     lines.append("아래 JSON **하나만** 코드블록에 담아 주십시오. 설명은 코드블록 밖에 쓰셔도 됩니다.")
+    lines.append("**이 본보기는 프로그램이 실제 스키마에서 지어낸 것**이라, 그대로 따르시면 반드시 읽힙니다.")
     lines.append("")
     lines.append("```json")
-    lines.append("""{
-  "title": "곡 제목",
-  "plan": {
-    "form": "ABA",
-    "key": "C",
-    "meter": "4/4",
-    "tempo": 108,
-    "total_measures": 48,
-    "sections": [
-      {"name": "A", "start": 1, "end": 16, "role": "제시", "harmony": "I-V-vi-IV",
-       "texture": "왼손 알베르티", "dynamics": "mf"}
-    ],
-    "climax_measure": 34,
-    "title_candidates": ["곡 제목", "다른 후보"]
-  },
-  "motif": {"name": "모티브 이름", "pitches": ["G4","C5","E5"],
-            "rhythm": [0.5,0.5,1.0], "why": "이 모티브를 고른 이유"},
-  "measures": [ <마디 객체들 — 아래 생김새> ],
-  "critic": {
-    "scores": {"motif_development": 8, "form_clarity": 8, "harmony": 8,
-               "voice_leading": 8, "phrasing": 8, "climax_ending": 8,
-               "student_fit": 8, "competition_effect": 8, "notation": 9,
-               "originality": 7},
-    "overall_comment": "곡을 다 쓴 뒤, 심사위원의 눈으로 냉정하게 본 총평"
-  }
-}""")
+    lines.append(example_json())
     lines.append("```")
     lines.append("")
-    lines.append("**마디 하나의 생김새** (4분음표 = 1.0):")
+    lines.append("`measures` 자리에는 아래 생김새의 마디를 `total_measures` 개수만큼 넣으십시오"
+                 " (4분음표 = 1.0):")
     lines.append("")
     lines.append("```json")
-    lines.append(EXAMPLE_MEASURE)
+    lines.append(example_measure_json())
     lines.append("```")
     lines.append("")
+    lines.append("**꼭 지켜야 할 것**")
+    lines.append("")
+    lines.append("- `motif` 는 음이름 목록이 아니라 **마디 2~4개**입니다(위 본보기 그대로).")
+    lines.append("- `plan.form` 은 **구역 목록**입니다. `sections` 라는 이름은 없습니다.")
+    lines.append("- `plan` 에는 `duration_est` · `climax` · `ending` · `difficulty_target` 이"
+                 " **반드시** 있어야 합니다.")
+    lines.append("- 적혀 있지 않은 이름을 새로 만들어 넣으면 통째로 거절됩니다.")
     lines.append("- `pitches` 가 빈 배열이면 **쉼표**입니다. 화음은 `[\"C3\",\"E3\",\"G3\"]`.")
-    lines.append("- `artic`: none · staccato · accent · tenuto · marcato")
-    lines.append("- `slur`: start · stop · null · `tie`: start · stop · null")
-    lines.append("- `dynamics`: pp p mp mf f ff (바뀌는 마디에만 적으십시오)")
+    lines.append("- `artic`: none · staccato · accent · tenuto · marcato · "
+                 "`slur`/`tie`: start · stop · null")
+    lines.append("- `dynamics`: pp p mp mf f ff (바뀌는 마디에만)")
     lines.append("- 플랫은 `\"B-4\"` 처럼 **하이픈**, 샤프는 `\"F#4\"`.")
-    lines.append("")
-    lines.append("- `critic` 은 **스스로 매기는 점수가 아니라 심사위원의 눈**으로 냉정하게. "
-                 "여기가 후하면 프로그램이 통과시키는 곡의 기준이 무너집니다. "
-                 "각 항목 0~10.")
+    lines.append("- `critic` 은 스스로 매기는 점수가 아니라 **심사위원의 눈**으로 냉정하게. "
+                 "여기가 후하면 프로그램이 통과시키는 곡의 기준이 무너집니다. 각 항목 0~10.")
     lines.append("")
     lines.append("---")
     lines.append("")

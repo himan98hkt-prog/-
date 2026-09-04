@@ -242,3 +242,51 @@ def test_the_screen_has_both_steps() -> None:
     # 대화창은 설명을 곁들여 답한다. "JSON 만 남기고 지우세요" 는 컴맹 원장께 할 말이 아니다.
     assert "function pickJson" in page, "코드블록만 골라 읽지 않는다"
     assert "비용 $0" in page, "돈이 안 든다는 사실이 화면에 없다"
+
+
+# ── 4. 의뢰서의 본보기는 **진짜 스키마**여야 한다 ──────────────────────────
+#
+# 여기가 어긋나면 가장 나쁜 실패가 난다. 곡은 좋은데 프로그램이 못 읽는다.
+# 원장님은 시간을 다 쓰고 "또 안 되네" 를 겪으신다. 실제로 한 번 그랬다 —
+# 의뢰서가 `plan.sections` 와 `motif.pitches` 라는, **존재하지 않는 모양**을
+# 가르치고 있었다.
+
+
+def test_the_example_in_the_brief_is_the_real_schema() -> None:
+    """본보기를 그대로 따라 만들면 반드시 읽혀야 한다."""
+    import json
+
+    from app.handoff.example import example_json, example_measure_json
+    from app.schemas.music import CompositionPlan, Measure, MotifCandidate
+    from app.schemas.quality import CriticReport
+
+    body = json.loads(example_json())
+    CompositionPlan(**body["plan"])       # 여기서 터지면 의뢰서가 거짓을 가르치고 있다
+    MotifCandidate(**body["motif"])
+    CriticReport(**body["critic"])
+    Measure(**json.loads(example_measure_json()))
+    assert body["title"], "제목 자리를 안 보여 준다"
+
+
+def test_every_code_block_in_the_brief_is_real_json(client) -> None:
+    """코드블록이 하나라도 깨져 있으면 그대로 베껴 쓴 답이 거절된다."""
+    import json
+    import re
+
+    brief = client.post("/api/handoff/brief",
+                        json={"tier_id": "middle", "preset_id": "toccata"}).json()["brief"]
+    blocks = re.findall(r"```json\n(.*?)\n```", brief, re.S)
+    assert len(blocks) >= 2, "본보기 코드블록이 없다"
+    for b in blocks:
+        json.loads(b)
+
+
+def test_the_brief_never_teaches_a_name_that_does_not_exist(client) -> None:
+    """스키마에 없는 이름을 가르치면 그 곡은 통째로 거절된다."""
+    brief = client.post("/api/handoff/brief", json={"tier_id": "middle"}).json()["brief"]
+    for ghost in ('"sections"', '"climax_measure"', '"rhythm"'):
+        assert ghost not in brief, f"의뢰서가 없는 이름 {ghost} 를 가르친다"
+    # 반대로 반드시 있어야 하는 것들
+    for real in ('"duration_est"', '"climax"', '"ending"', '"difficulty_target"',
+                 '"character_label"'):
+        assert real in brief, f"의뢰서에 꼭 필요한 {real} 가 없다"
