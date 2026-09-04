@@ -40,7 +40,27 @@ function Step($m) { Write-Host $m -ForegroundColor White }
 function Ok($m)   { Write-Host "  OK  $m" -ForegroundColor Green }
 function Note($m) { Write-Host "      $m" -ForegroundColor DarkGray }
 function Warn($m) { Write-Host "  !   $m" -ForegroundColor Yellow }
-function Die($m)  { Write-Host "  X   $m" -ForegroundColor Red; exit 1 }
+# **무슨 일이 있어도 프로그램은 다시 켜 놓고 나간다.**
+#
+# 이 스크립트는 프로그램을 먼저 끄고 시작한다. 그런데 중간 어디서든 멈추면
+# (인터넷이 끊기거나, 압축이 깨졌거나, 파일이 잠겼거나) 그대로 종료해서
+# **원장님께는 꺼진 프로그램만 남았다.** 원장님이 "프로그램이 꺼졌다가 다시
+# 켜져야 하는데 잘 안된다" 고 하신 것이 이것이다.
+#
+# 갱신에 실패하는 것과 프로그램을 못 쓰게 만드는 것은 전혀 다른 일이다.
+# 갱신은 실패해도 되지만, 프로그램은 반드시 돌아와야 한다.
+function Die($m)  {
+    Write-Host "  X   $m" -ForegroundColor Red
+    if ($script:wasRunning) {
+        Write-Host "" 
+        Write-Host "  갱신은 못 했지만 프로그램은 다시 켜 드립니다." -ForegroundColor Yellow
+        Restart-App $Root
+    }
+    Write-Host ""
+    Write-Host "  창은 잠시 뒤 닫힙니다." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 8
+    exit 1
+}
 
 Write-Host ""
 Write-Host "  콩쿨 작곡기 — 새 판으로 올리기" -ForegroundColor White
@@ -50,15 +70,25 @@ Write-Host ""
 # ── 1. 프로그램이 켜져 있으면 먼저 끈다 ────────────────────────────────────
 # 켜진 채로 파일을 바꾸면 반만 바뀐 프로그램이 된다. 그것이 가장 찾기 어려운 고장이다.
 Step "1/6 켜져 있는지 본다"
-$wasRunning = $false
+$script:wasRunning = $false
 foreach ($port in 8000..8011) {
     try {
         $r = Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -TimeoutSec 1 -UseBasicParsing
         if ($r.StatusCode -eq 200) {
-            $wasRunning = $true
+            $script:wasRunning = $true
             Note "$port 번에서 돌고 있습니다 — 잠시 끕니다"
             try { Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/shutdown" -Method Post -TimeoutSec 3 -UseBasicParsing | Out-Null } catch { }
-            Start-Sleep -Seconds 2
+            # **정말 꺼졌는지 확인한다.** 2초만 자고 넘어가면, 아직 켜져 있는 채로
+            # 파일을 덮어쓰게 된다. 윈도우는 쓰는 중인 파일을 잠그므로 복사가 실패하고,
+            # 그러면 반만 바뀐 프로그램이 남는다 — 가장 찾기 어려운 고장이다.
+            $gone = $false
+            foreach ($try in 1..30) {
+                Start-Sleep -Milliseconds 700
+                try { Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -TimeoutSec 1 -UseBasicParsing | Out-Null }
+                catch { $gone = $true; break }
+            }
+            if ($gone) { Note "$port 번이 꺼졌습니다" }
+            else { Warn "$port 번이 아직 살아 있습니다 — 바꾸다 막힐 수 있습니다" }
         }
     } catch { }
 }
@@ -133,16 +163,29 @@ try {
 }
 
 $changed = 0
+$stuck = @()
 Get-ChildItem -Path $src -Recurse -File | ForEach-Object {
     $rel = $_.FullName.Substring($src.Length).TrimStart('\')
     foreach ($k in $keep) { if ($rel -eq $k -or $rel.StartsWith("$k\")) { return } }
     $dest = Join-Path $Root $rel
     $dir = Split-Path $dest -Parent
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    Copy-Item $_.FullName -Destination $dest -Force
-    $changed++
+    # 파일 하나가 잠겨 있다고 갱신 전체를 멈추면 안 된다. 그러면 반만 바뀐 채로
+    # 끝나고, 프로그램은 다시 켜지지도 않는다. 몇 번 다시 해 보고, 그래도 안 되면
+    # 그 파일만 적어 두고 넘어간다.
+    $done = $false
+    foreach ($try in 1..3) {
+        try { Copy-Item $_.FullName -Destination $dest -Force -ErrorAction Stop; $done = $true; break }
+        catch { Start-Sleep -Milliseconds 400 }
+    }
+    if ($done) { $changed++ } else { $stuck += $rel }
 }
 Ok "$changed 개 파일을 새것으로 바꿨습니다"
+if ($stuck.Count -gt 0) {
+    Warn "$($stuck.Count) 개는 사용 중이라 바꾸지 못했습니다:"
+    $stuck | Select-Object -First 5 | ForEach-Object { Note "  $_" }
+    Warn "프로그램을 완전히 끈 뒤 한 번 더 올려 주십시오."
+}
 Note "API 키(.env)와 만든 곡, 참고 악보는 그대로 두었습니다"
 
 # .ps1 은 인터넷에서 받은 표시가 붙어 실행이 막힌다 — 떼어 준다.
@@ -154,6 +197,7 @@ $vpy = Join-Path $Root ".venv\Scripts\python.exe"
 if (-not (Test-Path $vpy)) {
     Warn "가상환경이 없습니다 — '설치.bat' 을 한 번 돌려 주십시오"
     Write-Host ""
+    Start-Sleep -Seconds 8
     exit 1
 }
 & $vpy -m pip install -q -r (Join-Path $Root "server\requirements-desktop.txt")
@@ -165,6 +209,11 @@ if ($LASTEXITCODE -ne 0) {
     Warn "자기 점검이 통과하지 못했습니다."
     Warn "이전 판이 옆 폴더에 그대로 있습니다: $backup"
     Write-Host ""
+    if ($script:wasRunning) {
+        Write-Host "  점검은 통과 못 했지만 프로그램은 다시 켜 드립니다." -ForegroundColor Yellow
+        Restart-App $Root
+    }
+    Start-Sleep -Seconds 8
     exit 1
 }
 Ok "점검 통과"

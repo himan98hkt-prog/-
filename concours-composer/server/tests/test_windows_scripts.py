@@ -233,3 +233,87 @@ def test_the_app_itself_can_start_the_update() -> None:
 
     page = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     assert "btnUpdateNow" in page and "지금 올리기" in page
+
+
+# ── 갱신이 실패해도 프로그램은 돌아온다 ──────────────────────────────────
+
+
+def test_the_update_never_leaves_the_program_switched_off() -> None:
+    """**갱신 실패와 프로그램을 못 쓰게 만드는 것은 전혀 다른 일이다.**
+
+    원장님: "프로그램이 꺼졌다가 다시 켜져야 하는데.. 잘안되네.."
+
+    update.ps1 은 프로그램을 **먼저 끄고** 시작한다. 그런데 중간 어디서든 멈추면
+    (인터넷이 끊기거나, 압축이 깨졌거나, 파일이 잠겼거나) 그대로 종료해서
+    원장님께는 꺼진 프로그램만 남았다.
+
+    갱신은 실패해도 된다. 프로그램은 반드시 돌아와야 한다.
+    """
+    import re
+
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    lines = text.splitlines()
+
+    for i, line in enumerate(lines):
+        if not re.search(r"\bexit\s+1\b", line):
+            continue
+        window = "\n".join(lines[max(0, i - 14):i])
+        # 가상환경이 아예 없는 경우는 프로그램을 끄기 전이라 켤 것이 없다.
+        if "가상환경이 없습니다" in window:
+            continue
+        assert "Restart-App" in window, (
+            f"update.ps1 {i + 1}줄에서 프로그램을 꺼진 채로 두고 나간다"
+        )
+
+
+def test_die_brings_the_program_back() -> None:
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    die = text.split("function Die($m)")[1].split("\n}")[0]
+    assert "Restart-App" in die, "갱신이 죽을 때 프로그램을 다시 켜지 않는다"
+    # PowerShell 은 정의 순서를 따진다 — Die 안에서 부르려면 먼저 있어야 한다.
+    assert text.index("function Restart-App") < text.index("function Die"), (
+        "Die 가 Restart-App 보다 먼저 정의돼 있어 부를 수 없다"
+    )
+
+
+def test_it_waits_for_the_program_to_actually_stop() -> None:
+    """켜진 채로 덮어쓰면 윈도우가 파일을 잠가 복사가 실패한다.
+
+    예전에는 끄라고 부탁하고 **2초만 자고** 넘어갔다. 그 사이에 안 꺼지면
+    반만 바뀐 프로그램이 남는다 — 가장 찾기 어려운 고장이다.
+    """
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    stop = text.split("1/6")[1].split("2/6")[0]
+    assert "Start-Sleep -Seconds 2" not in stop, "껐는지 확인하지 않고 2초만 잔다"
+    assert "/health" in stop, "정말 꺼졌는지 확인하지 않는다"
+
+
+def test_one_locked_file_does_not_abort_everything() -> None:
+    """파일 하나가 잠겼다고 갱신 전체를 멈추면 프로그램이 반만 바뀐 채 남는다."""
+    text = (ROOT / "update.ps1").read_text(encoding="utf-8-sig")
+    copy = text.split("$changed = 0")[1].split("Ok \"$changed")[0]
+    assert "catch" in copy, "복사가 실패하면 그대로 죽는다"
+    assert "$stuck" in copy, "바꾸지 못한 파일을 알려 주지 않는다"
+
+
+def test_the_powershell_actually_parses() -> None:
+    """구문 오류 하나면 원장님은 꺼진 프로그램만 보신다.
+
+    PowerShell 이 있는 곳에서는 진짜로 파싱해 본다.
+    """
+    import shutil
+    import subprocess
+
+    pwsh = shutil.which("pwsh") or shutil.which("powershell")
+    if not pwsh:
+        pytest.skip("이 기계에는 PowerShell 이 없다")
+
+    for name in ("update.ps1", "install.ps1", "start.ps1"):
+        r = subprocess.run(
+            [pwsh, "-NoProfile", "-Command",
+             f"$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile("
+             f"'{ROOT / name}', [ref]$null, [ref]$e); "
+             f"if ($e) {{ $e | ForEach-Object {{ Write-Output $_.Message }}; exit 1 }}"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        assert r.returncode == 0, f"{name} 에 구문 오류가 있다:\n{r.stdout}"
