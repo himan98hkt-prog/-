@@ -1,0 +1,137 @@
+{
+ "measures": [
+  {
+   "number": 25,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "F5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "C5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "E5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "F5"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "E5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 4.0,
+       "pitches": [
+        "A2",
+        "C3",
+        "F3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "mf",
+   "pedal": true
+  },
+  {
+   "number": 26,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B4"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "C5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B4"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 4.0,
+       "pitches": [
+        "B2",
+        "D3",
+        "F3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  }
+ ]
+}

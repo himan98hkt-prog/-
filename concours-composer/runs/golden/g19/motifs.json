@@ -1,0 +1,744 @@
+[
+  {
+    "id": "motif-1",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A3",
+                  "D4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A3",
+                  "D4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "G5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "C#3",
+                  "G3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "C#3",
+                  "G3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "4/4",
+    "tempo": 104,
+    "character_label": "또박또박 주제",
+    "why_it_works": "4분음표로 한 번 짚고 8분음표 둘로 계단을 올라간 뒤 다시 4분음표로 내려앉는 '짚고-또각또각-앉기' 가 각인점이라, 리듬감이 강점인 학생이 첫 마디에 다 보인다. 여덟 음뿐이고 도약이 없어 변주곡의 주제로 외우기 쉽고, 리듬만 바꿔도 성격이 완전히 달라지므로 변주를 붙이기에 가장 좋다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-2",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "G5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "C#5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "staccato",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "A2",
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "A2",
+                  "E3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "4/4",
+    "tempo": 104,
+    "character_label": "스타카토 펼침",
+    "why_it_works": "스타카토 8분음표가 화음을 타고 내려갔다 올라오는 것이 각인점이고, 약점인 레가토를 요구하지 않는다. 화음만 갈아 끼우면 되므로 변주마다 화성을 그대로 드러낸다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-3",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 0.5,
+                "pitches": [],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "G4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "B4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 0.5,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "C#3",
+                  "G3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "A2"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "C#3",
+                  "G3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "4/4",
+    "tempo": 104,
+    "character_label": "쉬고 오르는 화음",
+    "why_it_works": "8분쉼표 뒤에 펼침화음을 타고 치솟는 늦은 출발이 각인점이며, 쉼표가 매 마디 손을 다시 모을 자리를 준다. 쉼표를 채우면 그대로 확대판이 된다.",
+    "source": "ai",
+    "selected": false
+  },
+  {
+    "id": "motif-4",
+    "measures": [
+      {
+        "number": 1,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "A4"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "start"
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 1.0,
+                "pitches": [
+                  "F#5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 4.0,
+                "pitches": [
+                  "D3",
+                  "F#3",
+                  "A3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      },
+      {
+        "number": 2,
+        "rh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "E5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              },
+              {
+                "dur": 2.0,
+                "pitches": [
+                  "D5"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": "stop"
+              }
+            ]
+          }
+        ],
+        "lh": [
+          {
+            "voice": 1,
+            "events": [
+              {
+                "dur": 4.0,
+                "pitches": [
+                  "A2",
+                  "C#3",
+                  "G3"
+                ],
+                "tie": null,
+                "artic": "none",
+                "slur": null
+              }
+            ]
+          }
+        ],
+        "dynamics": null,
+        "text": null,
+        "pedal": false
+      }
+    ],
+    "key": "D",
+    "meter": "4/4",
+    "tempo": 104,
+    "character_label": "긴 음 셋",
+    "why_it_works": "2분·4분음표로만 벌어지는 가장 조용한 후보로, 축소하면 그대로 빠른 재료가 된다. 변주곡의 주제로 쓰면 첫 등장이 가장 느리고 변주가 갈수록 잘게 쪼개진다.",
+    "source": "ai",
+    "selected": false
+  }
+]

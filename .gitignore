@@ -1,0 +1,17 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+coverage
+perf-report.json
+.perf-profile
+screenshots
+*.zip
+dist-demo
+
+# 로컬 개발용 가상환경
+.venv/
+.venv-cc/

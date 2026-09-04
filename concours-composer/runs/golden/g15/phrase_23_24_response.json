@@ -1,0 +1,93 @@
+{
+ "measures": [
+  {
+   "number": 23,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5"
+       ],
+       "slur": "start"
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 4.0,
+       "pitches": [
+        "F2",
+        "C3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "mp",
+   "pedal": true
+  },
+  {
+   "number": 24,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E5"
+       ],
+       "slur": "stop"
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 4.0,
+       "pitches": [
+        "C3",
+        "G3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  }
+ ]
+}

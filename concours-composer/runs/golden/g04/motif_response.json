@@ -1,0 +1,132 @@
+{
+  "candidates": [
+    {
+      "id": "motif-1",
+      "key": "C",
+      "meter": "4/4",
+      "tempo": 88,
+      "character_label": "또박또박 북",
+      "why_it_works": "같은 음 두 번(C5 C5)이 각인점이라 유치부 아이도 한 번 듣고 따라 부르고, 뒤이은 도-미-솔 상행은 손을 옮기지 않고 한 자리에서 친다. 머리 세 음이 3화음 상행이라 2도 위 동형진행이 그대로 되고, 하행으로 뒤집으면 B섹션의 조용한 대비 선율이 바로 나온다.",
+      "source": "ai",
+      "measures": [
+        {
+          "number": 1,
+          "dynamics": "mf",
+          "rh": [{"voice": 1, "events": [
+            {"dur": 1.0, "pitches": ["C5"], "artic": "staccato", "slur": "start"},
+            {"dur": 1.0, "pitches": ["C5"], "artic": "staccato"},
+            {"dur": 1.0, "pitches": ["E5"]},
+            {"dur": 1.0, "pitches": ["G5"]}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["C3", "G3"]}]}]
+        },
+        {
+          "number": 2,
+          "rh": [{"voice": 1, "events": [
+            {"dur": 1.0, "pitches": ["G5"]},
+            {"dur": 1.0, "pitches": ["E5"]},
+            {"dur": 1.5, "pitches": ["D5"], "slur": "stop"},
+            {"dur": 0.5, "pitches": []}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["G2", "D3"]}]}]
+        }
+      ]
+    },
+    {
+      "id": "motif-2",
+      "key": "C",
+      "meter": "4/4",
+      "tempo": 88,
+      "character_label": "물음표 행진",
+      "why_it_works": "붙점(1.5+0.5)이 리듬 각인점이고 둘째 마디가 딸림음 D5 에 걸려 끝나므로 '묻는 문장'이 되어 다음 프레이즈를 부른다. 이 붙점을 그대로 두고 음만 3도 올리면 대답 프레이즈가 되고, 붙점을 없애 균등한 4분음표로 펴면 재현부의 확신 있는 종지가 된다.",
+      "source": "ai",
+      "measures": [
+        {
+          "number": 1,
+          "dynamics": "mp",
+          "rh": [{"voice": 1, "events": [
+            {"dur": 1.5, "pitches": ["E5"], "slur": "start"},
+            {"dur": 0.5, "pitches": ["D5"]},
+            {"dur": 1.0, "pitches": ["C5"]},
+            {"dur": 1.0, "pitches": ["E5"]}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["C3", "G3"]}]}]
+        },
+        {
+          "number": 2,
+          "rh": [{"voice": 1, "events": [
+            {"dur": 1.5, "pitches": ["D5"]},
+            {"dur": 0.5, "pitches": ["C5"]},
+            {"dur": 2.0, "pitches": ["D5"], "slur": "stop"}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["G2", "D3"]}]}]
+        }
+      ]
+    },
+    {
+      "id": "motif-3",
+      "key": "C",
+      "meter": "4/4",
+      "tempo": 88,
+      "character_label": "쉼표 뒤에 톡",
+      "why_it_works": "쉼표 뒤에 들어가는 진입이 각인점이라 '또렷한 리듬'이 강점인 학생에게 정확히 맞고, 음역이 5음 자리(G4~D5) 안이라 손가락 힘이 약해도 소리가 난다. 쉼표 자리를 그대로 두고 뒤 음형만 늘리면 분절(2마디) 프레이즈가 되고, 쉼표를 채워 이으면 재현부에서 같은 동기가 확장된 악절로 커진다.",
+      "source": "ai",
+      "measures": [
+        {
+          "number": 1,
+          "dynamics": "mp",
+          "rh": [{"voice": 1, "events": [
+            {"dur": 0.5, "pitches": []},
+            {"dur": 0.5, "pitches": ["G4"], "artic": "staccato"},
+            {"dur": 1.0, "pitches": ["G4"], "artic": "staccato"},
+            {"dur": 1.0, "pitches": ["A4"]},
+            {"dur": 1.0, "pitches": ["B4"]}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["C3", "G3"]}]}]
+        },
+        {
+          "number": 2,
+          "rh": [{"voice": 1, "events": [
+            {"dur": 0.5, "pitches": []},
+            {"dur": 0.5, "pitches": ["C5"], "artic": "staccato"},
+            {"dur": 1.0, "pitches": ["B4"]},
+            {"dur": 1.5, "pitches": ["A4"]},
+            {"dur": 0.5, "pitches": []}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["F2", "C3"]}]}]
+        }
+      ]
+    },
+    {
+      "id": "motif-4",
+      "key": "C",
+      "meter": "4/4",
+      "tempo": 88,
+      "character_label": "계단 올라",
+      "why_it_works": "네 음 순차 상행 뒤 2분음표로 도착하는 아치라 노래하기 쉽고, 도착음이 길어 손가락 힘이 약한 학생도 마지막을 버틸 수 있다. 상행 4음을 뒤집으면 그대로 하행 4음이 되어 B섹션 대비가 만들어지고, 도착음만 늘려 잡으면 클라이맥스의 긴 음이 된다.",
+      "source": "ai",
+      "measures": [
+        {
+          "number": 1,
+          "dynamics": "mp",
+          "rh": [{"voice": 1, "events": [
+            {"dur": 1.0, "pitches": ["C5"], "slur": "start"},
+            {"dur": 1.0, "pitches": ["D5"]},
+            {"dur": 1.0, "pitches": ["E5"]},
+            {"dur": 1.0, "pitches": ["F5"]}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["C3", "G3"]}]}]
+        },
+        {
+          "number": 2,
+          "rh": [{"voice": 1, "events": [
+            {"dur": 2.0, "pitches": ["G5"]},
+            {"dur": 1.0, "pitches": ["E5"]},
+            {"dur": 1.0, "pitches": ["C5"], "slur": "stop"}
+          ]}],
+          "lh": [{"voice": 1, "events": [{"dur": 4.0, "pitches": ["C3", "G3"]}]}]
+        }
+      ]
+    }
+  ]
+}

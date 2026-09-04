@@ -1,0 +1,609 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "당당한 팡파르",
+   "source": "ai",
+   "selected": false,
+   "why_it_works": "붙점으로 같은 음을 두드린 뒤 4도와 3도를 연달아 뛰어올라 팡파르를 세우고, 곧바로 16분음표 스케일로 쏟아져 내려온다. 팡파르와 스케일이 한 몸이라 어느 쪽만 떼어 써도 곡이 이어지고, 스케일 부분이 학생의 강점인 화려한 스케일을 그대로 무대에 올린다.",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.75,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "dynamics": "f"
+    },
+    {
+     "number": 2,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "쏟아지는 물",
+   "source": "ai",
+   "selected": false,
+   "why_it_works": "높은 자리에서 16분음표로 한 옥타브를 쏟아 내린 뒤 낮은 화음으로 받는 모양이라, 스케일이 강점인 학생이 첫 마디부터 화려하다. 쏟아지는 방향을 뒤집으면 상행 클라이맥스가 되고, 받는 화음만 두껍게 하면 곡이 커진다.",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F#6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D5",
+          "B5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "dynamics": "f"
+    },
+    {
+     "number": 2,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "묻고 답하기",
+   "source": "ai",
+   "selected": false,
+   "why_it_works": "두 마디가 물음과 대답으로 갈라져 있어 형식이 저절로 생기고, 대답 쪽만 바꿔 가며 곡을 늘릴 수 있다. 물음의 상행을 그대로 두고 대답을 점점 크게 하면 클라이맥스가 자연스럽게 만들어진다.",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "dynamics": "mf"
+    },
+    {
+     "number": 2,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1,
+         "pitches": [
+          "A5"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "C6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "D2",
+          "D3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "A2",
+          "F#3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "울리는 종탑",
+   "source": "ai",
+   "selected": false,
+   "why_it_works": "세 음 화음을 두 번 울리고 여운을 남기는 모양이라 여린 소리가 약점인 학생이 큰 소리를 내는 연습을 곡 안에서 하게 된다. 울림 사이를 스케일로 채워 넣으면 그대로 밀도가 올라가 클라이맥스로 간다.",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1,
+         "pitches": [
+          "G5",
+          "B5",
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "G5",
+          "B5",
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "B5"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "G2",
+          "G3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "D3",
+          "B3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "dynamics": "f"
+    },
+    {
+     "number": 2,
+     "pedal": true,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1,
+         "pitches": [
+          "C6",
+          "E6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 1,
+         "pitches": [
+          "B5",
+          "D6"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "A5",
+          "C6"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2,
+         "pitches": [
+          "D2",
+          "D3"
+         ],
+         "artic": "none"
+        },
+        {
+         "dur": 2,
+         "pitches": [
+          "A2",
+          "F#3"
+         ],
+         "artic": "none"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

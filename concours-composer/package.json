@@ -1,0 +1,11 @@
+{
+  "name": "concours-composer",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "test": "pnpm --filter web test",
+    "e2e": "pnpm --filter web e2e"
+  }
+}

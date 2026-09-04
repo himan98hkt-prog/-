@@ -1,0 +1,60 @@
+{
+  "spec": {
+    "id": "g04",
+    "level": 2,
+    "span": 5,
+    "grade": "유치",
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "손가락 힘"
+    ],
+    "tempo": 88,
+    "comfort": 96,
+    "key": "C",
+    "meter": "4/4",
+    "difficulty": 2.0,
+    "mood": "귀여운 행진",
+    "limit": 90
+  },
+  "constraints": {
+    "max_span_semitones": 7,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 96,
+    "max_accidental_ratio": 0.125,
+    "time_limit_sec": 90,
+    "target_difficulty": 2.0,
+    "difficulty_feasible_range": [
+      1.37,
+      7.4
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 2,
+    "grade": "유치",
+    "years_of_study": 0,
+    "hand_span_interval": 5,
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "손가락 힘"
+    ],
+    "repertoire_done": [],
+    "reading_level": 3,
+    "tempo_comfort_max_bpm": 96,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "유치",
+    "time_limit_sec": 90,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

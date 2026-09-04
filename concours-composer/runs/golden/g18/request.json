@@ -1,0 +1,62 @@
+{
+  "spec": {
+    "id": "g18",
+    "level": 6,
+    "span": 9,
+    "grade": "초6",
+    "strengths": [
+      "서정적 표현",
+      "페달"
+    ],
+    "weaknesses": [
+      "옥타브"
+    ],
+    "tempo": 76,
+    "comfort": 100,
+    "key": "A-",
+    "meter": "4/4",
+    "difficulty": 6.0,
+    "mood": "몽환적이고 부드러운",
+    "limit": 210
+  },
+  "constraints": {
+    "max_span_semitones": 14,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 100,
+    "max_accidental_ratio": 0.225,
+    "time_limit_sec": 210,
+    "target_difficulty": 6.0,
+    "difficulty_feasible_range": [
+      1.84,
+      8.74
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 6,
+    "grade": "초6",
+    "years_of_study": 0,
+    "hand_span_interval": 9,
+    "strengths": [
+      "서정적 표현",
+      "페달"
+    ],
+    "weaknesses": [
+      "옥타브"
+    ],
+    "repertoire_done": [],
+    "reading_level": 7,
+    "tempo_comfort_max_bpm": 100,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초6",
+    "time_limit_sec": 210,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

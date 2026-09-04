@@ -1,0 +1,215 @@
+{
+ "measures": [
+  {
+   "number": 57,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B4"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "C5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "F5"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B4"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "mf"
+  },
+  {
+   "number": 58,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G4"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D5"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B4"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G4"
+       ],
+       "artic": "staccato"
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "D5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "D3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G2"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "B2"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

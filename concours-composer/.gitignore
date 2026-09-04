@@ -1,0 +1,33 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+.next/
+dist/
+out/
+data/
+# 참고 악보 폴더의 안내문만은 저장소에 둔다 — 원장이 무엇을 넣어야 하는지 알아야 한다.
+!data/reference_scores/
+!data/reference_scores/README.md
+models/
+.env
+*.log
+web/tests/__snapshots__/*.actual.png
+
+# 세션 작곡 산출물: 악보·MIDI·리포트는 커밋하고, 재생성 가능한 프롬프트는 제외
+runs/golden/*/*_prompt.md
+runs/golden/*/*_error.txt
+# scripts/auto_compose.py 의 실행 결과 — 실측할 때마다 쌓이므로 커밋하지 않는다
+runs/auto/
+
+# 설치 시 내려받는 프런트 라이브러리(저장소에 담지 않는다)
+web/vendor/
+
+# 저장소 자동 백업 사본
+data/backups/
+실행기록.txt
+설치기록.txt
+설치버전.txt

@@ -1,0 +1,201 @@
+{
+ "measures": [
+  {
+   "number": 5,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "E5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B-2",
+        "D3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "B-2",
+        "D3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "mp"
+  },
+  {
+   "number": 6,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "E5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "D5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 7,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B-4"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "B-4"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C3",
+        "E3"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C3",
+        "E3"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 8,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "F2",
+        "A2"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

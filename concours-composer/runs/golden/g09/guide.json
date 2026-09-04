@@ -1,0 +1,135 @@
+{
+  "overview": "C 4/4 126bpm, 72마디 곡이다. 형식은 A-B-A'-C-A'', 난이도 4.86(초등 고학년부) 수준이다. 49마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        14
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: statement, fragment_head, sequence_up_2nd",
+        "왼손: 왼손 4분음표 — 베이스와 3음 화음이 번갈아. 오른손 스타카토가 뛰는 동안 바닥을 또박또박 짚는다",
+        "다이내믹 f → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        15,
+        30
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, inversion, fragment_tail, fragment_head, augmentation",
+        "왼손: 왼손 온음표 화음 — 뛰던 것을 멈추고 소리를 깔아 둔다",
+        "다이내믹 mp → mp → mf → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        31,
+        42
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: statement, rhythmic_variation",
+        "왼손: 왼손 4분음표 — 베이스와 3음 화음이 번갈아. 오른손 스타카토가 뛰는 동안 바닥을 또박또박 짚는다",
+        "다이내믹 f → f"
+      ]
+    },
+    {
+      "measures": [
+        43,
+        58
+      ],
+      "title": "C 부분",
+      "points": [
+        "모티브 처리: texture_swap, statement, sequence_down_3rd, fragment_head",
+        "왼손: 왼손 8분음표 분산화음이 쉬지 않고 구른다. 오른손이 무엇을 하든 바닥이 계속 움직인다",
+        "다이내믹 mf → ff → f → mf",
+        "49마디가 클라이맥스 — C 섹션에서 선율을 왼손에 넘겨 두었다가, 49마디에서 오른손이 한 옥타브 위로 되찾아 온다. 곡에서 유일한 라5 와 유일한 ff 가 여기에 있고 왼손은 8분음표 분산화음을 멈추지 않는다"
+      ]
+    },
+    {
+      "measures": [
+        59,
+        72
+      ],
+      "title": "A'' 부분",
+      "points": [
+        "모티브 처리: statement, fragment_head",
+        "왼손: 왼손 4분음표 — 베이스와 3음 화음이 번갈아. 오른손 스타카토가 뛰는 동안 바닥을 또박또박 짚는다",
+        "다이내믹 f → f → f"
+      ]
+    }
+  ],
+  "fingering_notes": [],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 75
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 94
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "49마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 113
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 126
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "49마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 69~72마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        14
+      ],
+      "cue": "A 시작음 E5"
+    },
+    {
+      "measures": [
+        15,
+        30
+      ],
+      "cue": "B 시작음 A4"
+    },
+    {
+      "measures": [
+        31,
+        42
+      ],
+      "cue": "A' 시작음 E5"
+    },
+    {
+      "measures": [
+        43,
+        58
+      ],
+      "cue": "C 시작음 A4"
+    },
+    {
+      "measures": [
+        59,
+        72
+      ],
+      "cue": "A'' 시작음 E5"
+    }
+  ]
+}

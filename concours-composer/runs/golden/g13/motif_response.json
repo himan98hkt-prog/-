@@ -1,0 +1,623 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "A",
+   "meter": "4/4",
+   "tempo": 132,
+   "source": "ai",
+   "character_label": "휘몰아치는 넷",
+   "why_it_works": "16분음표 넷이 한 화음을 쓸어 올라가 꼭대기에서 8분음표로 꺾여 내려오는 '훑고-꺾임' 이 각인점이고, ♩=132 에서 첫 박에 이미 손이 한 옥타브를 지난다. 화음만 갈아 끼우면 어느 진행 위로도 옮겨지므로 휘몰아치는 구간을 얼마든지 이어 붙일 수 있고, 꺾여 내려오는 뒤 절반만 떼면 노래하는 재료가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C#5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C#5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A2",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "A3",
+          "C#4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A2",
+          "A3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "A3",
+          "C#4"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2",
+          "B3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#3",
+          "B3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2",
+          "B3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#3",
+          "B3",
+          "D4"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "A",
+   "meter": "4/4",
+   "tempo": 132,
+   "source": "ai",
+   "character_label": "옥타브 하강",
+   "why_it_works": "양손 옥타브가 붙점 리듬으로 한 계단씩 무겁게 내려오는 것이 각인점이라, 옥타브가 강점인 학생의 소리가 첫 마디에 다 들린다. 순차 하행이라 동형진행이 자유롭고, 뒤집으면 상행 옥타브가 되어 클라이맥스로 밀어 올린다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "A5",
+          "A4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G#5",
+          "G#4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#5",
+          "F#4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5",
+          "E4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "D5",
+          "D4"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C#5",
+          "C#4"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B4",
+          "B3"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "A",
+   "meter": "4/4",
+   "tempo": 132,
+   "source": "ai",
+   "character_label": "쉬고 튀어오르는",
+   "why_it_works": "8분쉼표 뒤 액센트와 함께 펼침화음을 타고 튀어오르는 늦은 출발이 각인점이며, 쉼표가 매번 손을 다시 모을 자리를 준다. 튀어오르는 세 음은 화음 변화를 그대로 드러내고, 쉼표를 채우면 그대로 휘몰아치는 판이 된다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C#5"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G#5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A2",
+          "A3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "E2",
+          "E3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A4"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C#5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A2",
+          "A3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "E2",
+          "E3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "A",
+   "meter": "4/4",
+   "tempo": 132,
+   "source": "ai",
+   "character_label": "느리게 묻는",
+   "why_it_works": "2분음표로 버티다 4분음표 둘로 내려앉는 가장 조용한 후보로, 앞 셋과 달리 리듬이 아니라 긴 음이 각인점이다. 표현력이 강점인 학생이 소리를 만들 시간을 주고, 축소하면 그대로 휘몰아치는 재료가 되므로 한 곡 안에서 두 얼굴을 갖는다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C#5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "A2",
+          "E3",
+          "A3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "E2",
+          "B2",
+          "E3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

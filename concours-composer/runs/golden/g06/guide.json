@@ -1,0 +1,129 @@
+{
+  "overview": "D 6/8 96bpm, 62마디 곡이다. 형식은 A-B-A'-코다, 난이도 4.77(초등 고학년부) 수준이다. 41마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        16
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: statement, fragment_head, sequence_up_2nd, repeat",
+        "왼손: 왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+        "다이내믹 mp → mf → mf → f"
+      ]
+    },
+    {
+      "measures": [
+        17,
+        40
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, inversion, fragment_tail, fragment_head, augmentation, sequence_down_3rd, texture_swap",
+        "왼손: 왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+        "다이내믹 p → mp → mp → mf → mf → mf → f"
+      ]
+    },
+    {
+      "measures": [
+        41,
+        56
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: statement, octave_shift, rhythmic_variation",
+        "왼손: 왼손 뱃노래 흔들림 — 매 마디 '베이스 8분음표 → 3음 화음 4분음표' 를 두 번. 화음은 손 안에서만 잡는다",
+        "다이내믹 f → mf → mf",
+        "41마디가 클라이맥스 — B 의 조임이 풀리며 D장조 원형 모티브가 한 옥타브 위에서 f 로 돌아온다. 41마디 첫 박이 곡 전체에서 가장 높고 가장 큰 자리다"
+      ]
+    },
+    {
+      "measures": [
+        57,
+        62
+      ],
+      "title": "코다 부분",
+      "points": [
+        "모티브 처리: diminution",
+        "왼손: 왼손 온음표 화음 하나로 깔고 베이스만 낮게 걷는다. 흔들림을 멈춰 A 와 텍스처를 가른다",
+        "다이내믹 mp → p"
+      ]
+    }
+  ],
+  "fingering_notes": [
+    {
+      "measure": 9,
+      "note": "왼손 화음 폭 9반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 48,
+      "note": "왼손 화음 폭 9반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 61,
+      "note": "왼손 화음 폭 10반음 — 손목을 낮추고 미리 벌려 둔다"
+    }
+  ],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 57
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 72
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "41마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 86
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 96
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "41마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 59~62마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        16
+      ],
+      "cue": "A 시작음 F#4"
+    },
+    {
+      "measures": [
+        17,
+        40
+      ],
+      "cue": "B 시작음 B3"
+    },
+    {
+      "measures": [
+        41,
+        56
+      ],
+      "cue": "A' 시작음 F#5"
+    },
+    {
+      "measures": [
+        57,
+        62
+      ],
+      "cue": "코다 시작음 F#4"
+    }
+  ]
+}

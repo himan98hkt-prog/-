@@ -1,0 +1,704 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "올라가는 팡파르",
+   "why_it_works": "한 옥타브 상행 음계를 16분음표로 단숨에 훑고 4분음표 둘로 착지하는 '훑고 서다'가 각인점이며, 이 학생의 화려한 스케일이 첫 마디 2박 안에 다 들린다. 상행 음계는 어느 화음 위로도 옮길 수 있어 동형진행이 자유롭고, 뒤집으면 그대로 하행 음계가 되어 마무리 구간을 만든다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A4"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mf"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "두드리는 팡파르",
+   "why_it_works": "같은 음을 3연속으로 두드린 뒤 5도 위로 던지는 리듬 각인점이라 여린 소리가 약점인 학생에게 '세게 치는' 자리를 처음부터 준다. 두드리는 부분을 화음으로 두껍게 하면 클라이맥스가 되고, 던지는 5도를 옥타브로 넓히면 마무리가 커진다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "f"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D6"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "넓게 뛰는",
+   "why_it_works": "옥타브를 넘나드는 큰 도약으로 시작해 순차로 메우는 윤곽이라 무대에서 눈에도 잘 띈다. 도약 폭을 줄이면 B섹션의 차분한 대비가 되고, 메우는 순차를 16분음표로 쪼개면 그대로 스케일 구간이 된다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mf"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C6"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G3",
+          "C4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "G",
+   "meter": "4/4",
+   "tempo": 120,
+   "character_label": "당겨 치는",
+   "why_it_works": "8분쉼표 뒤에 들어가는 당김음이 각인점이라 박자가 앞으로 밀리는 느낌을 만들고, 알레그로에서 추진력이 된다. 당김을 풀어 정박으로 놓으면 재현부의 확신이 되고, 당김만 떼어 두 마디 분절로 쓸 수 있다.",
+   "source": "ai",
+   "measures": [
+    {
+     "number": 1,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ],
+     "dynamics": "mf"
+    },
+    {
+     "number": 2,
+     "pedal": false,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F#5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F#3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A3",
+          "D4"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

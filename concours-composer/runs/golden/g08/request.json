@@ -1,0 +1,60 @@
+{
+  "spec": {
+    "id": "g08",
+    "level": 3,
+    "span": 6,
+    "grade": "초2",
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "tempo": 92,
+    "comfort": 104,
+    "key": "G",
+    "meter": "2/4",
+    "difficulty": 3.0,
+    "mood": "씩씩한 행진곡",
+    "limit": 120
+  },
+  "constraints": {
+    "max_span_semitones": 9,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 104,
+    "max_accidental_ratio": 0.15,
+    "time_limit_sec": 120,
+    "target_difficulty": 3.0,
+    "difficulty_feasible_range": [
+      1.55,
+      7.82
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 3,
+    "grade": "초2",
+    "years_of_study": 0,
+    "hand_span_interval": 6,
+    "strengths": [
+      "또렷한 리듬"
+    ],
+    "weaknesses": [
+      "레가토"
+    ],
+    "repertoire_done": [],
+    "reading_level": 4,
+    "tempo_comfort_max_bpm": 104,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초2",
+    "time_limit_sec": 120,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

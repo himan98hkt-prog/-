@@ -1,0 +1,744 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "c",
+   "meter": "4/4",
+   "tempo": 60,
+   "source": "ai",
+   "character_label": "비장한 세 걸음",
+   "why_it_works": "3도 겹친 긴 음으로 버티다 16분음표 둘로 이끔음을 되짚고 다시 올라가는 '버티고-되짚고-오르기' 가 각인점이고, ♩=60 이라 한 음이 1초씩 울려 표현력이 강점인 학생이 소리를 만들 시간을 갖는다. 왼손이 10도로 벌어진 뒤 16분음표 분산화음으로 흐르므로 반복음을 한 번도 쓰지 않는다. 상행 뒤 하행이 짝을 이루어 문답이 두 마디에 끝난다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "C5",
+          "E-5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B4",
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C5",
+          "E-5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A-5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D3"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "c",
+   "meter": "4/4",
+   "tempo": 60,
+   "source": "ai",
+   "character_label": "느리게 오르는 셋",
+   "why_it_works": "2분음표로 버티다 반음과 온음으로 이끔음까지 걸어 올라가는 가장 조용한 후보로, 리듬이 아니라 긴 음이 각인점이다. 왼손이 온음표 화음 하나뿐이라 오른손의 소리만 남고, 축소하면 그대로 빠른 재료가 된다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A-4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "C3",
+          "G3",
+          "C4"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "G2",
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "c",
+   "meter": "4/4",
+   "tempo": 60,
+   "source": "ai",
+   "character_label": "한 박 쉬고 내려오기",
+   "why_it_works": "첫 박을 통째로 비우고 8분음표 둘이 굴러 내려와 이끔음에 멈추는 늦은 출발이 각인점이며, 쉼표가 매 마디 페달을 바꿀 자리를 알려 준다. 쉼표를 채우면 그대로 확대판이 되어 한 곡 안에서 두 얼굴을 갖는다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C2",
+          "C3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G2",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G1",
+          "G2"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D2",
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "c",
+   "meter": "4/4",
+   "tempo": 60,
+   "source": "ai",
+   "character_label": "쏟아지는 음계",
+   "why_it_works": "16분음표 여덟 개가 두 옥타브를 쏟아져 내려오는 것이 각인점이라, 앞 셋과 달리 밀도가 성격이 된다. 순차 하행이라 반복음이 전혀 없고, 뒤집으면 상행 음계가 되어 클라이맥스로 밀어 올린다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C6"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B-5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A-5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C2",
+          "E-3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A-5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E-5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "A-4"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G1",
+          "B-2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

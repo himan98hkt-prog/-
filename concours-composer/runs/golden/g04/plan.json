@@ -1,0 +1,282 @@
+{
+  "title_candidates": [
+    "작은 북 행진",
+    "또박또박 발걸음",
+    "인형들의 행진"
+  ],
+  "key": "C",
+  "meter": "4/4",
+  "tempo": 88,
+  "total_measures": 24,
+  "duration_est": 65.5,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        8
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "모티브 그대로. 4분음표 행진, 반복음 두 개는 스타카토로 또렷하게. 4마디째 2분음표로 도착",
+          "texture_lh": "온음표 5도 베이스(C3+G3). 오른손을 방해하지 않는다",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "repeat",
+          "texture_rh": "5~6마디는 1~2마디를 그대로 되풀이한다. 유치부는 같은 것이 한 번 더 와야 외운다. 7마디에서 F#5 를 짚어 색을 바꾸고, 8마디는 딸림화음에 2분음표로 걸어 묻는다",
+          "texture_lh": "1~2마디와 같은 온음표 5도 베이스. 오른손이 같다는 것이 들려야 한다",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        9,
+        16
+      ],
+      "phrases": [
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "같은 윤곽을 단조(가단조) 색으로. 스타카토를 떼고 이어서 부른다. 음역을 한 옥타브 낮춰 목소리를 바꾼다",
+          "texture_lh": "2분음표 3음 화음(A2+C3+E3 자리). 한 마디에 두 번 짚어 A 의 온음표와 확실히 다르게, 음역도 낮게 깐다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            13,
+            14
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "머리 두 음만 떼어 두 마디 안에서 묻는다. 짧게 끊어 다음으로 민다",
+          "texture_lh": "2분음표 3음 화음 유지. 화성이 E장3화음으로 바뀌는 것이 들리게",
+          "dynamic": "mp"
+        },
+        {
+          "measures": [
+            15,
+            16
+          ],
+          "motif_treatment": "fragment_tail",
+          "texture_rh": "꼬리 음형만으로 대답. 16마디 끝은 딸림화음에서 멈춰 재현을 부른다",
+          "texture_lh": "2분음표 3음 화음. 마지막은 딸림화음 G2+B2+D3",
+          "dynamic": "mf"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        17,
+        24
+      ],
+      "phrases": [
+        {
+          "measures": [
+            17,
+            18
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "1~2마디가 **그대로** 돌아온다. 음을 바꾸지 않는다 — 정점은 f 하나로 만든다. 손가락 힘이 약한 학생을 높은 자리로 올리지 않는 것이 이 곡의 원칙이다",
+          "texture_lh": "1~2마디와 같은 온음표 5도 베이스",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            19,
+            24
+          ],
+          "motif_treatment": "rhythmic_variation",
+          "texture_rh": "19~20마디는 3~4마디를 그대로 되풀이해 재현을 완성한다. 21마디 거짓 종지(vi)에서 한 번 더 밀고, 22~24마디에서 내려와 온음표로 넓게 마무리",
+          "texture_lh": "19~20마디는 온음표 그대로. 21~23마디에서 4분음표 행진 발걸음이 나왔다가 마지막 마디만 온음표로 넓힌다",
+          "dynamic": "mf"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 2,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 3,
+      "roman": "IV",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 4,
+      "roman": "V",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 5,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 6,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 7,
+      "roman": "II",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 8,
+      "roman": "V",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 9,
+      "roman": "vi",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 10,
+      "roman": "vi",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 11,
+      "roman": "IV",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 12,
+      "roman": "ii",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 13,
+      "roman": "III",
+      "bass_note": "E3"
+    },
+    {
+      "measure": 14,
+      "roman": "vi",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 15,
+      "roman": "ii",
+      "bass_note": "D3"
+    },
+    {
+      "measure": 16,
+      "roman": "V",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 17,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 18,
+      "roman": "I",
+      "bass_note": "C3"
+    },
+    {
+      "measure": 19,
+      "roman": "IV",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 20,
+      "roman": "V",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 21,
+      "roman": "vi",
+      "bass_note": "A2"
+    },
+    {
+      "measure": 22,
+      "roman": "IV",
+      "bass_note": "F2"
+    },
+    {
+      "measure": 23,
+      "roman": "V7",
+      "bass_note": "G2"
+    },
+    {
+      "measure": 24,
+      "roman": "I",
+      "bass_note": "C3"
+    }
+  ],
+  "climax": {
+    "measure": 19,
+    "how": "재현(17마디)이 f 로 돌아온 뒤 19~21마디에서 실제로 올라간다. 곡의 최고음 C6 가 21마디 거짓 종지 위에 놓이고, 19마디가 그 상승의 출발점이다. 음역을 억지로 올리지 않고 다이내믹과 상승선만으로 정점을 만드는 것이 손가락 힘이 약한 학생을 위한 선택이다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        13,
+        16
+      ],
+      "strength_used": "또렷한 리듬"
+    }
+  ],
+  "contrast_section": {
+    "label": "B",
+    "how": "가단조로 색을 바꾸고(조성), 오른손 스타카토를 떼어 이어 부르고(아티큘레이션), 왼손을 온음표 3음 지속화음으로 낮게 깔아(텍스처·음역) A 와 넷이 달라진다"
+  },
+  "modulations": [],
+  "ending": {
+    "type": "거짓 종지로 한 번 더 민 뒤 완전종지(V7-I) + 2분음표 마무리",
+    "measures": [
+      21,
+      24
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mp"
+    },
+    {
+      "measure": 5,
+      "dyn": "mf"
+    },
+    {
+      "measure": 9,
+      "dyn": "p"
+    },
+    {
+      "measure": 17,
+      "dyn": "f"
+    },
+    {
+      "measure": 21,
+      "dyn": "mf"
+    }
+  ],
+  "pedal_plan": "유치부이므로 페달은 쓰지 않는다. 손으로 이어 붙이는 레가토만 쓴다",
+  "difficulty_target": 2.0
+}

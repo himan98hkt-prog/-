@@ -1,0 +1,60 @@
+{
+  "spec": {
+    "id": "g10",
+    "level": 4,
+    "span": 7,
+    "grade": "초4",
+    "strengths": [
+      "서정적 표현"
+    ],
+    "weaknesses": [
+      "빠른 패시지"
+    ],
+    "tempo": 66,
+    "comfort": 88,
+    "key": "B-",
+    "meter": "3/4",
+    "difficulty": 4.0,
+    "mood": "느린 왈츠",
+    "limit": 150
+  },
+  "constraints": {
+    "max_span_semitones": 11,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 88,
+    "max_accidental_ratio": 0.175,
+    "time_limit_sec": 150,
+    "target_difficulty": 4.0,
+    "difficulty_feasible_range": [
+      1.46,
+      7.97
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 4,
+    "grade": "초4",
+    "years_of_study": 0,
+    "hand_span_interval": 7,
+    "strengths": [
+      "서정적 표현"
+    ],
+    "weaknesses": [
+      "빠른 패시지"
+    ],
+    "repertoire_done": [],
+    "reading_level": 5,
+    "tempo_comfort_max_bpm": 88,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초4",
+    "time_limit_sec": 150,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

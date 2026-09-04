@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "summary": "통과 (경고 6건)",
+  "issues": [
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "13마디 2.5→3박 병행 8도",
+      "measures": [
+        13
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "13→14마디 병행 8도",
+      "measures": [
+        13,
+        14
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "15마디 2.5→3박 병행 8도",
+      "measures": [
+        15
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "15→16마디 병행 8도",
+      "measures": [
+        15,
+        16
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "45→46마디 병행 8도",
+      "measures": [
+        45,
+        46
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "54→55마디 병행 8도",
+      "measures": [
+        54,
+        55
+      ]
+    }
+  ]
+}

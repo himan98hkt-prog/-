@@ -1,0 +1,569 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "C",
+   "meter": "4/4",
+   "tempo": 126,
+   "source": "ai",
+   "character_label": "까치발 넷",
+   "why_it_works": "스타카토 8분음표 넷이 까치발로 달려가다 다섯째 음에서 미끄러지듯 이어지는 '또각또각-스르륵' 이 각인점이고, 빠른 손가락이 강점인 학생이 첫 두 박에 손가락 넷을 다 쓴다. 머리 네 음이 순차 상행이라 어느 음에서 시작해도 같은 모양이 나오고, 뒤 세 음의 하행을 떼면 그대로 짧은 되묻기가 된다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G4"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "A4"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ],
+         "artic": "staccato"
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "C",
+   "meter": "4/4",
+   "tempo": 126,
+   "source": "ai",
+   "character_label": "쉬고 떨어지는",
+   "why_it_works": "8분쉼표 뒤 높은 음에서 화음을 타고 세 계단 떨어지는 늦은 출발이 각인점이라, 박을 세지 않아도 쉼표가 자리를 알려 준다. 떨어지는 펼침화음은 화음만 갈아 끼우면 되므로 화성 변화를 그대로 드러내고, 뒤집으면 상행 펼침화음이 되어 클라이맥스를 밀어 올린다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3",
+          "E3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3",
+          "E3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.25,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B2",
+          "D3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "B2",
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "C",
+   "meter": "4/4",
+   "tempo": 126,
+   "source": "ai",
+   "character_label": "긴 음 뒤 두 알",
+   "why_it_works": "붙점4분음표로 버티다 16분음표 둘이 굴러 나오는 '버티고-또르르' 가 각인점이고, 리듬감이 강점인 학생이 긴 음과 짧은 음의 차이를 만들 자리다. 긴 음의 길이만 바꿔도 성격이 달라져 확대·축소가 자연스럽다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G5"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "F5"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "B4"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 0.5,
+         "pitches": []
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "E5"
+         ],
+         "artic": "accent"
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 0.5,
+         "pitches": [
+          "G4"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "G2"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "C",
+   "meter": "4/4",
+   "tempo": 126,
+   "source": "ai",
+   "character_label": "네 계단 오르내림",
+   "why_it_works": "4분음표만으로 다장조 화음을 한 옥타브 올라갔다 순차로 내려오는 큰 아치라, 앞 후보들과 달리 리듬이 아니라 음역이 각인점이고 가장 조용하다. 상행과 하행이 각각 네 음씩이라 반으로 접으면 두 개의 짧은 재료가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "G5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "C3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "B4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "G2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

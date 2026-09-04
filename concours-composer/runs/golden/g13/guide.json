@@ -1,0 +1,137 @@
+{
+  "overview": "A 4/4 132bpm, 96마디 곡이다. 형식은 폭풍-눈-폭풍 재현-종결, 난이도 7.02(중등부) 수준이다. 69마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        32
+      ],
+      "title": "폭풍 부분",
+      "points": [
+        "모티브 처리: statement, sequence_up_2nd, fragment_head, octave_shift, rhythmic_variation",
+        "왼손: 왼손 옥타브 베이스 + 3음 화음 4분음표. 저음 옥타브를 짚고 손 안의 화음으로 받친다",
+        "다이내믹 f → mf → f → ff → ff → f"
+      ]
+    },
+    {
+      "measures": [
+        33,
+        56
+      ],
+      "title": "눈 부분",
+      "points": [
+        "모티브 처리: mode_change, augmentation, fragment_tail, inversion, texture_swap",
+        "왼손: 왼손 온음표 화음 — 폭풍이 멎고 소리만 남는다",
+        "다이내믹 p → mp → mp → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        57,
+        84
+      ],
+      "title": "폭풍 재현 부분",
+      "points": [
+        "모티브 처리: statement, sequence_up_2nd, diminution, octave_shift",
+        "왼손: 왼손 옥타브 베이스 + 3음 화음 4분음표. 저음 옥타브를 짚고 손 안의 화음으로 받친다",
+        "다이내믹 f → mf → f → fff → ff",
+        "69마디가 클라이맥스 — 재현의 쓸어올림이 가장 잘게 부서지며 69마디에서 라6 에 닿는다. 곡 전체의 최고음이자 유일한 fff 이고, 왼손은 두 옥타브를 오가는 분산화음을 멈추지 않는다"
+      ]
+    },
+    {
+      "measures": [
+        85,
+        96
+      ],
+      "title": "종결 부분",
+      "points": [
+        "모티브 처리: fragment_head, statement",
+        "왼손: 왼손이 옥타브로 선율을 노래하고 오른손이 화음을 얹는다",
+        "다이내믹 f → ff"
+      ]
+    }
+  ],
+  "fingering_notes": [
+    {
+      "measure": 33,
+      "note": "왼손 화음 폭 15반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 34,
+      "note": "왼손 화음 폭 15반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 36,
+      "note": "왼손 화음 폭 16반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 38,
+      "note": "왼손 화음 폭 15반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 42,
+      "note": "왼손 화음 폭 16반음 — 손목을 낮추고 미리 벌려 둔다"
+    }
+  ],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 79
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 99
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "69마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 118
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 132
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "69마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 93~96마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        32
+      ],
+      "cue": "폭풍 시작음 A4"
+    },
+    {
+      "measures": [
+        33,
+        56
+      ],
+      "cue": "눈 시작음 C#5"
+    },
+    {
+      "measures": [
+        57,
+        84
+      ],
+      "cue": "폭풍 재현 시작음 A4"
+    },
+    {
+      "measures": [
+        85,
+        96
+      ],
+      "cue": "종결 시작음 D5"
+    }
+  ]
+}

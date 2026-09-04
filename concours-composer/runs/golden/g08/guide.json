@@ -1,0 +1,118 @@
+{
+  "overview": "G 2/4 92bpm, 70마디 곡이다. 형식은 행진-트리오-재현, 난이도 3.91(초등 저학년부) 수준이다. 47마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        24
+      ],
+      "title": "행진 부분",
+      "points": [
+        "모티브 처리: statement, rhythmic_variation, sequence_up_2nd, repeat, fragment_head",
+        "왼손: 왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+        "다이내믹 f → mf → mf → f → mf"
+      ]
+    },
+    {
+      "measures": [
+        25,
+        46
+      ],
+      "title": "트리오 부분",
+      "points": [
+        "모티브 처리: mode_change, inversion, augmentation, texture_swap, sequence_down_3rd, diminution",
+        "왼손: 왼손 온음표 5도 — 소리를 깔아 두고 발을 멈춘다. 트리오라 행진이 아니다",
+        "다이내믹 p → p → mp → mp → mf → mf"
+      ]
+    },
+    {
+      "measures": [
+        47,
+        70
+      ],
+      "title": "재현 부분",
+      "points": [
+        "모티브 처리: statement, repeat, sequence_up_2nd, fragment_tail",
+        "왼손: 왼손 5도 베이스 4분음표 — 매 박 '쿵'. 행진의 발이라 흔들리면 안 된다",
+        "다이내믹 ff → f → mf → mf → f",
+        "47마디가 클라이맥스 — 트리오가 8분음표로 잘게 돌아온 끝에 47마디에서 행진이 ff 로 복귀한다. 오른손이 곡에서 처음이자 유일하게 솔5 를 짚고, 왼손 5도 베이스가 다시 매 박을 밟는다"
+      ]
+    }
+  ],
+  "fingering_notes": [
+    {
+      "measure": 25,
+      "note": "왼손 화음 폭 7반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 26,
+      "note": "왼손 화음 폭 7반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 27,
+      "note": "왼손 화음 폭 7반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 28,
+      "note": "왼손 화음 폭 7반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 29,
+      "note": "왼손 화음 폭 7반음 — 손목을 낮추고 미리 벌려 둔다"
+    }
+  ],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 55
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 69
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "47마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 82
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 92
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "47마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 67~70마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        24
+      ],
+      "cue": "행진 시작음 G4"
+    },
+    {
+      "measures": [
+        25,
+        46
+      ],
+      "cue": "트리오 시작음 E4"
+    },
+    {
+      "measures": [
+        47,
+        70
+      ],
+      "cue": "재현 시작음 D5"
+    }
+  ]
+}

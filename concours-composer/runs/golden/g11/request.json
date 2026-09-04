@@ -1,0 +1,62 @@
+{
+  "spec": {
+    "id": "g11",
+    "level": 6,
+    "span": 9,
+    "grade": "초6",
+    "strengths": [
+      "화려한 스케일",
+      "페달"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "tempo": 108,
+    "comfort": 120,
+    "key": "D",
+    "meter": "4/4",
+    "difficulty": 6.0,
+    "mood": "물결치는 아르페지오",
+    "limit": 210
+  },
+  "constraints": {
+    "max_span_semitones": 14,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 120,
+    "max_accidental_ratio": 0.225,
+    "time_limit_sec": 210,
+    "target_difficulty": 6.0,
+    "difficulty_feasible_range": [
+      1.84,
+      8.74
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 6,
+    "grade": "초6",
+    "years_of_study": 0,
+    "hand_span_interval": 9,
+    "strengths": [
+      "화려한 스케일",
+      "페달"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "repertoire_done": [],
+    "reading_level": 7,
+    "tempo_comfort_max_bpm": 120,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초6",
+    "time_limit_sec": 210,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

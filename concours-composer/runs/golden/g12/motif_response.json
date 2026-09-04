@@ -1,0 +1,415 @@
+{
+ "candidates": [
+  {
+   "id": "motif-1",
+   "key": "F",
+   "meter": "4/4",
+   "tempo": 80,
+   "source": "ai",
+   "character_label": "같은 음 둘",
+   "why_it_works": "같은 음 두 번을 치고 한 계단씩 올라가 2분음표에 닿는 '똑-똑-올라가기' 가 각인점이라, 독보가 아직 약한 초1 이 첫 마디에서 같은 음 두 개만 읽으면 나머지가 계단이라는 것을 눈으로 안다. 4분음표 넷과 2분음표 둘뿐이라 손가락 힘이 약해도 한 음씩 또박또박 낼 수 있고, 상행 계단은 어느 화음 위로도 옮겨진다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F2",
+          "C3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F2",
+          "C3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "E5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3",
+          "G3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-2",
+   "key": "F",
+   "meter": "4/4",
+   "tempo": 80,
+   "source": "ai",
+   "character_label": "내려오는 계단",
+   "why_it_works": "높은 데서 네 계단을 그대로 내려오는 순차 하행이라 손가락 다섯 개를 한 자리에서 순서대로 쓰면 끝난다. 손 이동이 아예 없어 손가락 힘이 약한 학생에게 가장 안전하고, 뒤집으면 상행 계단이 되어 한 곡 안에서 두 얼굴로 쓸 수 있다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "F2",
+          "C3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "C3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-3",
+   "key": "F",
+   "meter": "4/4",
+   "tempo": 80,
+   "source": "ai",
+   "character_label": "쉬었다 부르기",
+   "why_it_works": "한 음 치고 한 박 쉬기를 두 번 한 뒤 세 음이 뛰어오르는 '부르는 소리' 가 각인점이고, 쉼표가 손을 쉬게 해 주므로 힘이 약한 학생이 끝까지 버틴다. 쉼표를 채우면 그대로 확대판이 되고, 뛰어오르는 세 음만 떼면 짧은 되묻기가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": []
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": []
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F2"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "A4"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C3"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "F2"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "motif-4",
+   "key": "F",
+   "meter": "4/4",
+   "tempo": 80,
+   "source": "ai",
+   "character_label": "길게 뜸 들이고",
+   "why_it_works": "2분음표로 한 번 뜸을 들인 뒤 도약해 올라갔다 순차로 내려오는 작은 아치라, 앞 세 후보와 달리 긴 음이 먼저 오는 것이 각인점이다. 긴 음의 길이만 바꿔도 성격이 달라지고, 아치를 반으로 접으면 상행 도약과 하행 순차 두 재료가 나온다.",
+   "measures": [
+    {
+     "number": 1,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 2.0,
+         "pitches": [
+          "A4"
+         ],
+         "slur": "start"
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "C5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "F5"
+         ]
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "F2",
+          "C3"
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "number": 2,
+     "rh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 1.0,
+         "pitches": [
+          "E5"
+         ]
+        },
+        {
+         "dur": 1.0,
+         "pitches": [
+          "D5"
+         ]
+        },
+        {
+         "dur": 2.0,
+         "pitches": [
+          "C5"
+         ],
+         "slur": "stop"
+        }
+       ]
+      }
+     ],
+     "lh": [
+      {
+       "voice": 1,
+       "events": [
+        {
+         "dur": 4.0,
+         "pitches": [
+          "C3",
+          "G3"
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

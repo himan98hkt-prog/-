@@ -1,0 +1,125 @@
+{
+  "overview": "E- 4/4 112bpm, 86마디 곡이다. 형식은 도입-A-B-A', 난이도 6.25(초등 고학년부) 수준이다. 52마디의 클라이맥스를 향해 쌓았다가 정리하는 흐름으로 친다.",
+  "sections": [
+    {
+      "measures": [
+        1,
+        8
+      ],
+      "title": "도입 부분",
+      "points": [
+        "모티브 처리: statement, fragment_tail",
+        "왼손: 왼손 옥타브 베이스 2분음표 — 낮은 음역에서 문이 닫히듯 두 번씩. 손목으로 눌러 소리를 남긴다",
+        "다이내믹 mf → p"
+      ]
+    },
+    {
+      "measures": [
+        9,
+        32
+      ],
+      "title": "A 부분",
+      "points": [
+        "모티브 처리: repeat, sequence_down_3rd, inversion, octave_shift, transpose_to_dominant",
+        "왼손: 왼손 옥타브 + 3음 화음 4분음표. 베이스는 옥타브, 뒷박은 손 안의 화음",
+        "다이내믹 f → mf → mp → mf → f"
+      ]
+    },
+    {
+      "measures": [
+        33,
+        60
+      ],
+      "title": "B 부분",
+      "points": [
+        "모티브 처리: mode_change, augmentation, fragment_head, fragment_tail, texture_swap, sequence_up_2nd, statement, rhythmic_variation",
+        "왼손: 왼손 온음표 화음 — 소리를 멈추고 오른손만 남긴다",
+        "다이내믹 p → mp → mp → mf → mf → f → ff → mf",
+        "52마디가 클라이맥스 — B 의 세 마디 동형진행이 홀수 마디로 발을 걸며 밀어 올린 끝에, 52마디에서 다단조 색이 처음으로 E♭장조 으뜸화음으로 열린다. 오른손 옥타브 겹침 + 왼손 저음 옥타브, ff. 여기가 곡에서 가장 높고 가장 두꺼운 자리다"
+      ]
+    },
+    {
+      "measures": [
+        61,
+        86
+      ],
+      "title": "A' 부분",
+      "points": [
+        "모티브 처리: repeat, diminution, retrograde, statement",
+        "왼손: 왼손 옥타브 + 3음 화음 4분음표. 베이스는 옥타브, 뒷박은 손 안의 화음",
+        "다이내믹 mf → mp → mf → f"
+      ]
+    }
+  ],
+  "fingering_notes": [
+    {
+      "measure": 52,
+      "note": "왼손 화음 폭 16반음 — 손목을 낮추고 미리 벌려 둔다"
+    },
+    {
+      "measure": 53,
+      "note": "왼손 화음 폭 16반음 — 손목을 낮추고 미리 벌려 둔다"
+    }
+  ],
+  "practice_plan": [
+    {
+      "week": 1,
+      "goal": "음과 리듬을 정확히 읽는다",
+      "method": "양손 따로, 4마디씩 끊어 천천히",
+      "metronome_bpm": 67
+    },
+    {
+      "week": 2,
+      "goal": "양손을 맞춘다",
+      "method": "프레이즈 단위로 이어 붙이고 프레이즈 끝 호흡을 지킨다",
+      "metronome_bpm": 84
+    },
+    {
+      "week": 3,
+      "goal": "다이내믹과 프레이징을 넣는다",
+      "method": "52마디 클라이맥스를 향해 소리를 쌓는다",
+      "metronome_bpm": 100
+    },
+    {
+      "week": 4,
+      "goal": "암보와 무대 연습",
+      "method": "구획별로 암보 확인 후 처음부터 끝까지 멈추지 않고",
+      "metronome_bpm": 112
+    }
+  ],
+  "competition_tips": [
+    "첫 음을 놓기 전에 속으로 한 마디를 세고 시작한다",
+    "52마디 클라이맥스에서 소리가 거칠어지지 않게 팔 무게로 친다",
+    "마지막 83~86마디는 서두르지 말고 끝까지 소리를 남긴다"
+  ],
+  "memorization_map": [
+    {
+      "measures": [
+        1,
+        8
+      ],
+      "cue": "도입 시작음 E-5"
+    },
+    {
+      "measures": [
+        9,
+        32
+      ],
+      "cue": "A 시작음 E-5"
+    },
+    {
+      "measures": [
+        33,
+        60
+      ],
+      "cue": "B 시작음 E-5"
+    },
+    {
+      "measures": [
+        61,
+        86
+      ],
+      "cue": "A' 시작음 E-5"
+    }
+  ]
+}

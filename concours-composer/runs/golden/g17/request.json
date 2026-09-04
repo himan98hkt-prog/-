@@ -1,0 +1,60 @@
+{
+  "spec": {
+    "id": "g17",
+    "level": 4,
+    "span": 7,
+    "grade": "초3",
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "tempo": 116,
+    "comfort": 126,
+    "key": "G",
+    "meter": "4/4",
+    "difficulty": 4.0,
+    "mood": "경쾌한 무곡",
+    "limit": 150
+  },
+  "constraints": {
+    "max_span_semitones": 11,
+    "lowest_midi": 36,
+    "highest_midi": 96,
+    "max_tempo_bpm": 126,
+    "max_accidental_ratio": 0.175,
+    "time_limit_sec": 150,
+    "target_difficulty": 4.0,
+    "difficulty_feasible_range": [
+      1.77,
+      8.28
+    ],
+    "difficulty_key_advice": null
+  },
+  "student": {
+    "level": 4,
+    "grade": "초3",
+    "years_of_study": 0,
+    "hand_span_interval": 7,
+    "strengths": [
+      "빠른 손가락"
+    ],
+    "weaknesses": [
+      "왼손 도약"
+    ],
+    "repertoire_done": [],
+    "reading_level": 5,
+    "tempo_comfort_max_bpm": 126,
+    "notes": ""
+  },
+  "competition": {
+    "name": "골든 콩쿨",
+    "division": "초3",
+    "time_limit_sec": 150,
+    "memorization_required": false,
+    "repeats_allowed": true,
+    "criteria_text": "",
+    "judge_notes": ""
+  }
+}

@@ -1,0 +1,271 @@
+{
+ "measures": [
+  {
+   "number": 29,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.5,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C3"
+       ]
+      }
+     ]
+    }
+   ],
+   "dynamics": "mp",
+   "pedal": true
+  },
+  {
+   "number": 30,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.5,
+       "pitches": [
+        "D-3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "E-3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A-2"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 31,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.5,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "G3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "F3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "C3"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  },
+  {
+   "number": 32,
+   "rh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-5",
+        "F5"
+       ]
+      },
+      {
+       "dur": 2.0,
+       "pitches": [
+        "C5",
+        "E-5"
+       ]
+      }
+     ]
+    }
+   ],
+   "lh": [
+    {
+     "voice": 1,
+     "events": [
+      {
+       "dur": 1.5,
+       "pitches": [
+        "D-3"
+       ]
+      },
+      {
+       "dur": 0.5,
+       "pitches": [
+        "E-3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "D-3"
+       ]
+      },
+      {
+       "dur": 1.0,
+       "pitches": [
+        "A-2"
+       ]
+      }
+     ]
+    }
+   ],
+   "pedal": true
+  }
+ ]
+}

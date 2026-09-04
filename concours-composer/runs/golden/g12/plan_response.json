@@ -1,0 +1,256 @@
+{
+ "title_candidates": [
+  "작은 계단",
+  "똑똑 노래",
+  "파랑새의 인사"
+ ],
+ "key": "F",
+ "meter": "4/4",
+ "tempo": 80,
+ "total_measures": 22,
+ "duration_est": 66.0,
+ "form": [
+  {
+   "label": "노래",
+   "measures": [
+    1,
+    8
+   ],
+   "phrases": [
+    {
+     "measures": [
+      1,
+      4
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "모티브 그대로 — 같은 음 둘을 치고 한 계단씩 올라가 2분음표에 닿는다. 3~4마디는 딸림7화음 위에서 내려오며 대답한다",
+     "texture_lh": "왼손 2분음표 3도 두 번 — 한 마디에 두 번만 누른다. 손이 작고 손가락 힘이 약하므로 5도가 아니라 3도로 좁힌다",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      5,
+      8
+     ],
+     "motif_treatment": "sequence_up_2nd",
+     "texture_rh": "같은 계단을 한 음 위에서, 이번엔 여리게. 손 자리는 그대로이고 손가락 번호만 하나씩 옮겨 간다",
+     "texture_lh": "왼손 2분음표 3도 두 번 — 한 마디에 두 번만 누른다. 손이 작고 손가락 힘이 약하므로 5도가 아니라 3도로 좁힌다",
+     "dynamic": "mp"
+    }
+   ]
+  },
+  {
+   "label": "대답",
+   "measures": [
+    9,
+    14
+   ],
+   "phrases": [
+    {
+     "measures": [
+      9,
+      10
+     ],
+     "motif_treatment": "mode_change",
+     "texture_rh": "라단조 색. 왼손이 온음표 하나로 바뀌어 소리가 눕는다 — 노래가 잠깐 조용해진다",
+     "texture_lh": "왼손 온음표 3도 하나 — 한 마디에 한 번만 누르고 그대로 둔다",
+     "dynamic": "mp"
+    },
+    {
+     "measures": [
+      11,
+      14
+     ],
+     "motif_treatment": "fragment_head",
+     "texture_rh": "머리 두 음(같은 음 둘)만 떼어 네 마디. 13~14마디는 11~12마디를 그대로 되풀이한다",
+     "texture_lh": "왼손 온음표 3도 하나 — 한 마디에 한 번만 누르고 그대로 둔다",
+     "dynamic": "mf"
+    }
+   ]
+  },
+  {
+   "label": "노래 다시",
+   "measures": [
+    15,
+    22
+   ],
+   "phrases": [
+    {
+     "measures": [
+      15,
+      18
+     ],
+     "motif_treatment": "augmentation",
+     "texture_rh": "곡의 꼭대기. 계단을 2분음표로 늘여 한 마디에 두 음씩, 16마디에서 라5 에 닿는다 — 곡 전체의 최고음",
+     "texture_lh": "왼손 2분음표 3도 두 번 — 한 마디에 두 번만 누른다. 손이 작고 손가락 힘이 약하므로 5도가 아니라 3도로 좁힌다",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      19,
+      22
+     ],
+     "motif_treatment": "repeat",
+     "texture_rh": "1~4마디가 음 하나 바꾸지 않고 돌아온다. 22마디는 파4 로 확실히 내려앉는다",
+     "texture_lh": "왼손 2분음표 3도 두 번 — 한 마디에 두 번만 누른다. 손이 작고 손가락 힘이 약하므로 5도가 아니라 3도로 좁힌다",
+     "dynamic": "mf"
+    }
+   ]
+  }
+ ],
+ "harmony": [
+  {
+   "measure": 1,
+   "roman": "I"
+  },
+  {
+   "measure": 2,
+   "roman": "I"
+  },
+  {
+   "measure": 3,
+   "roman": "V7"
+  },
+  {
+   "measure": 4,
+   "roman": "I"
+  },
+  {
+   "measure": 5,
+   "roman": "IV"
+  },
+  {
+   "measure": 6,
+   "roman": "I"
+  },
+  {
+   "measure": 7,
+   "roman": "V7"
+  },
+  {
+   "measure": 8,
+   "roman": "I"
+  },
+  {
+   "measure": 9,
+   "roman": "vi"
+  },
+  {
+   "measure": 10,
+   "roman": "vi"
+  },
+  {
+   "measure": 11,
+   "roman": "ii"
+  },
+  {
+   "measure": 12,
+   "roman": "V7"
+  },
+  {
+   "measure": 13,
+   "roman": "ii"
+  },
+  {
+   "measure": 14,
+   "roman": "V7"
+  },
+  {
+   "measure": 15,
+   "roman": "IV"
+  },
+  {
+   "measure": 16,
+   "roman": "I"
+  },
+  {
+   "measure": 17,
+   "roman": "V7"
+  },
+  {
+   "measure": 18,
+   "roman": "I"
+  },
+  {
+   "measure": 19,
+   "roman": "I"
+  },
+  {
+   "measure": 20,
+   "roman": "I"
+  },
+  {
+   "measure": 21,
+   "roman": "V7"
+  },
+  {
+   "measure": 22,
+   "roman": "I"
+  }
+ ],
+ "climax": {
+  "measure": 15,
+  "how": "계단이 2분음표로 늘어나면서 15~16마디에 곡의 유일한 f 와 최고음 라5 가 온다. 왼손은 3도 두 번을 그대로 유지해 오른손만 커진다"
+ },
+ "showcase_measures": [
+  {
+   "range": [
+    1,
+    8
+   ],
+   "strength_used": "또렷한 리듬"
+  },
+  {
+   "range": [
+    11,
+    14
+   ],
+   "strength_used": "또렷한 리듬"
+  }
+ ],
+ "contrast_section": {
+  "key": "노래는 바장조, 대답은 라단조 색",
+  "texture_lh": "노래의 2분음표 3도 두 번이 대답에서 온음표 하나로 눕는다",
+  "register": "대답은 선율이 라4~미5 로 좁아지고, 15~16마디에서 라5 까지 열린다",
+  "rhythm": "노래는 4분음표 넷 + 2분음표 둘, 대답도 같지만 왼손이 멈춘다 → 15마디부터 2분음표 확대"
+ },
+ "modulations": [
+  "9마디 라단조 색으로",
+  "15마디 바장조 복귀"
+ ],
+ "ending": {
+  "type": "딸림7-으뜸 정격 종지. 마지막 두 박은 파4 를 길게 눌러 확실히 닫는다",
+  "measures": [
+   19,
+   22
+  ]
+ },
+ "dynamics_curve": [
+  {
+   "measure": 1,
+   "dyn": "mf"
+  },
+  {
+   "measure": 5,
+   "dyn": "mp"
+  },
+  {
+   "measure": 9,
+   "dyn": "mp"
+  },
+  {
+   "measure": 11,
+   "dyn": "mf"
+  },
+  {
+   "measure": 15,
+   "dyn": "f"
+  },
+  {
+   "measure": 19,
+   "dyn": "mf"
+  }
+ ],
+ "pedal_plan": "페달을 쓰지 않는다. 초1 이고 발이 페달에 닿지 않을 수 있다. 소리를 잇는 것은 손가락으로만 한다",
+ "difficulty_target": 2.0
+}

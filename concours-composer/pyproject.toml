@@ -1,0 +1,36 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "PL", "ARG", "PTH"]
+ignore = [
+  "B008",     # FastAPI 의 Depends() 기본값은 이 프레임워크의 정상 관용구다
+  "RUF001",   # 한국어 주석의 전각 문장부호
+  "RUF002",
+  "RUF003",
+  "PLR0913",  # 인자 수 — 음악 파라미터는 원래 많다
+  "PLR0912",  # 분기 수 — 규칙 검사기는 원래 길다
+  "PLR0915",
+  "PLR2004",  # 음악 상수(반음 수·마디 수)는 이름을 붙이는 게 오히려 읽기 나쁘다
+  "PLC0415",  # 지역 import 는 순환 참조 회피와 무거운 모듈 지연 로딩에 의도적으로 쓴다
+  "PLR0911",
+  "PLR0917",
+  "N818",     # 예외 이름은 한국어 문서와 맞춘다(InfeasibleRequest, PlanRejected 등)
+  "RUF007",   # zip(x, x[1:]) 은 이 코드베이스에서 '이웃한 두 마디' 를 뜻해 더 읽기 쉽다
+]
+
+[tool.ruff.lint.per-file-ignores]
+"server/tests/**" = ["ARG001", "ARG002", "ARG005", "PLR0915", "N806", "SLF001"]
+"scripts/**" = ["T201"]
+"server/app/schemas/*.py" = ["N805"]
+# 세션 작곡 도구는 서버 코드를 import 하기 전에 sys.path 를 먼저 세워야 한다 —
+# 그래서 import 순서가 관례와 다르다. 짧은 도구이므로 그대로 둔다.
+"tools/notation/*.py" = ["E402", "E701", "E702", "I001", "T201", "SLF001",
+                         "ARG001", "B905", "F401"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "server"
+ignore_missing_imports = true
+warn_unused_ignores = false

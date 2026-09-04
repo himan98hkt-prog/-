@@ -1,0 +1,42 @@
+{
+  "id": "g02",
+  "title": "걷다가 뛰다가",
+  "motif": "motif-1 · 뛰어오르는 아침",
+  "key": "A",
+  "meter": "4/4",
+  "tempo": 104,
+  "measures": 50,
+  "planned_measures": 50,
+  "duration_sec": 115.4,
+  "time_limit_sec": 150,
+  "validation_passed": true,
+  "hard_failures": [],
+  "warnings": 8,
+  "parallels": 8,
+  "musicality": 9.5,
+  "unmet": [],
+  "critic_total": 8.1,
+  "combined": 8.66,
+  "quality_passed": true,
+  "revision_rounds": 2,
+  "difficulty": 4.34,
+  "difficulty_target": 4.0,
+  "difficulty_division": "초등 저학년부",
+  "judge_average": 9.15,
+  "judge_consensus_fixes": [],
+  "guide_sections": 3,
+  "advisory": [
+    "약한 루브릭: originality 6.5",
+    "[1-18] (곡 전체) A 섹션 18마디 중 1~3마디가 세 번(1~3, 5~7, 13~15) 그대로 나온다. 형식은 또렷해지지만 세 번째는 심사위원 귀에 '또' 로 들린다. 게다가 A 전체가 8분음표 네 개 + 4분음표 두 개라는 한 가지 리듬형으로 덮여 있다 → 14마디만 리듬을 바꿔라 — D5-E5-F#5-A5(8분음표 넷) 대신 D5(붙점 4분음표)-E5(8분음표)-F#5-A5(8분음표 둘)로. 음은 그대로이므로 '같은 것이 돌아왔다'는 인상은 유지되고, 세 번째 등장에만 리듬의 색이 생긴다"
+  ],
+  "prompts": 24,
+  "responses": 24,
+  "projection": {
+    "model": "claude-opus-5",
+    "calls": 24,
+    "input_tokens": 178332,
+    "output_tokens": 45148,
+    "cost_usd_no_cache": 2.0204,
+    "cost_usd_with_cache": 1.4586
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "passed": true,
+  "summary": "통과 (경고 11건)",
+  "issues": [
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "2마디 2→3박 병행 8도",
+      "measures": [
+        2
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "4마디 2→3박 병행 8도",
+      "measures": [
+        4
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "6마디 2→3박 병행 8도",
+      "measures": [
+        6
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "8마디 2→3박 병행 8도",
+      "measures": [
+        8
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "10마디 2→3박 병행 8도",
+      "measures": [
+        10
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "12마디 2→3박 병행 8도",
+      "measures": [
+        12
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "14→15마디 병행 8도",
+      "measures": [
+        14,
+        15
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "22→23마디 병행 8도",
+      "measures": [
+        22,
+        23
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "40마디 2→3박 병행 8도",
+      "measures": [
+        40
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "42마디 2→3박 병행 8도",
+      "measures": [
+        42
+      ]
+    },
+    {
+      "rule": "parallels",
+      "severity": "soft",
+      "message": "52마디 2→3박 병행 8도",
+      "measures": [
+        52
+      ]
+    }
+  ]
+}

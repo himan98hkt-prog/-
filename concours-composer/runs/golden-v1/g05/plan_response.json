@@ -1,0 +1,328 @@
+{
+ "title_candidates": [
+  "개선 행진",
+  "높은 탑",
+  "빛나는 길"
+ ],
+ "key": "G",
+ "meter": "4/4",
+ "tempo": 120,
+ "total_measures": 32,
+ "duration_est": 64.0,
+ "form": [
+  {
+   "label": "A",
+   "measures": [
+    1,
+    8
+   ],
+   "phrases": [
+    {
+     "measures": [
+      1,
+      4
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "붙점 팡파르 + 16분음표 하행 스케일. 4마디 끝은 2박 긴 음",
+     "texture_lh": "옥타브 베이스 2분음표 + 화음 2분음표",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      5,
+      8
+     ],
+     "motif_treatment": "sequence_up_2nd",
+     "texture_rh": "같은 팡파르를 2도 위에서. 8마디는 하행 스케일로 종지",
+     "texture_lh": "옥타브 베이스 + 화음",
+     "dynamic": "mf"
+    }
+   ]
+  },
+  {
+   "label": "B",
+   "measures": [
+    9,
+    16
+   ],
+   "phrases": [
+    {
+     "measures": [
+      9,
+      12
+     ],
+     "motif_treatment": "mode_change",
+     "texture_rh": "나란한 단조(e단조) 색. 팡파르를 낮은 자리로 옮기고 스케일을 짧게 자른다",
+     "texture_lh": "세 음 지속 화음(온마디). 옥타브 걸음을 멈춰 세운다",
+     "dynamic": "p"
+    },
+    {
+     "measures": [
+      13,
+      16
+     ],
+     "motif_treatment": "inversion",
+     "texture_rh": "팡파르의 도약을 뒤집어 아래로. 스케일은 상행으로 되돌린다",
+     "texture_lh": "세 음 지속 화음(온마디)",
+     "dynamic": "mp"
+    }
+   ]
+  },
+  {
+   "label": "A'",
+   "measures": [
+    17,
+    24
+   ],
+   "phrases": [
+    {
+     "measures": [
+      17,
+      20
+     ],
+     "motif_treatment": "statement",
+     "texture_rh": "1~2마디를 그대로 되돌린 뒤 버금딸림으로 넓힌다",
+     "texture_lh": "옥타브 베이스 + 화음",
+     "dynamic": "f"
+    },
+    {
+     "measures": [
+      21,
+      24
+     ],
+     "motif_treatment": "fragment_head",
+     "texture_rh": "팡파르를 3도·5도 겹친 화음으로 두껍게. 22마디에서 한 옥타브 반 스케일로 곡 최고음 G6 까지 올라간다",
+     "texture_lh": "옥타브 베이스 + 화음",
+     "dynamic": "ff"
+    }
+   ]
+  },
+  {
+   "label": "C",
+   "measures": [
+    25,
+    32
+   ],
+   "phrases": [
+    {
+     "measures": [
+      25,
+      28
+     ],
+     "motif_treatment": "transpose_to_dominant",
+     "texture_rh": "팡파르를 딸림화음 위로 옮겨 한 번 더 세운다",
+     "texture_lh": "옥타브 베이스 + 화음",
+     "dynamic": "mf"
+    },
+    {
+     "measures": [
+      29,
+      32
+     ],
+     "motif_treatment": "repeat",
+     "texture_rh": "1~2마디를 음까지 그대로 재현한 뒤 네 음 화음으로 마무리",
+     "texture_lh": "1~2마디와 동일. 마지막 마디는 옥타브를 온음표로",
+     "dynamic": "f"
+    }
+   ]
+  }
+ ],
+ "harmony": [
+  {
+   "measure": 1,
+   "roman": "I"
+  },
+  {
+   "measure": 2,
+   "roman": "I"
+  },
+  {
+   "measure": 3,
+   "roman": "V7"
+  },
+  {
+   "measure": 4,
+   "roman": "V7"
+  },
+  {
+   "measure": 5,
+   "roman": "ii"
+  },
+  {
+   "measure": 6,
+   "roman": "ii"
+  },
+  {
+   "measure": 7,
+   "roman": "V7"
+  },
+  {
+   "measure": 8,
+   "roman": "I"
+  },
+  {
+   "measure": 9,
+   "roman": "vi"
+  },
+  {
+   "measure": 10,
+   "roman": "vi"
+  },
+  {
+   "measure": 11,
+   "roman": "IV"
+  },
+  {
+   "measure": 12,
+   "roman": "V7"
+  },
+  {
+   "measure": 13,
+   "roman": "I"
+  },
+  {
+   "measure": 14,
+   "roman": "IV"
+  },
+  {
+   "measure": 15,
+   "roman": "ii"
+  },
+  {
+   "measure": 16,
+   "roman": "V7"
+  },
+  {
+   "measure": 17,
+   "roman": "I"
+  },
+  {
+   "measure": 18,
+   "roman": "I"
+  },
+  {
+   "measure": 19,
+   "roman": "IV"
+  },
+  {
+   "measure": 20,
+   "roman": "V7"
+  },
+  {
+   "measure": 21,
+   "roman": "I"
+  },
+  {
+   "measure": 22,
+   "roman": "I"
+  },
+  {
+   "measure": 23,
+   "roman": "IV"
+  },
+  {
+   "measure": 24,
+   "roman": "V7"
+  },
+  {
+   "measure": 25,
+   "roman": "V7"
+  },
+  {
+   "measure": 26,
+   "roman": "V7"
+  },
+  {
+   "measure": 27,
+   "roman": "ii"
+  },
+  {
+   "measure": 28,
+   "roman": "V7"
+  },
+  {
+   "measure": 29,
+   "roman": "I"
+  },
+  {
+   "measure": 30,
+   "roman": "I"
+  },
+  {
+   "measure": 31,
+   "roman": "V7"
+  },
+  {
+   "measure": 32,
+   "roman": "I"
+  }
+ ],
+ "climax": {
+  "measure": 22,
+  "how": "한 옥타브 반 상행 스케일로 곡 전체의 최고음 G6 에 도달하고, ff 로 왼손 옥타브 베이스가 받친다"
+ },
+ "showcase_measures": [
+  {
+   "range": [
+    1,
+    4
+   ],
+   "strength_used": "화려한 스케일"
+  },
+  {
+   "range": [
+    21,
+    24
+   ],
+   "strength_used": "화려한 스케일"
+  }
+ ],
+ "contrast_section": {
+  "label": "B",
+  "how": "나란한 단조로 색을 바꾸고, 왼손을 옥타브 걸음에서 세 음 지속 화음으로 멈춰 세우며, 오른손 팡파르를 한 옥타브 낮은 자리로 옮긴다"
+ },
+ "modulations": [],
+ "ending": {
+  "type": "완전종지 — V7 에서 I 로, 네 음 화음을 온음표로",
+  "measures": [
+   29,
+   32
+  ]
+ },
+ "dynamics_curve": [
+  {
+   "measure": 1,
+   "dyn": "f"
+  },
+  {
+   "measure": 5,
+   "dyn": "mf"
+  },
+  {
+   "measure": 9,
+   "dyn": "p"
+  },
+  {
+   "measure": 13,
+   "dyn": "mp"
+  },
+  {
+   "measure": 17,
+   "dyn": "f"
+  },
+  {
+   "measure": 21,
+   "dyn": "ff"
+  },
+  {
+   "measure": 25,
+   "dyn": "mf"
+  },
+  {
+   "measure": 29,
+   "dyn": "f"
+  }
+ ],
+ "pedal_plan": "화성이 바뀌는 마디마다 밟아 바꾼다. 16분음표 스케일 구간은 얕게 밟아 음이 뭉치지 않게 한다",
+ "difficulty_target": 6.0
+}

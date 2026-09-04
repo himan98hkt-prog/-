@@ -1,0 +1,283 @@
+{
+  "title_candidates": [
+    "계단 놀이",
+    "통통 뛰는 아침",
+    "작은 발걸음"
+  ],
+  "key": "C",
+  "meter": "4/4",
+  "tempo": 100,
+  "total_measures": 24,
+  "duration_est": 57.6,
+  "form": [
+    {
+      "label": "A",
+      "measures": [
+        1,
+        8
+      ],
+      "phrases": [
+        {
+          "measures": [
+            1,
+            4
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "8분음표 계단 상행 네 음 + 스타카토로 튕기는 응답, 4마디 끝은 2박 긴 음",
+          "texture_lh": "5도 베이스를 2분음표로. 마디마다 화성만 바뀐다",
+          "dynamic": "mf"
+        },
+        {
+          "measures": [
+            5,
+            8
+          ],
+          "motif_treatment": "sequence_up_2nd",
+          "texture_rh": "같은 계단을 2도 위에서. 셋째 마디에서 음역을 한 단 더 올려 종지로 내려온다",
+          "texture_lh": "5도 베이스를 2분음표로",
+          "dynamic": "f"
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "measures": [
+        9,
+        16
+      ],
+      "phrases": [
+        {
+          "measures": [
+            9,
+            12
+          ],
+          "motif_treatment": "mode_change",
+          "texture_rh": "계단을 단조 색으로 바꿔 4분음표로 늘린 노래하는 선율, 프레이즈 끝 2박 길게",
+          "texture_lh": "지속 화음 온음표. 음역을 한 옥타브 내려 색을 바꾼다",
+          "dynamic": "p"
+        },
+        {
+          "measures": [
+            13,
+            16
+          ],
+          "motif_treatment": "inversion",
+          "texture_rh": "계단을 뒤집어 하행. 마지막 마디는 딸림화음 위에서 멈춰 A' 를 부른다",
+          "texture_lh": "지속 화음 온음표",
+          "dynamic": "mp"
+        }
+      ]
+    },
+    {
+      "label": "A'",
+      "measures": [
+        17,
+        24
+      ],
+      "phrases": [
+        {
+          "measures": [
+            17,
+            20
+          ],
+          "motif_treatment": "statement",
+          "texture_rh": "계단을 원형대로 되살리되 한 옥타브 위에서. 곡 전체의 최고음이 여기 온다",
+          "texture_lh": "5도 베이스 2분음표",
+          "dynamic": "f"
+        },
+        {
+          "measures": [
+            21,
+            24
+          ],
+          "motif_treatment": "fragment_head",
+          "texture_rh": "계단 앞 두 음만 떼어 두 번 되뇐 뒤 온음표로 마무리",
+          "texture_lh": "마지막 두 마디는 화음을 두껍게 눌러 끝을 확실히 한다",
+          "dynamic": "mf"
+        }
+      ]
+    }
+  ],
+  "harmony": [
+    {
+      "measure": 1,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 2,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 3,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 4,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 5,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 6,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 7,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 8,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 9,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 10,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 11,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 12,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 13,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 14,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 15,
+      "roman": "ii",
+      "bass_note": null
+    },
+    {
+      "measure": 16,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 17,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 18,
+      "roman": "V",
+      "bass_note": null
+    },
+    {
+      "measure": 19,
+      "roman": "IV",
+      "bass_note": null
+    },
+    {
+      "measure": 20,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 21,
+      "roman": "I",
+      "bass_note": null
+    },
+    {
+      "measure": 22,
+      "roman": "vi",
+      "bass_note": null
+    },
+    {
+      "measure": 23,
+      "roman": "V7",
+      "bass_note": null
+    },
+    {
+      "measure": 24,
+      "roman": "I",
+      "bass_note": null
+    }
+  ],
+  "climax": {
+    "measure": 17,
+    "how": "A 의 계단을 한 옥타브 위에서 되살려 곡 전체의 최고음을 놓고, f 로 왼손 5도 베이스를 또렷하게 받친다"
+  },
+  "showcase_measures": [
+    {
+      "range": [
+        5,
+        8
+      ],
+      "strength_used": "빠른 손가락"
+    },
+    {
+      "range": [
+        17,
+        20
+      ],
+      "strength_used": "빠른 손가락"
+    }
+  ],
+  "contrast_section": {
+    "label": "B",
+    "how": "나란한조(a단조) 색으로 바꾸고, 오른손을 8분음표에서 4분음표 노래로 늘리며, 왼손을 2분음표 5도 베이스에서 한 옥타브 낮은 지속 화음으로 바꾼다"
+  },
+  "modulations": [],
+  "ending": {
+    "type": "완전종지 — V7 에서 I 로, 온음표 화음으로 길게",
+    "measures": [
+      21,
+      24
+    ]
+  },
+  "dynamics_curve": [
+    {
+      "measure": 1,
+      "dyn": "mf"
+    },
+    {
+      "measure": 5,
+      "dyn": "f"
+    },
+    {
+      "measure": 9,
+      "dyn": "p"
+    },
+    {
+      "measure": 13,
+      "dyn": "mp"
+    },
+    {
+      "measure": 17,
+      "dyn": "f"
+    },
+    {
+      "measure": 21,
+      "dyn": "mf"
+    }
+  ],
+  "pedal_plan": "A 와 A' 는 페달 없이 또렷하게 친다. B 섹션만 마디마다 밟아 노래하게 한다",
+  "difficulty_target": 3.0
+}
