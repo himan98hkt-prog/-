@@ -922,9 +922,24 @@
           <div data-tip="비워 두시면 급수에 맞게 프로그램이 고릅니다."><label>조성 <span class="why">(안 고르셔도 됩니다)</span></label>
             <select id="hoKey">
               <option value="">프로그램이 고릅니다</option>
-              <option>C</option><option>G</option><option>D</option><option>A</option>
-              <option>E</option><option>F</option><option>B-</option><option>E-</option>
-              <option>a</option><option>e</option><option>d</option><option>b</option>
+              <optgroup label="장조 (밝은 소리)">
+                <option value="C">C 다장조 — 조표 없음</option>
+                <option value="G">G 사장조 — ♯1</option>
+                <option value="D">D 라장조 — ♯2</option>
+                <option value="A">A 가장조 — ♯3</option>
+                <option value="E">E 마장조 — ♯4</option>
+                <option value="F">F 바장조 — ♭1</option>
+                <option value="B-">B♭ 내림나장조 — ♭2</option>
+                <option value="E-">E♭ 내림마장조 — ♭3</option>
+              </optgroup>
+              <optgroup label="단조 (어두운 소리)">
+                <option value="a">a 가단조 — 조표 없음</option>
+                <option value="e">e 마단조 — ♯1</option>
+                <option value="d">d 라단조 — ♭1</option>
+                <option value="b">b 나단조 — ♯2</option>
+                <option value="g">g 사단조 — ♭2</option>
+                <option value="c">c 다단조 — ♭3</option>
+              </optgroup>
             </select></div>
         </div>
 

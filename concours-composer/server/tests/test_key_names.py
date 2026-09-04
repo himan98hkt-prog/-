@@ -119,3 +119,51 @@ def test_a_piece_assembles_with_a_human_written_key() -> None:
             measures, AssembleOptions(title="시험곡", key_sig=raw, meter="4/4", tempo=100)
         )
         assert "<score-partwise" in str(xml), raw
+
+
+# ── 단조를 부탁하면 단조가 나와야 한다 ────────────────────────────────────
+#
+# 원장님이 화면에서 a·e·d·b(단조)를 고르실 수 있는데, 이 함수가 **전부 장조로**
+# 바꿔 내보내고 있었다. 단조를 부탁하고 장조를 받으면 곡의 성격이 통째로 달라진다.
+# music21 은 소문자 한 글자를 단조로 읽는다 — 그 규칙을 우리가 지우고 있었다.
+
+
+def test_a_bare_lowercase_letter_is_minor() -> None:
+    for raw in ("a", "e", "d", "b", "g", "c", "f"):
+        assert normalize_key(raw) == raw, f"{raw!r}(단조)가 장조로 바뀌었다"
+
+
+def test_a_bare_uppercase_letter_is_major() -> None:
+    for raw in ("A", "E", "D", "B", "G", "C", "F"):
+        assert normalize_key(raw) == raw
+
+
+def test_case_survives_with_accidentals() -> None:
+    assert normalize_key("f#") == "f#"      # 올림바단조
+    assert normalize_key("F#") == "F#"      # 올림바장조
+    assert normalize_key("B-") == "B-"      # 내림나장조
+    assert normalize_key("b-") == "b-"      # 내림나단조
+
+
+def test_words_still_win_over_case() -> None:
+    """글로 적으셨으면 그것이 우선이다."""
+    assert normalize_key("a major") == "A"
+    assert normalize_key("A minor") == "a"
+    assert normalize_key("bb major") == "B-"
+
+
+def test_music21_reads_every_key_the_screen_offers() -> None:
+    """화면이 내놓는 조성을 music21 이 하나도 빠짐없이 읽어야 한다."""
+    from music21 import key as m21key
+
+    offered = ["C", "G", "D", "A", "E", "F", "B-", "E-",
+               "a", "e", "d", "b", "g", "c"]
+    for k in offered:
+        norm = normalize_key(k)
+        obj = m21key.Key(norm)
+        assert obj is not None
+        # 소문자로 고르셨으면 단조로 읽혀야 한다.
+        if k.islower():
+            assert obj.mode == "minor", f"{k} 를 골랐는데 {obj.mode} 로 읽힌다"
+        else:
+            assert obj.mode == "major", f"{k} 를 골랐는데 {obj.mode} 로 읽힌다"

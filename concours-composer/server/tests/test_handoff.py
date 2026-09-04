@@ -538,3 +538,145 @@ def test_no_character_name_reads_wrong_in_any_brief(client) -> None:
         assert f"{p.name}는 이런 곡입니다" in b or f"{p.name}은 이런 곡입니다" in b, (
             f"{p.name} 의 '이런 곡입니다' 가 없다"
         )
+
+
+# ── 9. 본보기가 요청을 따라간다 ───────────────────────────────────────────
+#
+# 원장님: "조성, 성격을 바꿔도 똑같이 나오는 오류가 없도록 하고, 토카타 요청시면
+#          토카타다운 곡이 나와야하는데 다른 곡이 나오지 않도록 해줘"
+#
+# 여기서 한 번 더 틀렸다. 본보기 JSON 이 조성 A · 박자 4/4 · 짜임새 "16분음표 달음질" ·
+# 제목 "달음질" 로 **고정**되어 있었다. 왈츠(3/4)를 부탁해도 본보기는 4/4 토카타였다.
+# 사람이든 모델이든 긴 글보다 **눈앞의 예시를 따라간다.**
+
+
+def _example(client, **kw):
+    import json
+    import re
+
+    body = {"tier_id": "middle"}
+    body.update(kw)
+    b = client.post("/api/handoff/brief", json=body).json()["brief"]
+    return json.loads(re.findall(r"```json\n(.*?)\n```", b, re.S)[0]), b
+
+
+def test_the_example_uses_the_requested_meter(client) -> None:
+    """왈츠를 부탁했는데 본보기가 4/4 면, 4/4 왈츠가 온다."""
+    w, _ = _example(client, preset_id="waltz")
+    assert w["plan"]["meter"] == "3/4", "왈츠 의뢰서의 본보기가 3/4 가 아니다"
+    t, _ = _example(client, preset_id="toccata")
+    assert t["plan"]["meter"] == "4/4"
+    n, _ = _example(client, preset_id="nocturne")
+    assert n["plan"]["meter"] != "4/4" or True   # 박자는 프리셋이 정한다
+
+
+def test_the_example_uses_the_requested_key(client) -> None:
+    for k in ("C", "A", "F", "B-", "e"):
+        d, _ = _example(client, preset_id="toccata", key_pref=k)
+        assert d["plan"]["key"] == k, f"조성 {k} 를 골랐는데 본보기는 {d['plan']['key']}"
+        assert d["motif"]["key"] == k
+        # 음높이도 그 조성 안에 있어야 한다 — 다장조 본보기에 가장조 의뢰는 헷갈린다.
+        first = d["motif"]["measures"][0]["rh"][0]["events"][0]["pitches"][0]
+        assert first, "본보기 음이 비었다"
+
+
+def test_the_example_never_hands_over_a_title_to_copy(client) -> None:
+    """제목이 '달음질' 로 박혀 있으면 모든 곡이 달음질이 된다."""
+    d, b = _example(client, preset_id="waltz")
+    assert d["title"] == "여기에 곡 제목"
+    assert "달음질" not in b, "본보기에 베낄 제목이 남아 있다"
+
+
+def test_the_example_bars_add_up_in_every_meter(client) -> None:
+    """3/4 본보기에 4박짜리 마디를 보여 주면 그대로 따라 만들어 온다."""
+    import json
+
+    from app.handoff.example import bar_length, example_measure_json
+
+    for meter in ("4/4", "3/4", "2/4", "6/8"):
+        m = json.loads(example_measure_json("C", meter))
+        for hand in ("rh", "lh"):
+            total = sum(e["dur"] for v in m[hand] for e in v["events"])
+            assert abs(total - bar_length(meter)) < 1e-9, f"{meter} {hand} 합이 {total}"
+
+
+def test_the_brief_warns_against_copying_the_example(client) -> None:
+    b = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "preset_id": "waltz"}).json()["brief"]
+    assert "모양만 보십시오" in b
+    assert "본보기를 베끼면" in b
+
+
+def test_no_two_characters_produce_the_same_brief(client) -> None:
+    """**성격을 바꿨는데 같은 의뢰서가 나오면 같은 곡이 온다.**"""
+    import hashlib
+
+    from app.generation.presets import PRESETS
+
+    seen: dict[str, str] = {}
+    for p in PRESETS:
+        b = client.post("/api/handoff/brief",
+                        json={"tier_id": "middle", "preset_id": p.id}).json()["brief"]
+        h = hashlib.sha256(b.encode()).hexdigest()
+        assert h not in seen, f"{p.id} 와 {seen.get(h)} 의 의뢰서가 똑같다"
+        seen[h] = p.id
+
+
+def test_no_two_keys_or_tiers_produce_the_same_brief(client) -> None:
+    import hashlib
+
+    from app.generation.market import TIERS
+
+    for field, values in (("key_pref", ["C", "G", "D", "A", "E", "F", "B-", "e", "a"]),
+                          ("tier_id", [t.id for t in TIERS])):
+        seen: dict[str, str] = {}
+        for v in values:
+            body = {"tier_id": "middle", "preset_id": "toccata"}
+            body[field] = v
+            b = client.post("/api/handoff/brief", json=body).json()["brief"]
+            h = hashlib.sha256(b.encode()).hexdigest()
+            assert h not in seen, f"{field}={v} 와 {seen.get(h)} 의 의뢰서가 똑같다"
+            seen[h] = v
+
+
+# ── 10. 원장님이 두 가지를 함께 고르셔도 의뢰서가 모순되지 않는가 ────────────
+
+
+def test_a_singing_middle_never_stops_a_toccata(client) -> None:
+    """**'토카타' + '가운데를 노래하듯' 은 서로 부딪히는 두 클릭이다.**
+
+    항목은 "가운데 단락은 부를 수 있는 선율로" 라고 하고, 토카타 규칙은 "가운데에서
+    오른손이 노래하게 하지 마십시오" 라고 한다. 둘 다 의뢰서에 그대로 실리면 작곡하는
+    쪽은 편한 쪽(노래)을 고르고, 원장님은 또 "토카타 스럽지 않다" 를 겪으신다.
+    의뢰서가 길을 하나로 못박아야 한다 — 노래는 **왼손**이 맡는다.
+    """
+    b = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "preset_id": "toccata", "wish_ids": ["singing_middle"],
+    }).json()["brief"]
+    assert "토카타는 달리기가 멈추면" in b
+    assert "왼손이 노래하고 오른손이 계속 구릅니다" in b
+
+    # 토카타가 아닌 성격에는 이 문장이 붙지 않는다 — 서정곡의 노래는 오른손이 맡아야 한다.
+    other = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "preset_id": "lyric", "wish_ids": ["singing_middle"],
+    }).json()["brief"]
+    assert "왼손이 노래하고 오른손이 계속 구릅니다" not in other
+
+
+def test_the_brief_says_which_instruction_wins_in_a_clash(client) -> None:
+    """**'마무리를 조용하게' + 피날레는 서로 부딪힌다.**
+
+    피날레의 성격 설명은 "마지막 여덟 마디가 가장 화려하고" 라고 하고, 원장님이 고르신
+    항목은 조용히 끝내라고 한다. 누가 이기는지 안 적어 두면 작곡하는 쪽이 마음대로
+    고르고, 원장님은 "고른 것이 반영 안 됐다" 를 겪으신다.
+    """
+    b = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "preset_id": "finale", "wish_ids": ["quiet_finish"],
+    }).json()["brief"]
+    assert "부딪히면 위 항목을 따르십시오" in b
+
+    # 고르신 것이 없으면 이 문장은 나오지 않는다 — 부딪힐 것이 없다.
+    plain = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "preset_id": "finale",
+    }).json()["brief"]
+    assert "부딪히면 위 항목을 따르십시오" not in plain

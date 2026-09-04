@@ -67,8 +67,21 @@ def normalize_key(raw: str, *, default: str = "C") -> str:
     if ko:
         text = ko
 
+    # **대소문자를 지우기 전에 원래 모양을 남긴다.**
+    #
+    # music21 은 `"a"` 를 가단조, `"A"` 를 가장조로 읽는다. 그것이 규칙이다. 그런데
+    # 여기서 곧바로 소문자로 바꿔 버리고 마지막에 `.upper()` 를 하고 있었다. 그래서
+    # 화면의 조성 목록에 있는 a·e·d·b(단조)를 고르셔도 **전부 장조로 바뀌어** 나갔다.
+    # 단조를 부탁하고 장조를 받으면 곡의 성격이 통째로 달라진다.
+    cased = text
     low = text.lower()
     # 장·단조를 먼저 떼어 낸다. 남는 것이 으뜸음이다.
+    #
+    # **떼어 내기 전에** 장조라고 적으셨는지를 먼저 본다. 떼어 낸 뒤에 찾으면 이미
+    # 지워진 뒤라 못 찾는다 — 그러면 "a major" 가 소문자 a 때문에 단조로 뒤집힌다.
+    has_major = any(
+        re.search(rf"(?:\b|\s){re.escape(w)}\b|{re.escape(w)}$", low) for w in _MAJOR
+    )
     is_minor = False
     for word in _MINOR:
         if re.search(rf"(?:\b|\s){re.escape(word)}\b", low) or low.endswith(word):
@@ -86,6 +99,13 @@ def normalize_key(raw: str, *, default: str = "C") -> str:
         return default
     step, mark = m.group(1).upper(), m.group(2)
     alter = _SHARP.get(mark, "") or _FLAT.get(mark, "")
+
+    # 장·단조를 글로 안 적으셨으면 **원래 대소문자**가 답이다(music21 규칙).
+    #   "a" → 가단조 · "A" → 가장조 · "b-" → 내림나단조 · "B-" → 내림나장조
+    if not is_minor and not has_major:
+        head_at = cased.lower().find(m.group(1))
+        if head_at >= 0 and cased[head_at].islower():
+            is_minor = True
 
     # 단조는 소문자다 — music21 이 그렇게 구분한다.
     return (step.lower() if is_minor else step) + alter

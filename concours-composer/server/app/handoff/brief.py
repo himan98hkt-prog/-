@@ -198,6 +198,16 @@ def build_brief(
         for t in picked:
             lines.append(f"- {t}")
         lines.append("")
+        # **두 지시가 부딪히면 누가 이기는지 적어 둔다.**
+        # 예: '마무리를 조용하게' + 피날레("마지막 여덟 마디가 가장 화려하고").
+        # 어느 쪽을 따를지 안 적어 두면 작곡하는 쪽이 마음대로 고르고, 원장님은
+        # 고르신 것이 반영 안 됐다고 느끼신다. 고르신 것이 이긴다 — 다만 그 성격이
+        # 아예 아니게 되는 지경까지는 가지 않는다.
+        lines.append("위 항목이 **3번의 성격 설명과 부딪히면 위 항목을 따르십시오.** "
+                     "원장님이 직접 고르신 것입니다. 다만 그 성격이 아예 아니게 되는 "
+                     "지경까지 가지는 마십시오 — 부딪히는 자리는 곡 밖에 한 줄로 "
+                     "적어 주시면 됩니다.")
+        lines.append("")
     if wish.strip():
         lines.append("그리고 원장님이 직접 적으신 말씀입니다:")
         lines.append("")
@@ -238,6 +248,16 @@ def build_brief(
                      "16분음표가 **어느 한 손에서든 계속 굴러야** 합니다. 가운데 단락에서 "
                      "오른손이 4분음표로 노래하게 하지 마십시오 — 그러면 찬송가가 됩니다. "
                      "역할을 바꾸시려면 **왼손이 선율을 맡고 오른손이 계속 구르게** 하십시오.")
+        # **원장님이 두 번 클릭하면 의뢰서가 스스로 모순될 수 있다.**
+        # '가운데를 노래하듯' 은 "가운데 단락은 부를 수 있는 선율로" 라고 말하고,
+        # 바로 위 7번은 "가운데에서 오른손이 노래하게 하지 마십시오" 라고 말한다.
+        # 둘 다 맞는 말인데 함께 읽으면 어느 쪽을 따를지 알 수 없다 — 그러면 작곡하는
+        # 쪽이 편한 쪽(노래)을 고르고, 토카타가 아닌 곡이 돌아온다. 길을 하나로 못박는다.
+        if "singing_middle" in (wish_ids or []):
+            lines.append("   - 원장님이 **'가운데를 노래하듯'** 도 고르셨습니다. 두 가지를 "
+                         "다 지키는 길은 하나뿐입니다 — **왼손이 노래하고 오른손이 계속 "
+                         "구릅니다.** 오른손을 멈춰 세워 노래하게 하면 토카타가 아니게 "
+                         "됩니다. 노래는 왼손에 맡기십시오.")
     lines.append("")
 
     lines.append("## 7. 돌려주실 형식")
@@ -245,15 +265,32 @@ def build_brief(
     lines.append("아래 JSON **하나만** 코드블록에 담아 주십시오. 설명은 코드블록 밖에 쓰셔도 됩니다.")
     lines.append("**이 본보기는 프로그램이 실제 스키마에서 지어낸 것**이라, 그대로 따르시면 반드시 읽힙니다.")
     lines.append("")
+    lines.append("> **모양만 보십시오.** 조성·박자·빠르기·마디 수는 이 의뢰에 맞춰 넣어 두었지만, "
+                 "제목·음높이·짜임새 설명은 **자리를 표시한 것뿐**입니다. 내용은 위 조건과 성격에 "
+                 "맞게 직접 쓰십시오 — 본보기를 베끼면 어떤 성격을 부탁해도 같은 곡이 나옵니다.")
+    lines.append("")
+    # **본보기는 이 의뢰를 따라가야 한다.**
+    # 조성 A · 박자 4/4 로 고정해 두었더니, 왈츠(3/4)를 부탁해도 본보기는 4/4 였다.
+    # 사람이든 모델이든 긴 글보다 눈앞의 예시를 따라간다.
+    ex_key = key_pref or (ctx.request.key_preference[0] if ctx.request.key_preference else "C")
+    ex_meter = preset.meter if preset else ctx.request.meter or "4/4"
+    ex_tempo = ctx.request.tempo or 100
+    ex_total = measures_hint or 48
+    tex = preset.texture_options if preset else []
     lines.append("```json")
-    lines.append(example_json())
+    lines.append(example_json(
+        ex_key, ex_meter, ex_tempo, ex_total, h.target_difficulty,
+        (preset.mood.split("—")[-1].strip() if preset and "—" in preset.mood
+         else "오른손이 하는 일"),
+        tex[0] if tex else "왼손이 하는 일",
+    ))
     lines.append("```")
     lines.append("")
     lines.append("`measures` 자리에는 아래 생김새의 마디를 `total_measures` 개수만큼 넣으십시오"
                  " (4분음표 = 1.0):")
     lines.append("")
     lines.append("```json")
-    lines.append(example_measure_json())
+    lines.append(example_measure_json(ex_key, ex_meter))
     lines.append("```")
     lines.append("")
     lines.append("**꼭 지켜야 할 것**")
