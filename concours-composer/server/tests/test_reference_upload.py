@@ -97,7 +97,7 @@ def test_an_unreadable_file_is_refused_with_a_reason(here) -> None:
     with TestClient(app) as c:
         r = c.post(
             "/api/references/upload",
-            files={"files": ("악보.pdf", b"%PDF-1.4 ...", "application/pdf")},
+            files={"files": ("악보 사진.jpg", b"\xff\xd8\xff\xe0 ...", "image/jpeg")},
             data={"copyright_status": "copyrighted"},
         )
 
@@ -105,6 +105,26 @@ def test_an_unreadable_file_is_refused_with_a_reason(here) -> None:
     assert body["saved"] == []
     assert body["rejected"], "거절했으면서 왜 안 됐는지 말하지 않는다"
     assert "MusicXML" in body["rejected"][0], f"무엇을 올려야 하는지 안 알려준다: {body['rejected']}"
+    assert "PDF" in body["rejected"][0], "PDF 는 되는데 안 된다고 읽힌다"
+
+
+def test_a_broken_pdf_is_reported_not_listed_as_an_empty_row(here) -> None:
+    """쪽 수조차 못 읽은 PDF 를 목록에 넣으면 '—' 만 늘어선 칸이 생긴다.
+
+    파일은 지우지 않는다 — 원장님 파일이다. 다만 읽지 못했다고 세어 알린다.
+    """
+    from app.main import app
+
+    with TestClient(app) as c:
+        r = c.post(
+            "/api/references/upload",
+            files={"files": ("깨진.pdf", b"%PDF-1.4 ...", "application/pdf")},
+            data={"copyright_status": "copyrighted"},
+        ).json()
+
+    assert r["saved"] == ["깨진.pdf"], "파일은 남겨 두어야 한다"
+    assert r["added"] == 0, "읽지도 못한 것을 읽었다고 한다"
+    assert r["failed"] == 1, f"읽지 못했다는 사실을 세지 않는다: {r}"
 
 
 def test_default_is_the_safe_side(here) -> None:

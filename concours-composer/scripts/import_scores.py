@@ -24,7 +24,9 @@ sys.path.insert(0, str(ROOT / "server"))
 # 원장이 모아 둔 악보를 그렇게 잃게 할 수는 없다.
 from app.config import resolve_data_dir  # noqa: E402
 
-SUFFIXES = {".musicxml", ".xml", ".mxl", ".mid", ".midi"}
+# PDF 도 받는다 — 다만 **통계만**이다(쪽 수·제목·글자로 찍힌 박자/빠르기/마디 번호).
+# 원장님 악보는 대부분 PDF 인데 못 받으면 참고 악보 기능 자체가 없는 기능이 된다.
+SUFFIXES = {".musicxml", ".xml", ".mxl", ".mid", ".midi", ".pdf"}
 
 
 # **경로는 부를 때마다 새로 정한다 — 얼려 두지 않는다.**
@@ -95,6 +97,24 @@ def sync(corpus: Any, *, force: bool = False, quiet: bool = False) -> dict[str, 
         meta = _sidecar(path)
         tags = list(dict.fromkeys([*_tags(path), *meta.get("division_tags", [])]))
         try:
+            if path.suffix.lower() == ".pdf":
+                # PDF 는 그림이라 음표를 알 수 없다. 확실한 것만 담는다.
+                score = corpus.add_pdf_stats(
+                    path,
+                    score_id=f"ref-{digest}",
+                    title=meta.get("title", ""),
+                    composer=meta.get("composer", ""),
+                    copyright_status=meta.get("copyright_status", "copyrighted"),
+                    era=meta.get("era", ""),
+                    source=meta.get("source", str(path.relative_to(score_dir()))),
+                    division_tags=tags,
+                    teacher_difficulty=meta.get("teacher_difficulty"),
+                )
+                added += 1
+                ledger[key] = digest
+                if not quiet:
+                    print(f"  + {key} — {score.title} · PDF(통계만)")
+                continue
             score = corpus.add_file(
                 path,
                 score_id=f"ref-{digest}",

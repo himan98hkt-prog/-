@@ -40,7 +40,8 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/references", tags=["references"])
 
 # 읽을 수 있는 악보 파일. 이 밖의 것은 받아도 읽지 못하므로 미리 거절한다.
-SUFFIXES = {".musicxml", ".xml", ".mxl", ".mid", ".midi"}
+# PDF 는 받되 **통계만** 쓴다 — 그림에서 음표를 알아낼 수는 없다.
+SUFFIXES = {".musicxml", ".xml", ".mxl", ".mid", ".midi", ".pdf"}
 # 사람이 고른 저작권 상태. 화면의 드롭다운과 같은 목록이다.
 STATUSES = {"public_domain", "own", "licensed", "copyrighted"}
 
@@ -128,7 +129,10 @@ async def upload(
         if not name:
             continue
         if Path(name).suffix.lower() not in SUFFIXES:
-            rejected.append(f"{name} — 읽을 수 없는 형식입니다(MusicXML·MXL·MIDI 만 됩니다)")
+            rejected.append(
+                f"{name} — 읽을 수 없는 형식입니다"
+                "(MusicXML · MXL · MIDI · PDF 만 됩니다)"
+            )
             continue
         data = await f.read()
         if not data:

@@ -124,6 +124,68 @@ class Corpus:
         log.info("코퍼스 등록: %s (%s) 난이도 %.1f", title, copyright_status, profile.difficulty_score)
         return entry
 
+    def add_pdf_stats(
+        self,
+        path: str | Path,
+        *,
+        score_id: str,
+        title: str = "",
+        composer: str = "",
+        copyright_status: CopyrightStatus = "copyrighted",
+        era: str = "",
+        source: str = "",
+        division_tags: list[str] | None = None,
+        teacher_difficulty: float | None = None,
+    ) -> CorpusScore:
+        """PDF 악보를 **통계만** 담아 넣는다. 음표열은 없다.
+
+        원장님 악보는 대부분 PDF 인데, PDF 는 그림이라 음표를 알 수 없다. 그렇다고
+        아무것도 못 받으면 "참고 악보"라는 기능 자체가 원장님께는 없는 기능이 된다.
+
+        그래서 확실한 것만 받는다 — 몇 쪽인지, 제목과 작곡가, 글자로 찍힌 박자·빠르기·
+        마디 번호. 이것만으로도 "이 급수의 곡은 대략 몇 마디에 어느 빠르기인가" 는
+        배운다. 표절 검사(n-gram)에는 넣지 않는다 — 음표가 없으니 넣을 것이 없다.
+
+        **모르는 값은 지어내지 않는다.** 못 찾으면 기본값이 그대로 남고, 화면이
+        그 사실을 함께 보여 준다. 참고 자료에 거짓이 섞이면 없느니만 못하다.
+        """
+        from app.ingest.pdf_stats import read_pdf_stats
+
+        st = read_pdf_stats(path)
+        if st.pages <= 0:
+            # 쪽 수조차 못 읽었다면 알아낸 것이 하나도 없다. 그런 줄을 목록에
+            # 넣어 봐야 원장님 화면에 '—' 만 늘어선 칸이 생길 뿐이다.
+            raise ValueError(
+                "PDF 를 읽지 못했습니다 — 파일이 손상됐거나 PDF 가 아닐 수 있습니다"
+                + (f" ({st.notes[0]})" if st.notes else "")
+            )
+        # **못 찾은 값은 기본값으로 메우지 않는다.**
+        # StyleProfile 의 기본값은 C장조·4/4·♩=100·난이도 1.0 인데, 그대로 두면
+        # 화면이 그것을 **알아낸 사실처럼** 보여 준다. 스캔한 악보를 올렸는데
+        # "C 4/4 · 난이도 1.0" 이라고 뜨면 원장님은 그게 사실인 줄 아신다 —
+        # 지어내지 않겠다는 약속이 표시 단계에서 깨지는 것이다. 비워 둔다.
+        profile = StyleProfile(
+            key="",
+            meter=st.meter,
+            tempo=st.tempo,
+            measures=st.measures,
+            difficulty_score=0.0,      # 0 = 모른다. 음표가 없으니 잴 수가 없다.
+        )
+        entry = CorpusScore(
+            id=score_id,
+            title=title or st.title or Path(path).stem,
+            composer=composer or st.composer,
+            copyright_status=copyright_status, era=era, source=source,
+            division_tags=division_tags or [], teacher_difficulty=teacher_difficulty,
+            profile=profile,
+            measures=None,          # PDF 에서는 음표를 읽지 않는다
+            # 사람이 한 번 봐 줘야 한다 — 글자에서 짐작한 값이기 때문이다.
+            needs_review=True,
+        )
+        self.scores[score_id] = entry
+        log.info("PDF 통계 적재 %s: %s", score_id, " / ".join(st.notes))
+        return entry
+
     def add_file(self, path: str | Path, **kwargs: Any) -> CorpusScore:
         from app.ingest.parse import parse_score
 
@@ -216,9 +278,14 @@ class Corpus:
         pool = scored[:SEARCH_POOL]
 
         if difficulty is not None:
+            # **모르는 것과 쉬운 것은 다르다.**
+            # PDF 악보는 음표가 없어 난이도를 잴 수가 없고, 그 값이 0 으로 남는다.
+            # 그것을 '난이도 0(아주 쉬움)' 으로 읽으면, 중급 곡을 만들 때 원장님이
+            # 올리신 PDF 가 전부 걸러져 **한 번도 쓰이지 않는다.** 올리는 자리를
+            # 만들어 놓고 정작 쓰지 않는 셈이다 — 모르면 거르지 않고 남긴다.
             filtered = [
                 (s, sim) for s, sim in pool
-                if abs(s.difficulty - difficulty) <= DIFFICULTY_WINDOW
+                if not s.difficulty or abs(s.difficulty - difficulty) <= DIFFICULTY_WINDOW
             ]
             # 난이도 필터가 전부 걸러내면 필터 없이 쓴다 — 빈 컨텍스트보다는 낫다.
             pool = filtered or pool

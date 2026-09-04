@@ -21,4 +21,5 @@ music21>=9.1
 numpy>=1.26
 scipy>=1.11
 python-multipart==0.0.*  # 참고 악보 업로드에 FastAPI 가 요구한다
+pypdf==5.*  # PDF 악보에서 통계(쪽 수·제목·박자·마디 번호)만 읽는다
 imageio-ffmpeg>=0.5  # MP3 인코딩용 ffmpeg 동봉. 없으면 WAV 로 준다.
