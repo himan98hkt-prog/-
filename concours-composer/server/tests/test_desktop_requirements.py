@@ -103,3 +103,40 @@ def test_installer_uses_the_desktop_list() -> None:
     """목록을 만들어 두고 설치 스크립트가 안 쓰면 아무 소용이 없다."""
     text = (ROOT / "install.ps1").read_bytes().decode("utf-8-sig")
     assert "requirements-desktop.txt" in text
+
+
+def test_ci_installs_everything_the_program_actually_needs() -> None:
+    """CI 가 원장 PC 와 **같은 부품**을 깔고 있는가.
+
+    CI 는 설치 목록 파일을 읽지 않고 워크플로 안에 손으로 적은 목록을 깐다.
+    그래서 새 부품을 더할 때 CI 만 조용히 빠질 수 있다 — 실제로 pypdf 를 더했다가
+    로컬은 통과하고 CI 만 8건 무너졌다. 내 가상환경에 우연히 깔려 있었기 때문이다.
+
+    거꾸로도 위험하다. CI 에서만 통과하고 원장님 PC 에서 죽는 것이 더 나쁘다.
+    두 목록이 어긋나면 여기서 잡는다.
+    """
+    import re
+
+    root = Path(__file__).resolve().parents[3]
+    ci = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    desktop = (
+        Path(__file__).resolve().parents[1] / "requirements-desktop.txt"
+    ).read_text(encoding="utf-8")
+
+    # 원장 PC 에 까는 것 중 '이름[extra]==버전' 에서 이름만 뽑는다.
+    wanted = set()
+    for line in desktop.splitlines():
+        line = line.split("#")[0].strip()
+        if not line:
+            continue
+        name = re.split(r"[\[<>=!;]", line)[0].strip().lower()
+        if name:
+            wanted.add(name)
+
+    installed = ci.lower()
+    missing = sorted(n for n in wanted if n not in installed)
+    assert not missing, (
+        f"CI 가 {missing} 을 깔지 않는다 — 원장님 PC 에서는 도는데 CI 만 무너지거나, "
+        "더 나쁘게는 CI 만 통과하고 원장님 PC 에서 죽는다. "
+        ".github/workflows/ci.yml 의 '의존성 설치' 줄에 더해라."
+    )
