@@ -83,6 +83,12 @@ class BriefIn(BaseModel):
     target_difficulty: float | None = Field(default=None, ge=1.0, le=10.0)
     # 원장님만 쓰시는 칸. 나머지는 프로그램이 채운다.
     wish: str = Field(default="", max_length=2000)
+    # 화면에서 고르시는 차별화 항목 — 고른 것이 곧 지시문이 된다.
+    wish_ids: list[str] = Field(default_factory=list, max_length=20)
+    avoid: str = Field(default="", max_length=1000)
+    key_pref: str = Field(default="", max_length=12)
+    # 참고 악보의 성향을 의뢰서에 얹을 것인가.
+    use_references: bool = True
 
 
 @router.post("/brief")
@@ -99,8 +105,14 @@ def make_brief(body: BriefIn) -> dict:
         hint = estimate_measures(ctx.request, ctx.request.meter, ctx.request.tempo)
     except Exception:      # 마디 수를 못 셈해도 의뢰서는 나와야 한다
         log.debug("마디 수 추정 실패 — 의뢰서에서 뺀다", exc_info=True)
+    refs: list[str] = []
+    if body.use_references:
+        refs = _reference_flavour()
     text = build_brief(
-        ctx, preset, tier_name=tier.name if tier else "", wish=body.wish, measures_hint=hint,
+        ctx, preset,
+        tier_name=tier.name if tier else "",
+        wish=body.wish, wish_ids=body.wish_ids, avoid=body.avoid,
+        key_pref=body.key_pref.strip(), measures_hint=hint, references=refs,
     )
     return {
         "brief": text,
@@ -112,6 +124,39 @@ def make_brief(body: BriefIn) -> dict:
             "3. 돌아온 JSON 을 아래 '받아온 곡 넣기' 에 붙여 넣습니다",
         ],
     }
+
+
+def _reference_flavour() -> list[str]:
+    """원장님이 올려 두신 참고 악보의 **성향만** 한 줄씩.
+
+    음표열은 나가지 않는다(절대 규칙 3). 조성·박자·빠르기·길이 같은 통계만 적어,
+    "원장님이 좋아하시는 결" 을 작곡가가 짐작할 수 있게 한다.
+    """
+    from app.api.corpus import get_corpus
+
+    out: list[str] = []
+    for sc in list(get_corpus().scores.values())[:8]:
+        bits = [getattr(sc, "title", "") or "이름 없는 악보"]
+        prof = getattr(sc, "profile", None)
+        if prof is not None:
+            if getattr(prof, "key", ""):
+                bits.append(str(prof.key))
+            if getattr(prof, "meter", ""):
+                bits.append(str(prof.meter))
+            if getattr(prof, "tempo", 0):
+                bits.append(f"♩={prof.tempo}")
+            if getattr(prof, "measures", None):
+                bits.append(f"{prof.measures}마디")
+        out.append(" · ".join(str(b) for b in bits if b))
+    return out
+
+
+@router.get("/wishes")
+def list_wishes() -> dict:
+    """화면이 그리는 차별화 항목 목록."""
+    from app.handoff.wishes import GROUPS, WISHES, as_dict
+
+    return {"groups": list(GROUPS), "wishes": [as_dict(w) for w in WISHES]}
 
 
 class TakeInIn(BaseModel):

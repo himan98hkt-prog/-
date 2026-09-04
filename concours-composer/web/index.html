@@ -182,10 +182,47 @@
   .wallet.gone .wallet-fill { background:var(--bad); }
   .wallet-why { font-size:12.5px; color:var(--muted); margin-top:8px; line-height:1.6; }
 
+  /* 비용이 드는 길 — 접어 두되, 열 때 비용을 분명히 말한다 */
+  .apifold { border:1px solid var(--line); border-radius:14px; background:#fbf9f5;
+    margin:26px 0 14px; }
+  .apifold > summary { cursor:pointer; padding:14px 18px; list-style:none;
+    display:flex; flex-direction:column; gap:3px; border-radius:14px; }
+  .apifold > summary::-webkit-details-marker { display:none; }
+  .apifold > summary::before { content:"▸ "; color:var(--muted); }
+  .apifold[open] > summary::before { content:"▾ "; }
+  .apifold > summary:hover { background:#f6f1e8; }
+  .apifold-t { font-weight:700; font-size:15px; color:var(--ink-2); display:inline; }
+  .apifold-s { font-size:12.5px; color:var(--muted); }
+  .apifold-in { padding:4px 18px 18px; border-top:1px solid var(--line); margin-top:4px; }
+
   /* 대화창에서 작곡해 오기 — 두 단계를 나란히 */
   .hoff { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:14px; margin-top:14px; }
   .hoff-step { border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:var(--card); }
   .hoff-step h3 { margin:8px 0 12px; font-size:16px; }
+  /* 차별화 항목 — 고르면 의뢰서의 지시문이 된다 */
+  .wishbox { margin-top:14px; border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; background:#fffdf8; }
+  .wish-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .wish-groups { display:flex; flex-direction:column; gap:10px; }
+  .wish-g-t { font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.04em;
+    text-transform:none; margin-bottom:4px; }
+  .wish-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:6px; }
+  .wish { display:flex; gap:8px; align-items:flex-start; padding:7px 9px; border-radius:9px;
+    border:1px solid transparent; cursor:pointer; font-size:13px; line-height:1.45; }
+  .wish:hover { background:#fff6e6; }
+  /* 전역 규칙이 input 을 칸 전체(width:100%)로 늘린다. 체크박스에까지 걸리면
+     글 상자가 0px 로 짜부라져 글씨가 세로로 쌓인다. 여기서만 되돌린다. */
+  .wish input[type=checkbox], .ck input[type=checkbox] { width:auto; flex:none; margin:3px 0 0; }
+  /* 글 상자가 한 글자 폭으로 짜부라져 글씨가 세로로 쌓이던 자리다.
+     flex 아이템에 남은 폭을 주고, 줄바꿈을 허용해야 한다. */
+  .wish > span { flex:1 1 auto; min-width:0; }
+  .hoff-step, .hoff > * { min-width:0; }
+  .wish.on { border-color:var(--gold-2); background:#fff8ec; }
+  .wish-n { font-weight:600; }
+  .wish-b { display:block; font-size:11.5px; color:var(--muted); }
+  .ck { display:flex; gap:8px; align-items:center; font-size:13px; }
+  .ck > span { flex:1 1 auto; min-width:0; }
+
   .hoff-pick { border:1px dashed var(--line-2); border-radius:12px; padding:12px 14px;
     background:#fffdf8; display:flex; flex-direction:column; gap:7px; }
   .hoff-pick.over { border-color:var(--accent); background:var(--gold-soft); }
@@ -758,29 +795,35 @@
   <!-- 원장님이 "맨 처음 대시보드에는 작곡 제작만 있는 것 같다" 고 하셨다. 실제로 그랬다 —
        만든 곡과 곡집은 페이지 한참 아래에 있고, 비어 있으면 아예 감춰져 있었다.
        곡을 만들고 나면 그것을 **찾아보는 일**이 훨씬 잦다. 맨 위에 둔다. -->
-  <nav class="gonav" aria-label="어디로 갈까요">
-    <button class="go-b" data-go="secBudget">
-      <span class="go-t">곡 만들기</span>
-      <span class="go-s">컨셉을 고르면 곡이 나옵니다</span>
+  <!-- 원장님이 프로그램의 중심을 옮기셨다:
+         "이 프로그램의 중심은 ... 프롬프트 만들어지고 그것을 클로드에 와서 채팅창에
+          입력후 만들고 그것을 이프로그램에 업로드 하는 형태의 방향으로 가야 할 것 같아.
+          ... 업로드한 곡을 해당 프로그램에서 보고 듣고 수정하고 하는 형태"
+       그래서 길잡이도 그 순서로 세운다 — 의뢰서 → 넣기 → 보고 듣고 고치기. -->
+  <nav class="gonav" id="gonav" aria-label="어디로 갈까요">
+    <button class="go-b" data-go="secHandoff">
+      <span class="go-t">① 의뢰서 만들기</span>
+      <span class="go-s">고르기만 하면 됩니다 · 무료</span>
+    </button>
+    <button class="go-b" data-go="secHandoff">
+      <span class="go-t">② 받아온 곡 넣기</span>
+      <span class="go-s">파일 하나 고르면 끝 · 무료</span>
     </button>
     <button class="go-b" data-go="secLibrary">
-      <span class="go-t">만든 곡 <b id="goLibN"></b></span>
+      <span class="go-t">③ 만든 곡 <b id="goLibN"></b></span>
       <span class="go-s">듣기 · 악보 · 내려받기</span>
+    </button>
+    <button class="go-b" data-go="secResult">
+      <span class="go-t">악보 보기 · 고치기</span>
+      <span class="go-s">지금 열어 둔 곡</span>
     </button>
     <button class="go-b" data-go="secBooks">
       <span class="go-t">곡집 <b id="goBookN"></b></span>
       <span class="go-s">표지까지 붙은 한 권</span>
     </button>
-    <button class="go-b" data-go="secResult">
-      <span class="go-t">악보 보기 · 편집</span>
-      <span class="go-s">지금 열어 둔 곡</span>
-    </button>
-    <!-- 원장님이 "업로드 하는곳이나 폴더를 확인하는곳이 없다" 고 하셨다.
-         실제로 이 구역은 학생 정보 아래에 접힌 채 숨어 있어서, 찾으려면 페이지를
-         내려가며 접힌 것을 열어 봐야 했다. 여기 세워 둔다. -->
     <button class="go-b" data-go="refBox">
       <span class="go-t">참고 악보 <b id="goRefN"></b></span>
-      <span class="go-s">좋아하는 곡을 올려 두면 참고합니다</span>
+      <span class="go-s">올려 두면 의뢰서에 반영합니다</span>
     </button>
   </nav>
 
@@ -788,19 +831,23 @@
   <!-- 처음 여는 사람에게 순서를 알려 준다. 한 곡이라도 만들면 사라진다. -->
   <div id="firstRun" class="guide hidden">
     <div class="guide-in">
-      <p class="guide-h">처음이시면 이 순서로 하시면 됩니다</p>
+      <p class="guide-h">이 프로그램은 이렇게 씁니다 — <b>세 걸음</b>입니다</p>
       <ol class="guide-steps">
-        <li><b>이름을 적고</b> 아래 <i>컨셉 보기</i> 를 누릅니다 — 나머지는 채워져 있습니다</li>
-        <li>마음에 드는 <b>컨셉 카드 하나</b>를 누릅니다 — 곡이 만들어집니다</li>
-        <li><b>▶ 재생</b> 으로 들어 보고, 악보에서 지금 어디를 치는지 봅니다</li>
-        <li>고칠 곳이 있으면 <b>말로 적어</b> 보내거나, 악보의 음표를 <b>끌어서</b> 고칩니다</li>
+        <li><b>의뢰서를 만듭니다</b> — 급수와 성격을 고르고, 원하시는 것을 체크합니다.
+          나머지 규정(손 크기·음역·제한 시간·검사 기준)은 프로그램이 다 채웁니다</li>
+        <li><b>복사해서 Claude 대화창에 붙여 넣습니다</b> — 곡이 옵니다</li>
+        <li><b>받은 파일을 여기 넣습니다</b> — 검사를 거쳐 보관함에 들어가고,
+          그때부터 <b>보고 · 듣고 · 고치고</b> · 곡집 · 판매 꾸러미 · 저작권 서류가 됩니다</li>
       </ol>
+      <p class="guide-h" style="margin-top:12px;font-size:13px">
+        여기까지 <b>API 비용이 한 푼도 들지 않습니다.</b>
+        프로그램이 직접 작곡하는 길(비용 발생)은 맨 아래에 접어 두었습니다.</p>
       <button class="ghost mini" id="btnGuideClose">알겠습니다</button>
     </div>
   </div>
 
   <!-- 어느 쪽 곡을 만드는가. 목적이 다르면 기준이 뒤집히므로 먼저 고르게 한다. -->
-  <div class="modes" role="group" aria-label="만들 곡의 종류">
+  <div class="modes" id="modes" role="group" aria-label="만들 곡의 종류">
     <button class="mode on" id="modeStudent" aria-pressed="true"
       data-tip="우리 학원 아이 한 명의 손 크기·강점·약점에 맞춥니다.&#10;그 아이가 할 수 있는 최대를 씁니다.">
       <span class="mode-t">우리 학원 아이 맞춤곡</span>
@@ -824,6 +871,26 @@
        고르고 나서 "그런데 돈은 남았나" 를 다시 찾아 헤매지 않도록. -->
   <div id="walletBar" class="wallet hidden"></div>
 
+  <!-- ══ 비용이 드는 길 — 접어 둔다 ══════════════════════════════════════
+       원장님: "이제는 비용이 들어가면서 제작하는 것은 최대한 자제할 것 같아.
+                이것은 숨켜져 있다가 버튼을 클릭하면 나타나지게하는 형태로 바꿔줘"
+       기능을 없애지는 않는다 — 언젠가 쓰실 수 있고, 없애면 되돌리기 어렵다.
+       다만 **눈에 먼저 띄지 않게** 하고, 열 때 비용을 분명히 말한다.
+       안에 들어갈 것들은 화면이 뜰 때 JS 가 옮겨 담는다(layoutDashboard). -->
+  <details id="apiFold" class="apifold">
+    <summary>
+      <span class="apifold-t">프로그램이 직접 작곡하기</span>
+      <span class="apifold-s">API 를 씁니다 — <b>곡마다 돈이 듭니다</b>. 눌러서 펼치십시오.</span>
+    </summary>
+    <div class="apifold-in">
+      <p class="hint" style="margin:0 0 12px">
+        이 아래는 <b>클로드 API 로 프로그램이 직접 작곡</b>하는 길입니다.
+        곡 하나에 $0.3~$6 이 들고, <b>곡을 못 얻고 끝나도 그 돈은 나갑니다.</b>
+        위쪽 <b>의뢰서 만들기</b> 로 하시면 비용이 들지 않습니다.</p>
+      <div id="apiFoldSlot"></div>
+    </div>
+  </details>
+
   <!-- ══ 대화창에서 작곡해 오기 ═══════════════════════════════════════════
        원장님 설계 그대로다:
          "프로그램에서 프롬프트 생성을 만들어주고 그걸 너에게 요청하는 형태...
@@ -846,12 +913,40 @@
         <span class="step">1단계</span>
         <h3>의뢰서 만들기</h3>
         <div class="grid">
-          <div><label>급수</label><select id="hoTier"></select></div>
-          <div><label>성격</label><select id="hoPreset"></select></div>
+          <div data-tip="이 급수 아이들이 모두 칠 수 있는 선으로 만듭니다."><label>급수</label><select id="hoTier"></select></div>
+          <div data-tip="성격이 곡의 얼굴을 정합니다."><label>성격</label><select id="hoPreset"></select></div>
+          <div data-tip="비워 두시면 급수에 맞게 프로그램이 고릅니다."><label>조성 <span class="why">(안 고르셔도 됩니다)</span></label>
+            <select id="hoKey">
+              <option value="">프로그램이 고릅니다</option>
+              <option>C</option><option>G</option><option>D</option><option>A</option>
+              <option>E</option><option>F</option><option>B-</option><option>E-</option>
+              <option>a</option><option>e</option><option>d</option><option>b</option>
+            </select></div>
         </div>
-        <label style="margin-top:10px">이번 곡에 바라시는 것 <span class="why">(원장님만 쓰시는 칸입니다)</span></label>
-        <textarea id="hoWish" rows="3"
-          placeholder="예: 심사위원이 처음 듣는 리듬꼴로 시작하고, 마무리를 화려하게. 중간부는 서정적으로."></textarea>
+
+        <!-- **여기가 이 프로그램의 핵심이다.**
+             "차별화" 를 원장님이 글로 지어내시게 하면 안 된다. 그건 작곡가의 언어다.
+             콩쿨 심사에서 실제로 점수가 갈리는 자리를 항목으로 세워 두고, 고르시면
+             그 자리에 맞는 **구체적인 지시문**으로 바꿔 준다. -->
+        <div class="wishbox">
+          <div class="wish-head">
+            <b>이 곡을 남다르게 만들 것</b>
+            <span class="why">고르시면 의뢰서에 <b>구체적인 지시</b>로 들어갑니다</span>
+          </div>
+          <div id="hoWishes" class="wish-groups"></div>
+        </div>
+
+        <label style="margin-top:12px">직접 적으실 말씀 <span class="why">(없으셔도 됩니다)</span></label>
+        <textarea id="hoWish" rows="2"
+          placeholder="예: 우리 학원 아이가 왼손이 약해서 왼손은 단순하게 해 주세요."></textarea>
+        <label style="margin-top:10px">피해 주십시오 <span class="why">(없으셔도 됩니다)</span></label>
+        <textarea id="hoAvoid" rows="2"
+          placeholder="예: 너무 어두운 화성, 옥타브 도약"></textarea>
+        <label class="ck" style="margin-top:10px">
+          <input type="checkbox" id="hoUseRefs" checked>
+          <span>올려 둔 <b>참고 악보의 성향</b>을 의뢰서에 얹습니다
+            <span class="why">(통계만 — 음표는 나가지 않습니다)</span></span>
+        </label>
         <div class="row">
           <button id="btnHoBrief">의뢰서 만들기</button>
           <button class="ghost" id="btnHoCopy" disabled>복사</button>
@@ -3705,14 +3800,61 @@ async function initHandoff() {
   const tier = $("hoTier"), pre = $("hoPreset");
   if (!tier) return;
   try {
-    const [tiers, presets] = await Promise.all([
-      api("/api/market/tiers"), api("/api/presets"),
+    const [tiers, presets, wishes] = await Promise.all([
+      api("/api/market/tiers"), api("/api/presets"), api("/api/handoff/wishes"),
     ]);
     tier.innerHTML = (tiers.tiers || tiers).map(t =>
       `<option value="${esc(t.id)}"${t.id === "middle" ? " selected" : ""}>${esc(t.name)} — ${esc(t.who || "")}</option>`).join("");
     pre.innerHTML = `<option value="">성격은 맡깁니다</option>` + presets.map(x =>
       `<option value="${esc(x.id)}">${esc(x.name)} — ${esc(x.blurb)}</option>`).join("");
+    paintWishes(wishes);
   } catch (_) { /* 목록을 못 읽어도 나머지 화면은 산다 */ }
+}
+
+// 고르신 항목은 브라우저에 기억해 둔다 — 곡마다 같은 것을 다시 고르시게 하지 않는다.
+let wishOn = new Set(JSON.parse(localStorage.getItem("ccWishes") || '["open_hook","motif_everywhere","hand_swap","one_peak","big_finish"]'));
+
+function paintWishes(d) {
+  const box = $("hoWishes");
+  if (!box) return;
+  box.innerHTML = (d.groups || []).map(g => {
+    const items = (d.wishes || []).filter(w => w.group === g);
+    if (!items.length) return "";
+    return `<div><div class="wish-g-t">${esc(g)}</div><div class="wish-list">` +
+      items.map(w => `<label class="wish${wishOn.has(w.id) ? " on" : ""}" data-w="${esc(w.id)}">
+        <input type="checkbox"${wishOn.has(w.id) ? " checked" : ""}>
+        <span><span class="wish-n">${esc(w.name)}</span>
+          <span class="wish-b">${esc(w.blurb)}</span></span></label>`).join("") +
+      `</div></div>`;
+  }).join("");
+  box.querySelectorAll(".wish").forEach(el => {
+    el.querySelector("input").onchange = (e) => {
+      const id = el.dataset.w;
+      if (e.target.checked) { wishOn.add(id); el.classList.add("on"); }
+      else { wishOn.delete(id); el.classList.remove("on"); }
+      localStorage.setItem("ccWishes", JSON.stringify([...wishOn]));
+    };
+  });
+}
+
+// ── 대시보드를 새 순서로 세운다 ────────────────────────────────────────────
+//
+// 원장님이 프로그램의 중심을 옮기셨다 — 의뢰서와 업로드가 앞, 비용 드는 길은 접어서 뒤.
+// HTML 을 통째로 옮겨 적으면 실수가 나기 쉬우므로, **자리 옮기기는 여기서 한다.**
+// 기능은 하나도 없애지 않는다 — 순서와 접힘만 바뀐다.
+function layoutDashboard() {
+  const dash = $("tabDash"), slot = $("apiFoldSlot"), foldBox = $("apiFold");
+  if (!dash || !slot || !foldBox) return;
+  // 비용이 드는 것들을 접이식 상자 안으로.
+  ["modes", "walletBar", "secBudget", "paneMarket", "paneStudent", "secPresets"]
+    .forEach(id => { const el = $(id); if (el) slot.appendChild(el); });
+  // 앞에 설 것들을 차례대로.
+  ["updateBar", "gonav", "firstRun", "secHandoff", "secLibrary", "secResult", "secBooks"]
+    .forEach(id => {
+      const el = $(id);
+      if (el) dash.insertBefore(el, foldBox);
+    });
+  dash.appendChild(foldBox);   // 비용 드는 길은 맨 아래
 }
 
 if ($("btnHoBrief")) $("btnHoBrief").onclick = async () => {
@@ -3720,7 +3862,10 @@ if ($("btnHoBrief")) $("btnHoBrief").onclick = async () => {
   b.disabled = true; st.textContent = "만드는 중…";
   try {
     const r = await api("/api/handoff/brief", { method: "POST", body: JSON.stringify({
-      tier_id: val("hoTier"), preset_id: val("hoPreset"), wish: val("hoWish"),
+      tier_id: val("hoTier"), preset_id: val("hoPreset"),
+      key_pref: val("hoKey"), wish: val("hoWish"), avoid: val("hoAvoid"),
+      wish_ids: [...wishOn],
+      use_references: $("hoUseRefs") ? $("hoUseRefs").checked : true,
     })});
     hoBriefText = r.brief;
     const box = $("hoBrief");
@@ -5277,6 +5422,7 @@ wireReferences();
 refreshBackups();
 refreshSpending();
 initHandoff();
+layoutDashboard();
 refreshFolder();
 // 프로그램을 다시 켜면 만든 곡이 그대로 보여야 한다. 저장은 되어 있는데 화면에만
 // 안 나오면 원장은 곡이 사라진 줄 안다 — 실제로 켜자마자 보관함이 비어 있었다.

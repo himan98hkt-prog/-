@@ -28,6 +28,7 @@ from __future__ import annotations
 from app.generation.context import ComposerContext
 from app.generation.presets import Preset
 from app.handoff.example import example_json, example_measure_json
+from app.handoff.wishes import tells
 
 
 def _minutes(sec: int | None) -> str:
@@ -42,7 +43,11 @@ def build_brief(
     *,
     tier_name: str = "",
     wish: str = "",
+    wish_ids: list[str] | None = None,
+    avoid: str = "",
+    key_pref: str = "",
     measures_hint: int = 0,
+    references: list[str] | None = None,
 ) -> str:
     """대화창에 그대로 붙여 넣을 의뢰서 한 장."""
     h = ctx.hard
@@ -105,6 +110,8 @@ def build_brief(
             lines.append(f"- 학생의 약점이 다음이면 이 성격은 위험합니다: {', '.join(preset.avoid_if)}")
         if preset.texture_options:
             lines.append(f"- 왼손 짜임새 후보: {', '.join(preset.texture_options)}")
+    if key_pref:
+        lines.append(f"- **조성은 {key_pref} 로 해 주십시오** (원장님이 정하셨습니다)")
     else:
         lines.append("- 성격은 맡깁니다 — 위 조건에 가장 잘 맞는 것으로 골라 주십시오")
     if measures_hint:
@@ -125,11 +132,34 @@ def build_brief(
                  "기억나는 곡을 옮겨 적지 마십시오")
     lines.append("")
 
-    lines.append("## 5. 원장님이 바라시는 것")
+    lines.append("## 5. 이 곡을 남다르게 만드는 것")
     lines.append("")
-    lines.append(wish.strip() if wish.strip()
-                 else "_(특별히 적으신 바람 없음 — 위 조건 안에서 가장 좋은 곡으로)_")
-    lines.append("")
+    picked = tells(wish_ids or [])
+    if picked:
+        lines.append("원장님이 고르신 것들입니다. **하나도 빠뜨리지 마십시오.**")
+        lines.append("")
+        for t in picked:
+            lines.append(f"- {t}")
+        lines.append("")
+    if wish.strip():
+        lines.append("그리고 원장님이 직접 적으신 말씀입니다:")
+        lines.append("")
+        lines.append(f"> {wish.strip()}")
+        lines.append("")
+    if avoid.strip():
+        lines.append("**피해 주십시오:**")
+        lines.append("")
+        lines.append(f"> {avoid.strip()}")
+        lines.append("")
+    if not picked and not wish.strip() and not avoid.strip():
+        lines.append("_(특별히 고르신 것 없음 — 위 조건 안에서 가장 좋은 곡으로)_")
+        lines.append("")
+    if references:
+        lines.append("**원장님이 모아 두신 참고 악보의 성향** (통계만 씁니다 — 음표를 베끼지 마십시오):")
+        lines.append("")
+        for r in references[:8]:
+            lines.append(f"- {r}")
+        lines.append("")
 
     lines.append("## 6. 이렇게 만들어 주십시오")
     lines.append("")

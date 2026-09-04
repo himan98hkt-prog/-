@@ -290,3 +290,89 @@ def test_the_brief_never_teaches_a_name_that_does_not_exist(client) -> None:
     for real in ('"duration_est"', '"climax"', '"ending"', '"difficulty_target"',
                  '"character_label"'):
         assert real in brief, f"의뢰서에 꼭 필요한 {real} 가 없다"
+
+
+# ── 5. 프로그램의 중심이 옮겨졌다 ─────────────────────────────────────────
+#
+# 원장님: "이제는 비용이 들어가면서 제작하는 것은 최대한 자제할 것 같아.
+#          이것은 숨켜져 있다가 버튼을 클릭하면 나타나지게하는 형태로 바꿔줘
+#          ... 이 프로그램의 중심은 ... 프롬프트 만들어지고 ... 업로드 하는 형태"
+
+
+def test_the_paid_path_is_folded_away_by_default() -> None:
+    """돈이 드는 길이 먼저 눈에 띄면 원장님은 또 그것을 누르신다."""
+    from pathlib import Path
+
+    page = (Path(__file__).resolve().parents[2] / "web" / "index.html").read_text(encoding="utf-8")
+    assert 'id="apiFold"' in page and "<details" in page, "비용 드는 길이 접혀 있지 않다"
+    assert "곡마다 돈이 듭니다" in page, "펼치기 전에 비용을 말하지 않는다"
+    # 접었다고 기능을 없애면 안 된다 — 언젠가 쓰실 수 있고, 없애면 되돌리기 어렵다.
+    assert "function layoutDashboard" in page
+    for kept in ("secBudget", "paneMarket", "paneStudent", "secPresets"):
+        assert kept in page, f"{kept} 가 사라졌다 — 접는 것과 없애는 것은 다르다"
+
+
+def test_the_free_path_stands_first() -> None:
+    """의뢰서와 곡 넣기가 화면 위에 있어야 한다."""
+    from pathlib import Path
+
+    page = (Path(__file__).resolve().parents[2] / "web" / "index.html").read_text(encoding="utf-8")
+    order = page.index('"secHandoff"'), page.index('id="apiFold"')
+    # layoutDashboard 의 차례표에서 secHandoff 가 apiFold 보다 앞이어야 한다.
+    lay = page[page.index("function layoutDashboard"):]
+    lay = lay[:lay.index("\n}")]
+    assert lay.index("secHandoff") < lay.index("secLibrary") < lay.index("secBooks"), (
+        "의뢰서 → 만든 곡 → 곡집 차례가 아니다"
+    )
+    assert "appendChild(foldBox)" in lay, "비용 드는 길이 맨 아래로 가지 않는다"
+    assert order  # 두 구역 모두 존재
+
+
+def test_the_owner_picks_differentiation_instead_of_writing_it(client) -> None:
+    """**"차별화" 를 원장님이 글로 지어내시게 하면 안 된다.** 그건 작곡가의 언어다."""
+    d = client.get("/api/handoff/wishes").json()
+    assert len(d["wishes"]) >= 10, "고르실 것이 너무 적다"
+    assert d["groups"], "묶음이 없으면 목록이 길어 못 고르신다"
+    for w in d["wishes"]:
+        assert w["name"] and w["blurb"], "왜 점수가 되는지 안 적혀 있다"
+
+
+def test_a_picked_wish_becomes_a_concrete_instruction(client) -> None:
+    """"인상적으로" 같은 말은 아무 지시도 아니다. 무엇을 하라가 적혀야 한다."""
+    plain = client.post("/api/handoff/brief", json={"tier_id": "middle"}).json()["brief"]
+    rich = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "wish_ids": ["hand_swap", "one_peak"],
+    }).json()["brief"]
+    assert len(rich) > len(plain), "고른 것이 의뢰서에 들어가지 않았다"
+    assert "왼손과 오른손의 역할을 통째로 바꾸십시오" in rich
+    assert "최고음이 클라이맥스 한 마디에만" in rich
+
+
+def test_what_to_avoid_and_the_key_reach_the_brief(client) -> None:
+    b = client.post("/api/handoff/brief", json={
+        "tier_id": "middle", "avoid": "너무 어두운 화성", "key_pref": "A",
+    }).json()["brief"]
+    assert "너무 어두운 화성" in b and "피해" in b
+    assert "조성은 A 로" in b
+
+
+def test_reference_scores_never_leak_notes(client) -> None:
+    """참고 악보는 **통계만** 나간다(절대 규칙 3). 음표열이 새면 저작권 사고다."""
+    import inspect
+
+    from app.api.corpus import get_corpus
+    from app.api.handoff import _reference_flavour
+
+    # 참고 악보에서 뽑는 값은 조성·박자·빠르기·마디 수뿐이다. 음표를 만지면 안 된다.
+    src = inspect.getsource(_reference_flavour)
+    for forbidden in ("measures_data", "all_pitches", "notes", "ngram", "events"):
+        assert forbidden not in src, f"참고 악보에서 {forbidden} 를 꺼내고 있다"
+    assert "profile" in src, "성향(StyleProfile) 이 아닌 것을 보고 있다"
+
+    # 코퍼스가 비어 있어도 터지지 않아야 한다.
+    assert isinstance(_reference_flavour(), list)
+    assert get_corpus() is not None
+
+    b = client.post("/api/handoff/brief",
+                    json={"tier_id": "middle", "use_references": True}).json()["brief"]
+    assert "옮겨 적지 마십시오" in b, "표절 경고가 의뢰서에서 사라졌다"
