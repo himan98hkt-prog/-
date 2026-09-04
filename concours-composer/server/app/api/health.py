@@ -98,6 +98,7 @@ def spending() -> dict:
     from datetime import UTC, datetime
 
     from app.api.deps import get_store
+    from app.api.wallet import summary as wallet_summary
 
     store = get_store()
 
@@ -165,6 +166,10 @@ def spending() -> dict:
         "months": [row(m) for m in sorted(by_month, reverse=True)[:12]],
         # 최근 시도 낱낱. "이번에 얼마 나갔나" 를 곧바로 보시라고.
         "recent": recent,
+        # 넣어 둔 돈에서 얼마가 남았는지. 원장님이 충전액을 적어 두셨을 때만
+        # 숫자가 있다(known). 계정의 진짜 잔액은 우리가 읽을 수 없다 —
+        # app/api/wallet.py 첫머리에 왜 못 읽는지 적어 두었다.
+        "wallet": wallet_summary(store),
     }
 
 

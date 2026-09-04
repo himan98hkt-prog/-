@@ -158,6 +158,23 @@
   .budget-c { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; }
   .budget-s { font-size:12.5px; color:var(--muted); line-height:1.5; }
 
+  /* 넣어 둔 돈에서 남은 돈 — 돈이 줄어드는 것이 눈에 보이게 */
+  .wallet { border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+    background:var(--card); margin-bottom:14px; }
+  .wallet.low  { border-color:var(--gold-2); background:#fffaf0; }
+  .wallet.gone { border-color:#e2b6b1; background:#fdf4f3; }
+  .wallet-top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .wallet-left { font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; }
+  .wallet.low .wallet-left  { color:var(--warn); }
+  .wallet.gone .wallet-left { color:var(--bad); }
+  .wallet-sub { font-size:12.5px; color:var(--muted); margin-left:auto; }
+  .wallet-bar { height:9px; border-radius:99px; background:#eee6d8; margin-top:9px; overflow:hidden; }
+  .wallet-fill { height:100%; background:var(--accent); border-radius:99px;
+    transition:width .3s ease; }
+  .wallet.low .wallet-fill  { background:var(--gold); }
+  .wallet.gone .wallet-fill { background:var(--bad); }
+  .wallet-why { font-size:12.5px; color:var(--muted); margin-top:8px; line-height:1.6; }
+
   /* 보관함에서 곡을 골라 묶는 줄 */
   .pick-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px;
     padding:12px 14px;background:#fffaf0;border:1px solid var(--gold-soft);border-radius:8px;
@@ -658,6 +675,29 @@
     <p class="hint">곡을 만들 때 드는 비용입니다. 규칙 기반(무료)으로 만든 곡은 0원이라 빠집니다.</p>
     <p id="spendState" class="hint" style="margin:0 0 6px"></p>
 
+    <h2 style="margin-top:26px">넣어 둔 돈 · 남은 돈</h2>
+    <p class="hint">앤트로픽에 충전하신 금액을 <strong>한 번만 적어 두시면</strong>,
+      그 뒤로는 얼마가 나갔고 얼마가 남았는지 프로그램이 대신 셉니다.</p>
+    <div class="row" style="margin-top:8px">
+      <div style="max-width:170px"><label>충전한 금액 (달러)</label>
+        <input id="walletUsd" inputmode="decimal" placeholder="예: 20"></div>
+      <div style="max-width:220px"><label>메모 (안 적으셔도 됩니다)</label>
+        <input id="walletNote" placeholder="예: 9월 4일 카드"></div>
+      <button id="btnWalletAdd"
+        data-tip="돈이 옮겨지는 것이 아니라&#10;'이만큼 넣었다'를 적어 두는 것뿐입니다.">충전 적어 두기</button>
+      <button class="ghost" id="btnWalletUndo"
+        data-tip="0을 하나 더 붙이셨을 때 마지막으로 적은 것을 무릅니다.">마지막 것 무르기</button>
+      <span id="walletState" class="hint" style="margin:0"></span>
+    </div>
+    <p id="walletDetail" class="hint" style="margin:10px 0 0"></p>
+    <p class="hint" style="margin:8px 0 0">
+      <strong>솔직히 말씀드립니다.</strong> 앤트로픽 계정에 <em>진짜로</em> 남은 잔액은
+      이 프로그램이 읽을 수 없습니다 — 잔액을 읽는 창구는 관리자 전용 열쇠만 받고,
+      원장님이 넣으신 보통 열쇠는 거절당합니다. 그래서 여기 숫자는
+      <strong>이 프로그램이 쓴 돈</strong>만 셉니다. 다른 프로그램이 같은 열쇠를 썼다면
+      실제 잔액은 이보다 적습니다. 정확한 잔액은
+      <strong>console.anthropic.com → Billing</strong> 에서 보십시오.</p>
+
     <h2 style="margin-top:26px">자동 백업</h2>
     <p class="hint">만든 곡은 컴퓨터의 파일 하나에 들어 있습니다. 그 파일이 지워지면
       그동안 만든 곡이 전부 사라지므로, 저장될 때마다 <strong>사본을 따로 남깁니다</strong>.</p>
@@ -744,6 +784,10 @@
   <!-- 새 판이 나왔을 때만 보인다. 업데이트 스크립트를 만들어 놓아도
        언제 눌러야 하는지 모르면 소용이 없다. -->
   <div id="updateBar" class="where hidden" style="margin-bottom:14px"></div>
+
+  <!-- 넣어 둔 돈에서 얼마가 남았는지. 돈을 쓰는 자리(작곡 비용) 바로 위가 맞다 —
+       고르고 나서 "그런데 돈은 남았나" 를 다시 찾아 헤매지 않도록. -->
+  <div id="walletBar" class="wallet hidden"></div>
 
   <section id="secBudget">
     <div class="budget-head">
@@ -4243,8 +4287,99 @@ async function refreshSpending() {
       `<br><span class="why">지난달 ${l.pieces}곡 · $${l.usd} · 지금까지 모두 ${s.total_pieces}곡 · $${s.total_usd}`
       + (s.total_wasted_usd ? ` · 그중 못 얻고 나간 돈 $${s.total_wasted_usd}` : "")
       + `</span>` + wasted + recent;
+    drawWallet(s.wallet);
   } catch (_) { /* 비용을 못 읽어도 작곡은 된다 */ }
 }
+
+// ── 넣어 둔 돈 · 쓴 돈 · 남은 돈 ───────────────────────────────────────────
+// 원장님: "지금까지 얼마가 소진되었고 얼마가 남아 있는지도 확인할 수 있게 만들어줘."
+//
+// **계정의 진짜 잔액은 우리가 못 읽는다.** 그것을 읽는 창구는 관리자 전용 열쇠만
+// 받고 원장님의 보통 열쇠는 거절한다. 그래서 지어내지 않는다 — 대신 원장님이
+// 충전액을 한 번 적어 두시면, 그 뒤로 이 프로그램이 실제로 치른 값을 빼서 보여 준다.
+// 안 적으셨으면 숫자를 만들어 내지 않고 "적어 두시라" 고만 한다.
+function drawWallet(w) {
+  const bar = $("walletBar"), detail = $("walletDetail"), state = $("walletState");
+  if (!w) return;
+  if (bar) {
+    if (!w.known) {
+      // 모르는 것을 아는 척하지 않는다. 대신 어디서 적는지 한 번에 알려 준다.
+      bar.className = "wallet";
+      bar.innerHTML =
+        `<div class="wallet-top"><span class="wallet-left">남은 돈 — 아직 모릅니다</span></div>` +
+        `<div class="wallet-why">앤트로픽에 충전하신 금액을 한 번만 적어 두시면
+           그 뒤로는 얼마 남았는지 여기에 나옵니다.
+           <button class="ghost mini" id="btnWalletGo">충전액 적어 두기</button></div>`;
+      const go = $("btnWalletGo");
+      if (go) go.onclick = () => {
+        $("composerPanel").classList.remove("hidden");
+        const i = $("walletUsd");
+        if (i) { i.scrollIntoView({ block: "center" }); i.focus(); }
+      };
+    } else {
+      const pct = Math.round((w.pct_used || 0) * 100);
+      bar.className = "wallet" + (w.empty ? " gone" : w.low ? " low" : "");
+      bar.innerHTML =
+        `<div class="wallet-top">
+           <span class="wallet-left">${w.remaining_usd < 0
+             ? `적어 두신 금액보다 $${(-w.remaining_usd).toFixed(2)} 더 썼습니다`
+             : `남은 돈 약 $${w.remaining_usd.toFixed(2)}`}</span>
+           <span class="wallet-sub">넣은 돈 $${w.charged_usd.toFixed(2)} 중 $${w.spent_usd.toFixed(2)} 사용 (${pct}%)</span>
+         </div>
+         <div class="wallet-bar"><div class="wallet-fill" style="width:${Math.min(100, pct)}%"></div></div>` +
+        (w.empty
+          ? `<div class="wallet-why"><strong>적어 두신 금액을 다 쓰셨습니다.</strong>
+               console.anthropic.com 에서 충전하신 뒤, 설정에서 그 금액을 적어 두십시오.</div>`
+          : w.low
+          ? `<div class="wallet-why"><strong>얼마 안 남았습니다.</strong>
+               곡 하나에 많으면 $0.6 안팎이 듭니다 — 곡을 만들다 중간에 멈추기 전에
+               미리 충전해 두시는 편이 안전합니다.</div>`
+          : `<div class="wallet-why">이 숫자는 <strong>이 프로그램이 쓴 돈</strong>만 셉니다.
+               계정의 진짜 잔액은 console.anthropic.com → Billing 에서 보십시오.</div>`);
+    }
+    bar.classList.remove("hidden");
+  }
+  if (state) state.textContent = w.known
+    ? `넣은 돈 $${w.charged_usd.toFixed(2)} · 쓴 돈 $${w.spent_usd.toFixed(2)} · ` +
+      (w.remaining_usd < 0
+        ? `$${(-w.remaining_usd).toFixed(2)} 넘겨 씀`
+        : `남은 돈 $${w.remaining_usd.toFixed(2)}`)
+    : "아직 적어 두신 충전액이 없습니다.";
+  if (detail) {
+    detail.innerHTML = (w.topups || []).length
+      ? `<table style="margin-top:4px"><tr><th>적은 날</th><th>금액</th><th>메모</th></tr>` +
+        w.topups.map(r => `<tr>
+            <td class="why">${esc(String(r.at).replace("T", " ").slice(0, 16))}</td>
+            <td style="font-variant-numeric:tabular-nums">$${Number(r.usd).toFixed(2)}</td>
+            <td class="why">${esc(r.note || "")}</td></tr>`).join("") +
+        `</table>`
+      : "";
+  }
+}
+
+if ($("btnWalletAdd")) $("btnWalletAdd").onclick = async () => {
+  const raw = val("walletUsd").replace(/[$,\s]/g, "");
+  const usd = Number(raw);
+  if (!raw || !isFinite(usd) || usd <= 0) {
+    $("walletState").textContent = "충전하신 금액을 숫자로 적어 주십시오 (예: 20)";
+    return;
+  }
+  $("walletState").textContent = "적는 중…";
+  try {
+    const w = await api("/api/wallet/topup", {
+      method: "POST",
+      body: JSON.stringify({ usd, note: val("walletNote") }),
+    });
+    $("walletUsd").value = ""; $("walletNote").value = "";
+    drawWallet(w);
+  } catch (e) { $("walletState").textContent = e.message; }
+};
+
+if ($("btnWalletUndo")) $("btnWalletUndo").onclick = async () => {
+  $("walletState").textContent = "무르는 중…";
+  try { drawWallet(await api("/api/wallet/undo", { method: "POST" })); }
+  catch (e) { $("walletState").textContent = e.message; }
+};
 
 // ── 곡 제목 · 인쇄(표지 + 악보) ────────────────────────────────────────────
 async function loadTitle(cid) {

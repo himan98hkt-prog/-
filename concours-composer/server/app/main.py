@@ -25,6 +25,7 @@ from app.api import (
     rights,
     students,
     studio,
+    wallet,
 )
 from app.api.deps import get_store
 from app.config import get_settings, validate_models
@@ -304,6 +305,7 @@ app.include_router(rights.router)
 app.include_router(judge.router)
 app.include_router(recitals.router)
 app.include_router(feedback.router)
+app.include_router(wallet.router)
 
 # 원장 화면을 API 와 **같은 주소**로 내보낸다. 학원 PC 에서 서버 하나만 띄우면
 # 브라우저에서 바로 열린다 — 정적 파일 서버를 따로 돌리지 않아도 된다.
