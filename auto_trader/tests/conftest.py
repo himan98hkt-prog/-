@@ -91,3 +91,48 @@ def ok(output=None, **extra):
 
 def fail(msg_cd: str = "40580000", msg1: str = "모의투자 장운영시간이 아닙니다"):
     return {"rt_cd": "1", "msg_cd": msg_cd, "msg1": msg1}
+
+
+@pytest.fixture
+def settings_obj(tmp_path, env):
+    """실제 settings.yaml 값 + 임시 경로를 쓰는 Settings 객체."""
+    from config.loader import CONFIG_DIR, AiConfig, RiskConfig, ScheduleConfig, Settings, UniverseConfig
+    import yaml
+    from datetime import time as dt_time
+
+    raw = yaml.safe_load((CONFIG_DIR / "settings.yaml").read_text(encoding="utf-8"))
+    universe_raw, schedule_raw = raw["universe"], raw["schedule"]
+    risk_raw, ai_raw = raw["risk"], raw["ai"]
+
+    def as_time(text: str) -> dt_time:
+        hour, minute = str(text).split(":")
+        return dt_time(int(hour), int(minute))
+
+    snapshots = tmp_path / "snapshots"
+    snapshots.mkdir(parents=True, exist_ok=True)
+
+    return Settings(
+        env=env,
+        universe=UniverseConfig(
+            mode=universe_raw["mode"],
+            watchlist=list(universe_raw["watchlist"]),
+            volume_rank_top_n=universe_raw["volume_rank_top_n"],
+            exclude_keywords=list(universe_raw["exclude_keywords"]),
+            min_price=universe_raw["min_price"],
+            max_candidates_per_cycle=universe_raw["max_candidates_per_cycle"],
+        ),
+        schedule=ScheduleConfig(
+            universe_refresh=as_time(schedule_raw["universe_refresh"]),
+            first_cycle=as_time(schedule_raw["first_cycle"]),
+            cycle_interval_min=schedule_raw["cycle_interval_min"],
+            last_new_buy=as_time(schedule_raw["last_new_buy"]),
+            eod_review=as_time(schedule_raw["eod_review"]),
+            daily_report=as_time(schedule_raw["daily_report"]),
+        ),
+        risk=RiskConfig(**risk_raw),
+        ai=AiConfig(**ai_raw),
+        paths={"base": tmp_path, "config": CONFIG_DIR, "data": tmp_path,
+               "snapshots": snapshots, "logs": tmp_path / "logs",
+               "token": tmp_path / "token.json", "db": tmp_path / "trader.db",
+               "holidays": tmp_path / "holidays.txt"},
+    )

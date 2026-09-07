@@ -3,7 +3,7 @@
 한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude와 Gemini 두 AI의 **합의(Consensus)** 에 따라
 매수/매도/관망을 결정하고 자동 실행하는 프로그램입니다.
 
-> **현재 상태: Step 2(KIS 연동) 완료.** 데이터 파이프라인·AI 판단은 Step 3 이후 단계에서 연결됩니다.
+> **현재 상태: Step 3(데이터 파이프라인) 완료.** AI 판단 엔진은 Step 4 이후 단계에서 연결됩니다.
 
 ## 절대 규칙
 
@@ -25,8 +25,11 @@ python -c "from config.loader import load; print(load())"   # 설정 검증 (비
 python main.py              # 로깅 구성 + SQLite 스키마 생성 + 구성 요약
 
 pytest                      # 단위 테스트 (외부 API는 전부 mock)
-python scripts/test_kis.py  # 모의계좌 실연동 검증 (조회 + 1주 매수/매도)
+python scripts/test_kis.py      # 모의계좌 실연동 검증 (조회 + 1주 매수/매도)
+python scripts/test_pipeline.py # 유니버스 → 스냅샷 수집 → data/snapshots/ 저장
 ```
+
+`ta` 설치가 `setup.py bdist_wheel` 오류로 실패하면 `pip install --use-pep517 ta` 로 설치하세요.
 
 `scripts/test_kis.py` 는 토큰 캐시 → 시세·일봉·호가 → 잔고 → **1주 시장가 매수 → 체결 확인 → 1주 매도**
 순으로 확인합니다. 조회만 하려면 `--no-order`, 종목을 바꾸려면 `--code 000660`.
@@ -78,6 +81,24 @@ auto_trader/
 - **거래량 순위 API는 모의투자 도메인에서 제공되지 않습니다.** VTS에서 호출하면 명확한
   `KisApiError`를 던지므로, 유니버스는 `watchlist` 모드를 사용하세요(Step 3에서 자동 폴백 처리).
 
+## 데이터 파이프라인 (Step 3)
+
+| 모듈 | 역할 |
+|---|---|
+| `data_pipeline/universe.py` | 매매 대상 종목 선정 → `data/universe_YYYYMMDD.json` |
+| `data_pipeline/market_data.py` | 현재가·일봉 60일·호가 수집 + 지표 계산 → 고정 스키마 스냅샷 |
+| `data_pipeline/news.py` | 네이버 뉴스 검색 (키 없거나 실패하면 빈 리스트) |
+
+- **보유 종목은 유니버스 모드와 무관하게 항상 포함**되고 맨 앞에 옵니다(매도 판단 필요).
+  `max_candidates_per_cycle` 상한은 후보에만 적용되고 보유 종목은 제외됩니다.
+- 제외 키워드 중 한 글자(`우`)는 **우선주 접미사로만** 판정합니다 — `우리금융지주`처럼
+  이름에 포함만 된 종목이 걸러지지 않도록 하기 위함입니다(`삼성전자우`, `현대차2우B`는 제외).
+- `volume_rank` 모드에서 거래량 순위 API가 실패하면(모의투자 미지원) **`watchlist`로 자동 폴백**하고
+  유니버스 파일에 `source: watchlist(fallback)`으로 기록합니다.
+- 지표는 전부 `ta` 라이브러리로 계산합니다: MA5/20/60, RSI14, MACD(12,26,9), 볼린저(20,2),
+  거래량 20일 평균 대비 배율. 데이터가 기간보다 짧거나 NaN이면 **0.0으로 접어** JSON 직렬화를 보장합니다.
+- 호가·뉴스 수집 실패는 기본값으로 넘어가고, 현재가·일봉 실패만 예외로 올립니다(판단 근거가 없으므로).
+
 ## 데이터베이스 (`data/trader.db`)
 
 | 테이블 | 내용 |
@@ -98,7 +119,7 @@ auto_trader/
 |---|---|---|
 | 1 | 뼈대: 구조·설정 로더·로거·DB 스키마 | ✅ 완료 |
 | 2 | KIS 연동 (토큰 캐시, 시세/잔고/주문 API, 장 운영일) | ✅ 코드·테스트 완료 / 모의계좌 실연동 검증 대기 |
-| 3 | 데이터 파이프라인 (유니버스·지표·뉴스) | 대기 |
+| 3 | 데이터 파이프라인 (유니버스·지표·뉴스) | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
 | 4 | AI 에이전트 (Claude/Gemini 병렬 호출·JSON 파싱) | 대기 |
 | 5 | 합의·리스크·주문 실행·알림 | 대기 |
 | 6 | 스케줄러 조립 (apscheduler, 시그널, 일간 리포트) | 대기 |
