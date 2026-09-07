@@ -457,6 +457,8 @@ try {
   await page.waitForSelector('text=내려받기', { timeout: (total + 60) * 1000 })
   const madeSec = (Date.now() - madeAt) / 1000
   if (usesFast) {
+    // 몇 배 빠른지는 파는 자리에 적는 숫자라 늘 찍어 둔다
+    console.log(`  · ${total}초짜리를 ${madeSec.toFixed(1)}초에 만들었습니다 (${(total / madeSec).toFixed(1)}배)`)
     check('빠른 길이 영상 길이보다 빨리 끝난다', madeSec < total, `${total}초짜리를 ${madeSec.toFixed(1)}초에`)
   } else {
     console.log(`  · 이 컴퓨터에는 빠른 길이 없어 ${madeSec.toFixed(1)}초 걸렸습니다`)
