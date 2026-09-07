@@ -15,12 +15,16 @@
 
 ## 빠른 시작
 
+> **처음이라면 [`SETUP.md`](SETUP.md) 를 보세요.** API 키 발급처와 발급 절차, `.env` 입력 방법,
+> 단계별 검증 순서를 처음부터 끝까지 정리해 두었습니다.
+
 ```bash
 cd auto_trader
 python -m venv .venv && source .venv/bin/activate     # Python 3.11+
 pip install -r requirements.txt
 
-cp .env.example .env        # 키 입력 (KIS_ENV=VTS, DRY_RUN=true 유지)
+cp .env.example .env        # 키 입력 (KIS_ENV=VTS, DRY_RUN=true 유지) — SETUP.md 참고
+python scripts/check_keys.py   # 발급받은 키가 실제로 동작하는지 개별 확인
 python -c "from config.loader import load; print(load())"   # 설정 검증 (비밀값 마스킹 출력)
 python main.py              # 로깅 구성 + SQLite 스키마 생성 + 구성 요약
 
