@@ -1,12 +1,22 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { chromium } from 'playwright'
 
-const FILE = 'file:///home/user/-/pianoevent-ai/detail/piano-event-detail.html'
+/*
+ * **파는 자리에 올라가는 그 파일**을 본다.
+ *
+ * 예전에는 detail/ 안의 옛 파일을 보고 있었다. 그래서 상세페이지를 고쳐도 검사는
+ * 옛 파일을 통과시켰다 — 통과했다는 말이 아무 뜻이 없었다.
+ */
+const FILE = 'file://' + resolve('web/download/recital-manager-detail.html')
 const exe = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const browser = await chromium.launch(existsSync(exe) ? { executablePath: exe } : {})
 const failures = []
+/** 어느 폭에서 가장 길었는가 — 붙여넣기 틀의 예비 높이가 이보다 커야 한다 */
+let tallest = 0
 
 for (const [name, width, height, mobile] of [
+  ['작은폰', 320, 720, true],
   ['mobile', 390, 844, true],
   ['tablet', 768, 1024, true],
   ['desktop', 1280, 900, false],
@@ -73,9 +83,25 @@ for (const [name, width, height, mobile] of [
     console.log('         ✓ 그림 전부 온전히 표시됨')
   }
   if (report.overflow > 1) failures.push(`${name}: 가로로 ${report.overflow}px 넘침`)
+  tallest = Math.max(tallest, report.height ?? 0)
   await ctx.close()
 }
 await browser.close()
+
+/*
+ * 붙여넣기용 틀의 **예비 높이**가 실제 길이를 덮는가.
+ *
+ * 상세페이지는 열리면 스스로 제 높이로 줄인다. 다만 워드프레스가 스크립트를 지우면
+ * 이 숫자만 남는다 — 짧으면 아래가 **잘려 나간다.** 내용이 길어질 때마다 손으로
+ * 고쳐 왔는데, 고치는 것을 잊으면 아무도 모른다. 그래서 여기서 함께 본다.
+ */
+const paste = readFileSync('web/상세페이지-붙여넣기.html', 'utf8')
+const fallback = Number(paste.match(/height:(\d+)px;/)?.[1] ?? 0)
+if (!(fallback >= tallest)) {
+  failures.push(`붙여넣기 틀의 예비 높이 ${fallback}px 가 실제 길이 ${tallest}px 보다 짧습니다 (아래가 잘립니다)`)
+} else {
+  console.log(`\n예비 높이 ${fallback}px ≥ 가장 긴 화면 ${tallest}px`)
+}
 
 if (failures.length > 0) {
   console.error(`\n${failures.length}건 실패`)

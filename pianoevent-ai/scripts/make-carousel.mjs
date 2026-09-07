@@ -29,7 +29,7 @@ const I = Object.fromEntries(['logo-gold.png', 'po-real-stage.jpg', 'po-deco.jpg
   'doc-ticket.jpg', 'doc-invite-card.jpg', 'invite.jpg', 'stage.jpg', 'video.jpg',
   's1.jpg', 's2.jpg', 's3.jpg', 'th-1.jpg', 'th-2.jpg', 'th-3.jpg',
   // 감동영상 — 실제로 뽑힌 화면과 고치는 칸 (npm run shots:video)
-  'vf-title.jpg', 'vf-kid.jpg', 'vf-kid2.jpg', 'vf-cheer.jpg', 'vf-end.jpg',
+  'vf-title.jpg', 'vf-kid.jpg', 'vf-kid2.jpg', 'vf-cheer.jpg', 'vf-end.jpg', 'vf-gallery.jpg',
   'vs-board.jpg', 'vs-scene.jpg', 'vs-timeline.jpg', 'vs-trim.jpg',
 ].map((f) => [
   // 확장자를 **먼저** 떼야 한다. 안 떼고 낙타등으로 바꾸면 'Jpg' 가 붙어
@@ -358,25 +358,24 @@ add('11-당일진행', 'deep', `
 /* ── 11-A 감동영상 · 실제로 나오는 화면 ─────────────────── */
 add('12-감동영상결과', 'dark', `
   <div class="eyebrow">기능 07 · 감동영상</div>
-  <h2 style="font-size:56px;margin-top:12px">무비메이커를<br>여실 필요가 <em>없습니다</em></h2>
-  <p class="lead" style="margin-top:20px;font-size:30px">명단에 넣어 둔 아이 사진이 <b style="color:#F4EDE0">그대로 장면</b>이 되어 있습니다.</p>
+  <h2 style="font-size:52px;margin-top:10px">무비메이커를<br>여실 필요가 <em>없습니다</em></h2>
+  <p class="lead" style="margin-top:14px;font-size:28px">명단에 넣어 둔 아이 사진이 <b style="color:#F4EDE0">그대로 장면</b>이 되어 있습니다.</p>
   <div class="vgrid">
-    <figure><img src="${I.vfTitle}"><figcaption>표지</figcaption></figure>
+    <figure class="wide"><img src="${I.vfGallery}"><figcaption>이 무대까지 오는 동안 · 연습실에서 보낸 날들</figcaption></figure>
     <figure><img src="${I.vfKid}"><figcaption>아이 한 명씩 · 이름과 곡</figcaption></figure>
     <figure><img src="${I.vfCheer}"><figcaption>학부모 응원 자막</figcaption></figure>
-    <figure><img src="${I.vfEnd}"><figcaption>마무리 한 줄</figcaption></figure>
   </div>
-  <p class="note">위 네 장은 그림이 아니라 <b>실제로 뽑힌 영상의 화면</b>입니다<br>
-  아이 사진은 상품에 함께 드리는 <b>연습용 그림</b>으로 만들었습니다</p>
+  <p class="note">위 세 장은 그림이 아니라 <b>실제로 뽑힌 영상의 화면</b>입니다<br>
+  아이 사진은 <b>AI로 만든 예시</b>이며 실제 아이가 아닙니다</p>
 `, '12', `
-  .card{padding-top:64px;padding-bottom:54px}
-  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
+  .card{padding-top:48px;padding-bottom:32px}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
   .vgrid figure{margin:0}
   .vgrid figure.wide{grid-column:1 / -1}
   .vgrid img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;
     box-shadow:0 14px 34px rgba(0,0,0,.5)}
   .vgrid figcaption{margin-top:11px;font-size:26px;font-weight:700;color:#C8A24A;text-align:center}
-  .note{margin-top:auto;padding-top:26px;font-size:26px;color:#B9AF9C;text-align:center}
+  .note{margin-top:auto;padding-top:20px;font-size:26px;color:#B9AF9C;text-align:center}
   .note b{color:#F4EDE0}
 `)
 
@@ -418,7 +417,7 @@ add('14-감동영상띠', '', `
     <li>휴대폰 영상도 사이에 넣고, <b>앞 흔들림은 잘라 내고</b> 씁니다</li>
     <li>음악은 <b>어디서부터 틀지 · 얼마나 크게</b>까지 정하십니다</li>
     <li>사진 없는 아이는 <b>「사진 없음」</b>으로 미리 알려 줍니다</li>
-    <li><b>30초만 먼저</b> 만들어 보고 마음에 드실 때 전체를 뽑습니다</li>
+    <li><b>30초만 먼저</b> 보고, 전체도 <b>1~2분</b>이면 뽑힙니다</li>
   </ul>
   <p class="note">끌기가 어려우시면 <b>안 여셔도 됩니다</b> — 화살표 단추와 숫자 입력이 그대로 있습니다</p>
 `, '14', `

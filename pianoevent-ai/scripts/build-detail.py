@@ -320,12 +320,13 @@ BODY = """<body>
 
     <div class="vgal reveal" style="--d:0.24s">
       <figure><img src="{vf_title}" alt="감동영상 표지 화면"><figcaption><b>표지</b>학원 이름 &middot; 행사 제목 &middot; 날짜</figcaption></figure>
+      <figure><img src="{vf_gallery}" alt="연습실에서 함께 웃는 아이들 장면"><figcaption><b>이 무대까지 오는 동안</b>연습실에서 보낸 날들이 앞에 깔립니다</figcaption></figure>
       <figure><img src="{vf_kid}" alt="아이 한 명 장면"><figcaption><b>아이 한 명씩</b>연주 순서 그대로 &middot; 이름과 곡</figcaption></figure>
       <figure><img src="{vf_kid2}" alt="아이 장면 · 다른 테마 색"><figcaption><b>사진이 살아 움직입니다</b>천천히 확대되며 넘어갑니다</figcaption></figure>
       <figure><img src="{vf_cheer}" alt="학부모 응원 메시지 장면"><figcaption><b>학부모 응원</b>초대장 회신이 그대로 자막으로</figcaption></figure>
       <figure><img src="{vf_end}" alt="마무리 화면"><figcaption><b>마무리</b>원장님이 고쳐 쓰는 한 줄</figcaption></figure>
     </div>
-    <p class="gal-note reveal"><b>위 다섯 장은 그림이 아니라 실제로 뽑힌 영상의 화면입니다.</b> 아이 사진은 상품에 함께 드리는 연습용 그림으로 만들었습니다.</p>
+    <p class="gal-note reveal"><b>위 여섯 장은 그림이 아니라 실제로 뽑힌 영상의 화면입니다.</b> 다만 아이 사진은 <b>AI로 만든 예시 사진</b>이며 실제 아이가 아닙니다 &mdash; 보여 드릴 수 있는 진짜 아이 사진이 없어서입니다. 원장님 학원에서는 <strong>명단에 넣어 두신 그 아이들 사진</strong>이 이 자리에 그대로 들어갑니다.</p>
 
     <div class="vstrip reveal">
       <img src="{vs_board}" alt="만들어질 모습 — 콘티">
@@ -338,7 +339,7 @@ BODY = """<body>
       <div class="step reveal" style="--d:0.08s"><div class="when">2<small>확인</small></div><div class="what"><b>만들기 전에 전체를 그림으로 봅니다</b><span>장면마다 <strong>실제로 나올 화면</strong>이 그려져 나옵니다. 설명이 아니라 그 그림입니다. 사진을 안 넣은 아이는 「사진 없음」으로 표시되어, 만들기 전에 누가 빠졌는지 한눈에 보입니다.</span><span class="out">나오는 것 &middot; 콘티 (만들어질 모습)</span></div></div>
       <div class="step reveal" style="--d:0.16s"><div class="when">3<small>손보기</small></div><div class="what"><b>마음에 안 드는 장면만 고치십니다</b><span>문구 &middot; 머무는 시간 &middot; 글자 자리에 더해, <strong>넘어오는 효과 10가지</strong>, <strong>자막이 나타나는 방식 5가지</strong>(한 글자씩 타자 치듯 찍히는 것 포함), <strong>사진 움직임 5가지</strong>, <strong>작은 그림 10종</strong>을 고르십니다. 전부 「어울리게」로 두셔도 됩니다 &mdash; 표지는 얌전하게, 아이들 사진은 조금 움직이게 알아서 섞습니다.</span><span class="out">고르는 것 &middot; 전환 10 · 자막 5 · 움직임 5 · 그림 10</span></div></div>
       <div class="step reveal" style="--d:0.24s"><div class="when">4<small>얹기</small></div><div class="what"><b>연습 사진 &middot; 휴대폰 영상 &middot; 음악을 얹습니다</b><span>연습실에서 찍은 사진을 끌어다 놓으면 앞머리에 「이 무대까지 오는 동안」으로 들어갑니다. <strong>휴대폰으로 찍은 짧은 영상</strong>도 사이에 끼울 수 있고, 앞이 흔들리는 부분은 <strong>잘라 내고 쓰실 자리만</strong> 고르십니다. 음악은 학원에서 쓰시던 파일을 얹고 <strong>어디서부터 틀지, 얼마나 크게</strong> 정하십니다.</span><span class="out">받는 것 &middot; 사진 · 동영상 · 음악 파일</span></div></div>
-      <div class="step reveal" style="--d:0.32s"><div class="when">5<small>뽑기</small></div><div class="what"><b>30초만 먼저 만들어 보고, 그다음 전체</b><span>영상은 화면을 그리면서 담기 때문에 <strong>실제 길이만큼 걸립니다</strong>(12분짜리는 12분). 그 12분을 기다린 뒤에 「글씨가 작네」를 아시면 12분이 통째로 날아갑니다. 그래서 <strong>[30초만 먼저 만들어 보기]</strong>를 옆에 두었습니다 &mdash; 앞 &middot; 가운데 &middot; 끝에서 한 장면씩 이어 붙여 30초로 보여 드립니다.</span><span class="out">나오는 것 &middot; MP4 또는 WebM 파일</span></div></div>
+      <div class="step reveal" style="--d:0.32s"><div class="when">5<small>뽑기</small></div><div class="what"><b>30초만 먼저 만들어 보고, 그다음 전체</b><span>요즘 크롬 &middot; 엣지에서는 화면을 거치지 않고 담기 때문에 <strong>영상 길이보다 훨씬 빨리</strong> 끝납니다(12분짜리가 1~2분). 그동안 다른 창을 보셔도 끊기지 않습니다. 오래된 브라우저에서는 예전처럼 실제 길이만큼 걸리는데, 그때를 위해 <strong>[30초만 먼저 만들어 보기]</strong>를 옆에 두었습니다 &mdash; 앞 &middot; 가운데 &middot; 끝에서 한 장면씩 이어 붙여 30초로 보여 드립니다. 어느 쪽인지는 <strong>만들기 전에 화면에 적어</strong> 드립니다.</span><span class="out">나오는 것 &middot; MP4 또는 WebM 파일</span></div></div>
     </div>
 
     <p class="gal-head reveal">고치는 화면 <span>&middot; 실제 프로그램 화면</span></p>
