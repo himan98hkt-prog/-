@@ -1,8 +1,14 @@
 import type { DesignTheme } from '@/lib/design/themes'
 import type { PhotoShape } from '@/lib/stage/layouts'
 import { drawBackdrop, hexAlpha } from '@/lib/video/backdrop-canvas'
-import type { VideoScene } from '@/lib/video/storyboard'
-import { DEFAULT_VIDEO_TEMPLATE, type PhotoMotion, type VideoTemplate } from '@/lib/video/templates'
+import { isCalmScene, type SceneIconId, type VideoScene } from '@/lib/video/storyboard'
+import {
+  DEFAULT_VIDEO_TEMPLATE,
+  resolveTransition,
+  type PhotoMotion,
+  type TransitionKind,
+  type VideoTemplate,
+} from '@/lib/video/templates'
 
 /**
  * 한 프레임을 캔버스에 그린다.
@@ -61,6 +67,13 @@ export interface VisibleScene {
    * 그래서 그림만 겹쳐 넘기고, 자막은 **넘어가기가 끝난 뒤에** 떠오르게 한다.
    */
   textAlpha: number
+  /**
+   * 이 장면으로 넘어오는 중인가 — 0(막 시작) ~ 1(다 들어옴).
+   * 1 이면 넘어옴이 끝나 제자리에 있는 장면이다.
+   */
+  enter: number
+  /** 어떤 방식으로 넘어오는가 */
+  transition: TransitionKind
 }
 
 /**
@@ -94,7 +107,15 @@ export function scenesAt(timeline: Timeline, seconds: number): VisibleScene[] {
       textAlpha = Math.min(1, (local - fadeIn) / CAPTION_FADE_SEC)
     }
 
-    out.push({ index: i, local, alpha, textAlpha })
+    const enter = fadeIn > 0 ? Math.min(1, local / fadeIn) : 1
+    out.push({
+      index: i,
+      local,
+      alpha,
+      textAlpha,
+      enter,
+      transition: resolveTransition(scene.transition, i, isCalmScene(scene.kind)),
+    })
   }
   return out
 }
@@ -347,7 +368,8 @@ function drawScene(
   const height = media ? ('videoHeight' in media ? media.videoHeight : media.naturalHeight || media.height) : 0
   // 동영상은 늘 꽉 채운다 — 액자에 담으면 원장님이 찍은 영상이 작아진다
   const fit = scene.clip ? 'full' : template.fit
-  const { zoom, drift } = motionOf(template.motion, progress)
+  // 장면마다 고르신 움직임이 템플릿보다 우선한다
+  const { zoom, drift } = motionOf(scene.motion ?? template.motion, progress)
 
   /**
    * 사진 한 장을 그린다. 장면 안에서 사진이 넘어가는 중이면 두 번 불린다 —
@@ -638,6 +660,210 @@ function drawScene(
 }
 
 /** 지금 시각의 화면을 통째로 그린다 */
+/**
+ * 넘어오는 장면을 어떻게 얹을 것인가.
+ *
+ * 캔버스에서 할 수 있는 일은 결국 셋이다 — **옮기기 · 키우기 · 오려내기**.
+ * 그 셋을 조합해 전환을 만든다. 밖에서 라이브러리를 가져오지 않으므로
+ * 인터넷 없이도 돌고, 설치본이 무거워지지 않는다.
+ *
+ * `enter` 는 0(막 들어옴) → 1(제자리). 부드럽게 보이도록 가속을 한 번 먹인다.
+ */
+function easeOut(t: number): number {
+  const p = Math.min(1, Math.max(0, t))
+  return 1 - (1 - p) * (1 - p) * (1 - p)
+}
+
+/**
+ * 전환에 맞춰 붓을 옮겨 두고, 남은 진하기를 돌려준다.
+ *
+ * 돌려주는 값을 그대로 `globalAlpha` 로 쓴다 — 밀기·오려내기처럼 **자리로 보여 주는**
+ * 전환은 1을 돌려준다(반투명하게 겹치면 두 장면이 비쳐 지저분해진다).
+ */
+export function applyTransition(
+  ctx: CanvasRenderingContext2D,
+  kind: TransitionKind,
+  enter: number,
+  alpha: number,
+  w: number,
+  h: number,
+): number {
+  if (enter >= 1) return alpha
+  const p = easeOut(enter)
+
+  switch (kind) {
+    case 'slide-left':
+      ctx.translate((1 - p) * w, 0)
+      return 1
+    case 'slide-right':
+      ctx.translate(-(1 - p) * w, 0)
+      return 1
+    case 'slide-up':
+      ctx.translate(0, (1 - p) * h)
+      return 1
+    case 'slide-down':
+      ctx.translate(0, -(1 - p) * h)
+      return 1
+    case 'zoom-in': {
+      const scale = 0.72 + 0.28 * p
+      ctx.translate(w / 2, h / 2)
+      ctx.scale(scale, scale)
+      ctx.translate(-w / 2, -h / 2)
+      return p
+    }
+    case 'zoom-out': {
+      const scale = 1.35 - 0.35 * p
+      ctx.translate(w / 2, h / 2)
+      ctx.scale(scale, scale)
+      ctx.translate(-w / 2, -h / 2)
+      return p
+    }
+    case 'circle': {
+      // 모서리까지 덮으려면 대각선의 절반이 필요하다
+      const radius = Math.hypot(w, h) / 2
+      ctx.beginPath()
+      ctx.arc(w / 2, h / 2, radius * p, 0, Math.PI * 2)
+      ctx.clip()
+      return 1
+    }
+    case 'wipe': {
+      ctx.beginPath()
+      ctx.rect(0, 0, w * p, h)
+      ctx.clip()
+      return 1
+    }
+    case 'blinds': {
+      const bands = 8
+      const band = h / bands
+      ctx.beginPath()
+      for (let i = 0; i < bands; i += 1) ctx.rect(0, i * band, w, band * p)
+      ctx.clip()
+      return 1
+    }
+    case 'fade':
+    case 'auto':
+    default:
+      return alpha
+  }
+}
+
+/**
+ * 장면에 얹는 작은 그림 — 전부 선으로 그린다.
+ *
+ * 그림 파일을 가져오면 저작권을 확인해야 하고 설치본도 무거워진다.
+ * 선으로 그리면 테마 강조색을 그대로 입고, 아무리 키워도 안 깨진다.
+ */
+function iconPath(ctx: CanvasRenderingContext2D, id: SceneIconId, s: number) {
+  const p = new Path2D()
+  switch (id) {
+    case 'heart':
+      p.moveTo(0, s * 0.32)
+      p.bezierCurveTo(-s * 0.9, -s * 0.35, -s * 0.35, -s * 0.95, 0, -s * 0.4)
+      p.bezierCurveTo(s * 0.35, -s * 0.95, s * 0.9, -s * 0.35, 0, s * 0.32)
+      break
+    case 'note':
+      p.ellipse(-s * 0.28, s * 0.5, s * 0.32, s * 0.24, -0.35, 0, Math.PI * 2)
+      p.moveTo(s * 0.02, s * 0.5)
+      p.lineTo(s * 0.02, -s * 0.7)
+      p.lineTo(s * 0.62, -s * 0.5)
+      p.lineTo(s * 0.62, -s * 0.22)
+      p.lineTo(s * 0.02, -s * 0.42)
+      break
+    case 'star':
+    case 'sparkle': {
+      const points = id === 'star' ? 5 : 4
+      const inner = id === 'star' ? 0.42 : 0.24
+      for (let i = 0; i < points * 2; i += 1) {
+        const r = i % 2 === 0 ? s : s * inner
+        const a = (Math.PI / points) * i - Math.PI / 2
+        const x = Math.cos(a) * r
+        const y = Math.sin(a) * r
+        if (i === 0) p.moveTo(x, y)
+        else p.lineTo(x, y)
+      }
+      p.closePath()
+      break
+    }
+    case 'flower':
+      for (let i = 0; i < 6; i += 1) {
+        const a = (Math.PI / 3) * i
+        p.moveTo(0, 0)
+        p.ellipse(Math.cos(a) * s * 0.45, Math.sin(a) * s * 0.45, s * 0.3, s * 0.18, a, 0, Math.PI * 2)
+      }
+      break
+    case 'clap':
+      for (let i = 0; i < 3; i += 1) {
+        const a = -Math.PI / 2 + (i - 1) * 0.55
+        p.moveTo(Math.cos(a) * s * 0.35, Math.sin(a) * s * 0.35)
+        p.lineTo(Math.cos(a) * s, Math.sin(a) * s)
+      }
+      p.moveTo(-s * 0.5, s * 0.55)
+      p.quadraticCurveTo(0, s * 0.15, s * 0.5, s * 0.55)
+      break
+    case 'trophy':
+      p.moveTo(-s * 0.5, -s * 0.7)
+      p.lineTo(s * 0.5, -s * 0.7)
+      p.lineTo(s * 0.34, s * 0.1)
+      p.lineTo(-s * 0.34, s * 0.1)
+      p.closePath()
+      p.moveTo(-s * 0.18, s * 0.1)
+      p.lineTo(-s * 0.18, s * 0.5)
+      p.lineTo(s * 0.18, s * 0.5)
+      p.lineTo(s * 0.18, s * 0.1)
+      p.moveTo(-s * 0.55, s * 0.7)
+      p.lineTo(s * 0.55, s * 0.7)
+      break
+    case 'ribbon':
+      p.ellipse(0, -s * 0.3, s * 0.42, s * 0.42, 0, 0, Math.PI * 2)
+      p.moveTo(-s * 0.24, s * 0.05)
+      p.lineTo(-s * 0.44, s * 0.85)
+      p.lineTo(0, s * 0.5)
+      p.lineTo(s * 0.44, s * 0.85)
+      p.lineTo(s * 0.24, s * 0.05)
+      break
+    case 'piano':
+      p.rect(-s, -s * 0.5, s * 2, s)
+      for (let i = 1; i < 5; i += 1) {
+        const x = -s + (s * 2 * i) / 5
+        p.moveTo(x, -s * 0.5)
+        p.lineTo(x, s * 0.5)
+      }
+      break
+    case 'cake':
+      p.rect(-s * 0.75, -s * 0.1, s * 1.5, s * 0.8)
+      p.moveTo(-s * 0.75, s * 0.2)
+      p.lineTo(s * 0.75, s * 0.2)
+      p.moveTo(0, -s * 0.1)
+      p.lineTo(0, -s * 0.6)
+      break
+  }
+  return p
+}
+
+export interface IconMark {
+  id: SceneIconId
+  /** 화면 짧은 변 대비 크기 (0.08 = 아담, 0.2 = 큼) */
+  size: number
+  color: string
+}
+
+export function drawSceneIcon(ctx: CanvasRenderingContext2D, mark: IconMark, w: number, h: number, alpha: number) {
+  const s = Math.min(w, h) * mark.size
+  const pad = Math.min(w, h) * 0.07
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.translate(w - pad - s, pad + s)
+  ctx.lineWidth = Math.max(2, s * 0.1)
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  ctx.strokeStyle = mark.color
+  ctx.fillStyle = hexAlpha(mark.color, 0.18)
+  const path = iconPath(ctx, mark.id, s)
+  ctx.fill(path)
+  ctx.stroke(path)
+  ctx.restore()
+}
+
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   timeline: Timeline,
@@ -670,10 +896,31 @@ export function renderFrame(
       drawScene(ctx, timeline.scenes[front.index], front.local, sources, options, 1)
     }
   } else {
-    for (const { index, local, alpha, textAlpha } of visible) {
-      ctx.globalAlpha = alpha
+    for (const { index, local, alpha, textAlpha, enter, transition } of visible) {
+      ctx.save()
+      // 옮기기·오려내기는 붓을 움직이므로, 장면마다 되돌려 놓아야 다음 장면이 어긋나지 않는다
+      ctx.globalAlpha = applyTransition(ctx, transition, enter, alpha, w, h)
       drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
+      ctx.restore()
     }
+  }
+
+  /*
+   * 작은 그림은 **맨 앞 장면 것만** 얹는다.
+   *
+   * 겹쳐 넘어가는 동안 두 장면의 그림이 함께 뜨면 화면 구석이 어수선해진다.
+   * 자막을 늦게 띄우는 것과 같은 이유다.
+   */
+  const front = visible[visible.length - 1]
+  const frontScene = front ? timeline.scenes[front.index] : null
+  if (frontScene?.icon) {
+    drawSceneIcon(
+      ctx,
+      { id: frontScene.icon, size: 0.11, color: options.theme.palette.accent },
+      w,
+      h,
+      still ? 1 : front!.textAlpha,
+    )
   }
 
   // 로고는 장면 위에 한 번만 — 겹쳐 넘어가는 동안에도 그대로 붙어 있다

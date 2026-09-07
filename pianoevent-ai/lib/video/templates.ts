@@ -25,6 +25,65 @@ export type PhotoFit =
 
 export type PhotoMotion = 'in' | 'out' | 'left' | 'right' | 'still'
 
+export const PHOTO_MOTIONS: { id: PhotoMotion; label: string }[] = [
+  { id: 'in', label: '다가가기' },
+  { id: 'out', label: '물러나기' },
+  { id: 'left', label: '왼쪽으로' },
+  { id: 'right', label: '오른쪽으로' },
+  { id: 'still', label: '멈춤' },
+]
+
+/**
+ * 장면이 넘어가는 방식.
+ *
+ * 지금까지는 **겹쳐 사라지기(fade) 하나**뿐이었다. 한 편에 서른 번을 같은 방식으로
+ * 넘기면 눈이 지루해진다 — 원장님이 「좀 밋밋하다」고 느끼시는 자리가 대개 여기다.
+ *
+ * 다만 **아무 데나 화려한 것을 쓰면 촌스러워진다.** 그래서 기본은 「어울리게」로 두고
+ * (장면 성격에 맞는 것을 프로그램이 고른다) 바꾸고 싶으신 장면만 손대시게 한다.
+ */
+export type TransitionKind =
+  | 'auto'
+  | 'fade'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'circle'
+  | 'wipe'
+  | 'blinds'
+
+export const TRANSITIONS: { id: TransitionKind; label: string; hint: string }[] = [
+  { id: 'auto', label: '어울리게', hint: '장면 성격에 맞춰 프로그램이 고릅니다' },
+  { id: 'fade', label: '겹쳐 사라지기', hint: '가장 얌전합니다' },
+  { id: 'slide-left', label: '왼쪽으로 밀기', hint: '다음 장면이 오른쪽에서 들어옵니다' },
+  { id: 'slide-right', label: '오른쪽으로 밀기', hint: '다음 장면이 왼쪽에서 들어옵니다' },
+  { id: 'slide-up', label: '위로 밀기', hint: '아래에서 올라옵니다' },
+  { id: 'slide-down', label: '아래로 밀기', hint: '위에서 내려옵니다' },
+  { id: 'zoom-in', label: '커지며 나타나기', hint: '작은 것이 커집니다' },
+  { id: 'zoom-out', label: '작아지며 나타나기', hint: '큰 것이 제자리를 찾습니다' },
+  { id: 'circle', label: '동그랗게 열리기', hint: '가운데서 원이 퍼집니다' },
+  { id: 'wipe', label: '닦아내기', hint: '왼쪽부터 지워지듯 바뀝니다' },
+  { id: 'blinds', label: '블라인드', hint: '가로 띠가 차례로 열립니다' },
+]
+
+/**
+ * 「어울리게」가 고르는 것.
+ *
+ * 장면 번호로 고르므로 **같은 영상은 늘 같게** 나온다 — 다시 뽑을 때마다 달라지면
+ * 원장님이 「아까 그게 나았는데」 하셔도 되돌릴 수 없다.
+ * 표지·마무리처럼 무게가 있는 자리는 얌전하게, 아이들 사진은 조금 움직이게.
+ */
+const AUTO_CYCLE: TransitionKind[] = ['slide-left', 'zoom-in', 'circle', 'slide-up', 'wipe', 'zoom-out']
+
+export function resolveTransition(kind: TransitionKind | undefined, index: number, calm: boolean): TransitionKind {
+  if (kind && kind !== 'auto') return kind
+  if (calm) return 'fade'
+  return AUTO_CYCLE[index % AUTO_CYCLE.length]
+}
+
 export interface VideoTemplate {
   id: string
   name: string

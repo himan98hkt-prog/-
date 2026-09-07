@@ -1,6 +1,7 @@
 import { formatEventDate } from '@/lib/format'
 import { groupProgram, performerKey } from '@/lib/program/appearances'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
+import type { PhotoMotion, TransitionKind } from '@/lib/video/templates'
 
 /**
  * 감동영상 — 연주회 전에 틀거나, 끝나고 학부모에게 보내는 짧은 영상.
@@ -52,6 +53,52 @@ export interface VideoScene {
   badge?: string
   /** 원장님이 직접 고친 장면인가 — 명단이 바뀌어도 덮어쓰지 않는다 */
   edited?: boolean
+  /**
+   * 이 장면으로 **넘어올 때** 쓰는 효과. 비어 있으면 「어울리게」.
+   * 첫 장면에는 넘어옴이 없으므로 쓰이지 않는다.
+   */
+  transition?: TransitionKind
+  /** 사진 움직임 — 비어 있으면 템플릿이 정한 대로 */
+  motion?: PhotoMotion
+  /** 화면 한쪽에 얹는 작은 그림 (하트·음표·별 …) */
+  icon?: SceneIconId
+}
+
+/**
+ * 장면에 얹는 작은 그림.
+ *
+ * 밖에서 그림 파일을 가져오지 않는다 — 저작권도 걸리고, 인터넷 없이 열려야 한다.
+ * 전부 **선으로 그린다**(canvas path). 그래서 테마 색을 그대로 입고, 아무리 키워도
+ * 깨지지 않는다.
+ */
+export type SceneIconId =
+  | 'heart'
+  | 'note'
+  | 'star'
+  | 'sparkle'
+  | 'flower'
+  | 'clap'
+  | 'trophy'
+  | 'ribbon'
+  | 'piano'
+  | 'cake'
+
+export const SCENE_ICONS: { id: SceneIconId; label: string }[] = [
+  { id: 'heart', label: '하트' },
+  { id: 'note', label: '음표' },
+  { id: 'star', label: '별' },
+  { id: 'sparkle', label: '반짝임' },
+  { id: 'flower', label: '꽃' },
+  { id: 'clap', label: '박수' },
+  { id: 'trophy', label: '트로피' },
+  { id: 'ribbon', label: '리본' },
+  { id: 'piano', label: '건반' },
+  { id: 'cake', label: '케이크' },
+]
+
+/** 표지·마무리처럼 얌전하게 넘어가야 하는 자리인가 */
+export function isCalmScene(kind: SceneKind): boolean {
+  return kind === 'title' || kind === 'closing' || kind === 'message'
 }
 
 export interface StoryboardOptions {

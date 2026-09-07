@@ -41,6 +41,8 @@ import {
   getVideoTemplate,
   VIDEO_TEMPLATES,
   type VideoTemplate,
+  PHOTO_MOTIONS,
+  TRANSITIONS,
 } from '@/lib/video/templates'
 import { VideoTemplateSketch } from '@/components/video/template-sketch'
 import { cn } from '@/lib/utils'
@@ -78,6 +80,7 @@ import {
   type ExtraMedia,
   type StoryboardOptions,
   type VideoScene,
+  SCENE_ICONS,
 } from '@/lib/video/storyboard'
 
 /** 뽑는 크기 — 1080p 는 예쁘지만 느린 노트북에서 끊긴다 */
@@ -147,6 +150,17 @@ export function VideoStudio({
   )
   const [extras, setExtras] = useState<ExtraMedia[]>([])
   const [music, setMusic] = useState<{ url: string; label: string } | null>(null)
+  /**
+   * 음악을 **어디서부터** 틀 것인가(초).
+   *
+   * 곡의 앞부분이 조용히 시작하는 경우가 많다. 그대로 깔면 영상 앞 10초가 빈 것처럼
+   * 들린다. 후렴부터 쓰고 싶으실 때 여기서 앞을 잘라 낸다.
+   */
+  const [musicStart, setMusicStart] = useState(0)
+  /** 음악 크기 (0~100). 아이 목소리가 든 동영상을 넣으셨으면 낮추셔야 한다 */
+  const [musicVolume, setMusicVolume] = useState(90)
+  /** 음악 전체 길이(초) — 파일을 읽어 알아낸다. 시작 위치를 넘겨 잡지 않게 */
+  const [musicLength, setMusicLength] = useState(0)
   const [sizeId, setSizeId] = useState<(typeof SIZES)[number]['id']>(() =>
     prefString<(typeof SIZES)[number]['id']>(savedPrefs, 'size', '720'),
   )
@@ -475,7 +489,8 @@ export function VideoStudio({
     setPlaying(true)
     setClock(from)
     if (music && audioRef.current) {
-      audioRef.current.currentTime = from
+      audioRef.current.currentTime = musicStart + from
+      audioRef.current.volume = musicVolume / 100
       audioRef.current.playbackRate = speed
       void audioRef.current.play().catch(() => undefined)
     }
@@ -501,7 +516,8 @@ export function VideoStudio({
     const from = clockRef.current
     stopLoop()
     if (music && audioRef.current) {
-      audioRef.current.currentTime = from
+      audioRef.current.currentTime = musicStart + from
+      audioRef.current.volume = musicVolume / 100
       audioRef.current.playbackRate = next
       void audioRef.current.play().catch(() => undefined)
     }
@@ -584,13 +600,15 @@ export function VideoStudio({
       const source = audio.createMediaElementSource(el)
       const gain = audio.createGain()
       const now = audio.currentTime
+      const top = Math.max(0, Math.min(1, musicVolume / 100))
       gain.gain.setValueAtTime(0, now)
-      gain.gain.linearRampToValueAtTime(0.9, now + 1.5)
-      gain.gain.setValueAtTime(0.9, now + Math.max(2, line.total - 2.5))
+      gain.gain.linearRampToValueAtTime(top, now + 1.5)
+      gain.gain.setValueAtTime(top, now + Math.max(2, line.total - 2.5))
       gain.gain.linearRampToValueAtTime(0, now + line.total)
       source.connect(gain)
       gain.connect(mixer)
-      el.currentTime = 0
+      // 고르신 자리에서 시작한다 — 곡 앞부분이 조용하면 영상 앞이 빈 것처럼 들린다
+      el.currentTime = musicStart
       await el.play().catch(() => undefined)
       anyAudio = true
     }
@@ -1302,7 +1320,16 @@ export function VideoStudio({
               className="sr-only"
               onChange={(native) => {
                 const file = native.target.files?.[0]
-                if (file) setMusic({ url: URL.createObjectURL(file), label: file.name })
+                if (file) {
+                  const url = URL.createObjectURL(file)
+                  setMusic({ url, label: file.name })
+                  setMusicStart(0)
+                  // 곡 길이를 알아야 시작 위치를 넘겨 잡지 않는다
+                  const probe = new Audio(url)
+                  probe.addEventListener('loadedmetadata', () => {
+                    setMusicLength(Number.isFinite(probe.duration) ? Math.floor(probe.duration) : 0)
+                  })
+                }
                 native.target.value = ''
               }}
             />
@@ -1314,6 +1341,49 @@ export function VideoStudio({
                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
               </button>
             </p>
+          )}
+          {music && (
+            <div className="grid gap-2.5 rounded-md bg-secondary/60 p-2.5">
+              <label className="grid gap-1 text-xs">
+                <span className="flex items-center justify-between">
+                  <span className="font-medium">어디서부터 틀까요</span>
+                  <b className="tabular-nums">{musicStart}초부터</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0, musicLength - 10)}
+                  step={1}
+                  value={musicStart}
+                  onChange={(e) => setMusicStart(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)]"
+                  aria-label="음악 시작 위치"
+                />
+                <span className="text-muted-foreground">
+                  곡 앞이 조용하면 뒤로 미세요. 후렴부터 쓰실 때 씁니다.
+                  {musicLength > 0 && <> (전체 {musicLength}초)</>}
+                </span>
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="flex items-center justify-between">
+                  <span className="font-medium">음악 크기</span>
+                  <b className="tabular-nums">{musicVolume}</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)]"
+                  aria-label="음악 크기"
+                />
+                <span className="text-muted-foreground">
+                  아이 목소리가 든 동영상을 넣으셨으면 낮추세요.
+                </span>
+              </label>
+            </div>
           )}
           <p className="text-xs text-muted-foreground">
             시작과 끝을 부드럽게 줄여 넣습니다. <strong>저작권이 있는 곡</strong>은 학원 밖으로 공개하지 마세요 —
@@ -1971,6 +2041,106 @@ function SceneEditor({
         <p className="mt-1 text-xs text-muted-foreground">
           아이 얼굴이 가려지면 자리를 옮기세요. <strong>가운데 크게</strong>는 감동 문구를 넣을 때 씁니다.
         </p>
+      </div>
+
+      {/* 넘어오는 방식 — 한 편에 서른 번을 같은 방식으로 넘기면 눈이 지루해진다 */}
+      <div>
+        <p className="mb-1 text-sm">이 장면으로 넘어올 때</p>
+        <div className="flex flex-wrap gap-1.5">
+          {TRANSITIONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange({ transition: item.id })}
+              aria-pressed={(scene.transition ?? 'auto') === item.id}
+              title={item.hint}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs transition-colors',
+                (scene.transition ?? 'auto') === item.id
+                  ? 'border-accent bg-accent/15 font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          <strong>어울리게</strong>로 두시면 장면 성격에 맞춰 알아서 섞습니다 —
+          표지·마무리는 얌전하게, 아이들 사진은 조금 움직이게.
+        </p>
+      </div>
+
+      {/* 사진 움직임 — 정지 화면처럼 보이지 않게 하는 최소한의 장치 */}
+      <div>
+        <p className="mb-1 text-sm">사진 움직임</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => onChange({ motion: undefined })}
+            aria-pressed={!scene.motion}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs transition-colors',
+              !scene.motion
+                ? 'border-accent bg-accent/15 font-medium'
+                : 'border-border text-muted-foreground hover:bg-secondary',
+            )}
+          >
+            고른 스타일대로
+          </button>
+          {PHOTO_MOTIONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange({ motion: item.id })}
+              aria-pressed={scene.motion === item.id}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs transition-colors',
+                scene.motion === item.id
+                  ? 'border-accent bg-accent/15 font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 작은 그림 — 선으로 그리므로 테마 색을 그대로 입는다 */}
+      <div>
+        <p className="mb-1 text-sm">작은 그림 (오른쪽 위)</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => onChange({ icon: undefined })}
+            aria-pressed={!scene.icon}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs transition-colors',
+              !scene.icon
+                ? 'border-accent bg-accent/15 font-medium'
+                : 'border-border text-muted-foreground hover:bg-secondary',
+            )}
+          >
+            없음
+          </button>
+          {SCENE_ICONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange({ icon: item.id })}
+              aria-pressed={scene.icon === item.id}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs transition-colors',
+                scene.icon === item.id
+                  ? 'border-accent bg-accent/15 font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   )
