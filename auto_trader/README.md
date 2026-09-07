@@ -3,7 +3,7 @@
 한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude와 Gemini 두 AI의 **합의(Consensus)** 에 따라
 매수/매도/관망을 결정하고 자동 실행하는 프로그램입니다.
 
-> **현재 상태: Step 4(AI 에이전트) 완료.** 합의·리스크·주문은 Step 5 이후 단계에서 연결됩니다.
+> **현재 상태: Step 5(합의·리스크·주문) 완료.** 스케줄러 조립은 Step 6에서 진행합니다.
 
 ## 절대 규칙
 
@@ -28,6 +28,7 @@ pytest                      # 단위 테스트 (외부 API는 전부 mock)
 python scripts/test_kis.py      # 모의계좌 실연동 검증 (조회 + 1주 매수/매도)
 python scripts/test_pipeline.py # 유니버스 → 스냅샷 수집 → data/snapshots/ 저장
 python scripts/test_agents.py   # 스냅샷 → Claude·Gemini 병렬 분석
+python scripts/test_cycle.py    # 한 종목 end-to-end (DRY_RUN 권장)
 ```
 
 `ta` 설치가 `setup.py bdist_wheel` 오류로 실패하면 `pip install --use-pep517 ta` 로 설치하세요.
@@ -129,6 +130,51 @@ auto_trader/
 AI 호출 비용은 `CLAUDE_EFFORT`(low/medium/high/xhigh/max)와 `universe.max_candidates_per_cycle`
 로 조절합니다.
 
+## 합의·리스크·주문 (Step 5)
+
+| 모듈 | 역할 |
+|---|---|
+| `logic/decision_maker.py` | 두 AI 판단 → 최종 행동 (합의 매트릭스) |
+| `logic/risk_manager.py` | 매수 7개 규칙 + 강제 청산 판정 |
+| `logic/portfolio.py` | KIS 잔고 동기화, 주문·결정 기록, 체결 대기 |
+| `trading/order_executor.py` | 수량 계산 → 주문 → 체결 확인 → 기록 → 알림 |
+| `utils/notifier.py` | 텔레그램/디스코드 알림 (4,096자 분할) |
+
+### 합의 매트릭스
+
+| Claude \\ Gemini | BUY | HOLD | SELL |
+|---|---|---|---|
+| **BUY** | STRONG_BUY (둘 다 confidence ≥ `min_confidence`) / 아니면 BUY_SMALL | HOLD | HOLD (보유 시 REDUCE) |
+| **HOLD** | HOLD | HOLD | HOLD (보유 시 REDUCE) |
+| **SELL** | HOLD (보유 시 REDUCE) | HOLD (보유 시 REDUCE) | SELL_ALL (보유 시) |
+
+- 한쪽이라도 파싱 실패(`ok=False`)면 **무조건 HOLD** — 만장일치 매도라도 실행하지 않습니다.
+- 미보유 종목의 SELL/REDUCE는 HOLD로 치환합니다.
+- `STRONG_BUY` 비중 = 두 AI 권장 비중의 평균, `BUY_SMALL` = 그 절반. 상한은 `max_position_pct`.
+- `REDUCE` = 보유수량의 50%, `SELL_ALL` = 전량.
+
+### 리스크 규칙 (AI 판단보다 상위)
+
+1. 총 투자액 + 신규 금액 ≤ `total_investment_cap_krw`
+2. 종목 금액(기보유분 포함) ≤ 총액 × `max_position_pct`
+3. 보유 종목 수 < `max_positions` (보유 종목 추가매수는 허용)
+4. 당일 손익 > `-daily_loss_limit_pct`
+5. 현재 시각 ≤ `last_new_buy`
+6. 주문 금액 ≥ `min_order_krw`
+7. 동일 종목 당일 매수 1회
+
+거부 사유는 로그와 텔레그램 사이클 요약에 그대로 실립니다.
+**손절선 도달은 AI 판단 없이 즉시 전량 매도**하고, 익절선 도달은 플래그로 합의 엔진에 전달해
+AI가 응답하지 않으면 절반 매도합니다.
+
+### 주문
+
+- `DRY_RUN=true` 면 주문 API를 호출하지 않고 `[DRY_RUN]` 로그·알림만 남기며, `orders` 테이블에
+  `dry_run=1` 로 기록합니다.
+- 매수 수량 = `floor(min(가용현금, 총액×비중%) / 현재가)` — 0주면 스킵합니다.
+- 체결은 최대 30초 동안 5초 간격으로 확인하고, **지정가 미체결은 취소**, 시장가 미체결은
+  다음 사이클에서 재조회합니다.
+
 ## 데이터베이스 (`data/trader.db`)
 
 | 테이블 | 내용 |
@@ -151,7 +197,7 @@ AI 호출 비용은 `CLAUDE_EFFORT`(low/medium/high/xhigh/max)와 `universe.max_
 | 2 | KIS 연동 (토큰 캐시, 시세/잔고/주문 API, 장 운영일) | ✅ 코드·테스트 완료 / 모의계좌 실연동 검증 대기 |
 | 3 | 데이터 파이프라인 (유니버스·지표·뉴스) | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
 | 4 | AI 에이전트 (Claude/Gemini 병렬 호출·JSON 파싱) | ✅ 코드·테스트 완료 / 실API 검증 대기 |
-| 5 | 합의·리스크·주문 실행·알림 | 대기 |
+| 5 | 합의·리스크·주문 실행·알림 | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
 | 6 | 스케줄러 조립 (apscheduler, 시그널, 일간 리포트) | 대기 |
 | 7 | 모의투자 실주문 검증 (5거래일 무인 운영) | 대기 |
 
