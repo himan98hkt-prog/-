@@ -151,3 +151,20 @@ def test_mask(value, expected):
 
 def test_settings_yaml_exists_where_loader_expects_it():
     assert (CONFIG_DIR / "settings.yaml").exists()
+
+
+def test_mask_with_zero_tail_does_not_leak(env_file):
+    """keep_tail=0 에 value[-0:] 을 쓰면 문자열 전체가 남는다 — 웹훅 URL 누출."""
+    secret = "https://discord.com/api/webhooks/123456/SECRET-TOKEN-HERE"
+    masked = mask(secret, 20, 0)
+    assert "SECRET-TOKEN-HERE" not in masked
+    assert masked == "https://discord.com/******"
+
+
+def test_discord_webhook_is_masked_in_repr(env_file):
+    webhook = "https://discord.com/api/webhooks/123456/SECRET-TOKEN-HERE"
+    settings = load(env_path=env_file(NOTIFIER="discord", DISCORD_WEBHOOK_URL=webhook,
+                                      TELEGRAM_BOT_TOKEN="", TELEGRAM_CHAT_ID=""),
+                    create_dirs=False)
+    printed = repr(settings.env)
+    assert "SECRET-TOKEN-HERE" not in printed, "print(load()) 이 웹훅 시크릿을 노출하면 안 됩니다"

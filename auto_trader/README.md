@@ -332,6 +332,7 @@ python scripts/export_report.py --days 5
 ## 로깅
 
 - `logs/trader_YYYYMMDD.log` — 10MB 롤링 5개, 콘솔 동시 출력, 시각은 항상 KST.
+  **자정을 넘기면 자동으로 다음 날짜 파일로 넘어갑니다** (무인 운영 시 첫날 파일에 계속 쌓이지 않도록).
 - `utils.logger.register_secret()` 에 등록한 값은 모든 로그에서 `***REDACTED***` 로 치환됩니다.
 
 ## 개발 단계

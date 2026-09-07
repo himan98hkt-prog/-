@@ -307,3 +307,85 @@ def test_daily_report_uses_db_and_notifies(bot, monkeypatch):
     report = bot.daily_report()
     assert report["total_pnl_pct"] == 1.5
     assert "report:1.5" in bot.sent
+
+
+# --------------------------------------------------------------------------- #
+# 리뷰 지적 사항 회귀 테스트
+# --------------------------------------------------------------------------- #
+
+
+def test_holdings_are_always_processed_first(bot, monkeypatch):
+    """유니버스에 없는 보유 종목도 매 사이클 손절 판단을 받아야 한다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    processed: list[str] = []
+
+    def fake_process(code, state, cycle_id, now):
+        processed.append(code)
+        return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
+
+    monkeypatch.setattr(bot, "_process_code", fake_process)
+    bot.universe = ["005930", "000660"]
+    bot.state.positions = {"068270": object()}  # 유니버스 밖 보유 종목
+
+    bot.run_cycle()
+    assert processed[0] == "068270", "보유 종목을 먼저 봐야 합니다"
+    assert processed == ["068270", "005930", "000660"]
+
+
+def test_held_code_in_universe_is_not_duplicated(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    processed: list[str] = []
+    monkeypatch.setattr(bot, "_process_code", lambda code, *a: (
+        processed.append(code), {"code": code, "name": code, "final_action": "HOLD", "ordered": False})[1])
+    bot.universe = ["005930", "000660"]
+    bot.state.positions = {"005930": object()}
+
+    bot.run_cycle()
+    assert processed == ["005930", "000660"]
+
+
+def test_executed_order_updates_state_within_cycle(settings_obj, bot, monkeypatch):
+    """앞 종목 매수로 줄어든 현금을 뒤 종목의 리스크 검사가 봐야 한다."""
+    from logic.portfolio import PortfolioState
+
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+
+    real_state = PortfolioState(positions={}, cash=1_000_000, deposit=1_000_000)
+    bot.portfolio.sync = lambda now=None: real_state
+    bot.universe = ["005930", "000660"]
+
+    seen_cash: list[float] = []
+
+    def fake_process(code, state, cycle_id, now):
+        seen_cash.append(state.cash)
+        state.apply_execution(code, code, "BUY", 10, 70_000)
+        return {"code": code, "name": code, "final_action": "STRONG_BUY", "ordered": True}
+
+    monkeypatch.setattr(bot, "_process_code", fake_process)
+    bot.run_cycle()
+
+    assert seen_cash == [1_000_000, 300_000], "두 번째 종목은 줄어든 현금을 봐야 합니다"
+
+
+def test_universe_refresh_passes_balance(bot, monkeypatch):
+    """유니버스 갱신이 실제 잔고를 넘겨 보유 종목을 포함시켜야 한다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    sentinel = object()
+    bot.api.get_balance = lambda: sentinel
+    captured: dict = {}
+
+    def fake_build(api, settings, balance=None):
+        captured["balance"] = balance
+        return ["005930"]
+
+    monkeypatch.setattr(main_module, "build_universe", fake_build)
+    bot.refresh_universe()
+    assert captured["balance"] is sentinel
+
+
+def test_universe_refresh_survives_balance_failure(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    bot.api.get_balance = lambda: (_ for _ in ()).throw(KisApiError("잔고 조회 실패"))
+    monkeypatch.setattr(main_module, "build_universe", lambda api, settings, balance=None: ["005930"])
+
+    assert bot.refresh_universe() == ["005930"]

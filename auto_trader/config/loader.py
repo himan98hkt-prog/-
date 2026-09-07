@@ -45,9 +45,13 @@ def mask(value: str | None, keep_head: int = 4, keep_tail: int = 2) -> str:
     """비밀값 마스킹. 로그·출력에는 반드시 이 형태만 사용한다."""
     if not value:
         return "(미설정)"
+    keep_head = max(keep_head, 0)
+    keep_tail = max(keep_tail, 0)
     if len(value) <= keep_head + keep_tail:
         return "*" * len(value)
-    return f"{value[:keep_head]}{'*' * 6}{value[-keep_tail:]}"
+    # keep_tail=0 에 value[-0:] 을 쓰면 문자열 전체가 남는다 — 슬라이스로 처리하지 않는다.
+    tail = value[-keep_tail:] if keep_tail else ""
+    return f"{value[:keep_head]}{'*' * 6}{tail}"
 
 
 # --------------------------------------------------------------------------- #

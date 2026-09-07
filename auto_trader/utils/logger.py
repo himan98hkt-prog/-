@@ -20,6 +20,41 @@ _SECRETS: set[str] = set()
 _configured = False
 
 
+class DailyRotatingFileHandler(RotatingFileHandler):
+    """`trader_YYYYMMDD.log` 로 쓰되 **날짜가 바뀌면 새 파일로 넘어간다**.
+
+    RotatingFileHandler 만 쓰면 파일명이 프로세스 시작 시각에 고정돼, 무인으로 며칠씩
+    돌리는 동안 모든 로그가 첫날 파일에 쌓인다. 크기(10MB×5) 회전은 그대로 유지한다.
+    """
+
+    def __init__(self, log_dir: Path, **kwargs) -> None:
+        self.log_dir = Path(log_dir)
+        self.current_date = datetime.now(KST).strftime("%Y%m%d")
+        super().__init__(self._path_for(self.current_date), **kwargs)
+
+    def _path_for(self, date_str: str) -> str:
+        return str(self.log_dir / f"trader_{date_str}.log")
+
+    def shouldRollover(self, record: logging.LogRecord) -> int:  # noqa: N802 (표준 API)
+        if datetime.now(KST).strftime("%Y%m%d") != self.current_date:
+            return 1
+        return super().shouldRollover(record)
+
+    def doRollover(self) -> None:  # noqa: N802 (표준 API)
+        today = datetime.now(KST).strftime("%Y%m%d")
+        if today != self.current_date:
+            # 날짜가 바뀐 경우: 기존 파일은 그대로 두고 새 날짜 파일로 전환한다.
+            if self.stream:
+                self.stream.close()
+                self.stream = None  # type: ignore[assignment]
+            self.current_date = today
+            self.baseFilename = self._path_for(today)
+            if not self.delay:
+                self.stream = self._open()
+            return
+        super().doRollover()  # 같은 날 안에서의 크기 초과 회전
+
+
 class _KstFormatter(logging.Formatter):
     """로그 시각을 항상 KST로 찍는다(naive 로컬시간 사용 금지)."""
 
@@ -83,8 +118,8 @@ def setup_logging(level: str = "INFO", log_dir: Path | str = "logs") -> logging.
     console.addFilter(secret_filter)
     root.addHandler(console)
 
-    file_handler = RotatingFileHandler(
-        log_file_path(directory),
+    file_handler = DailyRotatingFileHandler(
+        directory,
         maxBytes=MAX_BYTES,
         backupCount=BACKUP_COUNT,
         encoding="utf-8",

@@ -442,3 +442,77 @@ def test_all_tr_ids_have_both_environments():
         assert real and vts, f"{name} TR_ID 누락"
         if real.startswith("TTTC"):
             assert vts.startswith("VTTC"), f"{name}: 모의 TR_ID 접두어가 V가 아닙니다"
+
+
+def test_orderable_cash_zero_is_preserved(auth):
+    """KIS 가 '0' 을 주면 0 그대로 — 예수금으로 대체하면 안 된다."""
+    payload = {
+        "rt_cd": "0", "output1": [],
+        "output2": [{"dnca_tot_amt": "4000000", "prvs_rcdl_excc_amt": "0"}],
+    }
+    api, _ = make_api(auth, [FakeResponse(payload)])
+    balance = api.get_balance()
+    assert balance.deposit == 4_000_000 and balance.orderable_cash == 0
+
+
+def test_orderable_cash_falls_back_only_when_field_missing(auth):
+    payload = {"rt_cd": "0", "output1": [], "output2": [{"dnca_tot_amt": "4000000"}]}
+    api, _ = make_api(auth, [FakeResponse(payload)])
+    assert api.get_balance().orderable_cash == 4_000_000
+
+
+def test_daily_ohlcv_uses_kst_date(auth, monkeypatch):
+    """거래일 파라미터는 호스트 타임존이 아니라 KST 기준이어야 한다."""
+    from datetime import datetime as real_datetime, timezone
+
+    class FrozenDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            # UTC 로 2026-09-08 22:00 = KST 2026-09-09 07:00
+            utc = real_datetime(2026, 9, 8, 22, 0, tzinfo=timezone.utc)
+            return utc.astimezone(tz) if tz else utc.replace(tzinfo=None)
+
+    monkeypatch.setattr("trading.kis_api.datetime", FrozenDatetime)
+    rows = [{"stck_bsop_date": "20260908", "stck_oprc": "1", "stck_hgpr": "1",
+             "stck_lwpr": "1", "stck_clpr": "1", "acml_vol": "1"}]
+    api, session = make_api(auth, [FakeResponse(ok(output2=rows))])
+    api.get_daily_ohlcv("005930", days=1)
+
+    assert session.requests[0]["params"]["FID_INPUT_DATE_2"] == "20260909", "KST 날짜여야 합니다"
+
+
+def test_order_status_uses_kst_date(auth, monkeypatch):
+    from datetime import datetime as real_datetime, timezone
+
+    class FrozenDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            utc = real_datetime(2026, 9, 8, 22, 0, tzinfo=timezone.utc)
+            return utc.astimezone(tz) if tz else utc.replace(tzinfo=None)
+
+    monkeypatch.setattr("trading.kis_api.datetime", FrozenDatetime)
+    api, session = make_api(auth, [FakeResponse({"rt_cd": "0", "output1": []})])
+    api.get_order_status("0000000001")
+
+    params = session.requests[0]["params"]
+    assert params["INQR_STRT_DT"] == params["INQR_END_DT"] == "20260909"
+
+
+def test_hashkey_call_is_rate_limited(auth, monkeypatch):
+    """hashkey 도 KIS 호출이므로 초당 제한에 포함되어야 한다 (VTS 2건/초)."""
+    monkeypatch.setattr(TokenManager, "get_hashkey", lambda self, body: "HASH")
+    acquired = []
+    api, _ = make_api(auth, [FakeResponse(ok({"ODNO": "1", "KRX_FWDG_ORD_ORGNO": "9", "ORD_TMD": "1"}))])
+    monkeypatch.setattr(api.limiter, "acquire", lambda: acquired.append(1))
+
+    api.place_order("005930", 1, "BUY")
+    assert len(acquired) == 2, "hashkey 1회 + 주문 1회 = 2회를 세야 합니다"
+
+
+def test_query_without_hashkey_acquires_once(auth):
+    api, _ = make_api(auth, [FakeResponse(ok({"stck_prpr": "100", "hts_kor_isnm": "테스트"}))])
+    acquired = []
+    api.limiter.acquire = lambda: acquired.append(1)
+
+    api.get_current_price("005930")
+    assert len(acquired) == 1

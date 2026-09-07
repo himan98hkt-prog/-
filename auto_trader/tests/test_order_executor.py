@@ -238,3 +238,23 @@ def test_partial_fill_is_reported(make_executor):
     executor, _, _ = make_executor(dry_run=False, api=StubApi(fill_qty=6))
     result = executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
     assert result.status == "PARTIAL" and result.qty == 6
+
+
+def test_locked_shares_are_not_sold(make_executor):
+    """주문가능수량 0(락 걸린 물량)을 보유수량으로 대체해 팔면 안 된다."""
+    executor, api, _ = make_executor(dry_run=False)
+    locked = Position(code="005930", name="삼성전자", qty=10, orderable_qty=0,
+                      avg_price=70_000, current_price=71_300, eval_amount=713_000,
+                      pnl_amount=13_000, pnl_pct=1.8)
+    result = executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT,
+                              state([locked]))
+    assert not result.ordered and api.orders == []
+
+
+def test_partially_locked_shares_sell_only_orderable(make_executor):
+    executor, api, _ = make_executor(dry_run=False)
+    partial = Position(code="005930", name="삼성전자", qty=10, orderable_qty=4,
+                       avg_price=70_000, current_price=71_300, eval_amount=713_000,
+                       pnl_amount=13_000, pnl_pct=1.8)
+    executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT, state([partial]))
+    assert api.orders[0]["qty"] == 4

@@ -118,7 +118,12 @@ class TradingBot:
             logger.info("휴장일 — 유니버스 갱신을 건너뜁니다")
             return self.universe
         try:
-            self.universe = build_universe(self.api, self.settings, balance=None) or self.universe
+            balance = self.api.get_balance()  # 보유 종목을 유니버스에 포함시키기 위해 조회
+        except (KisApiError, KisAuthError) as exc:
+            logger.warning("잔고 조회 실패(%s) — 보유 종목 없이 유니버스를 구성합니다", exc)
+            balance = None
+        try:
+            self.universe = build_universe(self.api, self.settings, balance=balance) or self.universe
         except (KisApiError, KisAuthError) as exc:
             logger.error("유니버스 갱신 실패(%s) — 기존 목록을 유지합니다", exc)
         return self.universe
@@ -158,7 +163,9 @@ class TradingBot:
         self, cycle_id: str, cycle_label: str, now: datetime, holdings_only: bool
     ) -> list[dict[str, Any]]:
         state = self.portfolio.sync(now=now)
-        codes = list(state.positions) if holdings_only else self.universe
+        # 보유 종목은 유니버스와 무관하게 항상, 그리고 먼저 본다(손절 판단이 늦으면 안 된다).
+        held = list(state.positions)
+        codes = held if holdings_only else held + [c for c in self.universe if c not in state.positions]
         if holdings_only and not codes:
             logger.info("보유 종목이 없어 청산 점검을 건너뜁니다")
             return []
@@ -207,6 +214,10 @@ class TradingBot:
         execution = None
         if risk_passed or final.is_sell:
             execution = self.executor.execute(final, snapshot, state, cycle_id=cycle_id)
+            if execution.ordered:
+                # 같은 사이클 뒤 종목들이 갱신된 현금·보유 수를 보게 한다.
+                state.apply_execution(code, snapshot.get("name", code), execution.side,
+                                      execution.qty, execution.price)
 
         self.portfolio.record_decision(
             cycle_id=cycle_id, snapshot=snapshot, decisions=decisions, final=final,

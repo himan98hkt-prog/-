@@ -80,7 +80,11 @@ def main() -> int:
         logger.error("잔고 동기화 실패: %s", exc)
         return 1
 
-    codes = args.code or settings.universe.watchlist[:1]
+    if args.code:
+        codes = args.code
+    else:
+        held = list(state.positions)
+        codes = held + [c for c in settings.universe.watchlist[:1] if c not in state.positions]
     results: list[dict] = []
 
     for code in codes:
@@ -113,8 +117,12 @@ def main() -> int:
                 if not risk_passed:
                     logger.warning("%s 리스크 거부: %s", code, risk_reason)
 
-            execution = (executor.execute(final, snapshot, state, cycle_id=cycle_id)
-                         if (risk_passed or final.is_sell) else None)
+            execution = None
+            if risk_passed or final.is_sell:
+                execution = executor.execute(final, snapshot, state, cycle_id=cycle_id)
+                if execution.ordered:  # 같은 사이클 뒤 종목이 갱신된 현금을 보게 한다
+                    state.apply_execution(code, snapshot.get("name", code), execution.side,
+                                          execution.qty, execution.price)
 
             portfolio.record_decision(
                 cycle_id=cycle_id, snapshot=snapshot, decisions=decisions, final=final,

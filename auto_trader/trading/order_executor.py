@@ -75,10 +75,13 @@ class OrderExecutor:
         position = state.get(code)
         if position is None or position.qty <= 0:
             return 0
-        available = position.orderable_qty or position.qty
+        # 주문가능수량 0 은 '락 걸린 물량' 이라는 뜻이다 — 보유수량으로 대체하지 않는다.
+        available = position.orderable_qty
+        if available <= 0:
+            return 0
         if final.action == "SELL_ALL":
             return available
-        return max(int(available * final.sell_ratio), 1) if available > 0 else 0
+        return max(int(available * final.sell_ratio), 1)
 
     # -- 실행 -------------------------------------------------------------- #
 

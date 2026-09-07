@@ -13,6 +13,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -23,6 +24,8 @@ from utils.logger import get_logger
 from utils.retry import RetryExhausted, retry
 
 logger = get_logger("kis_api")
+
+KST = ZoneInfo("Asia/Seoul")
 
 HTTP_TIMEOUT = 15
 MAX_ROWS_PER_DAILY_CALL = 100  # KIS 기간별 시세 1회 최대 100건
@@ -223,7 +226,14 @@ class KisApi:
             raise KisApiError(f"'{tr_name}' 은(는) 모의투자(VTS) 도메인에서 지원되지 않습니다")
 
         url = self.auth.url(name)
-        hashkey = self.auth.get_hashkey(body) if (use_hashkey and body) else None
+
+        hashkey = None
+        if use_hashkey and body:
+            # hashkey 도 KIS 로 나가는 HTTP 호출이다 — 초당 제한에 함께 포함시켜야
+            # 주문 직전 2연속 호출로 한도(모의 2건/초)를 넘기지 않는다.
+            self.limiter.acquire()
+            hashkey = self.auth.get_hashkey(body)
+
         headers = self.auth.build_headers(self.auth.tr_id(tr_name), hashkey)
         if tr_cont:
             headers["tr_cont"] = tr_cont
@@ -316,7 +326,7 @@ class KisApi:
     def get_daily_ohlcv(self, code: str, days: int = 60) -> pd.DataFrame:
         """국내주식 기간별 시세(일봉). 100건 초과 시 나눠서 조회 후 합친다."""
         frames: list[pd.DataFrame] = []
-        end_date = datetime.now().date()
+        end_date = datetime.now(KST).date()  # 거래일 기준은 항상 KST
         remaining = days
 
         while remaining > 0:
@@ -487,10 +497,16 @@ class KisApi:
             ctx_nk = (data.get("ctx_area_nk100") or "").strip()
             tr_cont = "N"
 
+        deposit = _to_float(summary.get("dnca_tot_amt"))
+        # D+2 예수금. 필드가 아예 없을 때만 예수금으로 대체한다 —
+        # 값이 '0' 인 것은 '주문 가능 금액이 없다'는 뜻이므로 덮어쓰면 안 된다.
+        raw_orderable = summary.get("prvs_rcdl_excc_amt")
+        orderable_cash = deposit if raw_orderable in (None, "") else _to_float(raw_orderable)
+
         return Balance(
             holdings=holdings,
-            deposit=_to_float(summary.get("dnca_tot_amt")),
-            orderable_cash=_to_float(summary.get("prvs_rcdl_excc_amt")),  # D+2 예수금
+            deposit=deposit,
+            orderable_cash=orderable_cash,
             total_eval_amount=_to_float(summary.get("scts_evlu_amt")),
             net_asset=_to_float(summary.get("nass_amt")),
             total_pnl_amount=_to_float(summary.get("evlu_pfls_smtl_amt")),
@@ -584,7 +600,7 @@ class KisApi:
 
     def get_order_status(self, order_no: str, date: str | None = None) -> OrderStatus | None:
         """주식 일별주문체결조회에서 해당 주문번호를 찾아 체결 상태를 반환."""
-        day = date or datetime.now().strftime("%Y%m%d")
+        day = date or datetime.now(KST).strftime("%Y%m%d")  # 거래일 기준은 항상 KST
         ctx_fk = ctx_nk = ""
         tr_cont = ""
 

@@ -88,9 +88,10 @@ def test_sync_removes_liquidated_positions(make_portfolio):
     assert codes == {"005930"}, "청산된 종목은 DB에서도 사라져야 합니다"
 
 
-def test_sync_falls_back_to_deposit_when_no_orderable_cash(make_portfolio):
+def test_zero_orderable_cash_is_not_replaced_by_deposit(make_portfolio):
+    """주문가능현금 0 은 '주문할 수 없다'는 뜻 — 예수금으로 덮어쓰면 안 된다."""
     portfolio, _ = make_portfolio([Balance(holdings=[], deposit=2_500_000, orderable_cash=0)])
-    assert portfolio.sync(now=NOW).cash == 2_500_000
+    assert portfolio.sync(now=NOW).cash == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -238,3 +239,75 @@ def test_bought_today_is_timezone_safe_before_market_open(make_portfolio, monkey
                            order_type="market", qty=1, price=71_300, status="DRY_RUN")
 
     assert "005930" in portfolio.sync(now=early).bought_today
+
+
+# --------------------------------------------------------------------------- #
+# 사이클 내 상태 갱신 (apply_execution)
+# --------------------------------------------------------------------------- #
+
+
+def state_with(cash=5_000_000, positions=()):
+    from logic.portfolio import PortfolioState, Position
+
+    return PortfolioState(
+        positions={p.code: p for p in positions}, cash=cash, deposit=cash,
+        daily_pnl_pct=0.0, bought_today=set(), synced_at=NOW,
+    )
+
+
+def position_obj(code="005930", qty=10, avg=70_000, orderable=None):
+    from logic.portfolio import Position
+
+    return Position(code=code, name=f"종목{code}", qty=qty,
+                    orderable_qty=qty if orderable is None else orderable,
+                    avg_price=avg, current_price=avg, eval_amount=qty * avg,
+                    pnl_amount=0.0, pnl_pct=0.0)
+
+
+def test_buy_reduces_cash_and_adds_position():
+    state = state_with(cash=1_000_000)
+    state.apply_execution("005930", "삼성전자", "BUY", 10, 70_000)
+
+    assert state.cash == 300_000
+    assert state.position_count == 1
+    assert state.holds("005930")
+    assert state.total_invested == 700_000
+    assert "005930" in state.bought_today, "당일 1회 제한이 같은 사이클에서 바로 걸려야 합니다"
+
+
+def test_additional_buy_updates_average_price():
+    state = state_with(cash=1_000_000, positions=[position_obj(qty=10, avg=70_000)])
+    state.apply_execution("005930", "삼성전자", "BUY", 10, 80_000)
+
+    position = state.get("005930")
+    assert position.qty == 20
+    assert position.avg_price == 75_000
+    assert state.total_invested == 1_500_000
+
+
+def test_sell_returns_cash_and_shrinks_position():
+    state = state_with(cash=0, positions=[position_obj(qty=10, avg=70_000)])
+    state.apply_execution("005930", "삼성전자", "SELL", 4, 75_000)
+
+    assert state.cash == 300_000
+    assert state.get("005930").qty == 6
+    assert state.get("005930").orderable_qty == 6
+
+
+def test_full_sell_removes_position():
+    state = state_with(cash=0, positions=[position_obj(qty=10)])
+    state.apply_execution("005930", "삼성전자", "SELL", 10, 70_000)
+
+    assert state.position_count == 0 and not state.holds("005930")
+
+
+def test_apply_execution_ignores_zero_quantity():
+    state = state_with(cash=1_000_000)
+    state.apply_execution("005930", "삼성전자", "BUY", 0, 70_000)
+    assert state.cash == 1_000_000 and state.position_count == 0
+
+
+def test_cash_never_goes_negative():
+    state = state_with(cash=100_000)
+    state.apply_execution("005930", "삼성전자", "BUY", 10, 70_000)
+    assert state.cash == 0

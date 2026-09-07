@@ -70,6 +70,47 @@ class PortfolioState:
         position = self.positions.get(code)
         return bool(position and position.qty > 0)
 
+    def apply_execution(self, code: str, name: str, side: str, qty: int, price: float) -> None:
+        """주문 실행분을 메모리 상태에 즉시 반영한다.
+
+        잔고 동기화는 사이클 시작에 한 번뿐이라, 이 갱신이 없으면 같은 사이클 안에서
+        뒤에 오는 종목이 **이미 쓴 현금과 늘어난 보유 종목 수를 못 본 채** 리스크 검사를
+        통과한다(한도 초과 매수). DRY_RUN 에서도 동일하게 반영해 시뮬레이션을 실제와 맞춘다.
+        다음 사이클 시작 시 KIS 잔고로 다시 덮어써지므로 오차는 누적되지 않는다.
+        """
+        if qty <= 0 or price <= 0:
+            return
+        amount = qty * price
+        position = self.positions.get(code)
+
+        if side == "BUY":
+            self.cash = max(self.cash - amount, 0.0)
+            self.bought_today.add(code)
+            if position is None:
+                self.positions[code] = Position(
+                    code=code, name=name, qty=qty, orderable_qty=qty,
+                    avg_price=price, current_price=price, eval_amount=amount,
+                    pnl_amount=0.0, pnl_pct=0.0,
+                )
+            else:
+                total_qty = position.qty + qty
+                position.avg_price = (position.cost_basis + amount) / total_qty
+                position.qty = total_qty
+                position.orderable_qty += qty
+                position.eval_amount = total_qty * position.current_price
+            return
+
+        # SELL
+        self.cash += amount
+        if position is None:
+            return
+        position.qty = max(position.qty - qty, 0)
+        position.orderable_qty = max(position.orderable_qty - qty, 0)
+        if position.qty <= 0:
+            del self.positions[code]
+        else:
+            position.eval_amount = position.qty * position.current_price
+
 
 class Portfolio:
     """KIS 잔고 ↔ SQLite 동기화 + 주문·결정 기록."""
@@ -105,7 +146,7 @@ class Portfolio:
         }
         self._write_positions(positions, moment)
 
-        cash = balance.orderable_cash or balance.deposit
+        cash = balance.orderable_cash  # 0 이면 실제로 주문 가능 금액이 없는 것이다
         equity = cash + sum(position.eval_amount for position in positions.values())
         daily_pnl_pct = self._update_daily_pnl(equity, positions, moment)
 
