@@ -43,6 +43,8 @@ import {
   type VideoTemplate,
   PHOTO_MOTIONS,
   TRANSITIONS,
+  CAPTION_ANIMS,
+  ICON_ANIMS,
 } from '@/lib/video/templates'
 import { VideoTemplateSketch } from '@/components/video/template-sketch'
 import { cn } from '@/lib/utils'
@@ -61,11 +63,13 @@ import {
 import type { DesignTheme } from '@/lib/design/themes'
 import {
   buildStoryboard,
+  clipWindow,
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
   formatLength,
   isTextOnly,
   moveScene,
+  SCENE_MIN_SEC,
   sceneLabel,
   cheerRange,
   sortByFileName,
@@ -212,6 +216,8 @@ export function VideoStudio({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // 그리는 루프는 ref 로 읽고(매 프레임 새로 만들지 않으려고), 콘티는 state 로 다시 그린다
   const [sources, setSources] = useState<FrameSource>({ images: new Map(), videos: new Map() })
+  /** 올리신 동영상의 전체 길이(초) — 주소별로. 잘라 쓸 자리를 넘겨 잡지 않게 */
+  const [clipLengths, setClipLengths] = useState<Record<string, number>>({})
   const sourcesRef = useRef<FrameSource>(sources)
   /** 그리는 쪽에서 지금 시각을 읽을 수 있게 — state 는 저 안쪽 콜백에서 낡아 있다 */
   const clockRef = useRef(0)
@@ -372,14 +378,25 @@ export function VideoStudio({
     }
     for (const scene of scenes) {
       if (!scene.clip) continue
+      const url = scene.clip
       const el = document.createElement('video')
-      el.src = scene.clip
+      el.src = url
       el.muted = false
       el.playsInline = true
       el.preload = 'auto'
       loaded.videos.set(scene.clip, el)
       jobs.push(new Promise<void>((resolve) => {
-        el.onloadeddata = () => resolve()
+        el.onloadeddata = () => {
+          /*
+           * 올리신 영상의 **전체 길이**를 재 둔다 — 「어디서부터 쓸까」 밀대의 끝이 된다.
+           *
+           * 장면에 적지 않고 따로 둔다. 장면을 고치면 「원장님이 손대신 장면」으로 표시돼
+           * 명단이 바뀌어도 다시 안 짜지는데, 길이는 프로그램이 잰 것이지 고치신 것이 아니다.
+           */
+          const total = Number.isFinite(el.duration) ? Math.floor(el.duration * 10) / 10 : 0
+          if (total > 0) setClipLengths((prev) => (prev[url] === total ? prev : { ...prev, [url]: total }))
+          resolve()
+        }
         el.onerror = () => resolve()
       }))
     }
@@ -447,7 +464,8 @@ export function VideoStudio({
           if (seconds >= start && seconds < start + scene.seconds) {
             if (!playedClips.has(scene.clip)) {
               playedClips.add(scene.clip)
-              el.currentTime = 0
+              // 잘라 쓰기로 하신 자리에서 시작한다 (미리보기와 녹화가 같은 길을 쓴다)
+              el.currentTime = clipWindow(scene, el.duration || 0).start
               // 올린 동영상도 같은 배속으로 — 4배는 브라우저가 거절할 수 있어 받아 낸다
               try {
                 el.playbackRate = rate
@@ -1165,6 +1183,8 @@ export function VideoStudio({
           onPick={setEditing}
           editingId={editing}
           onMove={shiftScene}
+          clock={clock}
+          onSeconds={(index, seconds) => patchScene(scenes[index].id, { seconds })}
         />
 
         {editingScene && (
@@ -1172,6 +1192,7 @@ export function VideoStudio({
             scene={editingScene}
             index={scenes.findIndex((item) => item.id === editingScene.id)}
             total={scenes.length}
+            clipLength={editingScene.clip ? (clipLengths[editingScene.clip] ?? 0) : 0}
             onChange={(patch) => patchScene(editingScene.id, patch)}
             onMove={(delta) => shiftScene(scenes.findIndex((item) => item.id === editingScene.id), delta)}
             onClose={() => setEditing(null)}
@@ -1811,6 +1832,8 @@ function StoryboardStrip({
   onMove,
   template,
   logo,
+  clock,
+  onSeconds,
 }: {
   timeline: ReturnType<typeof buildTimeline>
   sources: FrameSource
@@ -1823,6 +1846,10 @@ function StoryboardStrip({
   onPick: (id: string | null) => void
   editingId: string | null
   onMove: (index: number, delta: number) => void
+  /** 지금 미리보기가 서 있는 자리(초) — 띠 위에 표시한다 */
+  clock: number
+  /** 띠에서 끝을 끌어 머무는 시간을 바꾼다 */
+  onSeconds: (index: number, seconds: number) => void
 }) {
   const [shots, setShots] = useState<string[]>([])
 
@@ -1859,7 +1886,21 @@ function StoryboardStrip({
           누르면 그 장면을 고칠 수 있습니다
         </p>
       </div>
-      <div className="grid max-h-[440px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+      <SceneTimeline
+        timeline={timeline}
+        shots={shots}
+        clock={clock}
+        editingId={editingId}
+        onJump={onJump}
+        onPick={onPick}
+        onMove={onMove}
+        onSeconds={onSeconds}
+      />
+
+      <div
+        className="grid max-h-[440px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5"
+        data-testid="storyboard-grid"
+      >
         {timeline.scenes.map((scene, index) => (
           <div
             key={scene.id}
@@ -1924,6 +1965,218 @@ function StoryboardStrip({
   )
 }
 
+/** 띠에서 1초가 차지하는 너비(px). 3분짜리도 옆으로 밀어 볼 만한 크기 */
+const PX_PER_SEC = 26
+/** 아무리 짧은 장면도 이만큼은 잡아 준다 — 손가락으로 집을 수 있어야 한다 */
+const MIN_BLOCK_PX = 34
+/** 블록 사이 틈 (mr-0.5) 과 띠 안쪽 여백 (p-1) — 짚는 자리를 셀 때 함께 세야 한다 */
+const BLOCK_GAP_PX = 2
+const TRACK_PAD_PX = 4
+
+/**
+ * 시간 띠 — 장면을 **끌어서** 옮기고 늘린다.
+ *
+ * 목록에서 [앞으로][뒤로]를 누르는 것으로도 순서는 바뀐다. 다만 30개짜리 영상에서
+ * 다섯 번째를 스무 번째로 옮기려면 열다섯 번을 눌러야 한다 — 그건 편집이 아니라 노동이다.
+ * 길이도 마찬가지다. 어느 장면이 긴지는 **숫자가 아니라 폭으로** 보여야 눈에 들어온다.
+ *
+ * 끌기가 **유일한 길이 되지는 않게** 한다. 목록의 [앞으로][뒤로]와 장면 고치기의
+ * 「머무는 시간」은 그대로 둔다 — 손이 떨리시거나 화면이 작은 분도 계신다.
+ */
+function SceneTimeline({
+  timeline,
+  shots,
+  clock,
+  editingId,
+  onJump,
+  onPick,
+  onMove,
+  onSeconds,
+}: {
+  timeline: ReturnType<typeof buildTimeline>
+  shots: string[]
+  clock: number
+  editingId: string | null
+  onJump: (seconds: number) => void
+  onPick: (id: string | null) => void
+  onMove: (index: number, delta: number) => void
+  onSeconds: (index: number, seconds: number) => void
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null)
+  /** 지금 끌고 있는 것 — 옮기는 중인가, 끝을 늘리는 중인가 */
+  const [drag, setDrag] = useState<
+    | { kind: 'move'; index: number; over: number; moved: boolean }
+    | { kind: 'size'; index: number; seconds: number }
+    | null
+  >(null)
+
+  const widthOf = (seconds: number) => Math.max(MIN_BLOCK_PX, seconds * PX_PER_SEC)
+  /** 블록 하나가 실제로 차지하는 자리 = 폭 + 사이 틈 */
+  const slotOf = (index: number) => widthOf(timeline.scenes[index].seconds) + BLOCK_GAP_PX
+
+  /** 띠 왼쪽 안쪽에서 블록 i 의 왼쪽 끝까지 */
+  const leftOf = (index: number) => {
+    let x = 0
+    for (let i = 0; i < index; i += 1) x += slotOf(i)
+    return x
+  }
+
+  /** 손가락 자리를 띠 안쪽 좌표로 — 안쪽 여백과 옆으로 민 만큼을 뺀다 */
+  const trackX = (clientX: number) => {
+    const track = trackRef.current
+    if (!track) return 0
+    return clientX - track.getBoundingClientRect().left + track.scrollLeft - TRACK_PAD_PX
+  }
+
+  /** 띠 안에서의 x 를 「몇 번째 장면 자리인가」로 바꾼다 */
+  const indexAt = (clientX: number) => {
+    let x = trackX(clientX)
+    for (let i = 0; i < timeline.scenes.length; i += 1) {
+      const slot = slotOf(i)
+      // 블록의 절반을 넘어서면 그 자리로 친다 — 넘겨야 바뀌니 손이 떨려도 안 튄다
+      if (x < slot) return x < slot / 2 ? i : Math.min(timeline.scenes.length - 1, i + 1)
+      x -= slot
+    }
+    return timeline.scenes.length - 1
+  }
+
+  /**
+   * 시각을 띠 위의 자리로.
+   *
+   * 「초 × 폭」으로 바로 셈하면 **짧은 장면이 최소 폭으로 넓어진 만큼** 어긋나
+   * 표시선이 블록과 따로 논다. 그래서 블록을 실제로 세어 가며 찾는다.
+   */
+  const xOfTime = (seconds: number) => {
+    for (let i = 0; i < timeline.scenes.length; i += 1) {
+      const scene = timeline.scenes[i]
+      const start = timeline.starts[i]
+      if (seconds < start + scene.seconds || i === timeline.scenes.length - 1) {
+        const into = Math.max(0, Math.min(1, (seconds - start) / Math.max(0.001, scene.seconds)))
+        return leftOf(i) + into * widthOf(scene.seconds)
+      }
+    }
+    return 0
+  }
+
+  function startMove(event: React.PointerEvent, index: number) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDrag({ kind: 'move', index, over: index, moved: false })
+  }
+
+  function startSize(event: React.PointerEvent, index: number) {
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDrag({ kind: 'size', index, seconds: timeline.scenes[index].seconds })
+  }
+
+  function onPointerMove(event: React.PointerEvent) {
+    if (!drag) return
+    if (drag.kind === 'move') {
+      const over = indexAt(event.clientX)
+      if (over !== drag.over || !drag.moved) setDrag({ ...drag, over, moved: drag.moved || over !== drag.index })
+      return
+    }
+    const track = trackRef.current
+    if (!track) return
+    // 블록의 왼쪽 끝에서 지금 손가락까지의 거리가 곧 길이다
+    const x = trackX(event.clientX) - leftOf(drag.index)
+    const seconds = Math.round(Math.max(SCENE_MIN_SEC, Math.min(20, x / PX_PER_SEC)) * 2) / 2
+    if (seconds !== drag.seconds) setDrag({ ...drag, seconds })
+  }
+
+  function endDrag() {
+    if (!drag) return
+    if (drag.kind === 'move') {
+      if (drag.over !== drag.index) onMove(drag.index, drag.over - drag.index)
+      else if (!drag.moved) {
+        // 끌지 않고 누르기만 하셨다 — 그 자리로 가서 고치기를 연다
+        onJump(timeline.starts[drag.index])
+        onPick(timeline.scenes[drag.index].id)
+      }
+    } else if (drag.seconds !== timeline.scenes[drag.index].seconds) {
+      onSeconds(drag.index, drag.seconds)
+    }
+    setDrag(null)
+  }
+
+  const playX = xOfTime(Math.min(clock, timeline.total))
+
+  return (
+    <details className="rounded-md border border-border" data-testid="scene-timeline">
+      <summary className="cursor-pointer list-none px-3 py-2 text-sm marker:hidden">
+        <span className="font-medium">시간 띠</span>
+        <span className="ml-1.5 text-xs text-muted-foreground">
+          끌어서 순서를 옮기고 길이를 바꿉니다 — 안 여셔도 됩니다
+        </span>
+      </summary>
+      <div className="grid gap-1 px-3 pb-3">
+      <div
+        ref={trackRef}
+        className="relative flex h-[62px] select-none items-stretch overflow-x-auto rounded-md bg-secondary/70 p-1"
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {timeline.scenes.map((scene, index) => {
+          const seconds = drag?.kind === 'size' && drag.index === index ? drag.seconds : scene.seconds
+          const dropHere = drag?.kind === 'move' && drag.moved && drag.over === index
+          return (
+            <div
+              key={scene.id}
+              data-testid={`timeline-block-${index}`}
+              style={{ width: widthOf(seconds) }}
+              className={cn(
+                'relative mr-0.5 shrink-0 cursor-grab overflow-hidden rounded border text-left',
+                drag?.kind === 'move' && drag.index === index && drag.moved
+                  ? 'opacity-40'
+                  : scene.id === editingId
+                    ? 'border-accent ring-1 ring-accent'
+                    : 'border-black/10',
+                dropHere && 'border-l-2 border-l-accent',
+              )}
+              onPointerDown={(event) => startMove(event, index)}
+              role="button"
+              tabIndex={-1}
+              aria-label={`${sceneLabel(scene)} ${seconds}초`}
+              title={`${sceneLabel(scene)} · ${seconds}초 — 끌어서 옮기고, 오른쪽 끝을 끌어 길이를 바꿉니다`}
+            >
+              {shots[index] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={shots[index]} alt="" draggable={false} className="h-full w-full object-cover" />
+              ) : (
+                <span className="block h-full w-full bg-black/60" />
+              )}
+              <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 text-[10px] leading-4 text-white">
+                {index + 1}. {sceneLabel(scene)}
+              </span>
+              {/* 오른쪽 끝 — 여기를 끌면 길이가 바뀐다 */}
+              <span
+                onPointerDown={(event) => startSize(event, index)}
+                data-testid={`timeline-grip-${index}`}
+                aria-label={`${sceneLabel(scene)} 길이 바꾸기`}
+                className="absolute inset-y-0 right-0 w-2 cursor-ew-resize bg-white/40 hover:bg-accent"
+              />
+            </div>
+          )
+        })}
+        {/* 지금 보고 있는 자리 */}
+        <span
+          aria-hidden
+          data-testid="timeline-playhead"
+          className="pointer-events-none absolute inset-y-1 w-0.5 bg-accent"
+          style={{ left: TRACK_PAD_PX + playX }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        띠에서 장면을 <strong>끌어 옮기고</strong>, 오른쪽 끝을 끌어 <strong>길이</strong>를 바꿉니다.
+        {drag?.kind === 'size' && <b className="ml-1 text-foreground">{drag.seconds}초</b>}
+      </p>
+      </div>
+    </details>
+  )
+}
+
 const CAPTION_PLACES: { id: CaptionPlace; label: string; hint: string }[] = [
   { id: 'bottom', label: '아래', hint: '사진 아래쪽에 이름' },
   { id: 'top', label: '위', hint: '얼굴이 아래쪽에 있을 때' },
@@ -1941,6 +2194,7 @@ function SceneEditor({
   scene,
   index,
   total,
+  clipLength,
   onChange,
   onMove,
   onClose,
@@ -1948,10 +2202,13 @@ function SceneEditor({
   scene: VideoScene
   index: number
   total: number
+  /** 올리신 동영상의 전체 길이(초). 0 이면 아직 못 쟀거나 사진 장면이다 */
+  clipLength: number
   onChange: (patch: Partial<VideoScene>) => void
   onMove: (delta: number) => void
   onClose: () => void
 }) {
+  const trim = clipWindow(scene, clipLength)
   return (
     <section className="grid gap-3 rounded-lg border border-accent/50 bg-accent/5 p-3" data-testid="scene-editor">
       <div className="flex flex-wrap items-center gap-2">
@@ -2017,6 +2274,59 @@ function SceneEditor({
         </div>
       </div>
 
+      {/* 동영상 장면에만 — 앞을 잘라 낸다 */}
+      {scene.clip && (
+        <div className="grid gap-2 rounded-md bg-secondary/60 p-3">
+          <p className="text-sm font-medium">동영상에서 쓸 자리</p>
+          {clipLength > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                올리신 동영상은 <b className="text-foreground">{clipLength.toFixed(1)}초</b>,
+                이 장면에서 쓰는 시간은 <b className="text-foreground">{scene.seconds.toFixed(1)}초</b>입니다.
+              </p>
+              {/* 한 칸(0.5초)도 못 미는 자리에 손잡이를 두면 잡아도 아무 일이 없다 */}
+              {trim.maxStart >= 0.5 ? (
+                <label className="grid gap-1 text-xs">
+                  <span className="flex items-center justify-between">
+                    <span>어디서부터</span>
+                    <b className="tabular-nums" data-testid="clip-range">
+                      {trim.start.toFixed(1)}초 → {Math.min(trim.start + scene.seconds, clipLength).toFixed(1)}초
+                    </b>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.round(trim.maxStart * 10) / 10}
+                    step={0.5}
+                    value={trim.start}
+                    onChange={(native) => onChange({ clipStart: Number(native.target.value) })}
+                    className="w-full accent-[var(--accent)]"
+                    aria-label="동영상 시작 자리"
+                    data-testid="clip-start"
+                  />
+                  <span className="text-muted-foreground">
+                    휴대폰으로 찍으면 앞이 흔들리거나 「자, 시작」 같은 말이 들어 있습니다 — 그만큼 뒤로 미세요.
+                  </span>
+                </label>
+              ) : (
+                <p className="text-xs text-muted-foreground" data-testid="clip-whole">
+                  동영상을 처음부터 끝까지 씁니다. 뒷부분만 쓰고 싶으시면 위의{' '}
+                  <b className="text-foreground">머무는 시간</b>을 줄이세요 — 줄이신 만큼 밀어 볼 자리가 생깁니다.
+                </p>
+              )}
+              {trim.short > 0.05 && (
+                <p className="text-xs text-destructive" data-testid="clip-short">
+                  동영상보다 {trim.short.toFixed(1)}초 길게 잡으셨습니다 — 그만큼은 멈춘 화면으로 남습니다.
+                  머무는 시간을 {(scene.seconds - trim.short).toFixed(1)}초로 줄이시면 딱 맞습니다.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">동영상 길이를 재는 중입니다…</p>
+          )}
+        </div>
+      )}
+
       <div>
         <p className="mb-1 text-sm">글자 자리</p>
         <div className="flex flex-wrap gap-1.5">
@@ -2068,6 +2378,34 @@ function SceneEditor({
         <p className="mt-1 text-xs text-muted-foreground">
           <strong>어울리게</strong>로 두시면 장면 성격에 맞춰 알아서 섞습니다 —
           표지·마무리는 얌전하게, 아이들 사진은 조금 움직이게.
+        </p>
+      </div>
+
+      {/* 자막이 나타나는 방식 — 이름이 뜨는 자리에서 「말을 걸어 오는」 느낌을 만든다 */}
+      <div>
+        <p className="mb-1 text-sm">자막이 나타날 때</p>
+        <div className="flex flex-wrap gap-1.5" data-testid="caption-anims">
+          {CAPTION_ANIMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange({ captionAnim: item.id })}
+              aria-pressed={(scene.captionAnim ?? 'auto') === item.id}
+              title={item.hint}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs transition-colors',
+                (scene.captionAnim ?? 'auto') === item.id
+                  ? 'border-accent bg-accent/15 font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          <strong>한 글자씩</strong>은 아이 이름이 타자 치듯 찍힙니다. 표지·마무리처럼 읽는 자리에는
+          <strong> 스르르</strong>가 어울립니다.
         </p>
       </div>
 
@@ -2141,6 +2479,29 @@ function SceneEditor({
             </button>
           ))}
         </div>
+        {/* 그림을 고르셨을 때만 — 없는 그림의 움직임을 고르게 하면 헛일이다 */}
+        {scene.icon && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="icon-anims">
+            <span className="text-xs text-muted-foreground">움직임</span>
+            {ICON_ANIMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onChange({ iconAnim: item.id })}
+                aria-pressed={(scene.iconAnim ?? 'pop') === item.id}
+                title={item.hint}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs transition-colors',
+                  (scene.iconAnim ?? 'pop') === item.id
+                    ? 'border-accent bg-accent/15 font-medium'
+                    : 'border-border text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

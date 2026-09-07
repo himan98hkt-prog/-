@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { applyTransition, drawSceneIcon, scenesAt, buildTimeline } from '@/lib/video/render'
+import {
+  applyCaptionAnim,
+  applyTransition,
+  drawSceneIcon,
+  scenesAt,
+  buildTimeline,
+  typeCut,
+} from '@/lib/video/render'
 import { SCENE_ICONS, isCalmScene, type VideoScene } from '@/lib/video/storyboard'
-import { TRANSITIONS, resolveTransition, type TransitionKind } from '@/lib/video/templates'
+import {
+  CAPTION_ANIMS,
+  ICON_ANIMS,
+  TRANSITIONS,
+  resolveCaptionAnim,
+  resolveTransition,
+  type TransitionKind,
+} from '@/lib/video/templates'
 
 /**
  * 전환 효과가 **실제로 무언가를 한다**는 것을 잰다.
@@ -34,6 +48,7 @@ function fakeCtx() {
   const ctx = {
     translate: (x: number, y: number) => calls.push(`translate ${Math.round(x)} ${Math.round(y)}`),
     scale: (x: number, y: number) => calls.push(`scale ${x.toFixed(2)} ${y.toFixed(2)}`),
+    rotate: (a: number) => calls.push(`rotate ${a.toFixed(3)}`),
     beginPath: () => calls.push('beginPath'),
     arc: () => calls.push('arc'),
     rect: () => calls.push('rect'),
@@ -193,5 +208,152 @@ describe('작은 그림', () => {
     const big = fakeCtx()
     drawSceneIcon(big.ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, 1920, 1080, 1)
     expect(big.ctx.lineWidth).toBeGreaterThan(small.ctx.lineWidth)
+  })
+})
+
+describe('자막 등장', () => {
+  it('여섯 가지가 서로 다른 id 를 가진다', () => {
+    const ids = CAPTION_ANIMS.map((a) => a.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids).toContain('auto')
+  })
+
+  it('다 떠오른 뒤에는 붓을 건드리지 않는다', () => {
+    // 장면의 대부분은 「다 뜬」 상태다. 여기서 옮기거나 키우면 자막이 미세하게 떤다
+    for (const a of CAPTION_ANIMS) {
+      const { ctx, calls } = fakeCtx()
+      applyCaptionAnim(ctx, a.id, 1, H, H * 0.72)
+      expect(calls).toEqual([])
+    }
+  })
+
+  it('올라오기는 실제로 아래에서 위로 옮긴다', () => {
+    const { ctx, calls } = fakeCtx()
+    applyCaptionAnim(ctx, 'rise', 0, H, H * 0.72)
+    const moved = calls.find((c) => c.startsWith('translate'))
+    expect(moved).toBeDefined()
+    // 아래(양수 y)에서 시작해 제자리로 올라온다
+    expect(Number(moved!.split(' ')[2])).toBeGreaterThan(0)
+  })
+
+  it('올라오는 거리는 뜰수록 줄어든다', () => {
+    const early = fakeCtx()
+    applyCaptionAnim(early.ctx, 'rise', 0.2, H, H * 0.72)
+    const late = fakeCtx()
+    applyCaptionAnim(late.ctx, 'rise', 0.8, H, H * 0.72)
+    const y = (c: { calls: string[] }) => Number(c.calls.find((x) => x.startsWith('translate'))!.split(' ')[2])
+    expect(y(late)).toBeLessThan(y(early))
+  })
+
+  it('톡 튀어나오기는 작게 시작해 제 크기가 된다', () => {
+    const { ctx, calls } = fakeCtx()
+    applyCaptionAnim(ctx, 'pop', 0, H, H * 0.72)
+    const scaled = calls.find((c) => c.startsWith('scale'))
+    expect(scaled).toBeDefined()
+    expect(Number(scaled!.split(' ')[1])).toBeLessThan(1)
+  })
+
+  it('톡 튀어나오기는 자막 자리를 붙잡고 키운다 — 아래 자막이 위로 솟지 않게', () => {
+    const { ctx, calls } = fakeCtx()
+    const anchorY = Math.round(H * 0.72)
+    applyCaptionAnim(ctx, 'pop', 0.5, H, H * 0.72)
+    expect(calls.filter((c) => c.startsWith('translate'))).toEqual([
+      `translate 0 ${anchorY}`,
+      `translate 0 ${-anchorY}`,
+    ])
+  })
+
+  it('그냥 켜기와 스르르는 붓을 건드리지 않는다 — 진하기만으로 뜬다', () => {
+    for (const kind of ['none', 'fade'] as const) {
+      const { ctx, calls } = fakeCtx()
+      applyCaptionAnim(ctx, kind, 0.3, H, H * 0.72)
+      expect(calls).toEqual([])
+    }
+  })
+
+  it('「어울리게」는 조용한 장면에만 얌전한 것을 준다', () => {
+    expect(resolveCaptionAnim('auto', true)).toBe('fade')
+    expect(resolveCaptionAnim('auto', false)).toBe('rise')
+    expect(resolveCaptionAnim(undefined, false)).toBe('rise')
+    // 골라 두신 것은 장면 성격보다 앞선다
+    expect(resolveCaptionAnim('type', true)).toBe('type')
+  })
+})
+
+describe('작은 그림 움직임', () => {
+  it('네 가지가 서로 다른 id 를 가진다', () => {
+    const ids = ICON_ANIMS.map((a) => a.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('나타날 때는 작게 시작한다', () => {
+    const { ctx, calls } = fakeCtx()
+    drawSceneIcon(ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, W, H, 1, 'pop', 0, 0)
+    const scaled = calls.find((c) => c.startsWith('scale'))
+    expect(scaled).toBeDefined()
+    expect(Number(scaled!.split(' ')[1])).toBeLessThan(1)
+  })
+
+  it('가만히는 아무 움직임도 걸지 않는다', () => {
+    const { ctx, calls } = fakeCtx()
+    drawSceneIcon(ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, W, H, 1, 'none', 0, 3)
+    expect(calls.some((c) => c.startsWith('scale') || c.startsWith('rotate'))).toBe(false)
+  })
+
+  it('살랑살랑은 시간이 흐르면 자리가 바뀐다 — 다 뜬 뒤에도 움직인다', () => {
+    const y = (local: number) => {
+      const { ctx, calls } = fakeCtx()
+      drawSceneIcon(ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, W, H, 1, 'bounce', 1, local)
+      return calls.filter((c) => c.startsWith('translate')).map((c) => Number(c.split(' ')[2]))
+    }
+    // 1.6초에 한 번 오르내린다 — 4분의 1 지점이 가장 높다
+    expect(y(0.4)).not.toEqual(y(1.2))
+  })
+
+  it('반짝이기는 좌우로 기운다', () => {
+    const { ctx, calls } = fakeCtx()
+    drawSceneIcon(ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, W, H, 1, 'twinkle', 1, 0.55)
+    expect(calls.some((c) => c.startsWith('rotate'))).toBe(true)
+  })
+
+  it('움직여도 붓은 제자리로 돌려놓는다 — 다음 장면이 기울지 않게', () => {
+    for (const a of ICON_ANIMS) {
+      const { ctx, calls } = fakeCtx()
+      drawSceneIcon(ctx, { id: 'star', size: 0.11, color: '#A07C2C' }, W, H, 1, a.id, 0.3, 1.1)
+      expect(calls[0]).toBe('save')
+      expect(calls[calls.length - 1]).toBe('restore')
+    }
+  })
+})
+
+describe('한 글자씩 찍는 자막', () => {
+  it('막 뜰 때는 아무것도 안 보이고, 다 뜨면 전부 보인다', () => {
+    expect(typeCut(['김유진'], 0)).toEqual([''])
+    expect(typeCut(['김유진'], 1)).toEqual(['김유진'])
+  })
+
+  it('앞에서부터 차례로 찍힌다', () => {
+    expect(typeCut(['가나다라'], 0.5)).toEqual(['가나'])
+  })
+
+  it('줄 나눔은 그대로 둔다 — 찍히는 대로 줄을 다시 나누면 글줄이 튄다', () => {
+    // 두 줄(3자 + 3자) 의 절반이면 첫 줄은 다 찍히고 둘째 줄이 시작된다
+    const out = typeCut(['가나다', '라마바'], 0.5)
+    expect(out).toHaveLength(2)
+    expect(out[0]).toBe('가나다')
+    expect(out[1]).toBe('')
+  })
+
+  it('둘째 줄은 첫 줄이 다 찍힌 뒤에 이어 찍힌다', () => {
+    expect(typeCut(['가나다', '라마바'], 5 / 6)).toEqual(['가나다', '라마'])
+  })
+
+  it('범위를 벗어난 값에도 글자가 깨지지 않는다', () => {
+    expect(typeCut(['가나다'], -1)).toEqual([''])
+    expect(typeCut(['가나다'], 2)).toEqual(['가나다'])
+  })
+
+  it('빈 자막에도 줄 수는 그대로', () => {
+    expect(typeCut([''], 0.5)).toEqual([''])
   })
 })

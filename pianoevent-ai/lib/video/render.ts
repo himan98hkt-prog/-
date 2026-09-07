@@ -4,7 +4,10 @@ import { drawBackdrop, hexAlpha } from '@/lib/video/backdrop-canvas'
 import { isCalmScene, type SceneIconId, type VideoScene } from '@/lib/video/storyboard'
 import {
   DEFAULT_VIDEO_TEMPLATE,
+  resolveCaptionAnim,
   resolveTransition,
+  type CaptionAnim,
+  type IconAnim,
   type PhotoMotion,
   type TransitionKind,
   type VideoTemplate,
@@ -74,6 +77,13 @@ export interface VisibleScene {
   enter: number
   /** 어떤 방식으로 넘어오는가 */
   transition: TransitionKind
+  /**
+   * 자막이 **떠오르는 중인 정도** — 0(막 뜨기 시작) ~ 1(다 떴다).
+   *
+   * `textAlpha` 로 대신 쓰면 장면이 끝날 때 값이 도로 줄어, 자막이 **왔던 길로
+   * 되돌아가며** 사라진다. 나타남과 사라짐은 다른 일이므로 따로 잰다.
+   */
+  textEnter: number
 }
 
 /**
@@ -108,11 +118,13 @@ export function scenesAt(timeline: Timeline, seconds: number): VisibleScene[] {
     }
 
     const enter = fadeIn > 0 ? Math.min(1, local / fadeIn) : 1
+    const textEnter = local < fadeIn ? 0 : Math.min(1, (local - fadeIn) / CAPTION_FADE_SEC)
     out.push({
       index: i,
       local,
       alpha,
       textAlpha,
+      textEnter,
       enter,
       transition: resolveTransition(scene.transition, i, isCalmScene(scene.kind)),
     })
@@ -338,6 +350,51 @@ export function photoSlot(count: number, seconds: number, local: number): { inde
 }
 
 /** 한 장면을 그린다 (alpha 는 호출하는 쪽에서 이미 걸어 둔다) */
+/**
+ * 한 글자씩 찍는 자막 — 지금까지 드러난 만큼을 돌려준다.
+ *
+ * 줄 나눔은 **미리 정해 둔 그대로** 둔다. 찍히는 대로 줄을 다시 나누면
+ * 글줄이 위아래로 튀어 읽을 수가 없다. 그래서 자를 자리만 앞에서부터 옮긴다.
+ */
+export function typeCut(lines: string[], enter: number): string[] {
+  const e = Math.max(0, Math.min(1, enter))
+  const total = lines.reduce((n, line) => n + line.length, 0)
+  let shown = Math.ceil(total * e)
+  return lines.map((line) => {
+    const take = Math.max(0, Math.min(line.length, shown))
+    shown -= line.length
+    return line.slice(0, take)
+  })
+}
+
+/**
+ * 자막이 나타나는 움직임을 붓에 건다.
+ *
+ * `enter` 는 0(막 뜨기 시작) ~ 1(다 떴다). 1 이면 아무것도 하지 않는다 —
+ * 장면의 대부분은 다 뜬 상태이므로, 그 사이에 쓸데없이 붓을 건드리지 않는다.
+ *
+ * 「한 글자씩」은 붓이 아니라 **글자를 자르는 일**이라 여기서 하지 않는다.
+ */
+export function applyCaptionAnim(
+  ctx: CanvasRenderingContext2D,
+  anim: CaptionAnim,
+  enter: number,
+  h: number,
+  anchorY: number,
+) {
+  if (anim === 'none' || enter >= 1) return
+  // 끝에서 부드럽게 멎게 — 등속으로 멈추면 자막이 벽에 부딪힌 것처럼 보인다
+  const e = 1 - (1 - Math.max(0, Math.min(1, enter))) ** 3
+  if (anim === 'rise') {
+    ctx.translate(0, (1 - e) * h * 0.055)
+  } else if (anim === 'pop') {
+    const scale = 0.86 + 0.14 * e
+    ctx.translate(0, anchorY)
+    ctx.scale(scale, scale)
+    ctx.translate(0, -anchorY)
+  }
+}
+
 function drawScene(
   ctx: CanvasRenderingContext2D,
   scene: VideoScene,
@@ -345,6 +402,7 @@ function drawScene(
   sources: FrameSource,
   options: RenderOptions,
   textAlpha: number,
+  textEnter = 1,
 ) {
   const { width: w, height: h, theme } = options
   const template = options.template ?? DEFAULT_VIDEO_TEMPLATE
@@ -512,7 +570,16 @@ function drawScene(
 
   // 여기서부터는 글자다 — 넘어가는 동안에는 흐리게 두어 두 이름이 겹쳐 읽히지 않게 한다
   const sceneAlpha = ctx.globalAlpha
+  // 붓을 옮기거나 키우는 자막 효과가 있으므로, 글자 구간 전체를 save/restore 로 감싼다.
+  // 되돌리지 않으면 **다음 장면의 사진까지** 함께 밀린다.
+  ctx.save()
   ctx.globalAlpha = sceneAlpha * textAlpha
+  const anim = resolveCaptionAnim(scene.captionAnim, isCalmScene(scene.kind))
+  // 자막 자리에서 키운다 — 화면 가운데를 기준으로 키우면 아래 자막이 위로 솟는다
+  const captionPlace = centered ? 'center' : (scene.caption ?? template.caption)
+  const animY = captionPlace === 'top' ? h * 0.28 : captionPlace === 'center' ? h * 0.5 : h * 0.72
+  applyCaptionAnim(ctx, anim, textEnter, h, animY)
+  const typedLines = (lines: string[]) => (anim === 'type' ? typeCut(lines, textEnter) : lines)
 
   if (centered) {
     // 표지·마무리 — 글자 덩어리 전체 높이를 재서 가운데에 놓는다.
@@ -568,7 +635,7 @@ function drawScene(
 
     ctx.font = `700 ${titleSize}px ${theme.fonts.display}`
     ctx.fillStyle = p.paper
-    lines.forEach((line, index) => ctx.fillText(line, x, top + titleSize * 0.86 + index * lineStep))
+    typedLines(lines).forEach((line, index) => ctx.fillText(line, x, top + titleSize * 0.86 + index * lineStep))
     top += lines.length * lineStep
 
     if (scene.sub) {
@@ -576,13 +643,14 @@ function drawScene(
       ctx.fillStyle = p.accentSoft
       ctx.fillText(scene.sub, x, top + gapBeforeSub + subSize * 0.8)
     }
+    ctx.restore()
     return
   }
 
   // 사진 위 자막 — 자리는 장면마다 고른다 (얼굴을 가리지 않게)
   const place = scene.caption ?? template.caption
   if (place === 'none') {
-    ctx.globalAlpha = sceneAlpha
+    ctx.restore()
     return
   }
 
@@ -603,14 +671,14 @@ function drawScene(
     let top = h / 2 - blockH / 2
     ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
     ctx.fillStyle = '#ffffff'
-    lines.forEach((line, index) => ctx.fillText(line, cx, top + headlineSize * 0.86 + index * step))
+    typedLines(lines).forEach((line, index) => ctx.fillText(line, cx, top + headlineSize * 0.86 + index * step))
     top += lines.length * step
     if (scene.sub) {
       ctx.font = `500 ${subSize}px ${theme.fonts.body}`
       ctx.fillStyle = 'rgba(255,255,255,0.92)'
       ctx.fillText(scene.sub, cx, top + subSize)
     }
-    ctx.globalAlpha = sceneAlpha
+    ctx.restore()
     return
   }
 
@@ -626,7 +694,7 @@ function drawScene(
       ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
       ctx.fillStyle = '#ffffff'
       const lines = wrap(ctx, scene.headline, textWidth)
-      lines.forEach((line, index) => ctx.fillText(line, x, top + headlineSize * 0.86 + index * headlineSize * 1.14))
+      typedLines(lines).forEach((line, index) => ctx.fillText(line, x, top + headlineSize * 0.86 + index * headlineSize * 1.14))
       top += headlineSize * (1 + (lines.length - 1) * 1.14) + 10 * unit
     }
     if (scene.sub) {
@@ -634,7 +702,7 @@ function drawScene(
       ctx.fillStyle = 'rgba(255,255,255,0.92)'
       ctx.fillText(scene.sub, x, top + subSize * 0.9)
     }
-    ctx.globalAlpha = sceneAlpha
+    ctx.restore()
     return
   }
 
@@ -648,7 +716,7 @@ function drawScene(
   if (scene.headline) {
     ctx.font = `700 ${headlineSize}px ${theme.fonts.display}`
     ctx.fillStyle = '#ffffff'
-    ctx.fillText(scene.headline, x, y)
+    ctx.fillText(typedLines([scene.headline])[0], x, y)
     y -= 96 * unit
   }
   if (scene.eyebrow) {
@@ -656,7 +724,7 @@ function drawScene(
     ctx.fillStyle = p.accent
     ctx.fillText(scene.eyebrow, x, y)
   }
-  ctx.globalAlpha = sceneAlpha
+  ctx.restore()
 }
 
 /** 지금 시각의 화면을 통째로 그린다 */
@@ -847,12 +915,43 @@ export interface IconMark {
   color: string
 }
 
-export function drawSceneIcon(ctx: CanvasRenderingContext2D, mark: IconMark, w: number, h: number, alpha: number) {
+/**
+ * 작은 그림을 화면 오른쪽 위에 얹는다.
+ *
+ * `enter` 는 0(막 뜨는 중) ~ 1(다 떴다), `local` 은 장면이 시작한 뒤 흐른 시간(초)이다.
+ * 나타날 때 한 번 튀는 것과, 머무는 동안 살랑이는 것은 서로 다른 일이라 둘을 따로 받는다.
+ */
+export function drawSceneIcon(
+  ctx: CanvasRenderingContext2D,
+  mark: IconMark,
+  w: number,
+  h: number,
+  alpha: number,
+  anim: IconAnim = 'pop',
+  enter = 1,
+  local = 0,
+) {
   const s = Math.min(w, h) * mark.size
   const pad = Math.min(w, h) * 0.07
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.translate(w - pad - s, pad + s)
+  if (anim !== 'none') {
+    // 나타날 때 한 번 지나쳤다 돌아온다 — 딱 멈추면 도장을 찍은 것처럼 보인다
+    const e = Math.max(0, Math.min(1, enter))
+    const back = e >= 1 ? 1 : 1 + 1.7 * (e - 1) ** 3 + 0.7 * (e - 1) ** 2
+    let scale = 0.4 + 0.6 * back
+    let tilt = 0
+    if (anim === 'bounce') {
+      // 다 뜬 뒤에도 천천히 오르내린다 (1.6초에 한 번)
+      ctx.translate(0, Math.sin((local * Math.PI * 2) / 1.6) * s * 0.07 * e)
+    } else if (anim === 'twinkle') {
+      tilt = Math.sin((local * Math.PI * 2) / 2.2) * 0.14 * e
+      scale *= 1 + Math.sin((local * Math.PI * 2) / 1.1) * 0.04 * e
+    }
+    if (tilt) ctx.rotate(tilt)
+    if (scale !== 1) ctx.scale(scale, scale)
+  }
   ctx.lineWidth = Math.max(2, s * 0.1)
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
@@ -896,11 +995,11 @@ export function renderFrame(
       drawScene(ctx, timeline.scenes[front.index], front.local, sources, options, 1)
     }
   } else {
-    for (const { index, local, alpha, textAlpha, enter, transition } of visible) {
+    for (const { index, local, alpha, textAlpha, textEnter, enter, transition } of visible) {
       ctx.save()
       // 옮기기·오려내기는 붓을 움직이므로, 장면마다 되돌려 놓아야 다음 장면이 어긋나지 않는다
       ctx.globalAlpha = applyTransition(ctx, transition, enter, alpha, w, h)
-      drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha)
+      drawScene(ctx, timeline.scenes[index], local, sources, options, textAlpha, textEnter)
       ctx.restore()
     }
   }
@@ -920,6 +1019,9 @@ export function renderFrame(
       w,
       h,
       still ? 1 : front!.textAlpha,
+      frontScene.iconAnim ?? 'pop',
+      still ? 1 : front!.textEnter,
+      still ? 0 : front!.local,
     )
   }
 

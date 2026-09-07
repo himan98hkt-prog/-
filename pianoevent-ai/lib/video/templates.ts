@@ -84,6 +84,53 @@ export function resolveTransition(kind: TransitionKind | undefined, index: numbe
   return AUTO_CYCLE[index % AUTO_CYCLE.length]
 }
 
+/**
+ * 자막이 **어떻게 나타나는가**.
+ *
+ * 지금까지는 전부 「스르르 진해지기」 하나였다. 그것만으로는 사진이 바뀌었다는 것은 알아도
+ * 글자가 **말을 걸어 온다는 느낌**이 나지 않는다 — 아이 이름이 뜨는 자리가 특히 그렇다.
+ *
+ * 다만 표지·마무리처럼 조용히 읽혀야 할 자리에까지 글자가 튀어 오르면 장난스러워진다.
+ * 그래서 기본은 「어울리게」로 두고, 조용한 장면에는 얌전한 것을 쓴다.
+ */
+export type CaptionAnim = 'auto' | 'fade' | 'rise' | 'pop' | 'type' | 'none'
+
+export const CAPTION_ANIMS: { id: CaptionAnim; label: string; hint: string }[] = [
+  { id: 'auto', label: '어울리게', hint: '장면 성격에 맞춰 프로그램이 고릅니다' },
+  { id: 'fade', label: '스르르', hint: '가장 얌전합니다' },
+  { id: 'rise', label: '아래에서 올라오기', hint: '자막이 밀려 올라옵니다' },
+  { id: 'pop', label: '톡 튀어나오기', hint: '살짝 커지며 나타납니다' },
+  { id: 'type', label: '한 글자씩', hint: '타자 치듯 이름이 찍힙니다' },
+  { id: 'none', label: '그냥 켜기', hint: '움직임 없이 바로 보입니다' },
+]
+
+/**
+ * 「어울리게」를 실제 하나로 정한다.
+ *
+ * 표지·마무리·응원 글은 읽는 자리라 얌전하게, 아이 이름이 뜨는 자리는 올라오게 —
+ * 한 편 안에서 **같은 성격의 장면은 같게** 움직여야 어수선해 보이지 않는다.
+ */
+export function resolveCaptionAnim(kind: CaptionAnim | undefined, calm: boolean): CaptionAnim {
+  if (kind && kind !== 'auto') return kind
+  return calm ? 'fade' : 'rise'
+}
+
+/**
+ * 작은 그림(아이콘)이 **어떻게 움직이는가**.
+ *
+ * 가만히 붙어 있는 그림은 화면에 찍힌 도장처럼 보인다. 살짝만 움직여도
+ * 「만든 사람이 손을 댄 화면」이 된다 — 다만 계속 흔들리면 눈이 피로해지므로
+ * 기본은 나타날 때 한 번 튀는 정도로 둔다.
+ */
+export type IconAnim = 'pop' | 'bounce' | 'twinkle' | 'none'
+
+export const ICON_ANIMS: { id: IconAnim; label: string; hint: string }[] = [
+  { id: 'pop', label: '톡 나타나기', hint: '뜰 때 한 번 튑니다 (기본)' },
+  { id: 'bounce', label: '살랑살랑', hint: '천천히 오르내립니다' },
+  { id: 'twinkle', label: '반짝이기', hint: '좌우로 조금씩 기웁니다' },
+  { id: 'none', label: '가만히', hint: '움직이지 않습니다' },
+]
+
 export interface VideoTemplate {
   id: string
   name: string

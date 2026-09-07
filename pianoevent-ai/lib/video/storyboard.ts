@@ -1,7 +1,7 @@
 import { formatEventDate } from '@/lib/format'
 import { groupProgram, performerKey } from '@/lib/program/appearances'
 import type { EventRecord, ProgramPlan } from '@/lib/types'
-import type { PhotoMotion, TransitionKind } from '@/lib/video/templates'
+import type { CaptionAnim, IconAnim, PhotoMotion, TransitionKind } from '@/lib/video/templates'
 
 /**
  * 감동영상 — 연주회 전에 틀거나, 끝나고 학부모에게 보내는 짧은 영상.
@@ -44,6 +44,15 @@ export interface VideoScene {
   images?: string[]
   /** 동영상 주소 (blob URL) */
   clip?: string
+  /**
+   * 동영상의 **어디서부터** 쓸 것인가(초).
+   *
+   * 휴대폰으로 찍은 영상은 앞이 흔들리거나 「자, 시작」 같은 말이 들어 있다.
+   * 그대로 넣으면 그 부분이 그대로 영상에 남는다. 여기서 앞을 잘라 낸다.
+   * 얼마나 쓸지는 장면 시간(`seconds`)이 정한다 — 자르는 자리 둘을 따로 두면
+   * 「끝이 시작보다 앞」 같은 상태가 생기고, 그것을 막는 규칙이 또 필요해진다.
+   */
+  clipStart?: number
   /** 글자 자리 */
   caption?: CaptionPlace
   /**
@@ -58,6 +67,10 @@ export interface VideoScene {
    * 첫 장면에는 넘어옴이 없으므로 쓰이지 않는다.
    */
   transition?: TransitionKind
+  /** 자막이 나타나는 방식. 비어 있으면 「어울리게」 */
+  captionAnim?: CaptionAnim
+  /** 작은 그림이 움직이는 방식. 비어 있으면 「톡 나타나기」 */
+  iconAnim?: IconAnim
   /** 사진 움직임 — 비어 있으면 템플릿이 정한 대로 */
   motion?: PhotoMotion
   /** 화면 한쪽에 얹는 작은 그림 (하트·음표·별 …) */
@@ -165,6 +178,13 @@ export const MAX_TOTAL_SEC = 15 * 60
 /** 한 장면 최소·최대 */
 export const SCENE_MIN_SEC = 1.5
 export const SCENE_MAX_SEC = 12
+/**
+ * 올리신 동영상 한 개가 처음에 차지하는 최대 시간.
+ *
+ * 30초짜리 휴대폰 영상을 통째로 넣으면 그 아이 하나가 영상의 절반을 먹는다.
+ * 앞머리만 쓰고, 어느 자리를 쓸지는 원장님이 미셔서 정하시게 둔다.
+ */
+export const CLIP_MAX_SEC = 12
 
 export function buildStoryboard({
   event,
@@ -216,8 +236,9 @@ export function buildStoryboard({
     scenes.push({
       id: `clip-${clip.id}`,
       kind: 'clip',
-      // 동영상은 실제 길이만큼 튼다. 너무 길면 잘라 낸다
-      seconds: Math.min(SCENE_MAX_SEC * 2, Math.max(SCENE_MIN_SEC, clip.duration ?? 6)),
+      // 짧은 것은 통째로 튼다. 긴 것은 앞머리만 쓰고, 어느 자리를 쓸지는
+      // 장면 고치기의 「동영상에서 쓸 자리」로 원장님이 미신다 (clipWindow)
+      seconds: Math.min(CLIP_MAX_SEC, Math.max(SCENE_MIN_SEC, clip.duration ?? 6)),
       clip: clip.url,
       sub: options.captions ? clip.label : undefined,
     })
@@ -559,4 +580,29 @@ export function cheerRange(scenes: VideoScene[]): { from: number; to: number } |
     if (scenes[i].kind === 'message' || scenes[i].id === 'cheer-intro') last = i
   }
   return { from: first, to: last }
+}
+
+/** 동영상 장면에서 **어느 구간을 쓸 것인가** — 눌러 넣은 결과 */
+export interface ClipWindow {
+  /** 실제로 재생을 시작할 자리(초). 동영상 길이 안으로 눌러 넣은 값 */
+  start: number
+  /** 시작 자리를 밀 수 있는 가장 뒤. 이보다 뒤로 밀면 끝이 넘친다 */
+  maxStart: number
+  /** 동영상이 모자라 **멈춘 화면으로 남는** 시간(초). 0이면 딱 맞다 */
+  short: number
+}
+
+/**
+ * 자를 자리를 동영상 길이 안으로 눌러 넣는다.
+ *
+ * 원장님은 슬라이더를 끝까지 밀어 보신다. 그때 화면이 검게 남으면 고장으로 보인다 —
+ * 그래서 넘치는 값은 **저장은 그대로 두되 쓸 때만** 당겨 쓴다. 되돌리실 수 있어야 하니까.
+ * 길이를 아직 못 쟀으면(0) 누를 근거가 없으므로 적으신 값을 그대로 돌려준다.
+ */
+export function clipWindow(scene: Pick<VideoScene, 'seconds' | 'clipStart'>, length: number): ClipWindow {
+  const asked = Math.max(0, scene.clipStart ?? 0)
+  if (!(length > 0)) return { start: asked, maxStart: 0, short: 0 }
+  const maxStart = Math.max(0, length - scene.seconds)
+  const start = Math.min(asked, maxStart)
+  return { start, maxStart, short: Math.max(0, scene.seconds - (length - start)) }
 }
