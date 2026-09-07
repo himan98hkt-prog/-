@@ -590,6 +590,31 @@ export function cheerRange(scenes: VideoScene[]): { from: number; to: number } |
   return { from: first, to: last }
 }
 
+/**
+ * 사진을 아직 안 넣은 아이들 — **이름으로** 돌려준다.
+ *
+ * 「사진이 없는 2명은 이름만 나옵니다」만 적어 두면, 원장님은 그 둘이 누구인지
+ * 알아내려고 명단을 뒤지셔야 한다. 그러라고 만든 프로그램이 아니다.
+ *
+ * 세는 단위는 **곡이 아니라 사람**이다. 한 아이가 독주도 하고 듀엣도 하면 순서표에는
+ * 두 줄이지만 사람은 하나다 — 줄로 세면 사진을 다 넣으셨는데도 「없는 사람이 있다」고
+ * 나온다(실제로 그렇게 세고 있었다).
+ */
+export function missingPhotos(
+  items: { student: { id: string; student_name: string } }[],
+  photos: Record<string, string>,
+): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const item of items) {
+    const key = performerKey(item.student.student_name)
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (!photos[item.student.id]) out.push(item.student.student_name.trim())
+  }
+  return out
+}
+
 /** 동영상 장면에서 **어느 구간을 쓸 것인가** — 눌러 넣은 결과 */
 export interface ClipWindow {
   /** 실제로 재생을 시작할 자리(초). 동영상 길이 안으로 눌러 넣은 값 */

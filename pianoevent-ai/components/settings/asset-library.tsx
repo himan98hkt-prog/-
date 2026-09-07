@@ -130,7 +130,7 @@ export function AssetLibrary({ academy }: { academy: Academy }) {
                 onClick={() => setKind(k)}
                 aria-pressed={k === kind}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs transition-colors',
+                  'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                   k === kind
                     ? 'border-accent bg-accent/10 font-medium text-foreground'
                     : 'border-border text-muted-foreground hover:bg-secondary',

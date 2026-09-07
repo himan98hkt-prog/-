@@ -18,7 +18,9 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { performerCount } from '@/lib/program/appearances'
 import { PrefsBar, type PastPrefs } from '@/components/design/prefs-bar'
 import { ThemePicker } from '@/components/design/theme-picker'
 import { Button } from '@/components/ui/button'
@@ -64,6 +66,7 @@ import type { DesignTheme } from '@/lib/design/themes'
 import {
   buildStoryboard,
   clipWindow,
+  missingPhotos,
   DEFAULT_STORYBOARD_OPTIONS,
   fitToLimit,
   formatLength,
@@ -327,7 +330,10 @@ export function VideoStudio({
     return taster ? scenes.slice(taster.from, taster.to + 1) : []
   }, [spread, taster, scenes])
   const tasterSec = useMemo(() => totalSeconds(tasterScenes), [tasterScenes])
-  const withPhoto = Object.keys(photos).length
+  /** 사진을 아직 안 넣으신 아이들 — 곡이 아니라 사람으로 센다 */
+  const missing = useMemo(() => missingPhotos(plan.items, photos), [plan.items, photos])
+  const performers = useMemo(() => performerCount(plan.items.map((item) => item.student)), [plan.items])
+  const withPhoto = performers - missing.length
   /**
    * 지금 화면에 보이는 장면 — 콘티에서 표시해 준다.
    * 구간만 만드는 중에는 시계가 그 구간 기준이므로 시작 장면만큼 밀어 준다.
@@ -1266,8 +1272,25 @@ export function VideoStudio({
           <p className="text-sm font-medium">1 · 아이 사진</p>
           <p className="text-xs text-muted-foreground">
             명단에 넣어 둔 아이 사진 <strong>{withPhoto}명</strong> 분이 그대로 쓰입니다.
-            {withPhoto < plan.items.length && ` 사진이 없는 ${plan.items.length - withPhoto}명은 이름만 나옵니다.`}
           </p>
+          {/*
+            누가 빠졌는지 **이름으로** 알려 드리고, 넣는 자리로 곧장 보내 드린다.
+            「2명이 없습니다」만 적어 두면 그 둘을 찾으러 명단을 뒤지셔야 한다.
+          */}
+          {missing.length > 0 && (
+            <p className="text-xs text-muted-foreground" data-testid="video-missing-photos">
+              사진이 없는 <strong className="text-foreground">{missing.length}명</strong>은 이름만 나옵니다 —{' '}
+              <b className="text-foreground">{missing.slice(0, 6).join(' · ')}</b>
+              {missing.length > 6 && ` 외 ${missing.length - 6}명`}
+              <br />
+              <Link
+                href={`/events/${event.id}?tab=roster`}
+                className="mt-1 inline-flex h-9 items-center rounded-md border border-input px-3 text-sm hover:bg-secondary"
+              >
+                명단에서 사진 넣기
+              </Link>
+            </p>
+          )}
         </section>
 
         <section className="grid gap-2 rounded-lg border border-border p-3">
@@ -1519,7 +1542,7 @@ export function VideoStudio({
                       onClick={() => setLogoPlace(place.id)}
                       aria-pressed={logoPlace === place.id}
                       className={cn(
-                        'rounded-full border px-3 py-1 text-xs transition-colors',
+                        'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                         logoPlace === place.id
                           ? 'border-accent bg-accent/15 font-medium'
                           : 'border-border text-muted-foreground hover:bg-secondary',
@@ -1938,26 +1961,17 @@ function StoryboardStrip({
                 <span className="tabular-nums">{index + 1}.</span> {sceneLabel(scene)}
               </span>
             </button>
-            <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-              <button
-                type="button"
-                onClick={() => onMove(index, -1)}
-                disabled={index === 0}
-                aria-label={`${sceneLabel(scene)} 앞으로`}
-                className="rounded bg-black/70 px-1 text-xs text-white disabled:opacity-30"
-              >
-                ←
-              </button>
-              <button
-                type="button"
-                onClick={() => onMove(index, 1)}
-                disabled={index === timeline.scenes.length - 1}
-                aria-label={`${sceneLabel(scene)} 뒤로`}
-                className="rounded bg-black/70 px-1 text-xs text-white disabled:opacity-30"
-              >
-                →
-              </button>
-            </div>
+            {/*
+              카드마다 붙어 있던 16px 짜리 ← → 화살표를 걷어 냈다.
+
+              마우스를 올려야만 나타나 **태블릿에서는 보이지도 않았고**, 늘 보이게 바꿔 보니
+              한 화면에 눌러 볼 것이 40개에서 70개가 되어 「고르는 자리를 접어 주세요」에 걸렸다.
+              둘 다 맞는 말이라, 셋째 길인 이것을 없앤다.
+
+              순서 바꾸는 길은 그대로 둘이다 —
+                · 시간 띠에서 **끌어서** 옮기기
+                · 이 카드를 눌러 열리는 **장면 고치기의 [← 앞으로] [뒤로 →]** (제 크기 단추)
+            */}
           </div>
         ))}
       </div>
@@ -2338,7 +2352,7 @@ function SceneEditor({
               aria-pressed={(scene.caption ?? 'bottom') === place.id}
               title={place.hint}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
+                'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 (scene.caption ?? 'bottom') === place.id
                   ? 'border-accent bg-accent/15 font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2365,7 +2379,7 @@ function SceneEditor({
               aria-pressed={(scene.transition ?? 'auto') === item.id}
               title={item.hint}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
+                'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 (scene.transition ?? 'auto') === item.id
                   ? 'border-accent bg-accent/15 font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2393,7 +2407,7 @@ function SceneEditor({
               aria-pressed={(scene.captionAnim ?? 'auto') === item.id}
               title={item.hint}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
+                'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 (scene.captionAnim ?? 'auto') === item.id
                   ? 'border-accent bg-accent/15 font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2418,7 +2432,7 @@ function SceneEditor({
             onClick={() => onChange({ motion: undefined })}
             aria-pressed={!scene.motion}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs transition-colors',
+              'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
               !scene.motion
                 ? 'border-accent bg-accent/15 font-medium'
                 : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2433,7 +2447,7 @@ function SceneEditor({
               onClick={() => onChange({ motion: item.id })}
               aria-pressed={scene.motion === item.id}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
+                'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 scene.motion === item.id
                   ? 'border-accent bg-accent/15 font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2454,7 +2468,7 @@ function SceneEditor({
             onClick={() => onChange({ icon: undefined })}
             aria-pressed={!scene.icon}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs transition-colors',
+              'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
               !scene.icon
                 ? 'border-accent bg-accent/15 font-medium'
                 : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2469,7 +2483,7 @@ function SceneEditor({
               onClick={() => onChange({ icon: item.id })}
               aria-pressed={scene.icon === item.id}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
+                'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                 scene.icon === item.id
                   ? 'border-accent bg-accent/15 font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary',
@@ -2491,7 +2505,7 @@ function SceneEditor({
                 aria-pressed={(scene.iconAnim ?? 'pop') === item.id}
                 title={item.hint}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs transition-colors',
+                  'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                   (scene.iconAnim ?? 'pop') === item.id
                     ? 'border-accent bg-accent/15 font-medium'
                     : 'border-border text-muted-foreground hover:bg-secondary',

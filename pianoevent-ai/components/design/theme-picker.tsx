@@ -107,7 +107,7 @@ export function ThemePicker({
             onClick={() => setFamily(id)}
             aria-pressed={id === family}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs transition-colors',
+              'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
               id === family
                 ? 'border-accent bg-accent/10 font-medium text-foreground'
                 : 'border-border text-muted-foreground hover:bg-secondary',

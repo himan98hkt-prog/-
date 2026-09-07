@@ -354,7 +354,7 @@ export function DesignStudio({
                   }}
                   aria-pressed={group.category === category}
                   className={cn(
-                    'rounded-full border px-3 py-1 text-xs transition-colors',
+                    'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                     group.category === category
                       ? 'border-accent bg-accent/10 font-medium text-foreground'
                       : 'border-border text-muted-foreground hover:bg-secondary',
@@ -378,7 +378,7 @@ export function DesignStudio({
                   onClick={() => setLook(null)}
                   aria-pressed={look === null}
                   className={cn(
-                    'rounded-full border px-3 py-1 text-xs transition-colors',
+                    'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                     look === null
                       ? 'border-accent bg-accent/10 font-medium text-foreground'
                       : 'border-border text-muted-foreground hover:bg-secondary',
@@ -393,7 +393,7 @@ export function DesignStudio({
                     onClick={() => setLook(one)}
                     aria-pressed={look === one}
                     className={cn(
-                      'rounded-full border px-3 py-1 text-xs transition-colors',
+                      'min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors',
                       look === one
                         ? 'border-accent bg-accent/10 font-medium text-foreground'
                         : 'border-border text-muted-foreground hover:bg-secondary',
