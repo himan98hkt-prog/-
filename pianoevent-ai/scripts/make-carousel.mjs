@@ -28,6 +28,9 @@ const I = Object.fromEntries(['logo-gold.png', 'po-real-stage.jpg', 'po-deco.jpg
   'doc-cover.jpg', 'doc-inner.jpg', 'doc-cue.jpg', 'doc-mc.jpg', 'doc-cert.jpg',
   'doc-ticket.jpg', 'doc-invite-card.jpg', 'invite.jpg', 'stage.jpg', 'video.jpg',
   's1.jpg', 's2.jpg', 's3.jpg', 'th-1.jpg', 'th-2.jpg', 'th-3.jpg',
+  // 감동영상 — 실제로 뽑힌 화면과 고치는 칸 (npm run shots:video)
+  'vf-title.jpg', 'vf-kid.jpg', 'vf-kid2.jpg', 'vf-cheer.jpg', 'vf-end.jpg',
+  'vs-board.jpg', 'vs-scene.jpg', 'vs-timeline.jpg', 'vs-trim.jpg',
 ].map((f) => [
   // 확장자를 **먼저** 떼야 한다. 안 떼고 낙타등으로 바꾸면 'Jpg' 가 붙어
   // 이름이 어긋나고, src 가 undefined 가 되어 사진이 통째로 빠진다
@@ -352,8 +355,90 @@ add('11-당일진행', 'deep', `
   .flat b{color:#F4EDE0}
 `)
 
+/* ── 11-A 감동영상 · 실제로 나오는 화면 ─────────────────── */
+add('12-감동영상결과', 'dark', `
+  <div class="eyebrow">기능 07 · 감동영상</div>
+  <h2 style="font-size:56px;margin-top:12px">무비메이커를<br>여실 필요가 <em>없습니다</em></h2>
+  <p class="lead" style="margin-top:20px;font-size:30px">명단에 넣어 둔 아이 사진이 <b style="color:#F4EDE0">그대로 장면</b>이 되어 있습니다.</p>
+  <div class="vgrid">
+    <figure><img src="${I.vfTitle}"><figcaption>표지</figcaption></figure>
+    <figure><img src="${I.vfKid}"><figcaption>아이 한 명씩 · 이름과 곡</figcaption></figure>
+    <figure><img src="${I.vfCheer}"><figcaption>학부모 응원 자막</figcaption></figure>
+    <figure><img src="${I.vfEnd}"><figcaption>마무리 한 줄</figcaption></figure>
+  </div>
+  <p class="note">위 네 장은 그림이 아니라 <b>실제로 뽑힌 영상의 화면</b>입니다<br>
+  아이 사진은 상품에 함께 드리는 <b>연습용 그림</b>으로 만들었습니다</p>
+`, '12', `
+  .card{padding-top:64px;padding-bottom:54px}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
+  .vgrid figure{margin:0}
+  .vgrid figure.wide{grid-column:1 / -1}
+  .vgrid img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;
+    box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  .vgrid figcaption{margin-top:11px;font-size:26px;font-weight:700;color:#C8A24A;text-align:center}
+  .note{margin-top:auto;padding-top:26px;font-size:26px;color:#B9AF9C;text-align:center}
+  .note b{color:#F4EDE0}
+`)
+
+/* ── 11-B 감동영상 · 고치는 화면 ────────────────────────── */
+add('13-감동영상편집', '', `
+  <div class="eyebrow">기능 07 · 캡컷처럼</div>
+  <h2 style="font-size:54px;margin-top:12px">장면마다 <em>눌러서</em> 고칩니다</h2>
+  <figure class="big"><img src="${I.vsScene}"><figcaption>실제 「장면 고치기」 화면</figcaption></figure>
+  <div class="nums">
+    <div><b>10</b>장면 전환</div>
+    <div><b>5</b>자막 등장</div>
+    <div><b>10</b>작은 그림</div>
+    <div><b>20</b>영상 템플릿</div>
+  </div>
+  <p class="note"><b>「어울리게」로 두셔도 됩니다</b> — 표지는 얌전하게, 아이들 사진은 조금 움직이게 알아서 섞습니다</p>
+`, '13', `
+  .card{padding-top:60px;padding-bottom:52px}
+  .big{margin:24px 0 0}
+  .big img{width:100%;height:660px;object-fit:cover;object-position:bottom;border-radius:14px;
+    border:1px solid rgba(160,124,44,.3);box-shadow:0 14px 34px rgba(83,62,38,.16)}
+  .big figcaption{margin-top:12px;font-size:26px;font-weight:700;color:#A07C2C;text-align:center}
+  .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+  .nums div{background:#fff;border:1px solid #EADFC8;border-radius:14px;padding:16px 6px;
+    text-align:center;font-size:23px;color:#5A544B;letter-spacing:-.02em}
+  .nums b{display:block;font-family:'Noto Serif KR',serif;font-weight:900;font-size:44px;
+    color:#8B1E2E;line-height:1.15;margin-bottom:4px}
+  .note{margin-top:auto;padding-top:24px;font-size:26px;line-height:1.5;color:#5A544B;text-align:center}
+  .note b{color:#8B1E2E}
+`)
+
+/* ── 11-C 감동영상 · 끌어서 편집 · 동영상 자르기 ────────── */
+add('14-감동영상띠', '', `
+  <div class="eyebrow">기능 07 · 시간 띠</div>
+  <h2 style="font-size:52px;margin-top:12px">끌어서 옮기고<br><em>끌어서</em> 늘립니다</h2>
+  <figure class="strip"><img src="${I.vsTimeline}"><figcaption>네모 폭이 곧 그 장면 길이입니다</figcaption></figure>
+  <ul class="flat">
+    <li>서른 장면짜리에서 다섯 번째를 스무 번째로 — <b>끌면 한 번</b></li>
+    <li>오른쪽 끝을 끌면 <b>머무는 시간</b>이 바뀝니다</li>
+    <li>휴대폰 영상도 사이에 넣고, <b>앞 흔들림은 잘라 내고</b> 씁니다</li>
+    <li>음악은 <b>어디서부터 틀지 · 얼마나 크게</b>까지 정하십니다</li>
+    <li>사진 없는 아이는 <b>「사진 없음」</b>으로 미리 알려 줍니다</li>
+    <li><b>30초만 먼저</b> 만들어 보고 마음에 드실 때 전체를 뽑습니다</li>
+  </ul>
+  <p class="note">끌기가 어려우시면 <b>안 여셔도 됩니다</b> — 화살표 단추와 숫자 입력이 그대로 있습니다</p>
+`, '14', `
+  .card{padding-top:60px;padding-bottom:52px}
+  .strip{margin:26px 0 0}
+  .strip img{width:100%;border-radius:14px;border:1px solid rgba(160,124,44,.3);
+    box-shadow:0 12px 30px rgba(83,62,38,.16)}
+  .strip figcaption{margin-top:12px;font-size:26px;font-weight:700;color:#A07C2C;text-align:center}
+  .flat{list-style:none;margin-top:30px}
+  .flat li{font-size:30px;line-height:1.5;color:#5A544B;margin-bottom:20px;
+    padding-left:34px;position:relative;letter-spacing:-.02em}
+  .flat li::before{content:'';position:absolute;left:0;top:13px;width:14px;height:14px;
+    border-radius:50%;background:#A07C2C}
+  .flat b{color:#2B2620}
+  .note{margin-top:auto;padding-top:22px;font-size:25px;line-height:1.5;color:#5A544B;text-align:center}
+  .note b{color:#8B1E2E}
+`)
+
 /* ── 12 기능 한눈에 ──────────────────────────────────────── */
-add('12-기능전체', '', `
+add('15-기능전체', '', `
   <div class="eyebrow">들어 있는 것 전부</div>
   <h2 style="font-size:52px;margin-top:12px">이만큼 들어 있습니다</h2>
   <div class="all">
@@ -365,7 +450,7 @@ add('12-기능전체', '', `
     <div><b>그 밖에</b>테마 108종 · 곡 사전 70여 곡 · 모바일 초대장 · 참석 집계 · 자동 저장 · 되돌리기 · 인쇄 미리보기 · 종이 장수 계산 · 프로그램 안 사용설명서</div>
     <div class="no"><b>들어 있지 않은 것</b>악보 · 반주 음원 · 배경 음악 — 저작권이 있어 학원에서 준비하십니다</div>
   </div>
-`, '12', `
+`, '15', `
   .card{padding-top:64px;padding-bottom:56px}
   .all{margin-top:26px;display:flex;flex-direction:column;gap:12px}
   .all div{background:#fff;border-radius:14px;padding:16px 22px;
@@ -376,7 +461,7 @@ add('12-기능전체', '', `
 `)
 
 /* ── 13 안심 + CTA ───────────────────────────────────────── */
-add('13-CTA', 'dark', `
+add('16-CTA', 'dark', `
   <div class="rule"></div>
   <h2 style="font-size:62px;margin-top:30px">아이들 정보는<br>학원 밖으로<br><em>나가지 않습니다</em></h2>
   <div class="safe">
@@ -389,7 +474,7 @@ add('13-CTA', 'dark', `
     <b>accelssam.com</b>
     <span>프로필 링크에서 받으실 수 있습니다</span>
   </div>
-`, '13', `
+`, '16', `
   .safe{margin-top:36px;display:flex;flex-direction:column;gap:18px}
   .safe div{border-left:6px solid #C8A24A;padding:6px 0 6px 24px}
   .safe b{display:block;font-size:32px;color:#F4EDE0;margin-bottom:6px;letter-spacing:-.02em}

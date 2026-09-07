@@ -88,3 +88,27 @@ describe('올린 동영상이 처음 차지하는 시간', () => {
     expect(clipWindow(scene!, 40).maxStart).toBeGreaterThan(0)
   })
 })
+
+describe('장면 시간은 사람이 읽을 수 있는 숫자여야 한다', () => {
+  it('셈으로 나온 시간도 0.1초로 끊어 준다', () => {
+    // 응원 글은 「글자 수에 따라 조금 늘린다」로 계산된다 —
+    // 그대로 두면 3.6666666666666666 이 콘티에 그대로 찍힌다(실제로 그렇게 나왔다)
+    const scenes = buildStoryboard({
+      event: { id: 'e1', title: '제1회 발표회', date: '2026-01-01', venue: '홀' },
+      plan: { items: [] },
+      messages: [
+        { name: '김○○', message: '가'.repeat(16) },
+        { name: '박○○', message: '나'.repeat(40) },
+        { name: '윤○○', message: '다'.repeat(7) },
+      ],
+    } as unknown as Parameters<typeof buildStoryboard>[0])
+    // 응원 장면이 실제로 만들어졌는지부터 본다 — 안 만들어졌으면 이 검사는 아무것도 안 잰다
+    expect(scenes.filter((scene) => scene.kind === 'message').length).toBe(3)
+    expect(scenes.length).toBeGreaterThan(0)
+    for (const scene of scenes) {
+      const tenths = scene.seconds * 10
+      expect(Math.abs(tenths - Math.round(tenths))).toBeLessThan(1e-9)
+      expect(String(scene.seconds).replace('.', '').length).toBeLessThanOrEqual(3)
+    }
+  })
+})

@@ -197,7 +197,15 @@ export function buildStoryboard({
   options = DEFAULT_STORYBOARD_OPTIONS,
   closing,
 }: StoryboardInput): VideoScene[] {
-  const clamp = (value: number) => Math.min(SCENE_MAX_SEC, Math.max(SCENE_MIN_SEC, value))
+  /**
+   * 장면 시간을 범위 안에 넣고 **0.1초로 끊는다.**
+   *
+   * 「글자 수에 따라 조금 늘린다」 같은 셈은 3.6666666666666666 을 만든다.
+   * 그 값이 콘티의 「3.6666666666666666초」로 그대로 나왔다 —
+   * 원장님께 보여 드릴 숫자가 아니고, 고치실 때 입력칸에도 그대로 들어간다.
+   */
+  const clamp = (value: number) =>
+    Math.round(Math.min(SCENE_MAX_SEC, Math.max(SCENE_MIN_SEC, value)) * 10) / 10
   const scenes: VideoScene[] = []
 
   scenes.push({

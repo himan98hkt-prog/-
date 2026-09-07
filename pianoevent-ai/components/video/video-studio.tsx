@@ -1928,7 +1928,7 @@ function StoryboardStrip({
                 <img src={shots[index]} alt="" className="h-full w-full object-cover" />
               ) : null}
               <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-xs tabular-nums text-white">
-                {scene.seconds}초
+                {Math.round(scene.seconds * 10) / 10}초
               </span>
               {isTextOnly(scene) && (
                 <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-xs text-white">사진 없음</span>
@@ -2138,8 +2138,8 @@ function SceneTimeline({
               onPointerDown={(event) => startMove(event, index)}
               role="button"
               tabIndex={-1}
-              aria-label={`${sceneLabel(scene)} ${seconds}초`}
-              title={`${sceneLabel(scene)} · ${seconds}초 — 끌어서 옮기고, 오른쪽 끝을 끌어 길이를 바꿉니다`}
+              aria-label={`${sceneLabel(scene)} ${Math.round(seconds * 10) / 10}초`}
+              title={`${sceneLabel(scene)} · ${Math.round(seconds * 10) / 10}초 — 끌어서 옮기고, 오른쪽 끝을 끌어 길이를 바꿉니다`}
             >
               {shots[index] ? (
                 // eslint-disable-next-line @next/next/no-img-element

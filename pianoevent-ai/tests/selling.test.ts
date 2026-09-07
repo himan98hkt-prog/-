@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -82,8 +83,36 @@ describe('홈페이지에 올리는 묶음', () => {
     }
   })
 
-  it('폴더 없이 납작하게 묶는다', () => {
-    expect(packer).toContain("'-j'")
+  it('상품 편집 화면에 붙여넣는 글 셋도 함께 담긴다', () => {
+    // 따로 드리면 「어느 것이 최신인지」가 금방 어긋난다
+    for (const file of ['상세페이지-붙여넣기.html', '상품요약설명-붙여넣기.html', '커리큘럼-붙여넣기.html']) {
+      expect(packer).toContain(file)
+    }
+  })
+
+  it('폴더 없이 납작하게, 한글 이름이 깨지지 않게 묶는다', () => {
+    /*
+     * 예전에는 `zip -j` 를 쓰는지만 봤다 — **연장을 본 것이지 결과를 본 것이 아니다.**
+     * 실제로 봐야 하는 것은 둘이다:
+     *   · 압축 안에 폴더가 없어야 한다(푼 자리에 파일이 그대로 나와야 하므로)
+     *   · 이름이 UTF-8 이라고 적혀 있어야 한다(`zip -j` 는 그 표시를 안 붙여 한글이 깨진다)
+     */
+    const zip = join(process.cwd(), 'web', 'recital-upload.zip')
+    if (!existsSync(zip)) return // 아직 안 만들었으면 건너뛴다 (npm run pack:web)
+    const bytes = readFileSync(zip)
+    const names: string[] = []
+    let utf8 = true
+    for (let i = 0; i + 30 < bytes.length; i += 1) {
+      if (bytes.readUInt32LE(i) !== 0x04034b50) continue
+      const flag = bytes.readUInt16LE(i + 6)
+      const len = bytes.readUInt16LE(i + 26)
+      names.push(bytes.subarray(i + 30, i + 30 + len).toString('utf8'))
+      if ((flag & 0x0800) === 0) utf8 = false
+    }
+    expect(names.length).toBeGreaterThan(4)
+    expect(names.some((n) => n.includes('/'))).toBe(false)
+    expect(utf8).toBe(true)
+    expect(names).toContain('상세페이지-붙여넣기.html')
   })
 })
 

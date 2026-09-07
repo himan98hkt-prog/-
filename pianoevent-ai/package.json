@@ -18,6 +18,7 @@
     "verify:detail": "node scripts/verify-detail.mjs",
     "verify:stage": "node scripts/verify-stage.mjs",
     "verify:video": "node scripts/verify-video.mjs",
+    "shots:video": "node scripts/video-shots.mjs",
     "mobile": "node scripts/mobile.mjs",
     "pack": "node scripts/pack.mjs",
     "demo:build": "vite build --config demo/vite.config.ts && node scripts/build-artifact.mjs",

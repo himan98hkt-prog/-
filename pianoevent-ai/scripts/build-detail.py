@@ -108,6 +108,25 @@ EXTRA_CSS = """
     .spec th{border-bottom:0;padding-bottom:.2rem;}
   }
 
+  /* 감동영상 — 뽑힌 화면은 16:9 라 갤러리와 크기 규칙이 다르다 */
+  .vgal{display:grid;gap:clamp(.9rem,2vw,1.4rem);margin-top:clamp(1.6rem,3.5vw,2.4rem);
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));}
+  .vgal figure{margin:0;}
+  .vgal img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;
+    border-radius:12px;background:#141118;
+    box-shadow:0 3px 10px rgba(20,17,24,.2), 0 20px 44px -14px rgba(20,17,24,.5);}
+  .vgal figcaption{margin-top:.7em;font-size:clamp(.9rem,.86rem + .2vw,.99rem);
+    color:var(--ink-soft);text-align:center;line-height:1.55;}
+  .vgal figcaption b{display:block;color:var(--ink);font-weight:700;margin-bottom:.1em;}
+  /* 시간 띠는 가로로 긴 한 줄이라 따로 둔다 */
+  .vstrip{margin-top:clamp(1.6rem,3.5vw,2.4rem);background:var(--white);border-radius:20px;
+    overflow:hidden;border:1px solid rgba(160,124,44,.14);
+    box-shadow:0 6px 24px rgba(83,62,38,.08);}
+  .vstrip img{display:block;width:100%;height:auto;}
+  .vstrip p{font-size:clamp(.92rem,.88rem + .25vw,1rem);color:var(--ink-soft);
+    padding:1em clamp(.9rem,2vw,1.4rem) 1.2em;line-height:1.66;}
+  .vstrip p b{color:var(--ink);font-weight:700;}
+
   .count{display:grid;gap:clamp(.8rem,2vw,1.2rem);margin-top:clamp(1.6rem,3.5vw,2.2rem);
     grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));}
   .count div{background:var(--white);border-radius:18px;padding:clamp(1rem,2.4vw,1.4rem);
@@ -292,10 +311,72 @@ BODY = """<body>
   </div>
 </section>
 
-<!-- ── 05 커리큘럼 : 준비 일정 ──────────────────────── -->
+<!-- ── 05 감동영상 ──────────────────────────────────────── -->
 <section class="reality">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">05 /</span> 커리큘럼 &mdash; 연주회 D-30</p>
+    <p class="eyebrow reveal"><span class="num">05 /</span> 감동영상</p>
+    <h2 class="reveal" style="--d:0.1s">무비메이커를 여실 필요가<br><span class="accent">없습니다</span></h2>
+    <p class="sub reveal" style="--d:0.18s">연주회 마지막 순서에 트는 그 영상입니다. 사진을 한 장씩 끌어다 놓고, 자막을 하나씩 치고, 순서를 바꿀 때마다 다시 렌더링하던 그 밤을 없앱니다. <strong>명단에 넣어 둔 아이 사진이 그대로 장면이 되어 있습니다.</strong></p>
+
+    <div class="vgal reveal" style="--d:0.24s">
+      <figure><img src="{vf_title}" alt="감동영상 표지 화면"><figcaption><b>표지</b>학원 이름 &middot; 행사 제목 &middot; 날짜</figcaption></figure>
+      <figure><img src="{vf_kid}" alt="아이 한 명 장면"><figcaption><b>아이 한 명씩</b>연주 순서 그대로 &middot; 이름과 곡</figcaption></figure>
+      <figure><img src="{vf_kid2}" alt="아이 장면 · 다른 테마 색"><figcaption><b>사진이 살아 움직입니다</b>천천히 확대되며 넘어갑니다</figcaption></figure>
+      <figure><img src="{vf_cheer}" alt="학부모 응원 메시지 장면"><figcaption><b>학부모 응원</b>초대장 회신이 그대로 자막으로</figcaption></figure>
+      <figure><img src="{vf_end}" alt="마무리 화면"><figcaption><b>마무리</b>원장님이 고쳐 쓰는 한 줄</figcaption></figure>
+    </div>
+    <p class="gal-note reveal"><b>위 다섯 장은 그림이 아니라 실제로 뽑힌 영상의 화면입니다.</b> 아이 사진은 상품에 함께 드리는 연습용 그림으로 만들었습니다.</p>
+
+    <div class="vstrip reveal">
+      <img src="{vs_board}" alt="만들어질 모습 — 콘티">
+      <p><b>만들어질 모습</b> &mdash; 만들기 전에 장면 하나하나가 <strong>실제로 나올 화면 그대로</strong> 그려집니다. 누르면 그 장면으로 가고, 사진을 안 넣은 아이는 「사진 없음」으로 표시됩니다.</p>
+    </div>
+
+    <p class="gal-head reveal">만들어지는 과정 <span>&middot; 원장님이 하시는 일은 넷</span></p>
+    <div class="steps">
+      <div class="step reveal"><div class="when">1<small>그대로</small></div><div class="what"><b>아무것도 안 하셔도 이미 만들어져 있습니다</b><span>명단에 사진을 넣어 두셨다면, 감동영상 화면을 여는 순간 <strong>표지 &middot; 아이 한 명씩 &middot; 학부모 응원 &middot; 마무리</strong>까지 장면이 짜여 있습니다. 순서는 연주 순서 그대로입니다.</span><span class="out">여기까지 &middot; 누른 것 0번</span></div></div>
+      <div class="step reveal" style="--d:0.08s"><div class="when">2<small>확인</small></div><div class="what"><b>만들기 전에 전체를 그림으로 봅니다</b><span>장면마다 <strong>실제로 나올 화면</strong>이 그려져 나옵니다. 설명이 아니라 그 그림입니다. 사진을 안 넣은 아이는 「사진 없음」으로 표시되어, 만들기 전에 누가 빠졌는지 한눈에 보입니다.</span><span class="out">나오는 것 &middot; 콘티 (만들어질 모습)</span></div></div>
+      <div class="step reveal" style="--d:0.16s"><div class="when">3<small>손보기</small></div><div class="what"><b>마음에 안 드는 장면만 고치십니다</b><span>문구 &middot; 머무는 시간 &middot; 글자 자리에 더해, <strong>넘어오는 효과 10가지</strong>, <strong>자막이 나타나는 방식 5가지</strong>(한 글자씩 타자 치듯 찍히는 것 포함), <strong>사진 움직임 5가지</strong>, <strong>작은 그림 10종</strong>을 고르십니다. 전부 「어울리게」로 두셔도 됩니다 &mdash; 표지는 얌전하게, 아이들 사진은 조금 움직이게 알아서 섞습니다.</span><span class="out">고르는 것 &middot; 전환 10 · 자막 5 · 움직임 5 · 그림 10</span></div></div>
+      <div class="step reveal" style="--d:0.24s"><div class="when">4<small>얹기</small></div><div class="what"><b>연습 사진 &middot; 휴대폰 영상 &middot; 음악을 얹습니다</b><span>연습실에서 찍은 사진을 끌어다 놓으면 앞머리에 「이 무대까지 오는 동안」으로 들어갑니다. <strong>휴대폰으로 찍은 짧은 영상</strong>도 사이에 끼울 수 있고, 앞이 흔들리는 부분은 <strong>잘라 내고 쓰실 자리만</strong> 고르십니다. 음악은 학원에서 쓰시던 파일을 얹고 <strong>어디서부터 틀지, 얼마나 크게</strong> 정하십니다.</span><span class="out">받는 것 &middot; 사진 · 동영상 · 음악 파일</span></div></div>
+      <div class="step reveal" style="--d:0.32s"><div class="when">5<small>뽑기</small></div><div class="what"><b>30초만 먼저 만들어 보고, 그다음 전체</b><span>영상은 화면을 그리면서 담기 때문에 <strong>실제 길이만큼 걸립니다</strong>(12분짜리는 12분). 그 12분을 기다린 뒤에 「글씨가 작네」를 아시면 12분이 통째로 날아갑니다. 그래서 <strong>[30초만 먼저 만들어 보기]</strong>를 옆에 두었습니다 &mdash; 앞 &middot; 가운데 &middot; 끝에서 한 장면씩 이어 붙여 30초로 보여 드립니다.</span><span class="out">나오는 것 &middot; MP4 또는 WebM 파일</span></div></div>
+    </div>
+
+    <p class="gal-head reveal">고치는 화면 <span>&middot; 실제 프로그램 화면</span></p>
+    <div class="vstrip reveal">
+      <img src="{vs_scene}" alt="장면 고치기 — 전환 · 자막 등장 · 사진 움직임 · 작은 그림">
+      <p><b>장면 고치기</b> &mdash; 넘어오는 효과, 자막이 나타나는 방식, 사진 움직임, 작은 그림을 <strong>눌러서</strong> 고릅니다. 위 그림은 실제 화면을 그대로 잘라 온 것입니다 &mdash; 고르실 것이 이만큼 있지만, <strong>전부 「어울리게」로 두셔도 됩니다.</strong></p>
+    </div>
+
+    <div class="vstrip reveal" style="--d:0.1s">
+      <img src="{vs_trim}" alt="동영상에서 쓸 자리 자르기">
+      <p><b>동영상 자르기</b> &mdash; 휴대폰 영상 앞의 흔들림과 「자, 시작」 소리를 잘라 냅니다. 손잡이를 미시면 <strong>쓰는 구간이 초 단위로</strong> 적히고(<strong>5.0초 → 17.0초</strong>), 미리보기와 실제로 뽑히는 영상이 <strong>같은 자리</strong>를 씁니다.</p>
+    </div>
+
+    <div class="vstrip reveal" style="--d:0.2s">
+      <img src="{vs_timeline}" alt="시간 띠 — 끌어서 순서와 길이 바꾸기">
+      <p><b>시간 띠</b> &mdash; 네모 하나가 장면 하나입니다. <strong>끌어서 순서를 옮기고</strong>, 오른쪽 끝을 끌어 <strong>길이를 바꿉니다</strong>. 네모 폭이 곧 그 장면 길이라, 어느 장면이 유난히 긴지 숫자가 아니라 눈으로 보입니다. 끌기가 어려우시면 안 여셔도 됩니다 &mdash; 화살표 단추와 숫자 입력이 그대로 있습니다.</p>
+    </div>
+
+    <div class="count" style="margin-top:clamp(1.8rem,4vw,2.6rem)">
+      <div class="reveal"><b>20종</b><span>영상 템플릿</span></div>
+      <div class="reveal" style="--d:.08s"><b>10가지</b><span>장면 전환</span></div>
+      <div class="reveal" style="--d:.16s"><b>5가지</b><span>자막 등장</span></div>
+      <div class="reveal" style="--d:.24s"><b>10종</b><span>작은 그림</span></div>
+      <div class="reveal" style="--d:.32s"><b>14종</b><span>무대 배경</span></div>
+    </div>
+
+    <div class="notice reveal">
+      <p class="n-title">&#127909; 이 영상은 어디에서 만들어지나요</p>
+      <p><strong>원장님 컴퓨터 안에서, 프로그램이 직접 만듭니다.</strong> 아이들 사진과 얼굴이 어디로도 올라가지 않습니다. 영상 편집 프로그램을 따로 깔지 않으셔도 되고, 월 구독도 없습니다.<br>
+      <strong>배경 음악은 들어 있지 않습니다.</strong> 저작권이 있는 자료라 학원에서 쓰시던 파일을 얹으시면 됩니다. 만든 영상 파일은 프로그램이 보관하지 않습니다 &mdash; 어디에 올릴지는 원장님이 정하십니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 06 커리큘럼 : 준비 일정 ──────────────────────── -->
+<section class="reality">
+  <div class="inner">
+    <p class="eyebrow reveal"><span class="num">06 /</span> 커리큘럼 &mdash; 연주회 D-30</p>
     <h2 class="reveal" style="--d:0.1s">이 순서대로만 하시면 됩니다</h2>
     <p class="sub reveal" style="--d:0.18s">프로그램이 <strong>다음에 하실 일 하나</strong>만 화면 맨 위에 띄워 드립니다. 순서를 외우실 필요가 없습니다.</p>
     <div class="steps">
@@ -310,10 +391,10 @@ BODY = """<body>
   </div>
 </section>
 
-<!-- ── 06 이용 안내 ─────────────────────────────────── -->
+<!-- ── 07 이용 안내 ─────────────────────────────────── -->
 <section class="guide">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">06 /</span> 이용 안내</p>
+    <p class="eyebrow reveal"><span class="num">07 /</span> 이용 안내</p>
     <h2 class="reveal" style="--d:0.1s">받으시고, 까시고, 키 한 번</h2>
     <div class="info-cards">
       <div class="info-card red reveal">
@@ -339,10 +420,10 @@ BODY = """<body>
   </div>
 </section>
 
-<!-- ── 07 이런 분께 추천합니다 ──────────────────────── -->
+<!-- ── 08 이런 분께 추천합니다 ──────────────────────── -->
 <section class="recommend">
   <div class="inner">
-    <p class="eyebrow reveal"><span class="num">07 /</span> 이런 분께 추천합니다</p>
+    <p class="eyebrow reveal"><span class="num">08 /</span> 이런 분께 추천합니다</p>
     <h2 class="reveal" style="--d:0.1s">올해 연주회부터<br><span class="accent">밤새우지 않으셔도</span> 됩니다</h2>
     <div class="pill-list">
       <div class="pill reveal"><span class="icon check">&#10003;</span><span>해마다 연주회를 여시지만, 준비하는 2주가 늘 버거우셨던 원장님</span></div>
