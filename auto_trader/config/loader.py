@@ -28,6 +28,7 @@ DB_PATH = DATA_DIR / "trader.db"
 HOLIDAYS_PATH = CONFIG_DIR / "holidays.txt"
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 # KIS 도메인: 모의투자를 기본으로 삼는다(절대 규칙 1).
 KIS_BASE_URLS: dict[str, str] = {
@@ -69,8 +70,11 @@ class EnvConfig:
 
     anthropic_api_key: str
     claude_model: str
+    claude_temperature: float | None
+    claude_effort: str | None
     gemini_api_key: str
     gemini_model: str
+    gemini_temperature: float
 
     naver_client_id: str | None
     naver_client_secret: str | None
@@ -101,7 +105,9 @@ class EnvConfig:
             f"kis_account_no={mask(self.kis_account_no, 2, 2)!r}, "
             f"kis_account_product_cd={self.kis_account_product_cd!r}, "
             f"anthropic_api_key={mask(self.anthropic_api_key)!r}, claude_model={self.claude_model!r}, "
+            f"claude_temperature={self.claude_temperature!r}, claude_effort={self.claude_effort!r}, "
             f"gemini_api_key={mask(self.gemini_api_key)!r}, gemini_model={self.gemini_model!r}, "
+            f"gemini_temperature={self.gemini_temperature!r}, "
             f"news_enabled={self.news_enabled}, notifier={self.notifier!r}, "
             f"telegram_bot_token={mask(self.telegram_bot_token)!r}, "
             f"telegram_chat_id={mask(self.telegram_chat_id, 2, 2)!r}, "
@@ -184,6 +190,22 @@ def _parse_bool(raw: str | None, *, default: bool, key: str, errors: list[str]) 
         return False
     errors.append(f"{key}: 'true' 또는 'false' 여야 합니다 (현재: {raw!r})")
     return default
+
+
+def _parse_optional_float(key: str, minimum: float, maximum: float, errors: list[str]) -> float | None:
+    """설정되지 않았으면 None(해당 파라미터를 아예 보내지 않음)."""
+    raw = _get_env(key)
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        errors.append(f"{key}: 숫자여야 합니다 (현재: {raw!r})")
+        return None
+    if not (minimum <= value <= maximum):
+        errors.append(f"{key}: {minimum}~{maximum} 범위여야 합니다 (현재: {value})")
+        return None
+    return value
 
 
 def _parse_time(raw: Any, key: str, errors: list[str]) -> dt_time:
@@ -284,6 +306,17 @@ def _load_env(errors: list[str]) -> EnvConfig:
     if not (product_cd.isdigit() and len(product_cd) == 2):
         errors.append(f"KIS_ACCOUNT_PRODUCT_CD: 숫자 2자리여야 합니다 (현재: {product_cd!r})")
 
+    # 샘플링 파라미터: Sonnet 5·Opus 5 등 최신 모델은 temperature 를 거부(400)하므로
+    # 기본값은 '미전송'이다. 구형 모델을 쓸 때만 CLAUDE_TEMPERATURE 를 지정한다.
+    claude_temperature = _parse_optional_float("CLAUDE_TEMPERATURE", 0.0, 1.0, errors)
+    claude_effort = (_get_env("CLAUDE_EFFORT") or "").lower() or None
+    if claude_effort and claude_effort not in VALID_EFFORTS:
+        errors.append(f"CLAUDE_EFFORT: {list(VALID_EFFORTS)} 중 하나여야 합니다 (현재: {claude_effort!r})")
+        claude_effort = None
+    gemini_temperature = _parse_optional_float("GEMINI_TEMPERATURE", 0.0, 2.0, errors)
+    if gemini_temperature is None:
+        gemini_temperature = 0.2
+
     notifier = (_get_env("NOTIFIER", "telegram") or "telegram").lower()
     telegram_bot_token = _get_env("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = _get_env("TELEGRAM_CHAT_ID")
@@ -315,8 +348,11 @@ def _load_env(errors: list[str]) -> EnvConfig:
         kis_account_product_cd=product_cd,
         anthropic_api_key=required["ANTHROPIC_API_KEY"] or "",
         claude_model=required["CLAUDE_MODEL"] or "",
+        claude_temperature=claude_temperature,
+        claude_effort=claude_effort,
         gemini_api_key=required["GEMINI_API_KEY"] or "",
         gemini_model=required["GEMINI_MODEL"] or "",
+        gemini_temperature=gemini_temperature,
         naver_client_id=naver_id,
         naver_client_secret=naver_secret,
         notifier=notifier,  # type: ignore[arg-type]

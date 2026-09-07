@@ -3,7 +3,7 @@
 한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude와 Gemini 두 AI의 **합의(Consensus)** 에 따라
 매수/매도/관망을 결정하고 자동 실행하는 프로그램입니다.
 
-> **현재 상태: Step 3(데이터 파이프라인) 완료.** AI 판단 엔진은 Step 4 이후 단계에서 연결됩니다.
+> **현재 상태: Step 4(AI 에이전트) 완료.** 합의·리스크·주문은 Step 5 이후 단계에서 연결됩니다.
 
 ## 절대 규칙
 
@@ -27,6 +27,7 @@ python main.py              # 로깅 구성 + SQLite 스키마 생성 + 구성 �
 pytest                      # 단위 테스트 (외부 API는 전부 mock)
 python scripts/test_kis.py      # 모의계좌 실연동 검증 (조회 + 1주 매수/매도)
 python scripts/test_pipeline.py # 유니버스 → 스냅샷 수집 → data/snapshots/ 저장
+python scripts/test_agents.py   # 스냅샷 → Claude·Gemini 병렬 분석
 ```
 
 `ta` 설치가 `setup.py bdist_wheel` 오류로 실패하면 `pip install --use-pep517 ta` 로 설치하세요.
@@ -99,6 +100,35 @@ auto_trader/
   거래량 20일 평균 대비 배율. 데이터가 기간보다 짧거나 NaN이면 **0.0으로 접어** JSON 직렬화를 보장합니다.
 - 호가·뉴스 수집 실패는 기본값으로 넘어가고, 현재가·일봉 실패만 예외로 올립니다(판단 근거가 없으므로).
 
+## AI 에이전트 (Step 4)
+
+| 모듈 | 역할 |
+|---|---|
+| `agents/schemas.py` | `AgentDecision` + 응답 검증(범위 clamp, 형식 오류는 예외) |
+| `agents/prompts.py` | 시스템/유저 프롬프트와 응답 JSON 스키마 (한 곳에서 관리) |
+| `agents/base_agent.py` | 호출 → JSON 추출 → 검증 → 재요청 → HOLD 폴백, 병렬 실행 |
+| `agents/claude_agent.py` | Claude (anthropic SDK, Structured Outputs) |
+| `agents/gemini_agent.py` | Gemini (google-genai SDK, `response_mime_type=application/json`) |
+
+- **파싱 실패 = HOLD**: 마크다운 코드블록·설명문이 섞이면 첫 `{`~마지막 `}` 만 잘라 파싱하고,
+  그래도 실패하면 "JSON만 출력"을 재강조해 `max_retries` 까지 재요청합니다.
+  끝내 실패하면 `ok=False`인 HOLD를 반환합니다 — 호출 실패·타임아웃도 동일합니다.
+- 두 에이전트는 `concurrent.futures` 로 **병렬 호출**하며, 시작 시점 기준 공통 마감시각으로
+  각자 `timeout_sec` 을 갖습니다. 한쪽이 타임아웃·예외로 죽어도 다른 쪽 결과는 살아남습니다.
+- 응답 형식은 프롬프트뿐 아니라 **API 차원에서도 강제**합니다(Claude: `output_config.format`
+  json_schema / Gemini: `response_schema`). 프롬프트 지시만으로 기대하지 않습니다.
+
+### `temperature` 에 대한 주의
+
+지시서는 Claude에 `temperature=0.2` 를 지정하도록 되어 있으나, **Sonnet 5·Opus 5 등 최신 모델은
+`temperature` 파라미터를 거부(HTTP 400)합니다.** 그래서 `CLAUDE_TEMPERATURE` 는 기본적으로 비워 두고
+아예 전송하지 않습니다. 구형 모델을 쓸 때만 값을 넣으세요. 값이 설정된 채 모델이 거부하면
+경고 로그를 남기고 파라미터를 뺀 뒤 한 번 재시도합니다. Gemini는 `temperature` 를 지원하므로
+`GEMINI_TEMPERATURE`(기본 0.2)가 그대로 적용됩니다.
+
+AI 호출 비용은 `CLAUDE_EFFORT`(low/medium/high/xhigh/max)와 `universe.max_candidates_per_cycle`
+로 조절합니다.
+
 ## 데이터베이스 (`data/trader.db`)
 
 | 테이블 | 내용 |
@@ -120,7 +150,7 @@ auto_trader/
 | 1 | 뼈대: 구조·설정 로더·로거·DB 스키마 | ✅ 완료 |
 | 2 | KIS 연동 (토큰 캐시, 시세/잔고/주문 API, 장 운영일) | ✅ 코드·테스트 완료 / 모의계좌 실연동 검증 대기 |
 | 3 | 데이터 파이프라인 (유니버스·지표·뉴스) | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
-| 4 | AI 에이전트 (Claude/Gemini 병렬 호출·JSON 파싱) | 대기 |
+| 4 | AI 에이전트 (Claude/Gemini 병렬 호출·JSON 파싱) | ✅ 코드·테스트 완료 / 실API 검증 대기 |
 | 5 | 합의·리스크·주문 실행·알림 | 대기 |
 | 6 | 스케줄러 조립 (apscheduler, 시그널, 일간 리포트) | 대기 |
 | 7 | 모의투자 실주문 검증 (5거래일 무인 운영) | 대기 |

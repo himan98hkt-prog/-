@@ -2,12 +2,13 @@
 requests>=2.32.0
 
 # --- AI 판단 엔진 ---
-anthropic>=0.40.0
+anthropic>=1.4.0            # output_config(Structured Outputs) 사용 — 1.x 필요
 google-genai>=1.0.0          # 구 google-generativeai(deprecated) 대신 신규 SDK
 
 # --- 데이터 / 지표 ---
 pandas>=2.2.0
 ta>=0.11.0
+# 설치 실패 시: pip install --use-pep517 ta
 
 # --- 스케줄링 ---
 apscheduler>=3.10.4
