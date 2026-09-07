@@ -62,6 +62,7 @@ import {
   type LogoPlace,
   type Timeline,
 } from '@/lib/video/render'
+import { fastExport, pickFastPlan, soundPieces, type FastPlan } from '@/lib/video/fast-export'
 import type { DesignTheme } from '@/lib/design/themes'
 import {
   buildStoryboard,
@@ -306,8 +307,9 @@ export function VideoStudio({
   /**
    * 앞 30초만 먼저 만들어 보실 구간.
    *
-   * 12분짜리는 만드는 데도 12분이 걸린다. 다 기다리신 뒤에 "이게 아닌데" 를 아시면
-   * 그 12분이 통째로 날아간다. 짧은 영상이면 굳이 나눌 것이 없으므로 안 보여 준다.
+   * 빠른 길이 없는 브라우저에서는 12분짜리가 만드는 데도 12분이다. 다 기다리신 뒤에
+   * "이게 아닌데" 를 아시면 그 12분이 통째로 날아간다. 빠른 컴퓨터에서도 30초 만에
+   * 확인하시는 편이 낫다. 짧은 영상이면 굳이 나눌 것이 없으므로 안 보여 준다.
    */
   const starts = useMemo(() => tasterStarts(scenes), [scenes])
   /**
@@ -350,10 +352,28 @@ export function VideoStudio({
   // 서버에서는 브라우저가 무엇을 뽑을 수 있는지 알 수 없다.
   // 첫 그림을 서버와 똑같이 그린 뒤, 화면에 붙고 나서 알아본다 (그래야 화면이 어긋나지 않는다)
   const [recordType, setRecordType] = useState<string | null>(null)
+  /** 빠른 길로 담는 중인가 — 안내 문구가 달라진다 (창을 지킬 필요가 없다) */
+  const [fast, setFast] = useState(false)
   const [checkedRecorder, setCheckedRecorder] = useState(false)
+  /** 이 컴퓨터가 빠른 길을 쓸 수 있는가 — 만들기 전에 미리 알려 드리려고 봐 둔다 */
+  const [fastReady, setFastReady] = useState(false)
   useEffect(() => {
-    setRecordType(pickRecordType())
+    const type = pickRecordType()
+    setRecordType(type)
     setCheckedRecorder(true)
+    let alive = true
+    // 만들 크기가 바뀌어도 되는지 여부는 거의 같다 — 가장 큰 것으로 한 번만 본다
+    void pickFastPlan(1920, 1080)
+      .then((plan) => {
+        if (!alive || !plan) return
+        // 예전 방식이 MP4 를 만드는데 빠른 길이 WebM 뿐이면 쓰지 않는다 (record 와 같은 규칙)
+        if (plan.container === 'webm' && type?.includes('mp4')) return
+        setFastReady(true)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
   }, [])
 
   /** 사진·동영상을 미리 다 읽어 둔다 — 그리는 도중에 읽으면 화면이 끊긴다 */
@@ -611,6 +631,15 @@ export function VideoStudio({
           )
         : recordTimeline
 
+    /*
+     * 빠른 길이 있으면 그리로 간다.
+     *
+     * 12분짜리를 12분 기다리시게 하지 않는다. 다만 **파일 모양이 나빠지면 안 된다** —
+     * 예전 방식이 MP4 를 만들 수 있는 컴퓨터에서 빠른 길이 WebM 밖에 못 만들면,
+     * 빨라진 대신 파워포인트에 안 들어가는 파일이 된다. 그럴 때는 하던 대로 간다.
+     */
+    if (await recordFast(line, isTaster, span, picked)) return
+
     const stream = canvas.captureStream(30)
     const audio = new AudioContext()
     const mixer = audio.createMediaStreamDestination()
@@ -692,12 +721,34 @@ export function VideoStudio({
     const info = describeRecordType(recorder.mimeType || recordType)
     const blob = new Blob(chunks, { type: recorder.mimeType || recordType })
     const partial = abortedRef.current
+    showMade({ blob, info, partial, isTaster, span, picked, line })
+  }
+
+  /** 만든 영상을 화면에 얹는다 — 빠른 길과 예전 길이 같은 자리를 쓴다 */
+  function showMade({
+    blob,
+    info,
+    partial,
+    isTaster,
+    span,
+    picked,
+    line,
+  }: {
+    blob: Blob
+    info: { ext: string; label: string; note: string }
+    partial: boolean
+    isTaster: boolean
+    span: { from: number; to: number } | null
+    picked?: VideoScene[]
+    line: Timeline
+  }) {
+    const madeUrl = URL.createObjectURL(blob)
+    // 파일 이름에 붙일 꼬리표 — 무엇을 담은 것인지 나중에 알아보시게
     const label = isTaster
       ? ` (${TASTER_SEC}초 맛보기${picked?.length ? ' · 앞가운데끝' : span && span.from > 0 ? ' · 아이 장면부터' : ''})`
       : span
         ? ` ${span.from + 1}-${Math.min(span.to, scenes.length - 1) + 1}장면`
         : ''
-    const madeUrl = URL.createObjectURL(blob)
     // 만든 것은 토막 목록에 남겨 둔다 — 나중에 한 편으로 이을 수 있게
     setParts((prev) => [
       ...prev,
@@ -727,6 +778,79 @@ export function VideoStudio({
     setRecording(false)
     setClock(0)
     draw(0)
+  }
+
+  /**
+   * 빠른 길 — 이 컴퓨터가 WebCodecs 를 가지고 있을 때만.
+   *
+   * 화면을 거치지 않고 한 장씩 그려 바로 담는다. 12분짜리가 1~2분이면 나온다.
+   * 되면 true, 안 되면 false 를 돌려주고 부르는 쪽이 하던 대로 간다 —
+   * **원장님께 고르시라고 묻지 않는다.** 있으면 쓰고 없으면 예전 길로 간다.
+   */
+  async function recordFast(
+    line: Timeline,
+    isTaster: boolean,
+    span: { from: number; to: number } | null,
+    picked?: VideoScene[],
+  ): Promise<boolean> {
+    const canvas = canvasRef.current
+    if (!canvas || !recordType) return false
+
+    let plan: FastPlan | null = null
+    try {
+      plan = await pickFastPlan(canvas.width, canvas.height)
+    } catch {
+      return false
+    }
+    if (!plan) return false
+    /*
+     * 파일 모양이 나빠지면 빠른 것이 소용없다.
+     * 예전 방식이 MP4 를 만드는 컴퓨터에서 빠른 길이 WebM 밖에 못 만들면,
+     * 빨리 나온 대신 파워포인트에 안 들어가는 파일이 된다. 그럴 때는 하던 대로 간다.
+     */
+    if (plan.container === 'webm' && recordType.includes('mp4')) return false
+
+    // 소리 — 배경음악 한 가닥, 그리고 올리신 동영상마다 그 장면 자리에 한 가닥씩
+    const sounds = soundPieces(
+      line,
+      (url) => sourcesRef.current.videos.get(url)?.duration || 0,
+      music ? { url: music.url, start: musicStart, volume: musicVolume / 100 } : null,
+    )
+
+    try {
+      setFast(true)
+      const made = await fastExport({
+        timeline: line,
+        sources: sourcesRef.current,
+        options: { width: canvas.width, height: canvas.height, theme, academyName, template, logo },
+        plan,
+        sounds,
+        onProgress: (done) => setClock(done * line.total),
+        shouldStop: () => abortedRef.current,
+      })
+      setFast(false)
+      // 담긴 것이 너무 작으면 무언가 어긋난 것이다 — 조용히 예전 길로 간다
+      if (made.blob.size < 1000) {
+        setClock(0)
+        return false
+      }
+      showMade({
+        blob: made.blob,
+        // 코덱까지 붙여 넘긴다 — 그래야 'MP4 (H.264)' 라고 제대로 적힌다
+        info: describeRecordType(`${plan.mimeType}; codecs="${plan.videoCodec}"`),
+        partial: made.partial,
+        isTaster,
+        span,
+        picked,
+        line,
+      })
+      return true
+    } catch {
+      // 빠른 길이 막히면 조용히 제 길로 간다 — 원장님은 몰라도 된다
+      setFast(false)
+      setClock(0)
+      return false
+    }
   }
 
   /**
@@ -1092,8 +1216,18 @@ export function VideoStudio({
             {formatLength(clock)} / {formatLength(length)} · 장면 {scenes.length}개
           </span>
           {!recording && !playing && ready && (
-            <span className="text-xs text-muted-foreground">
-              만드는 데 <strong className="text-foreground">약 {formatLength(recordTimeline.total)}</strong> 걸립니다
+            <span className="text-xs text-muted-foreground" data-testid="record-cost">
+              {fastReady ? (
+                <>
+                  이 컴퓨터는 <strong className="text-foreground">빠르게</strong> 만들 수 있습니다 — 영상
+                  길이({formatLength(recordTimeline.total)})보다 훨씬 빨리 끝납니다
+                </>
+              ) : (
+                <>
+                  만드는 데 <strong className="text-foreground">약 {formatLength(recordTimeline.total)}</strong>{' '}
+                  걸립니다
+                </>
+              )}
               {speed > 1 && (
                 <>
                   {' '}· 미리보기는 <strong className="text-foreground">{formatLength(length / speed)}</strong> 만에
@@ -1121,8 +1255,18 @@ export function VideoStudio({
 
         {recording && (
           <p className="rounded-md border border-accent/40 bg-accent/5 px-3 py-2.5 text-sm">
-            <strong>이 창을 그대로 두세요.</strong> 영상은 화면을 그리면서 담기 때문에 실제 길이만큼
-            ({formatLength(recordTimeline.total)}) 걸립니다. 다른 창으로 넘어가면 끊깁니다.
+            {fast ? (
+              <>
+                <strong>빠르게 만드는 중입니다.</strong> 이 컴퓨터가 빠른 길을 쓸 수 있어 화면을 거치지 않고
+                담습니다 — 영상 길이({formatLength(recordTimeline.total)})보다 훨씬 빨리 끝나고, 다른 창으로
+                넘어가셔도 끊기지 않습니다.
+              </>
+            ) : (
+              <>
+                <strong>이 창을 그대로 두세요.</strong> 영상은 화면을 그리면서 담기 때문에 실제 길이만큼
+                ({formatLength(recordTimeline.total)}) 걸립니다. 다른 창으로 넘어가면 끊깁니다.
+              </>
+            )}
             <br />
             급하시면 <strong>[여기까지 만들고 멈추기]</strong> 를 누르세요 — 담긴 데까지 파일로 드립니다.
           </p>

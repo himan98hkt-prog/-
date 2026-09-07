@@ -419,11 +419,48 @@ try {
   const partialNote = await page.textContent('body')
   check('왜 짧은지 화면에 적어 준다', partialNote.includes('만들다 멈춰'))
 
+  // 빠른 길(WebCodecs)을 쓸 수 있는 컴퓨터인가 — 쓸 수 있으면 영상 길이보다 빨리 끝나야 한다
+  const fastPlan = await page.evaluate(async () => {
+    if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined') return null
+    const plans = [
+      { c: 'avc1.4D002A', a: 'mp4a.40.2', box: 'mp4' },
+      { c: 'avc1.42002A', a: 'mp4a.40.2', box: 'mp4' },
+      { c: 'vp09.00.10.08', a: 'opus', box: 'webm' },
+    ]
+    for (const plan of plans) {
+      try {
+        const video = await VideoEncoder.isConfigSupported({ codec: plan.c, width: 1280, height: 720, bitrate: 4_500_000, framerate: 30 })
+        if (!video.supported) continue
+        const audio = await AudioEncoder.isConfigSupported({ codec: plan.a, sampleRate: 48_000, numberOfChannels: 2, bitrate: 128_000 })
+        if (!audio.supported) continue
+        return plan
+      } catch {
+        /* 다음 것을 본다 */
+      }
+    }
+    return null
+  })
+  // 예전 방식이 MP4 를 만드는데 빠른 길이 WebM 뿐이면 쓰지 않는다 (화면과 같은 규칙)
+  const usesFast = Boolean(fastPlan) && !(fastPlan.box === 'webm' && (recordType ?? '').includes('mp4'))
+  const costText = (await page.getByTestId('record-cost').textContent()) ?? ''
+  check(
+    '빠르게 만들 수 있는지 미리 알려 준다',
+    usesFast ? costText.includes('빠르게') : costText.includes('걸립니다'),
+    `${usesFast ? '빠른 길' : '예전 길'} · ${costText.trim().slice(0, 40)}`,
+  )
+
   // 진짜로 만들어 본다
   const total = Number((await page.getByTestId('video-length').textContent()).match(/\/ (?:(\d+)분 )?(\d+)초/)?.slice(1).reduce((a, b) => Number(a || 0) * 60 + Number(b || 0), 0) ?? 40)
-  console.log(`  · 영상 ${total}초 분량을 실제로 만듭니다 (실시간이라 그만큼 걸립니다)`)
+  console.log(`  · 영상 ${total}초 분량을 실제로 만듭니다 (${usesFast ? '빠른 길' : '실시간이라 그만큼 걸립니다'})`)
+  const madeAt = Date.now()
   await page.getByRole('button', { name: '영상 만들기' }).click()
   await page.waitForSelector('text=내려받기', { timeout: (total + 60) * 1000 })
+  const madeSec = (Date.now() - madeAt) / 1000
+  if (usesFast) {
+    check('빠른 길이 영상 길이보다 빨리 끝난다', madeSec < total, `${total}초짜리를 ${madeSec.toFixed(1)}초에`)
+  } else {
+    console.log(`  · 이 컴퓨터에는 빠른 길이 없어 ${madeSec.toFixed(1)}초 걸렸습니다`)
+  }
 
   const made = await page.evaluate(async () => {
     const link = document.querySelector('a[download]')

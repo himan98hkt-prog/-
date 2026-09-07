@@ -68,8 +68,8 @@ export default async function VideoPage({
         </p>
         <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
           <strong>사진과 영상은 이 컴퓨터 밖으로 나가지 않습니다.</strong> 영상을 만드는 일도 이 브라우저 안에서
-          합니다 — 올리는 곳도, 기다리는 줄도 없습니다. 다만 화면을 그리면서 담기 때문에{' '}
-          <strong>영상 길이만큼 시간이 걸리고</strong>, 만드는 동안 이 창을 그대로 두셔야 합니다.
+          합니다 — 올리는 곳도, 기다리는 줄도 없습니다. 얼마나 걸리는지는 컴퓨터마다 달라{' '}
+          <strong>[영상 만들기] 옆에 적어</strong> 드립니다.
         </p>
       </div>
 
