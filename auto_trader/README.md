@@ -3,7 +3,7 @@
 한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude와 Gemini 두 AI의 **합의(Consensus)** 에 따라
 매수/매도/관망을 결정하고 자동 실행하는 프로그램입니다.
 
-> **현재 상태: Step 6(스케줄러 조립) 완료.** 남은 것은 Step 7(모의투자 무인 운영 검증)입니다.
+> **현재 상태: Step 6까지 완료 + Step 7 준비물 완비.** 남은 것은 실제 키로 모의투자 5거래일 무인 운영하는 일뿐입니다.
 
 ## 절대 규칙
 
@@ -34,6 +34,8 @@ python main.py --check          # 설정·DB·사이클 시각 점검
 python main.py --once           # 지금 즉시 1사이클 실행 후 종료
 python main.py --report         # 오늘 일간 리포트만 전송
 python main.py                  # 스케줄러 기동 (장 시간 동안 상주)
+
+python scripts/export_report.py # 운영 기간 판단·주문 내역 CSV + 요약
 ```
 
 `ta` 설치가 `setup.py bdist_wheel` 오류로 실패하면 `pip install --use-pep517 ta` 로 설치하세요.
@@ -205,6 +207,119 @@ AI가 응답하지 않으면 절반 매도합니다.
 `SIGINT`(Ctrl+C)·`SIGTERM` 을 받으면 **진행 중인 사이클을 마친 뒤** 종료 알림을 보내고 멈춥니다.
 종료 대기 중에는 새 사이클을 시작하지 않으며, 같은 신호를 한 번 더 받으면 즉시 종료합니다.
 
+## 모의투자 무인 운영 (Step 7)
+
+### 시작 전 점검
+
+```bash
+python main.py --check          # 설정·DB·사이클 시각
+python scripts/test_kis.py      # 모의계좌 1주 매수→체결→매도
+python scripts/test_cycle.py    # DRY_RUN end-to-end + 텔레그램 요약 수신 확인
+```
+
+세 가지가 모두 통과하면 `.env` 에서 `DRY_RUN=false` 로 바꿉니다. **`KIS_ENV=VTS` 는 그대로 둡니다.**
+
+### 상주 실행
+
+세션이 끊겨도 계속 돌도록 백그라운드로 띄웁니다.
+
+```bash
+nohup python main.py >> logs/stdout.log 2>&1 &
+echo $! > data/trader.pid          # 종료: kill $(cat data/trader.pid)
+```
+
+`SIGTERM` 을 받으면 진행 중 사이클을 마치고 안전하게 종료하므로 `kill -9` 는 쓰지 마세요.
+
+systemd 를 쓴다면:
+
+```ini
+# /etc/systemd/system/auto-trader.service
+[Unit]
+Description=Multi-Agent 자동매매
+After=network-online.target
+
+[Service]
+Type=simple
+User=trader
+WorkingDirectory=/home/trader/auto_trader
+ExecStart=/home/trader/auto_trader/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=60
+KillSignal=SIGTERM
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 매일 확인할 것
+
+- 15:40 일간 리포트 알림 수신 여부 (오지 않으면 프로세스가 죽었을 가능성)
+- `logs/trader_YYYYMMDD.log` 의 `ERROR` / `CRITICAL` 라인
+- "치명적 오류" 알림 — 사이클 3회 연속 실패로 스케줄러가 멈춘 상태입니다
+
+### 5거래일 후 리포트
+
+```bash
+python scripts/export_report.py --days 5
+```
+
+`data/reports/<시작일>_<종료일>/` 에 `decisions.csv` · `orders.csv` · `daily_pnl.csv` 가 저장되고
+콘솔에는 요약이 출력됩니다 (CSV 는 UTF-8 BOM 이라 엑셀에서 한글이 깨지지 않습니다).
+
+요약에서 특히 볼 것:
+
+| 항목 | 정상 범위 | 벗어나면 |
+|---|---|---|
+| 파싱 실패율 | 5% 미만 | 프롬프트나 모델 설정 점검 |
+| 최종 결정 분포 | HOLD 가 다수 | STRONG_BUY 가 과다하면 `min_confidence` 상향 |
+| 리스크 거부 사유 | 한도 관련 | 같은 사유가 반복되면 파라미터 재조정 |
+| 일자별 손익 | — | `daily_loss_limit_pct` 도달 빈도 확인 |
+
+## 실전(REAL) 전환 절차
+
+> **실전 전환은 사용자가 명시적으로 결정할 때만 진행합니다.** 아래 조건을 모두 만족하기 전에는
+> 전환하지 마세요.
+
+### 전제 조건
+
+1. 모의투자에서 **5거래일 이상 무인 운영**을 마쳤고 중단 없이 돌았을 것
+2. `decisions` · `orders` CSV 를 직접 검토해 AI 판단과 주문이 납득 가능할 것
+3. 파싱 실패율이 5% 미만일 것
+4. 리스크 규칙이 실제로 작동한 기록(거부 사례)이 있을 것
+
+### 전환 순서
+
+1. **KIS 실전 API 키를 새로 발급받습니다.** 모의투자 키는 실전 도메인에서 동작하지 않습니다.
+2. `data/token.json` 을 삭제합니다 (환경이 바뀌면 캐시를 재사용하지 않지만, 명시적으로 지웁니다).
+3. `.env` 를 수정합니다.
+   ```
+   KIS_ENV=REAL
+   KIS_APP_KEY=<실전 키>
+   KIS_APP_SECRET=<실전 시크릿>
+   KIS_ACCOUNT_NO=<실전 계좌 앞 8자리>
+   DRY_RUN=true          # ← 먼저 true 로 시작합니다
+   ```
+4. `config/settings.yaml` 의 `total_investment_cap_krw` 를 **잃어도 되는 금액**으로 낮춥니다.
+   처음에는 100만 원 이하를 권합니다.
+5. `python scripts/test_kis.py --no-order` 로 실전 계좌 조회가 되는지 확인합니다.
+   (실전에서는 `--allow-real` 없이 주문 단계가 자동으로 건너뛰어집니다.)
+6. `DRY_RUN=true` 상태로 최소 1거래일 운영하며 실전 시세 기준 판단을 확인합니다.
+7. 문제가 없으면 `DRY_RUN=false` 로 바꿉니다. 기동 시 텔레그램으로
+   **"⚠️ 실전 모드 시작 — 실제 자금이 사용됩니다"** 경고가 전송되는지 확인하세요.
+
+### 실전 운영 주의사항
+
+- **거래량 순위 API 는 실전에서만 동작합니다.** `universe.mode: volume_rank` 를 쓸 생각이라면
+  실전 전환 후에야 실제 동작을 확인할 수 있습니다.
+- **초당 호출 제한이 다릅니다** (모의 2건 → 실전 20건). 코드가 자동으로 전환하지만,
+  종목 수를 늘릴 때는 사이클 소요 시간을 로그로 확인하세요.
+- **AI 호출 비용**은 종목 수 × 2(에이전트) × 사이클 수만큼 발생합니다. 기본 설정(10종목 × 12사이클)이면
+  하루 240회입니다. `universe.max_candidates_per_cycle` 와 `CLAUDE_EFFORT` 로 조절하세요.
+- **손절은 AI 판단 없이 즉시 실행**됩니다. `stop_loss_pct` 를 너무 좁게 잡으면 잦은 손절매가 납니다.
+- 시장 급변 시에는 프로그램을 멈추는 것이 안전합니다: `kill $(cat data/trader.pid)`
+- 이 프로그램은 **투자 조언이 아닙니다.** 모든 손익은 운영자 책임입니다.
+
 ## 데이터베이스 (`data/trader.db`)
 
 | 테이블 | 내용 |
@@ -229,7 +344,7 @@ AI가 응답하지 않으면 절반 매도합니다.
 | 4 | AI 에이전트 (Claude/Gemini 병렬 호출·JSON 파싱) | ✅ 코드·테스트 완료 / 실API 검증 대기 |
 | 5 | 합의·리스크·주문 실행·알림 | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
 | 6 | 스케줄러 조립 (apscheduler, 시그널, 일간 리포트) | ✅ 코드·테스트 완료 / 실연동 검증 대기 |
-| 7 | 모의투자 실주문 검증 (5거래일 무인 운영) | 대기 |
+| 7 | 모의투자 실주문 검증 (5거래일 무인 운영) | 🔑 준비 완료 / 실제 키로 운영만 남음 |
 
 각 Step은 완료 후 사용자 확인을 받고 다음 단계로 넘어갑니다.
 
