@@ -8,7 +8,12 @@
  * 그래서 화면을 실제로 띄워 놓고 찍는다 — 고치는 칸, 시간 띠, 자르는 칸,
  * 그리고 **뽑히는 영상 그 화면**(미리보기와 녹화가 같은 함수를 쓰므로 똑같다).
  *
- * 아이 사진은 상품에 함께 드리는 **연습용 그림**을 쓴다. 실제 아이 얼굴은 한 장도 쓰지 않는다.
+ * 아이 사진은 `detail/kids/` 에 둔 **AI 로 만든 예시 사진**을 쓴다. 실제 아이 얼굴은 한 장도 쓰지 않는다.
+ * 그 폴더가 비어 있으면 상품에 딸려 가는 연습용 그림으로 대신한다 —
+ * 다만 그것은 **자리 표시 그림**이라 「이렇게 나옵니다」를 보여 주기에는 모자란다.
+ *
+ * 사진은 16:9 로 준비한다. 영상이 16:9 이고 **꽉 채워 자르기** 때문에,
+ * 정사각 사진을 넣으면 위아래 44% 가 잘려 아이 머리가 날아간다.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
@@ -24,6 +29,9 @@ await requireFreePort(PORT)
 const BASE = `http://127.0.0.1:${PORT}`
 const OUT = join(process.cwd(), 'promo', 'video')
 const PHOTOS = join(process.cwd(), '배포', '연습용-사진')
+/** AI 로 만든 예시 사진 — 아이 한 명씩(이름.jpg) · 연습 갤러리(연습/*.jpg) */
+const KIDS = join(process.cwd(), 'detail', 'kids')
+const KIDS_EXTRA = join(KIDS, '연습')
 const DATA = join(process.cwd(), '.data')
 const TMP = mkdtempSync(join(tmpdir(), 'pianoevent-video-shot-'))
 const BACKUP = join(TMP, 'data')
@@ -108,38 +116,67 @@ try {
   const roster = await (await page.request.get(`${BASE}/api/events/${EVENT_ID}/students`)).json()
   const names = (roster.students ?? []).map((s) => s.student_name)
   console.log(`  · 명단 ${names.length}명: ${names.slice(0, 4).join(' ')}${names.length > 4 ? ' …' : ''}`)
-  let attached = 0
-  for (const file of readdirSync(PHOTOS).filter((f) => f.endsWith('.svg'))) {
-    const name = file.replace(/\.svg$/, '')
-    const student = (roster.students ?? []).find((s) => s.student_name === name)
-    if (!student) continue
-    const svg = readFileSync(join(PHOTOS, file), 'utf8')
-    const png = await page.evaluate(
-      (source) =>
-        new Promise((resolve) => {
-          const img = new Image()
-          img.onload = () => {
-            const canvas = document.createElement('canvas')
-            canvas.width = 480
-            canvas.height = 480
-            const ctx = canvas.getContext('2d')
-            ctx.drawImage(img, 0, 0, 480, 480)
-            resolve(canvas.toDataURL('image/jpeg', 0.9))
-          }
-          img.onerror = () => resolve(null)
-          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(source)))
-        }),
-      svg,
-    )
-    if (!png) continue
+
+  /**
+   * 아이마다 사진을 붙인다.
+   *
+   * 사진이 없으면 이름만 지나가는 장면이 되어 「영상이 이렇게 나옵니다」를 보여 줄 수가 없다.
+   * `detail/kids/이름.jpg` 가 있으면 그것을, 없으면 연습용 그림(SVG)을 굽는다.
+   */
+  const photoFiles = existsSync(KIDS)
+    ? readdirSync(KIDS).filter((f) => /\.(jpe?g|png)$/i.test(f))
+    : []
+  const usingReal = photoFiles.length > 0
+  console.log(usingReal ? `  · 예시 사진 ${photoFiles.length}장을 씁니다` : '  · 예시 사진이 없어 연습용 그림으로 대신합니다')
+
+  const attach = async (studentName, dataUrl, label) => {
+    const student = (roster.students ?? []).find((s) => s.student_name === studentName)
+    if (!student) return false
     const made = await page.request.post(`${BASE}/api/academy/assets`, {
-      data: { kind: 'photo', label: `${name} 연습`, url: png },
+      data: { kind: 'photo', label, url: dataUrl },
     })
     const body = await made.json()
     await page.request.patch(`${BASE}/api/students/${student.id}`, { data: { photo_asset_id: body.asset.id } })
-    attached += 1
+    return true
   }
-  console.log(`  · 아이 사진 ${attached}명 분을 붙였습니다 (연습용 그림)`)
+
+  /** 파일을 데이터 주소로 — 브라우저를 거치지 않으므로 한글 이름도 안전하다 */
+  const asDataUrl = (path) => {
+    const ext = path.toLowerCase().endsWith('.png') ? 'png' : 'jpeg'
+    return `data:image/${ext};base64,${readFileSync(path).toString('base64')}`
+  }
+
+  let attached = 0
+  if (usingReal) {
+    for (const file of photoFiles) {
+      const name = file.replace(/\.[^.]+$/, '')
+      if (await attach(name, asDataUrl(join(KIDS, file)), `${name} 연습`)) attached += 1
+    }
+  } else {
+    for (const file of readdirSync(PHOTOS).filter((f) => f.endsWith('.svg'))) {
+      const name = file.replace(/\.svg$/, '')
+      if (!(roster.students ?? []).some((s) => s.student_name === name)) continue
+      const svg = readFileSync(join(PHOTOS, file), 'utf8')
+      const baked = await page.evaluate(
+        (source) =>
+          new Promise((resolve) => {
+            const img = new Image()
+            img.onload = () => {
+              const canvas = document.createElement('canvas')
+              canvas.width = 480
+              canvas.height = 480
+              canvas.getContext('2d').drawImage(img, 0, 0, 480, 480)
+              resolve(canvas.toDataURL('image/jpeg', 0.9))
+            }
+            img.onerror = () => resolve(null)
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(source)))
+          }),
+        svg,
+      )
+      if (baked && (await attach(name, baked, `${name} 연습`))) attached += 1
+    }
+  }
+  console.log(`  · 아이 사진 ${attached}명 분을 붙였습니다`)
   if (attached < 8) throw new Error(`사진이 ${attached}명 분밖에 안 붙었습니다 — 장면이 이름만 나옵니다.`)
 
   /** 앞 4초 흔들림 + 뒤 16초 본 화면을 흉내 낸 검사용 동영상 — 「자르는 칸」을 보여 주려면 필요하다 */
@@ -161,8 +198,57 @@ try {
     )
   }
 
+  /**
+   * 연습실 일상 사진 — 「이 무대까지 오는 동안」 묶음이 된다.
+   *
+   * 감동영상은 무대 사진만 이어 붙인 것이 아니다. 연습하던 날들이 앞에 깔려야
+   * 「이만큼 고생했구나」가 전해진다. 그 장면이 실제로 만들어지는 것을 보여 준다.
+   */
+  const galleryFiles = existsSync(KIDS_EXTRA)
+    ? readdirSync(KIDS_EXTRA).filter((f) => /\.(jpe?g|png)$/i.test(f)).sort()
+    : []
+
   await page.goto(`${BASE}/events/${EVENT_ID}/video`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1800)
+
+  // 처음 켤 때 뜨는 쪽지가 화면 오른쪽 아래를 가린다 — 찍기 전에 닫는다
+  const tip = page.getByTestId('first-run-close')
+  if (await tip.count()) {
+    await tip.click()
+    await page.waitForTimeout(400)
+  }
+
+  /*
+   * 영상 템플릿을 **「꽉 찬 사진」으로 못박는다.**
+   *
+   * 감동영상은 아이 얼굴이 화면을 가득 채워야 하는 영상이다. 액자·반쪽 템플릿은
+   * 사진을 작게 담으므로 「이렇게 나옵니다」를 보여 주는 자리에 맞지 않는다.
+   * 기본값이 이미 그것이지만, 저장된 설정이 남아 있으면 다른 것이 열린다.
+   */
+  const picker = page.getByTestId('video-templates')
+  if (await picker.getByTestId('video-template-toggle').count()) {
+    await picker.getByTestId('video-template-toggle').click()
+    await page.waitForTimeout(400)
+    const full = picker.locator('button', { hasText: '꽉 찬 사진' }).first()
+    if (await full.count()) {
+      await full.click()
+      await page.waitForTimeout(600)
+    }
+    await picker.getByTestId('video-template-toggle').click()
+    await page.waitForTimeout(400)
+  }
+
+  if (galleryFiles.length > 0) {
+    await page.locator('input[type="file"][accept="image/*"]').first().setInputFiles(
+      galleryFiles.map((f) => ({
+        name: f,
+        mimeType: f.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg',
+        buffer: readFileSync(join(KIDS_EXTRA, f)),
+      })),
+    )
+    await page.waitForTimeout(2000)
+    console.log(`  · 연습 사진 ${galleryFiles.length}장을 얹었습니다`)
+  }
 
   const canvas = page.locator('canvas').first()
   const shoot = async (locator, file, quality = 72) => {
@@ -219,6 +305,8 @@ try {
   await frameAt(titleAt, 'vf-title.jpg')
   if (kidAt >= 0) await frameAt(kidAt, 'vf-kid.jpg')
   if (kidAt >= 0 && labels[kidAt + 2]) await frameAt(kidAt + 2, 'vf-kid2.jpg')
+  const galleryAt = find((l) => l.startsWith('연습 사진'))
+  if (galleryAt >= 0) await frameAt(galleryAt, 'vf-gallery.jpg')
   if (cheerAt >= 0) await frameAt(cheerAt, 'vf-cheer.jpg')
   if (endAt >= 0) await frameAt(endAt, 'vf-end.jpg')
 
