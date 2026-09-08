@@ -177,3 +177,65 @@ def test_secrets_are_registered_for_log_masking():
 
     Notifier(make_env(), session=StubSession())
     assert "tg-token" in _SECRETS
+
+
+# --------------------------------------------------------------------------- #
+# 알림 폭주 억제
+# --------------------------------------------------------------------------- #
+
+
+def test_repeated_error_is_suppressed():
+    """같은 오류가 매 종목 반복돼도 텔레그램이 도배되지 않아야 한다."""
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session, error_cooldown_sec=600)
+
+    for _ in range(10):
+        notifier.send_error(ValueError("시세 조회 실패"), context="005930")
+
+    assert len(session.posts) == 1
+
+
+def test_different_errors_are_not_suppressed():
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session, error_cooldown_sec=600)
+
+    notifier.send_error(ValueError("시세 조회 실패"))
+    notifier.send_error(KeyError("스키마 누락"))
+    assert len(session.posts) == 2
+
+
+def test_dedupe_can_be_disabled():
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session, error_cooldown_sec=600)
+
+    notifier.send_error(ValueError("치명적"), dedupe=False)
+    notifier.send_error(ValueError("치명적"), dedupe=False)
+    assert len(session.posts) == 2
+
+
+def test_cooldown_expiry_allows_resend():
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session, error_cooldown_sec=0)
+
+    notifier.send_error(ValueError("반복 오류"))
+    notifier.send_error(ValueError("반복 오류"))
+    assert len(session.posts) == 2
+
+
+def test_alert_with_key_is_deduped():
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session, error_cooldown_sec=600)
+
+    for _ in range(5):
+        notifier.send_alert("🚨 당일 손실 한도 도달", ["당일 손익 -3.20%"], key="daily_loss_limit")
+
+    assert len(session.posts) == 1
+    assert "당일 손실 한도" in session.posts[0]["json"]["text"]
+
+
+def test_alert_without_key_always_sends():
+    session = StubSession()
+    notifier = Notifier(make_env(), session=session)
+    notifier.send_alert("알림", ["내용"])
+    notifier.send_alert("알림", ["내용"])
+    assert len(session.posts) == 2

@@ -36,8 +36,10 @@ def build_daily_report(db_path: Path | str, target: date | datetime | None = Non
     finally:
         conn.close()
 
-    buys = [row for row in orders if row["side"] == "BUY"]
-    sells = [row for row in orders if row["side"] == "SELL"]
+    # 거부된 주문은 집계에서 뺀다(접수조차 되지 않았다). 원본은 orders 리스트에 남는다.
+    accepted = [row for row in orders if row["status"] != "REJECTED"]
+    buys = [row for row in accepted if row["side"] == "BUY"]
+    sells = [row for row in accepted if row["side"] == "SELL"]
 
     return {
         "date": day,

@@ -322,6 +322,67 @@ class Portfolio:
         finally:
             conn.close()
 
+    # -- 미체결 정리 ------------------------------------------------------- #
+
+    OPEN_STATUSES = ("SUBMITTING", "PENDING", "PARTIAL", "UNKNOWN")
+
+    def reconcile_open_orders(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
+        """미체결로 남은 실주문을 체결조회로 다시 확인해 DB를 맞춘다.
+
+        시장가 미체결은 `wait_for_fill` 이 30초만 보고 넘어가므로, 다음 사이클
+        시작 때 여기서 최종 상태를 확정한다. 이걸 하지 않으면 이미 체결된 주문이
+        영원히 PENDING 으로 남아 리포트와 손익이 어긋난다.
+        """
+        moment = now or datetime.now(KST)
+        today = moment.strftime("%Y-%m-%d")
+        placeholders = ", ".join("?" for _ in self.OPEN_STATUSES)
+
+        conn = connect(self.db_path)
+        try:
+            rows = conn.execute(
+                f"""SELECT id, order_no, code, name, side, qty, status FROM orders
+                    WHERE dry_run = 0 AND order_no != ''
+                      AND status IN ({placeholders})
+                      AND substr(created_at, 1, 10) = ?""",
+                (*self.OPEN_STATUSES, today),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        if not rows:
+            return []
+
+        logger.info("미체결 주문 %d건 재확인", len(rows))
+        updated: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                status = self.api.get_order_status(row["order_no"])
+            except KisApiError as exc:
+                logger.warning("주문 %s 재확인 실패: %s", row["order_no"], exc)
+                continue
+            if status is None:
+                continue
+
+            if status.is_filled:
+                state = "FILLED"
+            elif status.is_partially_filled:
+                state = "PARTIAL"
+            elif status.filled_qty == 0 and status.remain_qty == 0:
+                state = "CANCELED"  # 장 마감 등으로 소멸
+            else:
+                state = "PENDING"
+
+            if state != row["status"]:
+                self.update_order_fill(row["id"], status, state)
+                logger.info("주문 %s: %s → %s (%d/%d주)",
+                            row["order_no"], row["status"], state,
+                            status.filled_qty, status.order_qty)
+                updated.append({"order_no": row["order_no"], "code": row["code"],
+                                "name": row["name"], "side": row["side"],
+                                "before": row["status"], "after": state,
+                                "filled_qty": status.filled_qty})
+        return updated
+
     # -- 체결 확인 --------------------------------------------------------- #
 
     def wait_for_fill(self, order_no: str, order_type: str, code: str, qty: int) -> tuple[str, OrderStatus | None]:

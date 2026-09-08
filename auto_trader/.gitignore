@@ -6,6 +6,10 @@ data/
 logs/
 token.json
 
+# 도구 부산물
+node_modules/
+package-lock.json
+
 # 파이썬
 __pycache__/
 *.py[cod]

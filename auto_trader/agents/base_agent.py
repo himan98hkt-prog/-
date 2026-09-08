@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
@@ -10,6 +11,7 @@ from typing import Any
 
 from agents.prompts import build_user_prompt
 from agents.schemas import AgentDecision, SchemaError, validate_payload
+from agents.usage import Usage, estimate_cost
 from config.loader import AiConfig
 from utils.logger import get_logger
 
@@ -45,13 +47,29 @@ class BaseAgent(ABC):
     """
 
     name: str = "base"
+    model: str = ""
 
     def __init__(self, ai: AiConfig) -> None:
         self.ai = ai
+        self.pricing: dict[str, tuple[float, float]] | None = None
+        # 타임아웃된 호출의 스레드가 뒤늦게 값을 써도 다음 종목의 집계를 오염시키지
+        # 않도록 스레드별로 분리해 둔다(future.cancel() 은 실행 중 스레드를 못 멈춘다).
+        self._usage_store = threading.local()
+
+    @property
+    def _last_usage(self) -> Usage:
+        return getattr(self._usage_store, "usage", Usage())
+
+    @_last_usage.setter
+    def _last_usage(self, value: Usage) -> None:
+        self._usage_store.usage = value
 
     @abstractmethod
     def _call_model(self, system_prompt: str, user_prompt: str) -> str:
-        """모델을 호출해 응답 텍스트를 반환. 실패 시 `AgentCallError`."""
+        """모델을 호출해 응답 텍스트를 반환. 실패 시 `AgentCallError`.
+
+        호출한 토큰은 `self._last_usage` 에 담아두면 결과에 함께 실린다.
+        """
 
     def analyze(self, payload: dict[str, Any]) -> AgentDecision:
         """스냅샷 → AgentDecision. 어떤 이유로든 실패하면 ok=False, HOLD."""
@@ -61,19 +79,23 @@ class BaseAgent(ABC):
         last_error = "알 수 없는 오류"
         last_raw = ""
         code = payload.get("code", "?")
+        total_usage = Usage()  # 재요청까지 포함한 누적 토큰
 
         # 첫 호출 + max_retries 회의 재요청
         for attempt in range(self.ai.max_retries + 1):
             user_prompt = build_user_prompt(payload, retry=attempt > 0)
+            self._last_usage = Usage()
             try:
                 raw = self._call_model(SYSTEM_PROMPT, user_prompt)
             except AgentCallError as exc:
+                total_usage += self._last_usage
                 last_error = str(exc)
                 last_raw = ""
                 logger.warning("[%s] %s 호출 실패 (%d/%d): %s",
                                self.name, code, attempt + 1, self.ai.max_retries + 1, exc)
                 continue
 
+            total_usage += self._last_usage
             last_raw = raw
             try:
                 decision = validate_payload(extract_json(raw), self.name, raw)
@@ -84,14 +106,23 @@ class BaseAgent(ABC):
                 continue
 
             decision.elapsed_sec = round(time.monotonic() - started, 2)
-            logger.info("[%s] %s → %s (confidence %.2f, %.1fs)",
-                        self.name, code, decision.action, decision.confidence, decision.elapsed_sec)
+            self._attach_usage(decision, total_usage)
+            logger.info("[%s] %s → %s (confidence %.2f, %.1fs, %d토큰)",
+                        self.name, code, decision.action, decision.confidence,
+                        decision.elapsed_sec, total_usage.total)
             return decision
 
         logger.error("[%s] %s 최종 실패 → HOLD: %s", self.name, code, last_error)
         decision = AgentDecision.hold(self.name, last_error, last_raw)
         decision.elapsed_sec = round(time.monotonic() - started, 2)
+        self._attach_usage(decision, total_usage)
         return decision
+
+    def _attach_usage(self, decision: AgentDecision, usage: Usage) -> None:
+        decision.model = self.model
+        decision.input_tokens = usage.input_tokens
+        decision.output_tokens = usage.output_tokens
+        decision.cost_usd = estimate_cost(self.model, usage, self.pricing)
 
 
 def run_agents_parallel(

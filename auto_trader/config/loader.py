@@ -28,6 +28,16 @@ DB_PATH = DATA_DIR / "trader.db"
 HOLIDAYS_PATH = CONFIG_DIR / "holidays.txt"
 
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
+# 이 프로그램이 읽는 환경변수 전체 — .env 와 프로세스 환경 양쪽에서 온다.
+ALL_ENV_KEYS: tuple[str, ...] = (
+    "KIS_ENV", "DRY_RUN", "LOG_LEVEL",
+    "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_ACCOUNT_NO", "KIS_ACCOUNT_PRODUCT_CD",
+    "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CLAUDE_TEMPERATURE", "CLAUDE_EFFORT",
+    "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TEMPERATURE",
+    "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET",
+    "NOTIFIER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DISCORD_WEBHOOK_URL",
+)
 VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 # KIS 도메인: 모의투자를 기본으로 삼는다(절대 규칙 1).
@@ -159,6 +169,8 @@ class AiConfig:
     min_confidence: float
     news_max_items: int
     news_lookback_hours: int
+    # 모델별 100만 토큰당 단가 (입력, 출력) USD. 비우면 내장 기본표를 쓴다.
+    pricing: dict[str, tuple[float, float]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -423,6 +435,27 @@ def _load_risk(raw: dict[str, Any], errors: list[str]) -> RiskConfig:
     return risk
 
 
+def _load_pricing(section: dict[str, Any], errors: list[str]) -> dict[str, tuple[float, float]]:
+    """`ai.pricing` — {모델명: [입력단가, 출력단가]} (100만 토큰당 USD)."""
+    raw = section.get("pricing") or {}
+    if not isinstance(raw, dict):
+        errors.append("ai.pricing: 매핑(모델명: [입력, 출력])이어야 합니다")
+        return {}
+
+    pricing: dict[str, tuple[float, float]] = {}
+    for model, rates in raw.items():
+        try:
+            input_rate, output_rate = (float(rates[0]), float(rates[1]))
+        except (TypeError, ValueError, IndexError, KeyError):
+            errors.append(f"ai.pricing.{model}: [입력단가, 출력단가] 두 숫자여야 합니다 (현재: {rates!r})")
+            continue
+        if input_rate < 0 or output_rate < 0:
+            errors.append(f"ai.pricing.{model}: 단가는 0 이상이어야 합니다")
+            continue
+        pricing[str(model)] = (input_rate, output_rate)
+    return pricing
+
+
 def _load_ai(raw: dict[str, Any], errors: list[str]) -> AiConfig:
     section = raw.get("ai") or {}
     return AiConfig(
@@ -431,6 +464,7 @@ def _load_ai(raw: dict[str, Any], errors: list[str]) -> AiConfig:
         min_confidence=_num(section, "min_confidence", "ai", errors, cast=float, minimum=0.0, maximum=1.0),
         news_max_items=_num(section, "news_max_items", "ai", errors, minimum=0, maximum=50),
         news_lookback_hours=_num(section, "news_lookback_hours", "ai", errors, minimum=1, maximum=720),
+        pricing=_load_pricing(section, errors),
     )
 
 

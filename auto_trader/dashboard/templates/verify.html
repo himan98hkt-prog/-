@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}키 점검 결과 · 자동매매{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>키 점검 결과<span class="sub">정상 {{ counts.ok }} · 실패 {{ counts.fail }} · 미입력 {{ counts.skip }}</span></h2>
+  <table>
+    <thead><tr><th style="width:38px"></th><th>항목</th><th>결과</th></tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr><td>{{ r.icon }}</td><td>{{ r.name }}</td><td class="{{ 'dim' if r.status == 'skip' }}">{{ r.detail }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if counts.fail == 0 and counts.required_missing == 0 %}
+<div class="notice">
+  <strong>모든 키가 정상입니다</strong>
+  다음 단계: 터미널에서 <code>python scripts/test_kis.py</code> (평일 09:00~15:30) →
+  <code>python scripts/test_cycle.py</code> → <code>python main.py</code>
+</div>
+{% else %}
+<div class="notice danger">
+  <strong>아직 준비되지 않았습니다</strong>
+  위 실패·미입력 항목을 설정 화면에서 고친 뒤 다시 점검하세요.
+</div>
+{% endif %}
+
+<a class="btn" href="{{ url_for('setup') }}">← 설정으로</a>
+<a class="btn" href="{{ url_for('index') }}">현황 보기</a>
+
+{% endblock %}

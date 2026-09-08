@@ -65,11 +65,12 @@ def bot(settings_obj, tmp_path, monkeypatch):
     ))
 
     synced: list[datetime] = []
-    state = SimpleNamespace(positions={}, position_count=0, cash=5_000_000,
+    state = SimpleNamespace(positions={}, position_count=0, cash=5_000_000, daily_pnl_pct=0.0,
                             get=lambda code: None, holds=lambda code: False)
     monkeypatch.setattr(main_module, "Portfolio", lambda settings, api, db_path=None: SimpleNamespace(
         sync=lambda now=None: (synced.append(now), state)[1],
         record_decision=lambda **kw: 1,
+        reconcile_open_orders=lambda now=None: [],
         db_path=tmp_path / "trader.db",
     ))
     monkeypatch.setattr(main_module, "OrderExecutor",
@@ -180,7 +181,8 @@ def test_eod_review_without_holdings_is_noop(bot, monkeypatch):
 def test_three_consecutive_failures_stop_the_scheduler(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     shutdowns: list[bool] = []
-    bot.scheduler = SimpleNamespace(shutdown=lambda wait=True: shutdowns.append(True))
+    bot.scheduler = SimpleNamespace(shutdown=lambda wait=True: shutdowns.append(True),
+                                    get_jobs=lambda: [])
 
     def failing_sync(now=None):
         raise KisApiError("잔고 조회 실패")
@@ -218,7 +220,8 @@ def test_failure_counter_resets_after_success(bot, monkeypatch):
 def test_signal_waits_for_running_cycle(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     shutdowns: list[bool] = []
-    bot.scheduler = SimpleNamespace(shutdown=lambda wait=True: shutdowns.append(True))
+    bot.scheduler = SimpleNamespace(shutdown=lambda wait=True: shutdowns.append(True),
+                                    get_jobs=lambda: [])
 
     cycle_entered = threading.Event()
     allow_finish = threading.Event()

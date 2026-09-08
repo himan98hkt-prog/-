@@ -12,6 +12,7 @@ from google.genai import types
 
 from agents.base_agent import AgentCallError, BaseAgent
 from agents.prompts import RESPONSE_JSON_SCHEMA
+from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
 from utils.logger import get_logger, register_secret
 
@@ -25,6 +26,7 @@ class GeminiAgent(BaseAgent):
 
     def __init__(self, env: EnvConfig, ai: AiConfig, client: genai.Client | None = None) -> None:
         super().__init__(ai)
+        self.pricing = dict(ai.pricing) or None
         self.model = env.gemini_model
         self.temperature = env.gemini_temperature
         register_secret(env.gemini_api_key)
@@ -54,9 +56,25 @@ class GeminiAgent(BaseAgent):
         except Exception as exc:  # 네트워크·타임아웃 등 SDK 외 예외
             raise AgentCallError(f"{type(exc).__name__}: {exc}") from exc
 
+        self._last_usage = _extract_usage(response)
+
         text = (getattr(response, "text", None) or "").strip()
         if not text:
             # 안전 필터 등으로 후보가 비는 경우가 있다.
             reason = getattr(response, "prompt_feedback", None)
             raise AgentCallError(f"빈 응답{f' ({reason})' if reason else ''}")
         return text
+
+
+def _extract_usage(response: object) -> Usage:
+    """`response.usage_metadata` 에서 토큰 수를 꺼낸다 (없으면 0)."""
+    meta = getattr(response, "usage_metadata", None)
+    if meta is None:
+        return Usage()
+    output = int(getattr(meta, "candidates_token_count", 0) or 0)
+    # 사고(thinking) 토큰도 과금 대상이므로 출력에 합산한다.
+    output += int(getattr(meta, "thoughts_token_count", 0) or 0)
+    return Usage(
+        input_tokens=int(getattr(meta, "prompt_token_count", 0) or 0),
+        output_tokens=output,
+    )

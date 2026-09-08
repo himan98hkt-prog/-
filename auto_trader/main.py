@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import sys
 import threading
@@ -42,9 +43,10 @@ from trading.kis_api import KisApi, KisApiError
 from trading.kis_auth import KisAuthError, TokenManager
 from trading.market_calendar import is_trading_day, market_state
 from trading.order_executor import OrderExecutor
-from utils.db import init_db, table_names
+from utils.db import init_db, record_ai_usage, table_names, update_bot_state
 from utils.logger import get_logger, register_secret, setup_logging
 from utils.notifier import Notifier
+from utils.runtime import AlreadyRunningError, ProcessLock, StopFlag, pid_path, stop_flag_path
 
 KST = ZoneInfo("Asia/Seoul")
 logger = get_logger("main")
@@ -70,6 +72,7 @@ class TradingBot:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         env = settings.env
+        init_db(settings.paths["db"])  # bot_state 갱신이 언제든 가능하도록 먼저 보장
 
         self.auth = TokenManager(env, settings.paths["token"])
         self.api = KisApi(env, self.auth)
@@ -86,11 +89,20 @@ class TradingBot:
         self._cycle_lock = threading.Lock()
         self._shutting_down = False
 
+        self.lock = ProcessLock(pid_path(settings.paths["data"]))
+        self.stop_flag = StopFlag(stop_flag_path(settings.paths["data"]))
+        self._loss_limit_notified = False
+
     # -- 기동 -------------------------------------------------------------- #
 
     def startup(self) -> None:
         """토큰 확인 → 잔고 동기화 → 유니버스 구성 → 기동 알림."""
         env = self.settings.env
+        self.lock.acquire()  # 같은 계좌에 두 프로세스가 붙으면 이중 주문이 난다
+        if self.stop_flag.is_set():
+            logger.warning("긴급 정지 플래그가 설정돼 있습니다: %s", self.stop_flag.reason())
+            logger.warning("해제하려면 %s 를 지우거나 대시보드에서 재개를 누르세요", self.stop_flag.path)
+
         logger.info("=" * 60)
         logger.info("모드: %s (%s) / DRY_RUN: %s", env.kis_env, env.base_url,
                     "on" if env.dry_run else "off")
@@ -108,6 +120,13 @@ class TradingBot:
             raise
 
         self.refresh_universe()
+        update_bot_state(
+            self.settings.paths["db"],
+            status="RUNNING", pid=os.getpid(), kis_env=env.kis_env,
+            dry_run=1 if env.dry_run else 0,
+            started_at=datetime.now(KST).isoformat(timespec="seconds"),
+            universe_size=len(self.universe), consecutive_failures=0, last_error="",
+        )
         self.notifier.send_startup(len(self.universe))
         logger.info("=" * 60)
 
@@ -136,6 +155,10 @@ class TradingBot:
         if self._shutting_down:
             logger.info("종료 중 — 새 사이클을 시작하지 않습니다")
             return []
+        if self.stop_flag.is_set():
+            logger.warning("긴급 정지 상태 — 사이클을 건너뜁니다 (%s)", self.stop_flag.reason())
+            update_bot_state(self.settings.paths["db"], status="STOPPED")
+            return []
 
         with self._cycle_lock:
             now = datetime.now(KST)
@@ -149,11 +172,21 @@ class TradingBot:
                 self.consecutive_failures += 1
                 logger.exception("사이클 실패 (%d/%d)", self.consecutive_failures, MAX_CONSECUTIVE_FAILURES)
                 self.notifier.send_error(exc, context=f"{cycle_label} 사이클")
+                update_bot_state(self.settings.paths["db"], status="ERROR",
+                                 consecutive_failures=self.consecutive_failures,
+                                 last_error=str(exc)[:500])
                 if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                     self._fatal(f"사이클이 {MAX_CONSECUTIVE_FAILURES}회 연속 실패했습니다: {exc}")
                 return []
 
             self.consecutive_failures = 0
+            update_bot_state(
+                self.settings.paths["db"], status="RUNNING", consecutive_failures=0, last_error="",
+                last_cycle_at=now.isoformat(timespec="seconds"), last_cycle_label=cycle_label,
+                last_cycle_codes=len(results),
+                last_cycle_orders=sum(1 for row in results if row.get("ordered")),
+                next_cycle_at=self._next_run_at(),
+            )
             self.notifier.send_cycle_summary(cycle_label, results)
             logger.info("── 사이클 %s 완료: %d종목, 주문 %d건 ──", cycle_label, len(results),
                         sum(1 for row in results if row.get("ordered")))
@@ -162,7 +195,13 @@ class TradingBot:
     def _run_cycle_body(
         self, cycle_id: str, cycle_label: str, now: datetime, holdings_only: bool
     ) -> list[dict[str, Any]]:
+        # 지난 사이클에서 미체결로 남은 실주문부터 상태를 확정한다.
+        for change in self.portfolio.reconcile_open_orders(now=now):
+            logger.info("미체결 정리: %s %s %s → %s",
+                        change["name"], change["side"], change["before"], change["after"])
+
         state = self.portfolio.sync(now=now)
+        self._check_daily_loss_limit(state)
         # 보유 종목은 유니버스와 무관하게 항상, 그리고 먼저 본다(손절 판단이 늦으면 안 된다).
         held = list(state.positions)
         codes = held if holdings_only else held + [c for c in self.universe if c not in state.positions]
@@ -223,6 +262,13 @@ class TradingBot:
             cycle_id=cycle_id, snapshot=snapshot, decisions=decisions, final=final,
             forced_exit=forced, risk_passed=risk_passed, risk_reason=risk_reason,
         )
+        for decision in decisions.values():
+            record_ai_usage(
+                self.settings.paths["db"], cycle_id=cycle_id, code=code,
+                agent=decision.agent, model=decision.model,
+                input_tokens=decision.input_tokens, output_tokens=decision.output_tokens,
+                cost_usd=decision.cost_usd, ok=decision.ok, elapsed_sec=decision.elapsed_sec,
+            )
 
         return {
             "code": code, "name": snapshot.get("name", code),
@@ -234,6 +280,39 @@ class TradingBot:
             "qty": execution.qty if execution else 0,
             "price": execution.price if execution else 0,
         }
+
+    def _check_daily_loss_limit(self, state) -> None:
+        """당일 손실 한도에 처음 도달했을 때 한 번 알린다."""
+        limit = self.settings.risk.daily_loss_limit_pct
+        if state.daily_pnl_pct <= -limit:
+            if not self._loss_limit_notified:
+                self._loss_limit_notified = True
+                logger.warning("당일 손실 한도 도달 (%.2f%%) — 신규 매수를 중단합니다", state.daily_pnl_pct)
+                self.notifier.send_alert(
+                    "🚨 당일 손실 한도 도달",
+                    [f"당일 손익 {state.daily_pnl_pct:+.2f}% (한도 -{limit}%)",
+                     "신규 매수를 중단합니다. 보유 종목의 손절·익절은 계속 동작합니다."],
+                    key="daily_loss_limit",
+                )
+        elif self._loss_limit_notified and state.daily_pnl_pct > -limit:
+            self._loss_limit_notified = False  # 회복되면 다음 도달 때 다시 알린다
+
+    def _next_run_at(self) -> str:
+        """스케줄러에 등록된 사이클 잡 중 가장 이른 다음 실행 시각.
+
+        표시용 정보이므로 어떤 이유로든 실패해도 사이클을 깨뜨리지 않는다.
+        """
+        if self.scheduler is None:
+            return ""
+        try:
+            upcoming = [
+                job.next_run_time for job in self.scheduler.get_jobs()
+                if job.id.startswith("cycle_") and job.next_run_time
+            ]
+        except Exception:  # 스케줄러 상태를 읽지 못해도 매매는 계속된다
+            logger.debug("다음 실행 시각을 읽지 못했습니다", exc_info=True)
+            return ""
+        return min(upcoming).isoformat(timespec="seconds") if upcoming else ""
 
     def eod_review(self) -> list[dict[str, Any]]:
         """장 마감 전 보유 종목만 재판단(신규 매수는 리스크 규칙 5가 이미 막는다)."""
@@ -256,6 +335,7 @@ class TradingBot:
     def _fatal(self, message: str) -> None:
         logger.critical("치명적 오류: %s", message)
         self.notifier.send_fatal(message)
+        update_bot_state(self.settings.paths["db"], status="FATAL", last_error=message[:500])
         self._shutting_down = True
         if self.scheduler is not None:
             self.scheduler.shutdown(wait=False)
@@ -272,6 +352,7 @@ class TradingBot:
     def _graceful_shutdown(self) -> None:
         with self._cycle_lock:  # 진행 중 사이클이 끝날 때까지 대기
             pass
+        update_bot_state(self.settings.paths["db"], status="STOPPED", next_cycle_at="")
         self.notifier.send("🛑 자동매매를 종료합니다 (진행 중 사이클 완료)")
         if self.scheduler is not None:
             self.scheduler.shutdown(wait=False)
@@ -330,6 +411,7 @@ class TradingBot:
         except (KeyboardInterrupt, SystemExit):
             pass
         logger.info("스케줄러 종료")
+        update_bot_state(self.settings.paths["db"], status="STOPPED", next_cycle_at="")
         return 0
 
 
@@ -349,6 +431,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check", action="store_true", help="설정·DB 점검만 하고 종료")
     parser.add_argument("--once", action="store_true", help="지금 즉시 1사이클 실행 후 종료")
     parser.add_argument("--report", action="store_true", help="오늘 일간 리포트만 전송하고 종료")
+    parser.add_argument("--stop", action="store_true", help="긴급 정지 플래그를 설정하고 종료")
+    parser.add_argument("--resume", action="store_true", help="긴급 정지 플래그를 해제하고 종료")
+    parser.add_argument("--status", action="store_true", help="현재 봇 상태를 출력하고 종료")
     args = parser.parse_args(argv)
 
     try:
@@ -358,6 +443,33 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     env = settings.env
+
+    if args.stop:
+        StopFlag(stop_flag_path(settings.paths["data"])).set("CLI 수동 정지")
+        print("🛑 긴급 정지 플래그를 설정했습니다. 진행 중 사이클 이후 새 사이클이 실행되지 않습니다.")
+        print("   재개: python main.py --resume")
+        return 0
+
+    if args.resume:
+        StopFlag(stop_flag_path(settings.paths["data"])).clear()
+        print("▶️  긴급 정지를 해제했습니다.")
+        return 0
+
+    if args.status:
+        from utils.db import get_bot_state
+
+        state = get_bot_state(settings.paths["db"])
+        lock = ProcessLock(pid_path(settings.paths["data"]))
+        flag = StopFlag(stop_flag_path(settings.paths["data"]))
+        print(f"프로세스   : {'실행 중 (PID ' + str(lock.read_pid()) + ')' if lock.is_running() else '실행 안 함'}")
+        print(f"긴급 정지  : {'설정됨 — ' + flag.reason() if flag.is_set() else '해제'}")
+        print(f"상태       : {state.get('status') or '-'}")
+        print(f"마지막 사이클: {state.get('last_cycle_at') or '-'} ({state.get('last_cycle_label') or '-'})")
+        print(f"다음 사이클  : {state.get('next_cycle_at') or '-'}")
+        if state.get("last_error"):
+            print(f"마지막 오류 : {state['last_error']}")
+        return 0
+
     if args.check:
         logger.info("설정 검증 완료 — 모드 %s / DRY_RUN %s", env.kis_env, "on" if env.dry_run else "off")
         logger.info("DB 테이블: %s", ", ".join(table_names(settings.paths["db"])))
@@ -377,16 +489,25 @@ def main(argv: list[str] | None = None) -> int:
             bot.daily_report()
             return 0
         bot.startup()
+    except AlreadyRunningError as exc:
+        # 두 프로세스가 같은 계좌에 붙으면 이중 주문이 난다 — 조용히 죽지 않고 이유를 알린다.
+        print(f"\n🛑 {exc}\n", file=sys.stderr)
+        logger.error("중복 실행 차단: %s", exc)
+        return 1
     except (KisApiError, KisAuthError) as exc:
         logger.error("기동 실패: %s", exc)
         bot.notifier.send_error(exc, context="기동")
+        bot.lock.release()
         return 1
 
-    if args.once:
-        bot.run_cycle(label="수동")
-        return 0
-
-    return bot.run_forever()
+    # 어느 경로로 끝나든 PID 락은 반드시 푼다(남으면 다음 기동이 막힌다).
+    try:
+        if args.once:
+            bot.run_cycle(label="수동")
+            return 0
+        return bot.run_forever()
+    finally:
+        bot.lock.release()
 
 
 if __name__ == "__main__":

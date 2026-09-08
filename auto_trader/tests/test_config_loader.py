@@ -168,3 +168,29 @@ def test_discord_webhook_is_masked_in_repr(env_file):
                     create_dirs=False)
     printed = repr(settings.env)
     assert "SECRET-TOKEN-HERE" not in printed, "print(load()) 이 웹훅 시크릿을 노출하면 안 됩니다"
+
+
+# --------------------------------------------------------------------------- #
+# ai.pricing
+# --------------------------------------------------------------------------- #
+
+
+def test_settings_yaml_pricing_is_loaded(env_file):
+    settings = load(env_path=env_file(), create_dirs=False)
+    assert settings.ai.pricing, "settings.yaml 의 ai.pricing 이 읽혀야 합니다"
+    for rates in settings.ai.pricing.values():
+        assert len(rates) == 2 and all(value >= 0 for value in rates)
+
+
+def test_malformed_pricing_is_reported(env_file, tmp_path):
+    import yaml
+
+    from config.loader import CONFIG_DIR
+
+    raw = yaml.safe_load((CONFIG_DIR / "settings.yaml").read_text(encoding="utf-8"))
+    raw["ai"]["pricing"] = {"bad-model": "비싸요"}
+    broken = tmp_path / "settings.yaml"
+    broken.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="ai.pricing"):
+        load(env_path=env_file(), settings_path=broken, create_dirs=False)

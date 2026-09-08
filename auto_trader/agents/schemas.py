@@ -32,6 +32,10 @@ class AgentDecision:
     ok: bool = False  # 파싱 성공 여부
     error: str = "" # 실패 사유 (로그·DB용)
     elapsed_sec: float = 0.0
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

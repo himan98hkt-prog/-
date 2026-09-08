@@ -10,6 +10,9 @@ pandas>=2.2.0
 ta>=0.11.0
 # 설치 실패 시: pip install --use-pep517 ta
 
+# --- 대시보드 (로컬 웹 UI) ---
+flask>=3.0.0
+
 # --- 스케줄링 ---
 apscheduler>=3.10.4
 

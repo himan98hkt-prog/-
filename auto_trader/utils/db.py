@@ -5,6 +5,8 @@
   orders     : 주문·체결 내역 (DRY_RUN 주문 포함)
   decisions  : AI 원문 응답 + 파싱 결과 + 최종 결정 (사후 검증용, 전부 보관)
   daily_pnl  : 일자별 손익 요약
+  ai_usage   : AI 호출 토큰·추정 비용 (비용 추적)
+  bot_state  : 봇 실행 상태 한 줄 (대시보드용)
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 from zoneinfo import ZoneInfo
 
 from utils.logger import get_logger
@@ -91,6 +93,41 @@ CREATE TABLE IF NOT EXISTS decisions (
 CREATE INDEX IF NOT EXISTS idx_decisions_cycle       ON decisions (cycle_id);
 CREATE INDEX IF NOT EXISTS idx_decisions_code_created ON decisions (code, created_at);
 
+CREATE TABLE IF NOT EXISTS ai_usage (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_id      TEXT,
+    code          TEXT,
+    agent         TEXT    NOT NULL,
+    model         TEXT,
+    input_tokens  INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd      REAL    NOT NULL DEFAULT 0,
+    ok            INTEGER NOT NULL DEFAULT 1,
+    elapsed_sec   REAL    NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage (created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_cycle   ON ai_usage (cycle_id);
+
+-- 대시보드가 읽는 봇 실행 상태 (단일 행, id=1)
+CREATE TABLE IF NOT EXISTS bot_state (
+    id                    INTEGER PRIMARY KEY CHECK (id = 1),
+    status                TEXT,
+    pid                   INTEGER,
+    kis_env               TEXT,
+    dry_run               INTEGER,
+    started_at            TEXT,
+    last_cycle_at         TEXT,
+    last_cycle_label      TEXT,
+    last_cycle_codes      INTEGER NOT NULL DEFAULT 0,
+    last_cycle_orders     INTEGER NOT NULL DEFAULT 0,
+    next_cycle_at         TEXT,
+    universe_size         INTEGER NOT NULL DEFAULT 0,
+    consecutive_failures  INTEGER NOT NULL DEFAULT 0,
+    last_error            TEXT,
+    updated_at            TEXT
+);
+
 CREATE TABLE IF NOT EXISTS daily_pnl (
     date            TEXT PRIMARY KEY,
     start_equity    REAL NOT NULL DEFAULT 0,
@@ -157,3 +194,75 @@ def table_names(db_path: Path | str) -> list[str]:
     finally:
         conn.close()
     return [row["name"] for row in rows]
+
+
+# --------------------------------------------------------------------------- #
+# 봇 상태 (대시보드가 읽는 단일 행)
+# --------------------------------------------------------------------------- #
+
+
+def update_bot_state(db_path: Path | str, **fields: Any) -> None:
+    """`bot_state` 의 지정한 필드만 갱신한다 (없으면 행을 만든다)."""
+    if not fields:
+        return
+    allowed = {
+        "status", "pid", "kis_env", "dry_run", "started_at", "last_cycle_at",
+        "last_cycle_label", "last_cycle_codes", "last_cycle_orders", "next_cycle_at",
+        "universe_size", "consecutive_failures", "last_error",
+    }
+    unknown = set(fields) - allowed
+    if unknown:
+        raise ValueError(f"알 수 없는 bot_state 필드: {sorted(unknown)}")
+
+    fields["updated_at"] = now_kst_iso()
+    columns = ", ".join(fields)
+    placeholders = ", ".join("?" for _ in fields)
+    updates = ", ".join(f"{name}=excluded.{name}" for name in fields)
+
+    conn = connect(db_path)
+    try:
+        conn.execute(
+            f"INSERT INTO bot_state (id, {columns}) VALUES (1, {placeholders}) "
+            f"ON CONFLICT(id) DO UPDATE SET {updates}",
+            tuple(fields.values()),
+        )
+    finally:
+        conn.close()
+
+
+def get_bot_state(db_path: Path | str) -> dict[str, Any]:
+    """봇 상태 한 줄. 테이블이 아직 없어도 빈 dict 를 돌려준다(구버전 DB 호환)."""
+    conn = connect(db_path)
+    try:
+        row = conn.execute("SELECT * FROM bot_state WHERE id = 1").fetchone()
+    except sqlite3.OperationalError:
+        return {}
+    finally:
+        conn.close()
+    return dict(row) if row else {}
+
+
+def record_ai_usage(
+    db_path: Path | str,
+    *,
+    cycle_id: str,
+    code: str,
+    agent: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: float,
+    ok: bool,
+    elapsed_sec: float,
+) -> None:
+    conn = connect(db_path)
+    try:
+        conn.execute(
+            """INSERT INTO ai_usage (cycle_id, code, agent, model, input_tokens, output_tokens,
+                                     cost_usd, ok, elapsed_sec, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (cycle_id, code, agent, model, int(input_tokens), int(output_tokens),
+             float(cost_usd), 1 if ok else 0, float(elapsed_sec), now_kst_iso()),
+        )
+    finally:
+        conn.close()

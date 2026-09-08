@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import time
 import traceback
 from datetime import datetime
 from typing import Any, Iterable
@@ -19,6 +20,7 @@ KST = ZoneInfo("Asia/Seoul")
 logger = get_logger("notifier")
 
 TELEGRAM_LIMIT = 4096  # 텔레그램 메시지 길이 제한
+ERROR_COOLDOWN_SEC = 600  # 같은 오류 재알림 억제 간격
 DISCORD_LIMIT = 2000
 HTTP_TIMEOUT = 10
 
@@ -49,9 +51,13 @@ def split_message(text: str, limit: int) -> list[str]:
 
 
 class Notifier:
-    def __init__(self, env: EnvConfig, session: Any | None = None) -> None:
+    def __init__(self, env: EnvConfig, session: Any | None = None,
+                 error_cooldown_sec: int = ERROR_COOLDOWN_SEC) -> None:
         self.env = env
         self.session = session or requests
+        self.error_cooldown_sec = error_cooldown_sec
+        # 같은 오류가 매 종목·매 사이클 반복될 때 알림이 폭주하지 않도록 억제한다.
+        self._error_seen: dict[str, float] = {}
         register_secret(env.telegram_bot_token, env.discord_webhook_url)
 
     # -- 전송 -------------------------------------------------------------- #
@@ -145,13 +151,36 @@ class Notifier:
             text += f" → {side} {row.get('qty', 0):,}주 @{row.get('price', 0):,.0f}"
         return text
 
-    def send_error(self, exc: BaseException, context: str = "") -> bool:
+    def send_error(self, exc: BaseException, context: str = "", *, dedupe: bool = True) -> bool:
+        """오류 알림. 같은 유형이 쿨다운 안에 반복되면 보내지 않는다."""
         detail = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+        if dedupe and self._suppressed(f"{type(exc).__name__}:{detail}"):
+            logger.debug("동일 오류 알림 억제(%ds): %s", self.error_cooldown_sec, detail[:80])
+            return True
         lines = ["⚠️ 오류 발생"]
         if context:
             lines.append(f"• 위치: {context}")
         lines.append(f"• 내용: {detail}")
         return self.send("\n".join(lines))
+
+    def _suppressed(self, key: str) -> bool:
+        """쿨다운 안에 이미 보낸 적 있으면 True (그리고 시각을 갱신하지 않는다)."""
+        now = time.monotonic()
+        last = self._error_seen.get(key)
+        if last is not None and now - last < self.error_cooldown_sec:
+            return True
+        self._error_seen[key] = now
+        # 오래된 항목 정리
+        self._error_seen = {
+            k: t for k, t in self._error_seen.items() if now - t < self.error_cooldown_sec * 2
+        }
+        return False
+
+    def send_alert(self, title: str, lines: list[str], *, key: str = "") -> bool:
+        """상태 변화 알림(손실 한도 도달 등). key 를 주면 쿨다운이 적용된다."""
+        if key and self._suppressed(f"alert:{key}"):
+            return True
+        return self.send("\n".join([title, *(f"• {line}" for line in lines)]))
 
     def send_fatal(self, message: str) -> bool:
         return self.send(f"🛑 치명적 오류 — 스케줄러를 중단합니다\n• {message}")

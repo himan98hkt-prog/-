@@ -311,3 +311,81 @@ def test_cash_never_goes_negative():
     state = state_with(cash=100_000)
     state.apply_execution("005930", "삼성전자", "BUY", 10, 70_000)
     assert state.cash == 0
+
+
+# --------------------------------------------------------------------------- #
+# 미체결 주문 재확인 (reconcile)
+# --------------------------------------------------------------------------- #
+
+
+def _insert_order(portfolio, *, order_no="ODNO1", status="PENDING", dry_run=0,
+                  created="2026-09-08T09:35:00+09:00", side="BUY"):
+    conn = connect(portfolio.db_path)
+    conn.execute(
+        """INSERT INTO orders (cycle_id, order_no, code, name, side, order_type, qty, price,
+                               filled_qty, filled_price, status, dry_run, kis_env,
+                               created_at, updated_at)
+           VALUES ('c1', ?, '005930', '삼성전자', ?, 'market', 10, 71300, 0, 0, ?, ?, 'VTS', ?, ?)""",
+        (order_no, side, status, dry_run, created, created),
+    )
+    conn.close()
+
+
+def test_reconcile_marks_filled_orders(make_portfolio):
+    portfolio, _ = make_portfolio([Balance()], statuses=[filled(qty=10, ordered=10)])
+    _insert_order(portfolio)
+
+    changes = portfolio.reconcile_open_orders(now=NOW)
+
+    assert len(changes) == 1 and changes[0]["after"] == "FILLED"
+    conn = connect(portfolio.db_path)
+    row = conn.execute("SELECT status, filled_qty FROM orders").fetchone()
+    conn.close()
+    assert row["status"] == "FILLED" and row["filled_qty"] == 10
+
+
+def test_reconcile_marks_partial(make_portfolio):
+    portfolio, _ = make_portfolio([Balance()], statuses=[filled(qty=4, ordered=10)])
+    _insert_order(portfolio)
+    changes = portfolio.reconcile_open_orders(now=NOW)
+    assert changes[0]["after"] == "PARTIAL"
+
+
+def test_reconcile_skips_dry_run_orders(make_portfolio):
+    portfolio, api = make_portfolio([Balance()], statuses=[filled()])
+    _insert_order(portfolio, dry_run=1, status="DRY_RUN")
+    assert portfolio.reconcile_open_orders(now=NOW) == []
+    assert api.statuses, "DRY_RUN 주문은 조회조차 하지 않습니다"
+
+
+def test_reconcile_skips_already_settled(make_portfolio):
+    portfolio, api = make_portfolio([Balance()], statuses=[filled()])
+    _insert_order(portfolio, status="FILLED")
+    assert portfolio.reconcile_open_orders(now=NOW) == []
+    assert api.statuses
+
+
+def test_reconcile_ignores_other_days(make_portfolio):
+    portfolio, _ = make_portfolio([Balance()], statuses=[filled()])
+    _insert_order(portfolio, created="2026-09-01T09:35:00+09:00")
+    assert portfolio.reconcile_open_orders(now=NOW) == []
+
+
+def test_reconcile_survives_lookup_failure(make_portfolio):
+    portfolio, _ = make_portfolio([Balance()], statuses=[KisApiError("조회 실패")])
+    _insert_order(portfolio)
+    assert portfolio.reconcile_open_orders(now=NOW) == []  # 예외를 올리지 않는다
+
+    conn = connect(portfolio.db_path)
+    assert conn.execute("SELECT status FROM orders").fetchone()["status"] == "PENDING"
+    conn.close()
+
+
+def test_reconcile_handles_vanished_order(make_portfolio):
+    """장 마감으로 소멸한 주문(체결 0, 잔량 0)은 CANCELED 로 확정한다."""
+    vanished = OrderStatus(order_no="ODNO1", code="005930", name="삼성전자", side="BUY",
+                           order_qty=10, filled_qty=0, remain_qty=0, filled_price=0,
+                           filled_amount=0, status="취소")
+    portfolio, _ = make_portfolio([Balance()], statuses=[vanished])
+    _insert_order(portfolio)
+    assert portfolio.reconcile_open_orders(now=NOW)[0]["after"] == "CANCELED"

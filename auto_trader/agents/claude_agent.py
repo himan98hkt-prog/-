@@ -10,6 +10,7 @@ import anthropic
 
 from agents.base_agent import AgentCallError, BaseAgent
 from agents.prompts import RESPONSE_JSON_SCHEMA
+from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
 from utils.logger import get_logger, register_secret
 
@@ -25,6 +26,7 @@ class ClaudeAgent(BaseAgent):
 
     def __init__(self, env: EnvConfig, ai: AiConfig, client: anthropic.Anthropic | None = None) -> None:
         super().__init__(ai)
+        self.pricing = dict(ai.pricing) or None
         self.model = env.claude_model
         self.temperature = env.claude_temperature
         self.effort = env.claude_effort
@@ -74,6 +76,8 @@ class ClaudeAgent(BaseAgent):
             except anthropic.APIConnectionError as exc:
                 raise AgentCallError(f"연결 실패: {exc}") from exc
 
+            self._last_usage = _extract_usage(response)
+
             if getattr(response, "stop_reason", None) == "refusal":
                 raise AgentCallError("모델이 응답을 거부했습니다(refusal)")
 
@@ -83,3 +87,14 @@ class ClaudeAgent(BaseAgent):
             return text
 
         raise AgentCallError("요청 파라미터를 조정했지만 호출에 실패했습니다")
+
+
+def _extract_usage(response: object) -> Usage:
+    """`response.usage` 에서 토큰 수를 꺼낸다 (없으면 0)."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return Usage()
+    return Usage(
+        input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+        output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+    )
