@@ -43,6 +43,18 @@ cd <저장소>/auto_trader
 
 화면이 뜨면 키 발급을 먼저 하러 갔다가, 다 받은 뒤 7단계로 돌아와 입력하면 됩니다.
 
+### start.bat 이 안 될 때
+
+| 증상 | 원인과 해결 |
+|---|---|
+| 창이 뜨자마자 닫힌다 | 예전 버전입니다. 이제 실패해도 창이 멈추고 이유를 보여줍니다. 다시 받으세요 |
+| `Python 3.11 or newer was not found` | python.org 에서 설치하고 **"Add python.exe to PATH"** 를 체크하세요 |
+| 파이썬 설치했는데도 같은 메시지 | Microsoft Store 판 파이썬은 동작하지 않습니다. python.org 판으로 설치하세요 |
+| 브라우저에 "연결할 수 없음" | 검은 창에 `Dashboard:` 줄이 나온 뒤 새로고침하세요. 첫 실행은 준비에 몇 분 걸립니다 |
+| `Could not create the virtual environment` | OneDrive/바탕화면 대신 `C:\autotrader` 같은 단순한 경로로 옮기고 다시 실행하세요 |
+
+---
+
 ## 1. 한국투자증권 계좌 + 모의투자 참가신청
 
 ### 1-1. 계좌가 없다면 먼저 개설

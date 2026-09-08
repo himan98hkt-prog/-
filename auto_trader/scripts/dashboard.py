@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard.app import create_app  # noqa: E402
+from utils.browser import open_when_ready  # noqa: E402
 
 HOST = "127.0.0.1"
 
@@ -27,6 +28,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="자동매매 로컬 대시보드")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--debug", action="store_true", help="개발용 자동 리로드")
+    parser.add_argument(
+        "--open-browser", action="store_true",
+        help="서버가 뜬 뒤 브라우저를 연다 (start.sh / start.bat 이 사용)",
+    )
     args = parser.parse_args()
 
     print("=" * 62)
@@ -35,6 +40,10 @@ def main() -> int:
     print("  · 외부에 노출되지 않습니다 (127.0.0.1 전용)")
     print("  · 중지: Ctrl+C")
     print("=" * 62)
+
+    if args.open_browser:
+        # 서버가 준비된 뒤에 연다 — 먼저 열면 "연결할 수 없음" 이 뜬다.
+        open_when_ready(HOST, args.port)
 
     create_app().run(host=HOST, port=args.port, debug=args.debug)
     return 0

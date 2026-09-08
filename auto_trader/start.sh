@@ -70,13 +70,6 @@ echo "  중지: Ctrl+C"
 echo "════════════════════════════════════════════════════════"
 echo ""
 
-# --- 브라우저 열기 (백그라운드) -------------------------------------------
-(
-  sleep 2
-  URL="http://127.0.0.1:$PORT"
-  if command -v open >/dev/null 2>&1; then open "$URL"          # macOS
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$URL" # Linux
-  fi
-) >/dev/null 2>&1 &
-
-exec python scripts/dashboard.py --port "$PORT"
+# 브라우저는 서버가 실제로 뜬 뒤에 열린다 (--open-browser).
+# 먼저 열면 "연결할 수 없음" 페이지가 뜬다.
+exec python scripts/dashboard.py --port "$PORT" --open-browser
