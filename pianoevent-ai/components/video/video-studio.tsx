@@ -358,23 +358,35 @@ export function VideoStudio({
   /** 이 컴퓨터가 빠른 길을 쓸 수 있는가 — 만들기 전에 미리 알려 드리려고 봐 둔다 */
   const [fastReady, setFastReady] = useState(false)
   useEffect(() => {
-    const type = pickRecordType()
-    setRecordType(type)
+    setRecordType(pickRecordType())
     setCheckedRecorder(true)
+  }, [])
+
+  /** 얹을 소리가 있는가 — 음악을 넣으셨거나 동영상 장면이 있으면 참 */
+  const hasSound = useMemo(
+    () => Boolean(music) || scenes.some((scene) => scene.clip),
+    [music, scenes],
+  )
+
+  /*
+   * 빠른 길을 쓸 수 있는지 **지금 상태로** 본다.
+   *
+   * 음악을 얹으시면 소리 인코더가 필요해져 답이 달라질 수 있다. 그래서 음악을
+   * 넣고 빼실 때마다 다시 본다 — 화면에 적힌 말과 실제로 벌어지는 일이 어긋나면 안 된다.
+   */
+  useEffect(() => {
+    if (!recordType) return
     let alive = true
-    // 만들 크기가 바뀌어도 되는지 여부는 거의 같다 — 가장 큰 것으로 한 번만 본다
-    void pickFastPlan(1920, 1080)
+    // 만들 크기가 바뀌어도 되는지 여부는 거의 같다 — 가장 큰 것으로 본다
+    void pickFastPlan(1920, 1080, hasSound, recordType)
       .then((plan) => {
-        if (!alive || !plan) return
-        // 예전 방식이 MP4 를 만드는데 빠른 길이 WebM 뿐이면 쓰지 않는다 (record 와 같은 규칙)
-        if (plan.container === 'webm' && type?.includes('mp4')) return
-        setFastReady(true)
+        if (alive) setFastReady(Boolean(plan))
       })
-      .catch(() => undefined)
+      .catch(() => setFastReady(false))
     return () => {
       alive = false
     }
-  }, [])
+  }, [recordType, hasSound])
 
   /** 사진·동영상을 미리 다 읽어 둔다 — 그리는 도중에 읽으면 화면이 끊긴다 */
   useEffect(() => {
@@ -796,26 +808,27 @@ export function VideoStudio({
     const canvas = canvasRef.current
     if (!canvas || !recordType) return false
 
-    let plan: FastPlan | null = null
-    try {
-      plan = await pickFastPlan(canvas.width, canvas.height)
-    } catch {
-      return false
-    }
-    if (!plan) return false
     /*
-     * 파일 모양이 나빠지면 빠른 것이 소용없다.
-     * 예전 방식이 MP4 를 만드는 컴퓨터에서 빠른 길이 WebM 밖에 못 만들면,
-     * 빨리 나온 대신 파워포인트에 안 들어가는 파일이 된다. 그럴 때는 하던 대로 간다.
+     * 소리를 **먼저** 뽑는다 — 얹을 소리가 있느냐로 쓸 수 있는 계획이 달라진다.
+     * 음악도 동영상도 없으면 소리 인코더가 없어도 빠른 길로 갈 수 있다.
      */
-    if (plan.container === 'webm' && recordType.includes('mp4')) return false
-
-    // 소리 — 배경음악 한 가닥, 그리고 올리신 동영상마다 그 장면 자리에 한 가닥씩
     const sounds = soundPieces(
       line,
       (url) => sourcesRef.current.videos.get(url)?.duration || 0,
       music ? { url: music.url, start: musicStart, volume: musicVolume / 100 } : null,
     )
+
+    /*
+     * 계획을 고른다. **파일이 나빠지는 계획은 고르지 않는다**(isDowngrade) —
+     * 빨라진 대신 파워포인트에 안 들어가는 파일이 되면 소용이 없다.
+     */
+    let plan: FastPlan | null = null
+    try {
+      plan = await pickFastPlan(canvas.width, canvas.height, sounds.length > 0, recordType)
+    } catch {
+      return false
+    }
+    if (!plan) return false
 
     try {
       setFast(true)

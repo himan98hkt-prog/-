@@ -54,6 +54,22 @@ const PLANS: FastPlan[] = [
     muxAudio: 'aac',
     mimeType: 'video/mp4',
   },
+  /*
+   * MP4 에 Opus 소리.
+   *
+   * AAC 로 소리를 굽지 못하는 컴퓨터가 있다(설치본에서 직접 확인했다 — 영상용 H.264 는
+   * 되는데 AAC 인코더가 없었다). 그런 컴퓨터에서는 **예전 방식이 만드는 것도 MP4+Opus**
+   * 였다. 그러니 여기서 같은 것을 만드는 것은 나빠지는 것이 아니라 **똑같은 것을 세 배
+   * 빨리** 주는 것이다. AAC 가 되는 컴퓨터에서는 위의 둘이 먼저 잡히므로 여기까지 안 온다.
+   */
+  {
+    container: 'mp4',
+    videoCodec: 'avc1.4D002A',
+    muxVideo: 'avc',
+    audioCodec: 'opus',
+    muxAudio: 'opus',
+    mimeType: 'video/mp4',
+  },
   {
     container: 'webm',
     videoCodec: 'vp09.00.10.08',
@@ -64,13 +80,43 @@ const PLANS: FastPlan[] = [
   },
 ]
 
+/**
+ * 이 계획으로 만들면 **파일이 나빠지는가.**
+ *
+ * 빠른 것보다 중요한 것이 있다 — 만든 영상이 파워포인트에 들어가고 카카오톡으로
+ * 보내져야 한다. 예전 방식이 더 나은 파일을 만들 수 있는 자리에서는 빠른 길을 버린다.
+ *
+ * @param recorderType 예전 방식(MediaRecorder)이 이 컴퓨터에서 고른 형식
+ */
+export function isDowngrade(plan: FastPlan, recorderType: string | null, needsSound: boolean): boolean {
+  if (!recorderType) return false
+  // 예전 방식이 MP4 를 만드는데 빠른 길이 WebM 뿐이면 — 파워포인트에 안 들어간다
+  if (plan.container === 'webm' && recorderType.includes('mp4')) return true
+  // 예전 방식이 AAC 소리를 넣을 수 있는데 우리가 Opus 밖에 못 넣으면 — 소리가 안 날 수 있다
+  if (needsSound && plan.muxAudio === 'opus' && /mp4a/i.test(recorderType)) return true
+  return false
+}
+
 const SAMPLE_RATE = 48_000
 
-/** 이 브라우저가 빠른 길을 쓸 수 있는가 — 못 쓰면 null (예전 방식으로 담는다) */
-export async function pickFastPlan(width: number, height: number): Promise<FastPlan | null> {
-  if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined') return null
-  if (typeof VideoFrame === 'undefined') return null
+/**
+ * 이 브라우저가 빠른 길을 쓸 수 있는가 — 못 쓰면 null (예전 방식으로 담는다).
+ *
+ * `needsSound` 를 꼭 받는다. **얹을 소리가 없으면 소리 인코더도 필요 없기 때문이다.**
+ * 처음에는 그것을 안 보고 늘 소리 인코더까지 있어야 빠른 길을 열어 주었는데,
+ * 설치본에서 실제로 뽑아 보니 이 자리에서 걸렸다 — 영상용 avc1 은 되는데 AAC 가 없어서
+ * **음악도 안 넣은 영상**이 예전 방식으로 65초를 다 기다렸다.
+ */
+export async function pickFastPlan(
+  width: number,
+  height: number,
+  needsSound: boolean,
+  recorderType: string | null = null,
+): Promise<FastPlan | null> {
+  if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null
+  if (needsSound && typeof AudioEncoder === 'undefined') return null
   for (const plan of PLANS) {
+    if (isDowngrade(plan, recorderType, needsSound)) continue
     try {
       const video = await VideoEncoder.isConfigSupported({
         codec: plan.videoCodec,
@@ -80,13 +126,15 @@ export async function pickFastPlan(width: number, height: number): Promise<FastP
         framerate: 30,
       })
       if (!video.supported) continue
-      const audio = await AudioEncoder.isConfigSupported({
-        codec: plan.audioCodec,
-        sampleRate: SAMPLE_RATE,
-        numberOfChannels: 2,
-        bitrate: 128_000,
-      })
-      if (!audio.supported) continue
+      if (needsSound) {
+        const audio = await AudioEncoder.isConfigSupported({
+          codec: plan.audioCodec,
+          sampleRate: SAMPLE_RATE,
+          numberOfChannels: 2,
+          bitrate: 128_000,
+        })
+        if (!audio.supported) continue
+      }
       return plan
     } catch {
       /* 이 조합은 못 쓴다 — 다음 것을 본다 */
@@ -298,7 +346,7 @@ export async function fastExport({
       ? new Mp4Muxer({
           target: target as Mp4Target,
           video: { codec: 'avc', width, height, frameRate: fps },
-          ...(sound ? { audio: { codec: 'aac' as const, numberOfChannels: 2, sampleRate: SAMPLE_RATE } } : {}),
+          ...(sound ? { audio: { codec: plan.muxAudio, numberOfChannels: 2, sampleRate: SAMPLE_RATE } } : {}),
           fastStart: 'in-memory',
         })
       : new WebmMuxer({
