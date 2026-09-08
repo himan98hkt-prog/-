@@ -1,0 +1,30 @@
+node_modules
+.next
+out
+.data
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+
+screenshots
+promo
+
+배포
+배포/demo
+carousel/
+shots
+
+# 자동 저장 — 원장님 컴퓨터 안에만 있으면 된다
+백업
+
+# 설치판 — 빌드해서 만드는 것이라 저장소에 두지 않는다
+desktop/app
+배포/설치본
+
+# 업로드용 묶음은 만들어 쓰는 것이라 저장소에 두지 않는다 (npm run pack:web)
+web/recital-upload.zip
+
+# 상품 이미지 찍을 때 받아 쓰는 한글 글꼴 — 26MB 라 저장소에 두지 않는다
+.fontcache
