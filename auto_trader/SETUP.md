@@ -22,8 +22,9 @@
 
 ## 0. 프로그램 실행 — 명령 하나
 
-Python 3.11 이상이 필요합니다 (`python3 --version` 으로 확인, 없으면
-https://www.python.org/downloads/ 에서 설치).
+Python 3.11 이상이 필요합니다. **3.12 를 권장합니다** — 3.14 처럼 너무 최신 버전은
+아직 설치 파일이 없는 패키지가 있어 설치가 오래 걸리거나 실패할 수 있습니다.
+(`python3 --version` 으로 확인, 없으면 https://www.python.org/downloads/ 에서 설치)
 
 ```bash
 git clone <이 저장소 주소>
