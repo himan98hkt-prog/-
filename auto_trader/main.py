@@ -3,6 +3,7 @@
 스케줄:
   universe_refresh  유니버스 갱신
   first_cycle 부터 cycle_interval_min 간격으로 15:00 까지  run_cycle()
+  guard_cycle       손절 감시 — guard_interval_min 마다 보유 종목만 (AI 호출 없음)
   eod_review        보유 종목만 대상으로 청산 여부 재판단
   daily_report      일간 손익·주문 내역 리포트
 
@@ -41,7 +42,7 @@ from logic.reporting import build_daily_report
 from logic.risk_manager import RiskManager
 from trading.kis_api import KisApi, KisApiError
 from trading.kis_auth import KisAuthError, TokenManager
-from trading.market_calendar import is_trading_day, market_state
+from trading.market_calendar import is_market_open, is_trading_day, market_state
 from trading.order_executor import OrderExecutor
 from utils.db import init_db, record_ai_usage, table_names, update_bot_state
 from utils.logger import get_logger, register_secret, setup_logging
@@ -314,6 +315,80 @@ class TradingBot:
             return ""
         return min(upcoming).isoformat(timespec="seconds") if upcoming else ""
 
+    def guard_cycle(self) -> list[dict[str, Any]]:
+        """손절 감시 — 정규 사이클 사이의 급락을 잡는다.
+
+        정규 사이클은 30분 간격이라, 그 사이에 손절선을 크게 밑돌아도 다음 사이클까지
+        방치된다. 이 잡은 몇 분마다 돌면서 **보유 종목의 손절선만** 본다.
+        AI 를 호출하지 않고 잔고 조회 1회로 끝나므로 비용이 사실상 없다.
+
+        익절은 여기서 처리하지 않는다 — 지시서상 AI 재판단이 필요하고, 익절을
+        놓쳐서 생기는 손해는 자산을 깎지 않기 때문이다.
+        """
+        if self._shutting_down or self.stop_flag.is_set() or not is_market_open():
+            return []
+
+        # 정규 사이클이 도는 중이면 건너뛴다. 잔고를 두 번 읽어 서로 다른 판단을
+        # 하거나 같은 종목에 매도를 두 번 낼 이유가 없다.
+        if not self._cycle_lock.acquire(blocking=False):
+            logger.debug("정규 사이클 진행 중 — 손절 감시를 건너뜁니다")
+            return []
+        try:
+            return self._run_guard_body()
+        except Exception as exc:  # 감시가 죽어도 정규 사이클은 계속 돈다
+            logger.exception("손절 감시 실패")
+            self.notifier.send_error(exc, context="손절 감시")
+            return []
+        finally:
+            self._cycle_lock.release()
+
+    def _run_guard_body(self) -> list[dict[str, Any]]:
+        now = datetime.now(KST)
+        state = self.portfolio.sync(now=now)
+        breached = [
+            position for position in state.positions.values()
+            if self.risk.check_forced_exit(position) == "STOP_LOSS"
+        ]
+        if not breached:
+            return []
+
+        cycle_id = f"{now:%Y%m%d_%H%M%S}_guard"
+        results: list[dict[str, Any]] = []
+        for position in breached:
+            logger.warning("손절 감시 발동: %s(%s) %+.2f%%",
+                           position.name, position.code, position.pnl_pct)
+            final = FinalDecision(action="SELL_ALL", reason="손절선 도달(감시 청산)", sell_ratio=1.0)
+            snapshot = {
+                "code": position.code,
+                "name": position.name,
+                # 잔고의 현재가를 그대로 쓴다 — 시세를 다시 부르며 지체할 이유가 없다.
+                "price": {"current": position.current_price},
+            }
+            execution = self.executor.execute(final, snapshot, state, cycle_id=cycle_id)
+            if execution.ordered:
+                state.apply_execution(position.code, position.name, execution.side,
+                                      execution.qty, execution.price)
+            self.portfolio.record_decision(
+                cycle_id=cycle_id, snapshot=snapshot, decisions={}, final=final,
+                forced_exit="STOP_LOSS", risk_passed=True, risk_reason="",
+            )
+            results.append({
+                "code": position.code, "name": position.name,
+                "final_action": final.action, "pnl_pct": position.pnl_pct,
+                "ordered": bool(execution and execution.ordered),
+                "side": execution.side if execution else "",
+                "qty": execution.qty if execution else 0,
+                "price": execution.price if execution else 0,
+            })
+
+        self.notifier.send_alert(
+            "🛑 손절 감시 청산",
+            [f"{row['name']}({row['code']}) {row['pnl_pct']:+.2f}% → "
+             f"{'매도 ' + format(row['qty'], ',') + '주' if row['ordered'] else '주문 실패'}"
+             for row in results],
+        )
+        return results
+
     def eod_review(self) -> list[dict[str, Any]]:
         """장 마감 전 보유 종목만 재판단(신규 매수는 리스크 규칙 5가 이미 막는다)."""
         logger.info("장 마감 전 청산 점검")
@@ -378,6 +453,15 @@ class TradingBot:
                 id=f"cycle_{moment:%H%M}", name=f"{moment:%H:%M} 사이클",
                 misfire_grace_time=300, coalesce=True, max_instances=1,
             )
+
+        guard_min = self.settings.risk.guard_interval_min
+        scheduler.add_job(
+            self.guard_cycle,
+            CronTrigger(day_of_week=weekdays, hour="9-15", minute=f"*/{guard_min}", timezone=KST),
+            id="guard_cycle", name=f"손절 감시 ({guard_min}분)",
+            # 밀린 감시를 몰아서 실행할 이유가 없다 — 가장 최근 것 하나만 돌린다.
+            misfire_grace_time=60, coalesce=True, max_instances=1,
+        )
 
         scheduler.add_job(
             self.eod_review, CronTrigger(

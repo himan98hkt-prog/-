@@ -24,6 +24,7 @@ risk:
   min_order_krw: 100000               # 최소 주문 금액
   order_type: market                  # market | limit
   limit_slippage_pct: 0.3             # limit일 때 현재가 대비 허용 범위
+  guard_interval_min: 3               # 손절 감시 주기(분). 사이클 사이 급락을 잡는다
 
 ai:
   timeout_sec: 60

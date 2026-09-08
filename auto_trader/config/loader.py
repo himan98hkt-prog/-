@@ -160,6 +160,8 @@ class RiskConfig:
     min_order_krw: int
     order_type: Literal["market", "limit"]
     limit_slippage_pct: float
+    # 손절 감시 주기(분). 정규 사이클 사이에 급락해도 이 주기로 잡아낸다.
+    guard_interval_min: int = 3
 
 
 @dataclass(frozen=True)
@@ -245,8 +247,11 @@ def _num(
     cast: type = int,
     minimum: float | None = None,
     maximum: float | None = None,
+    default: Any = None,
 ) -> Any:
     if key not in section:
+        if default is not None:  # 나중에 추가된 항목은 기존 settings.yaml 도 그대로 쓰게 한다
+            return cast(default)
         errors.append(f"{path}.{key}: 필수 항목이 없습니다")
         return cast(0)
     try:
@@ -429,6 +434,10 @@ def _load_risk(raw: dict[str, Any], errors: list[str]) -> RiskConfig:
         min_order_krw=_num(section, "min_order_krw", "risk", errors, minimum=0),
         order_type=_choice(section, "order_type", "risk", ("market", "limit"), errors),  # type: ignore[arg-type]
         limit_slippage_pct=_num(section, "limit_slippage_pct", "risk", errors, cast=float, minimum=0, maximum=30),
+        guard_interval_min=_num(
+            section, "guard_interval_min", "risk", errors,
+            minimum=1, maximum=30, default=3,
+        ),
     )
     if risk.min_order_krw > risk.total_investment_cap_krw:
         errors.append("risk: min_order_krw 가 total_investment_cap_krw 보다 큽니다")

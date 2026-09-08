@@ -62,11 +62,13 @@ def bot(settings_obj, tmp_path, monkeypatch):
         send_error=lambda exc, context="": sent.append(f"error:{context}:{exc}") or True,
         send_fatal=lambda message: sent.append(f"fatal:{message}") or True,
         send_daily_report=lambda report, **kw: sent.append(f"report:{report.get('total_pnl_pct')}") or True,
+        send_alert=lambda title, lines, **kw: sent.append(f"alert:{title}") or True,
     ))
 
     synced: list[datetime] = []
     state = SimpleNamespace(positions={}, position_count=0, cash=5_000_000, daily_pnl_pct=0.0,
-                            get=lambda code: None, holds=lambda code: False)
+                            get=lambda code: None, holds=lambda code: False,
+                            apply_execution=lambda *a, **kw: None)
     monkeypatch.setattr(main_module, "Portfolio", lambda settings, api, db_path=None: SimpleNamespace(
         sync=lambda now=None: (synced.append(now), state)[1],
         record_decision=lambda **kw: 1,
@@ -392,3 +394,130 @@ def test_universe_refresh_survives_balance_failure(bot, monkeypatch):
     monkeypatch.setattr(main_module, "build_universe", lambda api, settings, balance=None: ["005930"])
 
     assert bot.refresh_universe() == ["005930"]
+
+
+# --------------------------------------------------------------------------- #
+# 손절 감시 (guard_cycle) — 정규 사이클 사이의 급락을 잡는다
+# --------------------------------------------------------------------------- #
+
+
+def _position(code="005930", *, pnl_pct=-8.0, qty=10, price=70_000):
+    from logic.portfolio import Position
+
+    return Position(
+        code=code, name=f"종목{code}", qty=qty, orderable_qty=qty,
+        avg_price=price / (1 + pnl_pct / 100), current_price=price,
+        eval_amount=qty * price, pnl_amount=qty * price * pnl_pct / 100, pnl_pct=pnl_pct,
+    )
+
+
+@pytest.fixture
+def guard_bot(bot, monkeypatch):
+    """장중이고, 주문은 성공한다고 가정."""
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: True)
+    orders: list[tuple] = []
+
+    def execute(final, snapshot, state, cycle_id=""):
+        orders.append((snapshot["code"], final.action, final.reason))
+        return SimpleNamespace(ordered=True, side="SELL", qty=10,
+                               price=snapshot["price"]["current"])
+
+    bot.executor.execute = execute
+    bot.orders = orders
+    return bot
+
+
+def _hold(bot, *positions):
+    bot.state.positions = {p.code: p for p in positions}
+
+
+def test_guard_sells_position_below_stop_loss(guard_bot):
+    _hold(guard_bot, _position(pnl_pct=-8.0))  # 손절선 -5%
+    results = guard_bot.guard_cycle()
+
+    assert len(results) == 1 and results[0]["ordered"]
+    assert guard_bot.orders == [("005930", "SELL_ALL", "손절선 도달(감시 청산)")]
+    assert any(text.startswith("alert:🛑") for text in guard_bot.sent)
+
+
+def test_guard_leaves_healthy_positions_alone(guard_bot):
+    _hold(guard_bot, _position(pnl_pct=-2.0), _position("000660", pnl_pct=7.0))
+    assert guard_bot.guard_cycle() == []
+    assert guard_bot.orders == []
+
+
+def test_guard_does_not_act_on_take_profit(guard_bot):
+    """익절은 AI 재판단이 필요하다 — 감시는 손절만 본다."""
+    _hold(guard_bot, _position(pnl_pct=15.0))  # 익절선 10% 초과
+    assert guard_bot.guard_cycle() == []
+    assert guard_bot.orders == []
+
+
+def test_guard_sells_only_the_breached_position(guard_bot):
+    _hold(guard_bot, _position(pnl_pct=-9.0), _position("000660", pnl_pct=1.0))
+    guard_bot.guard_cycle()
+    assert [code for code, _, _ in guard_bot.orders] == ["005930"]
+
+
+def test_guard_skipped_outside_market_hours(guard_bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: False)
+    _hold(guard_bot, _position(pnl_pct=-20.0))
+    assert guard_bot.guard_cycle() == []
+    assert guard_bot.synced == [], "장이 닫혀 있으면 잔고 조회조차 하지 않습니다"
+
+
+def test_guard_skipped_while_stopped(guard_bot):
+    guard_bot.stop_flag.set("수동 정지")
+    _hold(guard_bot, _position(pnl_pct=-20.0))
+    assert guard_bot.guard_cycle() == []
+    assert guard_bot.orders == []
+
+
+def test_guard_skipped_when_regular_cycle_is_running(guard_bot):
+    """정규 사이클과 겹쳐 같은 종목에 매도를 두 번 내면 안 된다."""
+    _hold(guard_bot, _position(pnl_pct=-20.0))
+    guard_bot._cycle_lock.acquire()
+    try:
+        assert guard_bot.guard_cycle() == []
+        assert guard_bot.orders == []
+    finally:
+        guard_bot._cycle_lock.release()
+
+
+def test_guard_releases_lock_after_running(guard_bot):
+    _hold(guard_bot, _position(pnl_pct=-8.0))
+    guard_bot.guard_cycle()
+    assert guard_bot._cycle_lock.acquire(blocking=False), "락이 반납되지 않았습니다"
+    guard_bot._cycle_lock.release()
+
+
+def test_guard_survives_sync_failure(guard_bot, monkeypatch):
+    def boom(now=None):
+        raise KisApiError("잔고 조회 실패")
+
+    guard_bot.portfolio.sync = boom
+    assert guard_bot.guard_cycle() == []  # 예외가 새어 나가면 스케줄러가 죽는다
+    assert guard_bot._cycle_lock.acquire(blocking=False)
+    guard_bot._cycle_lock.release()
+
+
+def test_guard_reports_failed_order(guard_bot):
+    guard_bot.executor.execute = lambda *a, **kw: SimpleNamespace(
+        ordered=False, side="SELL", qty=0, price=0)
+    _hold(guard_bot, _position(pnl_pct=-8.0))
+    results = guard_bot.guard_cycle()
+    assert results and not results[0]["ordered"]
+    assert any(text.startswith("alert:🛑") for text in guard_bot.sent)
+
+
+def test_guard_job_registered_on_scheduler(bot):
+    scheduler = bot.build_scheduler()
+    job = scheduler.get_job("guard_cycle")
+    assert job is not None, "손절 감시 잡이 등록되지 않았습니다"
+    assert job.max_instances == 1
+
+
+def test_guard_job_excluded_from_next_cycle_display(bot):
+    """'다음 사이클' 표시는 정규 사이클만 센다."""
+    bot.build_scheduler()
+    assert "guard" not in bot._next_run_at()

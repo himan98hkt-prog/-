@@ -62,13 +62,13 @@ class StubApi:
 def make_executor(settings_obj, tmp_path, monkeypatch):
     monkeypatch.setattr("logic.portfolio.time.sleep", lambda *_: None)
 
-    def build(*, dry_run=True, api=None, order_type="market"):
+    def build(*, dry_run=True, api=None, order_type="market", notifier=None):
         object.__setattr__(settings_obj.env, "dry_run", dry_run)
         object.__setattr__(settings_obj.risk, "order_type", order_type)
         stub = api or StubApi()
         portfolio = Portfolio(settings_obj, stub, db_path=tmp_path / "trader.db")
         risk = RiskManager(settings_obj.risk, SCHEDULE)
-        return OrderExecutor(settings_obj, stub, portfolio, risk), stub, portfolio
+        return OrderExecutor(settings_obj, stub, portfolio, risk, notifier), stub, portfolio
 
     return build
 
@@ -258,3 +258,74 @@ def test_partially_locked_shares_sell_only_orderable(make_executor):
                        pnl_amount=13_000, pnl_pct=1.8)
     executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT, state([partial]))
     assert api.orders[0]["qty"] == 4
+
+
+# --------------------------------------------------------------------------- #
+# 주문 거부 알림 — 조용히 실패하면 손실이 그대로 커진다
+# --------------------------------------------------------------------------- #
+
+
+class RecordingNotifier:
+    def __init__(self):
+        self.alerts: list[tuple[str, list[str], str]] = []
+        self.trades: list[dict] = []
+
+    def send_alert(self, title, lines, *, key=""):
+        self.alerts.append((title, lines, key))
+        return True
+
+    def send_trade(self, order):
+        self.trades.append(order)
+        return True
+
+
+def test_rejected_order_raises_an_alert(make_executor):
+    notifier = RecordingNotifier()
+    executor, _, _ = make_executor(dry_run=False, notifier=notifier,
+                                   api=StubApi(error=KisApiError("주문가능금액 부족")))
+
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
+
+    assert len(notifier.alerts) == 1, "주문 거부가 조용히 묻히면 안 됩니다"
+    title, lines, key = notifier.alerts[0]
+    assert "매수" in title
+    assert any("주문가능금액 부족" in line for line in lines)
+    assert key == "order_rejected:005930:BUY"
+
+
+def test_failed_stop_loss_sell_is_flagged_as_urgent(make_executor):
+    notifier = RecordingNotifier()
+    executor, _, _ = make_executor(dry_run=False, notifier=notifier,
+                                   api=StubApi(error=KisApiError("장운영시간 아님")))
+
+    executor.execute(
+        FinalDecision(action="SELL_ALL", sell_ratio=1.0, reason="손절선 도달(강제 청산)"),
+        SNAPSHOT, state([position()]),
+    )
+
+    title, lines, _ = notifier.alerts[0]
+    assert "손절 매도 실패" in title
+    assert any("그대로 남아" in line for line in lines), "포지션이 남았다는 사실을 알려야 합니다"
+
+
+def test_buy_and_sell_rejections_do_not_dedupe_each_other(make_executor):
+    """알림 dedupe 키가 같으면 두 번째 실패가 묻힌다."""
+    notifier = RecordingNotifier()
+    executor, _, _ = make_executor(dry_run=False, notifier=notifier,
+                                   api=StubApi(error=KisApiError("거부")))
+
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
+    executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT,
+                     state([position()]))
+
+    assert len({key for _, _, key in notifier.alerts}) == 2
+
+
+def test_successful_order_sends_no_alert(make_executor):
+    notifier = RecordingNotifier()
+    executor, _, _ = make_executor(dry_run=False, notifier=notifier)
+
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
+
+    assert notifier.alerts == []
+    assert len(notifier.trades) == 1

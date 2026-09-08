@@ -153,9 +153,11 @@ class OrderExecutor:
         try:
             order = self.api.place_order(code, qty, side, price=order_price, order_type=order_type)
         except KisApiError as exc:
-            # 주문 API는 재시도하지 않는다. 실패는 그대로 기록하고 넘어간다.
+            # 주문 API는 재시도하지 않는다(중복 체결 위험). 대신 반드시 알린다 —
+            # 특히 손절 매도가 조용히 실패하면 손실이 그대로 커진다.
             logger.error("%s %s 주문 실패: %s", code, side, exc)
             self.portfolio.update_order_fill(order_id, None, "REJECTED")
+            self._notify_rejected(code, name, side, qty, reason, str(exc))
             return ExecutionResult(ordered=False, side=side, qty=qty, price=current_price,
                                    status="REJECTED", reason=reason, dry_run=False, error=str(exc))
 
@@ -173,6 +175,21 @@ class OrderExecutor:
         )
         self._notify_trade(code, name, result)
         return result
+
+    def _notify_rejected(
+        self, code: str, name: str, side: str, qty: int, reason: str, error: str
+    ) -> None:
+        """주문 거부 알림. 손절 매도 실패는 최우선으로 알린다."""
+        if self.notifier is None:
+            return
+        label = "매수" if side == "BUY" else "매도"
+        stop_loss = "손절" in reason
+        title = "🚨 손절 매도 실패 — 즉시 확인 필요" if stop_loss else f"⚠️ {label} 주문 거부"
+        lines = [f"{name}({code}) {label} {qty:,}주", f"사유: {reason}", f"오류: {error}"]
+        if stop_loss:
+            lines.append("포지션이 그대로 남아 있습니다. 증권사 앱에서 직접 확인하세요.")
+        # dedupe 되면 반복 실패가 묻히므로 key 를 종목·구분별로 나눈다.
+        self.notifier.send_alert(title, lines, key=f"order_rejected:{code}:{side}")
 
     def _notify_trade(self, code: str, name: str, result: ExecutionResult) -> None:
         if self.notifier is None:

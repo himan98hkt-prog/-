@@ -69,7 +69,8 @@ pytest                          # 테스트
 | `config/holidays.txt` | KRX 휴장일 (`YYYY-MM-DD` 한 줄씩, 선택 — 없거나 비면 주말만 제외하고 경고) |
 
 주요 리스크 파라미터: 운용 총액 `total_investment_cap_krw`, 종목당 비중 `max_position_pct`,
-동시 보유 `max_positions`, 당일 손실 한도 `daily_loss_limit_pct`, 손절 `stop_loss_pct`, 익절 `take_profit_pct`.
+동시 보유 `max_positions`, 당일 손실 한도 `daily_loss_limit_pct`, 손절 `stop_loss_pct`, 익절 `take_profit_pct`,
+손절 감시 주기 `guard_interval_min`.
 
 ## 구조
 
@@ -189,6 +190,14 @@ AI 호출 비용은 `CLAUDE_EFFORT`(low/medium/high/xhigh/max)와 `universe.max_
 **손절선 도달은 AI 판단 없이 즉시 전량 매도**하고, 익절선 도달은 플래그로 합의 엔진에 전달해
 AI가 응답하지 않으면 절반 매도합니다.
 
+**손절 감시(`guard_interval_min`, 기본 3분).** 정규 사이클은 30분 간격이라 그 사이에 급락하면
+다음 사이클까지 방치됩니다. 그래서 장중 몇 분마다 **보유 종목의 손절선만** 따로 봅니다.
+잔고 조회 1회로 끝나고 AI를 부르지 않으므로 추가 비용이 없습니다. 익절은 AI 재판단이
+필요하므로 감시 대상이 아닙니다 — 놓쳐도 자산이 깎이지 않기 때문입니다.
+
+**주문이 거부되면 반드시 알립니다.** 특히 손절 매도가 실패하면 포지션이 그대로 남으므로
+`🚨 손절 매도 실패` 로 즉시 알리고, 다음 감시 주기에 다시 시도합니다.
+
 ### 주문
 
 - `DRY_RUN=true` 면 주문 API를 호출하지 않고 `[DRY_RUN]` 로그·알림만 남기며, `orders` 테이블에
@@ -205,6 +214,7 @@ AI가 응답하지 않으면 절반 매도합니다.
 |---|---|---|
 | 유니버스 갱신 | `universe_refresh` (08:30) | 매매 대상 종목 재구성 |
 | 사이클 | `first_cycle`(09:05)부터 `cycle_interval_min`(30분) 간격, **15:00까지** | 수집 → 합의 → 리스크 → 주문 |
+| 손절 감시 | 장중 `guard_interval_min`(3분) 간격 | **보유 종목 손절선만** 확인 후 즉시 청산 (AI 호출 없음) |
 | 청산 점검 | `eod_review` (15:10) | **보유 종목만** 대상으로 청산 재판단 |
 | 일간 리포트 | `daily_report` (15:40) | 당일 손익·주문·보유 요약 전송 |
 
