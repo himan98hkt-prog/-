@@ -5,7 +5,7 @@
 
 | 단계 | 내용 | 필수 |
 |---|---|---|
-| 0 | 프로그램 내려받기 · 설치 | 필수 |
+| 0 | 프로그램 실행 (`./start.sh`) | 필수 |
 | 1 | 한국투자증권 계좌 + 모의투자 참가신청 | 필수 |
 | 2 | KIS API 키 발급 | 필수 |
 | 3 | Anthropic(Claude) API 키 | 필수 |
@@ -20,27 +20,28 @@
 
 ---
 
-## 0. 프로그램 내려받기 · 설치
+## 0. 프로그램 실행 — 명령 하나
 
-Python 3.11 이상이 필요합니다 (`python --version` 으로 확인).
+Python 3.11 이상이 필요합니다 (`python3 --version` 으로 확인, 없으면
+https://www.python.org/downloads/ 에서 설치).
 
 ```bash
 git clone <이 저장소 주소>
 cd <저장소>/auto_trader
-
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-pip install --use-pep517 -r requirements.txt
 ```
 
-`ta` 설치에서 `setup.py bdist_wheel` 오류가 나면 위처럼 `--use-pep517` 을 꼭 붙이세요.
-
+**macOS / Linux**
 ```bash
-cp .env.example .env               # Windows: copy .env.example .env
+./start.sh
 ```
 
----
+**Windows** — 탐색기에서 `start.bat` 더블클릭
+
+이게 전부입니다. 가상환경 생성 → 의존성 설치 → 대시보드 실행 → 브라우저 열기까지
+자동으로 하고, **http://127.0.0.1:8765** 가 열립니다.
+(처음 한 번은 의존성 설치로 몇 분 걸립니다. 두 번째부터는 몇 초.)
+
+화면이 뜨면 키 발급을 먼저 하러 갔다가, 다 받은 뒤 7단계로 돌아와 입력하면 됩니다.
 
 ## 1. 한국투자증권 계좌 + 모의투자 참가신청
 
@@ -166,11 +167,9 @@ cp .env.example .env               # Windows: copy .env.example .env
 
 ### 방법 A — 대시보드에서 입력 (권장)
 
-```bash
-python scripts/dashboard.py
-```
+0단계에서 띄운 화면(**http://127.0.0.1:8765**)의 **설정** 탭입니다.
+꺼져 있으면 `./start.sh` (Windows: `start.bat`) 로 다시 띄우세요.
 
-브라우저에서 **http://127.0.0.1:8765** 를 열면 설정 화면이 뜹니다.
 칸을 채우고 **저장** → **키 점검 실행** 을 누르면 각 키가 실제로 동작하는지 바로 확인됩니다.
 
 - 저장된 비밀값은 `PSdu******YZ` 처럼 마스킹되어 표시되고 원문은 브라우저로 내려가지 않습니다
@@ -290,22 +289,25 @@ python scripts/test_cycle.py
 
 여기서 **텔레그램으로 사이클 요약이 오면** 모든 연결이 끝난 것입니다.
 
-### 8-7. 대시보드로 현황 보기
+### 8-7. 무인 운영 시작 — 버튼 하나
+
+1. 설정 화면에서 **주문 전송** 을 `false` 로 바꾸고 저장
+   (= `DRY_RUN=false`. **거래 환경은 `VTS` 그대로 둡니다**)
+2. 현황 화면에서 **▶ 자동매매 시작**
+
+프로세스는 대시보드를 껐다 켜도 계속 돕니다. 시작 후 몇 초간 지켜보다가
+문제가 있으면 실패 원인을 화면에 보여줍니다.
+
+터미널을 선호하면:
 
 ```bash
-python scripts/dashboard.py     # 봇과 별개로 띄워둡니다
-```
-
-당일 손익·보유 종목·AI 판단·주문·리스크 차단 사유·AI 비용을 한 화면에서 봅니다.
-긴급 정지 버튼도 여기 있습니다.
-
-### 8-8. 무인 운영 시작
-
-```bash
-# .env 에서 DRY_RUN=false 로 변경 (KIS_ENV=VTS 는 그대로!)
 nohup python main.py >> logs/stdout.log 2>&1 &
-echo $! > data/trader.pid
 ```
+
+### 8-8. 키나 설정을 바꿨을 때
+
+**🔄 재시작 (설정 반영)** 버튼을 누르면 진행 중 사이클을 마치고 새 설정으로 다시 뜹니다.
+이미 떠 있는 프로세스는 옛 설정을 들고 있으므로, 저장만 해서는 반영되지 않습니다.
 
 5거래일 뒤:
 
@@ -317,12 +319,15 @@ python scripts/export_report.py --days 5
 
 ### 멈추고 싶을 때
 
-| 상황 | 명령 |
-|---|---|
-| 새 매매만 멈추기 (프로세스는 유지) | 대시보드 **긴급 정지** 버튼 또는 `python main.py --stop` |
-| 다시 시작 | 대시보드 **매매 재개** 또는 `python main.py --resume` |
-| 프로세스 자체를 끄기 | `kill $(cat data/trader.pid)` — 진행 중 사이클을 마치고 안전 종료 |
-| 지금 상태 확인 | `python main.py --status` |
+| 상황 | 대시보드 | 터미널 |
+|---|---|---|
+| 새 매매만 멈추기 (프로세스 유지) | **🛑 긴급 정지** | `python main.py --stop` |
+| 다시 시작 | **▶️ 매매 재개** | `python main.py --resume` |
+| 설정 바꾼 뒤 반영 | **🔄 재시작** | 프로세스 종료 후 재실행 |
+| 프로세스 자체를 끄기 | **⏹ 봇 종료** | `kill $(cat data/trader.pid)` |
+| 지금 상태 확인 | 헤더 배지 | `python main.py --status` |
+
+어느 쪽이든 진행 중인 사이클을 마치고 안전하게 멈춥니다. `kill -9` 는 쓰지 마세요.
 
 ---
 

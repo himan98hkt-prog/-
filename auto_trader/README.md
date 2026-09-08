@@ -13,49 +13,44 @@
 4. **AI 응답 파싱 실패 = HOLD**.
 5. **프로그램은 죽지 않는다** — 종목·사이클 단위 예외를 모두 잡고, 치명적 오류만 알림 후 안전 종료.
 
-## 빠른 시작
+## 빠른 시작 — 한 번만 실행하면 됩니다
 
-> **처음이라면 [`SETUP.md`](SETUP.md) 를 보세요.** API 키 발급처와 발급 절차, 입력 방법,
-> 단계별 검증 순서를 처음부터 끝까지 정리해 두었습니다.
->
-> 키는 **대시보드 설정 화면에서 입력**하는 편이 가장 간단합니다:
-> `python scripts/dashboard.py` → http://127.0.0.1:8765
-
+**macOS / Linux**
 ```bash
-cd auto_trader
-python -m venv .venv && source .venv/bin/activate     # Python 3.11+
-pip install -r requirements.txt
-
-cp .env.example .env        # 키 입력 (KIS_ENV=VTS, DRY_RUN=true 유지) — SETUP.md 참고
-python scripts/check_keys.py   # 발급받은 키가 실제로 동작하는지 개별 확인
-python -c "from config.loader import load; print(load())"   # 설정 검증 (비밀값 마스킹 출력)
-python main.py              # 로깅 구성 + SQLite 스키마 생성 + 구성 요약
-
-pytest                      # 단위 테스트 (외부 API는 전부 mock)
-python scripts/test_kis.py      # 모의계좌 실연동 검증 (조회 + 1주 매수/매도)
-python scripts/test_pipeline.py # 유니버스 → 스냅샷 수집 → data/snapshots/ 저장
-python scripts/test_agents.py   # 스냅샷 → Claude·Gemini 병렬 분석
-python scripts/test_cycle.py    # 한 종목 end-to-end (DRY_RUN 권장)
-
-python main.py --check          # 설정·DB·사이클 시각 점검
-python main.py --once           # 지금 즉시 1사이클 실행 후 종료
-python main.py --report         # 오늘 일간 리포트만 전송
-python main.py                  # 스케줄러 기동 (장 시간 동안 상주)
-
-python scripts/export_report.py # 운영 기간 판단·주문 내역 CSV + 요약
-
-python scripts/dashboard.py     # 로컬 대시보드 (키 입력 + 현황 점검)
-python main.py --status         # 터미널에서 상태만 확인
-python main.py --stop           # 긴급 정지 / --resume 로 재개
+./start.sh
 ```
 
-`ta` 설치가 `setup.py bdist_wheel` 오류로 실패하면 `pip install --use-pep517 ta` 로 설치하세요.
+**Windows** — `start.bat` 더블클릭
 
-`scripts/test_kis.py` 는 토큰 캐시 → 시세·일봉·호가 → 잔고 → **1주 시장가 매수 → 체결 확인 → 1주 매도**
-순으로 확인합니다. 조회만 하려면 `--no-order`, 종목을 바꾸려면 `--code 000660`.
-실전(`KIS_ENV=REAL`)에서는 주문 단계를 자동으로 건너뜁니다.
+이 한 줄이 가상환경 준비 → 의존성 설치 → 대시보드 실행 → 브라우저 열기까지 합니다.
+그 다음은 화면에서:
 
-`.env` 필수 키가 빠지면 **누락 항목을 한 번에 모아** 알려줍니다.
+1. **설정** 화면에 API 키를 붙여넣고 **저장**
+2. **키 점검 실행** 으로 전부 ✅ 확인
+3. **현황** 화면에서 **▶ 자동매매 시작**
+
+키를 바꾼 뒤에는 **🔄 재시작 (설정 반영)** 을 누르면 새 설정으로 다시 뜹니다.
+
+> 처음이라면 [`SETUP.md`](SETUP.md) 에 각 키를 어디서 발급받는지 정리돼 있습니다.
+
+### 터미널로 직접 다루기
+
+```bash
+source .venv/bin/activate
+
+python scripts/check_keys.py    # 키가 실제로 동작하는지 확인
+python main.py --check          # 설정·DB·사이클 시각 점검
+python main.py --status         # 현재 상태
+python main.py --stop           # 긴급 정지 / --resume 로 재개
+python main.py                  # 포그라운드로 직접 실행
+
+python scripts/test_kis.py      # 모의계좌 실연동 (평일 09:00~15:30)
+python scripts/test_pipeline.py # 스냅샷 수집
+python scripts/test_agents.py   # AI 분석
+python scripts/test_cycle.py    # DRY_RUN end-to-end
+python scripts/export_report.py # 운영 리포트 CSV
+pytest                          # 테스트
+```
 
 ## 설정
 
@@ -233,7 +228,19 @@ python scripts/dashboard.py          # http://127.0.0.1:8765
 | **설정** (`/setup`) | 모든 키·파라미터 입력. 저장된 비밀값은 `PSdu******YZ` 로만 표시되고 **원문은 브라우저로 내려가지 않습니다**. 빈 칸으로 저장하면 기존 값이 유지되고, 지우려면 `__CLEAR__` 를 입력합니다 |
 | **키 점검** (`/setup/verify`) | 저장된 값으로 KIS 토큰 발급·Claude·Gemini 호출·텔레그램 발송을 실제로 한 번씩 시도해 항목별 성공/실패를 보여줍니다 |
 | **현황** (`/`) | 당일 손익·평가자산·주문 수·AI 비용·사이클 상태 타일, 자산 추이·일별 손익률·AI 비용 차트, 보유 종목(손절·익절까지 남은 거리 포함), AI 판단 내역, 주문, **리스크 규칙 차단 사유**, 오늘 로그 꼬리 |
-| **제어** | 긴급 정지 / 재개 버튼 |
+| **제어** | 시작 · 재시작(설정 반영) · 긴급 정지/재개 · 봇 종료 |
+
+**버튼별 차이**
+
+| 버튼 | 프로세스 | 효과 |
+|---|---|---|
+| ▶ 자동매매 시작 | 띄움 | 스케줄러 기동. 필수 키가 비어 있으면 설정 화면으로 보냅니다 |
+| 🔄 재시작 (설정 반영) | 내렸다 띄움 | **키를 바꾼 뒤 반영하는 방법.** 진행 중 사이클을 마치고 새 설정으로 다시 뜹니다 |
+| 🛑 긴급 정지 | 유지 | 새 사이클만 막습니다. 재개하면 즉시 이어집니다 |
+| ⏹ 봇 종료 | 내림 | 진행 중 사이클을 마치고 프로세스를 내립니다 |
+
+시작 후 몇 초간 지켜보다가 프로세스가 죽으면 **실패 원인을 로그에서 뽑아 화면에 보여줍니다**
+(키가 틀렸을 때 "시작됨"으로 잘못 알리지 않습니다).
 
 30초마다 자동 새로고침하며, 입력 중이거나 탭이 숨겨져 있으면 건너뜁니다.
 등락 색은 한국 시장 관행(상승 빨강 / 하락 파랑)을 따릅니다.

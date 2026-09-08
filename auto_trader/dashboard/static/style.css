@@ -148,7 +148,12 @@ tbody tr:last-child td { border-bottom: none; }
 .field input:focus, .field select:focus { outline: 2px solid var(--series-1); outline-offset: -1px; }
 .field .saved { font-size: 12px; color: var(--good); margin-top: 4px; }
 .field.required label::after { content: " *"; color: var(--critical); }
-.flash { padding: 11px 14px; border-radius: 9px; margin-bottom: 12px; font-size: 13px; }
+.flash {
+  padding: 11px 14px; border-radius: 9px; margin-bottom: 12px; font-size: 13px;
+  white-space: pre-wrap;          /* 로그 꼬리가 줄바꿈 그대로 보이도록 */
+  word-break: break-word;
+  max-height: 320px; overflow: auto;
+}
 .flash.ok   { background: color-mix(in srgb, var(--good) 12%, var(--surface)); border: 1px solid var(--good); }
 .flash.warn { background: color-mix(in srgb, var(--serious) 14%, var(--surface)); border: 1px solid var(--serious); }
 .notice {
@@ -164,3 +169,6 @@ pre.log {
   line-height: 1.5; max-height: 260px; overflow: auto; color: var(--text-2);
 }
 .footnote { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.control-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.control-row form { margin: 0; }

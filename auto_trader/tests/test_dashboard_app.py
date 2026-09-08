@@ -291,3 +291,94 @@ def test_discord_only_setup_reaches_dashboard(app, client):
         "DISCORD_WEBHOOK_URL": "https://discord.test/hook",
     })
     assert client.get("/").status_code == 200
+
+
+# --------------------------------------------------------------------------- #
+# 시작 · 재시작 · 종료 (원스텝 적용)
+# --------------------------------------------------------------------------- #
+
+
+def test_start_is_blocked_until_keys_are_filled(app, client):
+    """설정이 안 끝났는데 매매를 시작하면 안 된다."""
+    response = client.post("/control/start")
+    assert response.status_code == 302
+    assert "/setup" in response.headers["Location"]
+
+
+def test_start_launches_the_bot(app, client, monkeypatch):
+    from dashboard import process
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    launched = {}
+
+    def fake_start(base_dir, data_dir, log_dir):
+        launched["base"] = base_dir
+        return process.ControlResult(True, "자동매매를 시작했습니다.")
+
+    monkeypatch.setattr(process, "start", fake_start)
+    client.post("/control/start", follow_redirects=False)
+    assert launched, "main.py 를 띄우려고 시도해야 합니다"
+
+
+def test_start_clears_stop_flag_first(app, client, monkeypatch):
+    """정지 상태로 켜면 아무것도 안 하므로, 시작 시 플래그를 푼다."""
+    from dashboard import process
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    (app.config["DATA_DIR"] / "STOP").write_text("이전 정지")
+    monkeypatch.setattr(process, "start", lambda *a: process.ControlResult(True, "시작"))
+
+    client.post("/control/start")
+    assert not (app.config["DATA_DIR"] / "STOP").exists()
+
+
+def test_restart_applies_new_keys(app, client, monkeypatch):
+    from dashboard import process
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    calls = []
+    monkeypatch.setattr(process, "restart",
+                        lambda *a: (calls.append("restart"), process.ControlResult(True, "재시작"))[1])
+
+    client.post("/control/restart")
+    assert calls == ["restart"]
+
+
+def test_shutdown_stops_the_process(app, client, monkeypatch):
+    from dashboard import process
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    calls = []
+    monkeypatch.setattr(process, "stop",
+                        lambda *a: (calls.append("stop"), process.ControlResult(True, "종료"))[1])
+
+    client.post("/control/shutdown")
+    assert calls == ["stop"]
+
+
+def test_saving_keys_while_running_warns_about_restart(app, client, monkeypatch):
+    from dashboard import process
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+
+    response = client.post("/setup", data={**FULL_ENV, "KIS_ACCOUNT_NO": "50999999"},
+                           follow_redirects=True)
+    assert "재시작" in response.get_data(as_text=True), "실행 중이면 재적용 안내가 떠야 합니다"
+
+
+def test_start_button_shown_when_not_running(app, client):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    body = client.get("/").get_data(as_text=True)
+    assert "자동매매 시작" in body
+    assert "재시작 (설정 반영)" not in body
+
+
+def test_running_bot_shows_restart_and_shutdown(app, client, monkeypatch):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    (app.config["DATA_DIR"] / "trader.pid").write_text("1")  # PID 1 = 살아 있음
+
+    body = client.get("/").get_data(as_text=True)
+    assert "재시작 (설정 반영)" in body
+    assert "봇 종료" in body
+    assert "자동매매 시작" not in body

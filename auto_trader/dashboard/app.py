@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 
 from config.loader import BASE_DIR, ConfigError, load
-from dashboard import charts, queries
+from dashboard import charts, process, queries
 from dashboard.env_file import GROUPS, missing_required, read_env, read_for_display, write_env
 from utils.db import get_bot_state, init_db
 from utils.key_check import run_all, summarize
@@ -48,6 +48,7 @@ def create_app(*, testing: bool = False) -> Flask:
     app.config["DB_PATH"] = DB_PATH
     app.config["DATA_DIR"] = DATA_DIR
     app.config["LOG_DIR"] = LOG_DIR
+    app.config["BASE_DIR"] = BASE_DIR
     app.jinja_env.globals["now"] = lambda: datetime.now(KST)
 
     # ---------------------------------------------------------------- CSRF #
@@ -136,6 +137,9 @@ def create_app(*, testing: bool = False) -> Flask:
             updates = {key: value for key, value in request.form.items() if key != "csrf"}
             changed = write_env(env_path, updates)
             flash(f"저장했습니다. 변경된 항목 {len(changed)}개" if changed else "변경된 항목이 없습니다", "ok")
+            if changed and process.is_running(app.config["DATA_DIR"]):
+                # 이미 떠 있는 프로세스는 옛 설정을 들고 있다.
+                flash("실행 중인 자동매매에 반영하려면 현황 화면에서 '재시작'을 누르세요.", "warn")
             if not missing_required(env_path):
                 flash("필수 항목이 모두 채워졌습니다. 아래 '키 점검'으로 실제 동작을 확인하세요.", "ok")
             return redirect(url_for("setup"))
@@ -163,13 +167,35 @@ def create_app(*, testing: bool = False) -> Flask:
 
     @app.route("/control/<action>", methods=["POST"])
     def control(action: str):
-        flag = StopFlag(stop_flag_path(app.config["DATA_DIR"]))
+        data_dir = app.config["DATA_DIR"]
+        log_dir = app.config["LOG_DIR"]
+        flag = StopFlag(stop_flag_path(data_dir))
+
         if action == "stop":
             flag.set("대시보드에서 정지")
             flash("긴급 정지했습니다. 진행 중인 사이클을 마친 뒤 새 사이클이 실행되지 않습니다.", "warn")
+
         elif action == "resume":
             flag.clear()
             flash("정지를 해제했습니다. 다음 사이클부터 재개됩니다.", "ok")
+
+        elif action == "start":
+            missing = missing_required(app.config["ENV_PATH"])
+            if missing:
+                flash(f"먼저 설정을 마치세요. 비어 있는 항목: {', '.join(missing)}", "warn")
+                return redirect(url_for("setup"))
+            flag.clear()  # 정지 상태로 켜면 아무것도 하지 않는다
+            result = process.start(app.config["BASE_DIR"], data_dir, log_dir)
+            flash(result.message, "ok" if result.ok else "warn")
+
+        elif action == "restart":
+            result = process.restart(app.config["BASE_DIR"], data_dir, log_dir)
+            flash(result.message, "ok" if result.ok else "warn")
+
+        elif action == "shutdown":
+            result = process.stop(data_dir)
+            flash(result.message, "ok" if result.ok else "warn")
+
         else:
             abort(404)
         return redirect(url_for("index"))

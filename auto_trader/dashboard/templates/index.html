@@ -230,23 +230,51 @@
 <!-- ── 제어 ──────────────────────────────────────────────────── -->
 <div class="card">
   <h2>제어</h2>
-  {% if not status.stopped %}
-  <form method="post" action="{{ url_for('control', action='stop') }}" style="display:inline">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <button class="btn danger" type="submit"
-            onclick="return confirm('긴급 정지하시겠습니까?\n진행 중 사이클을 마친 뒤 새 사이클이 실행되지 않습니다.')">
-      🛑 긴급 정지
-    </button>
-  </form>
-  {% else %}
-  <form method="post" action="{{ url_for('control', action='resume') }}" style="display:inline">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <button class="btn primary" type="submit">▶️ 매매 재개</button>
-  </form>
-  {% endif %}
+
+  <div class="control-row">
+    {% if not status.running %}
+      <form method="post" action="{{ url_for('control', action='start') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn primary" type="submit">▶ 자동매매 시작</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('control', action='restart') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn" type="submit"
+                onclick="return confirm('재시작하시겠습니까?\n진행 중 사이클을 마친 뒤 새 설정으로 다시 뜹니다.')">
+          🔄 재시작 (설정 반영)
+        </button>
+      </form>
+
+      {% if not status.stopped %}
+      <form method="post" action="{{ url_for('control', action='stop') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn danger" type="submit"
+                onclick="return confirm('긴급 정지하시겠습니까?\n프로세스는 살아 있고, 새 사이클만 멈춥니다.')">
+          🛑 긴급 정지
+        </button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('control', action='resume') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn primary" type="submit">▶️ 매매 재개</button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('control', action='shutdown') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn danger" type="submit"
+                onclick="return confirm('자동매매를 완전히 종료하시겠습니까?\n진행 중 사이클을 마치고 프로세스가 내려갑니다.')">
+          ⏹ 봇 종료
+        </button>
+      </form>
+    {% endif %}
+  </div>
+
   <div class="footnote">
-    긴급 정지는 <code>data/STOP</code> 파일로 동작합니다. 봇 프로세스 자체를 끄려면 터미널에서
-    <code>kill $(cat data/trader.pid)</code> — 진행 중 사이클을 마치고 안전하게 종료합니다.
+    <b>긴급 정지</b>는 프로세스를 살려둔 채 새 사이클만 막습니다(재개 즉시 이어집니다).
+    <b>봇 종료</b>는 진행 중 사이클을 마치고 프로세스를 내립니다.
+    키를 바꾼 뒤에는 <b>재시작</b>을 눌러야 새 설정이 반영됩니다.
   </div>
 </div>
 

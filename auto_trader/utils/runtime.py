@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -20,6 +21,7 @@ logger = get_logger("runtime")
 
 STOP_FILENAME = "STOP"
 PID_FILENAME = "trader.pid"
+PID_WRITE_GRACE_SEC = 1.0  # 락 파일 생성 직후 PID 가 적히기를 기다리는 시간
 
 
 class AlreadyRunningError(RuntimeError):
@@ -48,32 +50,47 @@ class ProcessLock:
     def acquire(self) -> int:
         """락을 잡는다. 이미 살아 있는 프로세스가 잡고 있으면 `AlreadyRunningError`.
 
-        생성은 `O_CREAT | O_EXCL` 로 원자적으로 한다 — 두 프로세스가 동시에 떠도
-        커널이 한쪽만 성공시키므로, 읽고-쓰는 사이의 틈으로 둘 다 통과하지 않는다.
+        생성은 `O_CREAT | O_EXCL` 로 원자적으로 한다 — 커널이 한쪽만 성공시키므로
+        두 프로세스가 동시에 떠도 둘 다 통과하지 않는다.
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         for _ in range(2):  # 죽은 락을 회수한 뒤 한 번만 다시 시도한다
             try:
                 fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             except FileExistsError:
-                existing = self.read_pid()
-                if existing is not None and existing != os.getpid() and _process_alive(existing):
+                existing = self._settled_pid()
+                if existing == os.getpid():
+                    return os.getpid()  # 내가 이미 잡고 있다
+                if existing is not None and _process_alive(existing):
                     raise AlreadyRunningError(
                         f"이미 실행 중입니다 (PID {existing}). 중복 주문을 막기 위해 기동을 중단합니다. "
                         f"정말 죽은 프로세스라면 {self.path} 를 지우세요."
                     )
-                if existing == os.getpid():
-                    return os.getpid()  # 내가 이미 잡고 있다
                 logger.info("남아 있던 PID 파일을 회수합니다 (PID %s 는 실행 중이 아님)", existing)
                 self.path.unlink(missing_ok=True)
                 continue
 
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write(str(os.getpid()))
-            logger.info("실행 락 획득: %s (PID %d)", self.path, os.getpid())
+                handle.flush()
+                os.fsync(handle.fileno())
+            logger.info("실행 락 획득: %s (%s)", self.path, os.getpid())
             return os.getpid()
 
         raise AlreadyRunningError(f"실행 락을 얻지 못했습니다: {self.path}")
+
+    def _settled_pid(self) -> int | None:
+        """PID 가 파일에 적힐 때까지 잠깐 기다렸다가 읽는다.
+
+        O_EXCL 로 파일을 만든 쪽이 PID 를 쓰기 전 찰나에 다른 쪽이 읽으면 빈 파일이
+        보인다. 그걸 '죽은 락' 으로 오인해 뺏으면 두 프로세스가 동시에 매매하게 된다.
+        """
+        deadline = time.monotonic() + PID_WRITE_GRACE_SEC
+        while True:
+            pid = self.read_pid()
+            if pid is not None or time.monotonic() >= deadline:
+                return pid
+            time.sleep(0.02)
 
     def release(self) -> None:
         """내 PID 가 적힌 경우에만 지운다 (남의 락을 지우지 않는다)."""
