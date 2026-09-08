@@ -31,13 +31,21 @@
 
 키를 바꾼 뒤에는 **🔄 재시작 (설정 반영)** 을 누르면 새 설정으로 다시 뜹니다.
 
-> 처음이라면 [`SETUP.md`](SETUP.md) 에 각 키를 어디서 발급받는지 정리돼 있습니다.
+브라우저를 못 쓰는 환경이면 터미널에서도 입력할 수 있습니다:
+
+```bash
+python scripts/setup_keys.py --check   # 항목을 순서대로 묻고 저장 후 점검까지
+```
+
+> 어떤 키가 어느 칸에 들어가는지, 어디서 발급받는지는 [`SETUP.md`](SETUP.md) 7장에 표로 정리돼 있습니다.
+> 입력한 키는 본인 PC의 `.env` 에만 저장됩니다(권한 0600). 채팅·이슈·PR 에 붙여넣지 마세요.
 
 ### 터미널로 직접 다루기
 
 ```bash
 source .venv/bin/activate
 
+python scripts/setup_keys.py    # 키를 터미널에서 입력
 python scripts/check_keys.py    # 키가 실제로 동작하는지 확인
 python main.py --check          # 설정·DB·사이클 시각 점검
 python main.py --status         # 현재 상태

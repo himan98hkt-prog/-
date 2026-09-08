@@ -165,6 +165,32 @@ cd <저장소>/auto_trader
 
 ## 7. 키 입력하기
 
+### 어떤 키가 어디로 가는지 — 한눈에
+
+발급받은 값이 대시보드 **설정** 화면의 어느 칸에 들어가는지, `.env` 의 어느 이름으로 저장되는지입니다.
+입력하는 곳은 **한 군데뿐**입니다. 다른 파일이나 코드는 건드릴 필요가 없습니다.
+
+| 발급받은 것 | 어디서 (2~6장) | 설정 화면의 칸 | `.env` 이름 |
+|---|---|---|---|
+| KIS APP KEY | 2장 · KIS 포털 | **APP KEY** | `KIS_APP_KEY` |
+| KIS APP SECRET | 2장 · KIS 포털 | **APP SECRET** | `KIS_APP_SECRET` |
+| 모의계좌 번호 앞 8자리 | 1-2장 · 모의투자 참가신청 | **계좌번호 앞 8자리** | `KIS_ACCOUNT_NO` |
+| 계좌번호 뒤 2자리 | 위와 같은 곳 | **계좌 상품코드** | `KIS_ACCOUNT_PRODUCT_CD` |
+| Claude 키 (`sk-ant-…`) | 3장 · console.anthropic.com | **Anthropic API 키** | `ANTHROPIC_API_KEY` |
+| Gemini 키 (`AIza…`) | 4장 · aistudio.google.com | **Gemini API 키** | `GEMINI_API_KEY` |
+| 텔레그램 봇 토큰 | 5-1장 · @BotFather | **텔레그램 봇 토큰** | `TELEGRAM_BOT_TOKEN` |
+| 텔레그램 채팅 ID | 5-2장 | **텔레그램 채팅 ID** | `TELEGRAM_CHAT_ID` |
+| (디스코드를 쓸 때) 웹훅 URL | 5장 대안 | **디스코드 웹훅** | `DISCORD_WEBHOOK_URL` |
+| 네이버 Client ID / Secret *(선택)* | 6장 | **네이버 Client ID / Secret** | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` |
+
+나머지 칸(`KIS_ENV`, `DRY_RUN`, 모델 이름 등)은 기본값 그대로 두면 됩니다.
+검증이 끝나기 전까지 **`KIS_ENV=VTS`, `DRY_RUN=true`** 는 절대 바꾸지 마세요.
+
+> 입력한 값은 본인 PC의 `auto_trader/.env` 파일에만 저장됩니다(권한 0600).
+> **키를 채팅창이나 이슈·PR 에 붙여넣지 마세요.**
+
+아래 세 가지 방법 중 편한 것 하나만 쓰면 됩니다.
+
 ### 방법 A — 대시보드에서 입력 (권장)
 
 0단계에서 띄운 화면(**http://127.0.0.1:8765**)의 **설정** 탭입니다.
@@ -177,7 +203,23 @@ cd <저장소>/auto_trader
 - 따옴표·인라인 주석·앞뒤 공백은 저장할 때 자동으로 정리됩니다
 - 이 화면은 **127.0.0.1 에만** 열립니다. 외부에서 접근할 수 없습니다
 
-### 방법 B — 파일 직접 편집
+### 방법 B — 터미널에서 하나씩 묻고 답하기
+
+브라우저를 쓸 수 없을 때(SSH 접속 등) 씁니다. 항목을 순서대로 물어보고 `.env` 를 만들어 줍니다.
+
+```bash
+cd auto_trader
+source .venv/bin/activate
+python scripts/setup_keys.py            # 전체 항목을 순서대로
+python scripts/setup_keys.py --missing  # 아직 비어 있는 필수 항목만
+python scripts/setup_keys.py --check    # 입력이 끝나면 키 점검까지 이어서
+```
+
+- 비밀값은 입력해도 **화면에 찍히지 않습니다**
+- 이미 값이 있는 칸은 그냥 **Enter** 를 치면 유지됩니다 (지우려면 `-` 입력)
+- 잘못 고르면 다시 묻습니다. 중간에 그만두려면 **Ctrl+C** — `.env` 는 그대로 남습니다
+
+### 방법 C — 파일 직접 편집
 
 `auto_trader/.env` 를 텍스트 편집기로 열어 값을 채웁니다.
 
