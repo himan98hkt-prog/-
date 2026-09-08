@@ -51,6 +51,8 @@ cd <저장소>/auto_trader
 | `Python 3.11 or newer was not found` | python.org 에서 설치하고 **"Add python.exe to PATH"** 를 체크하세요 |
 | 파이썬 설치했는데도 같은 메시지 | Microsoft Store 판 파이썬은 동작하지 않습니다. python.org 판으로 설치하세요 |
 | 브라우저에 "연결할 수 없음" | 검은 창에 `Dashboard:` 줄이 나온 뒤 새로고침하세요. 첫 실행은 준비에 몇 분 걸립니다 |
+| 설치 중 오래 멈춰 있다 | 첫 설치는 몇 분 걸립니다. 줄이 계속 올라오면 정상입니다 |
+| `Building wheel` 에서 10분 넘게 멈춤 | 파이썬이 너무 최신입니다. **3.12** 를 설치하고 `.venv` 폴더를 지운 뒤 다시 실행하세요 |
 | `Could not create the virtual environment` | OneDrive/바탕화면 대신 `C:\autotrader` 같은 단순한 경로로 옮기고 다시 실행하세요 |
 
 ---
