@@ -30,6 +30,78 @@ class Result:
         return f"{self.icon} {self.name:<22} {self.detail}"
 
 
+# --------------------------------------------------------------------------- #
+# 값 위생 검사 — "키가 맞는데 왜 안 되지" 의 대부분은 눈에 안 보이는 문자 때문이다
+# --------------------------------------------------------------------------- #
+
+# 키별로 기대하는 접두사. 값이 통째로 다른 서비스 것일 때 바로 잡아낸다.
+EXPECTED_PREFIX = {
+    "ANTHROPIC_API_KEY": "sk-ant-",
+    "GEMINI_API_KEY": "AIza",
+}
+
+# 눈에 보이지 않거나 붙여넣기 사고로 섞이는 문자들
+INVISIBLE = {
+    "\u200b": "제로폭 공백", "\u200c": "제로폭 비접합", "\u200d": "제로폭 접합",
+    "\ufeff": "BOM", "\u00a0": "줄바꿈 없는 공백", "\u3000": "전각 공백",
+}
+
+
+def _describe_bad_chars(value: str) -> list[str]:
+    """값에 섞인 문제 문자를 사람이 읽을 수 있게 설명한다 (값 자체는 노출하지 않는다)."""
+    problems: list[str] = []
+    if value != value.strip():
+        problems.append("앞뒤 공백")
+    if "\n" in value or "\r" in value:
+        problems.append("줄바꿈")
+    if "\t" in value:
+        problems.append("탭")
+    # 공백을 걷어낸 뒤에 본다 — ` "키" ` 처럼 공백에 감싸인 따옴표도 잡아야 한다.
+    trimmed = value.strip()
+    if trimmed[:1] in ("'", '"') or trimmed[-1:] in ("'", '"'):
+        problems.append("따옴표")
+    for char, label in INVISIBLE.items():
+        if char in value:
+            problems.append(label)
+    # 한글 IME 를 켜 둔 채 입력하면 한글이나 전각 문자가 섞인다.
+    hangul = [c for c in value if "\uac00" <= c <= "\ud7a3" or "\u3131" <= c <= "\u318e"]
+    if hangul:
+        problems.append(f"한글 {len(hangul)}자 (입력기가 켜져 있었을 수 있습니다)")
+    else:
+        other = [c for c in value if ord(c) > 127]
+        if other:
+            problems.append(f"영문·숫자가 아닌 문자 {len(other)}자")
+    return problems
+
+
+def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
+    """붙여넣기 사고를 잡아낸다. API 를 부르기 전에 먼저 돌린다.
+
+    실패한 키를 몇 번씩 다시 입력해도 같은 오류가 나올 때, 원인은 대개
+    값 자체가 아니라 값에 딸려 들어간 공백·줄바꿈·따옴표·한글이다.
+    """
+    results: list[Result] = []
+    for key in ("KIS_APP_KEY", "KIS_APP_SECRET", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
+                "CLAUDE_MODEL", "GEMINI_MODEL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+                "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"):
+        value = env.get(key)
+        if not value:
+            continue
+
+        problems = _describe_bad_chars(value)
+        prefix = EXPECTED_PREFIX.get(key)
+        if prefix and not value.strip().startswith(prefix):
+            problems.append(f"'{prefix}' 로 시작해야 하는데 아닙니다")
+
+        if problems:
+            results.append(Result(
+                f"입력값 {key}", FAIL,
+                f"{', '.join(problems)} — 길이 {len(value)}자. "
+                "메모장에 한 번 붙여넣어 확인한 뒤 다시 입력하세요",
+            ))
+    return results
+
+
 def check_kis(env: dict[str, str | None]) -> list[Result]:
     """토큰 발급을 실제로 시도해 APP KEY/SECRET 과 도메인 일치를 확인한다."""
     key, secret = env.get("KIS_APP_KEY"), env.get("KIS_APP_SECRET")
@@ -44,7 +116,16 @@ def check_kis(env: dict[str, str | None]) -> list[Result]:
         results.append(Result("KIS 계좌번호", FAIL,
                               f"숫자 8자리여야 합니다 (현재: {account!r}) — 앞 8자리만, 뒤 2자리는 PRODUCT_CD"))
     else:
-        results.append(Result("KIS 계좌번호", OK, f"{account[:2]}****{account[-2:]} ({mode})"))
+        if mode == "REAL":
+            # 실전 계좌다. 초록색 체크로 지나가면 안 된다.
+            results.append(Result(
+                "KIS 계좌번호", FAIL,
+                f"{account[:2]}****{account[-2:]} — ⚠️ REAL(실전) 계좌입니다. "
+                "검증 전에는 KIS_ENV=VTS(모의투자)로 두세요. "
+                "실전으로 운용하시려면 설정 화면에서 REAL 을 그대로 두고 이 경고를 무시하세요",
+            ))
+        else:
+            results.append(Result("KIS 계좌번호", OK, f"{account[:2]}****{account[-2:]} (모의투자)"))
 
     import requests
 
@@ -88,8 +169,15 @@ def check_anthropic(env: dict[str, str | None]) -> Result:
         detail = str(exc)[:200]
         if "credit" in detail.lower() or "billing" in detail.lower():
             detail += " → 콘솔 Billing 에서 크레딧을 충전하세요"
+        elif "authentication_error" in detail or "401" in detail:
+            # 키 문자열 자체가 잘못됐다는 뜻이다. 잔액 부족은 401 이 아니다.
+            detail += (
+                f" → 키를 다시 발급받아 넣으세요 (현재 {len(api_key)}자,"
+                f" {api_key[:7]}…{api_key[-4:]}). 콘솔에서 삭제된 키이거나,"
+                " 복사할 때 일부가 빠졌을 수 있습니다"
+            )
         elif "not_found" in detail or "model" in detail.lower():
-            detail += f" → CLAUDE_MODEL={model} 이 유효한지 확인하세요"
+            detail += f" → CLAUDE_MODEL={model!r} 이 유효한지 확인하세요"
         return Result("Anthropic (Claude)", FAIL, detail)
     return Result("Anthropic (Claude)", OK, f"{model} 호출 성공")
 
@@ -106,8 +194,17 @@ def check_gemini(env: dict[str, str | None]) -> Result:
         client.models.generate_content(model=model, contents="ping")
     except Exception as exc:
         detail = str(exc)[:200]
-        if "quota" in detail.lower() or "429" in detail:
+        if "unexpected model name format" in detail or "model name" in detail.lower():
+            # 키가 아니라 모델 이름이 문제다 — 값을 그대로 보여줘야 원인이 보인다.
+            detail += (
+                f" → 키가 아니라 모델 이름 문제입니다. GEMINI_MODEL={model!r}"
+                " (따옴표 안에 공백·줄바꿈이 보이면 그게 원인입니다)."
+                " 설정 화면에서 gemini-2.5-pro 로 다시 저장하세요"
+            )
+        elif "quota" in detail.lower() or "429" in detail:
             detail += " → 무료 티어 한도일 수 있습니다"
+        elif "API key" in detail or "401" in detail or "403" in detail:
+            detail += f" → 키를 다시 확인하세요 (현재 {len(api_key)}자)"
         return Result("Google (Gemini)", FAIL, detail)
     return Result("Google (Gemini)", OK, f"{model} 호출 성공")
 
@@ -190,6 +287,8 @@ def check_naver(env: dict[str, str | None]) -> Result:
 def run_all(env: dict[str, str | None], *, telegram_test: bool = False) -> list[Result]:
     """모든 항목을 검사해 결과 목록을 돌려준다."""
     results: list[Result] = []
+    # 값 위생을 먼저 본다 — 여기서 걸리면 API 오류 메시지가 원인을 가린다.
+    results.extend(check_value_hygiene(env))
     results.extend(check_kis(env))
     results.append(check_anthropic(env))
     results.append(check_gemini(env))
