@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}자동매매 대시보드{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>📈</text></svg>">
+</head>
+<body>
+<header class="bar">
+  <h1>📈 자동매매</h1>
+
+  {% if status.running %}
+    <span class="badge live">● 실행 중 (PID {{ status.pid }})</span>
+  {% else %}
+    <span class="badge idle">○ 실행 안 함</span>
+  {% endif %}
+
+  {% if status.stopped %}<span class="badge stop">🛑 긴급 정지</span>{% endif %}
+
+  {% set s = status.state %}
+  {% if s.kis_env %}
+    <span class="badge {{ 'warn' if s.kis_env == 'REAL' else '' }}">
+      {{ '실전 REAL' if s.kis_env == 'REAL' else '모의 VTS' }}
+    </span>
+    {% if s.dry_run %}<span class="badge dry">DRY_RUN</span>{% endif %}
+  {% endif %}
+
+  <nav>
+    <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>현황</a>
+    <a href="{{ url_for('setup') }}" {% if request.endpoint in ('setup', 'verify') %}class="active"{% endif %}>설정</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

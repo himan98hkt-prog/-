@@ -1,0 +1,5 @@
+# Windows 배치 파일은 CRLF 여야 cmd.exe 가 if/for 블록을 제대로 파싱한다.
+# GitHub ZIP 다운로드로 받아도 줄바꿈이 유지된다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh  text eol=lf
