@@ -74,6 +74,22 @@ def _describe_bad_chars(value: str) -> list[str]:
     return problems
 
 
+def _looks_like_naver_login(key: str, value: str) -> str:
+    """네이버 로그인 계정을 인증키 칸에 넣은 흔한 실수를 잡는다.
+
+    Client ID/Secret 은 영문·숫자로만 이루어진 10~30자 내외의 문자열이다.
+    이메일 주소나 한글이 들어오면 로그인 계정을 적은 것이다.
+    """
+    trimmed = value.strip()
+    if "@" in trimmed or trimmed.endswith((".com", ".net", ".kr")):
+        return "이메일 주소로 보입니다"
+    if not trimmed.isascii():
+        return "영문·숫자만 들어갑니다"
+    if key == "NAVER_CLIENT_ID" and len(trimmed) < 8:
+        return f"너무 짧습니다({len(trimmed)}자)"
+    return ""
+
+
 def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
     """붙여넣기 사고를 잡아낸다. API 를 부르기 전에 먼저 돌린다.
 
@@ -92,6 +108,18 @@ def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
         prefix = EXPECTED_PREFIX.get(key)
         if prefix and not value.strip().startswith(prefix):
             problems.append(f"'{prefix}' 로 시작해야 하는데 아닙니다")
+
+        if key.startswith("NAVER_CLIENT"):
+            wrong = _looks_like_naver_login(key, value)
+            if wrong:
+                results.append(Result(
+                    f"입력값 {key}", FAIL,
+                    f"{wrong} — 네이버 로그인 아이디·비밀번호가 아니라, "
+                    "developers.naver.com/apps 에서 앱을 등록하면 발급되는 "
+                    "Client ID / Client Secret 을 넣어야 합니다. "
+                    "필요 없으면 비워두세요 (뉴스 없이도 동작합니다)",
+                ))
+                continue
 
         if problems:
             results.append(Result(

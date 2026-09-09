@@ -46,7 +46,8 @@ def test_zero_width_space_is_reported():
 
 
 def test_hangul_suggests_the_ime_was_on():
-    detail = _problems(NAVER_CLIENT_ID="abc한글")["NAVER_CLIENT_ID"]
+    # 네이버 칸은 전용 안내가 따로 있으므로 다른 키로 확인한다.
+    detail = _problems(TELEGRAM_CHAT_ID="abc한글")["TELEGRAM_CHAT_ID"]
     assert "한글 2자" in detail and "입력기" in detail
 
 
@@ -130,3 +131,41 @@ def test_vts_account_passes_quietly():
 def test_account_number_is_masked_in_both_modes():
     for mode in ("REAL", "VTS"):
         assert "50123456" not in _kis_account_result(mode).detail
+
+
+# --------------------------------------------------------------------------- #
+# 네이버 — 로그인 계정을 인증키 칸에 넣는 실수
+# --------------------------------------------------------------------------- #
+
+
+def test_naver_email_is_rejected():
+    detail = _problems(NAVER_CLIENT_ID="himan98hkt@naver.com")["NAVER_CLIENT_ID"]
+    assert "이메일 주소로 보입니다" in detail
+    assert "로그인 아이디·비밀번호가 아니라" in detail
+
+
+def test_naver_korean_password_is_rejected():
+    detail = _problems(NAVER_CLIENT_SECRET="내비밀번호123")["NAVER_CLIENT_SECRET"]
+    assert "영문·숫자만" in detail
+
+
+def test_short_naver_id_is_rejected():
+    """로그인 아이디는 대개 인증키보다 짧다."""
+    assert "너무 짧습니다" in _problems(NAVER_CLIENT_ID="himan98")["NAVER_CLIENT_ID"]
+
+
+def test_real_naver_credentials_pass():
+    assert check_value_hygiene({
+        "NAVER_CLIENT_ID": "Kx8dJ2mQ7bVn0pQr",
+        "NAVER_CLIENT_SECRET": "aB3dEfGh1J",
+    }) == []
+
+
+def test_naver_advice_mentions_that_it_is_optional():
+    detail = _problems(NAVER_CLIENT_ID="me@naver.com")["NAVER_CLIENT_ID"]
+    assert "비워두세요" in detail
+
+
+def test_naver_secret_is_not_echoed():
+    detail = _problems(NAVER_CLIENT_SECRET="비밀번호노출금지")["NAVER_CLIENT_SECRET"]
+    assert "비밀번호노출금지" not in detail

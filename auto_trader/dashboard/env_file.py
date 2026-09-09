@@ -72,9 +72,16 @@ GROUPS: list[Group] = [
         Field("DISCORD_WEBHOOK_URL", "디스코드 웹훅",
               "discord 선택 시 필수", secret=True, required=False),
     ]),
-    Group("뉴스 (선택)", "없으면 뉴스 없이 지표만으로 판단합니다.", [
-        Field("NAVER_CLIENT_ID", "네이버 Client ID", required=False),
-        Field("NAVER_CLIENT_SECRET", "네이버 Client Secret", secret=True, required=False),
+    Group("뉴스 (선택)",
+          "비워두셔도 됩니다 — 뉴스 없이 지표만으로 판단합니다. "
+          "⚠️ 네이버 로그인 아이디·비밀번호가 아닙니다! "
+          "developers.naver.com 에서 앱을 등록하면 나오는 인증키입니다.", [
+        Field("NAVER_CLIENT_ID", "네이버 Client ID",
+              "developers.naver.com/apps 에서 앱 등록 시 발급 (사용 API 에 '검색' 을 꼭 선택). "
+              "네이버 아이디가 아닙니다", required=False, placeholder="Kx8dJ2mQ7bVn0pQr"),
+        Field("NAVER_CLIENT_SECRET", "네이버 Client Secret",
+              "위 앱의 Client Secret. 네이버 비밀번호가 아닙니다",
+              secret=True, required=False, placeholder="aB3dEfGh1J"),
     ]),
 ]
 
