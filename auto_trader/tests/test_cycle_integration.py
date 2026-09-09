@@ -104,7 +104,8 @@ def run_cycle(ctx, code="005930"):
 
     forced = ctx["risk"].check_forced_exit(position)
     decisions = run_agents_parallel(ctx["agents"], snapshot, settings.ai)
-    final = decide(decisions["claude"], decisions["gemini"], state.holds(code),
+    votes = [decisions[agent.name] for agent in ctx["agents"]]
+    final = decide(votes, state.holds(code),
                    settings.risk, settings.ai, take_profit=forced == "TAKE_PROFIT")
 
     risk_passed, risk_reason = True, ""

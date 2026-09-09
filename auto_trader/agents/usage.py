@@ -14,7 +14,9 @@ DEFAULT_PRICING: dict[str, tuple[float, float]] = {
     "claude-opus-5": (5.0, 25.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-haiku-4-5": (1.0, 5.0),
-    "gemini-2.5-pro": (1.25, 10.0),
+    "gemini-3.1-pro-preview": (1.25, 10.0),
+    "gemini-3.5-flash": (0.3, 2.5),
+    "gpt-5.1": (0.63, 5.0),
     "gemini-2.5-flash": (0.30, 2.50),
 }
 

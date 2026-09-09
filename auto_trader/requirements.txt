@@ -4,6 +4,7 @@ requests>=2.32.0
 # --- AI 판단 엔진 ---
 anthropic>=1.4.0            # output_config(Structured Outputs) 사용 — 1.x 필요
 google-genai>=1.0.0          # 구 google-generativeai(deprecated) 대신 신규 SDK
+openai>=1.100.0              # ChatGPT (선택 — 키가 없으면 호출하지 않음)
 
 # --- 데이터 / 지표 ---
 pandas>=2.2.0

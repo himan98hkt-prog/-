@@ -51,13 +51,19 @@ def test_hangul_suggests_the_ime_was_on():
     assert "한글 2자" in detail and "입력기" in detail
 
 
-def test_wrong_prefix_is_reported():
+def test_key_from_another_service_is_reported():
     detail = _problems(ANTHROPIC_API_KEY="AIzaSyWrongService")["ANTHROPIC_API_KEY"]
-    assert "'sk-ant-' 로 시작해야" in detail
+    assert "Gemini 키로 보입니다" in detail
 
 
-def test_gemini_prefix_is_checked_too():
-    assert "'AIza' 로 시작해야" in _problems(GEMINI_API_KEY="sk-ant-wrong")["GEMINI_API_KEY"]
+def test_anthropic_key_in_the_gemini_box_is_reported():
+    assert "Anthropic 키로 보입니다" in _problems(GEMINI_API_KEY="sk-ant-wrong")["GEMINI_API_KEY"]
+
+
+def test_unfamiliar_key_format_is_not_rejected():
+    """제공사가 키 형식을 바꿔도 멀쩡한 키를 막아서는 안 된다."""
+    assert check_value_hygiene({"GEMINI_API_KEY": "x" * 53}) == []
+    assert check_value_hygiene({"OPENAI_API_KEY": "abc123def456"}) == []
 
 
 def test_secret_value_is_never_echoed():

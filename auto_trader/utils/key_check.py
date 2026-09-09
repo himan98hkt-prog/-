@@ -34,10 +34,15 @@ class Result:
 # 값 위생 검사 — "키가 맞는데 왜 안 되지" 의 대부분은 눈에 안 보이는 문자 때문이다
 # --------------------------------------------------------------------------- #
 
-# 키별로 기대하는 접두사. 값이 통째로 다른 서비스 것일 때 바로 잡아낸다.
-EXPECTED_PREFIX = {
-    "ANTHROPIC_API_KEY": "sk-ant-",
-    "GEMINI_API_KEY": "AIza",
+# 서비스를 서로 바꿔 넣은 경우만 잡는다.
+#
+# "이 키는 반드시 이렇게 시작한다" 는 식의 검사는 하지 않는다 — 제공사가 키 형식을
+# 바꾸면 멀쩡한 키를 틀렸다고 막아 세운다(실제로 Gemini 키가 AIza 로 시작하지 않는
+# 사례가 있었다). 대신 **다른 서비스의 키가 분명한 경우**만 짚는다.
+FOREIGN_PREFIX = {
+    "ANTHROPIC_API_KEY": (("AIza", "Gemini"),),
+    "GEMINI_API_KEY": (("sk-ant-", "Anthropic"), ("sk-proj-", "OpenAI")),
+    "OPENAI_API_KEY": (("sk-ant-", "Anthropic"), ("AIza", "Gemini")),
 }
 
 # 눈에 보이지 않거나 붙여넣기 사고로 섞이는 문자들
@@ -82,15 +87,16 @@ def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
     """
     results: list[Result] = []
     for key in ("KIS_APP_KEY", "KIS_APP_SECRET", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
-                "CLAUDE_MODEL", "GEMINI_MODEL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+                "CLAUDE_MODEL", "GEMINI_MODEL", "OPENAI_API_KEY", "OPENAI_MODEL",
+                "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
         value = env.get(key)
         if not value:
             continue
 
         problems = _describe_bad_chars(value)
-        prefix = EXPECTED_PREFIX.get(key)
-        if prefix and not value.strip().startswith(prefix):
-            problems.append(f"'{prefix}' 로 시작해야 하는데 아닙니다")
+        for prefix, service in FOREIGN_PREFIX.get(key, ()):
+            if value.strip().startswith(prefix):
+                problems.append(f"{service} 키로 보입니다 (칸을 바꿔 넣으셨나요?)")
 
 
         if problems:
@@ -184,7 +190,7 @@ def check_anthropic(env: dict[str, str | None]) -> Result:
 
 def check_gemini(env: dict[str, str | None]) -> Result:
     api_key = env.get("GEMINI_API_KEY")
-    model = env.get("GEMINI_MODEL") or "gemini-2.5-pro"
+    model = env.get("GEMINI_MODEL") or "gemini-3.1-pro-preview"
     if not api_key:
         return Result("Google (Gemini)", SKIP, "GEMINI_API_KEY 미입력")
     try:
@@ -194,12 +200,18 @@ def check_gemini(env: dict[str, str | None]) -> Result:
         client.models.generate_content(model=model, contents="ping")
     except Exception as exc:
         detail = str(exc)[:200]
-        if "unexpected model name format" in detail or "model name" in detail.lower():
+        if "no longer available" in detail or "404" in detail:
+            detail += (
+                " → 모델 이름을 바꾸세요. gemini-2.5-pro 는 신규 사용자에게 막혔습니다."
+                " 설정 화면에서 gemini-3.1-pro-preview (유료) 또는"
+                " gemini-3.5-flash (무료 한도) 로 저장하세요"
+            )
+        elif "unexpected model name format" in detail or "model name" in detail.lower():
             # 키가 아니라 모델 이름이 문제다 — 값을 그대로 보여줘야 원인이 보인다.
             detail += (
                 f" → 키가 아니라 모델 이름 문제입니다. GEMINI_MODEL={model!r}"
                 " (따옴표 안에 공백·줄바꿈이 보이면 그게 원인입니다)."
-                " 설정 화면에서 gemini-2.5-pro 로 다시 저장하세요"
+                " 설정 화면에서 gemini-3.1-pro-preview 로 다시 저장하세요"
             )
         elif "quota" in detail.lower() or "429" in detail:
             detail += " → 무료 티어 한도일 수 있습니다"
@@ -207,6 +219,32 @@ def check_gemini(env: dict[str, str | None]) -> Result:
             detail += f" → 키를 다시 확인하세요 (현재 {len(api_key)}자)"
         return Result("Google (Gemini)", FAIL, detail)
     return Result("Google (Gemini)", OK, f"{model} 호출 성공")
+
+
+def check_openai(env: dict[str, str | None]) -> Result:
+    """ChatGPT 는 선택 — 키가 없으면 건너뛴다(실패가 아니다)."""
+    api_key = env.get("OPENAI_API_KEY")
+    model = env.get("OPENAI_MODEL") or "gpt-5.1"
+    if not api_key:
+        return Result("ChatGPT (선택)", SKIP, "미입력 — Claude·Gemini 둘로만 판단합니다")
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key, timeout=30.0, max_retries=0)
+        client.chat.completions.create(
+            model=model, max_completion_tokens=16,
+            messages=[{"role": "user", "content": "ping"}],
+        )
+    except Exception as exc:
+        detail = str(exc)[:200]
+        if "model" in detail.lower() and "not" in detail.lower():
+            detail += f" → OPENAI_MODEL={model!r} 이 계정에서 쓸 수 있는 모델인지 확인하세요"
+        elif "quota" in detail.lower() or "billing" in detail.lower():
+            detail += " → platform.openai.com/settings/organization/billing 에서 결제수단을 등록하세요"
+        elif "401" in detail or "authentication" in detail.lower():
+            detail += f" → 키를 다시 발급받으세요 (현재 {len(api_key)}자)"
+        return Result("ChatGPT (선택)", FAIL, detail)
+    return Result("ChatGPT (선택)", OK, f"{model} 호출 성공")
 
 
 def check_telegram(env: dict[str, str | None], *, send_test: bool) -> list[Result]:
@@ -268,6 +306,7 @@ def run_all(env: dict[str, str | None], *, telegram_test: bool = False) -> list[
     results.extend(check_kis(env))
     results.append(check_anthropic(env))
     results.append(check_gemini(env))
+    results.append(check_openai(env))
     results.extend(check_telegram(env, send_test=telegram_test))
     return results
 

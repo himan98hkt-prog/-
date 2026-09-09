@@ -34,7 +34,7 @@ def test_zero_usage_costs_nothing():
 
 
 def test_default_pricing_covers_configured_models():
-    for model in ("claude-sonnet-5", "gemini-2.5-pro"):
+    for model in ("claude-sonnet-5", "gemini-3.1-pro-preview", "gpt-5.1"):
         assert model in DEFAULT_PRICING
 
 

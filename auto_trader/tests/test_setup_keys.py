@@ -43,6 +43,7 @@ def test_saves_entered_values(wizard, monkeypatch, capsys):
         "appkey", "appsecret", "50123456", "01",      # 한국투자증권
         "sk-ant-1", "", "", "",                       # Claude
         "gem-1", "", "",                              # Gemini
+        "", "", "",                                   # ChatGPT (선택)
         "telegram", "bot-token", "12345", "",         # 알림
     ])
     assert wizard.main() == 0
@@ -69,7 +70,7 @@ KIS_ACCOUNT_PRODUCT_CD=01
 ANTHROPIC_API_KEY=d
 CLAUDE_MODEL=claude-sonnet-5
 GEMINI_API_KEY=e
-GEMINI_MODEL=gemini-2.5-pro
+GEMINI_MODEL=gemini-3.1-pro-preview
 NOTIFIER=telegram
 TELEGRAM_BOT_TOKEN=f
 TELEGRAM_CHAT_ID=1
@@ -78,7 +79,7 @@ TELEGRAM_CHAT_ID=1
 
 def test_enter_keeps_existing_secret(wizard, monkeypatch):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
-    left = _answers(wizard, monkeypatch, [""] * 18)
+    left = _answers(wizard, monkeypatch, [""] * 21)
     assert wizard.main() == 0
     assert not left
     assert read_env(wizard.ENV_PATH)["KIS_APP_SECRET"] == "keepme"
@@ -87,7 +88,7 @@ def test_enter_keeps_existing_secret(wizard, monkeypatch):
 def test_dash_clears_optional_value(wizard, monkeypatch):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
     # 3번째가 LOG_LEVEL — 선택 항목이라 `-` 로 비울 수 있다.
-    _answers(wizard, monkeypatch, ["", "", "-"] + [""] * 15)
+    _answers(wizard, monkeypatch, ["", "", "-"] + [""] * 18)
     assert wizard.main() == 0
     assert read_env(wizard.ENV_PATH)["LOG_LEVEL"] == ""
 
@@ -95,7 +96,7 @@ def test_dash_clears_optional_value(wizard, monkeypatch):
 def test_dash_refused_on_required_field(wizard, monkeypatch, capsys):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
     # 4번째가 KIS_APP_KEY — 필수라 `-` 로 비울 수 없다.
-    _answers(wizard, monkeypatch, [""] * 3 + ["-", "b"] + [""] * 14)
+    _answers(wizard, monkeypatch, [""] * 3 + ["-", "b"] + [""] * 17)
     assert wizard.main() == 0
     assert "비울 수 없습니다" in capsys.readouterr().out
     assert read_env(wizard.ENV_PATH)["KIS_APP_KEY"] == "b"
@@ -103,7 +104,7 @@ def test_dash_refused_on_required_field(wizard, monkeypatch, capsys):
 
 def test_rejects_invalid_choice_then_accepts(wizard, monkeypatch, capsys):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
-    _answers(wizard, monkeypatch, ["LIVE", "REAL"] + [""] * 17)
+    _answers(wizard, monkeypatch, ["LIVE", "REAL"] + [""] * 20)
     assert wizard.main() == 0
     assert read_env(wizard.ENV_PATH)["KIS_ENV"] == "REAL"
     assert "골라 주세요" in capsys.readouterr().out
@@ -115,7 +116,7 @@ def test_missing_only_skips_filled(wizard, monkeypatch):
             "KIS_ENV=VTS", "DRY_RUN=true", "KIS_APP_KEY=a", "KIS_APP_SECRET=b",
             "KIS_ACCOUNT_NO=c", "KIS_ACCOUNT_PRODUCT_CD=01",
             "ANTHROPIC_API_KEY=d", "CLAUDE_MODEL=claude-sonnet-5",
-            "GEMINI_API_KEY=e", "GEMINI_MODEL=gemini-2.5-pro",
+            "GEMINI_API_KEY=e", "GEMINI_MODEL=gemini-3.1-pro-preview",
             "NOTIFIER=telegram", "TELEGRAM_BOT_TOKEN=f",
         ]) + "\n",
         encoding="utf-8",

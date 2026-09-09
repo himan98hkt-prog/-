@@ -1,6 +1,6 @@
 # Multi-Agent 주식 완전 자동매매 프로그램
 
-한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude와 Gemini 두 AI의 **합의(Consensus)** 에 따라
+한국투자증권(KIS) Open API로 **국내 주식**을 대상으로, Claude·Gemini(·선택적으로 ChatGPT)의 **합의(Consensus)** 에 따라
 매수/매도/관망을 결정하고 자동 실행하는 프로그램입니다.
 
 > **현재 상태: 전 단계 코드 완료 + 로컬 대시보드 포함.** 남은 것은 실제 키로 모의투자 5거래일 무인 운영하는 일뿐입니다.
@@ -198,6 +198,27 @@ AI 호출 비용은 `CLAUDE_EFFORT`(low/medium/high/xhigh/max)와 `universe.max_
 - 미보유 종목의 SELL/REDUCE는 HOLD로 치환합니다.
 - `STRONG_BUY` 비중 = 두 AI 권장 비중의 평균, `BUY_SMALL` = 그 절반. 상한은 `max_position_pct`.
 - `REDUCE` = 보유수량의 50%, `SELL_ALL` = 전량.
+
+### 합의 규칙 (참여 인원과 무관)
+
+| 상황 | 결과 |
+|---|---|
+| 하나라도 응답 실패 | HOLD (절대 규칙 4) |
+| **전원 BUY** + 전원 confidence ≥ 임계 | STRONG_BUY |
+| **전원 BUY** (확신 부족) | BUY_SMALL (비중 절반) |
+| **전원 SELL** | SELL_ALL (보유 시) |
+| SELL 이 하나라도 섞임 | REDUCE (보유 시) / 미보유면 HOLD |
+| 그 밖의 조합 | HOLD |
+
+**매수는 만장일치, 매도는 한 표.** 자산을 지키는 쪽으로 기운 비대칭이 의도한 설계입니다.
+ChatGPT를 더해 셋이 되면 매수가 그만큼 어려워집니다.
+
+### ChatGPT 추가 (선택)
+
+`OPENAI_API_KEY` 를 넣으면 세 번째 판단 엔진으로 합류합니다. 비워두면 Claude·Gemini 둘로 돕니다.
+키는 https://platform.openai.com/api-keys 에서 발급합니다. 기본 모델은 `gpt-5.1`.
+
+> AI 호출 비용이 1.5배가 됩니다. 대시보드에서 엔진별 사용량·비용을 확인할 수 있습니다.
 
 ### 리스크 규칙 (AI 판단보다 상위)
 

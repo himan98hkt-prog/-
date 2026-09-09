@@ -32,6 +32,7 @@ from apscheduler.triggers.cron import CronTrigger
 from agents.base_agent import BaseAgent, run_agents_parallel
 from agents.claude_agent import ClaudeAgent
 from agents.gemini_agent import GeminiAgent
+from agents.openai_agent import OpenAiAgent
 from agents.schemas import AgentDecision
 from config.loader import ConfigError, Settings, load
 from data_pipeline.market_data import collect
@@ -82,6 +83,8 @@ class TradingBot:
         self.risk = RiskManager(settings.risk, settings.schedule)
         self.executor = OrderExecutor(settings, self.api, self.portfolio, self.risk, self.notifier)
         self.agents: list[BaseAgent] = [ClaudeAgent(env, settings.ai), GeminiAgent(env, settings.ai)]
+        if env.chatgpt_enabled:  # OPENAI_API_KEY 가 있을 때만 세 번째로 합류한다
+            self.agents.append(OpenAiAgent(env, settings.ai))
 
         self.universe: list[str] = list(settings.universe.watchlist)
         self.scheduler: BlockingScheduler | None = None
@@ -238,9 +241,12 @@ class TradingBot:
             final = FinalDecision(action="SELL_ALL", reason="손절선 도달(강제 청산)", sell_ratio=1.0)
         else:
             decisions = run_agents_parallel(self.agents, snapshot, self.settings.ai)
-            claude = decisions.get("claude") or AgentDecision.hold("claude", "호출 없음")
-            gemini = decisions.get("gemini") or AgentDecision.hold("gemini", "호출 없음")
-            final = decide(claude, gemini, state.holds(code), self.settings.risk, self.settings.ai,
+            # 호출조차 못 한 엔진도 '판단 없음' 으로 세어야 만장일치가 느슨해지지 않는다.
+            votes = [
+                decisions.get(agent.name) or AgentDecision.hold(agent.name, "호출 없음")
+                for agent in self.agents
+            ]
+            final = decide(votes, state.holds(code), self.settings.risk, self.settings.ai,
                            take_profit=forced == "TAKE_PROFIT")
 
         risk_passed, risk_reason = True, ""

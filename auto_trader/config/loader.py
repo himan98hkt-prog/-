@@ -35,9 +35,13 @@ ALL_ENV_KEYS: tuple[str, ...] = (
     "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_ACCOUNT_NO", "KIS_ACCOUNT_PRODUCT_CD",
     "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CLAUDE_TEMPERATURE", "CLAUDE_EFFORT",
     "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TEMPERATURE",
+    "OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_TEMPERATURE",
     "NOTIFIER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DISCORD_WEBHOOK_URL",
 )
 VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+# ChatGPT 기본 모델 — Structured Outputs 를 지원하고 이 용도에 비용이 적당하다.
+DEFAULT_OPENAI_MODEL = "gpt-5.1"
 
 # KIS 도메인: 모의투자를 기본으로 삼는다(절대 규칙 1).
 KIS_BASE_URLS: dict[str, str] = {
@@ -88,6 +92,10 @@ class EnvConfig:
     gemini_api_key: str
     gemini_model: str
     gemini_temperature: float
+    # ChatGPT 는 선택 — 키가 없으면 Claude·Gemini 둘로만 판단한다.
+    openai_api_key: str | None
+    openai_model: str
+    openai_temperature: float | None
 
 
     notifier: Literal["telegram", "discord"]
@@ -103,6 +111,11 @@ class EnvConfig:
     def is_real(self) -> bool:
         return self.kis_env == "REAL"
 
+    @property
+    def chatgpt_enabled(self) -> bool:
+        """키가 있을 때만 세 번째 판단 엔진으로 참여시킨다."""
+        return bool(self.openai_api_key)
+
     def __repr__(self) -> str:  # 비밀값 노출 금지
         return (
             "EnvConfig("
@@ -115,6 +128,8 @@ class EnvConfig:
             f"claude_temperature={self.claude_temperature!r}, claude_effort={self.claude_effort!r}, "
             f"gemini_api_key={mask(self.gemini_api_key)!r}, gemini_model={self.gemini_model!r}, "
             f"gemini_temperature={self.gemini_temperature!r}, "
+            f"openai_api_key={mask(self.openai_api_key)!r}, openai_model={self.openai_model!r}, "
+            f"openai_temperature={self.openai_temperature!r}, chatgpt_enabled={self.chatgpt_enabled}, "
             f"notifier={self.notifier!r}, "
             f"telegram_bot_token={mask(self.telegram_bot_token)!r}, "
             f"telegram_chat_id={mask(self.telegram_chat_id, 2, 2)!r}, "
@@ -331,6 +346,12 @@ def _load_env(errors: list[str]) -> EnvConfig:
     if gemini_temperature is None:
         gemini_temperature = 0.2
 
+    # ChatGPT — 선택. 키가 있으면 모델 이름도 있어야 한다.
+    openai_api_key = _get_env("OPENAI_API_KEY")
+    openai_model = _get_env("OPENAI_MODEL", DEFAULT_OPENAI_MODEL) or DEFAULT_OPENAI_MODEL
+    # 최신 추론 모델은 temperature 를 거부하므로 기본은 '미전송'이다.
+    openai_temperature = _parse_optional_float("OPENAI_TEMPERATURE", 0.0, 2.0, errors)
+
     notifier = (_get_env("NOTIFIER", "telegram") or "telegram").lower()
     telegram_bot_token = _get_env("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = _get_env("TELEGRAM_CHAT_ID")
@@ -363,6 +384,9 @@ def _load_env(errors: list[str]) -> EnvConfig:
         gemini_api_key=required["GEMINI_API_KEY"] or "",
         gemini_model=required["GEMINI_MODEL"] or "",
         gemini_temperature=gemini_temperature,
+        openai_api_key=openai_api_key,
+        openai_model=openai_model,
+        openai_temperature=openai_temperature,
         notifier=notifier,  # type: ignore[arg-type]
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,

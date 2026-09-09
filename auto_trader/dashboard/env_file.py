@@ -59,8 +59,16 @@ GROUPS: list[Group] = [
               "비우면 기본(high). 비용을 줄이려면 low 또는 medium",
               choices=("", "low", "medium", "high", "xhigh", "max"), required=False),
         Field("GEMINI_API_KEY", "Gemini API 키", "aistudio.google.com/apikey", secret=True),
-        Field("GEMINI_MODEL", "Gemini 모델", placeholder="gemini-2.5-pro"),
+        Field("GEMINI_MODEL", "Gemini 모델",
+              "gemini-2.5-pro 는 신규 사용자에게 막혔습니다. 무료 한도로 쓰려면 gemini-3.5-flash",
+              placeholder="gemini-3.1-pro-preview"),
         Field("GEMINI_TEMPERATURE", "Gemini temperature", placeholder="0.2", required=False),
+        Field("OPENAI_API_KEY", "ChatGPT API 키",
+              "선택 — platform.openai.com/api-keys. 넣으면 세 번째 판단 엔진으로 참여합니다",
+              secret=True, required=False),
+        Field("OPENAI_MODEL", "ChatGPT 모델", required=False, placeholder="gpt-5.1"),
+        Field("OPENAI_TEMPERATURE", "ChatGPT temperature",
+              "비워두세요. 최신 추론 모델은 이 값을 거부합니다", required=False),
     ]),
     Group("알림", "매매·오류·일간 리포트를 받습니다.", [
         # 필수 여부는 NOTIFIER 값에 따라 달라진다 — missing_required() 참고
@@ -80,7 +88,7 @@ ALL_FIELDS: dict[str, Field] = {f.key: f for group in GROUPS for f in group.fiel
 DEFAULTS = {
     "KIS_ENV": "VTS", "DRY_RUN": "true", "LOG_LEVEL": "INFO",
     "KIS_ACCOUNT_PRODUCT_CD": "01", "CLAUDE_MODEL": "claude-sonnet-5",
-    "GEMINI_MODEL": "gemini-2.5-pro", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
+    "GEMINI_MODEL": "gemini-3.1-pro-preview", "OPENAI_MODEL": "gpt-5.1", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
 }
 
 HEADER = """# 자동매매 설정 — 대시보드 설정 화면에서 저장됨

@@ -201,6 +201,7 @@ cd <저장소>/auto_trader
 | 모의계좌 번호 앞 8자리 | 1-2장 · 모의투자 참가신청 | **계좌번호 앞 8자리** | `KIS_ACCOUNT_NO` |
 | 계좌번호 뒤 2자리 | 위와 같은 곳 | **계좌 상품코드** | `KIS_ACCOUNT_PRODUCT_CD` |
 | Claude 키 (`sk-ant-…`) | 3장 · console.anthropic.com | **Anthropic API 키** | `ANTHROPIC_API_KEY` |
+| ChatGPT 키 *(선택)* | platform.openai.com/api-keys | **ChatGPT API 키** | `OPENAI_API_KEY` |
 | Gemini 키 (`AIza…`) | 4장 · aistudio.google.com | **Gemini API 키** | `GEMINI_API_KEY` |
 | 텔레그램 봇 토큰 | 5-1장 · @BotFather | **텔레그램 봇 토큰** | `TELEGRAM_BOT_TOKEN` |
 | 텔레그램 채팅 ID | 5-2장 | **텔레그램 채팅 ID** | `TELEGRAM_CHAT_ID` |
