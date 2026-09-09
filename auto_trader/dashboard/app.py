@@ -17,6 +17,7 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 from config.loader import BASE_DIR, ConfigError, load
 from dashboard import charts, process, queries
 from dashboard.env_file import GROUPS, missing_required, read_env, read_for_display, write_env
+from utils import updater
 from utils.db import get_bot_state, init_db
 from utils.key_check import run_all, summarize
 from utils.runtime import ProcessLock, StopFlag, pid_path, stop_flag_path
@@ -84,6 +85,8 @@ def create_app(*, testing: bool = False) -> Flask:
             "stopped": flag.is_set(),
             "stop_reason": flag.reason(),
             "state": state,
+            # 화면에 현재 버전을 띄운다. 파일이 없으면(첫 설치) 빈 문자열.
+            "version": updater.read_version(app.config["BASE_DIR"]).short,
         }
 
     # ------------------------------------------------------------- 라우트 #
@@ -196,6 +199,9 @@ def create_app(*, testing: bool = False) -> Flask:
             result = process.stop(data_dir)
             flash(result.message, "ok" if result.ok else "warn")
 
+        elif action == "update":
+            _apply_update(app.config["BASE_DIR"], data_dir, log_dir)
+
         else:
             abort(404)
         return redirect(url_for("index"))
@@ -209,3 +215,33 @@ def create_app(*, testing: bool = False) -> Flask:
 
 def run(host: str = "127.0.0.1", port: int = 8765, *, debug: bool = False) -> None:
     create_app().run(host=host, port=port, debug=debug)
+
+
+def _apply_update(base_dir, data_dir, log_dir) -> None:
+    """업데이트 버튼 처리. 돌고 있는 봇은 멈췄다가 새 코드로 다시 띄운다."""
+    was_running = process.is_running(data_dir)
+    if was_running:
+        stopped = process.stop(data_dir)
+        if not stopped.ok:
+            flash(f"업데이트 전에 자동매매를 멈추지 못했습니다 — {stopped.message}", "warn")
+            return
+
+    try:
+        result = updater.apply_update(base_dir)
+    except updater.UpdateError as exc:
+        flash(f"업데이트하지 못했습니다: {exc}", "warn")
+        if was_running:  # 멈춰만 놓고 끝내면 매매가 죽는다
+            restarted = process.start(base_dir, data_dir, log_dir)
+            flash(f"기존 버전으로 다시 시작했습니다 — {restarted.message}",
+                  "ok" if restarted.ok else "warn")
+        return
+
+    lines = [f"최신 버전으로 업데이트했습니다 ({result.version.short} {result.version.message})",
+             "키와 매매 기록은 그대로 유지됩니다."]
+    lines.extend(result.notes)
+    if result.deps_changed:
+        lines.append("이 창을 닫고 start.bat 을 다시 실행해 주세요.")
+    elif was_running:
+        restarted = process.start(base_dir, data_dir, log_dir)
+        lines.append(f"자동매매를 다시 시작했습니다 — {restarted.message}")
+    flash("\n".join(lines), "ok")

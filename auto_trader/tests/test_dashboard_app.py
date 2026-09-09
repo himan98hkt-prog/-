@@ -382,3 +382,115 @@ def test_running_bot_shows_restart_and_shutdown(app, client, monkeypatch):
     assert "재시작 (설정 반영)" in body
     assert "봇 종료" in body
     assert "자동매매 시작" not in body
+
+
+# --------------------------------------------------------------------------- #
+# 업데이트 버튼 — 키를 다시 넣지 않아도 되는 것이 핵심이다
+# --------------------------------------------------------------------------- #
+
+
+def post_with_csrf(client, path: str) -> str:
+    """CSRF 토큰을 받아 POST 하고, 리다이렉트를 따라가 flash 메시지를 읽는다."""
+    import re
+
+    body = client.get("/setup").get_data(as_text=True)
+    token = re.search(r'name="csrf" value="([^"]+)"', body).group(1)
+    response = client.post(path, data={"csrf": token}, follow_redirects=True)
+    return response.get_data(as_text=True)
+
+
+def test_update_button_applies_and_reports(client, monkeypatch, tmp_path):
+    from dashboard import process
+    from utils import updater
+
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="c" * 40, message="새 기능"),
+        changed=["main.py"], notes=[], deps_changed=False))
+
+    page = post_with_csrf(client, "/control/update")
+    assert "업데이트했습니다" in page
+    assert "키와 매매 기록은 그대로" in page
+
+
+def test_update_failure_leaves_a_plain_message(client, monkeypatch):
+    from dashboard import process
+    from utils import updater
+
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+
+    def boom(base, **kw):
+        raise updater.UpdateError("인터넷 연결을 확인하세요")
+
+    monkeypatch.setattr(updater, "apply_update", boom)
+
+    page = post_with_csrf(client, "/control/update")
+    assert "업데이트하지 못했습니다" in page and "인터넷 연결" in page
+
+
+def test_running_bot_is_stopped_then_restarted(client, monkeypatch):
+    from dashboard import process
+    from utils import updater
+
+    calls: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+    monkeypatch.setattr(process, "stop", lambda data_dir: (
+        calls.append("stop"), process.ControlResult(True, "종료했습니다"))[1])
+    monkeypatch.setattr(process, "start", lambda base, data, log: (
+        calls.append("start"), process.ControlResult(True, "시작했습니다"))[1])
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="d" * 40, message="수정"),
+        changed=[], notes=[], deps_changed=False))
+
+    post_with_csrf(client, "/control/update")
+    assert calls == ["stop", "start"], "멈췄다가 새 코드로 다시 띄워야 합니다"
+
+
+def test_failed_update_restarts_the_bot_it_stopped(client, monkeypatch):
+    """업데이트가 실패했다고 매매를 멈춰둔 채로 끝내면 안 된다."""
+    from dashboard import process
+    from utils import updater
+
+    calls: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+    monkeypatch.setattr(process, "stop", lambda data_dir: (
+        calls.append("stop"), process.ControlResult(True, "종료"))[1])
+    monkeypatch.setattr(process, "start", lambda base, data, log: (
+        calls.append("start"), process.ControlResult(True, "시작"))[1])
+
+    def boom(base, **kw):
+        raise updater.UpdateError("서버 오류")
+
+    monkeypatch.setattr(updater, "apply_update", boom)
+
+    page = post_with_csrf(client, "/control/update")
+    assert calls == ["stop", "start"]
+    assert "기존 버전으로 다시 시작" in page
+
+
+def test_update_aborts_when_bot_cannot_be_stopped(client, monkeypatch):
+    from dashboard import process
+    from utils import updater
+
+    applied: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+    monkeypatch.setattr(process, "stop", lambda data_dir: process.ControlResult(False, "응답 없음"))
+    monkeypatch.setattr(updater, "apply_update",
+                        lambda base, **kw: applied.append("x"))
+
+    page = post_with_csrf(client, "/control/update")
+    assert applied == [], "멈추지 못했으면 코드를 갈아끼우면 안 됩니다"
+    assert "멈추지 못했습니다" in page
+
+
+def test_dependency_change_asks_for_a_manual_restart(client, monkeypatch):
+    from dashboard import process
+    from utils import updater
+
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="e" * 40, message="패키지 추가"),
+        changed=[], notes=[], deps_changed=True))
+
+    page = post_with_csrf(client, "/control/update")
+    assert "start.bat" in page
