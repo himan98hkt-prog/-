@@ -11,7 +11,7 @@
 | 3 | Anthropic(Claude) API 키 | 필수 |
 | 4 | Google(Gemini) API 키 | 필수 |
 | 5 | 텔레그램 봇 · 채팅 ID | 필수 |
-| 6 | 네이버 검색 API | 선택 |
+| 6 | ~~네이버 검색 API~~ | 사용 안 함 (아래 6장 참고) |
 | 7 | 키 입력 (대시보드 또는 파일) | 필수 |
 | 8 | 키 점검 → 단계별 검증 | 필수 |
 
@@ -173,24 +173,17 @@ cd <저장소>/auto_trader
 
 ---
 
-## 6. 네이버 검색 API (선택 — 건너뛰어도 됩니다)
+## 6. 뉴스? — 더 이상 쓰지 않습니다
 
-뉴스 감성을 AI 판단에 넣고 싶을 때만 필요합니다. 없으면 뉴스 없이 지표만으로 판단합니다.
-**검증 단계에서는 비워두고 넘어가시길 권합니다.**
+네이버 검색 API 를 뉴스 출처로 쓰려 했지만 **두 가지 이유로 뺐습니다.**
 
-> ⚠️ **네이버 로그인 아이디·비밀번호가 아닙니다.**
-> 아래에서 앱을 등록하면 발급되는 **Client ID / Client Secret** 입니다.
-> 계정 정보는 어디에도 입력하지 마세요.
+1. **2026-07-31 부로 개발자센터에서 신규 발급이 중단**됐습니다. '사용 API' 목록에
+   '검색' 이 안 보이는 게 이 때문입니다. 네이버클라우드의 NAVER API HUB 로 이관됐습니다.
+2. **2026-09-07 시행 약관이 검색 결과를 AI 에 입력하는 것을 금지**합니다.
+   이 프로그램은 뉴스를 Claude·Gemini 에 넘겨 판단시키는 구조라 정면으로 어긋납니다.
 
-**https://developers.naver.com/apps/#/register**
-
-1. 네이버 계정으로 로그인
-2. **애플리케이션 이름** 입력 (예: `auto-trader`)
-3. **사용 API** 에서 **검색** 을 선택
-4. 환경 추가에서 **웹 서비스 URL** 을 요구하면 `http://localhost` 를 넣어도 됩니다
-5. 등록 후 **Client ID** 와 **Client Secret** 을 복사합니다
-
-**받는 것**: `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` (둘 다 넣거나 둘 다 비워야 합니다)
+그래서 뉴스 수집을 코드에서 제거했고, **판단은 기술적 지표만으로** 합니다
+(이동평균·RSI·MACD·볼린저밴드·거래량). 넣을 키도, 받을 키도 없습니다.
 
 ---
 
@@ -212,7 +205,6 @@ cd <저장소>/auto_trader
 | 텔레그램 봇 토큰 | 5-1장 · @BotFather | **텔레그램 봇 토큰** | `TELEGRAM_BOT_TOKEN` |
 | 텔레그램 채팅 ID | 5-2장 | **텔레그램 채팅 ID** | `TELEGRAM_CHAT_ID` |
 | (디스코드를 쓸 때) 웹훅 URL | 5장 대안 | **디스코드 웹훅** | `DISCORD_WEBHOOK_URL` |
-| 네이버 Client ID / Secret *(선택)* | 6장 | **네이버 Client ID / Secret** | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` |
 
 나머지 칸(`KIS_ENV`, `DRY_RUN`, 모델 이름 등)은 기본값 그대로 두면 됩니다.
 검증이 끝나기 전까지 **`KIS_ENV=VTS`, `DRY_RUN=true`** 는 절대 바꾸지 마세요.
@@ -275,9 +267,6 @@ GEMINI_API_KEY=AIza여기에
 GEMINI_MODEL=gemini-2.5-pro
 GEMINI_TEMPERATURE=0.2
 
-# --- 뉴스 (선택) ---
-NAVER_CLIENT_ID=
-NAVER_CLIENT_SECRET=
 
 # --- 알림 ---
 NOTIFIER=telegram

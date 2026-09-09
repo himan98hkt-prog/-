@@ -35,7 +35,6 @@ ALL_ENV_KEYS: tuple[str, ...] = (
     "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_ACCOUNT_NO", "KIS_ACCOUNT_PRODUCT_CD",
     "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CLAUDE_TEMPERATURE", "CLAUDE_EFFORT",
     "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TEMPERATURE",
-    "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET",
     "NOTIFIER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DISCORD_WEBHOOK_URL",
 )
 VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
@@ -90,8 +89,6 @@ class EnvConfig:
     gemini_model: str
     gemini_temperature: float
 
-    naver_client_id: str | None
-    naver_client_secret: str | None
 
     notifier: Literal["telegram", "discord"]
     telegram_bot_token: str | None
@@ -106,10 +103,6 @@ class EnvConfig:
     def is_real(self) -> bool:
         return self.kis_env == "REAL"
 
-    @property
-    def news_enabled(self) -> bool:
-        return bool(self.naver_client_id and self.naver_client_secret)
-
     def __repr__(self) -> str:  # 비밀값 노출 금지
         return (
             "EnvConfig("
@@ -122,7 +115,7 @@ class EnvConfig:
             f"claude_temperature={self.claude_temperature!r}, claude_effort={self.claude_effort!r}, "
             f"gemini_api_key={mask(self.gemini_api_key)!r}, gemini_model={self.gemini_model!r}, "
             f"gemini_temperature={self.gemini_temperature!r}, "
-            f"news_enabled={self.news_enabled}, notifier={self.notifier!r}, "
+            f"notifier={self.notifier!r}, "
             f"telegram_bot_token={mask(self.telegram_bot_token)!r}, "
             f"telegram_chat_id={mask(self.telegram_chat_id, 2, 2)!r}, "
             f"discord_webhook_url={mask(self.discord_webhook_url, 20, 0)!r})"
@@ -354,10 +347,6 @@ def _load_env(errors: list[str]) -> EnvConfig:
         errors.append(f"NOTIFIER: 'telegram' 또는 'discord' 여야 합니다 (현재: {notifier!r})")
         notifier = "telegram"
 
-    naver_id = _get_env("NAVER_CLIENT_ID")
-    naver_secret = _get_env("NAVER_CLIENT_SECRET")
-    if bool(naver_id) != bool(naver_secret):
-        errors.append("NAVER_CLIENT_ID / NAVER_CLIENT_SECRET: 둘 다 설정하거나 둘 다 비워야 합니다")
 
     return EnvConfig(
         kis_env=kis_env,  # type: ignore[arg-type]
@@ -374,8 +363,6 @@ def _load_env(errors: list[str]) -> EnvConfig:
         gemini_api_key=required["GEMINI_API_KEY"] or "",
         gemini_model=required["GEMINI_MODEL"] or "",
         gemini_temperature=gemini_temperature,
-        naver_client_id=naver_id,
-        naver_client_secret=naver_secret,
         notifier=notifier,  # type: ignore[arg-type]
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,

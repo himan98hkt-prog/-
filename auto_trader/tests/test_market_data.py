@@ -147,7 +147,7 @@ def test_build_position_computes_pnl_when_missing():
 
 def test_collect_matches_fixed_schema(settings_obj):
     api = StubApi()
-    snapshot = collect("005930", api, settings_obj, with_news=False,
+    snapshot = collect("005930", api, settings_obj,
                        now=datetime(2026, 9, 7, 9, 35, tzinfo=KST))
 
     assert snapshot["code"] == "005930"
@@ -165,7 +165,7 @@ def test_collect_matches_fixed_schema(settings_obj):
 
 def test_collect_survives_orderbook_failure(settings_obj):
     api = StubApi(book_error=True)
-    snapshot = collect("005930", api, settings_obj, with_news=False)
+    snapshot = collect("005930", api, settings_obj)
     assert snapshot["orderbook"] == {"bid_total": 0, "ask_total": 0, "spread_pct": 0.0}
     assert snapshot["price"]["current"] == 76000
 
@@ -173,7 +173,7 @@ def test_collect_survives_orderbook_failure(settings_obj):
 def test_collect_includes_holding(settings_obj):
     api = StubApi()
     holding = Holding("005930", "삼성전자", 12, 12, 70000, 76000, 912000, 72000, 8.57)
-    snapshot = collect("005930", api, settings_obj, holding=holding, with_news=False)
+    snapshot = collect("005930", api, settings_obj, holding=holding)
     assert snapshot["position"] == {"holding": True, "qty": 12, "avg_price": 70000.0, "pnl_pct": 8.57}
 
 
@@ -183,4 +183,4 @@ def test_collect_propagates_price_failure(settings_obj):
             raise KisApiError("현재가 조회 실패")
 
     with pytest.raises(KisApiError):
-        collect("005930", Broken(), settings_obj, with_news=False)
+        collect("005930", Broken(), settings_obj)

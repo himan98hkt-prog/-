@@ -38,7 +38,7 @@ def clean_env(monkeypatch):
     """프로세스 환경변수가 테스트에 새어들지 않게 한다."""
     for key in [*REQUIRED_ENV, "KIS_ENV", "DRY_RUN", "LOG_LEVEL", "NOTIFIER",
                 "CLAUDE_TEMPERATURE", "CLAUDE_EFFORT", "GEMINI_TEMPERATURE",
-                "KIS_ACCOUNT_PRODUCT_CD", "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET",
+                "KIS_ACCOUNT_PRODUCT_CD",
                 "DISCORD_WEBHOOK_URL"]:
         monkeypatch.delenv(key, raising=False)
 
@@ -119,14 +119,6 @@ def test_real_environment_switches_base_url(env_file):
     assert "openapi.koreainvestment.com" in settings.env.base_url
 
 
-def test_news_disabled_without_both_naver_keys(env_file):
-    settings = load(env_path=env_file(NAVER_CLIENT_ID="", NAVER_CLIENT_SECRET=""), create_dirs=False)
-    assert settings.env.news_enabled is False
-
-
-def test_partial_naver_keys_rejected(env_file):
-    with pytest.raises(ConfigError, match="NAVER"):
-        load(env_path=env_file(NAVER_CLIENT_ID="only-id"), create_dirs=False)
 
 
 def test_missing_env_file_raises(tmp_path):

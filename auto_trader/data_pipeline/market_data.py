@@ -15,7 +15,6 @@ from ta.trend import MACD, SMAIndicator
 from ta.volatility import BollingerBands
 
 from config.loader import Settings
-from data_pipeline.news import fetch_news
 from trading.kis_api import Holding, KisApi, KisApiError
 from utils.logger import get_logger
 
@@ -108,7 +107,6 @@ def collect(
     settings: Settings,
     *,
     holding: Holding | None = None,
-    with_news: bool = True,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """한 종목의 현재가·일봉·호가·지표·뉴스를 모아 스냅샷을 만든다.
@@ -128,9 +126,10 @@ def collect(
         book = {"bid_total": 0, "ask_total": 0, "spread_pct": 0.0}
 
     name = quote["name"] or code
+    # 뉴스는 수집하지 않는다. 유일한 출처였던 네이버 검색 API 가 2026-07-31 부로
+    # 신규 발급을 닫았고, 2026-09-07 시행 약관이 결과를 AI 에 입력하는 것을
+    # 금지한다. 판단은 기술적 지표만으로 한다.
     news: list[dict[str, Any]] = []
-    if with_news:
-        news = fetch_news(name, settings.env, settings.ai, now=timestamp)
 
     closes = [int(value) for value in daily["close"].tail(RECENT_CLOSES).tolist()]
 

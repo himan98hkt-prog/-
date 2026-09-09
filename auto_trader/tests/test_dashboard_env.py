@@ -59,9 +59,9 @@ def test_explicit_clear_removes_secret(env_path):
 
 
 def test_blank_non_secret_is_cleared(env_path):
-    write_env(env_path, {"NAVER_CLIENT_ID": "id"})
-    write_env(env_path, {"NAVER_CLIENT_ID": ""})
-    assert read_env(env_path)["NAVER_CLIENT_ID"] == ""
+    write_env(env_path, {"CLAUDE_EFFORT": "low"})
+    write_env(env_path, {"CLAUDE_EFFORT": ""})
+    assert read_env(env_path)["CLAUDE_EFFORT"] == ""
 
 
 @pytest.mark.parametrize(
@@ -105,7 +105,7 @@ def test_missing_required_lists_empty_fields(env_path):
     write_env(env_path, {})
     missing = missing_required(env_path)
     assert "KIS_APP_KEY" in missing
-    assert "NAVER_CLIENT_ID" not in missing, "선택 항목은 빠져야 합니다"
+    assert "CLAUDE_EFFORT" not in missing, "선택 항목은 빠져야 합니다"
 
 
 def test_all_fields_are_grouped():

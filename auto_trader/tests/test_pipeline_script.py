@@ -31,7 +31,7 @@ script = _load_script()
 
 
 def test_snapshot_passes_schema_validation(settings_obj):
-    snapshot = collect("005930", StubApi(), settings_obj, with_news=False, now=NOW)
+    snapshot = collect("005930", StubApi(), settings_obj, now=NOW)
     assert script.validate_schema(snapshot) == []
 
 
@@ -49,7 +49,7 @@ def test_validate_schema_rejects_wrong_type():
 
 
 def test_snapshot_saved_to_snapshots_dir(settings_obj):
-    snapshot = collect("005930", StubApi(), settings_obj, with_news=False, now=NOW)
+    snapshot = collect("005930", StubApi(), settings_obj, now=NOW)
     path = script.save_snapshot(snapshot, settings_obj.paths["snapshots"], NOW)
 
     assert path.name == "20260907_093500_005930.json"
@@ -65,5 +65,5 @@ def test_summarize_does_not_raise_for_holding(settings_obj):
     from trading.kis_api import Holding
 
     holding = Holding("005930", "삼성전자", 12, 12, 70000, 76000, 912000, 72000, 8.57)
-    snapshot = collect("005930", StubApi(), settings_obj, holding=holding, with_news=False, now=NOW)
+    snapshot = collect("005930", StubApi(), settings_obj, holding=holding, now=NOW)
     script.summarize(snapshot)  # 포맷 문자열 오류가 없어야 한다

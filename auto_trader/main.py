@@ -503,8 +503,7 @@ def bootstrap(settings: Settings) -> Settings:
     """로깅 구성 + 비밀값 등록 + DB 스키마 생성."""
     env = settings.env
     register_secret(env.kis_app_key, env.kis_app_secret, env.anthropic_api_key,
-                    env.gemini_api_key, env.telegram_bot_token, env.discord_webhook_url,
-                    env.naver_client_secret)
+                    env.gemini_api_key, env.telegram_bot_token, env.discord_webhook_url)
     setup_logging(env.log_level, settings.paths["logs"])
     init_db(settings.paths["db"])
     return settings

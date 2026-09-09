@@ -8,7 +8,6 @@
 사용법:
     python scripts/test_pipeline.py                  # 유니버스 전체
     python scripts/test_pipeline.py --code 005930    # 한 종목만
-    python scripts/test_pipeline.py --no-news        # 뉴스 생략
 """
 
 from __future__ import annotations
@@ -81,7 +80,6 @@ def summarize(snapshot: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="데이터 파이프라인 검증 (Step 3)")
     parser.add_argument("--code", help="이 종목만 수집 (지정 시 유니버스 생성 생략)")
-    parser.add_argument("--no-news", action="store_true", help="뉴스 수집 생략")
     args = parser.parse_args()
 
     try:
@@ -91,10 +89,9 @@ def main() -> int:
         return 1
 
     env = settings.env
-    register_secret(env.kis_app_key, env.kis_app_secret, env.naver_client_secret)
+    register_secret(env.kis_app_key, env.kis_app_secret)
     setup_logging(env.log_level, settings.paths["logs"])
-    logger.info("데이터 파이프라인 검증 시작 — %s / 뉴스 %s",
-                env.kis_env, "off" if args.no_news else ("on" if env.news_enabled else "off(키 미설정)"))
+    logger.info("데이터 파이프라인 검증 시작 — %s", env.kis_env)
 
     auth = TokenManager(env, settings.paths["token"])
     api = KisApi(env, auth)
@@ -116,8 +113,7 @@ def main() -> int:
         for code in codes:
             try:
                 holding = balance.by_code(code) if balance else None
-                snapshot = collect(code, api, settings, holding=holding,
-                                   with_news=not args.no_news, now=timestamp)
+                snapshot = collect(code, api, settings, holding=holding, now=timestamp)
                 missing = validate_schema(snapshot)
                 if missing:
                     logger.error("  %s 스키마 누락: %s", code, ", ".join(missing))

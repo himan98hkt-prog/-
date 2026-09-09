@@ -74,22 +74,6 @@ def _describe_bad_chars(value: str) -> list[str]:
     return problems
 
 
-def _looks_like_naver_login(key: str, value: str) -> str:
-    """네이버 로그인 계정을 인증키 칸에 넣은 흔한 실수를 잡는다.
-
-    Client ID/Secret 은 영문·숫자로만 이루어진 10~30자 내외의 문자열이다.
-    이메일 주소나 한글이 들어오면 로그인 계정을 적은 것이다.
-    """
-    trimmed = value.strip()
-    if "@" in trimmed or trimmed.endswith((".com", ".net", ".kr")):
-        return "이메일 주소로 보입니다"
-    if not trimmed.isascii():
-        return "영문·숫자만 들어갑니다"
-    if key == "NAVER_CLIENT_ID" and len(trimmed) < 8:
-        return f"너무 짧습니다({len(trimmed)}자)"
-    return ""
-
-
 def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
     """붙여넣기 사고를 잡아낸다. API 를 부르기 전에 먼저 돌린다.
 
@@ -98,8 +82,7 @@ def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
     """
     results: list[Result] = []
     for key in ("KIS_APP_KEY", "KIS_APP_SECRET", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
-                "CLAUDE_MODEL", "GEMINI_MODEL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
-                "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"):
+                "CLAUDE_MODEL", "GEMINI_MODEL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
         value = env.get(key)
         if not value:
             continue
@@ -109,17 +92,6 @@ def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
         if prefix and not value.strip().startswith(prefix):
             problems.append(f"'{prefix}' 로 시작해야 하는데 아닙니다")
 
-        if key.startswith("NAVER_CLIENT"):
-            wrong = _looks_like_naver_login(key, value)
-            if wrong:
-                results.append(Result(
-                    f"입력값 {key}", FAIL,
-                    f"{wrong} — 네이버 로그인 아이디·비밀번호가 아니라, "
-                    "developers.naver.com/apps 에서 앱을 등록하면 발급되는 "
-                    "Client ID / Client Secret 을 넣어야 합니다. "
-                    "필요 없으면 비워두세요 (뉴스 없이도 동작합니다)",
-                ))
-                continue
 
         if problems:
             results.append(Result(
@@ -288,30 +260,6 @@ def check_telegram(env: dict[str, str | None], *, send_test: bool) -> list[Resul
     return results
 
 
-def check_naver(env: dict[str, str | None]) -> Result:
-    client_id, secret = env.get("NAVER_CLIENT_ID"), env.get("NAVER_CLIENT_SECRET")
-    if not (client_id or secret):
-        return Result("네이버 뉴스 (선택)", SKIP, "미설정 — 뉴스 없이 동작합니다")
-    if not (client_id and secret):
-        return Result("네이버 뉴스 (선택)", FAIL, "ID 와 SECRET 을 둘 다 넣거나 둘 다 비워야 합니다")
-
-    import requests
-
-    try:
-        response = requests.get(
-            "https://openapi.naver.com/v1/search/news.json",
-            headers={"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": secret},
-            params={"query": "삼성전자", "display": 1}, timeout=10,
-        )
-    except requests.RequestException as exc:
-        return Result("네이버 뉴스 (선택)", FAIL, f"접속 실패: {exc}")
-    if response.status_code == 200:
-        return Result("네이버 뉴스 (선택)", OK, "검색 API 호출 성공")
-    return Result("네이버 뉴스 (선택)", FAIL, f"HTTP {response.status_code}: {(response.text or '')[:120]}")
-
-
-
-
 def run_all(env: dict[str, str | None], *, telegram_test: bool = False) -> list[Result]:
     """모든 항목을 검사해 결과 목록을 돌려준다."""
     results: list[Result] = []
@@ -321,7 +269,6 @@ def run_all(env: dict[str, str | None], *, telegram_test: bool = False) -> list[
     results.append(check_anthropic(env))
     results.append(check_gemini(env))
     results.extend(check_telegram(env, send_test=telegram_test))
-    results.append(check_naver(env))
     return results
 
 

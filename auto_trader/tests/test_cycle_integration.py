@@ -100,7 +100,7 @@ def run_cycle(ctx, code="005930"):
     settings = ctx["settings"]
     state = ctx["portfolio"].sync(now=NOW)
     position = state.get(code)
-    snapshot = collect(code, ctx["api"], settings, holding=position, with_news=False, now=NOW)
+    snapshot = collect(code, ctx["api"], settings, holding=position, now=NOW)
 
     forced = ctx["risk"].check_forced_exit(position)
     decisions = run_agents_parallel(ctx["agents"], snapshot, settings.ai)

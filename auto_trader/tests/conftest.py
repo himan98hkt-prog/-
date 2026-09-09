@@ -33,8 +33,6 @@ def make_env(**overrides) -> EnvConfig:
         gemini_api_key="gemini-test",
         gemini_model="gemini-2.5-pro",
         gemini_temperature=0.2,
-        naver_client_id=None,
-        naver_client_secret=None,
         notifier="telegram",
         telegram_bot_token="tg-token",
         telegram_chat_id="12345",
