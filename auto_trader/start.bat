@@ -99,7 +99,19 @@ echo   Keep this window open. Stop with Ctrl+C.
 echo ========================================================
 echo.
 
+:run_dashboard
 "%VPY%" scripts\dashboard.py --port %PORT% --open-browser
+rem Exit code 42 means "I just updated myself - start me again", so the new
+rem code is actually loaded. Anything else means the user stopped it.
+if errorlevel 43 goto stopped
+if errorlevel 42 (
+    echo.
+    echo [..] Update applied. Restarting the dashboard...
+    echo.
+    goto run_dashboard
+)
+
+:stopped
 echo.
 echo The dashboard has stopped.
 pause

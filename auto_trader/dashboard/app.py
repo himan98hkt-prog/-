@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 
 from config.loader import BASE_DIR, ConfigError, load
-from dashboard import charts, process, queries
+from dashboard import charts, process, queries, restart
 from dashboard.env_file import GROUPS, missing_required, read_env, read_for_display, write_env
 from utils import updater
 from utils.db import get_bot_state, init_db
@@ -240,8 +240,16 @@ def _apply_update(base_dir, data_dir, log_dir) -> None:
              "키와 매매 기록은 그대로 유지됩니다."]
     lines.extend(result.notes)
     if result.deps_changed:
-        lines.append("이 창을 닫고 start.bat 을 다시 실행해 주세요.")
-    elif was_running:
+        lines.append("새 패키지가 필요합니다 — 이 창을 닫고 start.bat 을 다시 실행해 주세요.")
+        flash("\n".join(lines), "ok")
+        return
+
+    if was_running:
         restarted = process.start(base_dir, data_dir, log_dir)
         lines.append(f"자동매매를 다시 시작했습니다 — {restarted.message}")
+
+    # 대시보드 자신은 옛 코드를 메모리에 물고 있다. 새 화면을 보려면 프로세스를
+    # 갈아야 한다 — 잠시 뒤 스스로 죽고 start 스크립트가 다시 띄운다.
+    lines.append("잠시 뒤 화면이 새로 뜹니다. 안 뜨면 이 페이지를 새로고침하세요.")
     flash("\n".join(lines), "ok")
+    restart.request_restart()

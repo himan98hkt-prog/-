@@ -42,6 +42,17 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture(autouse=True)
+def never_really_exit(monkeypatch):
+    """업데이트 경로는 진짜로 os._exit 를 부른다 — 테스트 실행기까지 죽는다.
+
+    개별 테스트가 패치를 깜빡해도 러너가 조용히 사라지지 않도록 여기서 막는다.
+    """
+    from dashboard import restart
+
+    monkeypatch.setattr(restart, "request_restart", lambda **kw: None)
+
+
 def seed(app, *, with_positions: bool = True) -> None:
     db = app.config["DB_PATH"]
     conn = connect(db)
@@ -494,3 +505,53 @@ def test_dependency_change_asks_for_a_manual_restart(client, monkeypatch):
 
     page = post_with_csrf(client, "/control/update")
     assert "start.bat" in page
+
+
+def test_update_restarts_the_dashboard_itself(client, monkeypatch):
+    """코드만 갈아끼우면 화면은 그대로다 — 대시보드 프로세스도 갈아야 한다."""
+    from dashboard import process, restart
+    from utils import updater
+
+    asked: list[bool] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="f" * 40, message="새 입력칸"),
+        changed=["dashboard/"], notes=[], deps_changed=False))
+
+    page = post_with_csrf(client, "/control/update")
+    assert asked == [True], "업데이트 후 대시보드가 스스로 다시 뜨지 않습니다"
+    assert "화면이 새로 뜹니다" in page
+
+
+def test_dependency_change_skips_self_restart(client, monkeypatch):
+    """새 패키지는 설치가 먼저다 — 그냥 다시 띄우면 import 에러가 난다."""
+    from dashboard import process, restart
+    from utils import updater
+
+    asked: list[bool] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="a" * 40, message="패키지 추가"),
+        changed=[], notes=[], deps_changed=True))
+
+    page = post_with_csrf(client, "/control/update")
+    assert asked == []
+    assert "start.bat" in page
+
+
+def test_failed_update_does_not_restart_the_dashboard(client, monkeypatch):
+    from dashboard import process, restart
+    from utils import updater
+
+    asked: list[bool] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+
+    def boom(base, **kw):
+        raise updater.UpdateError("연결 실패")
+
+    monkeypatch.setattr(updater, "apply_update", boom)
+    post_with_csrf(client, "/control/update")
+    assert asked == []

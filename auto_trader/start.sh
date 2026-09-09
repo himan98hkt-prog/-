@@ -72,4 +72,18 @@ echo ""
 
 # 브라우저는 서버가 실제로 뜬 뒤에 열린다 (--open-browser).
 # 먼저 열면 "연결할 수 없음" 페이지가 뜬다.
-exec python scripts/dashboard.py --port "$PORT" --open-browser
+#
+# 종료 코드 42 = "방금 나를 업데이트했으니 다시 띄워라". 새 코드를 실제로
+# 읽어들이려면 프로세스를 갈아야 한다(파이썬은 모듈을 한 번만 import 한다).
+while true; do
+  set +e
+  python scripts/dashboard.py --port "$PORT" --open-browser
+  code=$?
+  set -e
+  if [ "$code" -ne 42 ]; then
+    exit "$code"
+  fi
+  echo ""
+  echo "· 업데이트 적용됨 — 대시보드를 다시 띄웁니다..."
+  echo ""
+done
