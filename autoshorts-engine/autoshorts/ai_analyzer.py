@@ -195,14 +195,16 @@ def normalize_clips(
     min_clips: int = 3,
     max_clips: int = 5,
     snap_tolerance: float = 2.5,
-    max_overlap_ratio: float = 0.25,
+    max_overlap_seconds: float = 1.0,
 ) -> list[Clip]:
     """모델이 준 구간을 실제로 렌더 가능한 형태로 교정한다.
 
     - 영상 길이 밖으로 나간 구간을 잘라 맞춘다.
     - 발화 경계로 스냅한다.
     - 너무 짧으면 늘리고, 너무 길면 자른다(가능하면 앞쪽을 살린다).
-    - 크게 겹치는 구간은 점수가 높은 쪽만 남긴다.
+    - 겹치는 구간은 점수가 높은 쪽만 남긴다(경계 스냅 여유분
+      ``max_overlap_seconds`` 까지만 허용). 같은 발화가 두 쇼츠에
+      중복되면 시청자에게 그대로 드러나므로 기준을 좁게 잡는다.
     - 점수 내림차순으로 ``max_clips`` 개까지 남기고, 최종 순서는 시간순.
     """
     duration = transcript.duration or (max((s.end for s in transcript.segments), default=0.0))
@@ -250,10 +252,7 @@ def normalize_clips(
     for clip in candidates:
         if len(selected) >= max_clips:
             break
-        conflict = any(
-            _overlap(clip, kept) > max_overlap_ratio * min(clip.duration, kept.duration)
-            for kept in selected
-        )
+        conflict = any(_overlap(clip, kept) > max_overlap_seconds for kept in selected)
         if conflict:
             LOG.debug("무시: 기존 클립과 겹침 (%.1f~%.1f)", clip.start, clip.end)
             continue
@@ -270,12 +269,28 @@ def normalize_clips(
     return selected
 
 
+def _shorten_title(text: str, max_chars: int = 25) -> str:
+    """단어 중간에서 자르지 않고 제목 길이를 맞춘다.
+
+    첫 단어 자체가 한계보다 길 때만 어쩔 수 없이 그대로 자른다.
+    """
+    text = " ".join(str(text).split())
+    if len(text) <= max_chars:
+        return text.rstrip(" ,.·")
+    cut = text[:max_chars]
+    if " " in cut:
+        head = cut.rsplit(" ", 1)[0]
+        if len(head) >= max_chars // 2:   # 너무 짧아지면 하드 컷을 유지
+            cut = head
+    return cut.rstrip(" ,.·")
+
+
 def _fallback_title(transcript: Transcript, start: float, end: float, max_chars: int = 25) -> str:
     """제목이 비었을 때 구간 첫 문장으로 대체."""
     for segment in transcript.slice(start, end):
         text = segment.text.strip()
         if text:
-            return text[:max_chars]
+            return _shorten_title(text, max_chars)
     return f"하이라이트 {int(start)}초"
 
 

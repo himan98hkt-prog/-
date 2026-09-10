@@ -16,6 +16,7 @@ from autoshorts.ai_analyzer import (
     parse_response_json,
     snap_to_segments,
 )
+from autoshorts.ai_analyzer import _shorten_title
 from autoshorts.models import Clip, Transcript
 
 
@@ -112,6 +113,28 @@ class TestNormalizeClips:
         assert len(clips) == 1
         assert clips[0].title == "높은 점수"
 
+    def test_rejects_partial_overlap(self, transcript):
+        # 같은 발화가 두 쇼츠에 중복되면 안 된다 — 5초 겹침도 거부
+        clips = normalize_clips(
+            [
+                {"start_time": 0, "end_time": 45, "title": "앞", "score": 90},
+                {"start_time": 40, "end_time": 85, "title": "뒤", "score": 80},
+            ],
+            transcript, min_seconds=30, max_seconds=60,
+        )
+        assert len(clips) == 1 and clips[0].title == "앞"
+
+    def test_tolerates_boundary_snap_slack(self, transcript):
+        # 경계 스냅으로 생긴 1초 이하의 접점은 허용한다
+        clips = normalize_clips(
+            [
+                {"start_time": 0, "end_time": 40, "title": "앞", "score": 90},
+                {"start_time": 39.5, "end_time": 80, "title": "뒤", "score": 80},
+            ],
+            transcript, min_seconds=30, max_seconds=60, snap_tolerance=0.0,
+        )
+        assert [c.title for c in clips] == ["앞", "뒤"]
+
     def test_keeps_separate_clips(self, transcript):
         clips = normalize_clips(
             [
@@ -144,6 +167,16 @@ class TestNormalizeClips:
         clips = normalize_clips([{"start_time": 0, "end_time": 35, "score": 50}], transcript)
         assert clips[0].title
 
+    def test_generated_title_does_not_cut_mid_word(self, transcript):
+        clips = normalize_clips([{"start_time": 0, "end_time": 35, "score": 50}], transcript)
+        title = clips[0].title
+        first_line = transcript.segments[0].text
+        assert title in " ".join(first_line.split())
+        # 잘린 지점이 원문에서 단어 경계여야 한다
+        assert first_line.startswith(title) and (
+            len(title) == len(first_line) or first_line[len(title)] in " ,."
+        )
+
     def test_accepts_string_timestamps(self, transcript):
         clips = normalize_clips(
             [{"start_time": "00:00:10", "end_time": "00:00:55", "title": "문자열", "score": 50}],
@@ -155,6 +188,28 @@ class TestNormalizeClips:
     def test_accepts_clip_objects(self, transcript):
         clips = normalize_clips([Clip(start=10, end=50, title="객체", score=50)], transcript)
         assert clips[0].title == "객체"
+
+
+class TestShortenTitle:
+    def test_keeps_short_text_as_is(self):
+        assert _shorten_title("짧은 제목", 25) == "짧은 제목"
+
+    def test_cuts_at_word_boundary(self):
+        text = "결론부터 말씀드리면, 대부분의 사람들이 첫 단계에서 이미 실패합니다"
+        title = _shorten_title(text, 25)
+        assert len(title) <= 25
+        assert not title.endswith("첫 단")          # 단어 중간 절단 금지
+        assert text.startswith(title)
+
+    def test_hard_cuts_a_single_long_word(self):
+        assert _shorten_title("가" * 60, 10) == "가" * 10
+
+    def test_strips_trailing_punctuation(self):
+        assert _shorten_title("문장입니다.", 25) == "문장입니다"
+        assert not _shorten_title("앞 부분, 뒷부분입니다", 8).endswith(",")
+
+    def test_collapses_whitespace(self):
+        assert _shorten_title("여러   공백\n포함", 25) == "여러 공백 포함"
 
 
 class TestHeuristicFallback:
@@ -170,7 +225,8 @@ class TestHeuristicFallback:
         clips = heuristic_highlights(transcript)
         for earlier, later in zip(clips, clips[1:]):
             assert later.start >= earlier.start
-            assert min(earlier.end, later.end) - max(earlier.start, later.start) <= 0.25 * 60
+            overlap = min(earlier.end, later.end) - max(earlier.start, later.start)
+            assert overlap <= 1.0, f"클립이 {overlap:.1f}초 겹칩니다"
 
     def test_penalises_promotional_talk(self, transcript):
         from autoshorts.ai_analyzer import _window_score
