@@ -158,3 +158,9 @@ RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어
 - [docs/PERF.md](docs/PERF.md) — 성능 측정 결과와 재현 방법
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 빌드·배포·판매 운영 절차
 - [docs/LICENSE-KEYS.md](docs/LICENSE-KEYS.md) — 인증키 체계와 발급·재발급 운영
+
+## 함께 들어 있는 별도 프로젝트
+
+- [autoshorts-engine/](autoshorts-engine/) — **AutoShorts-Engine**. 롱폼 영상을 AI 로 분석해
+  자막이 합성된 9:16 쇼츠를 자동 생성하는 Python 파이프라인(yt-dlp · faster-whisper ·
+  Gemini · FFmpeg). 학원 관리노트와는 코드·의존성이 완전히 분리돼 있습니다.

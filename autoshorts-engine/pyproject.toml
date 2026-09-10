@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoshorts-engine"
+version = "0.1.0"
+description = "롱폼 영상을 AI 로 분석해 자막이 합성된 9:16 쇼츠를 자동 생성하는 로컬 파이프라인"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["shorts", "video", "whisper", "gemini", "ffmpeg", "yt-dlp"]
+classifiers = [
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Video :: Conversion",
+]
+dependencies = [
+  "yt-dlp>=2024.8.6",
+  "faster-whisper>=1.0.3",
+  "google-genai>=1.0.0",
+]
+
+[project.optional-dependencies]
+ui = ["gradio>=4.44"]
+dev = ["pytest>=8.0", "python-dotenv>=1.0"]
+
+[project.scripts]
+autoshorts = "autoshorts.cli:main"
+
+[tool.setuptools]
+packages = ["autoshorts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

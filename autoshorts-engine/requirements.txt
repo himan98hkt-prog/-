@@ -1,0 +1,12 @@
+# 핵심 파이프라인 (전부 오픈소스 / 무과금 로컬 구동)
+yt-dlp>=2024.8.6            # Module A  영상·오디오 다운로드
+faster-whisper>=1.0.3       # Module B  로컬 STT (CPU int8 / GPU float16)
+
+# Module C  하이라이트 분석 — Gemini 무료 티어. 키가 없으면 오프라인 휴리스틱으로 자동 대체
+google-genai>=1.0.0
+
+# Module D 는 FFmpeg CLI 를 직접 호출한다(파이썬 래퍼 불필요).
+# FFmpeg 는 별도 설치:
+#   macOS   brew install ffmpeg
+#   Ubuntu  sudo apt install ffmpeg fonts-nanum
+#   Windows winget install Gyan.FFmpeg
