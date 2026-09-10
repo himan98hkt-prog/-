@@ -1,3 +1,9 @@
+# 인증 정보 — 절대 커밋하지 않는다
+client_secret*.json
+*token*.json
+history.json
+.autoshorts/
+
 __pycache__/
 *.py[cod]
 .venv/

@@ -23,8 +23,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# 업로드는 OAuth 2.0 인증이 필요해 공식 클라이언트를 쓴다.
+upload = ["google-api-python-client>=2.100.0", "google-auth-oauthlib>=1.2.0"]
 ui = ["gradio>=4.44"]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]
+all = [
+  "google-api-python-client>=2.100.0",
+  "google-auth-oauthlib>=1.2.0",
+  "gradio>=4.44",
+]
 
 [project.scripts]
 autoshorts = "autoshorts.cli:main"

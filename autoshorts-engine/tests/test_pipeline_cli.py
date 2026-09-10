@@ -371,3 +371,194 @@ class TestTrendCli:
         monkeypatch.setattr("autoshorts.trend_finder.find_trending", boom)
         assert cli.main(["trend", "키워드", "--youtube-api-key", "k"]) == 1
         assert "할당량" in capsys.readouterr().err
+
+
+class TestAutoAndUploadCli:
+    """자동 실행·업로드·예약 CLI."""
+
+    def test_auto_parses_upload_options(self):
+        args = cli.build_parser().parse_args(
+            ["auto", "재테크", "--upload", "--privacy", "unlisted", "--upload-count", "2",
+             "--tags", "재테크, 부업", "--publish-in", "6h"]
+        )
+        options = cli._auto_options_from_args(args)
+        assert options.upload is True
+        assert options.privacy == "unlisted"
+        assert options.upload_count == 2
+        assert options.tags == ["재테크", "부업"]
+        assert options.publish_at is not None
+
+    def test_auto_defaults_to_private(self):
+        args = cli.build_parser().parse_args(["auto", "재테크"])
+        options = cli._auto_options_from_args(args)
+        assert options.privacy == "private"      # 안전 기본값
+        assert options.upload is False
+
+    def test_publish_in_units(self):
+        from datetime import datetime, timezone
+
+        for text, hours in [("90m", 1.5), ("6h", 6), ("2d", 48)]:
+            args = cli.build_parser().parse_args(["auto", "x", "--publish-in", text])
+            moment = cli._parse_publish_moment(args)
+            delta = (moment - datetime.now(timezone.utc)).total_seconds() / 3600
+            assert abs(delta - hours) < 0.1
+
+    def test_publish_at_absolute(self):
+        args = cli.build_parser().parse_args(["auto", "x", "--publish-at", "2026-09-15T09:00:00+09:00"])
+        moment = cli._parse_publish_moment(args)
+        assert moment.year == 2026 and moment.hour == 9
+
+    def test_publish_flags_are_mutually_exclusive(self):
+        args = cli.build_parser().parse_args(["auto", "x", "--publish-at", "2026-09-15T09:00:00Z",
+                                              "--publish-in", "6h"])
+        with pytest.raises(ValueError, match="함께"):
+            cli._parse_publish_moment(args)
+
+    def test_bad_publish_in_is_rejected(self):
+        args = cli.build_parser().parse_args(["auto", "x", "--publish-in", "곧"])
+        with pytest.raises(ValueError, match="publish-in"):
+            cli._parse_publish_moment(args)
+
+    def test_auto_runs_and_reports(self, monkeypatch, capsys, tmp_path):
+        from autoshorts.automation import AutoResult
+        from autoshorts.uploader import UploadResult
+
+        render = type("R", (), {"output_path": tmp_path / "a.mp4"})()
+        result = AutoResult(target="재테크", source_url="https://youtu.be/x", title="원본",
+                            renders=[render],
+                            uploads=[UploadResult(video_id="up1", privacy="private")],
+                            quota_used=1702)
+        monkeypatch.setattr("autoshorts.automation.run_auto", lambda *a, **k: result)
+        assert cli.main(["auto", "재테크", "--upload"]) == 0
+        out = capsys.readouterr().out
+        assert "youtube.com/shorts/up1" in out
+        assert "1702" in out
+
+    def test_auto_skipped_is_not_an_error(self, monkeypatch, capsys):
+        from autoshorts.automation import AutoResult
+
+        monkeypatch.setattr(
+            "autoshorts.automation.run_auto",
+            lambda *a, **k: AutoResult(target="x", skipped_reason="이미 처리한 원본입니다"),
+        )
+        assert cli.main(["auto", "재테크"]) == 0
+        assert "건너뜀" in capsys.readouterr().out
+
+    def test_public_upload_prints_copyright_warning(self, monkeypatch, capsys, tmp_path):
+        from autoshorts.automation import AutoResult
+
+        monkeypatch.setattr("autoshorts.automation.run_auto",
+                            lambda *a, **k: AutoResult(target="x", skipped_reason="없음"))
+        cli.main(["auto", "재테크", "--upload", "--privacy", "public"])
+        assert "저작권" in capsys.readouterr().out
+
+    def test_dry_run_upload_is_distinct_from_dry_run(self):
+        """--dry-run-upload 는 렌더는 하고 업로드만 멈춘다."""
+        upload_only = cli.build_parser().parse_args(["auto", "x", "--upload", "--dry-run-upload"])
+        options = cli._auto_options_from_args(upload_only)
+        assert options.dry_run_upload is True
+        assert cli.settings_from_args(upload_only).dry_run is False   # 렌더는 진행
+
+        full = cli.build_parser().parse_args(["auto", "x", "--upload", "--dry-run"])
+        assert cli._auto_options_from_args(full).dry_run_upload is True
+        assert cli.settings_from_args(full).dry_run is True           # 렌더도 건너뜀
+
+    def test_title_from_output_filename(self, tmp_path):
+        assert cli._title_from_filename(Path("output_03_충격_실화.mp4")) == "충격 실화"
+        assert cli._title_from_filename(Path("그냥이름.mp4")) == "그냥이름"
+
+    def test_upload_command_reports_each_file(self, monkeypatch, capsys, tmp_path):
+        from autoshorts.uploader import UploadResult
+
+        video = tmp_path / "output_01_제목.mp4"
+        video.write_bytes(b"x")
+        monkeypatch.setattr("autoshorts.uploader.upload_video",
+                            lambda request, **k: UploadResult(video_id="v1", title=request.title))
+        assert cli.main(["upload", str(video)]) == 0
+        assert "shorts/v1" in capsys.readouterr().out
+
+    def test_upload_missing_file_is_error(self, capsys, tmp_path):
+        assert cli.main(["upload", str(tmp_path / "nope.mp4")]) == 1
+        assert "파일 없음" in capsys.readouterr().err
+
+    def test_upload_failure_is_error(self, monkeypatch, capsys, tmp_path):
+        video = tmp_path / "v.mp4"
+        video.write_bytes(b"x")
+        monkeypatch.setattr(
+            "autoshorts.uploader.upload_video",
+            lambda request, **k: (_ for _ in ()).throw(RuntimeError("할당량 초과")),
+        )
+        assert cli.main(["upload", str(video)]) == 1
+        assert "할당량" in capsys.readouterr().err
+
+
+class TestScheduleCli:
+    def test_dry_run_shows_what_would_be_registered(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        assert cli.main(["schedule", "add", "재테크", "--at", "09:30", "--dry-run",
+                         "--auto-args", "--upload --max-clips 2"]) == 0
+        out = capsys.readouterr().out
+        assert "30 9 * * *" in out
+        assert "--upload" in out
+        assert "매일 09:30" in out
+
+    def test_weekly_schedule(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        cli.main(["schedule", "add", "재테크", "--at", "21:00", "--weekday", "mon", "--dry-run"])
+        assert "매주 월요일 21:00" in capsys.readouterr().out
+
+    def test_every_hours_schedule(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        cli.main(["schedule", "add", "재테크", "--every-hours", "6", "--dry-run"])
+        assert "6시간마다" in capsys.readouterr().out
+
+    def test_add_without_target_is_error(self, capsys):
+        assert cli.main(["schedule", "add"]) == 1
+        assert "대상을 지정" in capsys.readouterr().err
+
+    def test_bad_time_is_error(self, capsys):
+        assert cli.main(["schedule", "add", "x", "--at", "아침"]) == 1
+        assert "해석할 수 없습니다" in capsys.readouterr().err
+
+    def test_show_prints_current(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.show_schedule", lambda **k: "등록된 예약이 없습니다.")
+        assert cli.main(["schedule", "show"]) == 0
+        assert "등록된 예약이 없습니다" in capsys.readouterr().out
+
+    def test_remove_reports_result(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.remove_schedule", lambda **k: True)
+        assert cli.main(["schedule", "remove"]) == 0
+        assert "해제" in capsys.readouterr().out
+
+    def test_upload_in_schedule_warns_about_login(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        monkeypatch.setattr("autoshorts.scheduler.install_schedule", lambda *a, **k: "0 9 * * * cmd")
+        cli.main(["schedule", "add", "x", "--auto-args=--upload"])
+        assert "login" in capsys.readouterr().out
+
+    def test_args_after_double_dash_reach_auto(self, capsys, monkeypatch):
+        """`--auto-args "--upload"` 는 argparse 가 옵션으로 오인하므로 `--` 형태도 지원한다."""
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        assert cli.main(["schedule", "add", "재테크", "--at", "09:00", "--dry-run",
+                         "--", "--upload", "--max-clips", "2"]) == 0
+        out = capsys.readouterr().out
+        assert "--upload" in out and "--max-clips" in out
+
+    def test_single_flag_via_equals_form(self, capsys, monkeypatch):
+        monkeypatch.setattr("autoshorts.scheduler.detect_platform", lambda: "linux")
+        cli.main(["schedule", "add", "x", "--dry-run", "--auto-args=--upload"])
+        assert "--upload" in capsys.readouterr().out
+
+
+class TestDoctorCli:
+    def test_doctor_runs_and_reports(self, capsys):
+        code = cli.main(["doctor"])
+        out = capsys.readouterr().out
+        assert code in (0, 1)
+        assert "설치 상태 점검" in out
+        assert "FFmpeg" in out
+
+    def test_setup_non_interactive_falls_back_to_doctor(self, capsys, tmp_path):
+        code = cli.main(["setup", "--non-interactive", "--env-path", str(tmp_path / ".env")])
+        assert code in (0, 1)
+        assert "설치 상태 점검" in capsys.readouterr().out

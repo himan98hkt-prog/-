@@ -21,6 +21,66 @@
 [5. 자막 번인]      FFmpeg + ASS      단어별 노란색 강조 자막 → 최종 MP4
 ```
 
+## 집 PC 설치 (처음 한 번만)
+
+### 1) 내려받기
+
+```bash
+git clone -b claude/vibrant-goldberg-otvlgf https://github.com/himan98hkt-prog/-.git autoshorts
+cd autoshorts/autoshorts-engine
+```
+
+압축 파일로 받으셨다면 풀고 `autoshorts-engine` 폴더로 들어가세요.
+
+### 2) 설치 스크립트 실행
+
+가상환경을 만들고 의존성을 모두 넣어 줍니다. FFmpeg 와 파이썬 버전도 함께 확인합니다.
+
+```bash
+# macOS / Linux
+bash install.sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+### 3) API 키 입력
+
+```bash
+source .venv/bin/activate          # Windows: .\.venv\Scripts\Activate.ps1
+autoshorts setup
+```
+
+키를 물어보는 대로 붙여 넣으면 `.env` 에 저장됩니다(권한 600, 이 PC 밖으로 나가지 않음).
+엔터만 치면 건너뛰며, **둘 다 비워도 로컬 제작은 됩니다.**
+
+| 키 | 쓰임 | 없으면 |
+|---|---|---|
+| `GEMINI_API_KEY` | 하이라이트 선정 | 오프라인 휴리스틱으로 대체 |
+| `YOUTUBE_API_KEY` | 급상승 탐색(`trend`) | `trend` 명령만 못 씀 |
+
+### 4) 업로드 인증 (업로드를 쓸 때만)
+
+업로드는 조회용 API 키가 아니라 **OAuth 로그인**이 필요합니다.
+
+1. [Google Cloud Console](https://console.cloud.google.com) → API 및 서비스 → 사용자 인증 정보
+2. **OAuth 클라이언트 ID** 만들기 → 유형은 **데스크톱 앱**
+3. JSON 을 받아 `~/.autoshorts/client_secret.json` 에 저장
+   (Windows: `C:\Users\<사용자>\.autoshorts\client_secret.json`)
+4. 로그인 — 브라우저가 열립니다. **최초 1회면 끝**이고, 이후 예약 실행은 무인으로 돕니다.
+
+```bash
+autoshorts login
+```
+
+### 5) 점검
+
+```bash
+autoshorts doctor
+```
+
+FFmpeg·의존성·키·로그인·예약 상태를 한 번에 확인하고, 빠진 것은 설치 명령까지 알려 줍니다.
+
 ## 설치
 
 ```bash
@@ -120,6 +180,66 @@ autoshorts trend "@채널핸들" --days 30        # 특정 채널의 최근 30�
 
 **할당량 주의.** 무료 한도는 하루 10,000 유닛인데 `search.list` 만 **1회 100 유닛**입니다(하루 100회). 채널을 지정하면 `playlistItems` 경로를 타서 **1회 4 유닛 안팎**으로 끝나므로, 특정 채널을 반복해서 볼 때는 `--channel` 쪽이 압도적으로 유리합니다. 실행할 때마다 소모한 유닛을 출력합니다.
 
+### 자동 업로드 (`autoshorts upload` · `--upload`)
+
+```bash
+autoshorts upload output/output_01_제목.mp4                  # 파일 하나 올리기
+autoshorts upload output/*.mp4 --privacy unlisted            # 여러 개
+autoshorts auto "재테크" --upload --publish-in 6h            # 만들고 6시간 뒤 공개 예약
+```
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--privacy` | `private` | `private` / `unlisted` / `public` |
+| `--publish-at` | 없음 | 절대 시각 예약 공개 (`2026-09-15T09:00:00+09:00`) |
+| `--publish-in` | 없음 | 상대 시각 예약 공개 (`90m` · `6h` · `2d`) |
+| `--upload-count` | 전부 | 몇 개까지 올릴지 |
+| `--tags` | 없음 | 쉼표로 구분 (`재테크,부업`) |
+| `--dry-run-upload` | off | 쇼츠는 만들되 업로드 직전에 멈춤 |
+
+**공개 범위 기본값이 `private` 인 이유.** 남의 영상을 잘라 만든 쇼츠를 자동으로 공개하면
+저작권 신고나 채널 경고로 이어질 수 있습니다. 기본은 비공개로 올려 두고, 눈으로 확인한 뒤
+직접 공개하시길 권합니다. `--privacy public` 을 쓰면 경고를 한 번 출력합니다.
+
+**예약 공개**를 쓰면 비공개로 올라간 뒤 지정한 시각에 YouTube 가 알아서 공개합니다.
+여러 개를 한 번에 올리면 24시간 간격으로 자동으로 벌려 줍니다.
+
+> **업로드 할당량이 진짜 제약입니다.** `videos.insert` 는 **1건에 1,600 유닛**이라
+> 무료 한도(하루 10,000)로는 **하루 6건**이 상한입니다. 이 도구는 이력을 보고 한도를
+> 넘지 않도록 스스로 멈춥니다.
+
+### 정기 예약 발행 (`autoshorts schedule`)
+
+집 PC 의 기본 스케줄러(윈도우 작업 스케줄러 · cron · launchd)에 등록하므로
+**상주 프로그램이 필요 없고 PC 를 껐다 켜도 유지**됩니다.
+
+```bash
+# 매일 09시 — 급상승 1위로 쇼츠 2개를 만들어 비공개 업로드
+autoshorts schedule add "재테크" --at 09:00 -- --upload --upload-count 2
+
+# 매주 월요일 21시, 특정 채널에서
+autoshorts schedule add "@채널핸들" --at 21:00 --weekday mon -- --upload
+
+# 6시간마다
+autoshorts schedule add "부업" --every-hours 6 -- --upload --publish-in 12h
+
+autoshorts schedule show      # 현재 등록 확인
+autoshorts schedule remove    # 해제
+autoshorts schedule add "재테크" --at 09:00 --dry-run   # 등록될 내용만 미리보기
+```
+
+`--` 뒤에 쓴 인자는 `autoshorts auto` 에 그대로 전달됩니다.
+(`--auto-args="--upload"` 형태도 됩니다.)
+
+**같은 영상을 두 번 만들지 않습니다.** 처리한 원본을 `~/.autoshorts/history.json` 에
+남겨 두고, 다음 실행에서 이미 처리한 영상은 건너뛰고 그다음 후보로 넘어갑니다.
+일부러 다시 만들려면 `--allow-reprocess` 를 쓰세요.
+
+**예약 실행 전 확인 사항**
+- `autoshorts login` 을 미리 해 두어야 무인 업로드가 됩니다(예약 실행은 브라우저를 띄우지 않습니다).
+- 예약 시각에 PC 가 켜져 있어야 합니다. 절전 모드면 깨어난 뒤 실행됩니다.
+- 로그를 남기려면 `--log ~/autoshorts.log` 를 붙이세요.
+
 ### 출력 규격
 
 - 해상도 **1080 × 1920** (9:16) · **H.264 / AAC** MP4 · `+faststart`
@@ -127,6 +247,17 @@ autoshorts trend "@채널핸들" --days 30        # 특정 채널의 최근 30�
 - `output/manifest.json` 에 선정 구간·점수·선정 이유·경로가 모두 기록됩니다.
 
 ## 동작 방식
+
+### Module F — `uploader.py`
+OAuth 2.0 으로 인증해 `videos.insert` 를 호출합니다. 요청 본문을 만드는 부분은 순수
+함수라 테스트로 고정돼 있고, 제목 100자·설명 5,000자·태그 500자 상한과 `<`/`>` 금지
+문자를 자동으로 맞춥니다. 갱신 토큰은 `~/.autoshorts/youtube_token.json` 에 권한 600
+으로 저장하며 저장소에는 절대 올라가지 않습니다(`.gitignore` 등록).
+
+### Module G — `scheduler.py` / `state.py`
+OS 기본 스케줄러에 등록할 명령을 만들고 설치·해제합니다. 명령 문자열을 만드는 함수는
+부수효과가 없어 `--dry-run` 으로 무엇이 등록될지 먼저 확인할 수 있습니다.
+`state.py` 는 처리 이력과 하루 업로드 횟수를 관리해 중복 제작과 할당량 초과를 막습니다.
 
 ### Module E — `trend_finder.py`
 YouTube Data API v3 를 표준 라이브러리 `urllib` 로 직접 호출합니다(추가 의존성 없음).
@@ -182,7 +313,7 @@ YouTube Data API v3 를 표준 라이브러리 `urllib` 로 직접 호출합니�
 
 ```bash
 pip install pytest
-pytest                 # 325건 — FFmpeg·API 키·네트워크 없이 전부 통과
+pytest                 # 454건 — FFmpeg·API 키·네트워크 없이 전부 통과
 ```
 
 무거운 의존성(`yt-dlp`, `faster-whisper`, Gemini SDK, `gradio`)은 전부 지연 임포트라
@@ -191,6 +322,8 @@ pytest                 # 325건 — FFmpeg·API 키·네트워크 없이 전부 
 
 ## 알아 둘 점
 
+- **저작권**: 남의 영상을 잘라 재배포하는 일은 저작권 문제가 될 수 있습니다. 본인 영상이나
+  이용 허락을 받은 영상에 쓰시고, 자동 업로드는 비공개로 두었다가 확인 후 공개하세요.
 - **급상승 지표의 한계**: V/S 비율은 '구독자 대비 얼마나 퍼졌나'를 볼 뿐, 영상이
   쇼츠로 만들기 좋은지는 말해 주지 않습니다. `--run` 으로 바로 만들기 전에 목록을
   한 번 눈으로 보시길 권합니다.
@@ -198,9 +331,6 @@ pytest                 # 325건 — FFmpeg·API 키·네트워크 없이 전부 
   0.3~1배, `--model tiny` 면 더 빠르고 `small` 이상은 더 정확합니다.
 - **Gemini 무료 티어**에는 분당/일일 요청 한도가 있습니다. 한도를 넘으면 자동으로
   오프라인 분석으로 넘어갑니다.
-- **저작권**: 남의 영상을 잘라 재배포하는 일은 저작권 문제가 될 수 있습니다. 본인
-  영상이나 이용 허락을 받은 영상에 쓰세요.
-
 ## 라이선스
 
 MIT

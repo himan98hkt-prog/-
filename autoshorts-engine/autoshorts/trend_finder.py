@@ -33,6 +33,7 @@ __all__ = [
     "parse_channel_reference",
     "score_video",
     "watch_url",
+    "extract_video_id",
     "API_COSTS",
 ]
 
@@ -77,6 +78,45 @@ class ChannelNotFoundError(YouTubeApiError):
 
 def watch_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
+
+
+_VIDEO_ID_RE = re.compile(r"^[\w-]{11}$")
+
+
+def extract_video_id(url_or_id: str) -> str:
+    """유튜브 URL 에서 영상 id 를 뽑는다. 못 찾으면 빈 문자열.
+
+    ``watch?v=``, ``youtu.be/``, ``/shorts/``, ``/embed/`` 를 인식하고,
+    11자리 id 를 그대로 준 경우도 받아들인다.
+    """
+    value = str(url_or_id or "").strip()
+    if not value:
+        return ""
+    if _VIDEO_ID_RE.match(value) and "/" not in value:
+        return value
+
+    if "://" not in value:
+        value = f"https://{value}"
+    try:
+        parsed = urllib.parse.urlparse(value)
+    except ValueError:
+        return ""
+    host = (parsed.netloc or "").lower()
+    if "youtu.be" in host:
+        candidate = (parsed.path or "").strip("/").split("/")[0]
+        return candidate if _VIDEO_ID_RE.match(candidate) else ""
+    if "youtube.com" not in host:
+        return ""
+
+    query = urllib.parse.parse_qs(parsed.query or "")
+    if query.get("v"):
+        candidate = query["v"][0]
+        return candidate if _VIDEO_ID_RE.match(candidate) else ""
+    segments = [s for s in (parsed.path or "").split("/") if s]
+    if len(segments) >= 2 and segments[0] in {"shorts", "embed", "v", "live"}:
+        candidate = segments[1]
+        return candidate if _VIDEO_ID_RE.match(candidate) else ""
+    return ""
 
 
 @dataclass

@@ -37,6 +37,9 @@ def _run_job(
     burn_subtitles: bool,
     api_key: str,
     output_dir: str,
+    do_upload: bool = False,
+    privacy: str = "private",
+    publish_in_hours: float = 0.0,
     progress: Any = None,
 ):
     """UI 폼 입력을 파이프라인 설정으로 옮겨 실행한다."""
@@ -71,6 +74,31 @@ def _run_job(
 
     result = run_pipeline(settings, on_progress=on_progress)
 
+    upload_lines: list[str] = []
+    if do_upload and result.renders:
+        from datetime import datetime, timedelta, timezone
+
+        from . import uploader
+        from .automation import AutoOptions, build_upload_request
+
+        publish_at = None
+        if publish_in_hours and float(publish_in_hours) > 0:
+            publish_at = datetime.now(timezone.utc) + timedelta(hours=float(publish_in_hours))
+
+        options = AutoOptions(upload=True, privacy=privacy, publish_at=publish_at)
+        for index, render in enumerate(result.renders):
+            request = build_upload_request(
+                render, options=options, source_title=result.title, source_url=result.source
+            )
+            if publish_at is not None:
+                request.publish_at = publish_at + timedelta(hours=24 * index)
+                request.privacy = "private"
+            try:
+                uploaded_result = upload_fn_for_ui()(request)
+                upload_lines.append(f"- [{uploaded_result.title}]({uploaded_result.shorts_url}) · {uploaded_result.privacy}")
+            except Exception as exc:
+                upload_lines.append(f"- ⚠️ {render.output_path.name}: {exc}")
+
     rows = [
         [
             clip.index,
@@ -87,7 +115,16 @@ def _run_job(
         f"쇼츠 {len(videos)}개 생성 · {human_duration(result.elapsed_seconds)} 소요"
         + ("\n\n⚠️ Gemini 키가 없어 오프라인 휴리스틱으로 구간을 골랐습니다." if result.used_offline_analysis else "")
     )
+    if upload_lines:
+        note += "\n\n**업로드**\n" + "\n".join(upload_lines)
     return rows, videos, note
+
+
+def upload_fn_for_ui():
+    """업로드 함수를 지연 조회한다(테스트에서 교체하기 쉽도록)."""
+    from . import uploader
+
+    return uploader.upload_video
 
 
 def _find_trending(target, is_channel, days, top, min_vs, min_subscribers, min_duration, api_key):
@@ -178,6 +215,18 @@ def build_interface():
                     api_key = gr.Textbox(label="Gemini API 키 (선택)", type="password",
                                          placeholder="비우면 GEMINI_API_KEY 환경변수 또는 오프라인 분석")
                     output_dir = gr.Textbox(label="저장 폴더", value="output")
+                    with gr.Accordion("YouTube 자동 업로드 (선택)", open=False):
+                        gr.Markdown(
+                            "업로드하려면 터미널에서 `autoshorts login` 을 한 번 실행해 두세요.\n\n"
+                            "⚠️ 남의 영상을 재편집한 것이라면 저작권 신고 대상이 될 수 있습니다. "
+                            "기본값은 **비공개**이니 확인 후 직접 공개하시길 권합니다."
+                        )
+                        do_upload = gr.Checkbox(value=False, label="만들고 나서 YouTube 에 업로드")
+                        privacy = gr.Radio(["private", "unlisted", "public"], value="private",
+                                           label="공개 범위")
+                        publish_in_hours = gr.Slider(
+                            0, 168, value=0, step=1,
+                            label="예약 공개 (몇 시간 뒤 · 0이면 예약 없음, 여러 개면 24시간 간격)")
                     start = gr.Button("쇼츠 만들기", variant="primary")
                 with gr.Column(scale=4):
                     note = gr.Markdown()
@@ -198,14 +247,16 @@ def build_interface():
         trend_make.click(fn=lambda value: value, inputs=[trend_top_url], outputs=[url]).then(
             fn=lambda *args, progress=gr.Progress(): _run_job(*args, progress=progress),
             inputs=[url, uploaded, mode, whisper_model, min_seconds, max_seconds,
-                    max_clips, burn_subtitles, api_key, output_dir],
+                    max_clips, burn_subtitles, api_key, output_dir,
+                    do_upload, privacy, publish_in_hours],
             outputs=[table, gallery, note],
         )
 
         start.click(
             fn=lambda *args, progress=gr.Progress(): _run_job(*args, progress=progress),
             inputs=[url, uploaded, mode, whisper_model, min_seconds, max_seconds,
-                    max_clips, burn_subtitles, api_key, output_dir],
+                    max_clips, burn_subtitles, api_key, output_dir,
+                    do_upload, privacy, publish_in_hours],
             outputs=[table, gallery, note],
         )
     return demo
