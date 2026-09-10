@@ -22,6 +22,7 @@ DESCRIPTION = """
 
 - 전사는 로컬 `faster-whisper` (무과금)
 - 하이라이트 선정은 Gemini 무료 티어, 키가 없으면 오프라인 휴리스틱으로 자동 대체
+- **급상승 탐색** 탭에서 키워드·채널로 '떡상 영상'을 찾아 바로 쇼츠로 만들 수 있습니다
 """
 
 
@@ -89,39 +90,117 @@ def _run_job(
     return rows, videos, note
 
 
+def _find_trending(target, is_channel, days, top, min_vs, min_subscribers, min_duration, api_key):
+    """급상승 탐색 탭: 표와 1위 URL 을 돌려준다."""
+    from . import trend_finder
+
+    target = (target or "").strip()
+    if not target:
+        raise ValueError("키워드나 채널(@핸들 · 채널 URL)을 입력하세요.")
+
+    key = (api_key or "").strip() or Settings(source="x").youtube_api_key
+    videos, quota = trend_finder.find_trending(
+        target,
+        api_key=key,
+        days=float(days),
+        limit=int(top),
+        min_vs_ratio=float(min_vs),
+        min_subscribers=int(min_subscribers),
+        min_duration=float(min_duration),
+        as_channel=True if is_channel else None,
+    )
+    rows = [
+        [v.rank, round(v.vs_ratio, 2), f"{v.view_count:,}", f"{v.subscriber_count:,}",
+         f"{v.age_hours:.0f}시간 전", human_duration(v.duration_seconds), v.title, v.url]
+        for v in videos
+    ]
+    if not videos:
+        return rows, "", "조건에 맞는 영상이 없습니다. 기간을 늘리거나 V/S 기준을 낮춰 보세요."
+    note = (
+        f"**{len(videos)}개 발견** · 할당량 {quota} 유닛 사용 (무료 한도 하루 10,000)\n\n"
+        f"1위: [{videos[0].title}]({videos[0].url}) — V/S {videos[0].vs_ratio:.2f}"
+    )
+    return rows, videos[0].url, note
+
+
 def build_interface():
     """Gradio Blocks 인터페이스를 만든다 (실행은 하지 않는다)."""
     import gradio as gr
 
-    with gr.Blocks(title="AutoShorts-Engine", theme=gr.themes.Soft()) as demo:
+    # 테마 인자는 Gradio 버전마다 위치가 달라(6.0 에서 launch 로 이동) 지정하지 않는다
+    with gr.Blocks(title="AutoShorts-Engine") as demo:
         gr.Markdown(DESCRIPTION)
-        with gr.Row():
-            with gr.Column(scale=3):
-                url = gr.Textbox(label="유튜브 URL", placeholder="https://www.youtube.com/watch?v=...")
-                uploaded = gr.File(label="또는 로컬 영상 파일", file_types=["video"], type="filepath")
-                with gr.Row():
-                    mode = gr.Radio(list(REFRAME_MODES), value="blur", label="9:16 변환 방식")
-                    whisper_model = gr.Dropdown(
-                        ["tiny", "base", "small", "medium"], value="base", label="Whisper 모델"
+
+        with gr.Tab("급상승 탐색"):
+            gr.Markdown("키워드나 채널에서 **구독자 대비 조회수(V/S)** 가 높은 최근 영상을 찾습니다.")
+            with gr.Row():
+                with gr.Column(scale=3):
+                    trend_target = gr.Textbox(
+                        label="키워드 또는 채널",
+                        placeholder="재테크  ·  @채널핸들  ·  https://www.youtube.com/channel/UC...")
+                    trend_is_channel = gr.Checkbox(value=False, label="채널로 강제 해석 (할당량 100배 절약)")
+                    with gr.Row():
+                        trend_days = gr.Slider(1, 90, value=14, step=1, label="최근 며칠")
+                        trend_top = gr.Slider(1, 25, value=10, step=1, label="상위 몇 개")
+                    with gr.Row():
+                        trend_min_vs = gr.Slider(0.1, 20, value=1.0, step=0.1, label="최소 V/S 비율")
+                        trend_min_subs = gr.Number(value=1000, label="최소 구독자 수", precision=0)
+                    trend_min_duration = gr.Slider(60, 1800, value=180, step=30,
+                                                   label="원본 최소 길이(초) — 쇼츠 제외")
+                    trend_key = gr.Textbox(label="YouTube Data API 키 (선택)", type="password",
+                                           placeholder="비우면 YOUTUBE_API_KEY 환경변수 사용")
+                    trend_search = gr.Button("급상승 영상 찾기", variant="primary")
+                with gr.Column(scale=4):
+                    trend_note = gr.Markdown()
+                    trend_table = gr.Dataframe(
+                        headers=["#", "V/S", "조회수", "구독자", "업로드", "길이", "제목", "URL"],
+                        label="급상승 후보", wrap=True,
                     )
-                with gr.Row():
-                    min_seconds = gr.Slider(10, 90, value=30, step=5, label="클립 최소 길이(초)")
-                    max_seconds = gr.Slider(20, 120, value=60, step=5, label="클립 최대 길이(초)")
-                with gr.Row():
-                    max_clips = gr.Slider(1, 10, value=5, step=1, label="최대 클립 수")
-                    burn_subtitles = gr.Checkbox(value=True, label="자막 번인")
-                api_key = gr.Textbox(label="Gemini API 키 (선택)", type="password",
-                                     placeholder="비우면 GEMINI_API_KEY 환경변수 또는 오프라인 분석")
-                output_dir = gr.Textbox(label="저장 폴더", value="output")
-                start = gr.Button("쇼츠 만들기", variant="primary")
-            with gr.Column(scale=4):
-                note = gr.Markdown()
-                table = gr.Dataframe(
-                    headers=["#", "구간", "길이", "후킹 제목", "점수", "선정 이유"],
-                    label="선정된 하이라이트",
-                    wrap=True,
-                )
-                gallery = gr.Files(label="생성된 쇼츠")
+                    trend_top_url = gr.Textbox(label="1위 영상 URL", interactive=False)
+                    trend_make = gr.Button("이 영상으로 쇼츠 만들기 →", variant="secondary")
+
+        with gr.Tab("쇼츠 제작"):
+            with gr.Row():
+                with gr.Column(scale=3):
+                    url = gr.Textbox(label="유튜브 URL", placeholder="https://www.youtube.com/watch?v=...")
+                    uploaded = gr.File(label="또는 로컬 영상 파일", file_types=["video"], type="filepath")
+                    with gr.Row():
+                        mode = gr.Radio(list(REFRAME_MODES), value="blur", label="9:16 변환 방식")
+                        whisper_model = gr.Dropdown(
+                            ["tiny", "base", "small", "medium"], value="base", label="Whisper 모델"
+                        )
+                    with gr.Row():
+                        min_seconds = gr.Slider(10, 90, value=30, step=5, label="클립 최소 길이(초)")
+                        max_seconds = gr.Slider(20, 120, value=60, step=5, label="클립 최대 길이(초)")
+                    with gr.Row():
+                        max_clips = gr.Slider(1, 10, value=5, step=1, label="최대 클립 수")
+                        burn_subtitles = gr.Checkbox(value=True, label="자막 번인")
+                    api_key = gr.Textbox(label="Gemini API 키 (선택)", type="password",
+                                         placeholder="비우면 GEMINI_API_KEY 환경변수 또는 오프라인 분석")
+                    output_dir = gr.Textbox(label="저장 폴더", value="output")
+                    start = gr.Button("쇼츠 만들기", variant="primary")
+                with gr.Column(scale=4):
+                    note = gr.Markdown()
+                    table = gr.Dataframe(
+                        headers=["#", "구간", "길이", "후킹 제목", "점수", "선정 이유"],
+                        label="선정된 하이라이트",
+                        wrap=True,
+                    )
+                    gallery = gr.Files(label="생성된 쇼츠")
+
+        trend_search.click(
+            fn=_find_trending,
+            inputs=[trend_target, trend_is_channel, trend_days, trend_top,
+                    trend_min_vs, trend_min_subs, trend_min_duration, trend_key],
+            outputs=[trend_table, trend_top_url, trend_note],
+        )
+        # 1위 URL 을 제작 탭으로 넘겨 그대로 실행 — 원클릭 연동
+        trend_make.click(fn=lambda value: value, inputs=[trend_top_url], outputs=[url]).then(
+            fn=lambda *args, progress=gr.Progress(): _run_job(*args, progress=progress),
+            inputs=[url, uploaded, mode, whisper_model, min_seconds, max_seconds,
+                    max_clips, burn_subtitles, api_key, output_dir],
+            outputs=[table, gallery, note],
+        )
 
         start.click(
             fn=lambda *args, progress=gr.Progress(): _run_job(*args, progress=progress),

@@ -5,6 +5,9 @@ faster-whisper>=1.0.3       # Module B  로컬 STT (CPU int8 / GPU float16)
 # Module C  하이라이트 분석 — Gemini 무료 티어. 키가 없으면 오프라인 휴리스틱으로 자동 대체
 google-genai>=1.0.0
 
+# Module E (급상승 탐색)는 표준 라이브러리 urllib 로 YouTube Data API v3 를
+# 직접 호출하므로 추가 의존성이 없다.
+
 # Module D 는 FFmpeg CLI 를 직접 호출한다(파이썬 래퍼 불필요).
 # FFmpeg 는 별도 설치:
 #   macOS   brew install ffmpeg

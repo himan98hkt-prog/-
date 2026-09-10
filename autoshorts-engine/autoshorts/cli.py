@@ -72,6 +72,27 @@ def _add_render_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dry-run", action="store_true", help="FFmpeg 를 실행하지 않고 명령만 출력")
 
 
+def _add_trend_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--youtube-api-key", default=None,
+                        help="YouTube Data API 키 (기본: YOUTUBE_API_KEY 환경변수)")
+    parser.add_argument("--channel", action="store_true",
+                        help="입력을 채널로 강제 해석 (기본: @핸들·채널 URL·UC아이디면 자동 판별)")
+    parser.add_argument("--days", type=float, default=14.0, help="최근 며칠 안의 업로드만 볼지")
+    parser.add_argument("--top", type=int, default=10, help="상위 몇 개를 남길지")
+    parser.add_argument("--max-candidates", type=int, default=50, help="검사할 후보 영상 수")
+    parser.add_argument("--min-vs", type=float, default=1.0,
+                        help="최소 V/S 비율 (구독자 대비 조회수). 1.0 이면 구독자 수만큼은 봐야 통과")
+    parser.add_argument("--min-subscribers", type=int, default=1000,
+                        help="최소 구독자 수. 극소 채널은 V/S 가 무의미하게 커져 기본값으로 걸러낸다")
+    parser.add_argument("--min-views", type=int, default=1000, help="최소 조회수")
+    parser.add_argument("--min-duration", type=float, default=180.0,
+                        help="원본 최소 길이(초). 기본 3분 — 이보다 짧으면 하이라이트를 뽑기 어렵다")
+    parser.add_argument("--max-duration", type=float, default=None, help="원본 최대 길이(초)")
+    parser.add_argument("--region", default=None, help="지역 코드 (예: KR)")
+    parser.add_argument("--lang", default=None, help="관련 언어 코드 (예: ko)")
+    parser.add_argument("--json", dest="json_out", default=None, help="결과를 JSON 파일로 저장")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="autoshorts",
@@ -108,6 +129,17 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_arguments(rd_parser)
     _add_render_arguments(rd_parser)
 
+    td_parser = subparsers.add_parser(
+        "trend", help="키워드/채널에서 구독자 대비 조회수가 높은 급상승 영상 찾기")
+    td_parser.add_argument("target", help="검색 키워드, 또는 채널(@핸들 · 채널 URL · UC아이디)")
+    td_parser.add_argument("--run", action="store_true",
+                           help="1위 영상을 그대로 쇼츠 파이프라인에 넘겨 원클릭으로 제작")
+    _add_common_arguments(td_parser)
+    _add_trend_arguments(td_parser)
+    _add_transcribe_arguments(td_parser)
+    _add_analyze_arguments(td_parser)
+    _add_render_arguments(td_parser)
+
     ui_parser = subparsers.add_parser("ui", help="Gradio 웹 대시보드 실행")
     ui_parser.add_argument("--host", default="127.0.0.1", help="바인딩 주소")
     ui_parser.add_argument("--port", type=int, default=7860, help="포트")
@@ -135,6 +167,7 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
         beam_size=getattr(args, "beam_size", 5),
         vad_filter=not getattr(args, "no_vad", False),
         gemini_api_key=getattr(args, "api_key", None),
+        youtube_api_key=getattr(args, "youtube_api_key", None),
         gemini_model=getattr(args, "gemini_model", "gemini-2.0-flash"),
         min_clip_seconds=getattr(args, "min_seconds", 30.0),
         max_clip_seconds=getattr(args, "max_seconds", 60.0),
@@ -254,6 +287,73 @@ def _cmd_render(args: argparse.Namespace) -> int:
     return 0 if results else 1
 
 
+def _print_trend_table(videos, quota_used: int) -> None:
+    print()
+    print(f"{'순위':>4}  {'V/S':>6}  {'조회수':>10}  {'구독자':>10}  {'경과':>7}  {'길이':>7}  제목")
+    print("-" * 100)
+    for video in videos:
+        print(
+            f"{video.rank:>4}  {video.vs_ratio:>6.2f}  {video.view_count:>10,}  "
+            f"{video.subscriber_count:>10,}  {video.age_hours:>6.0f}h  "
+            f"{human_duration(video.duration_seconds):>7}  {video.title[:44]}"
+        )
+        print(f"{'':>4}  {video.url}  · {video.channel_title}")
+    print(f"\n할당량 {quota_used} 유닛 사용 (무료 한도 하루 10,000)")
+
+
+def _cmd_trend(args: argparse.Namespace) -> int:
+    from . import trend_finder
+
+    settings = settings_from_args(args)
+    videos, quota_used = trend_finder.find_trending(
+        args.target,
+        api_key=settings.youtube_api_key,
+        days=args.days,
+        limit=args.top,
+        max_candidates=args.max_candidates,
+        min_vs_ratio=args.min_vs,
+        min_subscribers=args.min_subscribers,
+        min_views=args.min_views,
+        min_duration=args.min_duration,
+        max_duration=args.max_duration,
+        as_channel=True if args.channel else None,
+        region_code=args.region,
+        relevance_language=args.lang,
+    )
+
+    if not videos:
+        print("조건에 맞는 급상승 영상을 찾지 못했습니다.", file=sys.stderr)
+        print("  --days 를 늘리거나 --min-vs / --min-subscribers 를 낮춰 보세요.", file=sys.stderr)
+        return 1
+
+    _print_trend_table(videos, quota_used)
+
+    if args.json_out:
+        destination = Path(args.json_out)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps([v.to_dict() for v in videos], ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(f"\n결과 저장: {destination}")
+
+    if not args.run:
+        print("\n1위 영상으로 바로 쇼츠를 만들려면 --run 을 붙이세요.")
+        return 0
+
+    from .pipeline import run_pipeline
+
+    top = videos[0]
+    print(f"\n▶ 1위 영상으로 쇼츠 제작을 시작합니다: {top.title}")
+    print(f"  {top.url}\n")
+    settings.source = top.url
+    result = run_pipeline(settings)
+    if not result.renders:
+        print("생성된 쇼츠가 없습니다. 로그를 확인하세요.", file=sys.stderr)
+        return 1
+    _print_summary(result)
+    return 0
+
+
 def _cmd_ui(args: argparse.Namespace) -> int:
     from .app import launch
 
@@ -266,7 +366,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     argv = list(sys.argv[1:] if argv is None else argv)
     # 서브커맨드를 생략하면 run 으로 간주한다: `autoshorts <URL>`
-    if argv and argv[0] not in {"run", "transcribe", "analyze", "render", "ui", "-h", "--help", "--version"}:
+    if argv and argv[0] not in {"run", "transcribe", "analyze", "render", "trend", "ui", "-h", "--help", "--version"}:
         argv.insert(0, "run")
     args = parser.parse_args(argv)
     if not args.command:
@@ -279,6 +379,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "transcribe": _cmd_transcribe,
         "analyze": _cmd_analyze,
         "render": _cmd_render,
+        "trend": _cmd_trend,
         "ui": _cmd_ui,
     }
     try:

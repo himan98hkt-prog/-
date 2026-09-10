@@ -8,6 +8,8 @@
 분석기로 자동 대체되어 완전 오프라인에서도 끝까지 돕니다.
 
 ```
+[0. 급상승 탐색]    YouTube Data API  키워드/채널 → V/S 높은 '떡상 영상' (선택)
+        ▼
 [1. 다운로드/추출]  yt-dlp            영상 + 16kHz 모노 WAV
         ▼
 [2. 음성→텍스트]    faster-whisper    단어 단위 타임스탬프 (transcription.json / .srt)
@@ -30,8 +32,10 @@ brew install ffmpeg                    # macOS
 sudo apt install ffmpeg fonts-nanum    # Ubuntu (한글 자막 폰트 포함)
 winget install Gyan.FFmpeg             # Windows
 
-# 3) Gemini 키 (선택 · 없으면 오프라인 휴리스틱으로 대체)
-cp .env.example .env && $EDITOR .env   # https://aistudio.google.com/apikey 무료 발급
+# 3) API 키 (선택)
+cp .env.example .env && $EDITOR .env
+#    GEMINI_API_KEY   하이라이트 선정 — 없으면 오프라인 휴리스틱으로 대체
+#    YOUTUBE_API_KEY  급상승 탐색(autoshorts trend) — 이 기능을 쓸 때만 필요
 ```
 
 > **한글 자막이 네모(□)로 나온다면** 폰트가 없는 것입니다. `fonts-nanum` 등 한글
@@ -40,6 +44,10 @@ cp .env.example .env && $EDITOR .env   # https://aistudio.google.com/apikey 무�
 ## 사용법
 
 ```bash
+# 급상승 영상 찾아서 1위로 바로 쇼츠까지 — 원클릭
+autoshorts trend "재테크" --run
+autoshorts trend "@채널핸들" --days 30 --run
+
 # 전체 파이프라인 — 서브커맨드는 생략 가능
 autoshorts "https://www.youtube.com/watch?v=..."
 autoshorts run 강의영상.mp4 --mode crop --model small -o shorts
@@ -72,6 +80,46 @@ autoshorts ui
 | `--dry-run` | off | FFmpeg 실행 없이 명령만 확인 |
 | `--overwrite` | off | 같은 이름의 결과 파일 덮어쓰기 (기본은 `-2`, `-3` 을 붙여 보존) |
 
+### 급상승 탐색 (`autoshorts trend`)
+
+키워드나 채널에서 **구독자 대비 조회수(V/S Ratio)** 가 높은 최근 영상을 찾습니다.
+
+```bash
+autoshorts trend "부업"                      # 목록만 보기
+autoshorts trend "부업" --json trend.json    # 결과 저장
+autoshorts trend "부업" --run                # 1위 영상으로 쇼츠까지 자동 제작
+autoshorts trend "@채널핸들" --days 30        # 특정 채널의 최근 30일 업로드 중에서
+```
+
+| 옵션 | 기본값 | 설명 |
+|---|---|---|
+| `--run` | off | 1위 영상 URL 을 그대로 파이프라인에 넘겨 쇼츠까지 제작 |
+| `--channel` | 자동 판별 | 입력을 채널로 강제 해석 (`@핸들`·채널 URL·`UC…` 는 자동 인식) |
+| `--days` | `14` | 최근 며칠 안의 업로드만 대상 |
+| `--top` | `10` | 상위 몇 개를 남길지 |
+| `--min-vs` | `1.0` | 최소 V/S 비율. `1.0` 이면 구독자 수만큼은 조회돼야 통과 |
+| `--min-subscribers` | `1000` | 최소 구독자 수 |
+| `--min-duration` | `180` | 원본 최소 길이(초). 기본 3분 — 이미 쇼츠인 영상을 걸러냅니다 |
+| `--region` / `--lang` | 없음 | 지역 코드(`KR`) · 관련 언어(`ko`) |
+
+**순위 산정**은 V/S 비율을 뼈대로 두 가지를 보정합니다.
+
+```
+점수 = V/S 비율 × 신선도 × 반응도
+  신선도  탐색 창 안에서 오래될수록 최대 70% 감점
+          (영상은 시간이 지나면 조회수가 쌓이므로 보정 없이는 오래된 영상이 유리해집니다)
+  반응도  좋아요/조회 비율로 최대 +20% 가산
+```
+
+기본 필터가 걸러내는 것들 — 이유가 있습니다.
+
+- **구독자 1,000명 미만 채널**: 구독자 10명에 조회수 5,000이면 V/S 가 500 이 되어 순위를 점령합니다. 지표가 의미를 가지려면 하한이 필요합니다.
+- **구독자 수 비공개 채널**: V/S 를 계산할 수 없어 제외합니다.
+- **3분 미만 영상**: 이미 쇼츠이거나, 30~60초 하이라이트를 뽑을 여지가 없습니다.
+- **라이브/예정 방송**: 다운로드 대상이 아닙니다.
+
+**할당량 주의.** 무료 한도는 하루 10,000 유닛인데 `search.list` 만 **1회 100 유닛**입니다(하루 100회). 채널을 지정하면 `playlistItems` 경로를 타서 **1회 4 유닛 안팎**으로 끝나므로, 특정 채널을 반복해서 볼 때는 `--channel` 쪽이 압도적으로 유리합니다. 실행할 때마다 소모한 유닛을 출력합니다.
+
 ### 출력 규격
 
 - 해상도 **1080 × 1920** (9:16) · **H.264 / AAC** MP4 · `+faststart`
@@ -79,6 +127,12 @@ autoshorts ui
 - `output/manifest.json` 에 선정 구간·점수·선정 이유·경로가 모두 기록됩니다.
 
 ## 동작 방식
+
+### Module E — `trend_finder.py`
+YouTube Data API v3 를 표준 라이브러리 `urllib` 로 직접 호출합니다(추가 의존성 없음).
+`videos.list` / `channels.list` 는 50개씩 묶어 호출해 할당량을 아끼고, HTTP 계층은
+주입 가능해서 테스트가 네트워크 없이 돕니다. API 키는 로그와 오류 메시지 어디에도
+남지 않습니다.
 
 ### Module A — `downloader.py`
 `yt-dlp` 로 최고 화질 비디오 + 최고 음질 오디오를 받아 MP4 로 병합합니다. 로컬
@@ -128,7 +182,7 @@ autoshorts ui
 
 ```bash
 pip install pytest
-pytest                 # 235건 — FFmpeg·API 키·네트워크 없이 전부 통과
+pytest                 # 325건 — FFmpeg·API 키·네트워크 없이 전부 통과
 ```
 
 무거운 의존성(`yt-dlp`, `faster-whisper`, Gemini SDK, `gradio`)은 전부 지연 임포트라
@@ -137,6 +191,9 @@ pytest                 # 235건 — FFmpeg·API 키·네트워크 없이 전부 
 
 ## 알아 둘 점
 
+- **급상승 지표의 한계**: V/S 비율은 '구독자 대비 얼마나 퍼졌나'를 볼 뿐, 영상이
+  쇼츠로 만들기 좋은지는 말해 주지 않습니다. `--run` 으로 바로 만들기 전에 목록을
+  한 번 눈으로 보시길 권합니다.
 - **처리 시간**: 전사가 대부분을 차지합니다. CPU `base` 모델 기준 대략 영상 길이의
   0.3~1배, `--model tiny` 면 더 빠르고 `small` 이상은 더 정확합니다.
 - **Gemini 무료 티어**에는 분당/일일 요청 한도가 있습니다. 한도를 넘으면 자동으로

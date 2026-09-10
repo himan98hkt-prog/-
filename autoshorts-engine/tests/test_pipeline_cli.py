@@ -244,3 +244,130 @@ class TestCliCommands:
         assert code == 0
         assert rendered["clips"][0].index == 1
         assert rendered["has_transcript"] is True
+
+
+class TestTrendCli:
+    """급상승 탐색 CLI 와 원클릭 연동."""
+
+    def _videos(self):
+        from autoshorts.trend_finder import TrendVideo
+
+        return [
+            TrendVideo(video_id="top", title="1위 영상", channel_title="채널",
+                       view_count=90_000, subscriber_count=10_000, duration_seconds=600, rank=1),
+            TrendVideo(video_id="second", title="2위 영상", channel_title="채널",
+                       view_count=30_000, subscriber_count=10_000, duration_seconds=600, rank=2),
+        ]
+
+    def test_parses_trend_arguments(self):
+        args = cli.build_parser().parse_args(
+            ["trend", "재테크", "--days", "7", "--top", "5", "--min-vs", "2.5",
+             "--min-subscribers", "5000", "--region", "KR", "--lang", "ko", "--channel"]
+        )
+        assert args.target == "재테크"
+        assert (args.days, args.top, args.min_vs) == (7.0, 5, 2.5)
+        assert args.min_subscribers == 5000
+        assert (args.region, args.lang) == ("KR", "ko")
+        assert args.channel is True and args.run is False
+
+    def test_trend_defaults(self):
+        args = cli.build_parser().parse_args(["trend", "키워드"])
+        assert (args.days, args.top, args.min_vs) == (14.0, 10, 1.0)
+        assert args.min_duration == 180.0          # 쇼츠·짧은 영상 제외
+        assert args.min_subscribers == 1000
+
+    def test_youtube_key_flows_into_settings(self, monkeypatch):
+        monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+        args = cli.build_parser().parse_args(["trend", "키워드", "--youtube-api-key", "yt-key"])
+        assert cli.settings_from_args(args).youtube_api_key == "yt-key"
+
+    def test_lists_without_running_pipeline(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "autoshorts.trend_finder.find_trending", lambda *a, **k: (self._videos(), 102)
+        )
+        monkeypatch.setattr(
+            "autoshorts.pipeline.run_pipeline",
+            lambda *a, **k: pytest.fail("--run 없이는 파이프라인을 돌리면 안 된다"),
+        )
+        assert cli.main(["trend", "재테크", "--youtube-api-key", "k"]) == 0
+        out = capsys.readouterr().out
+        assert "https://www.youtube.com/watch?v=top" in out
+        assert "102 유닛" in out
+
+    def test_run_flag_hands_top_url_to_pipeline(self, monkeypatch, capsys, tmp_path):
+        from autoshorts.pipeline import PipelineResult
+
+        monkeypatch.setattr(
+            "autoshorts.trend_finder.find_trending", lambda *a, **k: (self._videos(), 102)
+        )
+        captured = {}
+
+        def fake_run(settings, **kwargs):
+            captured["source"] = settings.source
+            return PipelineResult(source=settings.source, title="1위 영상", renders=[])
+
+        monkeypatch.setattr("autoshorts.pipeline.run_pipeline", fake_run)
+        cli.main(["trend", "재테크", "--youtube-api-key", "k", "--run", "-o", str(tmp_path)])
+        assert captured["source"] == "https://www.youtube.com/watch?v=top"
+
+    def test_run_passes_render_options_through(self, monkeypatch, tmp_path):
+        from autoshorts.pipeline import PipelineResult
+
+        monkeypatch.setattr(
+            "autoshorts.trend_finder.find_trending", lambda *a, **k: (self._videos(), 102)
+        )
+        captured = {}
+
+        def fake_run(settings, **kwargs):
+            captured["settings"] = settings
+            return PipelineResult(source=settings.source, renders=[])
+
+        monkeypatch.setattr("autoshorts.pipeline.run_pipeline", fake_run)
+        cli.main(["trend", "키워드", "--youtube-api-key", "k", "--run", "--mode", "crop",
+                  "--model", "small", "--max-clips", "4", "-o", str(tmp_path)])
+        settings = captured["settings"]
+        assert settings.reframe_mode == "crop"
+        assert settings.whisper_model == "small"
+        assert settings.max_clips == 4
+
+    def test_search_filters_reach_the_finder(self, monkeypatch, capsys):
+        captured = {}
+
+        def fake_find(target, **kwargs):
+            captured.update(kwargs)
+            captured["target"] = target
+            return self._videos(), 102
+
+        monkeypatch.setattr("autoshorts.trend_finder.find_trending", fake_find)
+        cli.main(["trend", "@어떤채널", "--youtube-api-key", "k", "--days", "3",
+                  "--top", "2", "--min-vs", "4", "--min-duration", "300"])
+        assert captured["target"] == "@어떤채널"
+        assert captured["days"] == 3.0
+        assert captured["limit"] == 2
+        assert captured["min_vs_ratio"] == 4.0
+        assert captured["min_duration"] == 300.0
+
+    def test_writes_json_when_asked(self, monkeypatch, tmp_path, capsys):
+        monkeypatch.setattr(
+            "autoshorts.trend_finder.find_trending", lambda *a, **k: (self._videos(), 102)
+        )
+        destination = tmp_path / "trend.json"
+        cli.main(["trend", "키워드", "--youtube-api-key", "k", "--json", str(destination)])
+        data = json.loads(destination.read_text(encoding="utf-8"))
+        assert [row["rank"] for row in data] == [1, 2]
+        assert data[0]["url"].endswith("v=top")
+
+    def test_empty_result_exits_nonzero_with_guidance(self, monkeypatch, capsys):
+        monkeypatch.setattr("autoshorts.trend_finder.find_trending", lambda *a, **k: ([], 100))
+        assert cli.main(["trend", "없는키워드", "--youtube-api-key", "k"]) == 1
+        assert "--days" in capsys.readouterr().err
+
+    def test_api_errors_surface_as_exit_one(self, monkeypatch, capsys):
+        from autoshorts.trend_finder import QuotaExceededError
+
+        def boom(*a, **k):
+            raise QuotaExceededError("일일 할당량을 초과했습니다.")
+
+        monkeypatch.setattr("autoshorts.trend_finder.find_trending", boom)
+        assert cli.main(["trend", "키워드", "--youtube-api-key", "k"]) == 1
+        assert "할당량" in capsys.readouterr().err

@@ -100,6 +100,9 @@ class Settings:
     max_clips: int = 5
     allow_offline_fallback: bool = True     # API 키가 없으면 휴리스틱으로 대체
 
+    # 급상승 탐색 (Module E)
+    youtube_api_key: str | None = None
+
     # 렌더링 (Module D)
     reframe_mode: str = "blur"
     width: int = 1080
@@ -130,6 +133,8 @@ class Settings:
                 or os.environ.get("GOOGLE_API_KEY")
                 or None
             )
+        if self.youtube_api_key is None:
+            self.youtube_api_key = os.environ.get("YOUTUBE_API_KEY") or None
         if self.reframe_mode not in REFRAME_MODES:
             raise ValueError(
                 f"reframe_mode 는 {REFRAME_MODES} 중 하나여야 합니다: {self.reframe_mode!r}"
@@ -151,6 +156,10 @@ class Settings:
     @property
     def has_gemini(self) -> bool:
         return bool(self.gemini_api_key)
+
+    @property
+    def has_youtube_api(self) -> bool:
+        return bool(self.youtube_api_key)
 
     @property
     def aspect_ratio(self) -> float:
@@ -181,4 +190,5 @@ class Settings:
             data[f.name] = value
         # 키 값 자체는 기록하지 않는다.
         data["gemini_api_key"] = "***" if self.gemini_api_key else None
+        data["youtube_api_key"] = "***" if self.youtube_api_key else None
         return data
