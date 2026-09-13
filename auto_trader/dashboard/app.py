@@ -17,7 +17,7 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 from config.loader import BASE_DIR, ConfigError, load
 from dashboard import charts, process, queries, restart
 from dashboard.env_file import GROUPS, missing_required, read_env, read_for_display, write_env
-from utils import updater
+from utils import autostart, updater
 from utils.db import get_bot_state, init_db
 from utils.key_check import run_all, summarize
 from utils.runtime import ProcessLock, StopFlag, pid_path, stop_flag_path
@@ -87,6 +87,7 @@ def create_app(*, testing: bool = False) -> Flask:
             "state": state,
             # 화면에 현재 버전을 띄운다. 파일이 없으면(첫 설치) 빈 문자열.
             "version": updater.read_version(app.config["BASE_DIR"]).short,
+            "autostart": autostart.status(app.config["BASE_DIR"], app.config["DATA_DIR"]),
         }
 
     # ------------------------------------------------------------- 라우트 #
@@ -201,6 +202,19 @@ def create_app(*, testing: bool = False) -> Flask:
 
         elif action == "update":
             _apply_update(app.config["BASE_DIR"], data_dir, log_dir)
+
+        elif action == "autostart_on":
+            result = autostart.enable(app.config["BASE_DIR"], data_dir)
+            if result.enabled:
+                flash("PC 를 켜면 자동매매가 스스로 시작됩니다.\n"
+                      "단, 윈도우에 로그인해야 실행됩니다 — 재부팅 후 잠금화면에 머물러 "
+                      "있으면 그동안은 매매도 멈춰 있습니다.", "ok")
+            else:
+                flash(f"자동시작을 등록하지 못했습니다: {result.detail}", "warn")
+
+        elif action == "autostart_off":
+            autostart.disable(app.config["BASE_DIR"], data_dir)
+            flash("자동시작을 해제했습니다. 이제 PC 를 켜도 자동으로 뜨지 않습니다.", "ok")
 
         else:
             abort(404)
