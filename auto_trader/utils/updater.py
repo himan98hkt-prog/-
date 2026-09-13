@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -200,3 +202,48 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
     logger.info("업데이트 적용: %s → %s (%d개 항목)", current.short, latest.short, len(changed))
     return UpdateResult(updated=True, version=latest, changed=changed,
                         notes=notes, deps_changed=deps_changed)
+
+
+# --- 의존성 설치 ------------------------------------------------------------ #
+
+PIP_TIMEOUT_SEC = 900  # 느린 회선에서 pandas 계열을 받는 데 몇 분 걸린다
+
+
+def venv_python(base_dir: Path | str) -> Path:
+    """가상환경의 파이썬. 없으면 지금 돌고 있는 파이썬."""
+    base = Path(base_dir)
+    candidates = (base / ".venv" / "Scripts" / "python.exe",   # Windows
+                  base / ".venv" / "bin" / "python")           # macOS/Linux
+    for path in candidates:
+        if path.exists():
+            return path
+    return Path(sys.executable)
+
+
+def install_dependencies(base_dir: Path | str) -> tuple[bool, str]:
+    """requirements.txt 를 설치한다. (성공?, 메시지).
+
+    업데이트가 새 패키지를 요구할 때 사용자가 창을 닫고 start.bat 을 다시
+    실행하게 만들지 않으려고 여기서 바로 깐다. 실패해도 기존 설치는 그대로다.
+    """
+    base = Path(base_dir)
+    requirements = base / "requirements.txt"
+    if not requirements.exists():
+        return False, "requirements.txt 가 없습니다"
+
+    command = [str(venv_python(base)), "-m", "pip", "install",
+               "--disable-pip-version-check", "--use-pep517", "-r", str(requirements)]
+    try:
+        done = subprocess.run(command, cwd=str(base), capture_output=True,
+                              text=True, timeout=PIP_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        return False, f"설치가 {PIP_TIMEOUT_SEC // 60}분을 넘겨 중단했습니다"
+    except OSError as exc:
+        return False, f"설치를 시작하지 못했습니다: {exc}"
+
+    if done.returncode != 0:
+        tail = (done.stderr or done.stdout or "").strip().splitlines()
+        reason = next((line for line in reversed(tail) if line.strip()), "원인 불명")
+        return False, reason[:200]
+    logger.info("의존성 설치 완료")
+    return True, "새 패키지를 설치했습니다"

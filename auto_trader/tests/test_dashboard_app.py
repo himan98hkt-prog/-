@@ -50,7 +50,7 @@ def never_really_exit(monkeypatch):
     """
     from dashboard import restart
 
-    monkeypatch.setattr(restart, "request_restart", lambda **kw: None)
+    monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: None)
 
 
 def seed(app, *, with_positions: bool = True) -> None:
@@ -514,14 +514,14 @@ def test_update_restarts_the_dashboard_itself(client, monkeypatch):
 
     asked: list[bool] = []
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
-    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+    monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: asked.append(True))
     monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
         updated=True, version=updater.Version(sha="f" * 40, message="새 입력칸"),
         changed=["dashboard/"], notes=[], deps_changed=False))
 
     page = post_with_csrf(client, "/control/update")
     assert asked == [True], "업데이트 후 대시보드가 스스로 다시 뜨지 않습니다"
-    assert "화면이 새로 뜹니다" in page
+    assert "새 창으로 대시보드가 다시 뜹니다" in page
 
 
 def test_dependency_change_skips_self_restart(client, monkeypatch):
@@ -531,7 +531,7 @@ def test_dependency_change_skips_self_restart(client, monkeypatch):
 
     asked: list[bool] = []
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
-    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+    monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: asked.append(True))
     monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
         updated=True, version=updater.Version(sha="a" * 40, message="패키지 추가"),
         changed=[], notes=[], deps_changed=True))
@@ -547,7 +547,7 @@ def test_failed_update_does_not_restart_the_dashboard(client, monkeypatch):
 
     asked: list[bool] = []
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
-    monkeypatch.setattr(restart, "request_restart", lambda **kw: asked.append(True))
+    monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: asked.append(True))
 
     def boom(base, **kw):
         raise updater.UpdateError("연결 실패")
@@ -555,3 +555,100 @@ def test_failed_update_does_not_restart_the_dashboard(client, monkeypatch):
     monkeypatch.setattr(updater, "apply_update", boom)
     post_with_csrf(client, "/control/update")
     assert asked == []
+
+
+# --------------------------------------------------------------------------- #
+# 모의투자 ↔ 실전 전환
+# --------------------------------------------------------------------------- #
+
+
+def _write_env(app, **values):
+    from dashboard.env_file import write_env
+
+    write_env(app.config["ENV_PATH"], {**FULL_ENV, **values})
+
+
+def test_switch_to_real_updates_env(client, app, monkeypatch):
+    from dashboard import process
+    from dashboard.env_file import read_env
+
+    _write_env(app, KIS_ENV="VTS")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+
+    page = post_with_csrf(client, "/control/mode_real")
+    assert read_env(app.config["ENV_PATH"])["KIS_ENV"] == "REAL"
+    assert "실제 자금으로 주문이 나갑니다" in page
+
+
+def test_switch_to_vts_updates_env(client, app, monkeypatch):
+    from dashboard import process
+    from dashboard.env_file import read_env
+
+    _write_env(app, KIS_ENV="REAL")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+
+    page = post_with_csrf(client, "/control/mode_vts")
+    assert read_env(app.config["ENV_PATH"])["KIS_ENV"] == "VTS"
+    assert "가짜 돈" in page
+
+
+def test_switching_warns_about_the_account_number(client, app, monkeypatch):
+    """모의계좌와 실계좌는 번호가 다르다 — 안 바꾸면 인증부터 실패한다."""
+    from dashboard import process
+
+    _write_env(app, KIS_ENV="VTS")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    assert "계좌번호도" in post_with_csrf(client, "/control/mode_real")
+
+
+def test_switching_restarts_a_running_bot(client, app, monkeypatch):
+    """예전 도메인을 물고 있는 프로세스가 남으면 다른 계좌로 주문이 나간다."""
+    from dashboard import process
+
+    _write_env(app, KIS_ENV="VTS")
+    calls: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+    monkeypatch.setattr(process, "stop", lambda data_dir: (
+        calls.append("stop"), process.ControlResult(True, "종료"))[1])
+    monkeypatch.setattr(process, "start", lambda base, data, log: (
+        calls.append("start"), process.ControlResult(True, "시작"))[1])
+
+    post_with_csrf(client, "/control/mode_real")
+    assert calls == ["stop", "start"]
+
+
+def test_switching_aborts_when_bot_will_not_stop(client, app, monkeypatch):
+    from dashboard import process
+
+    _write_env(app, KIS_ENV="VTS")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: True)
+    monkeypatch.setattr(process, "stop", lambda data_dir: process.ControlResult(False, "응답 없음"))
+    started: list[str] = []
+    monkeypatch.setattr(process, "start", lambda *a: started.append("x"))
+
+    page = post_with_csrf(client, "/control/mode_real")
+    assert started == []
+    assert "예전 설정으로 계속 돌고 있습니다" in page
+
+
+def test_switching_to_the_same_mode_is_a_no_op(client, app, monkeypatch):
+    from dashboard import process
+
+    _write_env(app, KIS_ENV="VTS")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    assert "이미 모의투자 입니다" in post_with_csrf(client, "/control/mode_vts")
+
+
+def test_status_page_shows_the_current_mode(client, app):
+    _write_env(app, KIS_ENV="REAL")
+    seed(app)
+    body = client.get("/").get_data(as_text=True)
+    assert "실전 (REAL)" in body and "mode-real" in body
+
+
+def test_status_page_shows_the_install_folder(client, app):
+    """폴더가 여러 개일 때 어느 것을 보고 있는지 알 수 있어야 한다."""
+    _write_env(app)
+    seed(app)
+    body = client.get("/").get_data(as_text=True)
+    assert str(app.config["BASE_DIR"]) in body

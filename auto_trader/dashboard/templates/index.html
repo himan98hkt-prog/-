@@ -231,6 +231,32 @@
 <div class="card">
   <h2>제어</h2>
 
+  <div class="mode-bar {{ 'mode-real' if status.kis_env == 'REAL' else 'mode-vts' }}">
+    <div>
+      현재 <b>{{ '실전 (REAL) — 실제 자금' if status.kis_env == 'REAL' else '모의투자 (VTS) — 가짜 돈' }}</b>
+      {% if status.dry_run %}<span class="tag">주문 미전송 (DRY_RUN)</span>{% endif %}
+    </div>
+    <div class="control-row">
+      {% if status.kis_env == 'REAL' %}
+      <form method="post" action="{{ url_for('control', action='mode_vts') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn" type="submit"
+                onclick="return confirm('모의투자로 전환합니다.\n모의계좌 번호로도 바꿔야 합니다. 계속할까요?')">
+          🧪 모의투자로 전환
+        </button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('control', action='mode_real') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn danger" type="submit"
+                onclick="return confirm('실전으로 전환합니다.\n\n지금부터 실제 자금으로 주문이 나갑니다.\n실계좌 번호로도 바꿔야 합니다.\n\n정말 진행할까요?')">
+          💰 실전으로 전환
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="control-row">
     {% if not status.running %}
       <form method="post" action="{{ url_for('control', action='start') }}">
@@ -306,6 +332,7 @@
     <br>
     <b>업데이트</b>는 최신 코드를 받아 제자리에 적용합니다 — 다시 내려받거나
     키를 다시 넣을 필요가 없습니다. 현재 버전 <code>{{ status.version or '알 수 없음' }}</code>
+    · 폴더 <code>{{ status.base_dir }}</code>
   </div>
 </div>
 

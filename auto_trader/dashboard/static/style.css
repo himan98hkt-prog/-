@@ -172,3 +172,22 @@ pre.log {
 
 .control-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
 .control-row form { margin: 0; }
+
+
+/* 실전/모의 전환 바 — 어느 쪽인지 한눈에 보여야 한다 */
+.mode-bar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px; margin-bottom: 14px;
+  border-radius: 8px; border: 1px solid transparent;
+}
+.mode-bar.mode-vts { background: #eef4fb; border-color: #c3d7ef; color: #1d3f66; }
+.mode-bar.mode-real { background: #fdeceb; border-color: #f0b6b2; color: #7d2019; }
+.mode-bar .tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border-radius: 999px; font-size: .82em; background: rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  .mode-bar.mode-vts { background: #17263a; border-color: #2c4a66; color: #bcd4f0; }
+  .mode-bar.mode-real { background: #3a1b18; border-color: #6b2f28; color: #f3b8b2; }
+}

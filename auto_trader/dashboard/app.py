@@ -50,6 +50,7 @@ def create_app(*, testing: bool = False) -> Flask:
     app.config["DATA_DIR"] = DATA_DIR
     app.config["LOG_DIR"] = LOG_DIR
     app.config["BASE_DIR"] = BASE_DIR
+    app.config.setdefault("PORT", 8765)
     app.jinja_env.globals["now"] = lambda: datetime.now(KST)
 
     # ---------------------------------------------------------------- CSRF #
@@ -88,6 +89,9 @@ def create_app(*, testing: bool = False) -> Flask:
             # 화면에 현재 버전을 띄운다. 파일이 없으면(첫 설치) 빈 문자열.
             "version": updater.read_version(app.config["BASE_DIR"]).short,
             "autostart": autostart.status(app.config["BASE_DIR"], app.config["DATA_DIR"]),
+            "kis_env": (read_env(app.config["ENV_PATH"]).get("KIS_ENV") or "VTS").upper(),
+            "dry_run": (read_env(app.config["ENV_PATH"]).get("DRY_RUN") or "true").lower() != "false",
+            "base_dir": str(app.config["BASE_DIR"]),
         }
 
     # ------------------------------------------------------------- 라우트 #
@@ -201,7 +205,11 @@ def create_app(*, testing: bool = False) -> Flask:
             flash(result.message, "ok" if result.ok else "warn")
 
         elif action == "update":
-            _apply_update(app.config["BASE_DIR"], data_dir, log_dir)
+            _apply_update(app.config["BASE_DIR"], data_dir, log_dir,
+                          app.config["PORT"])
+
+        elif action in ("mode_vts", "mode_real"):
+            _switch_mode(app, "VTS" if action == "mode_vts" else "REAL", data_dir, log_dir)
 
         elif action == "autostart_on":
             result = autostart.enable(app.config["BASE_DIR"], data_dir)
@@ -231,7 +239,7 @@ def run(host: str = "127.0.0.1", port: int = 8765, *, debug: bool = False) -> No
     create_app().run(host=host, port=port, debug=debug)
 
 
-def _apply_update(base_dir, data_dir, log_dir) -> None:
+def _apply_update(base_dir, data_dir, log_dir, port: int = 8765) -> None:
     """업데이트 버튼 처리. 돌고 있는 봇은 멈췄다가 새 코드로 다시 띄운다."""
     was_running = process.is_running(data_dir)
     if was_running:
@@ -253,17 +261,54 @@ def _apply_update(base_dir, data_dir, log_dir) -> None:
     lines = [f"최신 버전으로 업데이트했습니다 ({result.version.short} {result.version.message})",
              "키와 매매 기록은 그대로 유지됩니다."]
     lines.extend(result.notes)
+
     if result.deps_changed:
-        lines.append("새 패키지가 필요합니다 — 이 창을 닫고 start.bat 을 다시 실행해 주세요.")
-        flash("\n".join(lines), "ok")
-        return
+        # 사용자가 창을 닫고 start.bat 을 다시 실행하게 만들지 않는다 — 여기서 깐다.
+        ok, message = updater.install_dependencies(base_dir)
+        lines.append(("· " if ok else "⚠️ ") + message)
+        if not ok:
+            lines.append("이 창을 닫고 start.bat 을 다시 실행하면 설치가 다시 시도됩니다.")
+            flash("\n".join(lines), "warn")
+            return
 
     if was_running:
         restarted = process.start(base_dir, data_dir, log_dir)
         lines.append(f"자동매매를 다시 시작했습니다 — {restarted.message}")
 
     # 대시보드 자신은 옛 코드를 메모리에 물고 있다. 새 화면을 보려면 프로세스를
-    # 갈아야 한다 — 잠시 뒤 스스로 죽고 start 스크립트가 다시 띄운다.
-    lines.append("잠시 뒤 화면이 새로 뜹니다. 안 뜨면 이 페이지를 새로고침하세요.")
+    # 갈아야 한다 — 새 대시보드를 직접 띄우고 이 프로세스는 빠진다.
+    lines.append("잠시 뒤 새 창으로 대시보드가 다시 뜹니다.")
     flash("\n".join(lines), "ok")
-    restart.request_restart()
+    restart.request_restart(base_dir, port)
+
+
+def _switch_mode(app, mode: str, data_dir, log_dir) -> None:
+    """모의투자(VTS) ↔ 실전(REAL) 전환.
+
+    돌고 있는 봇은 반드시 새 설정으로 다시 띄운다 — 예전 도메인·TR ID 를 물고
+    있는 프로세스가 남으면 의도와 다른 계좌로 주문이 나간다.
+    """
+    changed = write_env(app.config["ENV_PATH"], {"KIS_ENV": mode})
+    if not changed:
+        flash(f"이미 {'모의투자' if mode == 'VTS' else '실전'} 입니다.", "ok")
+        return
+
+    label = "모의투자(VTS)" if mode == "VTS" else "실전(REAL)"
+    lines = [f"{label} 로 전환했습니다."]
+    if mode == "REAL":
+        lines.append("⚠️ 지금부터 실제 자금으로 주문이 나갑니다.")
+    else:
+        lines.append("가짜 돈으로만 주문이 나갑니다.")
+    lines.append("계좌번호도 해당 환경의 것으로 바꿔야 합니다 — 모의계좌와 실계좌는 번호가 다릅니다.")
+
+    if process.is_running(data_dir):
+        stopped = process.stop(data_dir)
+        if not stopped.ok:
+            lines.append(f"⚠️ 자동매매를 멈추지 못했습니다({stopped.message}) — "
+                         "예전 설정으로 계속 돌고 있습니다. 직접 종료해 주세요.")
+            flash("\n".join(lines), "warn")
+            return
+        restarted = process.start(app.config["BASE_DIR"], data_dir, log_dir)
+        lines.append(f"자동매매를 새 설정으로 다시 시작했습니다 — {restarted.message}")
+
+    flash("\n".join(lines), "warn" if mode == "REAL" else "ok")

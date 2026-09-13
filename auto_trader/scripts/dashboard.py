@@ -45,7 +45,9 @@ def main() -> int:
         # 서버가 준비된 뒤에 연다 — 먼저 열면 "연결할 수 없음" 이 뜬다.
         open_when_ready(HOST, args.port)
 
-    create_app().run(host=HOST, port=args.port, debug=args.debug)
+    app = create_app()
+    app.config["PORT"] = args.port  # 업데이트 후 같은 포트로 다시 띄우기 위함
+    app.run(host=HOST, port=args.port, debug=args.debug)
     return 0
 
 

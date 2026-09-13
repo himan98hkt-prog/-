@@ -1,12 +1,11 @@
-"""업데이트 후 대시보드 자가 재기동.
+"""업데이트 후 대시보드 자가 교체.
 
-파이썬은 모듈을 한 번만 import 하므로, 코드를 갈아끼워도 돌고 있는
-대시보드는 예전 화면을 계속 그린다. 프로세스를 갈아야만 새 입력칸이 보인다.
+업데이트는 start.bat 자체도 바꾼다. 돌고 있는 건 옛 start.bat 이라 거기 없는
+기능에 기대면 안 된다 — 대시보드가 스스로 새 프로세스를 띄우고 빠져야 한다.
 """
 
 from __future__ import annotations
 
-import re
 import threading
 from pathlib import Path
 
@@ -15,53 +14,78 @@ from dashboard.restart import RESTART_EXIT_CODE, request_restart
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def test_exits_with_the_agreed_code():
-    seen: list[int] = []
+def _run(spawn_ok: bool, *, delay: float = 0.01):
+    codes: list[int] = []
     done = threading.Event()
 
-    def fake_exit():
-        seen.append(RESTART_EXIT_CODE)
+    def exiter(code):
+        codes.append(code)
         done.set()
 
-    request_restart(delay=0.01, exiter=fake_exit)
-    assert done.wait(2.0)
-    assert seen == [42], "start 스크립트와 약속된 값이 바뀌면 재기동이 끊깁니다"
+    request_restart(BASE_DIR, 8765, delay=delay,
+                    spawner=lambda base, port: spawn_ok, exiter=exiter)
+    assert done.wait(3.0), "종료가 예약되지 않았습니다"
+    return codes
+
+
+def test_exits_quietly_after_spawning_the_new_dashboard():
+    assert _run(True) == [0], "새 프로세스를 띄웠으면 런처를 부를 이유가 없습니다"
+
+
+def test_falls_back_to_the_launcher_when_spawn_fails():
+    assert _run(False) == [RESTART_EXIT_CODE]
+
+
+def test_spawner_receives_base_dir_and_port():
+    seen: list[tuple] = []
+    done = threading.Event()
+
+    def spawner(base, port):
+        seen.append((Path(base), port))
+        return True
+
+    request_restart(BASE_DIR, 9999, delay=0.01,
+                    spawner=spawner, exiter=lambda code: done.set())
+    assert done.wait(3.0)
+    assert seen == [(BASE_DIR, 9999)]
 
 
 def test_waits_before_exiting():
-    """응답이 브라우저에 닿기 전에 죽으면 사용자는 빈 화면을 본다."""
     done = threading.Event()
-    request_restart(delay=0.3, exiter=done.set)
-    assert not done.is_set(), "즉시 종료하면 안 됩니다"
+    request_restart(BASE_DIR, 8765, delay=0.3,
+                    spawner=lambda b, p: True, exiter=lambda code: done.set())
+    assert not done.is_set(), "즉시 종료하면 응답이 브라우저에 닿지 못합니다"
     assert done.wait(2.0)
 
 
 def test_timer_is_a_daemon():
-    """재기동 타이머가 종료를 막아서는 안 된다."""
-    timer = request_restart(delay=5.0, exiter=lambda: None)
+    timer = request_restart(BASE_DIR, 8765, delay=5.0,
+                            spawner=lambda b, p: True, exiter=lambda code: None)
     assert timer.daemon
     timer.cancel()
 
 
-# --- 실행 스크립트가 그 코드를 받아 다시 띄우는가 --------------------------- #
+def test_relaunch_helper_exists():
+    """대시보드가 띄울 스크립트가 실제로 있어야 한다."""
+    assert (BASE_DIR / "scripts" / "relaunch.py").exists()
 
 
-def test_start_sh_loops_on_the_restart_code():
-    text = (BASE_DIR / "start.sh").read_text(encoding="utf-8")
-    assert "-ne 42" in text, "start.sh 가 종료 코드 42 를 처리하지 않습니다"
-    assert "while true" in text
+def test_relaunch_waits_for_the_port_to_free_up():
+    import socket
+
+    from scripts.relaunch import port_is_free, wait_for_port
+
+    with socket.socket() as held:
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        port = held.getsockname()[1]
+        assert not port_is_free(port)
+        assert not wait_for_port(port, timeout=0.4)
+
+    assert port_is_free(port), "포트가 풀리면 바로 잡아야 합니다"
 
 
-def test_start_bat_loops_on_the_restart_code():
-    text = (BASE_DIR / "start.bat").read_text(encoding="ascii")
-    assert "errorlevel 42" in text, "start.bat 이 종료 코드 42 를 처리하지 않습니다"
-    assert ":run_dashboard" in text
-    # cmd 의 `if errorlevel N` 은 'N 이상' 이라, 43 이상을 먼저 걸러야 42 만 잡힌다.
-    assert text.index("errorlevel 43") < text.index("errorlevel 42")
-
-
-def test_restart_code_matches_between_python_and_scripts():
-    """한쪽만 바꾸면 조용히 끊기는 연결이라 값을 직접 맞춰 본다."""
+def test_start_scripts_still_understand_the_fallback_code():
     sh = (BASE_DIR / "start.sh").read_text(encoding="utf-8")
     bat = (BASE_DIR / "start.bat").read_text(encoding="ascii")
     assert f"-ne {RESTART_EXIT_CODE}" in sh
