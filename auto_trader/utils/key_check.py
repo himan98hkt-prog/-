@@ -237,6 +237,17 @@ def check_openai(env: dict[str, str | None]) -> Result:
         )
     except Exception as exc:
         detail = str(exc)[:200]
+        if "insufficient_quota" in detail or "no credits" in detail.lower():
+            # 키는 정상이다. 잔액만 없다.
+            return Result(
+                "ChatGPT (선택)", FAIL,
+                "키는 정상입니다 — 잔액이 0 입니다. "
+                "platform.openai.com/settings/organization/billing 에서 "
+                "결제수단을 등록하고 $5 이상 충전하세요. "
+                "ChatGPT Plus 구독과 API 잔액은 별개입니다. "
+                "충전하지 않으시려면 ChatGPT API 키 칸을 비우면 됩니다 "
+                "(Claude·Gemini 둘로 정상 동작합니다)",
+            )
         if "model" in detail.lower() and "not" in detail.lower():
             detail += f" → OPENAI_MODEL={model!r} 이 계정에서 쓸 수 있는 모델인지 확인하세요"
         elif "quota" in detail.lower() or "billing" in detail.lower():
@@ -312,9 +323,17 @@ def run_all(env: dict[str, str | None], *, telegram_test: bool = False) -> list[
 
 
 def summarize(results: list[Result]) -> dict[str, int]:
+    """항목별 집계.
+
+    `blocking_fail` 과 `fail` 을 구분하는 이유: ChatGPT 처럼 **선택** 항목이
+    실패해도 프로그램은 정상 동작한다. 선택 항목 하나 때문에 "아직 준비되지
+    않았습니다" 를 띄워 사용자를 막아 세우면 안 된다.
+    """
     return {
         "ok": sum(1 for r in results if r.status == OK),
         "fail": sum(1 for r in results if r.status == FAIL),
+        "blocking_fail": sum(1 for r in results if r.status == FAIL and not r.optional),
+        "optional_fail": sum(1 for r in results if r.status == FAIL and r.optional),
         "skip": sum(1 for r in results if r.status == SKIP),
         "required_missing": sum(1 for r in results if r.status == SKIP and not r.optional),
     }

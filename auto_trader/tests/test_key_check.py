@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from utils.key_check import FAIL, check_value_hygiene
 
 
@@ -137,3 +139,71 @@ def test_account_number_is_masked_in_both_modes():
     for mode in ("REAL", "VTS"):
         assert "50123456" not in _kis_account_result(mode).detail
 
+
+
+# --------------------------------------------------------------------------- #
+# 선택 항목 실패는 진행을 막지 않는다
+# --------------------------------------------------------------------------- #
+
+
+def _result(name, status, detail=""):
+    from utils.key_check import Result
+
+    return Result(name, status, detail)
+
+
+def test_optional_failure_does_not_block():
+    from utils.key_check import OK, summarize
+
+    counts = summarize([_result("KIS 인증", OK), _result("ChatGPT (선택)", FAIL, "잔액 0")])
+    assert counts["blocking_fail"] == 0, "선택 항목 실패가 진행을 막으면 안 됩니다"
+    assert counts["optional_fail"] == 1
+    assert counts["fail"] == 1  # 화면에는 여전히 실패로 센다
+
+
+def test_required_failure_blocks():
+    from utils.key_check import OK, summarize
+
+    counts = summarize([_result("KIS 인증", FAIL, "토큰 실패"), _result("Anthropic (Claude)", OK)])
+    assert counts["blocking_fail"] == 1
+
+
+def test_optional_and_required_failures_are_counted_apart():
+    counts_all = __import__("utils.key_check", fromlist=["summarize"]).summarize([
+        _result("KIS 인증", FAIL), _result("ChatGPT (선택)", FAIL),
+    ])
+    assert counts_all["blocking_fail"] == 1 and counts_all["optional_fail"] == 1
+
+
+def test_no_credit_message_says_the_key_is_fine(monkeypatch):
+    """잔액 0 은 키가 틀린 게 아니다 — 그렇게 읽히면 사용자가 키만 계속 다시 만든다."""
+    import utils.key_check as module
+
+    class Boom:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kw):
+                    raise RuntimeError(
+                        "Error code: 429 - {'error': {'message': 'You have no credits "
+                        "remaining.', 'type': 'insufficient_quota'}}")
+
+        def __init__(self, **kw):
+            pass
+
+    fake = type(sys)("openai")
+    fake.OpenAI = Boom
+    monkeypatch.setitem(sys.modules, "openai", fake)
+
+    result = module.check_openai({"OPENAI_API_KEY": "sk-proj-real", "OPENAI_MODEL": "gpt-5.1"})
+    assert result.status == FAIL
+    assert "키는 정상입니다" in result.detail
+    assert "충전" in result.detail
+    assert result.optional, "ChatGPT 는 선택 항목이어야 합니다"
+
+
+def test_missing_openai_key_is_skipped_not_failed():
+    import utils.key_check as module
+
+    result = module.check_openai({})
+    assert result.status == "skip" and result.optional
