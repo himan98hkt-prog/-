@@ -81,6 +81,12 @@ CREATE TABLE IF NOT EXISTS decisions (
     gemini_reason     TEXT,
     gemini_ok         INTEGER,
     gemini_raw        TEXT,
+    chatgpt_action    TEXT,
+    chatgpt_confidence REAL,
+    chatgpt_weight_pct INTEGER,
+    chatgpt_reason    TEXT,
+    chatgpt_ok        INTEGER,
+    chatgpt_raw       TEXT,
     final_action      TEXT    NOT NULL,
     final_weight_pct  INTEGER NOT NULL DEFAULT 0,
     final_reason      TEXT,
@@ -173,12 +179,32 @@ def session(db_path: Path | str) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+# 나중에 추가된 컬럼 — 이미 쓰던 DB 에도 조용히 채워 넣는다(기록을 버리지 않는다).
+LATER_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("decisions", "chatgpt_action", "TEXT"),
+    ("decisions", "chatgpt_confidence", "REAL"),
+    ("decisions", "chatgpt_weight_pct", "INTEGER"),
+    ("decisions", "chatgpt_reason", "TEXT"),
+    ("decisions", "chatgpt_ok", "INTEGER"),
+    ("decisions", "chatgpt_raw", "TEXT"),
+)
+
+
+def _add_missing_columns(conn) -> None:
+    for table, column, kind in LATER_COLUMNS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+            logger.info("컬럼 추가: %s.%s", table, column)
+
+
 def init_db(db_path: Path | str) -> Path:
     """스키마를 생성(이미 있으면 그대로 두기)하고 DB 경로를 반환한다."""
     path = Path(db_path)
     conn = connect(path)
     try:
         conn.executescript(SCHEMA)
+        _add_missing_columns(conn)
     finally:
         conn.close()
     logger.info("SQLite 스키마 준비 완료: %s", path)

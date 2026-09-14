@@ -16,13 +16,17 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 
 from config.loader import BASE_DIR, ConfigError, load
 from dashboard import charts, process, queries, restart
-from dashboard.env_file import GROUPS, missing_required, read_env, read_for_display, write_env
+from dashboard.env_file import (ALL_FIELDS, GROUPS, missing_required, read_env,
+                                read_for_display, write_env)
 from utils import autostart, updater
 from utils.db import get_bot_state, init_db
-from utils.key_check import run_all, summarize
+from utils.key_check import SKIP, Result, run_all, summarize
 from utils.runtime import ProcessLock, StopFlag, pid_path, stop_flag_path
 
 KST = ZoneInfo("Asia/Seoul")
+
+# 비어 있는 항목을 사람이 읽는 이름으로 알려주기 위한 표
+FIELD_LABELS = {key: field.label for key, field in ALL_FIELDS.items()}
 
 ENV_PATH = BASE_DIR / ".env"
 DATA_DIR = BASE_DIR / "data"
@@ -98,9 +102,16 @@ def create_app(*, testing: bool = False) -> Flask:
     @app.route("/")
     def index() -> str:
         settings, config_error = _load_settings()
-        missing = missing_required(app.config["ENV_PATH"])
-        if missing or not Path(app.config["ENV_PATH"]).exists():
+        if not Path(app.config["ENV_PATH"]).exists():
             return redirect(url_for("setup", first="1"))
+
+        missing = missing_required(app.config["ENV_PATH"])
+        if missing:
+            # 조용히 되돌리면 왜 못 들어가는지 알 길이 없다 — 무엇이 비었는지 말한다.
+            labels = ", ".join(FIELD_LABELS.get(key, key) for key in missing)
+            flash(f"아래 항목이 비어 있어 현황 화면을 열 수 없습니다: {labels}\n"
+                  "채우고 저장하면 바로 들어갑니다.", "warn")
+            return redirect(url_for("setup"))
 
         db = app.config["DB_PATH"]
         init_db(db)
@@ -166,6 +177,12 @@ def create_app(*, testing: bool = False) -> Flask:
     def verify():
         env = read_env(app.config["ENV_PATH"])
         results = run_all(env, telegram_test=request.form.get("telegram_test") == "1")
+        # 현황 화면 진입 조건과 같은 기준을 여기서도 본다. 점검은 통과했는데
+        # 현황 화면이 막히는 모순을 없앤다(모델 이름처럼 API 를 안 부르는 항목).
+        blanks = missing_required(app.config["ENV_PATH"])
+        for key in blanks:
+            results.append(Result(f"미입력 {FIELD_LABELS.get(key, key)}", SKIP,
+                                  "값이 비어 있습니다 — 설정 화면에서 채우세요"))
         return render_template(
             "verify.html",
             results=results,

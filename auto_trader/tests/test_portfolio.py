@@ -389,3 +389,73 @@ def test_reconcile_handles_vanished_order(make_portfolio):
     portfolio, _ = make_portfolio([Balance()], statuses=[vanished])
     _insert_order(portfolio)
     assert portfolio.reconcile_open_orders(now=NOW)[0]["after"] == "CANCELED"
+
+
+# --------------------------------------------------------------------------- #
+# ChatGPT 판단도 기록된다
+# --------------------------------------------------------------------------- #
+
+
+def test_chatgpt_decision_is_recorded(make_portfolio):
+    portfolio_obj, _ = make_portfolio([])
+    from agents.schemas import AgentDecision
+    from logic.decision_maker import FinalDecision
+    from utils.db import connect
+
+    decisions = {
+        "claude": AgentDecision("claude", "BUY", 0.84, 20, "정배열", ok=True),
+        "gemini": AgentDecision("gemini", "BUY", 0.79, 18, "거래량", ok=True),
+        "chatgpt": AgentDecision("chatgpt", "BUY", 0.81, 16, "돌파", ok=True),
+    }
+    portfolio_obj.record_decision(
+        cycle_id="c1", snapshot={"code": "005930", "name": "삼성전자"},
+        decisions=decisions, final=FinalDecision(action="STRONG_BUY", weight_pct=18),
+    )
+    conn = connect(portfolio_obj.db_path)
+    row = conn.execute("SELECT * FROM decisions").fetchone()
+    conn.close()
+    assert row["chatgpt_action"] == "BUY"
+    assert row["chatgpt_confidence"] == 0.81
+    assert row["chatgpt_ok"] == 1
+
+
+def test_missing_chatgpt_leaves_columns_empty(make_portfolio):
+    portfolio_obj, _ = make_portfolio([])
+    from agents.schemas import AgentDecision
+    from logic.decision_maker import FinalDecision
+    from utils.db import connect
+
+    portfolio_obj.record_decision(
+        cycle_id="c1", snapshot={"code": "005930"},
+        decisions={"claude": AgentDecision("claude", "HOLD", 0.5, 0, "", ok=True)},
+        final=FinalDecision(action="HOLD"),
+    )
+    conn = connect(portfolio_obj.db_path)
+    row = conn.execute("SELECT chatgpt_action, chatgpt_ok FROM decisions").fetchone()
+    conn.close()
+    assert row["chatgpt_action"] is None and row["chatgpt_ok"] == 0
+
+
+def test_old_database_gains_the_new_columns(tmp_path):
+    """ChatGPT 이전에 만든 DB 도 기록을 잃지 않고 이어 쓴다."""
+    import sqlite3
+
+    from utils.db import init_db
+
+    db = tmp_path / "old.db"
+    conn = sqlite3.connect(db)
+    conn.execute("""CREATE TABLE decisions (id INTEGER PRIMARY KEY, cycle_id TEXT,
+                    code TEXT, name TEXT, holding INTEGER, claude_action TEXT,
+                    gemini_action TEXT, final_action TEXT, created_at TEXT)""")
+    conn.execute("INSERT INTO decisions (cycle_id, code, claude_action) VALUES ('old','005930','BUY')")
+    conn.commit()
+    conn.close()
+
+    init_db(db)
+
+    conn = sqlite3.connect(db)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(decisions)")}
+    kept = conn.execute("SELECT code FROM decisions").fetchone()
+    conn.close()
+    assert "chatgpt_action" in cols, "옛 DB 에 컬럼이 추가되지 않았습니다"
+    assert kept[0] == "005930", "기존 기록이 사라졌습니다"

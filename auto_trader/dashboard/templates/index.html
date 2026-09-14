@@ -133,7 +133,7 @@
   {% if decisions %}
   <table>
     <thead>
-      <tr><th>시각</th><th>종목</th><th>Claude</th><th>Gemini</th><th>최종</th><th>비고</th></tr>
+      <tr><th>시각</th><th>종목</th><th>Claude</th><th>Gemini</th><th>ChatGPT</th><th>최종</th><th>비고</th></tr>
     </thead>
     <tbody>
       {% for d in decisions %}
@@ -147,6 +147,12 @@
         <td class="{{ 'dim' if not d.gemini_ok }}">
           {% if d.gemini_ok %}{{ d.gemini_action }} <span class="dim">{{ '%.2f'|format(d.gemini_confidence or 0) }}</span>
           {% else %}파싱 실패{% endif %}
+        </td>
+        <td class="{{ 'dim' if not d.chatgpt_ok }}">
+          {% if d.chatgpt_action %}
+            {% if d.chatgpt_ok %}{{ d.chatgpt_action }} <span class="dim">{{ '%.2f'|format(d.chatgpt_confidence or 0) }}</span>
+            {% else %}파싱 실패{% endif %}
+          {% else %}<span class="dim">미사용</span>{% endif %}
         </td>
         <td><b>{{ d.final_action }}</b>{% if d.final_weight_pct %} {{ d.final_weight_pct }}%{% endif %}</td>
         <td class="dim">

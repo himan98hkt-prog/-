@@ -294,6 +294,7 @@ class Portfolio:
         """AI 원문·파싱 결과·최종 결정을 전부 남긴다(사후 검증용)."""
         claude = decisions.get("claude")
         gemini = decisions.get("gemini")
+        chatgpt = decisions.get("chatgpt")
         conn = connect(self.db_path)
         try:
             cursor = conn.execute(
@@ -301,9 +302,10 @@ class Portfolio:
                    (cycle_id, code, name, holding,
                     claude_action, claude_confidence, claude_weight_pct, claude_reason, claude_ok, claude_raw,
                     gemini_action, gemini_confidence, gemini_weight_pct, gemini_reason, gemini_ok, gemini_raw,
+                    chatgpt_action, chatgpt_confidence, chatgpt_weight_pct, chatgpt_reason, chatgpt_ok, chatgpt_raw,
                     final_action, final_weight_pct, final_reason, forced_exit,
                     risk_passed, risk_reason, snapshot_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     cycle_id, snapshot.get("code", ""), snapshot.get("name", ""),
                     1 if snapshot.get("position", {}).get("holding") else 0,
@@ -313,6 +315,9 @@ class Portfolio:
                     getattr(gemini, "action", None), getattr(gemini, "confidence", None),
                     getattr(gemini, "weight_pct", None), getattr(gemini, "reason", None),
                     1 if getattr(gemini, "ok", False) else 0, getattr(gemini, "raw", None),
+                    getattr(chatgpt, "action", None), getattr(chatgpt, "confidence", None),
+                    getattr(chatgpt, "weight_pct", None), getattr(chatgpt, "reason", None),
+                    1 if getattr(chatgpt, "ok", False) else 0, getattr(chatgpt, "raw", None),
                     final.action, final.weight_pct, final.reason, forced_exit,
                     1 if risk_passed else 0, risk_reason,
                     json.dumps(snapshot, ensure_ascii=False), now_kst_iso(),
