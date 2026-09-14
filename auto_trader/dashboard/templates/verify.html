@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}키 점검 결과 · 자동매매{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>키 점검 결과<span class="sub">정상 {{ counts.ok }} · 실패 {{ counts.fail }} · 미입력 {{ counts.skip }}</span></h2>
+  <table>
+    <thead><tr><th style="width:38px"></th><th>항목</th><th>결과</th></tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr><td>{{ r.icon }}</td><td>{{ r.name }}</td><td class="{{ 'dim' if r.status == 'skip' }}">{{ r.detail }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if counts.blocking_fail == 0 and counts.required_missing == 0 %}
+<div class="notice">
+  <strong>준비가 끝났습니다</strong>
+  {% if counts.optional_fail %}
+  선택 항목 {{ counts.optional_fail }}개가 실패했지만 <b>진행에는 지장이 없습니다</b> —
+  해당 엔진만 빼고 나머지로 판단합니다.
+  {% endif %}
+  아래 <b>현황 보기</b>로 넘어가 <b>▶ 자동매매 시작</b>을 누르세요.
+</div>
+{% else %}
+<div class="notice danger">
+  <strong>아직 준비되지 않았습니다</strong>
+  필수 항목 {{ counts.blocking_fail + counts.required_missing }}개를 설정 화면에서 고친 뒤 다시 점검하세요.
+  {% if counts.optional_fail %}
+  (선택 항목 {{ counts.optional_fail }}개 실패는 무시해도 됩니다.)
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="control-row">
+  <a class="btn" href="{{ url_for('setup') }}">← 설정으로</a>
+  <a class="btn {{ 'primary' if counts.blocking_fail == 0 and counts.required_missing == 0 }}"
+     href="{{ url_for('index') }}">현황 보기 →</a>
+</div>
+
+{% endblock %}

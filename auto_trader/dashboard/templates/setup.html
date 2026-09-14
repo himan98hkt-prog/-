@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}설정 · 자동매매{% endblock %}
+{% block content %}
+
+{% if first_run %}
+<div class="notice">
+  <strong>키를 입력하면 시작할 수 있습니다</strong>
+  발급 절차는 <code>SETUP.md</code> 에 정리돼 있습니다. 저장하면 <code>{{ env_path }}</code> 에
+  기록되고, 아래 <b>키 점검</b>으로 각 키가 실제로 동작하는지 바로 확인할 수 있습니다.
+</div>
+{% endif %}
+
+{% if missing %}
+<div class="notice danger">
+  <strong>필수 항목 {{ missing|length }}개가 비어 있습니다</strong>
+  {{ missing|join(', ') }}
+</div>
+{% endif %}
+
+<div class="notice">
+  <strong>비밀값은 마스킹해서만 보여줍니다</strong>
+  이미 저장된 키는 <code>PSre******56</code> 처럼 표시됩니다. 그대로 두면 유지되고,
+  새 값을 입력하면 교체됩니다. 지우려면 <code>__CLEAR__</code> 를 입력하세요.
+</div>
+
+<form method="post" action="{{ url_for('setup') }}" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  {% for group in groups %}
+  <div class="card">
+    <h2>{{ group.title }}{% if group.description %}<span class="sub">{{ group.description }}</span>{% endif %}</h2>
+    <div class="grid-2">
+      {% for f in group.fields %}
+      {% set v = values.get(f.key, {}) %}
+      <div class="field {% if f.required %}required{% endif %}">
+        <label for="{{ f.key }}">{{ f.label }}</label>
+        {% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+
+        {% if f.choices %}
+          <select id="{{ f.key }}" name="{{ f.key }}">
+            {% for choice in f.choices %}
+              <option value="{{ choice }}" {% if v.value == choice %}selected{% endif %}>
+                {{ choice if choice else '(비움)' }}
+              </option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <input id="{{ f.key }}" name="{{ f.key }}"
+                 type="{{ 'password' if f.secret else 'text' }}"
+                 value="{{ v.value }}"
+                 placeholder="{{ v.masked if v.masked else f.placeholder }}"
+                 autocomplete="off" spellcheck="false">
+        {% endif %}
+
+        {% if f.secret and v.filled %}<div class="saved">저장됨 · {{ v.masked }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <button type="submit" class="btn primary">저장</button>
+</form>
+
+<div class="card" style="margin-top:16px">
+  <h2>키 점검<span class="sub">저장된 값으로 실제 호출을 한 번씩 해봅니다</span></h2>
+  <form method="post" action="{{ url_for('verify') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="btn">키 점검 실행</button>
+    <button type="submit" class="btn" name="telegram_test" value="1">점검 + 텔레그램 테스트 발송</button>
+  </form>
+  <div class="footnote">KIS 는 토큰 발급까지, Claude·Gemini 는 짧은 호출을 한 번씩 시도합니다(비용 몇 원 수준).</div>
+</div>
+
+{% endblock %}
