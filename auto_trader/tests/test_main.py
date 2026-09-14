@@ -521,3 +521,37 @@ def test_guard_job_excluded_from_next_cycle_display(bot):
     """'다음 사이클' 표시는 정규 사이클만 센다."""
     bot.build_scheduler()
     assert "guard" not in bot._next_run_at()
+
+
+# --------------------------------------------------------------------------- #
+# 텔레그램 리모컨 명령
+# --------------------------------------------------------------------------- #
+
+
+def test_stop_command_sets_the_flag(bot):
+    reply = bot._cmd_stop()
+    assert bot.stop_flag.is_set()
+    assert "긴급 정지" in reply and "손절" in reply
+
+
+def test_resume_command_clears_the_flag(bot):
+    bot.stop_flag.set("테스트")
+    reply = bot._cmd_resume()
+    assert not bot.stop_flag.is_set() and "해제" in reply
+
+
+def test_resume_when_already_running(bot):
+    assert "이미 가동 중" in bot._cmd_resume()
+
+
+def test_status_command_reports_the_mode(bot):
+    reply = bot._cmd_status()
+    assert "모의투자(VTS)" in reply or "실전(REAL)" in reply
+    assert "AI:" in reply
+
+
+def test_status_never_leaks_keys(bot):
+    reply = bot._cmd_status()
+    for secret in (bot.settings.env.kis_app_secret, bot.settings.env.anthropic_api_key):
+        if secret:
+            assert secret not in reply

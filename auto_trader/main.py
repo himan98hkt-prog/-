@@ -48,6 +48,7 @@ from trading.order_executor import OrderExecutor
 from utils.db import init_db, record_ai_usage, table_names, update_bot_state
 from utils.logger import get_logger, register_secret, setup_logging
 from utils.notifier import Notifier
+from utils.telegram_control import TelegramControl
 from utils.runtime import AlreadyRunningError, ProcessLock, StopFlag, pid_path, stop_flag_path
 
 KST = ZoneInfo("Asia/Seoul")
@@ -96,6 +97,7 @@ class TradingBot:
         self.lock = ProcessLock(pid_path(settings.paths["data"]))
         self.stop_flag = StopFlag(stop_flag_path(settings.paths["data"]))
         self._loss_limit_notified = False
+        self.remote: TelegramControl | None = None
 
     # -- 기동 -------------------------------------------------------------- #
 
@@ -132,7 +134,83 @@ class TradingBot:
             universe_size=len(self.universe), consecutive_failures=0, last_error="",
         )
         self.notifier.send_startup(len(self.universe))
+        self._start_remote_control()
         logger.info("=" * 60)
+
+    # -- 폰에서 쓰는 리모컨 -------------------------------------------------- #
+
+    def _start_remote_control(self) -> None:
+        """텔레그램 명령 대기. 실패해도 매매는 그대로 돈다."""
+        env = self.settings.env
+        if env.notifier != "telegram" or not (env.telegram_bot_token and env.telegram_chat_id):
+            return
+        try:
+            self.remote = TelegramControl(
+                env.telegram_bot_token, env.telegram_chat_id,
+                {
+                    "/상태": self._cmd_status, "/status": self._cmd_status,
+                    "/보유": self._cmd_positions, "/오늘": self._cmd_today,
+                    "/정지": self._cmd_stop, "/stop": self._cmd_stop,
+                    "/재개": self._cmd_resume, "/resume": self._cmd_resume,
+                    "/도움말": self._cmd_help, "/help": self._cmd_help,
+                    "/start": self._cmd_help,
+                },
+            )
+            self.remote.start()
+        except Exception:  # 리모컨이 안 떠도 매매가 멈출 이유는 없다
+            logger.exception("텔레그램 원격 조종을 시작하지 못했습니다")
+
+    def _cmd_help(self) -> str:
+        from utils.telegram_control import HELP
+        return HELP
+
+    def _cmd_status(self) -> str:
+        env = self.settings.env
+        mode = "실전(REAL)" if env.is_real else "모의투자(VTS)"
+        lines = [
+            f"{'🟥' if env.is_real else '🟦'} {mode}" + ("  · 주문 미전송(DRY_RUN)" if env.dry_run else ""),
+            f"상태: {'정지됨 — ' + self.stop_flag.reason() if self.stop_flag.is_set() else '가동 중'}",
+        ]
+        try:
+            state = self.portfolio.state
+            lines.append(f"당일 손익: {state.daily_pnl_pct:+.2f}%")
+            lines.append(f"보유: {state.position_count}종목 / 주문가능 {state.cash:,.0f}원")
+        except Exception:
+            lines.append("잔고 정보를 아직 읽지 못했습니다")
+        next_at = self._next_run_at()
+        lines.append(f"다음 사이클: {next_at[11:16] if len(next_at) > 15 else '미정'}")
+        lines.append(f"AI: {len(self.agents)}개 엔진")
+        return "\n".join(lines)
+
+    def _cmd_positions(self) -> str:
+        positions = list(self.portfolio.state.positions.values())
+        if not positions:
+            return "보유 종목이 없습니다."
+        lines = ["보유 종목"]
+        for position in positions:
+            lines.append(f"· {position.name} {position.qty}주 "
+                         f"{position.pnl_pct:+.2f}% ({position.pnl_amount:+,.0f}원)")
+        return "\n".join(lines)
+
+    def _cmd_today(self) -> str:
+        report = build_daily_report(self.settings.paths["db"])
+        return ("오늘 매매\n"
+                f"· 손익 {report['total_pnl_pct']:+.2f}%\n"
+                f"· 매수 {report['buy_count']}건 / 매도 {report['sell_count']}건\n"
+                f"· 보유 {report['position_count']}종목")
+
+    def _cmd_stop(self) -> str:
+        self.stop_flag.set("텔레그램에서 정지")
+        update_bot_state(self.settings.paths["db"], status="STOPPED")
+        return ("🛑 긴급 정지했습니다.\n"
+                "진행 중인 사이클을 마친 뒤 새 사이클이 돌지 않습니다.\n"
+                "손절·익절은 계속 동작합니다. 재개하려면 /재개")
+
+    def _cmd_resume(self) -> str:
+        if not self.stop_flag.is_set():
+            return "이미 가동 중입니다."
+        self.stop_flag.clear()
+        return "▶️ 정지를 해제했습니다. 다음 사이클부터 재개됩니다."
 
     # -- 잡 ---------------------------------------------------------------- #
 
@@ -431,6 +509,8 @@ class TradingBot:
         threading.Thread(target=self._graceful_shutdown, daemon=True).start()
 
     def _graceful_shutdown(self) -> None:
+        if getattr(self, "remote", None) is not None:
+            self.remote.stop()
         with self._cycle_lock:  # 진행 중 사이클이 끝날 때까지 대기
             pass
         update_bot_state(self.settings.paths["db"], status="STOPPED", next_cycle_at="")
