@@ -457,8 +457,8 @@ def test_running_bot_is_stopped_then_restarted(client, monkeypatch):
     assert calls == ["stop", "start"], "멈췄다가 새 코드로 다시 띄워야 합니다"
 
 
-def test_failed_update_restarts_the_bot_it_stopped(client, monkeypatch):
-    """업데이트가 실패했다고 매매를 멈춰둔 채로 끝내면 안 된다."""
+def test_failed_update_leaves_bot_stopped(client, monkeypatch):
+    """복구 상태를 확인하기 전에는 자동매매를 재개하지 않는다."""
     from dashboard import process
     from utils import updater
 
@@ -475,8 +475,8 @@ def test_failed_update_restarts_the_bot_it_stopped(client, monkeypatch):
     monkeypatch.setattr(updater, "apply_update", boom)
 
     page = post_with_csrf(client, "/control/update")
-    assert calls == ["stop", "start"]
-    assert "기존 버전으로 다시 시작" in page
+    assert calls == ["stop"]
+    assert "업데이트하지 못했습니다" in page
 
 
 def test_update_aborts_when_bot_cannot_be_stopped(client, monkeypatch):
@@ -577,7 +577,8 @@ def test_switch_to_real_updates_env(client, app, monkeypatch):
 
     page = post_with_csrf(client, "/control/mode_real")
     assert read_env(app.config["ENV_PATH"])["KIS_ENV"] == "REAL"
-    assert "실제 자금으로 주문이 나갑니다" in page
+    assert read_env(app.config["ENV_PATH"])["DRY_RUN"] == "true"
+    assert "주문은 차단" in page
 
 
 def test_switch_to_vts_updates_env(client, app, monkeypatch):
@@ -601,7 +602,7 @@ def test_switching_warns_about_the_account_number(client, app, monkeypatch):
     assert "계좌번호도" in post_with_csrf(client, "/control/mode_real")
 
 
-def test_switching_restarts_a_running_bot(client, app, monkeypatch):
+def test_switching_refuses_a_running_bot(client, app, monkeypatch):
     """예전 도메인을 물고 있는 프로세스가 남으면 다른 계좌로 주문이 나간다."""
     from dashboard import process
 
@@ -614,7 +615,9 @@ def test_switching_restarts_a_running_bot(client, app, monkeypatch):
         calls.append("start"), process.ControlResult(True, "시작"))[1])
 
     post_with_csrf(client, "/control/mode_real")
-    assert calls == ["stop", "start"]
+    assert calls == []
+    from dashboard.env_file import read_env
+    assert read_env(app.config['ENV_PATH'])['KIS_ENV'] == 'VTS'
 
 
 def test_switching_aborts_when_bot_will_not_stop(client, app, monkeypatch):
@@ -628,7 +631,7 @@ def test_switching_aborts_when_bot_will_not_stop(client, app, monkeypatch):
 
     page = post_with_csrf(client, "/control/mode_real")
     assert started == []
-    assert "예전 설정으로 계속 돌고 있습니다" in page
+    assert "자동매매를 종료" in page
 
 
 def test_switching_to_the_same_mode_is_a_no_op(client, app, monkeypatch):

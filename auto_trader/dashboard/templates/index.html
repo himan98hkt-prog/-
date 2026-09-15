@@ -255,7 +255,7 @@
       <form method="post" action="{{ url_for('control', action='mode_real') }}">
         <input type="hidden" name="csrf" value="{{ csrf_token() }}">
         <button class="btn danger" type="submit"
-                onclick="return confirm('실전으로 전환합니다.\n\n지금부터 실제 자금으로 주문이 나갑니다.\n실계좌 번호로도 바꿔야 합니다.\n\n정말 진행할까요?')">
+                onclick="return confirm('실전 환경으로 전환합니다. 주문 미전송(DRY_RUN)과 실전 주문 잠금이 적용됩니다.\n계좌별 별도 설치와 검증이 필요합니다.\n계속할까요?')">
           💰 실전으로 전환
         </button>
       </form>

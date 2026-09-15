@@ -31,7 +31,7 @@ VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 # 이 프로그램이 읽는 환경변수 전체 — .env 와 프로세스 환경 양쪽에서 온다.
 ALL_ENV_KEYS: tuple[str, ...] = (
-    "KIS_ENV", "DRY_RUN", "LOG_LEVEL",
+    "KIS_ENV", "DRY_RUN", "LOG_LEVEL", "LIVE_TRADING_ENABLED",
     "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_ACCOUNT_NO", "KIS_ACCOUNT_PRODUCT_CD",
     "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CLAUDE_TEMPERATURE", "CLAUDE_EFFORT",
     "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TEMPERATURE",
@@ -102,6 +102,7 @@ class EnvConfig:
     telegram_bot_token: str | None
     telegram_chat_id: str | None
     discord_webhook_url: str | None
+    live_trading_enabled: bool = False
 
     @property
     def base_url(self) -> str:
@@ -372,6 +373,8 @@ def _load_env(errors: list[str]) -> EnvConfig:
     return EnvConfig(
         kis_env=kis_env,  # type: ignore[arg-type]
         dry_run=dry_run,
+        live_trading_enabled=_parse_bool(_get_env("LIVE_TRADING_ENABLED", "false"), default=False,
+                                        key="LIVE_TRADING_ENABLED", errors=errors),
         log_level=log_level,
         kis_app_key=required["KIS_APP_KEY"] or "",
         kis_app_secret=required["KIS_APP_SECRET"] or "",

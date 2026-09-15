@@ -114,8 +114,8 @@ def test_help_mentions_that_orders_are_not_possible():
     assert "주문을 새로 낼 수 없습니다" in HELP
 
 
-def test_help_mentions_stop_loss_keeps_working():
-    assert "손절" in HELP and "정지 중에도" in HELP
+def test_help_explains_stop_blocks_exits_and_does_not_cancel_orders():
+    assert "손절" in HELP and "새 주문을 차단" in HELP and "이미 접수된 주문" in HELP
 
 
 # --- 폴링 ------------------------------------------------------------------- #

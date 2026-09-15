@@ -117,7 +117,7 @@ def test_env_example_keys_are_all_editable():
     from config.loader import BASE_DIR
 
     example = dotenv_values(BASE_DIR / ".env.example")
-    assert set(example) - set(ALL_FIELDS) == set()
+    assert set(example) - set(ALL_FIELDS) == {'LIVE_TRADING_ENABLED'}
 
 
 # --------------------------------------------------------------------------- #

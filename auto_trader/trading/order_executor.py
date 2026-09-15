@@ -6,6 +6,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from config.loader import Settings
@@ -15,6 +18,8 @@ from logic.risk_manager import RiskManager
 from trading.kis_api import KisApi, KisApiError
 from utils.logger import get_logger
 from utils.notifier import Notifier
+from utils.runtime import StopFlag, stop_flag_path
+from trading.market_calendar import is_market_open, load_holidays
 
 logger = get_logger("order_executor")
 
@@ -99,15 +104,41 @@ class OrderExecutor:
 
         if final.action == "HOLD":
             return ExecutionResult.skipped("관망")
-        if price <= 0:
+        if not math.isfinite(price) or price <= 0:
             return ExecutionResult.skipped("현재가를 알 수 없음")
+        if StopFlag(stop_flag_path(self.settings.paths['data'])).is_set():
+            return ExecutionResult.skipped("긴급 정지 — 모든 새 주문 차단")
+        if not self.settings.env.dry_run:
+            if self.settings.env.is_real and not self.settings.env.live_trading_enabled:
+                return ExecutionResult.skipped("실전 주문 잠금 — 검증 완료 후 명시적 승인 필요")
+            if self.settings.env.is_real and not any(
+                d.year == datetime.now(ZoneInfo('Asia/Seoul')).year for d in load_holidays()
+            ):
+                return ExecutionResult.skipped("해당 연도 휴장일 설정 없음 — 실전 주문 차단")
+            if not is_market_open():
+                return ExecutionResult.skipped("정규장 밖 — 주문 차단")
+            if self.portfolio.has_open_orders():
+                if self.notifier:
+                    self.notifier.send_alert("미확정 주문 — 자동주문 차단", ["증권사 체결내역과 주문 기록을 확인하세요. 손절 주문도 차단됩니다."], key="unresolved_orders")
+                return ExecutionResult.skipped("미확정 주문이 있어 추가 주문 차단 — 수동 확인 필요")
 
         if final.is_buy:
             side = "BUY"
+            if not self.settings.env.dry_run:
+                # Fail closed if the dedicated buying-power inquiry fails.
+                available = self.api.get_orderable_cash(code, self._order_price(price, side))
+                if not math.isfinite(available) or available < 0:
+                    return ExecutionResult.skipped("주문가능현금 응답 오류")
+                state.cash = min(state.cash, available)
             qty, amount = self.buy_quantity(final, price, state)
             if qty <= 0:
                 logger.info("%s 매수 수량 0주 — 스킵 (가용현금 %s원)", code, f"{state.cash:,.0f}")
                 return ExecutionResult.skipped(f"매수 수량 0주 (가용현금 {state.cash:,.0f}원)")
+            if not self.settings.env.dry_run:
+                # Recheck at submission time, not the stale cycle-start timestamp.
+                verdict = self.risk.check_buy(code, amount, state, now=datetime.now(ZoneInfo('Asia/Seoul')))
+                if not verdict:
+                    return ExecutionResult.skipped(verdict.reason)
         else:
             side = "SELL"
             qty = self.sell_quantity(final, state, code)
@@ -117,6 +148,10 @@ class OrderExecutor:
 
         order_type = self.settings.risk.order_type
         order_price = self._order_price(price, side)
+        if side == "BUY" and order_price > price:
+            qty = min(qty, int(amount // order_price))
+            if qty <= 0:
+                return ExecutionResult.skipped("지정가 기준 매수 수량 0주")
 
         if self.settings.env.dry_run:
             return self._record_dry_run(cycle_id, code, name, side, order_type, qty,
@@ -151,16 +186,23 @@ class OrderExecutor:
             dry_run=False, reason=reason,
         )
         try:
+            # Stop may have arrived while buying power or the DB was being read.
+            if StopFlag(stop_flag_path(self.settings.paths['data'])).is_set() or not is_market_open():
+                self.portfolio.update_order_fill(order_id, None, 'REJECTED')
+                return ExecutionResult.skipped('주문 직전 정지/장 종료 — 미전송')
             order = self.api.place_order(code, qty, side, price=order_price, order_type=order_type)
         except KisApiError as exc:
             # 주문 API는 재시도하지 않는다(중복 체결 위험). 대신 반드시 알린다 —
             # 특히 손절 매도가 조용히 실패하면 손실이 그대로 커진다.
             logger.error("%s %s 주문 실패: %s", code, side, exc)
-            self.portfolio.update_order_fill(order_id, None, "REJECTED")
+            # Only an explicit business rejection proves the broker did not accept.
+            outcome = "REJECTED" if exc.rt_cd and exc.rt_cd != "0" else "AMBIGUOUS"
+            self.portfolio.update_order_fill(order_id, None, outcome)
             self._notify_rejected(code, name, side, qty, reason, str(exc))
-            return ExecutionResult(ordered=False, side=side, qty=qty, price=current_price,
-                                   status="REJECTED", reason=reason, dry_run=False, error=str(exc))
+            return ExecutionResult(ordered=False, side=side, qty=0, price=0,
+                                   status=outcome, reason=reason, dry_run=False, error=str(exc))
 
+        self.portfolio.acknowledge_order(order_id, order.order_no)
         state, status = self.portfolio.wait_for_fill(order.order_no, order_type, code, qty)
         self.portfolio.update_order_fill(order_id, status, state)
 
@@ -170,7 +212,7 @@ class OrderExecutor:
                     code, side, state, filled_qty, qty, f"{filled_price:,.0f}")
 
         result = ExecutionResult(
-            ordered=True, side=side, qty=filled_qty or qty, price=filled_price,
+            ordered=True, side=side, qty=filled_qty, price=filled_price,
             status=state, order_no=order.order_no, reason=reason, dry_run=False,
         )
         self._notify_trade(code, name, result)
@@ -184,10 +226,10 @@ class OrderExecutor:
             return
         label = "매수" if side == "BUY" else "매도"
         stop_loss = "손절" in reason
-        title = "🚨 손절 매도 실패 — 즉시 확인 필요" if stop_loss else f"⚠️ {label} 주문 거부"
+        title = "🚨 손절 주문 오류 — 체결 여부 확인 필요" if stop_loss else f"⚠️ {label} 주문 오류 — 체결 여부 확인 필요"
         lines = [f"{name}({code}) {label} {qty:,}주", f"사유: {reason}", f"오류: {error}"]
         if stop_loss:
-            lines.append("포지션이 그대로 남아 있습니다. 증권사 앱에서 직접 확인하세요.")
+            lines.append("접수·체결 여부가 불명확할 수 있습니다. 증권사 앱에서 직접 확인하세요.")
         # dedupe 되면 반복 실패가 묻히므로 key 를 종목·구분별로 나눈다.
         self.notifier.send_alert(title, lines, key=f"order_rejected:{code}:{side}")
 

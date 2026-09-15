@@ -269,10 +269,6 @@ def _apply_update(base_dir, data_dir, log_dir, port: int = 8765) -> None:
         result = updater.apply_update(base_dir)
     except updater.UpdateError as exc:
         flash(f"업데이트하지 못했습니다: {exc}", "warn")
-        if was_running:  # 멈춰만 놓고 끝내면 매매가 죽는다
-            restarted = process.start(base_dir, data_dir, log_dir)
-            flash(f"기존 버전으로 다시 시작했습니다 — {restarted.message}",
-                  "ok" if restarted.ok else "warn")
         return
 
     lines = [f"최신 버전으로 업데이트했습니다 ({result.version.short} {result.version.message})",
@@ -280,13 +276,9 @@ def _apply_update(base_dir, data_dir, log_dir, port: int = 8765) -> None:
     lines.extend(result.notes)
 
     if result.deps_changed:
-        # 사용자가 창을 닫고 start.bat 을 다시 실행하게 만들지 않는다 — 여기서 깐다.
-        ok, message = updater.install_dependencies(base_dir)
-        lines.append(("· " if ok else "⚠️ ") + message)
-        if not ok:
-            lines.append("이 창을 닫고 start.bat 을 다시 실행하면 설치가 다시 시도됩니다.")
-            flash("\n".join(lines), "warn")
-            return
+        lines.append("의존성이 바뀌었습니다. 봇은 정지 상태입니다. 이 창을 닫고 start.bat / start.sh 실행 후 설정을 확인하세요.")
+        flash("\n".join(lines), "warn")
+        return
 
     if was_running:
         restarted = process.start(base_dir, data_dir, log_dir)
@@ -305,7 +297,10 @@ def _switch_mode(app, mode: str, data_dir, log_dir) -> None:
     돌고 있는 봇은 반드시 새 설정으로 다시 띄운다 — 예전 도메인·TR ID 를 물고
     있는 프로세스가 남으면 의도와 다른 계좌로 주문이 나간다.
     """
-    changed = write_env(app.config["ENV_PATH"], {"KIS_ENV": mode})
+    if process.is_running(data_dir):
+        flash("환경을 바꾸기 전에 자동매매를 종료하고 미체결 주문을 확인하세요.", "warn")
+        return
+    changed = write_env(app.config["ENV_PATH"], {"KIS_ENV": mode, "DRY_RUN": "true"})
     if not changed:
         flash(f"이미 {'모의투자' if mode == 'VTS' else '실전'} 입니다.", "ok")
         return
@@ -313,7 +308,7 @@ def _switch_mode(app, mode: str, data_dir, log_dir) -> None:
     label = "모의투자(VTS)" if mode == "VTS" else "실전(REAL)"
     lines = [f"{label} 로 전환했습니다."]
     if mode == "REAL":
-        lines.append("⚠️ 지금부터 실제 자금으로 주문이 나갑니다.")
+        lines.append("실전 환경이지만 DRY_RUN=true로 주문은 차단됩니다. 별도 실전 승인이 필요합니다.")
     else:
         lines.append("가짜 돈으로만 주문이 나갑니다.")
     lines.append("계좌번호도 해당 환경의 것으로 바꿔야 합니다 — 모의계좌와 실계좌는 번호가 다릅니다.")
