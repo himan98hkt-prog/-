@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import time, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -42,6 +43,9 @@ class StubApi:
         return OrderResult(order_no="ODNO1", org_no="91252", order_time="100000",
                            code=code, side=side, qty=qty, price=price, order_type=order_type)
 
+    def get_orderable_cash(self, code, price=0):
+        return 5_000_000
+
     def get_order_status(self, order_no, date=None):
         filled = self.fill_qty if self.fill_qty is not None else self.orders[-1]["qty"]
         ordered = self.orders[-1]["qty"]
@@ -61,6 +65,12 @@ class StubApi:
 @pytest.fixture
 def make_executor(settings_obj, tmp_path, monkeypatch):
     monkeypatch.setattr("logic.portfolio.time.sleep", lambda *_: None)
+    monkeypatch.setattr("trading.order_executor.is_market_open", lambda: True)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 8, 10, 0, tzinfo=ZoneInfo('Asia/Seoul'))
+    monkeypatch.setattr("trading.order_executor.datetime", Clock)
 
     def build(*, dry_run=True, api=None, order_type="market", notifier=None):
         object.__setattr__(settings_obj.env, "dry_run", dry_run)
@@ -189,7 +199,7 @@ def test_limit_sell_price_subtracts_slippage(make_executor):
 
 
 def test_order_failure_is_not_retried(make_executor):
-    executor, api, portfolio = make_executor(dry_run=False, api=StubApi(error=KisApiError("장운영시간 아님")))
+    executor, api, portfolio = make_executor(dry_run=False, api=StubApi(error=KisApiError("장운영시간 아님", rt_cd="1")))
     result = executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state(),
                               cycle_id="c1")
 
@@ -223,7 +233,8 @@ def test_filled_order_updates_db(make_executor):
 def test_unfilled_limit_order_is_canceled(make_executor):
     executor, api, _ = make_executor(dry_run=False, api=StubApi(fill_qty=0), order_type="limit")
     result = executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
-    assert result.status == "CANCELED"
+    assert result.status == "CANCEL_PENDING"
+    assert result.qty == 0
     assert api.cancels == ["ODNO1"], "지정가 미체결은 취소한다"
 
 
@@ -304,15 +315,15 @@ def test_failed_stop_loss_sell_is_flagged_as_urgent(make_executor):
     )
 
     title, lines, _ = notifier.alerts[0]
-    assert "손절 매도 실패" in title
-    assert any("그대로 남아" in line for line in lines), "포지션이 남았다는 사실을 알려야 합니다"
+    assert "손절 주문 오류" in title
+    assert any("불명확" in line for line in lines), "체결되지 않았다고 단정하면 안 됩니다"
 
 
 def test_buy_and_sell_rejections_do_not_dedupe_each_other(make_executor):
     """알림 dedupe 키가 같으면 두 번째 실패가 묻힌다."""
     notifier = RecordingNotifier()
     executor, _, _ = make_executor(dry_run=False, notifier=notifier,
-                                   api=StubApi(error=KisApiError("거부")))
+                                   api=StubApi(error=KisApiError("거부", rt_cd="1")))
 
     executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
     executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT,

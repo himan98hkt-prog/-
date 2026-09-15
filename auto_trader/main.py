@@ -203,8 +203,8 @@ class TradingBot:
         self.stop_flag.set("텔레그램에서 정지")
         update_bot_state(self.settings.paths["db"], status="STOPPED")
         return ("🛑 긴급 정지했습니다.\n"
-                "진행 중인 사이클을 마친 뒤 새 사이클이 돌지 않습니다.\n"
-                "손절·익절은 계속 동작합니다. 재개하려면 /재개")
+                "다음 주문부터 손절·익절을 포함한 모든 새 주문을 차단합니다.\n"
+                "이미 전송된 주문은 자동 취소되지 않습니다. 증권사 앱에서 확인하세요. 재개하려면 /재개")
 
     def _cmd_resume(self) -> str:
         if not self.stop_flag.is_set():
@@ -293,7 +293,7 @@ class TradingBot:
 
         results: list[dict[str, Any]] = []
         for code in codes:
-            if self._shutting_down:
+            if self._shutting_down or self.stop_flag.is_set():
                 logger.info("종료 요청 — 남은 종목 처리를 중단합니다")
                 break
             try:
@@ -428,6 +428,7 @@ class TradingBot:
 
     def _run_guard_body(self) -> list[dict[str, Any]]:
         now = datetime.now(KST)
+        self.portfolio.reconcile_open_orders(now=now)
         state = self.portfolio.sync(now=now)
         breached = [
             position for position in state.positions.values()

@@ -154,6 +154,8 @@ def write_env(path: Path | str, updates: dict[str, str]) -> list[str]:
         for meta in group.fields:
             lines.append(f"{meta.key}={current.get(meta.key, '')}")
     body = "\n".join(lines) + "\n"
+    # A browser settings save never arms live trading; approval is manual-only.
+    body += "LIVE_TRADING_ENABLED=false\n"
 
     target.parent.mkdir(parents=True, exist_ok=True)
     handle = tempfile.NamedTemporaryFile(

@@ -199,7 +199,7 @@ def test_wait_for_fill_polls_until_filled(make_portfolio):
 def test_unfilled_limit_order_is_canceled(make_portfolio):
     portfolio, api = make_portfolio([Balance()], statuses=[filled(0) for _ in range(6)])
     state, _ = portfolio.wait_for_fill("ODNO1", "limit", "005930", 10)
-    assert state == "CANCELED" and api.cancels == ["ODNO1"]
+    assert state == "CANCEL_PENDING" and api.cancels == ["ODNO1"]
 
 
 def test_unfilled_market_order_stays_pending(make_portfolio):
@@ -365,10 +365,10 @@ def test_reconcile_skips_already_settled(make_portfolio):
     assert api.statuses
 
 
-def test_reconcile_ignores_other_days(make_portfolio):
+def test_reconcile_recovers_other_days(make_portfolio):
     portfolio, _ = make_portfolio([Balance()], statuses=[filled()])
     _insert_order(portfolio, created="2026-09-01T09:35:00+09:00")
-    assert portfolio.reconcile_open_orders(now=NOW) == []
+    assert portfolio.reconcile_open_orders(now=NOW)[0]['after'] == 'FILLED'
 
 
 def test_reconcile_survives_lookup_failure(make_portfolio):

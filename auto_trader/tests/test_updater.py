@@ -104,6 +104,52 @@ def test_code_files_are_replaced(install, remote):
     assert (install / "utils" / "helper.py").read_text(encoding="utf-8") == "VALUE = 2\n"
 
 
+def test_config_loader_is_updated(install, remote):
+    remote['zip'] = _make_zip({**COMPLETE, 'config/loader.py': 'NEW = True\n'})
+    apply_update(install)
+    assert (install / 'config/loader.py').read_text() == 'NEW = True\n'
+
+
+def test_constraints_change_requires_dependency_installation(install, remote):
+    remote['zip'] = _make_zip({**COMPLETE, 'constraints.txt': 'requests==2.34.2\n'})
+    assert apply_update(install).deps_changed
+
+
+def test_download_is_pinned_to_recorded_sha(install, remote, monkeypatch):
+    original = updater._download_source
+    requested = []
+    def download(ref, workdir):
+        requested.append(ref)
+        result = original(ref, workdir)
+        remote['sha'] = 'c' * 40  # branch advances during download
+        return result
+    monkeypatch.setattr(updater, '_download_source', download)
+    apply_update(install)
+    assert requested == [SHA_NEW]
+    assert read_version(install).sha == SHA_NEW
+
+
+def test_mid_copy_failure_restores_old_code(install, remote, monkeypatch):
+    original = updater.shutil.copy2
+    def fail_incoming(source, target, *args, **kwargs):
+        if 'extracted' in str(source) and Path(source).name == 'main.py':
+            raise OSError('injected disk failure')
+        return original(source, target, *args, **kwargs)
+    monkeypatch.setattr(updater.shutil, 'copy2', fail_incoming)
+    with pytest.raises(UpdateError, match='복구 완료'):
+        apply_update(install)
+    assert (install / 'main.py').read_text() == "print('old')\n"
+    assert (install / 'utils/helper.py').read_text() == 'VALUE = 1\n'
+    assert (install / 'data/trader.db').read_bytes() == b'sqlite-bytes'
+
+
+def test_zip_path_traversal_rejected(install, remote):
+    remote['zip'] = _make_zip(COMPLETE, root='../../escape')
+    with pytest.raises(UpdateError, match='안전하지'):
+        apply_update(install)
+    assert (install / 'main.py').read_text() == "print('old')\n"
+
+
 def test_stale_module_is_removed(install, remote):
     """지워진 모듈이 남아 있으면 안 된다."""
     (install / "utils" / "gone.py").write_text("old\n", encoding="utf-8")

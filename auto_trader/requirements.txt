@@ -1,4 +1,5 @@
 # --- 증권사 / HTTP ---
+-c constraints.txt
 requests>=2.32.0
 
 # --- AI 판단 엔진 ---

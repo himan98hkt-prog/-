@@ -92,6 +92,8 @@ class RiskManager:
             )
 
         # 4. 당일 손실 한도
+        if portfolio.daily_buy_halted:
+            return RiskVerdict(False, '당일 손실 한도 도달 이력 — 다음 거래일까지 매수 잠금', 'daily_loss_limit_pct')
         if portfolio.daily_pnl_pct <= -self.risk.daily_loss_limit_pct:
             return RiskVerdict(
                 False,

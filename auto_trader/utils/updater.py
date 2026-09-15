@@ -31,11 +31,11 @@ logger = get_logger("updater")
 
 OWNER = "himan98hkt-prog"
 REPO = "-"
-BRANCH = "claude/program-development-n5frzn"
+BRANCH = "codex/trading-safety-hardening"
 SUBDIR = "auto_trader"  # 저장소 안에서 프로그램이 들어 있는 폴더
 
 API_COMMIT = "https://api.github.com/repos/{owner}/{repo}/commits/{branch}"
-ZIP_URL = "https://codeload.github.com/{owner}/{repo}/zip/refs/heads/{branch}"
+ZIP_URL = "https://codeload.github.com/{owner}/{repo}/zip/{branch}"
 
 TIMEOUT_SEC = 60
 VERSION_FILE = "version.json"
@@ -43,7 +43,8 @@ VERSION_FILE = "version.json"
 # 업데이트가 덮어쓸 대상. 여기 없는 것은 손대지 않는다.
 CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests", "trading", "utils")
 CODE_FILES = ("main.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
-              "update.bat", "install.bat", ".env.example", "README.md", "SETUP.md")
+              "update.bat", "install.bat", ".env.example", "README.md", "SETUP.md",
+              "config/loader.py", "config/__init__.py", "constraints.txt", "SAFETY_UPGRADE.md")
 
 # 사용자가 고쳤을 수 있는 설정 파일 — 덮어쓰지 않고 `.new` 로 남긴다.
 USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")
@@ -127,6 +128,11 @@ def _download_source(branch: str, workdir: Path) -> Path:
     extract_to = workdir / "extracted"
     try:
         with zipfile.ZipFile(archive) as bundle:
+            root = extract_to.resolve()
+            for member in bundle.infolist():
+                target = (root / member.filename).resolve()
+                if not target.is_relative_to(root) or (member.external_attr >> 16) & 0o170000 == 0o120000:
+                    raise UpdateError("안전하지 않은 ZIP 경로")
             bundle.extractall(extract_to)
     except zipfile.BadZipFile as exc:
         raise UpdateError("내려받은 파일이 손상됐습니다 — 다시 시도하세요") from exc
@@ -148,19 +154,23 @@ def _copy_tree(source: Path, target: Path) -> None:
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 
 
-def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
+def _apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
     """최신 코드를 받아 적용한다. 사용자 데이터는 그대로 둔다."""
     base = Path(base_dir)
     current = read_version(base)
     changed: list[str] = []
     notes: list[str] = []
+    latest = latest_version(branch=branch)
+    if len(latest.sha) != 40 or any(c not in '0123456789abcdef' for c in latest.sha):
+        raise UpdateError('유효한 커밋 SHA가 없습니다')
 
     with tempfile.TemporaryDirectory(prefix="auto-trader-update-") as tmp:
         workdir = Path(tmp)
-        source = _download_source(branch, workdir)
+        source = _download_source(latest.sha, workdir)
 
         old_requirements = (base / "requirements.txt").read_text(encoding="utf-8") \
             if (base / "requirements.txt").exists() else ""
+        old_constraints = (base / 'constraints.txt').read_text(encoding='utf-8') if (base / 'constraints.txt').exists() else ''
 
         for name in CODE_DIRS:
             incoming = source / name
@@ -171,6 +181,7 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
         for name in CODE_FILES:
             incoming = source / name
             if incoming.is_file():
+                (base / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(incoming, base / name)
                 changed.append(name)
 
@@ -190,18 +201,68 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
 
         new_requirements = (base / "requirements.txt").read_text(encoding="utf-8") \
             if (base / "requirements.txt").exists() else ""
+        new_constraints = (base / 'constraints.txt').read_text(encoding='utf-8') if (base / 'constraints.txt').exists() else ''
 
-    latest = latest_version(branch=branch)
     latest.updated_at = datetime.now(KST).isoformat(timespec="seconds")
     write_version(base, latest)
 
-    deps_changed = old_requirements != new_requirements
+    deps_changed = old_requirements != new_requirements or old_constraints != new_constraints
     if deps_changed:
         notes.append("의존성이 바뀌었습니다 — start.bat / start.sh 를 다시 실행하면 자동으로 설치됩니다")
 
     logger.info("업데이트 적용: %s → %s (%d개 항목)", current.short, latest.short, len(changed))
     return UpdateResult(updated=True, version=latest, changed=changed,
                         notes=notes, deps_changed=deps_changed)
+
+
+def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
+    """Keep a recovery copy; roll back caught errors. Not power-failure atomic.
+
+    A failed rollback retains its backup for manual recovery. Never restart trading
+    automatically after an exception. Runtime DB, secrets and logs are not copied.
+    """
+    from utils.runtime import ProcessLock, pid_path
+    base = Path(base_dir)
+    if ProcessLock(pid_path(base / 'data')).is_running():
+        raise UpdateError('자동매매 실행 중에는 업데이트할 수 없습니다')
+    backup = Path(tempfile.mkdtemp(prefix='auto-trader-recovery-'))
+    targets = (*CODE_DIRS, *CODE_FILES, *USER_EDITABLE,
+               *(p + '.new' for p in USER_EDITABLE), 'data/version.json')
+    existed = set()
+    try:
+        for name in targets:
+            src, dst = base / name, backup / name
+            if src.exists():
+                existed.add(name)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                if src.is_dir():
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+    except Exception as exc:
+        raise UpdateError(f'백업 실패 — 원본 미변경. 복구 위치: {backup}') from exc
+    try:
+        result = _apply_update(base, branch=branch)
+    except Exception as exc:
+        try:
+            for name in targets:
+                target = base / name
+                if target.is_dir():
+                    shutil.rmtree(target)
+                elif target.exists():
+                    target.unlink()
+                if name in existed:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if (backup / name).is_dir():
+                        shutil.copytree(backup / name, target)
+                    else:
+                        shutil.copy2(backup / name, target)
+        except Exception as rollback_exc:
+            raise UpdateError(f'자동 복구 실패. 재시작 금지. 백업: {backup}') from rollback_exc
+        shutil.rmtree(backup)
+        raise UpdateError(f'업데이트 실패 ({exc}) — 이전 코드 복구 완료. 자동매매는 수동 재시작하세요.') from exc
+    shutil.rmtree(backup)
+    return result
 
 
 # --- 의존성 설치 ------------------------------------------------------------ #

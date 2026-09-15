@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import math
 import sqlite3
 import time
 from dataclasses import dataclass, field
@@ -54,6 +56,7 @@ class PortfolioState:
     daily_pnl_pct: float = 0.0
     bought_today: set[str] = field(default_factory=set)
     synced_at: datetime | None = None
+    daily_buy_halted: bool = False
 
     @property
     def total_invested(self) -> float:
@@ -120,7 +123,27 @@ class Portfolio:
         self.api = api
         self.db_path = Path(db_path or settings.paths["db"])
         init_db(self.db_path)
+        self._bind_account()
         self.state = PortfolioState()
+
+    def _bind_account(self) -> None:
+        """Never reconcile a different account's records after a mode/account switch."""
+        env = self.settings.env
+        identity = hashlib.sha256(f'{env.kis_env}:{env.kis_account_no}:{env.kis_account_product_cd}'.encode()).hexdigest()
+        conn = connect(self.db_path)
+        try:
+            conn.execute('CREATE TABLE IF NOT EXISTS account_binding (id INTEGER PRIMARY KEY CHECK(id=1), fingerprint TEXT NOT NULL)')
+            conn.execute('CREATE TABLE IF NOT EXISTS daily_risk_halt (date TEXT PRIMARY KEY)')
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT fingerprint FROM account_binding WHERE id=1').fetchone()
+            if row and row['fingerprint'] != identity:
+                raise ValueError('다른 계좌/환경의 DB입니다. 기존 기록을 보존하고 별도 설치·DB를 사용하세요.')
+            if row is None and conn.execute('SELECT 1 FROM orders WHERE dry_run=0 LIMIT 1').fetchone():
+                raise ValueError('기존 주문 DB의 계좌를 확인할 수 없습니다. 백업 후 별도 DB로 시작하고 증권사 미체결을 확인하세요.')
+            conn.execute('INSERT OR IGNORE INTO account_binding VALUES (1, ?)', (identity,))
+            conn.execute('COMMIT')
+        finally:
+            conn.close()
 
     # -- 동기화 ------------------------------------------------------------ #
 
@@ -148,7 +171,20 @@ class Portfolio:
 
         cash = balance.orderable_cash  # 0 이면 실제로 주문 가능 금액이 없는 것이다
         equity = cash + sum(position.eval_amount for position in positions.values())
+        if balance.net_asset > 0 and math.isfinite(balance.net_asset):
+            equity = balance.net_asset
+        elif not self.settings.env.dry_run:
+            raise ValueError('유효한 KIS 순자산이 없습니다 — 손익 계산 및 주문 차단')
         daily_pnl_pct = self._update_daily_pnl(equity, positions, moment)
+        # Once tripped, remain stopped for the trading day, even after a rebound/restart.
+        conn = connect(self.db_path)
+        try:
+            today = moment.strftime('%Y-%m-%d')
+            if daily_pnl_pct <= -self.settings.risk.daily_loss_limit_pct:
+                conn.execute('INSERT OR IGNORE INTO daily_risk_halt VALUES (?)', (today,))
+            daily_buy_halted = conn.execute('SELECT 1 FROM daily_risk_halt WHERE date=?', (today,)).fetchone() is not None
+        finally:
+            conn.close()
 
         self.state = PortfolioState(
             positions=positions,
@@ -157,6 +193,7 @@ class Portfolio:
             daily_pnl_pct=daily_pnl_pct,
             bought_today=self._bought_today(moment),
             synced_at=moment,
+            daily_buy_halted=daily_buy_halted,
         )
         logger.info(
             "잔고 동기화: %d종목 / 주문가능 %s원 / 당일손익 %+.2f%%",
@@ -255,6 +292,12 @@ class Portfolio:
     ) -> int:
         conn = connect(self.db_path)
         try:
+            if status == 'SUBMITTING' and not dry_run:
+                conn.execute('BEGIN IMMEDIATE')
+                marks = ','.join('?' for _ in self.OPEN_STATUSES)
+                if conn.execute(f'SELECT 1 FROM orders WHERE dry_run=0 AND status IN ({marks}) LIMIT 1',
+                                self.OPEN_STATUSES).fetchone():
+                    raise ValueError('미확정 주문 존재 — 동시 주문 차단')
             stamp = now_kst_iso()
             cursor = conn.execute(
                 """INSERT INTO orders
@@ -264,7 +307,36 @@ class Portfolio:
                 (cycle_id, order_no, code, name, side, order_type, qty, price, status,
                  1 if dry_run else 0, self.settings.env.kis_env, reason, error, stamp, stamp),
             )
+            if conn.in_transaction:
+                conn.execute('COMMIT')
             return int(cursor.lastrowid or 0)
+        finally:
+            conn.close()
+
+    def acknowledge_order(self, order_id: int, order_no: str) -> None:
+        """Persist the broker identifier before polling or any further external I/O."""
+        if not order_no:
+            raise ValueError("Missing broker order number")
+        conn = connect(self.db_path)
+        try:
+            conn.execute("UPDATE orders SET order_no = ?, status = 'PENDING', updated_at = ? WHERE id = ?",
+                         (order_no, now_kst_iso(), order_id))
+        finally:
+            conn.close()
+
+    def has_open_orders(self) -> bool:
+        """Fail closed across restarts/dates, including requests with no broker ID.
+
+        Deliberately account-wide: unresolved exposure must not finance another order.
+        A dedicated database/account is required; legacy records also block submission.
+        """
+        conn = connect(self.db_path)
+        try:
+            marks = ','.join('?' for _ in self.OPEN_STATUSES)
+            return conn.execute(
+                f"SELECT 1 FROM orders WHERE dry_run = 0 AND status IN ({marks}) LIMIT 1",
+                self.OPEN_STATUSES,
+            ).fetchone() is not None
         finally:
             conn.close()
 
@@ -329,7 +401,19 @@ class Portfolio:
 
     # -- 미체결 정리 ------------------------------------------------------- #
 
-    OPEN_STATUSES = ("SUBMITTING", "PENDING", "PARTIAL", "UNKNOWN")
+    OPEN_STATUSES = ("SUBMITTING", "PENDING", "PARTIAL", "UNKNOWN", "AMBIGUOUS", "CANCEL_PENDING")
+
+    @staticmethod
+    def valid_status(status: OrderStatus | None, order_no: str, code: str, qty: int) -> bool:
+        if status is None:
+            return False
+        return (
+            status.order_no.lstrip('0') == order_no.lstrip('0') and status.code == code
+            and status.order_qty == qty and qty > 0
+            and 0 <= status.filled_qty <= qty and 0 <= status.remain_qty <= qty
+            and status.filled_qty + status.remain_qty <= qty
+            and (status.filled_qty == 0 or (math.isfinite(status.filled_price) and status.filled_price > 0))
+        )
 
     def reconcile_open_orders(self, *, now: datetime | None = None) -> list[dict[str, Any]]:
         """미체결로 남은 실주문을 체결조회로 다시 확인해 DB를 맞춘다.
@@ -345,11 +429,11 @@ class Portfolio:
         conn = connect(self.db_path)
         try:
             rows = conn.execute(
-                f"""SELECT id, order_no, code, name, side, qty, status FROM orders
+                f"""SELECT id, order_no, code, name, side, qty, status, created_at FROM orders
                     WHERE dry_run = 0 AND order_no != ''
                       AND status IN ({placeholders})
-                      AND substr(created_at, 1, 10) = ?""",
-                (*self.OPEN_STATUSES, today),
+                      AND kis_env = ?""",
+                (*self.OPEN_STATUSES, self.settings.env.kis_env),
             ).fetchall()
         finally:
             conn.close()
@@ -361,15 +445,17 @@ class Portfolio:
         updated: list[dict[str, Any]] = []
         for row in rows:
             try:
-                status = self.api.get_order_status(row["order_no"])
+                status = self.api.get_order_status(row["order_no"], date=row["created_at"][:10].replace('-', ''))
             except KisApiError as exc:
                 logger.warning("주문 %s 재확인 실패: %s", row["order_no"], exc)
                 continue
-            if status is None:
+            if not self.valid_status(status, row['order_no'], row['code'], row['qty']):
                 continue
 
             if status.is_filled:
                 state = "FILLED"
+            elif status.remain_qty == 0:
+                state = "CANCELED"
             elif status.is_partially_filled:
                 state = "PARTIAL"
             elif status.filled_qty == 0 and status.remain_qty == 0:
@@ -377,8 +463,8 @@ class Portfolio:
             else:
                 state = "PENDING"
 
+            self.update_order_fill(row["id"], status, state)
             if state != row["status"]:
-                self.update_order_fill(row["id"], status, state)
                 logger.info("주문 %s: %s → %s (%d/%d주)",
                             row["order_no"], row["status"], state,
                             status.filled_qty, status.order_qty)
@@ -404,7 +490,8 @@ class Portfolio:
             except KisApiError as exc:
                 logger.warning("체결 조회 실패(%s) — 재시도합니다", exc)
                 continue
-            if last is None:
+            if not self.valid_status(last, order_no, code, qty):
+                last = None
                 continue
             if last.is_filled:
                 return "FILLED", last
@@ -418,7 +505,15 @@ class Portfolio:
             try:
                 self.api.cancel_order(last.order_no, code, last.remain_qty or qty)
                 logger.info("지정가 미체결 취소: %s (%d주)", order_no, last.remain_qty)
-                return "CANCELED", last
+                # A cancel acknowledgement is NOT final execution confirmation.
+                confirmed = self.api.get_order_status(order_no)
+                if self.valid_status(confirmed, order_no, code, qty):
+                    if confirmed.is_filled:
+                        return "FILLED", confirmed
+                    if confirmed.remain_qty == 0:
+                        return "CANCELED", confirmed
+                    last = confirmed
+                return "CANCEL_PENDING", last
             except KisApiError as exc:
                 logger.error("주문 취소 실패(%s) — 미체결로 남깁니다", exc)
                 return "PENDING", last
