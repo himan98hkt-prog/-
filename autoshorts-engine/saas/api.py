@@ -573,6 +573,24 @@ def create_app(context: AppContext):
                 }
         raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
 
+    @app.post("/v1/jobs/{job_id}/retry", status_code=202)
+    def retry_job(job_id: str, user=Depends(principal)):
+        for workspace_id in user.memberships:
+            row = context.jobs.row(workspace_id, job_id)
+            if not row:
+                continue
+            _workspace(user, workspace_id, Role.EDITOR)
+            if row["status"] not in {"failed", "cancelled"}:
+                raise HTTPException(status_code=409, detail="실패하거나 취소된 작업만 다시 시작할 수 있습니다.")
+            spec = row["spec"] or {}
+            return submit_job(row["project_id"], {
+                "asset_id": row.get("asset_id"), "source": spec.get("source", ""),
+                "language": spec.get("language"), "clip_options": spec.get("clip_options"),
+                "render_options": spec.get("render_options"),
+                "idempotency_key": f"retry:{job_id}",
+            }, user)
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다.")
+
     @app.post("/v1/jobs/{job_id}/cancel")
     def cancel_job(job_id: str, user=Depends(principal)) -> dict[str, Any]:
         for workspace_id in user.memberships:

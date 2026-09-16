@@ -16,7 +16,7 @@ def main():
         page.locator("#account").wait_for(state="visible")
         page.get_by_label("새 프로젝트 이름").fill("통합 스튜디오 테스트")
         page.get_by_role("button", name="프로젝트 만들기", exact=True).click()
-        page.wait_for_function("document.querySelector('#projects').value !== ''")
+        page.wait_for_function("document.querySelector('#message').textContent.includes('프로젝트를 만들었습니다')")
         page.locator("#tab-factory").click()
         page.get_by_label("주제", exact=True).fill("우주에서 소리가 들리지 않는 이유")
         page.get_by_label("직접 작성한 대본").fill("소리는 전달할 매질이 필요합니다.")

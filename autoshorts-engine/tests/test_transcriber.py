@@ -142,6 +142,25 @@ class TestTranscribe:
         transcribe(audio, device="cpu", progress=lambda fraction, text: seen.append(fraction))
         assert seen == [0.5, 1.0]
 
+    def test_progress_arrives_before_model_iterator_finishes(self, audio, monkeypatch):
+        seen = []
+
+        def raw():
+            yield FakeSegment(0, 15, "첫 문장")
+            assert seen == [0.5], "progress must not wait for the full transcript"
+            yield FakeSegment(15, 30, "둘째 문장")
+
+        class StreamingModel:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def transcribe(self, *args, **kwargs):
+                return raw(), FakeInfo(duration=30.0)
+
+        monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=StreamingModel))
+        transcribe(audio, device="cpu", progress=lambda fraction, text: seen.append(fraction))
+        assert seen == [0.5, 1.0]
+
     def test_falls_back_to_cpu_when_gpu_init_fails(self, audio, monkeypatch):
         calls = install_fake_whisper(
             monkeypatch, [FakeSegment(0, 1, "가", [FakeWord(0, 1, "가")])], fail_on_cuda=True

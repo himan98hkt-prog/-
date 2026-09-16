@@ -140,6 +140,23 @@ def test_invalid_clip_limits_are_rejected_before_queue(alice, db, options):
     assert db.fetch_one("SELECT count(*) AS n FROM job_queue")["n"] == 0
 
 
+def test_retry_is_scoped_and_idempotent(alice, bob, db):
+    project = alice.create_project()
+    asset = alice.upload(project)
+    alice.confirm_rights(asset)
+    original = alice.submit(project, asset).json()["job"]["id"]
+    path = f"/v1/jobs/{original}/retry"
+    assert alice.post(path).status_code == 409
+    assert bob.post(path).status_code == 404
+    db.execute("UPDATE render_jobs SET status = 'failed' WHERE id = %s", (original,))
+    first = alice.post(path)
+    assert first.status_code == 202, first.text
+    assert first.json()["job"]["id"] != original
+    second = alice.post(path)
+    assert second.json()["deduplicated"] is True
+    assert second.json()["job"]["id"] == first.json()["job"]["id"]
+
+
 def test_health_reports_database(client):
     body = client.get("/health").json()
     assert body == {"status": "ok", "database": True}
