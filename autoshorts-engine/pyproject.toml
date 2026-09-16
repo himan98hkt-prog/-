@@ -42,3 +42,21 @@ packages = ["autoshorts"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+# ── 최소 품질 게이트 (Phase 0) ─────────────────────────────
+# 기존 구조를 바꾸지 않는 선에서 "되돌아가는 것"만 막는다.
+# 엄격한 타입 검사는 Phase 1 서비스 경계에서 contract 와 함께 도입한다.
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+exclude = [".venv", "benchmark-results", "work", "output"]
+
+[tool.ruff.lint]
+# F: 논리 오류(미사용/미정의 이름), E9: 구문 오류, I: import 정렬
+select = ["F", "E9", "I"]
+ignore = [
+  "F401",  # __init__ 재수출이 많아 모듈 단위로만 관리한다
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F811", "F841"]

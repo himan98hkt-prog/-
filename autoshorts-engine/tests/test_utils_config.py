@@ -7,7 +7,13 @@ import os
 import pytest
 
 from autoshorts.config import Settings, SubtitleStyle, load_dotenv
-from autoshorts.utils import CommandError, ToolNotFoundError, human_duration, sanitize_filename, which_or_raise
+from autoshorts.utils import (
+    CommandError,
+    ToolNotFoundError,
+    human_duration,
+    sanitize_filename,
+    which_or_raise,
+)
 
 
 class TestSanitizeFilename:
