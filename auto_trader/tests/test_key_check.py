@@ -258,7 +258,8 @@ def test_kis_timeout_is_retried(monkeypatch):
     auth = next(r for r in results if r.name == "KIS 인증")
     assert len(attempts) == module.KIS_TOKEN_ATTEMPTS, "한 번 실패로 포기하면 안 됩니다"
     assert attempts[0] >= 30, "타임아웃이 너무 짧으면 멀쩡한 키가 실패합니다"
-    assert "키 문제가 아니라" in auth.detail
+    assert "키 문제가 아닙니다" in auth.detail
+    assert "포트를 막고 있는지" in auth.detail, "타임아웃이면 방화벽을 의심하도록 안내해야 합니다"
 
 
 def test_kis_succeeds_on_a_later_attempt(monkeypatch):

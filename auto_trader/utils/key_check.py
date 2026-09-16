@@ -161,11 +161,16 @@ def check_kis(env: dict[str, str | None]) -> list[Result]:
                 time.sleep(2)
 
     if response is None:
+        timed_out = "timed out" in str(last_error).lower()
+        advice = (
+            "키 문제가 아닙니다. 확인할 것: "
+            f"① 백신·방화벽이 {base.rsplit(':', 1)[-1]}번 포트를 막고 있는지 "
+            "(증권사 API 는 비표준 포트를 씁니다 — 회사망·공유기에서 자주 막힙니다) "
+            "② 인터넷 연결 ③ 잠시 뒤 재시도"
+        ) if timed_out else "키 문제가 아니라 네트워크·증권사 서버 쪽입니다"
         results.append(Result(
             "KIS 인증", FAIL,
-            f"{KIS_TOKEN_ATTEMPTS}번 시도했지만 접속하지 못했습니다 ({last_error}). "
-            "키 문제가 아니라 네트워크·증권사 서버 쪽입니다 — "
-            "인터넷을 확인하고 잠시 뒤 다시 점검하세요",
+            f"{KIS_TOKEN_ATTEMPTS}번 시도했지만 접속하지 못했습니다 ({last_error}). {advice}",
         ))
         return results
 
