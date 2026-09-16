@@ -3,11 +3,14 @@ name: AutoShorts CI
 # 파이썬 파이프라인은 학원 관리노트(JS)와 독립이라 해당 경로가 바뀔 때만 돈다
 on:
   push:
-    branches: [main]
+    branches: [main, codex/shorts-studio-integration]
     paths: ['autoshorts-engine/**', '.github/workflows/autoshorts.yml']
   pull_request:
     paths: ['autoshorts-engine/**', '.github/workflows/autoshorts.yml']
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: autoshorts-${{ github.ref }}
@@ -18,6 +21,65 @@ defaults:
     working-directory: autoshorts-engine
 
 jobs:
+  postgres:
+    name: SaaS PostgreSQL integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: autoshorts_test
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: autoshorts_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autoshorts_test -d autoshorts_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Disposable service only. Never use repository or production DB secrets.
+      AUTOSHORTS_TEST_DATABASE_URL: postgresql://autoshorts_test:disposable_ci_password@127.0.0.1:5432/autoshorts_test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: pip install pytest fastapi httpx 'psycopg[binary]>=3.1' python-multipart python-dotenv google-auth
+      - name: Verify disposable database connection
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+          with psycopg.connect(os.environ['AUTOSHORTS_TEST_DATABASE_URL']) as conn:
+              assert conn.execute('SELECT current_database()').fetchone()[0] == 'autoshorts_test'
+          PY
+      - name: Test SaaS and storage boundaries
+        run: python -m pytest -o addopts='' -q tests/test_saas_*.py tests/test_storage_boundary.py --junitxml=postgres-results.xml
+      - name: Reject skipped database coverage
+        if: success()
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('postgres-results.xml').getroot()
+          cases = root.findall('.//testcase')
+          assert cases, 'No test cases collected'
+          skipped = [case.get('name') for case in cases if case.find('skipped') is not None]
+          assert not skipped, f'Skipped integration tests: {skipped}'
+          print(f'Validated {len(cases)} test cases with no skips')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: postgres-test-results
+          path: autoshorts-engine/postgres-results.xml
+          retention-days: 7
+
   test:
     name: 테스트 (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
