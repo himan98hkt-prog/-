@@ -104,3 +104,24 @@ def test_start_scripts_open_browser_after_server():
         text = (BASE_DIR / name).read_text(encoding="utf-8")
         assert "--open-browser" in text, f"{name} 이 --open-browser 를 넘기지 않습니다"
         assert "sleep 2" not in text, f"{name} 이 아직 sleep 으로 어림잡고 있습니다"
+
+
+def test_run_bot_bat_is_ascii_with_crlf():
+    """대시보드 없이 봇만 띄우는 길 — cmd 가 읽을 수 있어야 한다."""
+    raw = (BASE_DIR / "run_bot.bat").read_bytes()
+    assert all(byte < 128 for byte in raw), "run_bot.bat 에 비ASCII 문자가 있습니다"
+    assert raw.count(b"\n") == raw.count(b"\r\n")
+
+
+def test_run_bot_bat_pauses_on_failure():
+    text = (BASE_DIR / "run_bot.bat").read_text(encoding="ascii")
+    assert text.count("pause") >= 3, "실패해도 창이 닫히면 원인을 볼 수 없습니다"
+    assert "main.py" in text
+
+
+def test_update_and_boot_scripts_are_updatable():
+    """업데이트가 배치 파일 자신도 갱신해야 다음 업데이트가 이어진다."""
+    from utils.updater import CODE_FILES
+
+    for name in ("start.bat", "update.bat", "install.bat", "run_bot.bat", "boot.bat"):
+        assert name in CODE_FILES, f"{name} 이 업데이트 대상에서 빠졌습니다"

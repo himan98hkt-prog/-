@@ -43,7 +43,7 @@ VERSION_FILE = "version.json"
 # 업데이트가 덮어쓸 대상. 여기 없는 것은 손대지 않는다.
 CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests", "trading", "utils")
 CODE_FILES = ("main.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
-              "update.bat", "install.bat", ".env.example", "README.md", "SETUP.md")
+              "update.bat", "install.bat", "run_bot.bat", "boot.bat", ".env.example", "README.md", "SETUP.md")
 
 # 사용자가 고쳤을 수 있는 설정 파일 — 덮어쓰지 않고 `.new` 로 남긴다.
 USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")
@@ -191,7 +191,12 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
         new_requirements = (base / "requirements.txt").read_text(encoding="utf-8") \
             if (base / "requirements.txt").exists() else ""
 
-    latest = latest_version(branch=branch)
+    # 버전 기록을 위해 네트워크를 한 번 더 부르지 않는다. 여기서 실패하면
+    # 코드는 새것인데 화면에는 옛 버전이 남아, 업데이트가 안 된 것처럼 보인다.
+    try:
+        latest = latest_version(branch=branch)
+    except UpdateError:
+        latest = Version(sha="", message="(버전 정보를 읽지 못했습니다 — 코드는 갱신됨)")
     latest.updated_at = datetime.now(KST).isoformat(timespec="seconds")
     write_version(base, latest)
 

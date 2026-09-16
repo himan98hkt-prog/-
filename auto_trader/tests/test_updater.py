@@ -209,3 +209,21 @@ def test_check_treats_fresh_install_as_updatable(install, remote):
 def test_broken_version_file_is_tolerated(install):
     (install / "data" / "version.json").write_text("{깨진 json", encoding="utf-8")
     assert read_version(install).sha == ""
+
+
+def test_version_is_recorded_even_if_the_lookup_fails(install, remote, monkeypatch):
+    """코드는 새것인데 화면에 옛 버전이 남으면 '업데이트가 안 됐다' 로 오해한다."""
+    original = updater._http_get  # 픽스처가 이미 대역으로 바꿔 둔 것
+
+    def flaky(url, *, as_json=False):
+        # apply_update 는 마지막에 버전 조회만 as_json 으로 한다.
+        if as_json:
+            raise UpdateError("인터넷 연결을 확인하세요")
+        return original(url, as_json=as_json)
+
+    monkeypatch.setattr(updater, "_http_get", flaky)
+
+    result = apply_update(install)
+    assert (install / "main.py").read_text(encoding="utf-8") == "print('new')\n"
+    assert read_version(install).updated_at, "언제 갱신했는지는 남아야 합니다"
+    assert "코드는 갱신됨" in result.version.message
