@@ -25,12 +25,16 @@ dependencies = [
 [project.optional-dependencies]
 # 업로드는 OAuth 2.0 인증이 필요해 공식 클라이언트를 쓴다.
 upload = ["google-api-python-client>=2.100.0", "google-auth-oauthlib>=1.2.0"]
+# Phase 1 엔진 서비스 경계의 HTTP API. 엔진 자체에는 필요 없다.
+api = ["fastapi>=0.110", "uvicorn>=0.27"]
 ui = ["gradio>=4.44"]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]
 all = [
   "google-api-python-client>=2.100.0",
   "google-auth-oauthlib>=1.2.0",
   "gradio>=4.44",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
 ]
 
 [project.scripts]
