@@ -21,6 +21,7 @@ logger = get_logger("runtime")
 
 STOP_FILENAME = "STOP"
 PID_FILENAME = "trader.pid"
+SHUTDOWN_FILENAME = "SHUTDOWN"
 PID_WRITE_GRACE_SEC = 1.0  # 락 파일 생성 직후 PID 가 적히기를 기다리는 시간
 
 
@@ -182,3 +183,13 @@ def stop_flag_path(data_dir: Path | str) -> Path:
 
 def pid_path(data_dir: Path | str) -> Path:
     return Path(data_dir) / PID_FILENAME
+
+
+def shutdown_path(data_dir: Path | str) -> Path:
+    """종료 요청 파일.
+
+    Windows 에는 SIGTERM 이 없고, 콘솔 없이(CREATE_NO_WINDOW) 띄운 프로세스에는
+    Ctrl+Break 도 보낼 수 없다(WinError 87). 그래서 신호 대신 파일로 부탁한다 —
+    어느 운영체제에서나 똑같이 동작하고, 콘솔이 있든 없든 상관없다.
+    """
+    return Path(data_dir) / SHUTDOWN_FILENAME

@@ -589,3 +589,45 @@ def test_cycle_skips_when_balance_is_unreadable(bot, monkeypatch):
 
     assert bot.run_cycle(label="테스트") == []
     assert not called, "잔고를 모르는 채 종목을 처리했습니다"
+
+
+def test_bot_shuts_down_on_request_file(bot, monkeypatch, tmp_path):
+    """대시보드의 '봇 종료' 는 신호가 아니라 파일로 부탁한다."""
+    import time as _time
+
+    from utils.runtime import shutdown_path
+
+    monkeypatch.setattr(main_module, "SHUTDOWN_POLL_SEC", 0.01)
+    done: list[str] = []
+    monkeypatch.setattr(bot, "_graceful_shutdown", lambda: done.append("stopped"))
+
+    bot._watch_shutdown_request()
+    request = shutdown_path(bot.settings.paths["data"])
+    request.parent.mkdir(parents=True, exist_ok=True)
+    request.write_text("dashboard", encoding="utf-8")
+
+    deadline = _time.monotonic() + 3
+    while _time.monotonic() < deadline and not done:
+        _time.sleep(0.01)
+
+    assert done == ["stopped"], "종료 요청 파일을 보고도 내려가지 않았습니다"
+    assert not request.exists(), "처리한 요청 파일은 지워야 합니다"
+
+
+def test_stale_request_file_does_not_kill_a_fresh_start(bot, monkeypatch):
+    """지난번에 남은 요청으로 방금 뜬 봇이 죽으면 안 된다."""
+    import time as _time
+
+    from utils.runtime import shutdown_path
+
+    monkeypatch.setattr(main_module, "SHUTDOWN_POLL_SEC", 0.01)
+    request = shutdown_path(bot.settings.paths["data"])
+    request.parent.mkdir(parents=True, exist_ok=True)
+    request.write_text("stale", encoding="utf-8")
+
+    done: list[str] = []
+    monkeypatch.setattr(bot, "_graceful_shutdown", lambda: done.append("stopped"))
+
+    bot._watch_shutdown_request()
+    _time.sleep(0.2)
+    assert not done, "묵은 요청 파일을 보고 내려갔습니다"

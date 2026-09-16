@@ -165,35 +165,54 @@ def test_no_error_line_returns_empty():
 # --------------------------------------------------------------------------- #
 
 
-def test_windows_sends_ctrl_break_not_a_hard_kill(monkeypatch):
-    """Windows 의 os.kill(SIGTERM) 은 즉시 강제 종료다 — 사이클을 못 마친다."""
+def test_windows_asks_by_file_not_by_signal(monkeypatch, tmp_path):
+    """Ctrl+Break 는 콘솔 없이 띄운 프로세스에 닿지 않는다 (WinError 87)."""
     import os as _os
-    import signal as _signal
 
     from dashboard import process
+    from utils.runtime import shutdown_path
 
-    # 리눅스 파이썬에는 이 상수가 없다 — Windows 인 척하려면 같이 채워야 한다.
-    monkeypatch.setattr(_signal, "CTRL_BREAK_EVENT", 1, raising=False)
     monkeypatch.setattr(process, "IS_WINDOWS", True)
     sent = []
     monkeypatch.setattr(_os, "kill", lambda pid, sig: sent.append((pid, sig)))
 
-    process._ask_to_stop(4321)
-    assert sent == [(4321, _signal.CTRL_BREAK_EVENT)]
+    process._ask_to_stop(4321, tmp_path)
+    assert not sent, "Windows 에서는 신호를 보내면 안 됩니다"
+    assert shutdown_path(tmp_path).exists(), "종료 요청 파일이 남아야 합니다"
 
 
-def test_posix_sends_sigterm(monkeypatch):
+def test_posix_also_leaves_the_request_file(monkeypatch, tmp_path):
+    """신호는 깨우기용일 뿐, 실제 근거는 파일이다."""
     import os as _os
     import signal as _signal
 
     from dashboard import process
+    from utils.runtime import shutdown_path
 
     monkeypatch.setattr(process, "IS_WINDOWS", False)
     sent = []
     monkeypatch.setattr(_os, "kill", lambda pid, sig: sent.append((pid, sig)))
 
-    process._ask_to_stop(4321)
+    process._ask_to_stop(4321, tmp_path)
     assert sent == [(4321, _signal.SIGTERM)]
+    assert shutdown_path(tmp_path).exists()
+
+
+def test_start_clears_a_stale_shutdown_request(monkeypatch, tmp_path):
+    """묵은 요청이 남아 있으면 새로 띄운 봇이 뜨자마자 내려간다."""
+    from dashboard import process
+    from utils.runtime import shutdown_path
+
+    request = shutdown_path(tmp_path)
+    request.parent.mkdir(parents=True, exist_ok=True)
+    request.write_text("stale", encoding="utf-8")
+
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(process.subprocess, "Popen",
+                        lambda *a, **kw: (_ for _ in ()).throw(OSError("기동 안 함")))
+
+    process.start(tmp_path, tmp_path, tmp_path / "logs")
+    assert not request.exists(), "묵은 종료 요청을 치우지 않았습니다"
 
 
 def test_windows_gives_the_bot_its_own_console(monkeypatch, tmp_path):

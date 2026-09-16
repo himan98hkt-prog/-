@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from utils.logger import get_logger
-from utils.runtime import IS_WINDOWS, ProcessLock, pid_path
+from utils.runtime import IS_WINDOWS, ProcessLock, pid_path, shutdown_path
 
 logger = get_logger("dashboard.process")
 
@@ -45,6 +45,7 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
     if is_running(data_dir):
         return ControlResult(False, "이미 실행 중입니다.")
 
+    shutdown_path(data_dir).unlink(missing_ok=True)  # 묵은 종료 요청이 남으면 뜨자마자 죽는다
     log_file = _stdout_log(log_dir)
     creation: dict = {}
     if IS_WINDOWS:
@@ -117,18 +118,26 @@ def _first_error(tail: str) -> str:
     return ""
 
 
-def _ask_to_stop(pid: int) -> None:
+def _ask_to_stop(pid: int, data_dir: Path) -> None:
     """진행 중 사이클을 마치고 스스로 내려가도록 부탁한다.
 
-    Windows 에는 SIGTERM 이 없다. 파이썬의 os.kill 은 TerminateProcess 로
-    번역되어 **즉시 강제 종료**되는데, 그러면 미체결 주문 정리나 알림 없이
-    끊긴다. 그래서 Ctrl+Break 를 보내 정상 종료 절차를 타게 한다
-    (매매 프로세스를 CREATE_NEW_PROCESS_GROUP 으로 띄웠기에 이 그룹에만 간다).
+    **신호로는 안 된다.** Windows 에는 SIGTERM 이 없고, os.kill 은
+    TerminateProcess 로 번역되어 미체결 주문 정리도 알림도 없이 끊어버린다.
+    Ctrl+Break 는 콘솔 제어 이벤트라, 보이지 않는 콘솔로 띄운(CREATE_NO_WINDOW)
+    매매 프로세스에는 아예 닿지 않는다 — WinError 87 이 그 얘기다.
+
+    그래서 파일로 부탁한다. 매매 프로세스가 이 파일을 보고 스스로 내려간다.
+    어느 운영체제에서나 같은 길이고, 콘솔이 있든 없든 상관없다.
     """
-    if IS_WINDOWS:
-        os.kill(pid, signal.CTRL_BREAK_EVENT)  # type: ignore[attr-defined]
-        return
-    os.kill(pid, signal.SIGTERM)
+    request = shutdown_path(data_dir)
+    request.parent.mkdir(parents=True, exist_ok=True)
+    request.write_text("dashboard", encoding="utf-8")
+    if not IS_WINDOWS:
+        # 파일을 눈치채기 전에 깨워 준다. 실패해도 파일이 있으니 곧 내려간다.
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
 
 
 def stop(data_dir: Path) -> ControlResult:
@@ -139,9 +148,9 @@ def stop(data_dir: Path) -> ControlResult:
         return ControlResult(False, "실행 중이 아닙니다.")
 
     try:
-        _ask_to_stop(pid)
-    except (ProcessLookupError, PermissionError, OSError) as exc:
-        return ControlResult(False, f"종료 신호를 보내지 못했습니다: {exc}")
+        _ask_to_stop(pid, data_dir)
+    except OSError as exc:
+        return ControlResult(False, f"종료 요청을 남기지 못했습니다: {exc}")
 
     logger.info("종료 신호 전송 (PID %d) — 진행 중 사이클 완료 대기", pid)
     deadline = time.monotonic() + STOP_TIMEOUT_SEC
@@ -152,7 +161,9 @@ def stop(data_dir: Path) -> ControlResult:
 
     return ControlResult(
         False,
-        f"{STOP_TIMEOUT_SEC}초 안에 종료되지 않았습니다. 진행 중인 사이클이 길어지는 중일 수 있습니다.",
+        f"{STOP_TIMEOUT_SEC}초 안에 종료되지 않았습니다.\n"
+        "진행 중인 사이클이 길어지는 중일 수 있습니다 — 잠시 뒤 다시 눌러 보세요.\n"
+        f"계속 이러면 작업 관리자에서 PID {pid} 번 python 을 끝내면 됩니다.",
     )
 
 

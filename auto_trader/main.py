@@ -20,6 +20,7 @@ import argparse
 import os
 import signal
 import sys
+import time
 import threading
 from datetime import datetime, time as dt_time, timedelta
 from types import FrameType
@@ -49,13 +50,15 @@ from utils.db import init_db, record_ai_usage, table_names, update_bot_state
 from utils.logger import get_logger, register_secret, setup_logging
 from utils.notifier import Notifier
 from utils.telegram_control import TelegramControl
-from utils.runtime import AlreadyRunningError, ProcessLock, StopFlag, pid_path, stop_flag_path
+from utils.runtime import (AlreadyRunningError, ProcessLock, StopFlag, pid_path,
+                           shutdown_path, stop_flag_path)
 
 KST = ZoneInfo("Asia/Seoul")
 logger = get_logger("main")
 
 CYCLE_END = dt_time(15, 0)  # 마지막 정규 사이클 시각 상한
 MAX_CONSECUTIVE_FAILURES = 3  # 사이클 전체가 이만큼 연속 실패하면 중단
+SHUTDOWN_POLL_SEC = 1.0  # 종료 요청 파일을 확인하는 주기
 
 
 def cycle_times(first: dt_time, interval_min: int, end: dt_time = CYCLE_END) -> list[dt_time]:
@@ -505,6 +508,28 @@ class TradingBot:
         if self.scheduler is not None:
             self.scheduler.shutdown(wait=False)
 
+    def _watch_shutdown_request(self) -> None:
+        """종료 요청 파일을 지켜본다.
+
+        Windows 에는 SIGTERM 이 없고, 콘솔 없이 띄운 프로세스에는 Ctrl+Break 도
+        닿지 않는다(WinError 87). 대시보드의 '봇 종료' 가 신호 대신 파일을
+        남기므로, 그걸 보고 신호를 받은 것과 똑같은 절차로 내려간다.
+        """
+        path = shutdown_path(self.settings.paths["data"])
+        path.unlink(missing_ok=True)  # 지난번에 남은 요청으로 곧장 죽지 않게
+
+        def watch() -> None:
+            while not self._shutting_down:
+                if path.exists():
+                    path.unlink(missing_ok=True)
+                    logger.info("종료 요청을 받았습니다 — 진행 중 사이클을 마치고 종료합니다")
+                    self._shutting_down = True
+                    self._graceful_shutdown()
+                    return
+                time.sleep(SHUTDOWN_POLL_SEC)
+
+        threading.Thread(target=watch, daemon=True, name="shutdown-watch").start()
+
     def handle_signal(self, signum: int, frame: FrameType | None) -> None:
         name = signal.Signals(signum).name
         if self._shutting_down:
@@ -578,6 +603,7 @@ class TradingBot:
         for job in scheduler.get_jobs():
             logger.info("잡 등록: %-24s %s", job.name, job.trigger)
 
+        self._watch_shutdown_request()
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
         # Windows 는 SIGTERM 대신 Ctrl+Break 로 정상 종료를 요청받는다.
