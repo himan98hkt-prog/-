@@ -33,8 +33,9 @@ jobs:
         run: docker compose -f compose.preview.yml up --build -d
       - name: Check API and console
         run: |
-          curl --retry 30 --retry-delay 2 --retry-connrefused --fail http://127.0.0.1:8765/health
+          curl --retry 30 --retry-delay 2 --retry-all-errors --max-time 5 --fail http://127.0.0.1:8765/health
           curl --fail http://127.0.0.1:8765/ | grep 'id="downloads"'
+          docker compose -f compose.preview.yml exec -T worker python -c 'from pathlib import Path; p = Path.home() / ".cache" / "write-check"; p.write_text("ok"); p.unlink()'
       - name: Save container logs
         if: always()
         run: docker compose -f compose.preview.yml logs --no-color > preview-containers.log

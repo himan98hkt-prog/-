@@ -7,6 +7,8 @@ COPY autoshorts ./autoshorts
 COPY saas ./saas
 COPY apps ./apps
 RUN pip install --no-cache-dir '.[saas]'
-RUN useradd --create-home --uid 10001 preview && mkdir -p /data && chown preview:preview /data
+RUN useradd --create-home --uid 10001 preview \
+    && mkdir -p /data /home/preview/.cache \
+    && chown preview:preview /data /home/preview/.cache
 USER preview
 CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
