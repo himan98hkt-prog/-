@@ -61,11 +61,9 @@ import os  # noqa: E402
 
 
 def _test_dsn() -> str:
-    return (
-        os.environ.get("AUTOSHORTS_TEST_DATABASE_URL")
-        or os.environ.get("AUTOSHORTS_DATABASE_URL")
-        or ""
-    )
+    # These fixtures DROP SCHEMA and TRUNCATE tables. Never fall back to the
+    # application's database; callers must explicitly supply a disposable DB.
+    return os.environ.get("AUTOSHORTS_TEST_DATABASE_URL") or ""
 
 
 @pytest.fixture(scope="session")

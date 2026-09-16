@@ -80,7 +80,7 @@ class LocalStorage(Storage):
         if not cleaned:
             raise StorageError("빈 키는 쓸 수 없습니다.")
         candidate = (self.root / cleaned).resolve()
-        if not str(candidate).startswith(str(self.root)):
+        if not candidate.is_relative_to(self.root):
             raise StorageError(f"저장소 루트를 벗어나는 키입니다: {key!r}")
         return candidate
 
