@@ -197,3 +197,36 @@ def test_fields_without_defaults_stay_empty(env_path):
     write_env(env_path, {"KIS_ACCOUNT_NO": "50123456"})
     write_env(env_path, {"KIS_ACCOUNT_NO": "__CLEAR__"})
     assert read_env(env_path)["KIS_ACCOUNT_NO"] == ""
+
+
+def test_remembers_account_per_environment(tmp_path):
+    """모의계좌와 실계좌는 번호가 다르다 — 환경별로 따로 기억해야 한다."""
+    from dashboard.env_file import read_env, remember_account, switch_env, write_env
+
+    path = tmp_path / ".env"
+    write_env(path, {"KIS_ENV": "REAL", "KIS_ACCOUNT_NO": "12345678"})
+    remember_account(path)
+    assert read_env(path)["KIS_ACCOUNT_NO_REAL"] == "12345678"
+
+    # 모의투자로 전환 — 아직 모의계좌 번호를 모른다
+    assert switch_env(path, "VTS") == ""
+    write_env(path, {"KIS_ENV": "VTS", "KIS_ACCOUNT_NO": "50204881"})
+    remember_account(path)
+
+    # 실전으로 되돌아가면 실계좌 번호가 저절로 돌아와야 한다
+    assert switch_env(path, "REAL") == "12345678"
+    assert read_env(path)["KIS_ACCOUNT_NO"] == "12345678"
+
+    # 다시 모의투자로 — 이번엔 기억하고 있다
+    assert switch_env(path, "VTS") == "50204881"
+    assert read_env(path)["KIS_ACCOUNT_NO"] == "50204881"
+
+
+def test_remembered_keys_survive_a_plain_save(tmp_path):
+    """화면 항목이 아니라서 저장할 때 날아가면 안 된다."""
+    from dashboard.env_file import read_env, write_env
+
+    path = tmp_path / ".env"
+    write_env(path, {"KIS_ENV": "VTS", "KIS_ACCOUNT_NO_VTS": "50204881"})
+    write_env(path, {"LOG_LEVEL": "DEBUG"})
+    assert read_env(path)["KIS_ACCOUNT_NO_VTS"] == "50204881"

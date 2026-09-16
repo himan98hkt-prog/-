@@ -210,7 +210,8 @@ def test_post_without_csrf_token_is_rejected(tmp_path):
     init_db(app.config["DB_PATH"])
 
     response = app.test_client().post("/control/stop")
-    assert response.status_code == 400
+    # 요청을 수행하지 않는 것이 핵심이다. 오류 화면 대신 원래 화면으로 돌려보낸다.
+    assert response.status_code == 302
     assert not (tmp_path / "STOP").exists(), "토큰 없이 매매를 멈출 수 없어야 합니다"
 
 
@@ -231,8 +232,8 @@ def test_post_with_wrong_csrf_token_is_rejected(tmp_path):
     client = app.test_client()
     client.get("/setup")  # 세션에 토큰 생성
 
-    assert client.post("/control/stop", data={"csrf": "위조된-토큰"}).status_code == 400
-    assert not (tmp_path / "STOP").exists()
+    assert client.post("/control/stop", data={"csrf": "위조된-토큰"}).status_code == 302
+    assert not (tmp_path / "STOP").exists(), "위조된 토큰으로 매매를 멈출 수 없어야 합니다"
 
 
 def test_post_with_valid_csrf_token_succeeds(tmp_path):
@@ -594,13 +595,34 @@ def test_switch_to_vts_updates_env(client, app, monkeypatch):
     assert "가짜 돈" in page
 
 
-def test_switching_warns_about_the_account_number(client, app, monkeypatch):
+def test_switching_warns_when_the_account_is_unknown(client, app, monkeypatch):
     """모의계좌와 실계좌는 번호가 다르다 — 안 바꾸면 인증부터 실패한다."""
     from dashboard import process
 
     _write_env(app, KIS_ENV="VTS")
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
-    assert "계좌번호도" in post_with_csrf(client, "/control/mode_real")
+    assert "계좌번호를 아직 모릅니다" in post_with_csrf(client, "/control/mode_real")
+
+
+def test_switching_swaps_a_remembered_account(client, app, monkeypatch):
+    """한 번 넣어 둔 번호는 환경을 오갈 때 저절로 따라와야 한다."""
+    from dashboard import process
+    from dashboard.env_file import read_env
+
+    _write_env(app, KIS_ENV="VTS", KIS_ACCOUNT_NO="50204881",
+               KIS_ACCOUNT_NO_REAL="12345678")
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+
+    assert "12345678" in post_with_csrf(client, "/control/mode_real")
+    env = read_env(app.config["ENV_PATH"])
+    assert env["KIS_ACCOUNT_NO"] == "12345678"
+    assert env["KIS_ENV"] == "REAL"
+
+    # 되돌아오면 모의계좌 번호도 그대로 살아 있어야 한다
+    post_with_csrf(client, "/control/mode_vts")
+    env = read_env(app.config["ENV_PATH"])
+    assert env["KIS_ACCOUNT_NO"] == "50204881"
+    assert env["KIS_ENV"] == "VTS"
 
 
 def test_switching_restarts_a_running_bot(client, app, monkeypatch):
@@ -794,3 +816,33 @@ def test_diagnose_says_when_the_bot_never_ran(client, app):
     _write_env(app)
     body = client.get("/diagnose").get_data(as_text=True)
     assert "한 번도 시작하지 않았습니다" in body
+
+
+def test_session_key_survives_restart(tmp_path):
+    """대시보드가 다시 떠도 열려 있던 탭이 살아 있어야 한다.
+
+    업데이트 버튼이 스스로 재시작하므로, 키가 매번 바뀌면 그 직후 누르는
+    버튼마다 CSRF 오류가 난다.
+    """
+    from dashboard.app import _session_key
+
+    first = _session_key(tmp_path)
+    assert len(first) >= 32
+    assert _session_key(tmp_path) == first  # 재기동해도 같은 키
+    assert (tmp_path / "session.key").exists()
+
+
+def test_stale_csrf_redirects_instead_of_dead_ending(tmp_path, monkeypatch):
+    """낡은 토큰이어도 막다른 오류 화면 대신 원래 화면으로 돌려보낸다."""
+    import dashboard.app as module
+
+    monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+    app = module.create_app(testing=False)
+    app.config["TESTING"] = False
+    app.config["DATA_DIR"] = tmp_path
+    app.config["ENV_PATH"] = tmp_path / ".env"
+
+    with app.test_client() as client:
+        response = client.post("/control", data={"action": "start", "csrf": "틀린토큰"})
+
+    assert response.status_code == 302, "400 오류 화면이면 사용자가 빠져나갈 길이 없다"

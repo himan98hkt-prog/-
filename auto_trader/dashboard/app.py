@@ -17,7 +17,8 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 from config.loader import BASE_DIR, ConfigError, load
 from dashboard import charts, process, queries, restart
 from dashboard.env_file import (ALL_FIELDS, GROUPS, missing_required, read_env,
-                                read_for_display, write_env)
+                                read_for_display, remember_account, switch_env,
+                                write_env)
 from utils import autostart, updater
 from utils.db import get_bot_state, init_db
 from utils.key_check import SKIP, Result, find_telegram_chats, run_all, summarize
@@ -45,9 +46,34 @@ def _load_settings() -> tuple[Any | None, str]:
         return None, str(exc)
 
 
+def _session_key(data_dir: Path) -> str:
+    """세션 서명 키. 한 번 만들어 파일로 남긴다.
+
+    프로세스마다 새로 만들면 대시보드가 다시 뜰 때마다 열려 있던 탭의 세션이
+    무효가 되어, 버튼을 누르는 순간 'CSRF 토큰이 올바르지 않습니다' 가 뜬다.
+    업데이트 버튼이 스스로 재시작하므로 이 일이 특히 자주 일어난다.
+    """
+    path = Path(data_dir) / "session.key"
+    try:
+        key = path.read_text(encoding="utf-8").strip()
+        if len(key) >= 32:
+            return key
+    except OSError:
+        pass
+
+    key = secrets.token_hex(32)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(key, encoding="utf-8")
+        path.chmod(0o600)
+    except OSError:
+        pass  # 못 남겨도 이번 프로세스 동안은 동작한다
+    return key
+
+
 def create_app(*, testing: bool = False) -> Flask:
     app = Flask(__name__)
-    app.secret_key = secrets.token_hex(32)  # 프로세스마다 새로 — 세션은 CSRF 토큰 용도뿐
+    app.secret_key = _session_key(DATA_DIR)
     app.config["TESTING"] = testing
     app.config["ENV_PATH"] = ENV_PATH
     app.config["DB_PATH"] = DB_PATH
@@ -66,17 +92,24 @@ def create_app(*, testing: bool = False) -> Flask:
     app.jinja_env.globals["csrf_token"] = csrf_token
 
     @app.before_request
-    def _protect_post() -> None:
+    def _protect_post():
         """로컬 앱이라도 다른 사이트가 POST 를 날릴 수 있으므로 토큰을 확인한다."""
         if request.method != "POST" or app.config["TESTING"]:
-            return
+            return None
         expected = session.get("csrf")
         submitted = request.form.get("csrf")
         # 둘 다 없으면 `None == None` 으로 통과해 버린다 — 값이 있고 일치해야 한다.
-        if not expected or not submitted or not secrets.compare_digest(
+        if expected and submitted and secrets.compare_digest(
             submitted.encode("utf-8"), expected.encode("utf-8")
         ):
-            abort(400, "CSRF 토큰이 올바르지 않습니다. 페이지를 새로고침한 뒤 다시 시도하세요.")
+            return None
+
+        # 요청은 수행하지 않는다(여기까지가 CSRF 방어). 다만 막다른 오류 화면
+        # 대신 원래 보던 화면으로 돌려보낸다 — 대개는 대시보드가 다시 뜬 뒤
+        # 낡은 탭에서 버튼을 누른 경우라, 새로고침하면 그만인 일이다.
+        session["csrf"] = secrets.token_urlsafe(24)
+        flash("화면이 오래되어 이번 요청은 취소했습니다. 다시 눌러 주세요.", "warn")
+        return redirect(request.referrer or url_for("index"))
 
     # ------------------------------------------------------------ 상태 조회 #
     def runtime_status() -> dict[str, Any]:
@@ -154,6 +187,9 @@ def create_app(*, testing: bool = False) -> Flask:
         if request.method == "POST":
             updates = {key: value for key, value in request.form.items() if key != "csrf"}
             changed = write_env(env_path, updates)
+            # 방금 넣은 번호가 어느 환경의 것인지 기억해 둔다 — 나중에 환경을
+            # 전환할 때 손으로 다시 넣지 않아도 되게.
+            remember_account(env_path)
             flash(f"저장했습니다. 변경된 항목 {len(changed)}개" if changed else "변경된 항목이 없습니다", "ok")
             if changed and process.is_running(app.config["DATA_DIR"]):
                 # 이미 떠 있는 프로세스는 옛 설정을 들고 있다.
@@ -376,10 +412,13 @@ def _switch_mode(app, mode: str, data_dir, log_dir) -> None:
     돌고 있는 봇은 반드시 새 설정으로 다시 띄운다 — 예전 도메인·TR ID 를 물고
     있는 프로세스가 남으면 의도와 다른 계좌로 주문이 나간다.
     """
-    changed = write_env(app.config["ENV_PATH"], {"KIS_ENV": mode})
-    if not changed:
+    env_path = app.config["ENV_PATH"]
+    if (read_env(env_path).get("KIS_ENV") or "VTS").upper() == mode:
         flash(f"이미 {'모의투자' if mode == 'VTS' else '실전'} 입니다.", "ok")
         return
+
+    # 계좌번호를 함께 바꿔 끼운다 — 환경만 바뀌면 KIS 가 잔고 조회를 거부한다.
+    account = switch_env(env_path, mode)
 
     label = "모의투자(VTS)" if mode == "VTS" else "실전(REAL)"
     lines = [f"{label} 로 전환했습니다."]
@@ -387,7 +426,11 @@ def _switch_mode(app, mode: str, data_dir, log_dir) -> None:
         lines.append("⚠️ 지금부터 실제 자금으로 주문이 나갑니다.")
     else:
         lines.append("가짜 돈으로만 주문이 나갑니다.")
-    lines.append("계좌번호도 해당 환경의 것으로 바꿔야 합니다 — 모의계좌와 실계좌는 번호가 다릅니다.")
+    if account:
+        lines.append(f"계좌번호도 {account} 로 함께 바꿨습니다.")
+    else:
+        lines.append("⚠️ 이 환경의 계좌번호를 아직 모릅니다 — 설정에서 계좌번호를 넣어 주세요.\n"
+                     "모의계좌와 실계좌는 번호가 다릅니다. 틀리면 잔고 조회가 거부됩니다.")
 
     if process.is_running(data_dir):
         stopped = process.stop(data_dir)

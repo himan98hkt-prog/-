@@ -94,6 +94,12 @@ DEFAULTS = {
     "GEMINI_MODEL": "gemini-3.5-flash", "OPENAI_MODEL": "gpt-5.1", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
 }
 
+# 환경별로 기억해 두는 계좌번호. 모의계좌와 실계좌는 **번호가 다르다**.
+# 환경만 바꾸고 번호를 그대로 두면 KIS 가 HTTP 500 을 돌려주는데, 화면에는
+# 서버 오류로만 보여 원인을 찾기가 어렵다. 그래서 전환할 때 같이 바꿔 끼운다.
+REMEMBERED_ACCOUNT = {"VTS": "KIS_ACCOUNT_NO_VTS", "REAL": "KIS_ACCOUNT_NO_REAL"}
+EXTRA_KEYS: tuple[str, ...] = tuple(REMEMBERED_ACCOUNT.values())
+
 HEADER = """# 자동매매 설정 — 대시보드 설정 화면에서 저장됨
 # 주의: 값 뒤에 주석을 달지 마세요. `KEY=값  # 설명` 은 주석까지 값으로 읽힙니다.
 """
@@ -148,6 +154,14 @@ def write_env(path: Path | str, updates: dict[str, str]) -> list[str]:
             changed.append(key)
         current[key] = new_value
 
+    # 기억용 키는 화면 항목이 아니라서 ALL_FIELDS 루프가 지나친다.
+    for key in EXTRA_KEYS:
+        if key in updates:
+            value = (updates[key] or "").strip()
+            if value != current.get(key, ""):
+                changed.append(key)
+            current[key] = value
+
     # 값이 '비어 있는' 경우에도 기본값을 넣는다. setdefault 는 키가 아예 없을 때만
     # 동작해서, 한 번 빈 문자열로 저장되면 영영 비어 있는 채로 남았다.
     for key, value in DEFAULTS.items():
@@ -161,6 +175,10 @@ def write_env(path: Path | str, updates: dict[str, str]) -> list[str]:
         lines.append(f"\n# --- {group.title} ---")
         for meta in group.fields:
             lines.append(f"{meta.key}={current.get(meta.key, '')}")
+    remembered = [f"{key}={current[key]}" for key in EXTRA_KEYS if current.get(key)]
+    if remembered:
+        lines.append("\n# --- 환경별 계좌번호 기억 (대시보드가 관리합니다) ---")
+        lines.extend(remembered)
     body = "\n".join(lines) + "\n"
 
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -199,3 +217,31 @@ def required_keys(env: dict[str, str]) -> list[str]:
 def missing_required(path: Path | str) -> list[str]:
     raw = read_env(path)
     return [key for key in required_keys(raw) if not raw.get(key)]
+
+
+def remember_account(path: Path | str) -> None:
+    """지금 쓰는 계좌번호를 현재 환경의 자리에 적어 둔다."""
+    env = read_env(path)
+    account = env.get("KIS_ACCOUNT_NO", "")
+    slot = REMEMBERED_ACCOUNT.get((env.get("KIS_ENV") or "VTS").upper())
+    if account and slot and env.get(slot) != account:
+        write_env(path, {slot: account})
+
+
+def switch_env(path: Path | str, mode: str) -> str:
+    """환경을 바꾼다. 계좌번호도 함께 바꿔 끼운다.
+
+    KIS_ENV 와 KIS_ACCOUNT_NO 를 따로 쓰면 그 사이에 둘이 어긋나, 다음 전환이
+    엉뚱한 자리에 번호를 보관한다. 한 번에 옮겨야 한다.
+
+    Returns:
+        새로 끼운 계좌번호. 기억해 둔 것이 없으면 빈 문자열(= 직접 넣어야 함).
+    """
+    mode = mode.upper()
+    remember_account(path)  # 떠나는 환경의 번호를 먼저 보관
+    account = read_env(path).get(REMEMBERED_ACCOUNT.get(mode, ""), "")
+    updates = {"KIS_ENV": mode}
+    if account:
+        updates["KIS_ACCOUNT_NO"] = account
+    write_env(path, updates)
+    return account
