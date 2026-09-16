@@ -255,7 +255,12 @@ class EngineService:
         output_dir = Path(spec.output_dir) if spec.output_dir else self.default_output_dir
 
         high = spec.quality_profile.value == "high"
+        # SaaS/product jobs are local-only unless an operator explicitly opts in.
+        # An unrelated GEMINI_API_KEY in the host must never incur a charge.
+        import os
+        paid_ai = os.environ.get("AUTOSHORTS_ALLOW_PAID_AI", "0") == "1"
         return Settings(
+            gemini_api_key=None if paid_ai else "",
             source=spec.source,
             work_dir=work_dir,
             output_dir=output_dir,

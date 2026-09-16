@@ -1,203 +1,65 @@
 <!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AutoShorts 점검 콘솔</title>
-<!--
-  Phase 2 점검용 화면이다. 브랜드·카피·디자인 시스템은 여기 없다.
-  브라우저에서 (1) 로그인 (2) 프로젝트 생성 (3) 업로드 (4) 작업 제출
-  (5) 진행률/결과 (6) 다른 계정의 접근 거부 를 눈으로 확인하기 위한 것이고,
-  Phase 3 의 웹 셸이 이 파일을 대체한다.
--->
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shorts Studio · AutoShorts</title>
 <style>
-  :root { color-scheme: light dark; --line:#d6d6db; --muted:#6b6b76; }
-  body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
-         margin: 0 auto; max-width: 860px; padding: 24px 16px 64px; line-height: 1.55; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
-  section { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: 15px; margin: 0 0 12px; }
-  label { display: block; font-size: 13px; margin: 8px 0 2px; color: var(--muted); }
-  input, button, select { font: inherit; padding: 7px 10px; border-radius: 7px;
-         border: 1px solid var(--line); background: transparent; color: inherit; }
-  input { width: 100%; box-sizing: border-box; }
-  button { cursor: pointer; margin-top: 10px; margin-right: 6px; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  pre { background: rgba(127,127,127,.12); padding: 10px; border-radius: 7px;
-        overflow-x: auto; font-size: 12px; margin: 10px 0 0; white-space: pre-wrap; word-break: break-all; }
-  .bar { height: 8px; background: rgba(127,127,127,.2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
-  .bar > i { display: block; height: 100%; width: 0; background: currentColor; transition: width .3s; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .row > * { flex: 1 1 200px; }
-</style>
-</head>
-<body>
-<h1>AutoShorts 점검 콘솔</h1>
-<p class="sub">Phase 2 검증용 화면입니다. 디자인과 카피는 Phase 3 에서 만듭니다.</p>
-
-<section>
-  <h2>1. 계정</h2>
-  <div class="row">
-    <div><label for="email">이메일</label><input id="email" value="a@example.com"></div>
-    <div><label for="password">비밀번호</label><input id="password" type="password" value="verysafepassword"></div>
-  </div>
-  <button onclick="signup()">가입</button>
-  <button onclick="login()">로그인</button>
-  <button onclick="me()">내 정보</button>
-  <pre id="out-auth">(미로그인)</pre>
-</section>
-
-<section>
-  <h2>2. 프로젝트</h2>
-  <label for="project-name">이름</label><input id="project-name" value="테스트 프로젝트">
-  <button onclick="createProject()">만들기</button>
-  <button onclick="listProjects()">목록</button>
-  <pre id="out-project">-</pre>
-</section>
-
-<section>
-  <h2>3. 소스 업로드</h2>
-  <input id="file" type="file" accept="video/*">
-  <button onclick="upload()">presigned 업로드</button>
-  <button onclick="confirmRights()">권리 확인(owned)</button>
-  <pre id="out-upload">-</pre>
-</section>
-
-<section>
-  <h2>4. 작업</h2>
-  <button onclick="submitJob()">작업 제출</button>
-  <button onclick="submitJob()">같은 조건으로 재제출(멱등 확인)</button>
-  <button onclick="cancelJob()">취소</button>
-  <div class="bar"><i id="bar"></i></div>
-  <pre id="out-job">-</pre>
-  <div id="downloads"></div>
-</section>
-
-<section>
-  <h2>5. 사용량 · 크레딧</h2>
-  <button onclick="usage()">조회</button>
-  <pre id="out-usage">-</pre>
-</section>
-
+:root{font-family:system-ui,"Malgun Gothic",sans-serif;color:#e8ecf7;background:#0e1422;color-scheme:dark}*{box-sizing:border-box}body{margin:0}header,main{max-width:1120px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #293449}h1{margin:0;font-size:24px}h2{font-size:18px;margin-top:0}p{line-height:1.7}.muted,small{color:#acb8ce;font-size:14px}.badge{background:#18382e;color:#9fe3bc;padding:8px 12px;border-radius:24px;font-size:13px}.grid{display:grid;grid-template-columns:290px 1fr;gap:20px}.panel{border:1px solid #293449;background:#151e30;border-radius:16px;padding:22px;margin-bottom:18px}label{display:block;font-size:13px;color:#bdc8dc;margin:14px 0 6px}input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #3a4963;padding:11px;background:#0f1829;color:inherit}input,select,textarea{width:100%}input[type=checkbox]{width:auto}button{cursor:pointer;margin:8px 6px 0 0}button.primary{background:#5167e9;border-color:#7182f4}button:disabled{opacity:.45;cursor:not-allowed}.tabs{display:flex;gap:12px;margin-bottom:20px}.tabs button{flex:1;text-align:left;padding:18px;margin:0}.tabs button[aria-selected=true]{border-color:#8b9aff;background:#263555}small{display:block;margin-top:6px}.row{display:flex;gap:12px}.row>*{flex:1;min-width:0}progress{width:100%;height:18px;accent-color:#8092ff}.notice{padding:14px;background:#24334a;border-radius:10px;white-space:pre-wrap;line-height:1.7}#message{position:sticky;top:0;z-index:2;margin-bottom:18px}#message:empty{display:none}#message[data-error=true]{background:#572c39}.job{display:block;width:100%;text-align:left}#downloads video{width:100%;max-height:440px;border-radius:12px;background:black}#downloads article{margin-top:18px}a{color:#b7c4ff}[hidden]{display:none!important}@media(max-width:750px){.grid{grid-template-columns:1fr}header,main{padding:16px}.tabs{flex-direction:column}}
+</style></head><body>
+<header><div><h1>Shorts Studio</h1><small>분석과 제작을 한 작업 공간에서</small></div><span class="badge" id="cost-state">실행 정책 확인 중</span></header>
+<main><div id="message" class="notice" role="status" aria-live="polite"></div><div class="grid">
+<aside><section class="panel"><h2>내 작업 공간</h2><div id="auth-form">
+<label for="email">이메일</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com">
+<label for="password">비밀번호 · 12자 이상</label><input id="password" type="password" autocomplete="current-password">
+<button class="primary" onclick="authenticate('login')">로그인</button><button onclick="authenticate('signup')">가입</button></div>
+<div id="account" hidden><p id="account-name"></p><button onclick="logout()">로그아웃</button></div>
+<label for="projects">프로젝트</label><select id="projects" onchange="selectProject(this.value)"><option value="">로그인 후 선택</option></select>
+<label for="project-name">새 프로젝트 이름</label><input id="project-name" placeholder="이번 주 콘텐츠"><button onclick="createProject()">프로젝트 만들기</button>
+</section><section class="panel"><h2>최근 분석 작업</h2><button onclick="refreshJobs()">새로고침</button><div id="jobs"><p class="muted">프로젝트를 선택하세요.</p></div></section></aside>
+<div><nav class="tabs" aria-label="제작 방식"><button id="tab-analysis" aria-selected="true" onclick="switchMode('analysis')"><strong>영상 분석 쇼츠</strong><small>내 영상 → 구간 선정 → 자막 쇼츠</small></button><button id="tab-factory" aria-selected="false" onclick="switchMode('factory')"><strong>주제 기반 쇼츠</strong><small>shorts-factory · 기획 저장 가능</small></button></nav>
+<div id="analysis"><section class="panel"><h2>1. 분석할 영상</h2><p class="muted">말소리가 또렷한 본인 소유 또는 이용 허락을 받은 영상을 올려주세요. 음성인식은 내 PC에서 실행됩니다.</p>
+<input id="file" type="file" accept="video/*"><button id="upload-button" class="primary" onclick="upload()">영상 업로드</button><p id="upload-state" class="muted">아직 선택한 영상이 없습니다.</p>
+<label for="assets">업로드한 영상 다시 선택</label><select id="assets" onchange="S.asset=this.value; $('rights').checked=false"><option value="">영상을 선택하세요</option></select>
+<label for="rights"><input id="rights" type="checkbox"> 이 영상을 편집·이용할 권리가 있습니다.</label>
+<label for="rights-kind">권리 유형</label><select id="rights-kind"><option value="owned">직접 제작한 영상</option><option value="licensed">이용 허락을 받은 영상</option></select>
+</section><section class="panel"><h2>2. 쇼츠 설정</h2><div class="row"><div><label for="language">음성 언어</label><select id="language"><option value="ko">한국어</option><option value="en">영어</option><option value="">자동 감지</option></select></div><div><label for="clips">최대 쇼츠 개수</label><select id="clips"><option>1</option><option>2</option><option selected>3</option><option>5</option></select></div></div>
+<div class="row"><div><label for="min-seconds">최소 길이(초)</label><input id="min-seconds" type="number" min="10" max="120" value="20"></div><div><label for="max-seconds">최대 길이(초)</label><input id="max-seconds" type="number" min="10" max="120" value="45"></div></div>
+<p class="muted">9:16 세로 영상 · 한글 자막 포함. 음성·문장 정보를 기준으로 구간을 선정하며 원본에 따라 결과 개수는 줄어들 수 있습니다.</p>
+<button id="submit-button" class="primary" onclick="submitJob()">쇼츠 만들기</button></section>
+<section class="panel"><h2>3. 진행 상황과 결과</h2><p id="job-state">아직 실행한 작업이 없습니다.</p><progress id="progress" max="100" value="0"></progress><p id="stage-note" class="muted">첫 실행은 음성인식 모델 다운로드로 시간이 더 걸릴 수 있습니다.</p>
+<button onclick="cancelJob()">선택한 작업 취소</button><div id="downloads"></div></section></div>
+<div id="factory" hidden><section class="panel"><h2>주제 기반 쇼츠 기획</h2><p class="notice">자동 생성은 비용 차단 상태입니다. 주제와 대본을 저장하고 다시 불러올 수 있습니다. 저장 시 유료 API를 호출하지 않습니다.</p>
+<label for="topic">주제</label><input id="topic" maxlength="300" placeholder="예: 우주에서 소리가 들리지 않는 이유">
+<label for="theme">테마</label><select id="theme"><option value="knowledge">지식</option><option value="quote">명언</option><option value="news">뉴스</option><option value="space">우주</option><option value="music">음악</option></select>
+<label for="script">직접 작성한 대본</label><textarea id="script" rows="12" maxlength="20000" placeholder="비용을 쓰지 않고 기획을 준비하세요."></textarea>
+<button class="primary" onclick="savePlan()">기획 저장</button><button onclick="loadPlan()">불러오기</button><button onclick="exportPlan()">기획 JSON 내보내기</button><button disabled>자동 생성 일시중지</button>
+<p class="muted">기획 단계까지 연결되어 있습니다. 기존 shorts-factory 제작 엔진의 실행·결과 연동과 YouTube 발행은 아직 연결하지 않았습니다.</p></section></div>
+</div></div><p class="muted">로컬 개발용 미리보기 · Shorts Studio / AutoShorts · 자동 게시 없음</p></main>
 <script>
-const S = { token: "", workspace: "", project: "", asset: "", job: "" };
-const $ = (id) => document.getElementById(id);
-const show = (id, value) => { $(id).textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2); };
+const $=id=>document.getElementById(id);
+const S={token:sessionStorage.getItem('studio-token')||'',workspace:'',project:'',asset:'',job:'',timer:null,epoch:0,urls:[]};
+const statuses={queued:'대기 중',running:'제작 중',succeeded:'완료',failed:'실패',cancelled:'취소됨',needs_approval:'권리 확인 필요'};
+function message(text,error=false){$('message').textContent=text;$('message').dataset.error=error;}
+async function call(method,path,body){const res=await fetch(path,{method,headers:{Authorization:'Bearer '+S.token,...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Error(typeof data.detail==='string'?data.detail:'요청 처리 실패 ('+res.status+')');return data;}
+function required(){if(!S.project)throw Error('로그인 후 프로젝트를 먼저 선택하세요.');}
+function clearResults(){for(const url of S.urls)URL.revokeObjectURL(url);S.urls=[];$('downloads').replaceChildren();}
+function resetJob(){clearTimeout(S.timer);S.epoch++;S.job='';clearResults();$('job-state').textContent='작업을 선택하거나 새로 시작하세요.';$('progress').value=0;}
+function switchMode(mode){for(const name of ['analysis','factory']){$(name).hidden=name!==mode;$('tab-'+name).setAttribute('aria-selected',name===mode);}if(mode==='factory'&&S.project)loadPlan();}
+async function restore(){if(!S.token)return;try{const info=await call('GET','/v1/me');S.workspace=info.workspaces[0]?.id||'';$('account-name').textContent=info.user.email;$('account').hidden=false;$('auth-form').hidden=true;await projects();}catch(e){logout();message(e.message,true);}}
+async function authenticate(kind){try{const data=await call('POST','/v1/auth/'+kind,{email:$('email').value,password:$('password').value,workspace_name:'내 스튜디오'});S.token=data.token;sessionStorage.setItem('studio-token',S.token);$('password').value='';await restore();message('작업 공간에 연결되었습니다.');}catch(e){message(e.message,true);}}
+function logout(){resetJob();S.token='';S.workspace='';S.project='';S.asset='';sessionStorage.removeItem('studio-token');$('account').hidden=true;$('auth-form').hidden=false;$('projects').replaceChildren(new Option('로그인 후 선택',''));$('assets').replaceChildren(new Option('영상을 선택하세요',''));$('jobs').replaceChildren();$('topic').value='';$('script').value='';}
+async function projects(preferred){const data=await call('GET','/v1/workspaces/'+S.workspace+'/projects');$('projects').replaceChildren(new Option('프로젝트 선택',''));for(const p of data.projects)$('projects').add(new Option(p.name,p.id));const selected=preferred||sessionStorage.getItem('studio-project-'+S.workspace);if(data.projects.some(p=>p.id===selected)){$('projects').value=selected;await selectProject(selected);}}
+async function createProject(){try{if(!S.workspace)throw Error('먼저 로그인하세요.');const name=$('project-name').value.trim();if(!name)throw Error('프로젝트 이름을 입력하세요.');const p=await call('POST','/v1/workspaces/'+S.workspace+'/projects',{name});await projects(p.id);message('프로젝트를 만들었습니다.');}catch(e){message(e.message,true);}}
+async function selectProject(id){resetJob();S.project=id;S.asset='';$('rights').checked=false;$('topic').value='';$('script').value='';$('assets').replaceChildren(new Option('영상을 선택하세요',''));$('jobs').replaceChildren();if(!id)return;sessionStorage.setItem('studio-project-'+S.workspace,id);try{await refreshAssets();await refreshJobs();await loadPlan();}catch(e){message(e.message,true);}}
+async function refreshAssets(){const p=await call('GET','/v1/projects/'+S.project);$('assets').replaceChildren(new Option('영상을 선택하세요',''));for(const a of p.assets.filter(a=>a.upload_state==='uploaded'))$('assets').add(new Option(a.filename||a.id,a.id));$('assets').value=S.asset;}
+async function upload(){const button=$('upload-button');try{required();const file=$('file').files[0];if(!file)throw Error('영상 파일을 선택하세요.');button.disabled=true;$('upload-state').textContent='업로드 중…';const ticket=await call('POST','/v1/projects/'+S.project+'/uploads',{filename:file.name,content_type:file.type||'video/mp4'});const res=await fetch(ticket.upload.url,{method:ticket.upload.method,body:file});if(!res.ok)throw Error('업로드 실패 ('+res.status+')');S.asset=ticket.asset_id;$('rights').checked=false;await refreshAssets();$('upload-state').textContent=file.name+' · 업로드 완료';message('업로드가 완료되었습니다. 권리를 확인하고 쇼츠를 만드세요.');}catch(e){$('upload-state').textContent='업로드하지 못했습니다.';message(e.message,true);}finally{button.disabled=false;}}
+async function submitJob(){try{required();if(!S.asset)throw Error('분석할 영상을 선택하세요.');if(!$('rights').checked)throw Error('영상 이용 권리를 확인해주세요.');const min=Number($('min-seconds').value),max=Number($('max-seconds').value);if(min<10||max>120||min>max)throw Error('길이는 10~120초이며 최소 길이는 최대 길이 이하여야 합니다.');$('submit-button').disabled=true;await call('POST','/v1/assets/'+S.asset+'/rights',{status:$('rights-kind').value,note:'사용자가 스튜디오에서 이용 권리 확인'});const data=await call('POST','/v1/projects/'+S.project+'/jobs',{asset_id:S.asset,language:$('language').value||null,clip_options:{min_seconds:min,max_seconds:max,min_clips:1,max_clips:Number($('clips').value)}});watch(data.job.id);await refreshJobs();message(data.deduplicated?'같은 조건의 기존 작업을 불러왔습니다.':'작업을 접수했습니다. PC와 Docker가 켜져 있으면 브라우저를 닫아도 계속됩니다.');}catch(e){message(e.message,true);}finally{$('submit-button').disabled=false;}}
+async function refreshJobs(){try{required();const data=await call('GET','/v1/projects/'+S.project+'/jobs');$('jobs').replaceChildren();for(const j of data.jobs){const b=document.createElement('button');b.className='job';b.textContent=(statuses[j.status]||j.status)+' · '+new Date(j.created_at).toLocaleString('ko-KR');b.onclick=()=>watch(j.id);$('jobs').append(b);}if(!data.jobs.length)$('jobs').textContent='아직 분석 작업이 없습니다.';}catch(e){message(e.message,true);}}
+function watch(id){resetJob();S.job=id;poll(S.epoch,id);}
+async function poll(epoch,id){try{const j=await call('GET','/v1/jobs/'+id);if(epoch!==S.epoch)return;$('job-state').textContent=(statuses[j.status]||j.status)+' · '+Math.round(j.progress||0)+'%';$('progress').value=j.progress||0;$('stage-note').textContent=j.error_message||({ingest:'영상과 오디오 준비 중',transcribe:'음성인식 중 · 첫 실행은 모델 다운로드가 필요합니다.',analyze:'쇼츠 구간 선정 중',render:'자막과 영상 렌더링 중'}[j.stage]||j.stage||'작업 프로세스가 시작하기를 기다리고 있습니다.');if(j.status==='succeeded'){results(j.outputs_detail||[],epoch);await refreshJobs();}else if(!['failed','cancelled','needs_approval'].includes(j.status)){S.timer=setTimeout(()=>poll(epoch,id),2000);}else await refreshJobs();}catch(e){if(epoch!==S.epoch)return;message(e.message+' · 5초 후 상태를 다시 확인합니다.',true);S.timer=setTimeout(()=>poll(epoch,id),5000);}}
+function results(outputs,epoch){clearResults();for(const [i,o] of outputs.entries()){const article=document.createElement('article');const label=document.createElement('p');label.textContent='쇼츠 '+(i+1);const button=document.createElement('button');button.textContent='미리보기 및 다운로드 준비';button.onclick=async()=>{button.disabled=true;try{const res=await fetch('/v1/outputs/'+encodeURIComponent(o.id)+'/download',{headers:{Authorization:'Bearer '+S.token}});if(!res.ok)throw Error('결과 다운로드 실패 ('+res.status+')');const blob=await res.blob();if(epoch!==S.epoch)return;const url=URL.createObjectURL(blob);S.urls.push(url);const video=document.createElement('video');video.controls=true;video.src=url;const link=document.createElement('a');link.href=url;link.download='short-'+(i+1)+'.mp4';link.textContent='MP4 저장';article.append(video,link);button.remove();}catch(e){message(e.message,true);button.disabled=false;}};article.append(label,button);$('downloads').append(article);}}
+async function cancelJob(){try{if(!S.job)throw Error('취소할 작업을 먼저 선택하세요.');await call('POST','/v1/jobs/'+S.job+'/cancel');message('취소를 요청했습니다. 현재 처리 단계가 끝나면 반영될 수 있습니다.');}catch(e){message(e.message,true);}}
+async function savePlan(){try{required();await call('PUT','/v1/projects/'+S.project+'/factory-plan',{topic:$('topic').value,theme:$('theme').value,script:$('script').value});message('기획을 저장했습니다. 유료 API는 호출하지 않았습니다.');}catch(e){message(e.message,true);}}
+async function loadPlan(){try{required();const data=await call('GET','/v1/projects/'+S.project+'/factory-plan');$('topic').value=data.plan?.topic||'';$('theme').value=data.plan?.theme||'knowledge';$('script').value=data.plan?.script||'';}catch(e){message(e.message,true);}}
+async function exportPlan(){try{required();const data=await call('GET','/v1/projects/'+S.project+'/factory-plan');if(!data.plan)throw Error('기획을 먼저 저장하세요.');const url=URL.createObjectURL(new Blob([JSON.stringify(data.plan,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='factory-plan.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){message(e.message,true);}}
+call('GET','/v1/product').then(p=>{$('cost-state').textContent=p.paid_ai_enabled?'유료 AI 사용 허용 상태':'유료 AI 차단 · 로컬 분석';}).catch(e=>message(e.message,true));restore();
+</script></body></html>
 
-async function call(method, path, body) {
-  const headers = {};
-  if (S.token) headers["Authorization"] = "Bearer " + S.token;
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-  const text = await res.text();
-  let data; try { data = JSON.parse(text); } catch { data = text; }
-  if (!res.ok) throw new Error(res.status + " " + (data && data.detail ? data.detail : text));
-  return data;
-}
-
-async function signup() {
-  try {
-    const data = await call("POST", "/v1/auth/signup", {
-      email: $("email").value, password: $("password").value, workspace_name: "점검 워크스페이스" });
-    S.token = data.token; S.workspace = data.workspace.id;
-    show("out-auth", { user: data.user, workspace: data.workspace });
-  } catch (e) { show("out-auth", String(e)); }
-}
-
-async function login() {
-  try {
-    const data = await call("POST", "/v1/auth/login", { email: $("email").value, password: $("password").value });
-    S.token = data.token;
-    const info = await call("GET", "/v1/me");
-    S.workspace = info.workspaces.length ? info.workspaces[0].id : "";
-    show("out-auth", info);
-  } catch (e) { show("out-auth", String(e)); }
-}
-
-async function me() {
-  try { show("out-auth", await call("GET", "/v1/me")); } catch (e) { show("out-auth", String(e)); }
-}
-
-async function createProject() {
-  try {
-    const data = await call("POST", `/v1/workspaces/${S.workspace}/projects`, { name: $("project-name").value });
-    S.project = data.id; show("out-project", data);
-  } catch (e) { show("out-project", String(e)); }
-}
-
-async function listProjects() {
-  try { show("out-project", await call("GET", `/v1/workspaces/${S.workspace}/projects`)); }
-  catch (e) { show("out-project", String(e)); }
-}
-
-async function upload() {
-  const file = $("file").files[0];
-  if (!file) { show("out-upload", "파일을 선택하세요."); return; }
-  try {
-    const ticket = await call("POST", `/v1/projects/${S.project}/uploads`,
-      { filename: file.name, content_type: file.type || "video/mp4" });
-    S.asset = ticket.asset_id;
-    // 바이트는 API 본문이 아니라 presigned URL 로 직접 간다.
-    const put = await fetch(ticket.upload.url, { method: ticket.upload.method, body: file });
-    show("out-upload", { ticket, upload_status: put.status, result: await put.json() });
-  } catch (e) { show("out-upload", String(e)); }
-}
-
-async function confirmRights() {
-  try {
-    show("out-upload", await call("POST", `/v1/assets/${S.asset}/rights`,
-      { status: "owned", note: "점검용 자체 제작 파일" }));
-  } catch (e) { show("out-upload", String(e)); }
-}
-
-async function submitJob() {
-  try {
-    const data = await call("POST", `/v1/projects/${S.project}/jobs`, { asset_id: S.asset });
-    S.job = data.job.id; show("out-job", data); poll();
-  } catch (e) { show("out-job", String(e)); }
-}
-
-async function cancelJob() {
-  try { show("out-job", await call("POST", `/v1/jobs/${S.job}/cancel`)); }
-  catch (e) { show("out-job", String(e)); }
-}
-
-async function poll() {
-  if (!S.job) return;
-  try {
-    const data = await call("GET", `/v1/jobs/${S.job}/progress`);
-    $("bar").style.width = (data.percent || 0) + "%";
-    const job = await call("GET", `/v1/jobs/${S.job}`);
-    show("out-job", { status: job.status, stage: job.stage, percent: job.progress,
-                      outputs: job.outputs_detail, warnings: job.warnings, error: job.error_message });
-    $("downloads").replaceChildren();
-    for (const [index, output] of (job.outputs_detail || []).entries()) {
-      const button = document.createElement("button");
-      button.textContent = `영상 ${index + 1} 다운로드`;
-      button.onclick = async () => {
-        button.disabled = true;
-        try {
-          const response = await fetch(`/v1/outputs/${encodeURIComponent(output.id)}/download`,
-            { headers: { Authorization: "Bearer " + S.token } });
-          if (!response.ok) throw new Error(`다운로드 실패 (${response.status})`);
-          const url = URL.createObjectURL(await response.blob());
-          const link = document.createElement("a");
-          link.href = url; link.download = `short-${index + 1}.mp4`; link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 60000);
-        } catch (e) { show("out-job", String(e)); }
-        finally { button.disabled = false; }
-      };
-      $("downloads").append(button);
-    }
-    if (!["succeeded", "failed", "cancelled", "needs_approval"].includes(job.status)) setTimeout(poll, 1500);
-  } catch (e) { show("out-job", String(e)); }
-}
-
-async function usage() {
-  try { show("out-usage", await call("GET", `/v1/workspaces/${S.workspace}/usage`)); }
-  catch (e) { show("out-usage", String(e)); }
-}
-</script>
-</body>
-</html>

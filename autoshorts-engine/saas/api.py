@@ -176,6 +176,12 @@ def create_app(context: AppContext):
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
 
     # ── 상태 ───────────────────────────────────────────────
+    @app.get("/v1/product")
+    def product():
+        return {"name": "Shorts Studio", "analysis": "available",
+                "paid_ai_enabled": os.environ.get("AUTOSHORTS_ALLOW_PAID_AI", "0") == "1",
+                "factory": "planning_only", "publishing": "disabled"}
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         healthy = context.db.ping()
@@ -297,6 +303,42 @@ def create_app(context: AppContext):
             "assets": context.assets.list(workspace_id, project_id),
             "revisions": context.projects.revisions(workspace_id, project_id),
         }
+
+    @app.get("/v1/projects/{project_id}/jobs")
+    def project_jobs(project_id: str, user=Depends(principal)):
+        project = _project(user, project_id)
+        rows = context.db.fetch_all(
+            "SELECT * FROM render_jobs WHERE workspace_id = %s AND project_id = %s "
+            "ORDER BY created_at DESC LIMIT 100", (project["workspace_id"], project_id))
+        return {"jobs": [_job_view(row) for row in rows]}
+
+    @app.get("/v1/projects/{project_id}/factory-plan")
+    def factory_plan(project_id: str, user=Depends(principal)):
+        _project(user, project_id)
+        row = context.db.fetch_one(
+            "SELECT snapshot FROM project_revisions WHERE project_id = %s "
+            "AND change_kind = 'factory_plan' ORDER BY revision DESC LIMIT 1", (project_id,))
+        return {"plan": row["snapshot"] if row else None, "generation": "paused"}
+
+    @app.put("/v1/projects/{project_id}/factory-plan")
+    def save_factory_plan(project_id: str, payload: dict = Body(...), user=Depends(principal)):
+        project = _project(user, project_id, Role.EDITOR)
+        topic, script = str(payload.get("topic", "")).strip(), str(payload.get("script", "")).strip()
+        theme = str(payload.get("theme", "knowledge"))
+        if not topic or len(topic) > 300 or len(script) > 20000:
+            raise HTTPException(status_code=400, detail="주제는 1~300자, 대본은 20,000자 이내입니다.")
+        if theme not in {"knowledge", "quote", "news", "music", "space"}:
+            raise HTTPException(status_code=400, detail="지원하지 않는 테마입니다.")
+        plan = {"format": "shorts-studio.factory-plan.v1", "topic": topic, "script": script,
+                "theme": theme, "generation": "paused", "auto_publish": False}
+        revision = context.projects.bump_revision(project["workspace_id"], project_id,
+            "factory_plan", changed_by=user.user_id, snapshot=plan)
+        return {"plan": plan, "revision": revision}
+
+    @app.post("/v1/projects/{project_id}/factory-jobs")
+    def factory_job(project_id: str, user=Depends(principal)):
+        _project(user, project_id, Role.EDITOR)
+        raise HTTPException(status_code=409, detail="주제 기반 자동 생성은 비용 차단 상태입니다. 기획 저장만 가능합니다.")
 
     # ── 업로드 ──────────────────────────────────────────────
     @app.post("/v1/projects/{project_id}/uploads", status_code=201)
@@ -446,8 +488,15 @@ def create_app(context: AppContext):
         elif not source:
             raise HTTPException(status_code=400, detail="asset_id 또는 source 가 필요합니다.")
 
-        clip_options = ClipOptions.from_dict(payload.get("clip_options"))
-        render_options = RenderOptions.from_dict(payload.get("render_options"))
+        try:
+            clip_options = ClipOptions.from_dict(payload.get("clip_options"))
+            render_options = RenderOptions.from_dict(payload.get("render_options"))
+            if not (1 <= clip_options.min_clips <= clip_options.max_clips <= 10):
+                raise ValueError("쇼츠 개수는 1~10개입니다.")
+            if not (1 <= clip_options.min_seconds <= clip_options.max_seconds <= 180):
+                raise ValueError("쇼츠 길이는 1~180초입니다.")
+        except (ValueError, TypeError, AttributeError, OverflowError):
+            raise HTTPException(status_code=422, detail="쇼츠 개수·길이·렌더 설정을 확인하세요.") from None
 
         spec = JobSpec(
             source=source,

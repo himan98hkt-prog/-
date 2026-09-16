@@ -38,6 +38,18 @@ def make_render(tmp_path, index=1, title="클립", start=0.0, end=40.0):
     })()
 
 
+def test_product_blocks_inherited_paid_keys_by_default(service, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "not-a-real-key")
+    monkeypatch.delenv("AUTOSHORTS_ALLOW_PAID_AI", raising=False)
+    assert not service.build_settings(JobSpec(source="local.mp4")).has_gemini
+
+
+def test_product_paid_ai_requires_explicit_opt_in(service, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("AUTOSHORTS_ALLOW_PAID_AI", "1")
+    assert service.build_settings(JobSpec(source="local.mp4")).has_gemini
+
+
 @pytest.fixture
 def service(tmp_path):
     return EngineService(

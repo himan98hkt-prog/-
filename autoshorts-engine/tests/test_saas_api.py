@@ -105,6 +105,41 @@ def bob(client) -> Account:
 # ── 기본 ───────────────────────────────────────────────────
 
 
+def test_factory_plan_is_persisted_and_scoped(client, alice, bob):
+    project = alice.create_project()
+    path = f"/v1/projects/{project}/factory-plan"
+    data = {"topic": "우주", "theme": "space", "script": "테스트 대본"}
+    assert client.put(path, headers=alice.headers, json=data).status_code == 200
+    assert alice.get(path).json()["plan"]["script"] == "테스트 대본"
+    assert bob.get(path).status_code == 404
+    assert client.put(path, headers=bob.headers, json=data).status_code == 404
+    assert client.get(path).status_code == 401
+
+
+def test_factory_generation_is_blocked_server_side(alice, db):
+    project = alice.create_project()
+    assert alice.post(f"/v1/projects/{project}/factory-jobs").status_code == 409
+    assert db.fetch_one("SELECT count(*) AS n FROM job_queue")["n"] == 0
+
+
+def test_job_history_is_scoped_to_project_owner(alice, bob):
+    project = alice.create_project()
+    asset = alice.upload(project)
+    alice.confirm_rights(asset)
+    job = alice.submit(project, asset).json()["job"]
+    assert alice.get(f"/v1/projects/{project}/jobs").json()["jobs"][0]["id"] == job["id"]
+    assert bob.get(f"/v1/projects/{project}/jobs").status_code == 404
+
+
+@pytest.mark.parametrize("options", [{"min_clips": -1}, {"max_clips": 10000}, {"min_seconds": "nan"}, {"max_seconds": 100000}])
+def test_invalid_clip_limits_are_rejected_before_queue(alice, db, options):
+    project = alice.create_project()
+    asset = alice.upload(project)
+    alice.confirm_rights(asset)
+    assert alice.submit(project, asset, clip_options=options).status_code == 422
+    assert db.fetch_one("SELECT count(*) AS n FROM job_queue")["n"] == 0
+
+
 def test_health_reports_database(client):
     body = client.get("/health").json()
     assert body == {"status": "ok", "database": True}

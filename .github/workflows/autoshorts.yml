@@ -36,6 +36,11 @@ jobs:
           curl --retry 30 --retry-delay 2 --retry-all-errors --max-time 5 --fail http://127.0.0.1:8765/health
           curl --fail http://127.0.0.1:8765/ | grep 'id="downloads"'
           docker compose -f compose.preview.yml exec -T worker python -c 'from pathlib import Path; p = Path.home() / ".cache" / "write-check"; p.write_text("ok"); p.unlink()'
+      - name: Verify studio browser flow
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python -m scripts.smoke_studio_browser
       - name: Save container logs
         if: always()
         run: docker compose -f compose.preview.yml logs --no-color > preview-containers.log
@@ -43,7 +48,9 @@ jobs:
         if: always()
         with:
           name: preview-container-logs
-          path: autoshorts-engine/preview-containers.log
+          path: |
+            autoshorts-engine/preview-containers.log
+            autoshorts-engine/studio-browser.png
           retention-days: 7
       - name: Stop disposable preview
         if: always()
@@ -51,7 +58,7 @@ jobs:
   postgres:
     name: SaaS PostgreSQL integration
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -104,6 +111,11 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-nanum
       - name: Real FFmpeg through separate API and worker processes
         run: python -m scripts.smoke_saas_processes
+      - name: Real speech recognition without paid APIs
+        run: |
+          sudo apt-get install -y -qq espeak-ng
+          pip install faster-whisper
+          python -m scripts.smoke_saas_processes --real-transcription
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -111,6 +123,7 @@ jobs:
           path: |
             autoshorts-engine/postgres-results.xml
             autoshorts-engine/process-smoke-evidence/
+            autoshorts-engine/speech-smoke-evidence/
           retention-days: 7
 
   test:

@@ -7,6 +7,7 @@ Run from autoshorts-engine: python -m scripts.smoke_saas_processes
 from __future__ import annotations
 
 import json
+import argparse
 import os
 from pathlib import Path
 import secrets
@@ -26,10 +27,13 @@ from saas.migrate import apply_all
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--real-transcription", action="store_true")
+    args = parser.parse_args()
     dsn = os.environ.get("AUTOSHORTS_TEST_DATABASE_URL")
     if not dsn:
         raise RuntimeError("A disposable AUTOSHORTS_TEST_DATABASE_URL is required")
-    evidence = Path("process-smoke-evidence").resolve()
+    evidence = Path("speech-smoke-evidence" if args.real_transcription else "process-smoke-evidence").resolve()
     evidence.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="autoshorts-smoke-") as tmp:
         root = Path(tmp)
@@ -88,9 +92,20 @@ def main() -> None:
             project = call("POST", f"/v1/workspaces/{workspace}/projects",
                            {"name": "Real FFmpeg / cached transcription"}, token)["id"]
             source = root / "source.mp4"
+            audio_input = ["-f", "lavfi", "-i", "sine=frequency=440:duration=40"]
+            if args.real_transcription:
+                speech = root / "speech.wav"
+                subprocess.run(["espeak-ng", "-v", "en-us", "-s", "145", "-w", str(speech),
+                    "Today we will learn how to create a short video. First choose a clear topic. "
+                    "Then record your voice in a quiet room. The most important step is to check "
+                    "the sound before you start editing. Good sound helps people understand your story. "
+                    "Next add captions so people can follow the story without sound. "
+                    "Finally watch the complete video and check every caption before sharing it."],
+                    check=True, timeout=30)
+                audio_input = ["-stream_loop", "-1", "-i", str(speech)]
             subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                             "-f", "lavfi", "-i", "color=c=navy:s=640x360:r=24:d=40",
-                            "-f", "lavfi", "-i", "sine=frequency=440:duration=40",
+                            *audio_input,
                             "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
                             "-c:a", "aac", "-shortest", str(source)], check=True, timeout=90)
             ticket = call("POST", f"/v1/projects/{project}/uploads",
@@ -110,9 +125,10 @@ def main() -> None:
                 words = [Word(i * 5 + j * .6, i * 5 + (j + 1) * .6, w)
                          for j, w in enumerate(text.split())]
                 segments.append(Segment(i * 5, i * 5 + 4.8, text, words))
-            Transcript(segments=segments, language="ko", duration=40).save(cache)
+            if not args.real_transcription:
+                Transcript(segments=segments, language="ko", duration=40).save(cache)
             submitted = call("POST", f"/v1/projects/{project}/jobs", {
-                "asset_id": asset, "language": "ko",
+                "asset_id": asset, "language": "en" if args.real_transcription else "ko",
                 "clip_options": {"min_seconds": 30, "max_seconds": 35,
                                  "min_clips": 1, "max_clips": 1},
                 "render_options": {"width": 1080, "height": 1920, "fps": 24,
@@ -123,11 +139,15 @@ def main() -> None:
             api.wait(timeout=15)
             worker = subprocess.Popen([sys.executable, "-m", "apps.worker.main", "--once"],
                                       env=env, stdout=worker_log, stderr=subprocess.STDOUT)
-            assert worker.wait(timeout=240) == 0, "worker exited unsuccessfully"
+            assert worker.wait(timeout=600) == 0, "worker exited unsuccessfully"
             api = start_api()
             ready()
             job = call("GET", f"/v1/jobs/{job_id}", token=token)
             assert job["status"] == "succeeded", job
+            if args.real_transcription:
+                recognized = Transcript.load(cache)
+                assert len(recognized.text.split()) >= 20, "Real STT did not recognize enough speech"
+                assert "video" in recognized.text.lower(), "Speech did not match the input topic"
             outputs = job["outputs_detail"]
             assert outputs, "No persisted output"
             output = evidence / "sample-short.mp4"
@@ -150,7 +170,7 @@ def main() -> None:
             report = {"status": "passed", "api_stopped_during_worker": True,
                       "dimensions": [video["width"], video["height"]],
                       "duration": probe["format"]["duration"], "cross_workspace_download": "denied",
-                      "transcription": "synthetic cached fixture", "analysis": "offline heuristic",
+                      "transcription": "real Whisper on synthesized English speech" if args.real_transcription else "synthetic cached fixture", "analysis": "offline heuristic",
                       "render": "real FFmpeg", "paid_api": False, "youtube_upload": False}
             (evidence / "result.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
             print(json.dumps(report, ensure_ascii=False))

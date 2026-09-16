@@ -149,10 +149,13 @@ def transcribe(
 
     total = float(getattr(info, "duration", 0.0) or 0.0)
     segments: list[Segment] = []
-    for segment in segments_from_whisper(raw_segments):
-        segments.append(segment)
-        if progress and total:
-            progress(min(segment.end / total, 1.0), segment.text)
+    # Consume the model iterator incrementally. Converting it to a list first
+    # hid all progress until recognition had finished.
+    for raw in raw_segments:
+        for segment in segments_from_whisper([raw]):
+            segments.append(segment)
+            if progress and total:
+                progress(min(segment.end / total, 1.0), segment.text)
 
     if not segments:
         raise TranscriptionError(

@@ -37,6 +37,7 @@ services:
       AUTOSHORTS_OUTPUT_ROOT: /data/output
       GEMINI_API_KEY: ''
       GOOGLE_API_KEY: ''
+      AUTOSHORTS_ALLOW_PAID_AI: '0'
     volumes:
       - preview-media:/data
     depends_on:
