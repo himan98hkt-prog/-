@@ -135,3 +135,57 @@ def test_concurrent_acquire_lets_only_one_through(lock_path, monkeypatch):
 def test_lock_file_is_owner_only(lock_path):
     ProcessLock(lock_path).acquire()
     assert oct(lock_path.stat().st_mode)[-3:] == "600"
+
+
+# --------------------------------------------------------------------------- #
+# Windows 에서 '살아 있는지' 물어보다 죽이면 안 된다
+# --------------------------------------------------------------------------- #
+
+
+def test_windows_check_never_calls_os_kill(monkeypatch):
+    """os.kill(pid, 0) 은 Windows 에서 TerminateProcess 다 — 부르면 안 된다."""
+    import os as _os
+
+    from utils import runtime
+
+    monkeypatch.setattr(runtime, "IS_WINDOWS", True)
+    killed = []
+    monkeypatch.setattr(_os, "kill", lambda pid, sig: killed.append((pid, sig)))
+    monkeypatch.setattr(runtime, "_process_alive_windows", lambda pid: True)
+
+    assert runtime._process_alive(12345) is True
+    assert killed == [], "생존 확인이 프로세스를 죽이면 안 됩니다"
+
+
+def test_posix_still_uses_signal_zero(monkeypatch):
+    import os as _os
+
+    from utils import runtime
+
+    monkeypatch.setattr(runtime, "IS_WINDOWS", False)
+    seen = []
+    monkeypatch.setattr(_os, "kill", lambda pid, sig: seen.append((pid, sig)))
+
+    assert runtime._process_alive(12345) is True
+    assert seen == [(12345, 0)]
+
+
+def test_dead_pid_is_reported_dead(monkeypatch):
+    import os as _os
+
+    from utils import runtime
+
+    monkeypatch.setattr(runtime, "IS_WINDOWS", False)
+
+    def gone(pid, sig):
+        raise ProcessLookupError
+
+    monkeypatch.setattr(_os, "kill", gone)
+    assert runtime._process_alive(12345) is False
+
+
+def test_invalid_pid_is_dead():
+    from utils import runtime
+
+    assert runtime._process_alive(0) is False
+    assert runtime._process_alive(-1) is False

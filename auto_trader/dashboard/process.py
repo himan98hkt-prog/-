@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from utils.logger import get_logger
-from utils.runtime import ProcessLock, pid_path
+from utils.runtime import IS_WINDOWS, ProcessLock, pid_path
 
 logger = get_logger("dashboard.process")
 
@@ -47,7 +47,7 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
 
     log_file = _stdout_log(log_dir)
     creation: dict = {}
-    if os.name == "nt":  # Windows
+    if IS_WINDOWS:  # Windows
         creation["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
     else:
         creation["start_new_session"] = True  # 대시보드를 껐다 켜도 봇은 살아 있게
@@ -105,6 +105,20 @@ def _first_error(tail: str) -> str:
     return ""
 
 
+def _ask_to_stop(pid: int) -> None:
+    """진행 중 사이클을 마치고 스스로 내려가도록 부탁한다.
+
+    Windows 에는 SIGTERM 이 없다. 파이썬의 os.kill 은 TerminateProcess 로
+    번역되어 **즉시 강제 종료**되는데, 그러면 미체결 주문 정리나 알림 없이
+    끊긴다. 그래서 Ctrl+Break 를 보내 정상 종료 절차를 타게 한다
+    (매매 프로세스를 CREATE_NEW_PROCESS_GROUP 으로 띄웠기에 이 그룹에만 간다).
+    """
+    if IS_WINDOWS:
+        os.kill(pid, signal.CTRL_BREAK_EVENT)  # type: ignore[attr-defined]
+        return
+    os.kill(pid, signal.SIGTERM)
+
+
 def stop(data_dir: Path) -> ControlResult:
     """SIGTERM 을 보내 진행 중 사이클을 마치고 안전하게 종료시킨다."""
     lock = ProcessLock(pid_path(data_dir))
@@ -113,7 +127,7 @@ def stop(data_dir: Path) -> ControlResult:
         return ControlResult(False, "실행 중이 아닙니다.")
 
     try:
-        os.kill(pid, signal.SIGTERM)
+        _ask_to_stop(pid)
     except (ProcessLookupError, PermissionError, OSError) as exc:
         return ControlResult(False, f"종료 신호를 보내지 못했습니다: {exc}")
 

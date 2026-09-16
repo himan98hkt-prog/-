@@ -158,3 +158,39 @@ def test_error_line_is_extracted_from_log():
 
 def test_no_error_line_returns_empty():
     assert process._first_error("정상 로그만 있음") == ""
+
+
+# --------------------------------------------------------------------------- #
+# 종료 요청 — Windows 에서도 정상 종료 절차를 타야 한다
+# --------------------------------------------------------------------------- #
+
+
+def test_windows_sends_ctrl_break_not_a_hard_kill(monkeypatch):
+    """Windows 의 os.kill(SIGTERM) 은 즉시 강제 종료다 — 사이클을 못 마친다."""
+    import os as _os
+    import signal as _signal
+
+    from dashboard import process
+
+    # 리눅스 파이썬에는 이 상수가 없다 — Windows 인 척하려면 같이 채워야 한다.
+    monkeypatch.setattr(_signal, "CTRL_BREAK_EVENT", 1, raising=False)
+    monkeypatch.setattr(process, "IS_WINDOWS", True)
+    sent = []
+    monkeypatch.setattr(_os, "kill", lambda pid, sig: sent.append((pid, sig)))
+
+    process._ask_to_stop(4321)
+    assert sent == [(4321, _signal.CTRL_BREAK_EVENT)]
+
+
+def test_posix_sends_sigterm(monkeypatch):
+    import os as _os
+    import signal as _signal
+
+    from dashboard import process
+
+    monkeypatch.setattr(process, "IS_WINDOWS", False)
+    sent = []
+    monkeypatch.setattr(_os, "kill", lambda pid, sig: sent.append((pid, sig)))
+
+    process._ask_to_stop(4321)
+    assert sent == [(4321, _signal.SIGTERM)]

@@ -574,6 +574,9 @@ class TradingBot:
 
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
+        # Windows 는 SIGTERM 대신 Ctrl+Break 로 정상 종료를 요청받는다.
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, self.handle_signal)  # type: ignore[attr-defined]
 
         logger.info("스케줄러 시작 — Ctrl+C 로 안전 종료")
         try:

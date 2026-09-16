@@ -28,12 +28,45 @@ class AlreadyRunningError(RuntimeError):
     """다른 프로세스가 이미 실행 중."""
 
 
+IS_WINDOWS = os.name == "nt"
+
+# Windows 에서 열어 볼 권한과 종료 코드 확인에 쓰는 상수
+_WIN_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_WIN_STILL_ACTIVE = 259
+
+
+def _process_alive_windows(pid: int) -> bool:
+    """Windows 전용 생존 확인.
+
+    **os.kill 을 쓰면 안 된다.** Windows 의 파이썬에서 os.kill(pid, 0) 은
+    '존재 확인' 이 아니라 TerminateProcess 를 호출한다 — 살아 있는지 물어보려다
+    그 프로세스를 죽여 버린다. 대시보드가 상태를 새로 고칠 때마다 매매
+    프로세스를 끝내던 원인이었다.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    handle = kernel32.OpenProcess(_WIN_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False  # 이미 없거나 접근할 수 없다
+    try:
+        code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return False
+        return code.value == _WIN_STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def _process_alive(pid: int) -> bool:
-    """해당 PID 의 프로세스가 살아 있는지."""
+    """해당 PID 의 프로세스가 살아 있는지. **죽이지 않는다.**"""
     if pid <= 0:
         return False
+    if IS_WINDOWS:
+        return _process_alive_windows(pid)
     try:
-        os.kill(pid, 0)  # 신호 0 = 존재 확인만
+        os.kill(pid, 0)  # POSIX 에서만 신호 0 = 존재 확인
     except ProcessLookupError:
         return False
     except PermissionError:
