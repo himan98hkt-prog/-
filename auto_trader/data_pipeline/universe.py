@@ -97,6 +97,18 @@ def build_universe(
     # 후보 수 제한은 AI 호출 비용 통제용 — 보유 종목에는 적용하지 않는다.
     limited = candidates[: universe_cfg.max_candidates_per_cycle]
 
+    # watchlist 는 순서가 고정이라, 상한에 잘린 뒤쪽은 **영영 분석되지 않는다**.
+    # 조용히 버리면 감시 목록에 적어 둔 종목이 매일 빠지는데도 모른다.
+    dropped = candidates[universe_cfg.max_candidates_per_cycle :]
+    if dropped:
+        logger.warning(
+            "후보 상한(%d)에 걸려 %d종목이 매 사이클 제외됩니다: %s — "
+            "전부 보려면 config/settings.yaml 의 universe.max_candidates_per_cycle 를 "
+            "%d 이상으로 올리세요(AI 비용도 그만큼 늘어납니다)",
+            universe_cfg.max_candidates_per_cycle, len(dropped), ", ".join(dropped),
+            len(candidates),
+        )
+
     ordered: list[str] = []
     for code in [*holdings, *limited]:  # 보유 종목을 앞에 둔다
         if code and code not in ordered:

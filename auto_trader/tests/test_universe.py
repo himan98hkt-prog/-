@@ -133,3 +133,20 @@ def test_universe_file_records_holdings(settings_obj, tmp_path):
     saved = json.loads((tmp_path / "universe_20260907.json").read_text(encoding="utf-8"))
     assert saved["holdings"] == ["068270"]
     assert saved["generated_at"].startswith("2026-09-07T08:30")
+
+
+def test_warns_when_the_candidate_cap_drops_names(settings_obj, caplog):
+    """조용히 잘리면 감시 목록에 적어 둔 종목이 매일 빠지는데도 모른다."""
+    import logging
+
+    from data_pipeline.universe import build_universe
+
+    settings_obj.universe.watchlist.extend(["068270", "051910", "006400"])
+    object.__setattr__(settings_obj.universe, "max_candidates_per_cycle", 3)
+
+    with caplog.at_level(logging.WARNING):
+        codes = build_universe(StubApi(), settings_obj, balance=None, save=False, now=NOW)
+
+    assert len(codes) == 3
+    assert "068270" in caplog.text, "잘려나간 종목을 알려주지 않았습니다"
+    assert "max_candidates_per_cycle" in caplog.text
