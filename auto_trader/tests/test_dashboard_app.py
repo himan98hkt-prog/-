@@ -652,3 +652,77 @@ def test_status_page_shows_the_install_folder(client, app):
     seed(app)
     body = client.get("/").get_data(as_text=True)
     assert str(app.config["BASE_DIR"]) in body
+
+
+# --------------------------------------------------------------------------- #
+# 현황 화면은 막지 않는다 + 진단 화면
+# --------------------------------------------------------------------------- #
+
+
+def test_status_page_opens_even_with_missing_settings(client, app):
+    """막아 세우면 무엇이 문제인지 볼 방법이 없어진다."""
+    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    seed(app)
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 200, "설정이 덜 됐다고 현황 화면을 막으면 안 됩니다"
+
+
+def test_status_page_names_the_missing_settings(client, app):
+    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    seed(app)
+    body = client.get("/").get_data(as_text=True)
+    assert "Claude 모델" in body and "CLAUDE_MODEL" in body
+
+
+def test_start_button_is_disabled_when_settings_are_missing(client, app):
+    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    seed(app)
+    body = client.get("/").get_data(as_text=True)
+    assert "disabled" in body.split("자동매매 시작")[0][-200:]
+
+
+def test_start_button_is_enabled_when_complete(client, app):
+    _write_env(app)
+    seed(app)
+    body = client.get("/").get_data(as_text=True)
+    assert "설정이" not in body.split("자동매매 시작")[0][-200:]
+
+
+def test_first_run_still_goes_to_setup(client, app):
+    """.env 자체가 없으면 설정부터가 맞다."""
+    from pathlib import Path as _Path
+
+    _Path(app.config["ENV_PATH"]).unlink(missing_ok=True)
+    assert client.get("/", follow_redirects=False).status_code == 302
+
+
+def test_diagnose_lists_every_field(client, app):
+    _write_env(app)
+    body = client.get("/diagnose").get_data(as_text=True)
+    for key in ("KIS_APP_KEY", "CLAUDE_MODEL", "GEMINI_MODEL", "OPENAI_API_KEY"):
+        assert key in body
+
+
+def test_diagnose_marks_the_empty_required_ones(client, app):
+    _write_env(app, GEMINI_MODEL="__CLEAR__")
+    body = client.get("/diagnose").get_data(as_text=True)
+    assert "비었음" in body and "필수 항목 1개가 비어" in body
+
+
+def test_diagnose_never_shows_secret_values(client, app):
+    _write_env(app, KIS_APP_SECRET="비밀값이라노출금지1234")
+    body = client.get("/diagnose").get_data(as_text=True)
+    assert "비밀값이라노출금지1234" not in body
+    assert "채워짐" in body
+
+
+def test_diagnose_shows_where_files_are(client, app):
+    _write_env(app)
+    body = client.get("/diagnose").get_data(as_text=True)
+    assert str(app.config["ENV_PATH"]) in body
+    assert str(app.config["BASE_DIR"]) in body
+
+
+def test_diagnose_says_all_clear_when_complete(client, app):
+    _write_env(app)
+    assert "필수 항목이 모두 채워져" in client.get("/diagnose").get_data(as_text=True)

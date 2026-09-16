@@ -2,6 +2,19 @@
 {% block title %}현황 · 자동매매{% endblock %}
 {% block content %}
 
+{% if missing %}
+<div class="notice danger">
+  <strong>아직 채우지 않은 항목이 {{ missing|length }}개 있습니다</strong>
+  아래 값이 비어 있어 <b>자동매매를 시작할 수 없습니다</b>. 나머지 화면은 그대로 보셔도 됩니다.
+  <ul class="missing-list">
+    {% for key, label in missing %}
+    <li><b>{{ label }}</b> <code>{{ key }}</code></li>
+    {% endfor %}
+  </ul>
+  <a class="btn primary" href="{{ url_for('setup') }}">설정 화면에서 채우기 →</a>
+</div>
+{% endif %}
+
 {% set s = status.state %}
 {% set o = overview %}
 
@@ -267,7 +280,8 @@
     {% if not status.running %}
       <form method="post" action="{{ url_for('control', action='start') }}">
         <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-        <button class="btn primary" type="submit">▶ 자동매매 시작</button>
+        <button class="btn primary" type="submit" {{ 'disabled' if missing }}>▶ 자동매매 시작</button>
+        {% if missing %}<span class="dim">설정이 {{ missing|length }}개 비어 있습니다</span>{% endif %}
       </form>
     {% else %}
       <form method="post" action="{{ url_for('control', action='restart') }}">

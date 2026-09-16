@@ -191,3 +191,14 @@ pre.log {
   .mode-bar.mode-vts { background: #17263a; border-color: #2c4a66; color: #bcd4f0; }
   .mode-bar.mode-real { background: #3a1b18; border-color: #6b2f28; color: #f3b8b2; }
 }
+
+
+/* 비어 있는 설정 항목 목록 */
+.missing-list { margin: 8px 0 12px; padding-left: 20px; }
+.missing-list li { margin: 3px 0; }
+.missing-list code { font-size: .85em; opacity: .7; margin-left: 4px; }
+
+
+/* 진단 화면에서 비어 있는 줄을 눈에 띄게 */
+.row-missing { background: #fdeceb; }
+@media (prefers-color-scheme: dark) { .row-missing { background: #3a1b18; } }

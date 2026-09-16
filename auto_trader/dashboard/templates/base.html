@@ -30,6 +30,7 @@
   <nav>
     <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>현황</a>
     <a href="{{ url_for('setup') }}" {% if request.endpoint in ('setup', 'verify') %}class="active"{% endif %}>설정</a>
+    <a href="{{ url_for('diagnose') }}" {% if request.endpoint == 'diagnose' %}class="active"{% endif %}>진단</a>
   </nav>
 </header>
 

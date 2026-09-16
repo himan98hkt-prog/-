@@ -102,16 +102,14 @@ def create_app(*, testing: bool = False) -> Flask:
     @app.route("/")
     def index() -> str:
         settings, config_error = _load_settings()
-        if not Path(app.config["ENV_PATH"]).exists():
+        # 설정이 덜 됐다고 현황 화면을 막지 않는다. 막아 세우면 무엇이 문제인지
+        # 볼 방법이 없어져, 설정↔점검 사이를 오가며 헤매게 된다.
+        # 화면은 항상 열고, 부족한 것은 화면 위에 적어 둔다.
+        first_run = not Path(app.config["ENV_PATH"]).exists()
+        if first_run:
             return redirect(url_for("setup", first="1"))
 
         missing = missing_required(app.config["ENV_PATH"])
-        if missing:
-            # 조용히 되돌리면 왜 못 들어가는지 알 길이 없다 — 무엇이 비었는지 말한다.
-            labels = ", ".join(FIELD_LABELS.get(key, key) for key in missing)
-            flash(f"아래 항목이 비어 있어 현황 화면을 열 수 없습니다: {labels}\n"
-                  "채우고 저장하면 바로 들어갑니다.", "warn")
-            return redirect(url_for("setup"))
 
         db = app.config["DB_PATH"]
         init_db(db)
@@ -135,6 +133,7 @@ def create_app(*, testing: bool = False) -> Flask:
             cost_chart=charts.cost_bars(queries.ai_cost_series(db)),
             settings=settings,
             config_error=config_error,
+            missing=[(key, FIELD_LABELS.get(key, key)) for key in missing],
         )
 
     @app.route("/api/status")
@@ -244,6 +243,47 @@ def create_app(*, testing: bool = False) -> Flask:
         else:
             abort(404)
         return redirect(url_for("index"))
+
+    @app.route("/진단")
+    @app.route("/diagnose")
+    def diagnose() -> str:
+        """무엇이 막고 있는지 한 화면에 모아 보여준다.
+
+        설정↔점검을 오가며 원인을 짐작하는 대신, 프로그램이 실제로 보고 있는
+        값을 그대로 늘어놓는다. 비밀값은 채워졌는지 여부와 길이만 보여준다.
+        """
+        env_path = Path(app.config["ENV_PATH"])
+        raw = read_env(env_path) if env_path.exists() else {}
+        missing = set(missing_required(env_path)) if env_path.exists() else set()
+
+        rows = []
+        for key, field in ALL_FIELDS.items():
+            value = raw.get(key, "")
+            if not value:
+                shown = "(비어 있음)"
+            elif field.secret:
+                shown = f"채워짐 · {len(value)}자"
+            else:
+                shown = value
+            rows.append({
+                "key": key, "label": field.label, "value": shown,
+                "required": field.required, "missing": key in missing,
+            })
+
+        settings, config_error = _load_settings()
+        return render_template(
+            "diagnose.html",
+            rows=rows,
+            missing_count=len(missing),
+            env_path=str(env_path),
+            env_exists=env_path.exists(),
+            base_dir=str(app.config["BASE_DIR"]),
+            db_path=str(app.config["DB_PATH"]),
+            version=updater.read_version(app.config["BASE_DIR"]),
+            status=runtime_status(),
+            config_error=config_error,
+            settings=settings,
+        )
 
     @app.route("/health")
     def health():
