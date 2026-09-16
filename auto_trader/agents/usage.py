@@ -1,7 +1,9 @@
 """AI 호출 토큰·비용 집계.
 
-단가는 모델마다 바뀌므로 `config/settings.yaml` 의 `ai.pricing` 으로 덮어쓴다
-(설정이 있으면 그것만 쓰고, 없으면 아래 기본표를 쓴다).
+단가는 모델마다 바뀌므로 `config/settings.yaml` 의 `ai.pricing` 으로 덮어쓴다.
+설정은 기본표를 **통째로 갈아치우지 않고 덮어쓴다** — 설정에 적지 않은 모델은
+기본표 값을 그대로 쓴다. 통째로 갈아치우면, 설정에 없는 모델로 바꾼 순간
+비용이 $0.00 으로 보여 '공짜로 쓰고 있다' 고 착각하게 된다.
 어느 표에도 없는 모델은 비용 0으로 기록하고 토큰만 남긴다 — 틀린 숫자보다 '모름'이 낫다.
 """
 
@@ -51,7 +53,7 @@ def estimate_cost(
     model: str, usage: Usage, pricing: dict[str, tuple[float, float]] | None = None
 ) -> float:
     """USD 추정 비용. 단가를 모르는 모델은 0.0."""
-    rates = _match_pricing(model, pricing or DEFAULT_PRICING)
+    rates = _match_pricing(model, {**DEFAULT_PRICING, **(pricing or {})})
     if rates is None:
         return 0.0
     input_rate, output_rate = rates

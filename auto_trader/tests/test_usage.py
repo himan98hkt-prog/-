@@ -95,3 +95,22 @@ def test_usage_is_isolated_per_thread():
     thread.join(2)
 
     assert seen["main"] == 0
+
+
+def test_settings_pricing_does_not_hide_unlisted_models():
+    """설정에 없는 모델이 '$0.00' 로 보이면 공짜로 쓰는 줄 안다."""
+    from agents.usage import Usage, estimate_cost
+
+    settings_pricing = {"claude-sonnet-5": (2.0, 10.0), "gemini-3.5-flash": (0.3, 2.5)}
+    usage = Usage(input_tokens=1_000_000, output_tokens=100_000)
+
+    cost = estimate_cost("claude-opus-5", usage, settings_pricing)
+    assert cost > 0, "설정에 없는 모델도 기본표 단가로 계산해야 합니다"
+
+
+def test_settings_pricing_still_wins_for_listed_models():
+    """설정에 적은 모델은 설정 값이 우선이어야 한다."""
+    from agents.usage import Usage, estimate_cost
+
+    usage = Usage(input_tokens=1_000_000, output_tokens=0)
+    assert estimate_cost("claude-sonnet-5", usage, {"claude-sonnet-5": (99.0, 0.0)}) == 99.0
