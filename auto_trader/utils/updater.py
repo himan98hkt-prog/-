@@ -43,7 +43,7 @@ VERSION_FILE = "version.json"
 # 업데이트가 덮어쓸 대상. 여기 없는 것은 손대지 않는다.
 CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests", "trading", "utils")
 CODE_FILES = ("main.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
-              "update.bat", "install.bat", "run_bot.bat", "boot.bat", ".env.example", "README.md", "SETUP.md")
+              "update.bat", "install.bat", "run_bot.bat", "boot.bat", "check_account.bat", ".env.example", "README.md", "SETUP.md")
 
 # 사용자가 고쳤을 수 있는 설정 파일 — 덮어쓰지 않고 `.new` 로 남긴다.
 USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")

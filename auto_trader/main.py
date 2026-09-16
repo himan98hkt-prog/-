@@ -118,12 +118,18 @@ class TradingBot:
         self.auth.get_access_token()  # 토큰 캐시 확인(없으면 여기서 1회 발급)
         logger.info("접근토큰 확보 완료")
 
+        # 잔고를 못 읽어도 프로세스를 죽이지 않는다. 장이 닫힌 뒤 띄워두면
+        # KIS 조회가 막히는 경우가 있는데, 여기서 죽으면 다음 날 09:05 사이클도
+        # 함께 사라진다. 사이클은 매번 다시 동기화하고 실패하면 스스로 건너뛰므로,
+        # 잔고를 모르는 채 주문이 나갈 일은 없다.
         try:
             state = self.portfolio.sync()
             logger.info("보유 %d종목 / 주문가능 %s원", state.position_count, f"{state.cash:,.0f}")
         except (KisApiError, KisAuthError) as exc:
             logger.error("기동 시 잔고 동기화 실패: %s", exc)
-            raise
+            logger.warning("잔고 없이 대기 상태로 기동합니다 — 다음 사이클에서 다시 시도합니다")
+            self.notifier.send_error(exc, context="기동 시 잔고 조회")
+            update_bot_state(self.settings.paths["db"], last_error=str(exc)[:500])
 
         self.refresh_universe()
         update_bot_state(

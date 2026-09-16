@@ -192,6 +192,22 @@ def _to_int(value: Any, default: int = 0) -> int:
 # --------------------------------------------------------------------------- #
 
 
+def _detail(response: requests.Response) -> str:
+    """KIS 응답에서 사람이 읽을 이유를 뽑는다. 없으면 빈 문자열."""
+    try:
+        data = response.json()
+    except ValueError:
+        body = (response.text or "").strip()
+        return f" — {body[:200]}" if body else ""
+    if not isinstance(data, dict):
+        return ""
+    msg_cd = str(data.get("msg_cd", "")).strip()
+    msg1 = str(data.get("msg1", "")).strip()
+    if msg_cd or msg1:
+        return f" [{msg_cd}] {msg1}".rstrip()
+    return ""
+
+
 class KisApi:
     """KIS 국내주식 REST API 래퍼."""
 
@@ -247,8 +263,11 @@ class KisApi:
             raise RetryableKisError(f"{tr_name} 요청 실패: {exc}") from exc
 
         if response.status_code >= 500:
+            # KIS 는 5xx 에도 msg_cd/msg1 로 이유를 실어 보낸다. 그걸 버리면
+            # 화면에 'HTTP 500' 만 남아 계좌 문제인지 서버 문제인지 알 수 없다.
             raise RetryableKisError(
-                f"{tr_name} 서버 오류 (HTTP {response.status_code})", http_status=response.status_code
+                f"{tr_name} 서버 오류 (HTTP {response.status_code}){_detail(response)}",
+                http_status=response.status_code,
             )
         if response.status_code != 200:
             raise KisApiError(

@@ -123,5 +123,16 @@ def test_update_and_boot_scripts_are_updatable():
     """업데이트가 배치 파일 자신도 갱신해야 다음 업데이트가 이어진다."""
     from utils.updater import CODE_FILES
 
-    for name in ("start.bat", "update.bat", "install.bat", "run_bot.bat", "boot.bat"):
+    for name in ("start.bat", "update.bat", "install.bat", "run_bot.bat",
+                 "boot.bat", "check_account.bat"):
         assert name in CODE_FILES, f"{name} 이 업데이트 대상에서 빠졌습니다"
+
+
+def test_check_account_bat_is_ascii_with_crlf():
+    """잔고를 눈으로 확인하는 길 — cmd 가 읽을 수 있어야 한다."""
+    raw = (BASE_DIR / "check_account.bat").read_bytes()
+    assert all(byte < 128 for byte in raw), "check_account.bat 에 비ASCII 문자가 있습니다"
+    assert raw.count(b"\n") == raw.count(b"\r\n")
+    text = raw.decode("ascii")
+    assert "scripts\\check_account.py" in text
+    assert text.count("pause") >= 2, "실패해도 창이 닫히면 원인을 볼 수 없습니다"

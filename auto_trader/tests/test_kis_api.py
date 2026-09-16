@@ -516,3 +516,24 @@ def test_query_without_hashkey_acquires_once(auth):
 
     api.get_current_price("005930")
     assert len(acquired) == 1
+
+
+def test_server_error_carries_kis_reason(auth, monkeypatch):
+    """HTTP 500 에도 KIS 는 이유를 실어 보낸다 — 버리면 진단이 불가능해진다."""
+    monkeypatch.setattr("utils.retry.time.sleep", lambda *_: None)
+    body = {"rt_cd": "1", "msg_cd": "40310000", "msg1": "모의투자 미신청 계좌입니다"}
+    api, _ = make_api(auth, [FakeResponse(body, status_code=500) for _ in range(3)])
+    with pytest.raises(KisApiError) as exc_info:
+        api.get_current_price("005930")
+    message = str(exc_info.value)
+    assert "40310000" in message
+    assert "모의투자 미신청 계좌입니다" in message
+
+
+def test_server_error_without_json_falls_back_to_body(auth, monkeypatch):
+    monkeypatch.setattr("utils.retry.time.sleep", lambda *_: None)
+    api, _ = make_api(auth, [FakeResponse(None, status_code=502, text="Bad Gateway")
+                             for _ in range(3)])
+    with pytest.raises(KisApiError) as exc_info:
+        api.get_current_price("005930")
+    assert "Bad Gateway" in str(exc_info.value)

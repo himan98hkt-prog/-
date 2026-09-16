@@ -555,3 +555,37 @@ def test_status_never_leaks_keys(bot):
     for secret in (bot.settings.env.kis_app_secret, bot.settings.env.anthropic_api_key):
         if secret:
             assert secret not in reply
+
+
+def test_startup_survives_balance_failure(bot, monkeypatch):
+    """장 마감 뒤 잔고 조회가 막혀도 프로세스는 살아 있어야 한다.
+
+    여기서 죽으면 다음 날 09:05 사이클까지 함께 사라진다.
+    """
+    from trading.kis_api import KisApiError
+
+    boom = KisApiError("balance 서버 오류 (HTTP 500) [40310000] 모의투자 미신청 계좌입니다")
+    monkeypatch.setattr(bot.portfolio, "sync", lambda now=None: (_ for _ in ()).throw(boom))
+    monkeypatch.setattr(bot, "refresh_universe", lambda: [])
+
+    bot.startup()  # 예외가 새어 나오면 실패다
+
+    from utils.db import get_bot_state
+
+    assert get_bot_state(bot.settings.paths["db"])["status"] == "RUNNING"
+    assert any("기동 시 잔고 조회" in line for line in bot.sent)
+    bot.lock.release()
+
+
+def test_cycle_skips_when_balance_is_unreadable(bot, monkeypatch):
+    """잔고를 모르면 주문은 한 건도 나가면 안 된다."""
+    from trading.kis_api import KisApiError
+
+    monkeypatch.setattr(bot.portfolio, "sync",
+                        lambda now=None: (_ for _ in ()).throw(KisApiError("balance 서버 오류")))
+    called: list[str] = []
+    monkeypatch.setattr(bot, "_process_code",
+                        lambda *a, **kw: called.append("x") or {})
+
+    assert bot.run_cycle(label="테스트") == []
+    assert not called, "잔고를 모르는 채 종목을 처리했습니다"
