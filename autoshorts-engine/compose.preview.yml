@@ -1,0 +1,60 @@
+# Local preview only; credentials are intentionally disposable, not production secrets.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: preview
+      POSTGRES_PASSWORD: local_preview_only
+      POSTGRES_DB: preview
+    volumes:
+      - preview-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U preview -d preview]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.preview
+    command: [python, -m, saas.migrate]
+    environment:
+      AUTOSHORTS_DATABASE_URL: postgresql://preview:local_preview_only@db:5432/preview
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.preview
+    ports:
+      - '127.0.0.1:8765:8000'
+    environment: &app-env
+      AUTOSHORTS_DATABASE_URL: postgresql://preview:local_preview_only@db:5432/preview
+      AUTOSHORTS_UPLOAD_SECRET: local-preview-only-do-not-deploy
+      AUTOSHORTS_STORAGE_ROOT: /data/storage
+      AUTOSHORTS_WORK_ROOT: /data/work
+      AUTOSHORTS_OUTPUT_ROOT: /data/output
+      GEMINI_API_KEY: ''
+      GOOGLE_API_KEY: ''
+    volumes:
+      - preview-media:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.preview
+    command: [python, -m, apps.worker.main]
+    environment: *app-env
+    volumes:
+      - preview-media:/data
+      - preview-models:/home/preview/.cache
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  preview-db:
+  preview-media:
+  preview-models:

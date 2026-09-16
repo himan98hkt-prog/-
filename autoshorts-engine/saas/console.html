@@ -71,6 +71,7 @@
   <button onclick="cancelJob()">취소</button>
   <div class="bar"><i id="bar"></i></div>
   <pre id="out-job">-</pre>
+  <div id="downloads"></div>
 </section>
 
 <section>
@@ -100,7 +101,7 @@ async function signup() {
     const data = await call("POST", "/v1/auth/signup", {
       email: $("email").value, password: $("password").value, workspace_name: "점검 워크스페이스" });
     S.token = data.token; S.workspace = data.workspace.id;
-    show("out-auth", data);
+    show("out-auth", { user: data.user, workspace: data.workspace });
   } catch (e) { show("out-auth", String(e)); }
 }
 
@@ -169,8 +170,27 @@ async function poll() {
     $("bar").style.width = (data.percent || 0) + "%";
     const job = await call("GET", `/v1/jobs/${S.job}`);
     show("out-job", { status: job.status, stage: job.stage, percent: job.progress,
-                      outputs: job.outputs_detail, warnings: job.warnings });
-    if (!["succeeded", "failed", "cancelled"].includes(job.status)) setTimeout(poll, 1500);
+                      outputs: job.outputs_detail, warnings: job.warnings, error: job.error_message });
+    $("downloads").replaceChildren();
+    for (const [index, output] of (job.outputs_detail || []).entries()) {
+      const button = document.createElement("button");
+      button.textContent = `영상 ${index + 1} 다운로드`;
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const response = await fetch(`/v1/outputs/${encodeURIComponent(output.id)}/download`,
+            { headers: { Authorization: "Bearer " + S.token } });
+          if (!response.ok) throw new Error(`다운로드 실패 (${response.status})`);
+          const url = URL.createObjectURL(await response.blob());
+          const link = document.createElement("a");
+          link.href = url; link.download = `short-${index + 1}.mp4`; link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) { show("out-job", String(e)); }
+        finally { button.disabled = false; }
+      };
+      $("downloads").append(button);
+    }
+    if (!["succeeded", "failed", "cancelled", "needs_approval"].includes(job.status)) setTimeout(poll, 1500);
   } catch (e) { show("out-job", String(e)); }
 }
 
