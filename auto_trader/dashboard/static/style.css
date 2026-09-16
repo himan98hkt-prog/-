@@ -202,3 +202,12 @@ pre.log {
 /* 진단 화면에서 비어 있는 줄을 눈에 띄게 */
 .row-missing { background: #fdeceb; }
 @media (prefers-color-scheme: dark) { .row-missing { background: #3a1b18; } }
+
+
+/* 비어 있는 필수 칸은 한눈에 보여야 한다 — 회색 예시 글자를 값으로 오해하기 쉽다 */
+.field.is-empty input,
+.field.is-empty select { border-color: #e34948; background: #fdf4f3; }
+@media (prefers-color-scheme: dark) {
+  .field.is-empty input,
+  .field.is-empty select { border-color: #e66767; background: #2b1917; }
+}

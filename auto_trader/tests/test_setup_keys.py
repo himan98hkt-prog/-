@@ -87,10 +87,11 @@ def test_enter_keeps_existing_secret(wizard, monkeypatch):
 
 def test_dash_clears_optional_value(wizard, monkeypatch):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
-    # 3번째가 LOG_LEVEL — 선택 항목이라 `-` 로 비울 수 있다.
-    _answers(wizard, monkeypatch, ["", "", "-"] + [""] * 18)
+    # 10번째가 CLAUDE_TEMPERATURE — 선택이고 기본값이 없어 실제로 비울 수 있다.
+    # (LOG_LEVEL 처럼 기본값이 있는 항목은 비워도 기본값으로 다시 채워진다.)
+    _answers(wizard, monkeypatch, [""] * 9 + ["-"] + [""] * 11)
     assert wizard.main() == 0
-    assert read_env(wizard.ENV_PATH)["LOG_LEVEL"] == ""
+    assert read_env(wizard.ENV_PATH)["CLAUDE_TEMPERATURE"] == ""
 
 
 def test_dash_refused_on_required_field(wizard, monkeypatch, capsys):

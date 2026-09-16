@@ -165,3 +165,35 @@ def test_dashboard_required_matches_loader(env_path, monkeypatch):
     })
     assert missing_required(env_path) == []
     load(env_path=env_path, create_dirs=False)  # ConfigError 가 나면 실패
+
+
+# --------------------------------------------------------------------------- #
+# 기본값이 있는 항목은 비워둘 수 없다
+# --------------------------------------------------------------------------- #
+
+
+def test_emptied_value_is_refilled_from_defaults(env_path):
+    """빈 문자열로 저장된 값도 기본값으로 되돌린다.
+
+    setdefault 는 키가 아예 없을 때만 동작해서, 한 번 비워진 값은 영영 비어
+    있었다. 화면에는 회색 예시 글자가 보여 채워진 것처럼 오해하기 쉽다.
+    """
+    write_env(env_path, {"KIS_ACCOUNT_PRODUCT_CD": "__CLEAR__"})
+    assert read_env(env_path)["KIS_ACCOUNT_PRODUCT_CD"] == "01"
+    assert "KIS_ACCOUNT_PRODUCT_CD" not in missing_required(env_path)
+
+
+def test_refill_is_reported_as_a_change(env_path):
+    changed = write_env(env_path, {"KIS_ACCOUNT_PRODUCT_CD": "__CLEAR__"})
+    assert "KIS_ACCOUNT_PRODUCT_CD" in changed
+
+
+def test_user_value_is_not_overwritten_by_the_default(env_path):
+    write_env(env_path, {"KIS_ACCOUNT_PRODUCT_CD": "29"})
+    assert read_env(env_path)["KIS_ACCOUNT_PRODUCT_CD"] == "29"
+
+
+def test_fields_without_defaults_stay_empty(env_path):
+    write_env(env_path, {"KIS_ACCOUNT_NO": "50123456"})
+    write_env(env_path, {"KIS_ACCOUNT_NO": "__CLEAR__"})
+    assert read_env(env_path)["KIS_ACCOUNT_NO"] == ""

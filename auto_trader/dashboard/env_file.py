@@ -148,8 +148,13 @@ def write_env(path: Path | str, updates: dict[str, str]) -> list[str]:
             changed.append(key)
         current[key] = new_value
 
+    # 값이 '비어 있는' 경우에도 기본값을 넣는다. setdefault 는 키가 아예 없을 때만
+    # 동작해서, 한 번 빈 문자열로 저장되면 영영 비어 있는 채로 남았다.
     for key, value in DEFAULTS.items():
-        current.setdefault(key, value)
+        if not current.get(key):
+            current[key] = value
+            if key not in changed:
+                changed.append(key)
 
     lines = [HEADER]
     for group in GROUPS:

@@ -661,21 +661,21 @@ def test_status_page_shows_the_install_folder(client, app):
 
 def test_status_page_opens_even_with_missing_settings(client, app):
     """막아 세우면 무엇이 문제인지 볼 방법이 없어진다."""
-    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    _write_env(app, KIS_ACCOUNT_NO="__CLEAR__")
     seed(app)
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 200, "설정이 덜 됐다고 현황 화면을 막으면 안 됩니다"
 
 
 def test_status_page_names_the_missing_settings(client, app):
-    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    _write_env(app, KIS_ACCOUNT_NO="__CLEAR__")
     seed(app)
     body = client.get("/").get_data(as_text=True)
-    assert "Claude 모델" in body and "CLAUDE_MODEL" in body
+    assert "계좌번호 앞 8자리" in body and "KIS_ACCOUNT_NO" in body
 
 
 def test_start_button_is_disabled_when_settings_are_missing(client, app):
-    _write_env(app, CLAUDE_MODEL="__CLEAR__")
+    _write_env(app, KIS_ACCOUNT_NO="__CLEAR__")
     seed(app)
     body = client.get("/").get_data(as_text=True)
     assert "disabled" in body.split("자동매매 시작")[0][-200:]
@@ -704,7 +704,7 @@ def test_diagnose_lists_every_field(client, app):
 
 
 def test_diagnose_marks_the_empty_required_ones(client, app):
-    _write_env(app, GEMINI_MODEL="__CLEAR__")
+    _write_env(app, KIS_ACCOUNT_NO="__CLEAR__")
     body = client.get("/diagnose").get_data(as_text=True)
     assert "비었음" in body and "필수 항목 1개가 비어" in body
 
