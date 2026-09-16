@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from utils.key_check import FAIL, check_value_hygiene
+from utils.key_check import FAIL, OK, check_value_hygiene
 
 
 def _problems(**env) -> dict[str, str]:
@@ -207,3 +207,84 @@ def test_missing_openai_key_is_skipped_not_failed():
 
     result = module.check_openai({})
     assert result.status == "skip" and result.optional
+
+
+# --------------------------------------------------------------------------- #
+# 환경 문제를 '키가 틀렸다' 로 읽히게 하지 않는다
+# --------------------------------------------------------------------------- #
+
+
+def test_gemini_quota_message_blames_the_model_not_the_key(monkeypatch):
+    import utils.key_check as module
+
+    class Boom:
+        class models:
+            @staticmethod
+            def generate_content(**kw):
+                raise RuntimeError(
+                    "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, "
+                    "'message': 'You exceeded your current quota'}}")
+
+        def __init__(self, **kw):
+            pass
+
+    fake = type(sys)("google")
+    genai = type(sys)("google.genai")
+    genai.Client = Boom
+    monkeypatch.setitem(sys.modules, "google", fake)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+
+    result = module.check_gemini({"GEMINI_API_KEY": "real", "GEMINI_MODEL": "gemini-3.1-pro-preview"})
+    assert "키는 정상입니다" in result.detail
+    assert "gemini-3.5-flash" in result.detail, "해결책(무료 모델)을 알려줘야 합니다"
+
+
+def test_kis_timeout_is_retried(monkeypatch):
+    import requests
+
+    import utils.key_check as module
+
+    attempts = []
+
+    def flaky(url, **kw):
+        attempts.append(kw.get("timeout"))
+        raise requests.Timeout("Read timed out")
+
+    monkeypatch.setattr(requests, "post", flaky)
+    monkeypatch.setattr(module.time, "sleep", lambda *_: None)
+
+    results = module.check_kis({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s",
+                                "KIS_ACCOUNT_NO": "44123451", "KIS_ENV": "VTS"})
+    auth = next(r for r in results if r.name == "KIS 인증")
+    assert len(attempts) == module.KIS_TOKEN_ATTEMPTS, "한 번 실패로 포기하면 안 됩니다"
+    assert attempts[0] >= 30, "타임아웃이 너무 짧으면 멀쩡한 키가 실패합니다"
+    assert "키 문제가 아니라" in auth.detail
+
+
+def test_kis_succeeds_on_a_later_attempt(monkeypatch):
+    import requests
+
+    import utils.key_check as module
+
+    calls = {"n": 0}
+
+    class Ok:
+        status_code = 200
+        text = ""
+
+        @staticmethod
+        def json():
+            return {"access_token": "T"}
+
+    def flaky(url, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise requests.Timeout("Read timed out")
+        return Ok()
+
+    monkeypatch.setattr(requests, "post", flaky)
+    monkeypatch.setattr(module.time, "sleep", lambda *_: None)
+
+    results = module.check_kis({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s",
+                                "KIS_ACCOUNT_NO": "44123451", "KIS_ENV": "VTS"})
+    assert next(r for r in results if r.name == "KIS 인증").status == OK

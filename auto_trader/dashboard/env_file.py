@@ -52,7 +52,9 @@ GROUPS: list[Group] = [
     ]),
     Group("AI 판단 엔진", "두 모델의 합의로 매매를 결정합니다.", [
         Field("ANTHROPIC_API_KEY", "Anthropic API 키", "console.anthropic.com — 크레딧 충전 필요", secret=True),
-        Field("CLAUDE_MODEL", "Claude 모델", placeholder="claude-sonnet-5"),
+        Field("CLAUDE_MODEL", "Claude 모델",
+              "sonnet = 저렴하고 충분 / opus = 더 정확하지만 비쌈",
+              choices=("claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5")),
         Field("CLAUDE_TEMPERATURE", "Claude temperature",
               "비워두세요. 최신 모델은 이 값을 거부(400)합니다", required=False),
         Field("CLAUDE_EFFORT", "Claude effort",
@@ -60,13 +62,14 @@ GROUPS: list[Group] = [
               choices=("", "low", "medium", "high", "xhigh", "max"), required=False),
         Field("GEMINI_API_KEY", "Gemini API 키", "aistudio.google.com/apikey", secret=True),
         Field("GEMINI_MODEL", "Gemini 모델",
-              "gemini-2.5-pro 는 신규 사용자에게 막혔습니다. 무료 한도로 쓰려면 gemini-3.5-flash",
-              placeholder="gemini-3.1-pro-preview"),
+              "flash = 무료 한도로 쓸 수 있음 / pro = 성능이 좋지만 결제 등록 필요",
+              choices=("gemini-3.5-flash", "gemini-3.1-pro-preview")),
         Field("GEMINI_TEMPERATURE", "Gemini temperature", placeholder="0.2", required=False),
         Field("OPENAI_API_KEY", "ChatGPT API 키",
               "선택 — platform.openai.com/api-keys. 넣으면 세 번째 판단 엔진으로 참여합니다",
               secret=True, required=False),
-        Field("OPENAI_MODEL", "ChatGPT 모델", required=False, placeholder="gpt-5.1"),
+        Field("OPENAI_MODEL", "ChatGPT 모델", "gpt-5.1 이 이 용도에 값이 적당합니다",
+              required=False, choices=("gpt-5.1", "gpt-6-astra")),
         Field("OPENAI_TEMPERATURE", "ChatGPT temperature",
               "비워두세요. 최신 추론 모델은 이 값을 거부합니다", required=False),
     ]),
@@ -88,7 +91,7 @@ ALL_FIELDS: dict[str, Field] = {f.key: f for group in GROUPS for f in group.fiel
 DEFAULTS = {
     "KIS_ENV": "VTS", "DRY_RUN": "true", "LOG_LEVEL": "INFO",
     "KIS_ACCOUNT_PRODUCT_CD": "01", "CLAUDE_MODEL": "claude-sonnet-5",
-    "GEMINI_MODEL": "gemini-3.1-pro-preview", "OPENAI_MODEL": "gpt-5.1", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
+    "GEMINI_MODEL": "gemini-3.5-flash", "OPENAI_MODEL": "gpt-5.1", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
 }
 
 HEADER = """# 자동매매 설정 — 대시보드 설정 화면에서 저장됨

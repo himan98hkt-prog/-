@@ -8,7 +8,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import time
+
 OK, FAIL, SKIP = "ok", "fail", "skip"
+
+# KIS 토큰 서버가 느릴 때를 견디기 위한 값
+KIS_TOKEN_TIMEOUT_SEC = 30
+KIS_TOKEN_ATTEMPTS = 3
 ICONS = {OK: "✅", FAIL: "❌", SKIP: "⏭️"}
 
 
@@ -137,14 +143,30 @@ def check_kis(env: dict[str, str | None]) -> list[Result]:
 
     base = ("https://openapivts.koreainvestment.com:29443" if mode == "VTS"
             else "https://openapi.koreainvestment.com:9443")
-    try:
-        response = requests.post(
-            f"{base}/oauth2/tokenP",
-            json={"grant_type": "client_credentials", "appkey": key, "appsecret": secret},
-            timeout=15,
-        )
-    except requests.RequestException as exc:
-        results.append(Result("KIS 인증", FAIL, f"접속 실패: {exc}"))
+    # KIS 토큰 서버는 느릴 때가 잦다. 짧은 타임아웃으로 한 번 실패했다고
+    # "키가 틀렸다" 로 읽히면 멀쩡한 키를 계속 다시 만들게 된다.
+    response = None
+    last_error = None
+    for attempt in range(KIS_TOKEN_ATTEMPTS):
+        try:
+            response = requests.post(
+                f"{base}/oauth2/tokenP",
+                json={"grant_type": "client_credentials", "appkey": key, "appsecret": secret},
+                timeout=KIS_TOKEN_TIMEOUT_SEC,
+            )
+            break
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt < KIS_TOKEN_ATTEMPTS - 1:
+                time.sleep(2)
+
+    if response is None:
+        results.append(Result(
+            "KIS 인증", FAIL,
+            f"{KIS_TOKEN_ATTEMPTS}번 시도했지만 접속하지 못했습니다 ({last_error}). "
+            "키 문제가 아니라 네트워크·증권사 서버 쪽입니다 — "
+            "인터넷을 확인하고 잠시 뒤 다시 점검하세요",
+        ))
         return results
 
     if response.status_code == 200 and response.json().get("access_token"):
@@ -190,7 +212,7 @@ def check_anthropic(env: dict[str, str | None]) -> Result:
 
 def check_gemini(env: dict[str, str | None]) -> Result:
     api_key = env.get("GEMINI_API_KEY")
-    model = env.get("GEMINI_MODEL") or "gemini-3.1-pro-preview"
+    model = env.get("GEMINI_MODEL") or "gemini-3.5-flash"
     if not api_key:
         return Result("Google (Gemini)", SKIP, "GEMINI_API_KEY 미입력")
     try:
@@ -213,8 +235,13 @@ def check_gemini(env: dict[str, str | None]) -> Result:
                 " (따옴표 안에 공백·줄바꿈이 보이면 그게 원인입니다)."
                 " 설정 화면에서 gemini-3.1-pro-preview 로 다시 저장하세요"
             )
-        elif "quota" in detail.lower() or "429" in detail:
-            detail += " → 무료 티어 한도일 수 있습니다"
+        elif "RESOURCE_EXHAUSTED" in detail or "429" in detail or "quota" in detail.lower():
+            return Result(
+                "Google (Gemini)", FAIL,
+                f"키는 정상입니다 — {model} 이(가) 무료 한도를 벗어났습니다. "
+                "설정 화면의 'Gemini 모델' 을 gemini-3.5-flash 로 바꾸면 무료 한도로 쓸 수 있습니다. "
+                "지금 모델을 그대로 쓰시려면 aistudio.google.com 에서 결제를 등록하세요",
+            )
         elif "API key" in detail or "401" in detail or "403" in detail:
             detail += f" → 키를 다시 확인하세요 (현재 {len(api_key)}자)"
         return Result("Google (Gemini)", FAIL, detail)
