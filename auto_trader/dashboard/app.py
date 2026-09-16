@@ -20,7 +20,7 @@ from dashboard.env_file import (ALL_FIELDS, GROUPS, missing_required, read_env,
                                 read_for_display, write_env)
 from utils import autostart, updater
 from utils.db import get_bot_state, init_db
-from utils.key_check import SKIP, Result, run_all, summarize
+from utils.key_check import SKIP, Result, find_telegram_chats, run_all, summarize
 from utils.runtime import ProcessLock, StopFlag, pid_path, stop_flag_path
 
 KST = ZoneInfo("Asia/Seoul")
@@ -243,6 +243,36 @@ def create_app(*, testing: bool = False) -> Flask:
         else:
             abort(404)
         return redirect(url_for("index"))
+
+    @app.route("/setup/telegram-chat-id", methods=["POST"])
+    def find_chat_id():
+        """봇 대화에서 채팅 ID 를 찾아 자동으로 채운다.
+
+        숫자를 손으로 알아내게 하면 꼭 틀린다 — 'chat not found' 로
+        헤매는 일을 없앤다.
+        """
+        env = read_env(app.config["ENV_PATH"])
+        token = env.get("TELEGRAM_BOT_TOKEN")
+        if not token:
+            flash("먼저 텔레그램 봇 토큰을 저장하세요.", "warn")
+            return redirect(url_for("setup"))
+
+        found = find_telegram_chats(token)
+        if not found:
+            flash("봇에게 온 메시지가 없습니다.\n"
+                  "텔레그램에서 봇 대화창을 열고 [시작] 또는 /start 를 보낸 뒤 "
+                  "다시 눌러 주세요. (봇은 상대가 먼저 말을 걸어야 메시지를 보낼 수 있습니다)",
+                  "warn")
+            return redirect(url_for("setup"))
+
+        chat_id, name = found[0]
+        write_env(app.config["ENV_PATH"], {"TELEGRAM_CHAT_ID": chat_id})
+        extra = ""
+        if len(found) > 1:
+            others = ", ".join(f"{cid} ({who})" for cid, who in found[1:])
+            extra = f"\n다른 대화도 있습니다: {others} — 필요하면 직접 바꾸세요."
+        flash(f"채팅 ID 를 찾아 채웠습니다: {chat_id} ({name}){extra}", "ok")
+        return redirect(url_for("setup"))
 
     @app.route("/진단")
     @app.route("/diagnose")

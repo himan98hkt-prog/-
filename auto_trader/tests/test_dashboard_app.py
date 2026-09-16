@@ -726,3 +726,50 @@ def test_diagnose_shows_where_files_are(client, app):
 def test_diagnose_says_all_clear_when_complete(client, app):
     _write_env(app)
     assert "필수 항목이 모두 채워져" in client.get("/diagnose").get_data(as_text=True)
+
+
+# --------------------------------------------------------------------------- #
+# 텔레그램 채팅 ID 자동 찾기
+# --------------------------------------------------------------------------- #
+
+
+def test_finds_and_fills_the_chat_id(client, app, monkeypatch):
+    import dashboard.app as mod
+    from dashboard.env_file import read_env
+
+    _write_env(app, TELEGRAM_CHAT_ID="__CLEAR__")
+    monkeypatch.setattr(mod, "find_telegram_chats", lambda token: [("8786453781", "홍길동")])
+
+    page = post_with_csrf(client, "/setup/telegram-chat-id")
+    assert read_env(app.config["ENV_PATH"])["TELEGRAM_CHAT_ID"] == "8786453781"
+    assert "찾아 채웠습니다" in page and "홍길동" in page
+
+
+def test_tells_the_user_to_message_the_bot_first(client, app, monkeypatch):
+    import dashboard.app as mod
+
+    _write_env(app)
+    monkeypatch.setattr(mod, "find_telegram_chats", lambda token: [])
+
+    page = post_with_csrf(client, "/setup/telegram-chat-id")
+    assert "봇에게 온 메시지가 없습니다" in page
+    assert "/start" in page
+
+
+def test_mentions_other_chats_without_overwriting(client, app, monkeypatch):
+    import dashboard.app as mod
+    from dashboard.env_file import read_env
+
+    _write_env(app)
+    monkeypatch.setattr(mod, "find_telegram_chats",
+                        lambda token: [("111", "나"), ("-222", "우리 그룹")])
+
+    page = post_with_csrf(client, "/setup/telegram-chat-id")
+    assert read_env(app.config["ENV_PATH"])["TELEGRAM_CHAT_ID"] == "111"
+    assert "-222" in page and "우리 그룹" in page
+
+
+def test_needs_the_bot_token_first(client, app, monkeypatch):
+    _write_env(app, TELEGRAM_BOT_TOKEN="__CLEAR__")
+    page = post_with_csrf(client, "/setup/telegram-chat-id")
+    assert "봇 토큰을 저장하세요" in page

@@ -289,3 +289,69 @@ def test_kis_succeeds_on_a_later_attempt(monkeypatch):
     results = module.check_kis({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s",
                                 "KIS_ACCOUNT_NO": "44123451", "KIS_ENV": "VTS"})
     assert next(r for r in results if r.name == "KIS 인증").status == OK
+
+
+def test_chat_not_found_points_at_the_real_chat_ids(monkeypatch):
+    """채팅 ID 가 틀렸을 때 실제 값을 찾아 보여준다."""
+    import requests
+
+    import utils.key_check as module
+
+    class R:
+        def __init__(self, payload): self._p = payload
+        def json(self): return self._p
+
+    monkeypatch.setattr(requests, "get", lambda url, **kw: R(
+        {"ok": True, "result": {"username": "hupa98_trade_bot"}}))
+    monkeypatch.setattr(requests, "post", lambda url, **kw: R(
+        {"ok": False, "description": "Bad Request: chat not found"}))
+    monkeypatch.setattr(module, "find_telegram_chats", lambda token: [("8786453781", "홍길동")])
+
+    results = module.check_telegram(
+        {"NOTIFIER": "telegram", "TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_CHAT_ID": "999"},
+        send_test=True)
+    detail = next(r for r in results if r.name == "텔레그램 발송").detail
+    assert "8786453781" in detail and "내 채팅 ID 찾기" in detail
+
+
+def test_chat_not_found_with_no_messages_says_to_start_the_bot(monkeypatch):
+    import requests
+
+    import utils.key_check as module
+
+    class R:
+        def __init__(self, payload): self._p = payload
+        def json(self): return self._p
+
+    monkeypatch.setattr(requests, "get", lambda url, **kw: R(
+        {"ok": True, "result": {"username": "hupa98_trade_bot"}}))
+    monkeypatch.setattr(requests, "post", lambda url, **kw: R(
+        {"ok": False, "description": "Bad Request: chat not found"}))
+    monkeypatch.setattr(module, "find_telegram_chats", lambda token: [])
+
+    results = module.check_telegram(
+        {"NOTIFIER": "telegram", "TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_CHAT_ID": "999"},
+        send_test=True)
+    detail = next(r for r in results if r.name == "텔레그램 발송").detail
+    assert "먼저 말을 걸어야" in detail and "hupa98_trade_bot" in detail
+
+
+def test_find_telegram_chats_reads_names(monkeypatch):
+    import requests
+
+    from utils.key_check import find_telegram_chats
+
+    class R:
+        @staticmethod
+        def json():
+            return {"ok": True, "result": [
+                {"message": {"chat": {"id": 8786453781, "first_name": "길동", "last_name": "홍"}}},
+                {"message": {"chat": {"id": -100, "title": "매매 알림방"}}},
+                {"message": {"chat": {"id": 8786453781, "first_name": "길동"}}},
+            ]}
+
+    monkeypatch.setattr(requests, "get", lambda url, **kw: R())
+    found = dict(find_telegram_chats("t"))
+    assert found["8786453781"] == "길동 홍"
+    assert found["-100"] == "매매 알림방"
+    assert len(found) == 2, "같은 채팅은 한 번만 나와야 합니다"

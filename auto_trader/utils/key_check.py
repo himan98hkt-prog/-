@@ -290,6 +290,41 @@ def check_openai(env: dict[str, str | None]) -> Result:
     return Result("ChatGPT (선택)", OK, f"{model} 호출 성공")
 
 
+def find_telegram_chats(token: str) -> list[tuple[str, str]]:
+    """봇이 받은 메시지에서 (채팅 ID, 보낸 사람) 목록을 뽑는다.
+
+    텔레그램 봇은 **상대가 먼저 말을 걸어야** 그 채팅으로 보낼 수 있다.
+    그래서 사용자가 봇에게 /start 를 보낸 뒤 이 함수를 부르면 채팅 ID 를
+    직접 찾아 줄 수 있다 — 숫자를 손으로 알아내게 하지 않는다.
+    """
+    import requests
+
+    try:
+        data = requests.get(
+            f"https://api.telegram.org/bot{token}/getUpdates", timeout=10).json()
+    except (requests.RequestException, ValueError):
+        return []
+    if not data.get("ok"):
+        return []
+
+    found: dict[str, str] = {}
+    for item in data.get("result") or []:
+        message = item.get("message") or item.get("edited_message") or {}
+        chat = message.get("chat") or {}
+        chat_id = chat.get("id")
+        if chat_id is None:
+            continue
+        name = (chat.get("title")
+                or " ".join(filter(None, (chat.get("first_name"), chat.get("last_name"))))
+                or chat.get("username") or "이름 없음")
+        # 같은 채팅이 여러 번 나오면 더 자세한 이름을 남긴다
+        # (어떤 메시지엔 성이 빠져 있기도 하다).
+        key = str(chat_id)
+        if len(name) > len(found.get(key, "")):
+            found[key] = name
+    return sorted(found.items())
+
+
 def check_telegram(env: dict[str, str | None], *, send_test: bool) -> list[Result]:
     token = env.get("TELEGRAM_BOT_TOKEN")
     chat_id = env.get("TELEGRAM_CHAT_ID")
@@ -311,19 +346,14 @@ def check_telegram(env: dict[str, str | None], *, send_test: bool) -> list[Resul
     results.append(Result("텔레그램 봇", OK, f"@{me['result'].get('username')}"))
 
     if not chat_id:
-        # 봇에게 보낸 메시지가 있으면 거기서 chat_id 를 찾아준다.
-        updates = requests.get(f"https://api.telegram.org/bot{token}/getUpdates", timeout=10).json()
-        found = {
-            str(item["message"]["chat"]["id"])
-            for item in updates.get("result", [])
-            if item.get("message", {}).get("chat", {}).get("id")
-        }
+        found = find_telegram_chats(token)
         if found:
-            results.append(Result("텔레그램 CHAT_ID", FAIL,
-                                  f"미입력 — 봇 대화에서 찾은 값: {', '.join(sorted(found))}"))
+            hint = ", ".join(f"{cid} ({name})" for cid, name in found)
+            results.append(Result("텔레그램 CHAT_ID", FAIL, f"미입력 — 봇 대화에서 찾은 값: {hint}"))
         else:
             results.append(Result("텔레그램 CHAT_ID", FAIL,
-                                  "미입력 — 텔레그램에서 봇에게 아무 메시지나 보낸 뒤 다시 실행하세요"))
+                                  "미입력 — 텔레그램에서 봇에게 아무 메시지나 보낸 뒤 "
+                                  "설정 화면의 '내 채팅 ID 찾기' 를 누르세요"))
         return results
 
     if send_test:
@@ -334,8 +364,22 @@ def check_telegram(env: dict[str, str | None], *, send_test: bool) -> list[Resul
         if sent.get("ok"):
             results.append(Result("텔레그램 발송", OK, "테스트 메시지를 확인하세요"))
         else:
-            results.append(Result("텔레그램 발송", FAIL,
-                                  f"{sent.get('description')} → 봇에게 먼저 /start 를 보냈는지 확인"))
+            reason = sent.get("description") or ""
+            if "chat not found" in reason.lower():
+                found = find_telegram_chats(token)
+                if found:
+                    hint = ", ".join(f"{cid} ({name})" for cid, name in found)
+                    detail = (f"채팅 ID {chat_id} 로는 보낼 수 없습니다. "
+                              f"봇 대화에서 찾은 실제 값: {hint} — "
+                              "설정 화면의 '내 채팅 ID 찾기' 를 누르면 자동으로 채워집니다")
+                else:
+                    detail = ("토큰은 정상입니다. 텔레그램에서 봇을 찾아 **먼저 말을 걸어야** 합니다 — "
+                              "@{} 대화창을 열고 [시작] 또는 /start 를 보낸 뒤, "
+                              "설정 화면의 '내 채팅 ID 찾기' 를 누르세요").format(
+                                  me["result"].get("username"))
+                results.append(Result("텔레그램 발송", FAIL, detail))
+            else:
+                results.append(Result("텔레그램 발송", FAIL, f"{reason} → 봇 설정을 확인하세요"))
     else:
         results.append(Result("텔레그램 CHAT_ID", OK, f"{chat_id} (--telegram-test 로 실제 발송 확인)"))
     return results
