@@ -260,6 +260,20 @@ def build_parser() -> argparse.ArgumentParser:
         help='auto 에 넘길 추가 인자. 값이 -로 시작하면 등호를 쓰세요: --auto-args="--upload"')
     _add_common_arguments(sch_parser)
 
+    bm_parser = subparsers.add_parser(
+        "benchmark", help="샘플 매니페스트로 품질·성능 기준선 측정 (Phase 0)")
+    bm_parser.add_argument("manifest", help="샘플 매니페스트 JSON 경로")
+    bm_parser.add_argument("--report-dir", default="benchmark-results",
+                           help="보고서 저장 폴더")
+    bm_parser.add_argument("--baseline-label", default="transcript-only",
+                           help="이 실행의 기준선 이름 (비교 보고서에 표시)")
+    bm_parser.add_argument("--validate-only", action="store_true",
+                           help="실행하지 않고 매니페스트 검증만 수행")
+    _add_common_arguments(bm_parser)
+    _add_transcribe_arguments(bm_parser)
+    _add_analyze_arguments(bm_parser)
+    _add_render_arguments(bm_parser)
+
     ui_parser = subparsers.add_parser("ui", help="Gradio 웹 대시보드 실행")
     ui_parser.add_argument("--host", default="127.0.0.1", help="바인딩 주소")
     ui_parser.add_argument("--port", type=int, default=7860, help="포트")
@@ -754,6 +768,38 @@ def _cmd_schedule(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_benchmark(args: argparse.Namespace) -> int:
+    from .benchmark import SampleManifest
+    from .benchmark_runner import run_manifest
+
+    manifest_path = Path(args.manifest)
+    if not manifest_path.exists():
+        print(f"❌ 매니페스트가 없습니다: {manifest_path}", file=sys.stderr)
+        return 1
+    manifest = SampleManifest.load(manifest_path)
+
+    print(f"\n샘플 {len(manifest)}개 · 분포: {manifest.mode_distribution()}")
+    problems = manifest.validate()
+    for problem in problems:
+        print(f"  ⚠️  {problem}")
+    if args.validate_only:
+        print("\n검증만 수행했습니다." if not problems else f"\n경고 {len(problems)}건.")
+        return 0
+
+    unverified = [s for s in manifest.samples if s.needs_rights_confirmation]
+    if unverified:
+        print(f"\n  권리 미확인 {len(unverified)}건은 처리하지 않고 건너뜁니다.")
+
+    settings = settings_from_args(args)
+    report = run_manifest(
+        manifest, settings, output_dir=args.report_dir, baseline_label=args.baseline_label
+    )
+    print()
+    print(report.to_markdown())
+    print(f"보고서: {Path(args.report_dir).resolve()}")
+    return 0 if report.render_success_rate > 0 else 1
+
+
 def _cmd_ui(args: argparse.Namespace) -> int:
     from .app import launch
 
@@ -767,7 +813,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     # 서브커맨드를 생략하면 run 으로 간주한다: `autoshorts <URL>`
     known = {"run", "transcribe", "analyze", "render", "trend", "auto", "upload",
-             "login", "setup", "doctor", "schedule", "ui", "-h", "--help", "--version"}
+             "login", "setup", "doctor", "schedule", "benchmark", "ui",
+             "-h", "--help", "--version"}
     if argv and argv[0] not in known:
         argv.insert(0, "run")
 
@@ -800,6 +847,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "setup": _cmd_setup,
         "doctor": _cmd_doctor,
         "schedule": _cmd_schedule,
+        "benchmark": _cmd_benchmark,
         "ui": _cmd_ui,
     }
     try:

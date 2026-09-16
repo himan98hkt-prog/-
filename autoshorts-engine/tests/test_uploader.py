@@ -184,7 +184,10 @@ class TestUploadVideo:
         try:
             upload_video(self._request(video), service=service)
         except QuotaExceededError as exc:
-            assert str(DAILY_UPLOAD_LIMIT) in str(exc)
+            message = str(exc)
+            assert str(DAILY_UPLOAD_LIMIT) in message
+            # 추정치를 단정하지 않고 API 응답이 기준임을 알린다
+            assert "프로젝트마다 다를 수 있습니다" in message
 
     def test_auth_error_is_classified(self, video):
         error = RuntimeError("authError: invalid credentials")

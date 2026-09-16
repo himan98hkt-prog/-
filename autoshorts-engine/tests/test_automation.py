@@ -155,8 +155,12 @@ class TestRunAuto:
         assert len(result.uploads) == 1
 
     def test_daily_quota_is_respected(self, settings, stub, history):
-        # 이미 오늘 6건을 올린 상태
-        history.record("earlier", uploads=[{"video_id": str(i)} for i in range(6)])
+        # 한도 숫자는 정책 계층에서 바뀔 수 있으므로 현재 한도만큼 채워 소진시킨다
+        from autoshorts.uploader import DAILY_UPLOAD_LIMIT
+
+        history.record(
+            "earlier", uploads=[{"video_id": str(i)} for i in range(DAILY_UPLOAD_LIMIT)]
+        )
         result = run_auto(settings, "재테크", AutoOptions(upload=True), history=history,
                           upload_fn=lambda r, **k: pytest.fail("한도를 넘겨 업로드하면 안 된다"))
         assert result.uploads == []

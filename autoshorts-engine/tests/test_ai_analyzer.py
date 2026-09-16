@@ -9,6 +9,7 @@ import pytest
 from autoshorts import ai_analyzer
 from autoshorts.ai_analyzer import (
     AnalysisError,
+    _shorten_title,
     analyze,
     build_prompt,
     heuristic_highlights,
@@ -16,7 +17,6 @@ from autoshorts.ai_analyzer import (
     parse_response_json,
     snap_to_segments,
 )
-from autoshorts.ai_analyzer import _shorten_title
 from autoshorts.models import Clip, Transcript
 
 
