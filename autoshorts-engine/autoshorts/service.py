@@ -284,15 +284,26 @@ class EngineService:
         *,
         on_progress: ProgressSink | None = None,
         execute: bool = True,
+        dedupe: bool = True,
+        token: CancellationToken | None = None,
     ) -> JobResult:
         """작업을 받아 실행한다(동기).
 
         같은 ``idempotency_key`` 로 이미 성공한 작업이 있으면 **다시 실행하지 않고**
         그 결과를 돌려준다. 중복 클릭이나 큐 재전달이 credit 을 두 번 태우지 않게
         하기 위해서다.
+
+        ``dedupe=False``
+            이미 접수돼 저장소에 들어 있는 작업을 **실행만** 할 때 쓴다(Phase 2 worker).
+            그 경우 자기 자신이 멱등성 검사에 걸려 영원히 실행되지 않는다.
+        ``token``
+            취소 신호를 바깥에서 주입한다. 제출한 프로세스와 실행하는 프로세스가
+            다를 때(worker) 필요하다.
         """
-        existing = self.store.find_by_idempotency_key(
-            spec.idempotency_key, spec.workspace_id
+        existing = (
+            self.store.find_by_idempotency_key(spec.idempotency_key, spec.workspace_id)
+            if dedupe
+            else None
         )
         if existing is not None:
             LOG.info("멱등 재사용: %s ← %s", spec.job_id, existing.spec.job_id)
@@ -309,6 +320,8 @@ class EngineService:
             idempotency_key=spec.idempotency_key,
         )
         record = JobRecord(spec, result)
+        if token is not None:
+            record.token = token
         self.store.create(record)
 
         # 권리 게이트 — 렌더 전에 멈춘다. 실패가 아니라 승인 대기다.
