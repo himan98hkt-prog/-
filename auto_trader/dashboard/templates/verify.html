@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="card">
-  <h2>키 점검 결과<span class="sub">정상 {{ counts.ok }} · 실패 {{ counts.fail }} · 미입력 {{ counts.skip }}</span></h2>
+  <h2>키 점검 결과<span class="sub">정상 {{ counts.ok }} · 실패 {{ counts.fail }}{% if counts.warn %} · 일시 오류 {{ counts.warn }}{% endif %} · 미입력 {{ counts.skip }}</span></h2>
   <table>
     <thead><tr><th style="width:38px"></th><th>항목</th><th>결과</th></tr></thead>
     <tbody>
@@ -17,6 +17,10 @@
 {% if counts.blocking_fail == 0 and counts.required_missing == 0 %}
 <div class="notice">
   <strong>준비가 끝났습니다</strong>
+  {% if counts.warn %}
+  상대 서버가 잠시 붐벼 {{ counts.warn }}개 항목이 응답하지 않았지만 <b>키와 설정은 정상</b>입니다 —
+  잠시 뒤 저절로 풀립니다.
+  {% endif %}
   {% if counts.optional_fail %}
   선택 항목 {{ counts.optional_fail }}개가 실패했지만 <b>진행에는 지장이 없습니다</b> —
   해당 엔진만 빼고 나머지로 판단합니다.

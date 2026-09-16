@@ -355,3 +355,115 @@ def test_find_telegram_chats_reads_names(monkeypatch):
     assert found["8786453781"] == "길동 홍"
     assert found["-100"] == "매매 알림방"
     assert len(found) == 2, "같은 채팅은 한 번만 나와야 합니다"
+
+
+# --------------------------------------------------------------------------- #
+# 상대 서버가 붐빌 때는 막지 않는다
+# --------------------------------------------------------------------------- #
+
+
+def test_transient_errors_are_recognised():
+    from utils.key_check import is_transient
+
+    assert is_transient("503 UNAVAILABLE. This model is currently experiencing high demand")
+    assert is_transient("Read timed out")
+    assert is_transient("The server is overloaded")
+    assert is_transient("502 Bad Gateway")
+
+
+def test_real_problems_are_not_treated_as_transient():
+    """잠깐 기다린다고 낫지 않는 것은 일시적 오류가 아니다."""
+    from utils.key_check import is_transient
+
+    assert not is_transient("401 authentication_error: API key is invalid")
+    assert not is_transient("insufficient_quota: You have no credits remaining")
+    assert not is_transient("429 RESOURCE_EXHAUSTED: You exceeded your current quota")
+    assert not is_transient("404 model not found")
+
+
+def test_transient_calls_are_retried():
+    from utils.key_check import AI_ATTEMPTS, call_with_retry
+    import utils.key_check as module
+
+    tries = []
+
+    def flaky():
+        tries.append(1)
+        raise RuntimeError("503 UNAVAILABLE high demand")
+
+    original = module.time.sleep
+    module.time.sleep = lambda *_: None
+    try:
+        error, ok = call_with_retry(flaky)
+    finally:
+        module.time.sleep = original
+
+    assert not ok and len(tries) == AI_ATTEMPTS
+
+
+def test_permanent_errors_are_not_retried():
+    from utils.key_check import call_with_retry
+
+    tries = []
+
+    def broken():
+        tries.append(1)
+        raise RuntimeError("401 authentication_error")
+
+    error, ok = call_with_retry(broken)
+    assert not ok and len(tries) == 1, "고쳐야 할 오류를 반복할 이유가 없습니다"
+
+
+def test_retry_succeeds_on_a_later_attempt():
+    from utils.key_check import call_with_retry
+    import utils.key_check as module
+
+    state = {"n": 0}
+
+    def flaky():
+        state["n"] += 1
+        if state["n"] < 3:
+            raise RuntimeError("503 UNAVAILABLE")
+
+    original = module.time.sleep
+    module.time.sleep = lambda *_: None
+    try:
+        error, ok = call_with_retry(flaky)
+    finally:
+        module.time.sleep = original
+
+    assert ok and state["n"] == 3
+
+
+def test_busy_server_is_a_warning_not_a_failure(monkeypatch):
+    """구글이 붐빈다고 '준비되지 않았습니다' 로 사용자를 막으면 안 된다."""
+    import utils.key_check as module
+
+    class Busy:
+        class models:
+            @staticmethod
+            def generate_content(**kw):
+                raise RuntimeError(
+                    "503 UNAVAILABLE. This model is currently experiencing high demand.")
+
+        def __init__(self, **kw):
+            pass
+
+    fake = type(sys)("google")
+    genai = type(sys)("google.genai")
+    genai.Client = Busy
+    monkeypatch.setitem(sys.modules, "google", fake)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+    monkeypatch.setattr(module.time, "sleep", lambda *_: None)
+
+    result = module.check_gemini({"GEMINI_API_KEY": "k", "GEMINI_MODEL": "gemini-3.5-flash"})
+    assert result.status == module.WARN
+    assert "키와 설정은 정상" in result.detail
+
+
+def test_warnings_do_not_block_the_verdict():
+    from utils.key_check import OK, WARN, Result, summarize
+
+    counts = summarize([Result("KIS 인증", OK, ""), Result("Google (Gemini)", WARN, "붐빔")])
+    assert counts["blocking_fail"] == 0 and counts["warn"] == 1
+    assert counts["required_missing"] == 0

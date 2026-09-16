@@ -10,12 +10,48 @@ from dataclasses import dataclass
 
 import time
 
-OK, FAIL, SKIP = "ok", "fail", "skip"
+OK, FAIL, SKIP, WARN = "ok", "fail", "skip", "warn"
 
 # KIS 토큰 서버가 느릴 때를 견디기 위한 값
 KIS_TOKEN_TIMEOUT_SEC = 30
 KIS_TOKEN_ATTEMPTS = 3
-ICONS = {OK: "✅", FAIL: "❌", SKIP: "⏭️"}
+ICONS = {OK: "✅", FAIL: "❌", SKIP: "⏭️", WARN: "⚠️"}
+
+# 상대 서버가 잠시 붐비거나 느린 경우 — 키 문제가 아니다.
+# 이런 오류로 사용자를 막아 세우면, 고칠 것이 없는데 고치라는 말이 된다.
+TRANSIENT_MARKERS = (
+    "503", "unavailable", "high demand", "overloaded", "overload",
+    "timed out", "timeout", "temporarily", "try again later",
+    "500", "502", "504", "connection reset", "connection aborted",
+)
+AI_ATTEMPTS = 3
+AI_RETRY_WAIT_SEC = 3
+
+
+def is_transient(detail: str) -> bool:
+    """상대 서버 사정으로 잠시 실패한 것인지."""
+    lowered = (detail or "").lower()
+    # 잔액 부족은 잠깐 기다린다고 낫지 않는다 — 일시적 오류로 보면 안 된다.
+    if "insufficient_quota" in lowered or "no credits" in lowered:
+        return False
+    if "resource_exhausted" in lowered or "exceeded your current quota" in lowered:
+        return False
+    return any(marker in lowered for marker in TRANSIENT_MARKERS)
+
+
+def call_with_retry(attempt, *, attempts: int = AI_ATTEMPTS):
+    """일시적 오류면 몇 번 더 해 본다. (마지막 오류 메시지, 성공 여부)."""
+    last = ""
+    for index in range(attempts):
+        try:
+            attempt()
+            return "", True
+        except Exception as exc:
+            last = str(exc)
+            if not is_transient(last) or index == attempts - 1:
+                return last, False
+            time.sleep(AI_RETRY_WAIT_SEC)
+    return last, False
 
 
 @dataclass
@@ -192,14 +228,19 @@ def check_anthropic(env: dict[str, str | None]) -> Result:
     model = env.get("CLAUDE_MODEL") or "claude-sonnet-5"
     if not api_key:
         return Result("Anthropic (Claude)", SKIP, "ANTHROPIC_API_KEY 미입력")
-    try:
-        import anthropic
+    import anthropic
 
-        client = anthropic.Anthropic(api_key=api_key, timeout=30.0, max_retries=0)
-        client.messages.create(model=model, max_tokens=16,
-                               messages=[{"role": "user", "content": "ping"}])
-    except Exception as exc:  # SDK 예외 종류가 많아 통째로 잡아 원문을 보여준다
-        detail = str(exc)[:200]
+    client = anthropic.Anthropic(api_key=api_key, timeout=30.0, max_retries=0)
+    error, ok = call_with_retry(lambda: client.messages.create(
+        model=model, max_tokens=16, messages=[{"role": "user", "content": "ping"}]))
+    if not ok:
+        detail = error[:200]
+        if is_transient(detail):
+            return Result(
+                "Anthropic (Claude)", WARN,
+                f"Anthropic 서버가 지금 붐빕니다({AI_ATTEMPTS}번 시도). "
+                "키와 설정은 정상이며 진행에 지장 없습니다",
+            )
         if "credit" in detail.lower() or "billing" in detail.lower():
             detail += " → 콘솔 Billing 에서 크레딧을 충전하세요"
         elif "authentication_error" in detail or "401" in detail:
@@ -220,13 +261,19 @@ def check_gemini(env: dict[str, str | None]) -> Result:
     model = env.get("GEMINI_MODEL") or "gemini-3.5-flash"
     if not api_key:
         return Result("Google (Gemini)", SKIP, "GEMINI_API_KEY 미입력")
-    try:
-        from google import genai
+    from google import genai
 
-        client = genai.Client(api_key=api_key)
-        client.models.generate_content(model=model, contents="ping")
-    except Exception as exc:
-        detail = str(exc)[:200]
+    client = genai.Client(api_key=api_key)
+    error, ok = call_with_retry(
+        lambda: client.models.generate_content(model=model, contents="ping"))
+    if not ok:
+        detail = error[:200]
+        if is_transient(detail):
+            return Result(
+                "Google (Gemini)", WARN,
+                f"구글 서버가 지금 붐빕니다({AI_ATTEMPTS}번 시도). 키와 설정은 정상이며 "
+                "진행에 지장 없습니다 — 잠시 뒤 저절로 풀립니다",
+            )
         if "no longer available" in detail or "404" in detail:
             detail += (
                 " → 모델 이름을 바꾸세요. gemini-2.5-pro 는 신규 사용자에게 막혔습니다."
@@ -259,16 +306,17 @@ def check_openai(env: dict[str, str | None]) -> Result:
     model = env.get("OPENAI_MODEL") or "gpt-5.1"
     if not api_key:
         return Result("ChatGPT (선택)", SKIP, "미입력 — Claude·Gemini 둘로만 판단합니다")
-    try:
-        from openai import OpenAI
+    from openai import OpenAI
 
-        client = OpenAI(api_key=api_key, timeout=30.0, max_retries=0)
-        client.chat.completions.create(
-            model=model, max_completion_tokens=16,
-            messages=[{"role": "user", "content": "ping"}],
-        )
-    except Exception as exc:
-        detail = str(exc)[:200]
+    client = OpenAI(api_key=api_key, timeout=30.0, max_retries=0)
+    error, ok = call_with_retry(lambda: client.chat.completions.create(
+        model=model, max_completion_tokens=16,
+        messages=[{"role": "user", "content": "ping"}]))
+    if not ok:
+        detail = error[:200]
+        if is_transient(detail):
+            return Result("ChatGPT (선택)", WARN,
+                          f"OpenAI 서버가 지금 붐빕니다({AI_ATTEMPTS}번 시도). 진행에 지장 없습니다")
         if "insufficient_quota" in detail or "no credits" in detail.lower():
             # 키는 정상이다. 잔액만 없다.
             return Result(
@@ -408,6 +456,7 @@ def summarize(results: list[Result]) -> dict[str, int]:
     return {
         "ok": sum(1 for r in results if r.status == OK),
         "fail": sum(1 for r in results if r.status == FAIL),
+        "warn": sum(1 for r in results if r.status == WARN),
         "blocking_fail": sum(1 for r in results if r.status == FAIL and not r.optional),
         "optional_fail": sum(1 for r in results if r.status == FAIL and r.optional),
         "skip": sum(1 for r in results if r.status == SKIP),
