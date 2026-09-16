@@ -467,3 +467,101 @@ def test_warnings_do_not_block_the_verdict():
     counts = summarize([Result("KIS 인증", OK, ""), Result("Google (Gemini)", WARN, "붐빔")])
     assert counts["blocking_fail"] == 0 and counts["warn"] == 1
     assert counts["required_missing"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# KIS 토큰 1분 제한 — 점검을 두 번 눌렀다고 막히면 안 된다
+# --------------------------------------------------------------------------- #
+
+
+def test_rate_limit_is_a_warning_not_a_failure(monkeypatch, tmp_path):
+    import requests
+
+    import utils.key_check as module
+
+    class Limited:
+        status_code = 403
+        text = ('{"error_code":"EGW00133","error_description":'
+                '"접근토큰 발급 잠시 후 다시 시도하세요(1분당 1회)"}')
+
+        @staticmethod
+        def json():
+            return {}
+
+    monkeypatch.setattr(requests, "post", lambda url, **kw: Limited())
+    monkeypatch.setattr(module, "_cached_token_note", lambda env, mode: "")
+
+    results = module.check_kis({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s",
+                                "KIS_ACCOUNT_NO": "44123451", "KIS_ENV": "VTS"})
+    auth = next(r for r in results if r.name == "KIS 인증")
+    assert auth.status == module.WARN, "제한에 걸렸다는 건 조금 전 발급이 통했다는 뜻입니다"
+    assert "키는 정상입니다" in auth.detail
+
+
+def test_live_token_is_reused_without_a_new_request(monkeypatch, tmp_path):
+    """이미 받아둔 토큰이 살아 있으면 새로 발급하지 않는다."""
+    import json as _json
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    import requests
+
+    import utils.key_check as module
+
+    token_file = tmp_path / "token.json"
+    later = datetime.now(ZoneInfo("Asia/Seoul")) + timedelta(hours=5)
+    token_file.write_text(_json.dumps({
+        "access_token": "T", "expires_at": later.isoformat(),
+        "kis_env": "VTS", "app_key_tail": "3456",
+    }), encoding="utf-8")
+
+    calls = []
+    monkeypatch.setattr(requests, "post", lambda url, **kw: calls.append(url))
+
+    results = module.check_kis({
+        "KIS_APP_KEY": "PSkey123456", "KIS_APP_SECRET": "s",
+        "KIS_ACCOUNT_NO": "44123451", "KIS_ENV": "VTS",
+        "__TOKEN_PATH__": str(token_file),
+    })
+    auth = next(r for r in results if r.name == "KIS 인증")
+    assert auth.status == OK and "토큰 유효" in auth.detail
+    assert calls == [], "살아 있는 토큰이 있는데 또 발급하면 1분 제한에 걸립니다"
+
+
+def test_token_from_another_environment_is_not_reused(monkeypatch, tmp_path):
+    """모의에서 받은 토큰을 실전에 쓰면 안 된다."""
+    import json as _json
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    import utils.key_check as module
+
+    token_file = tmp_path / "token.json"
+    later = datetime.now(ZoneInfo("Asia/Seoul")) + timedelta(hours=5)
+    token_file.write_text(_json.dumps({
+        "access_token": "T", "expires_at": later.isoformat(),
+        "kis_env": "VTS", "app_key_tail": "3456",
+    }), encoding="utf-8")
+
+    note = module._cached_token_note(
+        {"KIS_APP_KEY": "PSkey123456", "__TOKEN_PATH__": str(token_file)}, "REAL")
+    assert note == ""
+
+
+def test_expiring_token_is_not_reused(tmp_path):
+    import json as _json
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    import utils.key_check as module
+
+    token_file = tmp_path / "token.json"
+    soon = datetime.now(ZoneInfo("Asia/Seoul")) + timedelta(minutes=3)
+    token_file.write_text(_json.dumps({
+        "access_token": "T", "expires_at": soon.isoformat(),
+        "kis_env": "VTS", "app_key_tail": "3456",
+    }), encoding="utf-8")
+
+    note = module._cached_token_note(
+        {"KIS_APP_KEY": "PSkey123456", "__TOKEN_PATH__": str(token_file)}, "VTS")
+    assert note == "", "곧 만료될 토큰을 통과로 보면 안 됩니다"

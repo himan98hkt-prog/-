@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import json
 import time
+from pathlib import Path
 
 OK, FAIL, SKIP, WARN = "ok", "fail", "skip", "warn"
 
@@ -150,6 +152,28 @@ def check_value_hygiene(env: dict[str, str | None]) -> list[Result]:
     return results
 
 
+def _cached_token_note(env: dict[str, str | None], mode: str) -> str:
+    """살아 있는 토큰이 이미 있으면 그 사실을 문장으로 돌려준다 (없으면 빈 문자열)."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    path = Path(env.get("__TOKEN_PATH__") or (Path(__file__).resolve().parent.parent / "data" / "token.json"))
+    try:
+        cached = json.loads(path.read_text(encoding="utf-8"))
+        expires_at = datetime.fromisoformat(cached["expires_at"])
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        return ""
+
+    key = env.get("KIS_APP_KEY") or ""
+    if cached.get("kis_env") != mode or cached.get("app_key_tail") != key[-4:]:
+        return ""  # 다른 환경·다른 키로 받은 토큰은 쓸 수 없다
+
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    if expires_at - now <= timedelta(minutes=10):
+        return ""
+    return f"{mode} 토큰 유효 (만료 {expires_at:%m-%d %H:%M})"
+
+
 def check_kis(env: dict[str, str | None]) -> list[Result]:
     """토큰 발급을 실제로 시도해 APP KEY/SECRET 과 도메인 일치를 확인한다."""
     key, secret = env.get("KIS_APP_KEY"), env.get("KIS_APP_SECRET")
@@ -179,6 +203,13 @@ def check_kis(env: dict[str, str | None]) -> list[Result]:
 
     base = ("https://openapivts.koreainvestment.com:29443" if mode == "VTS"
             else "https://openapi.koreainvestment.com:9443")
+
+    # KIS 는 토큰 발급을 1분에 1회로 제한한다. 점검을 두 번 누르면 바로 걸린다.
+    # 이미 받아둔 토큰이 살아 있으면 그것으로 확인을 끝낸다 — 매매도 그렇게 돈다.
+    cached = _cached_token_note(env, mode)
+    if cached:
+        results.append(Result("KIS 인증", OK, cached))
+        return results
     # KIS 토큰 서버는 느릴 때가 잦다. 짧은 타임아웃으로 한 번 실패했다고
     # "키가 틀렸다" 로 읽히면 멀쩡한 키를 계속 다시 만들게 된다.
     response = None
@@ -214,10 +245,16 @@ def check_kis(env: dict[str, str | None]) -> list[Result]:
         results.append(Result("KIS 인증", OK, f"{mode} 토큰 발급 성공"))
     else:
         body = (response.text or "")[:180].replace("\n", " ")
-        hint = ""
         if "EGW00133" in body:
-            hint = " (1분 내 재발급 제한 — 잠시 후 다시 시도하세요)"
-        elif response.status_code in (401, 403):
+            # 1분 내 재발급 제한. 제한에 걸렸다는 건 조금 전 발급이 통했다는 뜻이다.
+            results.append(Result(
+                "KIS 인증", WARN,
+                "조금 전에 토큰을 발급받아 1분 제한에 걸렸습니다. "
+                "키는 정상입니다 — 1분 뒤에는 저절로 풀립니다",
+            ))
+            return results
+        hint = ""
+        if response.status_code in (401, 403):
             hint = f" (모의용 키를 {mode} 도메인에 쓰고 있는지 확인하세요)"
         results.append(Result("KIS 인증", FAIL, f"HTTP {response.status_code}: {body}{hint}"))
     return results
