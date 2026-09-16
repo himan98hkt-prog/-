@@ -313,6 +313,7 @@ def create_app(*, testing: bool = False) -> Flask:
             status=runtime_status(),
             config_error=config_error,
             settings=settings,
+            bot_log=process.recent_output(app.config["LOG_DIR"]),
         )
 
     @app.route("/health")

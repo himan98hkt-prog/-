@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -773,3 +775,22 @@ def test_needs_the_bot_token_first(client, app, monkeypatch):
     _write_env(app, TELEGRAM_BOT_TOKEN="__CLEAR__")
     page = post_with_csrf(client, "/setup/telegram-chat-id")
     assert "봇 토큰을 저장하세요" in page
+
+
+def test_diagnose_shows_the_bot_startup_log(client, app):
+    """시작 버튼이 실패했을 때 원인을 한 화면에서 볼 수 있어야 한다."""
+    log_dir = Path(app.config["LOG_DIR"])
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / "stdout.log").write_text(
+        "2026-09-16 [ERROR] auto_trader.main: 기동 실패: 토큰 발급 요청 실패\n", encoding="utf-8")
+    _write_env(app)
+
+    body = client.get("/diagnose").get_data(as_text=True)
+    assert "자동매매 기동 기록" in body
+    assert "기동 실패: 토큰 발급 요청 실패" in body
+
+
+def test_diagnose_says_when_the_bot_never_ran(client, app):
+    _write_env(app)
+    body = client.get("/diagnose").get_data(as_text=True)
+    assert "한 번도 시작하지 않았습니다" in body

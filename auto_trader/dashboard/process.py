@@ -47,8 +47,15 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
 
     log_file = _stdout_log(log_dir)
     creation: dict = {}
-    if IS_WINDOWS:  # Windows
-        creation["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+    if IS_WINDOWS:
+        # CREATE_NEW_PROCESS_GROUP 만으로는 **콘솔이 분리되지 않는다** — 매매
+        # 프로세스가 대시보드의 검은 창을 그대로 물고 있어서, 한쪽에 생긴 일이
+        # 다른 쪽으로 번진다. CREATE_NO_WINDOW 를 함께 줘서 자기만의(보이지 않는)
+        # 콘솔을 갖게 한다. 프로세스 그룹은 그대로라 Ctrl+Break 로 정상 종료도 된다.
+        creation["creationflags"] = (
+            subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+            | subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+        )
     else:
         creation["start_new_session"] = True  # 대시보드를 껐다 켜도 봇은 살아 있게
 
@@ -85,6 +92,11 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
 
     logger.info("매매 프로세스 기동 완료")
     return ControlResult(True, "자동매매를 시작했습니다.")
+
+
+def recent_output(log_dir: Path, lines: int = 30) -> str:
+    """매매 프로세스가 마지막으로 남긴 출력. 진단 화면이 보여준다."""
+    return _tail(_stdout_log(log_dir), lines)
 
 
 def _failure(log_file: Path, headline: str) -> ControlResult:

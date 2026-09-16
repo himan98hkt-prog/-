@@ -194,3 +194,43 @@ def test_posix_sends_sigterm(monkeypatch):
 
     process._ask_to_stop(4321)
     assert sent == [(4321, _signal.SIGTERM)]
+
+
+def test_windows_gives_the_bot_its_own_console(monkeypatch, tmp_path):
+    """콘솔을 공유하면 한쪽에 생긴 일이 다른 쪽으로 번진다."""
+    import subprocess as _sub
+
+    from dashboard import process
+
+    monkeypatch.setattr(process, "IS_WINDOWS", True)
+    monkeypatch.setattr(_sub, "CREATE_NEW_PROCESS_GROUP", 0x200, raising=False)
+    monkeypatch.setattr(_sub, "CREATE_NO_WINDOW", 0x8000000, raising=False)
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+
+    captured = {}
+
+    class FakePopen:
+        def __init__(self, *args, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(_sub, "Popen", FakePopen)
+    monkeypatch.setattr(process, "START_TIMEOUT_SEC", 0)
+
+    process.start(tmp_path, tmp_path, tmp_path)
+
+    flags = captured.get("creationflags", 0)
+    assert flags & 0x8000000, "CREATE_NO_WINDOW 가 없으면 대시보드 콘솔을 공유합니다"
+    assert flags & 0x200, "CREATE_NEW_PROCESS_GROUP 이 없으면 Ctrl+Break 로 못 멈춥니다"
+
+
+def test_recent_output_reads_the_bot_log(tmp_path):
+    from dashboard import process
+
+    (tmp_path / "stdout.log").write_text("첫 줄\n마지막 줄\n", encoding="utf-8")
+    assert "마지막 줄" in process.recent_output(tmp_path)
+
+
+def test_recent_output_is_empty_without_a_log(tmp_path):
+    from dashboard import process
+
+    assert process.recent_output(tmp_path) == ""

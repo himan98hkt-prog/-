@@ -50,6 +50,15 @@
   </table>
 </div>
 
+<div class="card">
+  <h2>자동매매 기동 기록<span class="sub">시작 버튼을 눌렀을 때 남은 출력입니다</span></h2>
+  {% if bot_log %}
+  <pre class="logs">{{ bot_log }}</pre>
+  {% else %}
+  <div class="chart-empty">아직 기동 기록이 없습니다 — 자동매매를 한 번도 시작하지 않았습니다</div>
+  {% endif %}
+</div>
+
 {% if config_error %}
 <div class="card">
   <h2>설정 검증 오류</h2>
