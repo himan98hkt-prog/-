@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -45,8 +46,41 @@ CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests"
 CODE_FILES = ("main.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
               "update.bat", "install.bat", "run_bot.bat", "boot.bat", "check_account.bat", ".env.example", "README.md", "SETUP.md")
 
-# 사용자가 고쳤을 수 있는 설정 파일 — 덮어쓰지 않고 `.new` 로 남긴다.
+# 사용자가 고쳤을 수 있는 설정 파일 — 손댄 흔적이 있으면 `.new` 로 남긴다.
+# 손대지 않았다면(= 우리가 내려준 그대로라면) 그냥 덮어쓴다. 그러지 않으면
+# 매매 파라미터를 고쳐도 사용자가 파일 이름을 손으로 바꿔야만 반영된다.
 USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")
+
+# 과거에 우리가 내려준 기본 설정들의 해시. 갱신 기록(version.json)이 아직 없는
+# 설치본에서도 '사용자가 손대지 않았다' 를 알아보기 위한 목록이다.
+SHIPPED_DEFAULTS: dict[str, set[str]] = {
+    "config/settings.yaml": {
+        "18ba5a55fc2152631c80a4a300f4a4f57d9efa1b4cd640f9aeb55a054d19994d",
+    },
+}
+
+
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def read_config_hashes(base_dir: Path) -> dict[str, str]:
+    """마지막으로 내려준 설정 파일들의 해시."""
+    path = Path(base_dir) / "data" / VERSION_FILE
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    hashes = raw.get("config_hashes")
+    return hashes if isinstance(hashes, dict) else {}
+
+
+def _is_untouched(relative: str, existing: bytes, shipped: dict[str, str]) -> bool:
+    """사용자가 손대지 않은 설정 파일인가."""
+    current = _digest(existing)
+    if relative in shipped:
+        return current == shipped[relative]
+    return current in SHIPPED_DEFAULTS.get(relative, set())
 
 
 class UpdateError(RuntimeError):
@@ -96,13 +130,18 @@ def read_version(base_dir: Path) -> Version:
                    updated_at=raw.get("updated_at", ""))
 
 
-def write_version(base_dir: Path, version: Version) -> None:
+def write_version(base_dir: Path, version: Version,
+                  config_hashes: dict[str, str] | None = None) -> None:
     path = Path(base_dir) / "data" / VERSION_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
+    payload: dict[str, object] = {
         "sha": version.sha, "message": version.message,
         "updated_at": version.updated_at,
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    }
+    # 해시를 넘기지 않은 호출(버전만 기록)이 기존 기록을 지우지 않게 한다.
+    payload["config_hashes"] = (config_hashes if config_hashes is not None
+                                else read_config_hashes(base_dir))
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def latest_version(*, branch: str = BRANCH) -> Version:
@@ -174,19 +213,37 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
                 shutil.copy2(incoming, base / name)
                 changed.append(name)
 
-        # 설정 파일은 덮어쓰지 않는다 — 사용자가 손댔을 수 있다.
+        # 설정 파일은 사용자가 손댔을 수 있다. 손대지 않았으면 덮어쓰고,
+        # 손댔으면 그 사람의 값을 지키고 새 파일만 옆에 둔다.
+        shipped = read_config_hashes(base)
+        new_hashes: dict[str, str] = {}
         for relative in USER_EDITABLE:
             incoming = source / relative
             existing = base / relative
             if not incoming.is_file():
                 continue
+            incoming_bytes = incoming.read_bytes()
+            new_hashes[relative] = _digest(incoming_bytes)
+
             if not existing.exists():
                 existing.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(incoming, existing)
                 changed.append(relative)
-            elif incoming.read_bytes() != existing.read_bytes():
+                continue
+
+            existing_bytes = existing.read_bytes()
+            if incoming_bytes == existing_bytes:
+                continue
+            if _is_untouched(relative, existing_bytes, shipped):
+                shutil.copy2(incoming, existing)
+                changed.append(relative)
+                notes.append(f"{relative} 을(를) 새 기본값으로 갱신했습니다 (손대신 적이 없어서)")
+            else:
                 shutil.copy2(incoming, existing.with_suffix(existing.suffix + ".new"))
-                notes.append(f"{relative} 이(가) 바뀌었습니다 — 새 파일을 {relative}.new 로 뒀습니다")
+                notes.append(
+                    f"{relative} 은(는) 직접 고치신 것이라 그대로 뒀습니다 — "
+                    f"새 기본값은 {relative}.new 에 있습니다"
+                )
 
         new_requirements = (base / "requirements.txt").read_text(encoding="utf-8") \
             if (base / "requirements.txt").exists() else ""
@@ -198,7 +255,7 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
     except UpdateError:
         latest = Version(sha="", message="(버전 정보를 읽지 못했습니다 — 코드는 갱신됨)")
     latest.updated_at = datetime.now(KST).isoformat(timespec="seconds")
-    write_version(base, latest)
+    write_version(base, latest, config_hashes=new_hashes)
 
     deps_changed = old_requirements != new_requirements
     if deps_changed:

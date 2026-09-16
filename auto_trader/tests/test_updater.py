@@ -227,3 +227,64 @@ def test_version_is_recorded_even_if_the_lookup_fails(install, remote, monkeypat
     assert (install / "main.py").read_text(encoding="utf-8") == "print('new')\n"
     assert read_version(install).updated_at, "언제 갱신했는지는 남아야 합니다"
     assert "코드는 갱신됨" in result.version.message
+
+
+# --- 설정 파일: 손댔으면 지키고, 안 댔으면 갱신 ------------------------------ #
+
+def test_edited_settings_are_never_overwritten(install, remote):
+    """직접 고친 매매 파라미터를 업데이트가 덮어쓰면 안 된다."""
+    settings = install / "config" / "settings.yaml"
+    settings.write_text("risk:\n  stop_loss_pct: -3   # 내가 고침\n", encoding="utf-8")
+    remote["zip"] = _make_zip({**COMPLETE, "config/settings.yaml": "risk:\n  stop_loss_pct: -9\n"})
+
+    result = apply_update(install)
+
+    assert "내가 고침" in settings.read_text(encoding="utf-8")
+    assert (install / "config" / "settings.yaml.new").exists()
+    assert any("직접 고치신" in note for note in result.notes)
+
+
+def test_untouched_settings_are_updated_in_place(install, remote):
+    """손댄 적 없는 설정은 새 기본값으로 갱신돼야 한다.
+
+    그러지 않으면 매매 파라미터를 바꿔도 사용자가 파일 이름을 손으로
+    바꿔야만 반영된다.
+    """
+    settings = install / "config" / "settings.yaml"
+    # 첫 업데이트가 '우리가 내려준 값' 을 기록한다.
+    apply_update(install)
+    assert settings.read_text(encoding="utf-8") == COMPLETE["config/settings.yaml"]
+
+    # 사용자가 손대지 않은 채 다음 업데이트가 새 기본값을 들고 온다.
+    remote["zip"] = _make_zip({**COMPLETE, "config/settings.yaml": "risk:\n  stop_loss_pct: -7\n"})
+    result = apply_update(install)
+
+    assert settings.read_text(encoding="utf-8") == "risk:\n  stop_loss_pct: -7\n"
+    assert not (install / "config" / "settings.yaml.new").exists()
+    assert any("새 기본값으로 갱신" in note for note in result.notes)
+
+
+def test_known_shipped_default_is_recognised_without_a_record(install, remote, monkeypatch):
+    """갱신 기록이 없는 설치본에서도 '손대지 않음' 을 알아봐야 한다."""
+    import hashlib
+
+    settings = install / "config" / "settings.yaml"
+    original = settings.read_bytes()
+    monkeypatch.setitem(updater.SHIPPED_DEFAULTS, "config/settings.yaml",
+                        {hashlib.sha256(original).hexdigest()})
+    remote["zip"] = _make_zip({**COMPLETE, "config/settings.yaml": "risk:\n  stop_loss_pct: -8\n"})
+
+    apply_update(install)
+
+    assert settings.read_text(encoding="utf-8") == "risk:\n  stop_loss_pct: -8\n"
+    assert not (install / "config" / "settings.yaml.new").exists()
+
+
+def test_recording_a_version_does_not_wipe_config_hashes(install, remote):
+    """버전만 다시 적는 호출이 해시 기록을 지우면 안 된다."""
+    apply_update(install)
+    before = updater.read_config_hashes(install)
+    assert before
+
+    updater.write_version(install, updater.Version(sha="x", message="y"))
+    assert updater.read_config_hashes(install) == before
