@@ -2,6 +2,16 @@
 {% block title %}현황 · 자동매매{% endblock %}
 {% block content %}
 
+{% if overview.ai_calls and overview.ai_failures * 100 >= overview.ai_calls * 20 %}
+<div class="notice danger">
+  <strong>AI 호출이 자주 실패하고 있습니다
+    ({{ overview.ai_failures }}/{{ overview.ai_calls }}회)</strong>
+  한 엔진이라도 응답하지 못하면 그 종목은 <b>무조건 관망</b>이 됩니다 —
+  실패가 잦으면 매매 자체가 멈춘 것과 같습니다.
+  <a href="{{ url_for('diagnose') }}">진단 화면</a>의 기록에서 실패 사유를 확인하세요.
+</div>
+{% endif %}
+
 {% if broken %}
 <div class="notice danger">
   <strong>일부 화면을 그리지 못했습니다</strong>
@@ -207,6 +217,35 @@
   {% endif %}
 </div>
 
+<!-- ── 리스크 여력 ───────────────────────────────────────────── -->
+{% if headroom.ready %}
+<div class="card">
+  <h2>리스크 여력<span class="sub">지금 더 살 수 있는지 · 한도에 얼마나 다가섰는지</span></h2>
+  <div class="gauges">
+    {% for row in headroom.rows %}
+    <div class="gauge">
+      <div class="gauge-top">
+        <span class="gauge-label">{{ row.label }}</span>
+        <span class="gauge-text {{ 'down' if row.blocked else '' }}">{{ row.text }}</span>
+      </div>
+      <div class="gauge-track">
+        <div class="gauge-fill {{ 'hot' if row.blocked or row.pct >= 80 else '' }}"
+             style="width: {{ [row.pct, 100]|min }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="bench-foot">
+    {% if headroom.can_buy %}신규 매수 가능 — 한도에 걸린 규칙이 없습니다.
+    {% else %}<b class="down">신규 매수가 막혀 있습니다</b> — 위에서 빨간 항목이 이유입니다.
+    {% endif %}
+    {% if headroom.bought_today %}
+    오늘 이미 매수한 종목({{ headroom.bought_today|length }}개)은 내일까지 다시 사지 않습니다.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ── 매매 성적 ─────────────────────────────────────────────── -->
 <div class="card">
   <h2>매매 성적<span class="sub">체결된 매수·매도를 짝지어 계산 · 수수료·세금 반영</span></h2>
@@ -230,12 +269,24 @@
       <div class="note">거래 {{ trade_stats.count }}건</div>
     </div>
     <div class="bench-col bench-edge">
-      <div class="bench-label">실현 손익</div>
-      <div class="bench-val {{ 'up' if trade_stats.realized_krw > 0 else 'down' if trade_stats.realized_krw < 0 else '' }}">
-        {{ '{:+,}'.format(trade_stats.realized_krw) }}
+      <div class="bench-label">거래당 기대값</div>
+      <div class="bench-val {{ 'up' if trade_stats.expectancy > 0 else 'down' if trade_stats.expectancy < 0 else '' }}">
+        {{ '%+.2f'|format(trade_stats.expectancy) }}%
       </div>
-      <div class="note">수수료·세금 {{ '{:,}'.format(trade_stats.fee_krw) }}원 차감 후</div>
+      <div class="note">
+        실현 {{ '{:+,}'.format(trade_stats.realized_krw) }}원 ·
+        비용 {{ '{:,}'.format(trade_stats.fee_krw) }}원 차감
+      </div>
     </div>
+  </div>
+  <div class="bench-foot">
+    <b>기대값 = (승률 × 평균이익) − (패률 × 평균손실)</b>, 수수료·세금을 뺀 값입니다.
+    매매 시스템이 돈을 버는지 아닌지를 정하는 유일한 식입니다 —
+    {% if trade_stats.expectancy > 0 %}
+    <b class="up">양수이므로 거래를 반복할수록 늘어나는 구조입니다.</b>
+    {% else %}
+    <b class="down">음수이므로 거래를 반복할수록 줄어듭니다.</b> 승률이나 손익비 중 하나를 고쳐야 합니다.
+    {% endif %}
   </div>
   <table>
     <thead>

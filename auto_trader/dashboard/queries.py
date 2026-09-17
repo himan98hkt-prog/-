@@ -341,9 +341,17 @@ def trade_stats(db_path: Path | str) -> dict[str, Any]:
         * (BROKER_FEE_PCT + SELL_TAX_PCT / 2) / 100
         for t in trades
     )
+    # 기대값 — 매매 시스템이 돈을 버는지 아닌지를 정하는 **유일한 식**이다.
+    #   기대값 = (승률 × 평균이익) − (패률 × 평균손실)
+    # 이미 수수료·세금을 뺀 수익률로 계산하므로, 이 값이 양수가 아니면
+    # 아무리 승률이 높아도 계좌는 줄어든다.
+    win_ratio = len(wins) / len(trades)
+    expectancy = win_ratio * avg_win + (1 - win_ratio) * avg_loss
+
     return {
         "ready": True,
         "count": len(trades),
+        "expectancy": round(expectancy, 3),
         "win_rate": round(len(wins) / len(trades) * 100, 1),
         "avg_win": round(avg_win, 2),
         "avg_loss": round(avg_loss, 2),
@@ -535,4 +543,55 @@ def engine_accuracy(db_path: Path | str,
         "ready": any(row["graded"] for row in engines),
         "horizon_days": horizon_days,
         "engines": engines,
+    }
+
+
+# --- 리스크 여력 -------------------------------------------------------------- #
+
+def risk_headroom(db_path: Path | str, risk: Any | None,
+                  *, now: datetime | None = None) -> dict[str, Any]:
+    """지금 얼마나 더 살 수 있는지. 한도에 얼마나 다가섰는지 보이지 않으면
+    '왜 안 사지?' 를 로그에서 뒤져야 한다."""
+    if risk is None:
+        return {"ready": False, "rows": []}
+
+    moment = now or datetime.now(KST)
+    today = moment.strftime("%Y-%m-%d")
+    positions = _rows(db_path, "SELECT code, avg_price, qty FROM positions")
+    pnl = _rows(db_path, "SELECT total_pnl_pct FROM daily_pnl WHERE date = ?", (today,))
+    bought = _rows(
+        db_path,
+        """SELECT DISTINCT code FROM orders
+           WHERE side = 'BUY' AND substr(created_at, 1, 10) = ? AND status != 'REJECTED'""",
+        (today,),
+    )
+
+    cap = float(getattr(risk, "total_investment_cap_krw", 0) or 0)
+    invested = sum(float(p["avg_price"] or 0) * int(p["qty"] or 0) for p in positions)
+    held = len(positions)
+    max_positions = int(getattr(risk, "max_positions", 0) or 0)
+    daily_pct = float(pnl[0]["total_pnl_pct"]) if pnl else 0.0
+    loss_limit = float(getattr(risk, "daily_loss_limit_pct", 0) or 0)
+    last_buy = getattr(getattr(risk, "_schedule", None), "last_new_buy", None)
+
+    rows = [
+        {"label": "투자 한도", "used": invested, "total": cap,
+         "text": f"{invested:,.0f} / {cap:,.0f}원",
+         "pct": round(invested / cap * 100, 1) if cap else 0.0,
+         "blocked": cap > 0 and invested >= cap},
+        {"label": "보유 종목", "used": held, "total": max_positions,
+         "text": f"{held} / {max_positions}종목",
+         "pct": round(held / max_positions * 100, 1) if max_positions else 0.0,
+         "blocked": max_positions > 0 and held >= max_positions},
+        {"label": "당일 손실 한도", "used": max(-daily_pct, 0), "total": loss_limit,
+         "text": f"{daily_pct:+.2f}% (한도 -{loss_limit:g}%)",
+         "pct": round(max(-daily_pct, 0) / loss_limit * 100, 1) if loss_limit else 0.0,
+         "blocked": daily_pct <= -loss_limit},
+    ]
+    return {
+        "ready": True,
+        "rows": rows,
+        "bought_today": [row["code"] for row in bought],
+        "can_buy": not any(row["blocked"] for row in rows),
+        "last_buy_at": f"{last_buy:%H:%M}" if last_buy else "",
     }

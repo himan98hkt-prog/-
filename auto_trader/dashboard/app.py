@@ -209,6 +209,8 @@ def create_app(*, testing: bool = False) -> Flask:
             themes=card("테마별 이슈", lambda: queries.theme_performance(db, themes), []),
             accuracy=card("엔진별 적중률", lambda: queries.engine_accuracy(db),
                           {"ready": False, "horizon_days": 5, "engines": []}),
+            headroom=card("리스크 여력", lambda: queries.risk_headroom(db, risk),
+                          {"ready": False, "rows": []}),
             decisions=card("최근 AI 판단", lambda: queries.recent_decisions(db, 25), []),
             orders=card("최근 주문", lambda: queries.recent_orders(db, 15), []),
             risk_blocks=card("리스크 차단", lambda: queries.recent_risk_blocks(db), []),

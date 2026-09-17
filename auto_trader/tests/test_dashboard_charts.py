@@ -505,3 +505,41 @@ def test_recent_calls_without_a_future_are_not_graded(tmp_path):
     _vote(db, "005930", f"{DAYS[0]}T09:05:00+09:00", "BUY", "BUY")   # 5일 뒤가 없다
 
     assert engine_accuracy(db, horizon_days=5)["ready"] is False
+
+
+def test_expectancy_is_the_net_average_per_trade(tmp_path):
+    """기대값 = (승률 x 평균이익) - (패률 x 평균손실). 이 값이 양수여야 번다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    # 2승 2패: +10%, +10%, -5%, -5% (총수익 기준) → 비용 0.18%p 차감
+    for code, sell in (("AAA", 110_000), ("BBB", 110_000),
+                       ("CCC", 95_000), ("DDD", 95_000)):
+        _order(db, code, "BUY", 1, 100_000, "2026-09-01T09:00:00+09:00")
+        _order(db, code, "SELL", 1, sell, "2026-09-03T09:00:00+09:00")
+
+    stats = trade_stats(db)
+    assert stats["win_rate"] == 50.0
+    # 평균이익 9.82, 평균손실 -5.18 → 0.5 x 9.82 + 0.5 x (-5.18) = 2.32
+    assert stats["expectancy"] == pytest.approx(2.32, abs=0.01)
+    assert stats["expectancy"] > 0
+
+
+def test_expectancy_is_negative_when_costs_win(tmp_path):
+    """승률이 높아도 이익이 작으면 비용에 먹힌다 — 그걸 숫자로 드러내야 한다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    # 3승 1패인데 이익이 잘다: +0.5% x3, -3% x1
+    for code, sell in (("AAA", 100_500), ("BBB", 100_500),
+                       ("CCC", 100_500), ("DDD", 97_000)):
+        _order(db, code, "BUY", 1, 100_000, "2026-09-01T09:00:00+09:00")
+        _order(db, code, "SELL", 1, sell, "2026-09-03T09:00:00+09:00")
+
+    stats = trade_stats(db)
+    assert stats["win_rate"] == 75.0, "승률은 높다"
+    assert stats["expectancy"] < 0, "그런데도 기대값은 음수여야 한다"

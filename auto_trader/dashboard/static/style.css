@@ -253,3 +253,13 @@ pre.log {
   white-space: pre; color: var(--text-2); margin: 0;
 }
 .err-foot { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+/* 리스크 여력 — 한도에 얼마나 다가섰는지 */
+.gauges { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+.gauge-top { display: flex; justify-content: space-between; align-items: baseline;
+             font-size: 13px; margin-bottom: 4px; }
+.gauge-label { color: var(--muted); }
+.gauge-text { font-variant-numeric: tabular-nums; font-weight: 600; }
+.gauge-track { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; background: var(--text-2); border-radius: 4px; }
+.gauge-fill.hot { background: var(--down); }
