@@ -1,66 +1,100 @@
-/* 로컬 대시보드 스타일. 색 역할은 변수로 두고 라이트/다크에서 값만 바꾼다. */
+/* 로컬 대시보드 스타일 — 증권 단말(HTS/터미널) 계열.
+ *
+ * 색 규칙은 한국 시장 관행을 따른다: **상승 빨강, 하락 파랑.** 서양 관행(상승 초록)
+ * 과 반대라, 손익을 잘못 읽으면 바로 판단이 틀어진다. 그래서 색만으로 구분하지
+ * 않고 부호(+/-)와 배경 칩을 함께 쓴다 — 색각 이상이 있어도 읽히도록.
+ *
+ * 중립색은 따뜻한 회색 대신 **푸른 기가 도는 그래파이트**를 쓴다. 계기판처럼
+ * 데이터가 앞에 나오고 배경이 뒤로 물러난다.
+ */
 :root {
   color-scheme: light;
-  --page:           #f9f9f7;
-  --surface:        #fcfcfb;
-  --surface-2:      #f2f1ed;
-  --border:         #e1e0d9;
-  --text:           #0b0b0b;
-  --text-2:         #52514e;
-  --muted:          #898781;
-  --grid:           #e1e0d9;
-  --axis:           #c3c2b7;
+  --page:           #eef1f5;
+  --surface:        #ffffff;
+  --surface-2:      #f4f6fa;
+  --surface-3:      #e9edf3;
+  --border:         #d7dee8;
+  --border-strong:  #b9c3d1;
+  --text:           #0d1422;
+  --text-2:         #47536a;
+  --muted:          #8a94a6;
+  --grid:           #e3e8ef;
+  --axis:           #b9c3d1;
 
-  --series-1:       #2a78d6;   /* 자산 추이 라인 */
-  --series-1-soft:  rgba(42, 120, 214, .12);
-  --up:             #e34948;   /* 상승 — 한국 시장 관행 */
-  --down:           #2a78d6;   /* 하락 */
+  --accent:         #1560bd;   /* 기본 강조 — 링크·포커스 */
+  --series-1:       #1560bd;
+  --series-1-soft:  rgba(21, 96, 189, .12);
 
-  --good:           #0ca30c;
-  --warning:        #fab219;
-  --serious:        #ec835a;
-  --critical:       #d03b3b;
+  /* 한국 시장 관행 */
+  --up:             #d62828;   /* 상승 */
+  --up-soft:        #fdeaea;
+  --down:           #1560bd;   /* 하락 */
+  --down-soft:      #e7f0fb;
+  --flat:           #6b7280;   /* 보합 */
+  --flat-soft:      #eef0f3;
+
+  --good:           #0a7d4b;
+  --warning:        #b06f00;
+  --serious:        #c2540f;
+  --critical:       #c0292b;
+
+  --radius:         6px;
+  --radius-sm:      4px;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232322;
-    --border: #2c2c2a; --text: #ffffff; --text-2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835;
-    --series-1: #3987e5; --series-1-soft: rgba(57, 135, 229, .16);
-    --up: #e66767; --down: #3987e5;
+    --page: #0b0e13; --surface: #141920; --surface-2: #1b212b; --surface-3: #232b37;
+    --border: #262d38; --border-strong: #38414f;
+    --text: #e9eef6; --text-2: #9aa5b6; --muted: #6b7686;
+    --grid: #1f2732; --axis: #38414f;
+    --accent: #4d9fff; --series-1: #4d9fff; --series-1-soft: rgba(77, 159, 255, .16);
+    --up: #ff5f5f; --up-soft: rgba(255, 95, 95, .15);
+    --down: #4d9fff; --down-soft: rgba(77, 159, 255, .15);
+    --flat: #8a94a6; --flat-soft: rgba(138, 148, 166, .14);
+    --good: #3ecf8e; --warning: #e0a43c; --serious: #ee8b4f; --critical: #ff6b6b;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232322;
-  --border: #2c2c2a; --text: #ffffff; --text-2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --axis: #383835;
-  --series-1: #3987e5; --series-1-soft: rgba(57, 135, 229, .16);
-  --up: #e66767; --down: #3987e5;
+  --page: #0b0e13; --surface: #141920; --surface-2: #1b212b; --surface-3: #232b37;
+  --border: #262d38; --border-strong: #38414f;
+  --text: #e9eef6; --text-2: #9aa5b6; --muted: #6b7686;
+  --grid: #1f2732; --axis: #38414f;
+  --accent: #4d9fff; --series-1: #4d9fff; --series-1-soft: rgba(77, 159, 255, .16);
+  --up: #ff5f5f; --up-soft: rgba(255, 95, 95, .15);
+  --down: #4d9fff; --down-soft: rgba(77, 159, 255, .15);
+  --flat: #8a94a6; --flat-soft: rgba(138, 148, 166, .14);
+  --good: #3ecf8e; --warning: #e0a43c; --serious: #ee8b4f; --critical: #ff6b6b;
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--page); color: var(--text);
-  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic",
+  font: 13.5px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic",
         "Noto Sans KR", system-ui, sans-serif;
+  /* 숫자가 세로로 줄 맞게 — 단말에서 가장 먼저 눈에 띄는 차이다. */
+  font-variant-numeric: tabular-nums;
 }
-a { color: var(--series-1); }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 20px 64px; }
+a { color: var(--accent); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 16px 20px 64px; }
 
 /* --- 헤더 --- */
 header.bar {
   position: sticky; top: 0; z-index: 5; background: var(--surface);
-  border-bottom: 1px solid var(--border); padding: 12px 20px;
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-strong); padding: 10px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
-header.bar h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.2px; }
+header.bar h1 {
+  font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
 header.bar nav { display: flex; gap: 4px; margin-left: auto; }
 header.bar nav a, .btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px;
-  border: 1px solid var(--border); border-radius: 7px; background: var(--surface);
-  color: var(--text); text-decoration: none; font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); text-decoration: none; font-size: 12.5px; cursor: pointer;
   font-family: inherit;
 }
 header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
@@ -71,8 +105,9 @@ header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
 
 /* --- 배지 --- */
 .badge {
-  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
-  border-radius: 999px; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .02em;
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
 }
 .badge.live   { border-color: var(--good);     color: var(--good); }
@@ -84,33 +119,68 @@ header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
 /* --- 카드 --- */
 .card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px; margin-bottom: 16px;
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
 }
 .card > h2 {
-  font-size: 13px; text-transform: none; letter-spacing: .01em; color: var(--text-2);
-  margin: 0 0 12px; font-weight: 600;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  margin: 0 0 12px; font-weight: 700;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
-.card > h2 .sub { color: var(--muted); font-weight: 400; margin-left: 6px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card > h2 .sub {
+  color: var(--muted); font-weight: 400; margin-left: 0;
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+}
+/* 내용만큼만 높이를 갖게 한다 — stretch 로 두면 빈 칸이 옆 카드 높이까지 늘어난다. */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 
 /* --- KPI 타일 --- */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; }
 .tile {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 14px 16px;
+  border-radius: var(--radius); padding: 12px 14px;
+  border-top: 2px solid var(--border-strong);   /* 계기판 느낌의 상단 레일 */
 }
-.tile .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-.tile .value { font-size: 26px; font-weight: 640; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
-.tile .note  { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.tile .label {
+  font-size: 10.5px; color: var(--muted); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+}
+.tile .value {
+  font-size: 25px; font-weight: 700; letter-spacing: -.02em;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
+.tile .note  { font-size: 11.5px; color: var(--text-2); margin-top: 5px; }
+/* 손익 타일은 방향에 따라 상단 레일 색이 바뀐다 — 한 눈에 읽히도록 */
+.tile.is-up   { border-top-color: var(--up); }
+.tile.is-down { border-top-color: var(--down); }
+.tile.is-flat { border-top-color: var(--flat); }
+
 .up   { color: var(--up); }
 .down { color: var(--down); }
+.flat { color: var(--flat); }
+
+/* 손익 칩 — 색만으로 구분하지 않도록 배경까지 준다 */
+.chip {
+  display: inline-block; padding: 1px 7px; border-radius: var(--radius-sm);
+  font-family: var(--mono); font-weight: 700; font-size: 12px;
+}
+.chip.up   { background: var(--up-soft);   color: var(--up); }
+.chip.down { background: var(--down-soft); color: var(--down); }
+.chip.flat { background: var(--flat-soft); color: var(--flat); }
 
 /* --- 표 --- */
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); font-weight: 600; font-size: 12px; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+th {
+  color: var(--muted); font-weight: 700; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--border-strong); white-space: nowrap;
+}
+td.num, th.num {
+  text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono);
+}
+th.num { font-family: inherit; }
 tbody tr:hover { background: var(--surface-2); }
 tbody tr:last-child td { border-bottom: none; }
 .row-danger td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
@@ -133,9 +203,10 @@ tbody tr:last-child td { border-bottom: none; }
 .chart .bar.cost { fill: var(--series-1); }
 .chart .bar:hover { filter: brightness(1.12); }
 .chart-empty {
-  padding: 32px 12px; text-align: center; color: var(--muted); font-size: 13px;
-  border: 1px dashed var(--border); border-radius: 10px;
+  padding: 20px 12px; text-align: center; color: var(--muted); font-size: 12.5px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
 }
+.empty { padding: 16px 0; color: var(--muted); font-size: 12.5px; }
 
 /* --- 폼 --- */
 .field { margin-bottom: 14px; }
@@ -157,12 +228,17 @@ tbody tr:last-child td { border-bottom: none; }
 .flash.ok   { background: color-mix(in srgb, var(--good) 12%, var(--surface)); border: 1px solid var(--good); }
 .flash.warn { background: color-mix(in srgb, var(--serious) 14%, var(--surface)); border: 1px solid var(--serious); }
 .notice {
-  border: 1px solid var(--border); border-left: 3px solid var(--series-1);
-  background: var(--surface-2); padding: 12px 14px; border-radius: 8px;
-  margin-bottom: 16px; font-size: 13px;
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  background: var(--surface-2); padding: 10px 13px; border-radius: var(--radius);
+  margin-bottom: 12px; font-size: 12.5px; color: var(--text-2);
 }
 .notice.danger { border-left-color: var(--critical); }
-.notice strong { display: block; margin-bottom: 3px; }
+.notice strong { display: block; margin-bottom: 3px; color: var(--text); }
+/* 설정 오류 원문처럼 긴 것은 접어 둔다 — 화면을 밀어내면 정작 볼 것을 못 본다. */
+.notice pre, .notice .detail {
+  margin: 6px 0 0; max-height: 120px; overflow: auto; font-size: 11.5px;
+  font-family: var(--mono); color: var(--muted); white-space: pre-wrap;
+}
 pre.log {
   margin: 0; padding: 12px; background: var(--surface-2); border-radius: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
@@ -263,3 +339,12 @@ pre.log {
 .gauge-track { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; }
 .gauge-fill { height: 100%; background: var(--text-2); border-radius: 4px; }
 .gauge-fill.hot { background: var(--down); }
+
+/* 종목 바로가기 — 뉴스·공시는 API 로 끌어오지 않고 원문으로 보낸다 */
+.links { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.links a {
+  font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); text-decoration: none; letter-spacing: .02em;
+}
+.links a:hover { background: var(--surface-3); color: var(--accent); border-color: var(--accent); }

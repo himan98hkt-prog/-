@@ -71,9 +71,9 @@
 
 <!-- ── 요약 타일 ─────────────────────────────────────────────── -->
 <div class="tiles" style="margin-bottom:16px">
-  <div class="tile">
+  <div class="tile {{ 'is-up' if o.daily_pnl_pct > 0 else ('is-down' if o.daily_pnl_pct < 0 else 'is-flat') }}">
     <div class="label">당일 손익</div>
-    <div class="value {{ 'up' if o.daily_pnl_pct > 0 else ('down' if o.daily_pnl_pct < 0 else '') }}">
+    <div class="value {{ 'up' if o.daily_pnl_pct > 0 else ('down' if o.daily_pnl_pct < 0 else 'flat') }}">
       {{ '%+.2f'|format(o.daily_pnl_pct) }}%
     </div>
     <div class="note">시작 {{ '{:,.0f}'.format(o.start_equity) }}원</div>
@@ -83,9 +83,9 @@
     <div class="value">{{ '{:,.0f}'.format(o.end_equity) }}</div>
     <div class="note">보유 평가 {{ '{:,.0f}'.format(o.eval_amount) }}원</div>
   </div>
-  <div class="tile">
+  <div class="tile {{ 'is-up' if o.unrealized_pnl > 0 else ('is-down' if o.unrealized_pnl < 0 else 'is-flat') }}">
     <div class="label">평가 손익</div>
-    <div class="value {{ 'up' if o.unrealized_pnl > 0 else ('down' if o.unrealized_pnl < 0 else '') }}">
+    <div class="value {{ 'up' if o.unrealized_pnl > 0 else ('down' if o.unrealized_pnl < 0 else 'flat') }}">
       {{ '{:+,.0f}'.format(o.unrealized_pnl) }}
     </div>
     <div class="note">보유 {{ o.position_count }}종목</div>
@@ -377,13 +377,25 @@
     <tbody>
       {% for p in positions %}
       <tr {% if p.danger %}class="row-danger"{% endif %}>
-        <td>{{ p.name }} <span class="dim mono">{{ p.code }}</span></td>
+        <td>
+          {{ p.name }} <span class="dim mono">{{ p.code }}</span>
+          <span class="links">
+            <a href="https://finance.naver.com/item/main.naver?code={{ p.code }}"
+               target="_blank" rel="noopener" title="네이버 금융 — 시세·뉴스·재무">시세</a>
+            <a href="https://m.stock.naver.com/domestic/stock/{{ p.code }}/news"
+               target="_blank" rel="noopener" title="이 종목 뉴스">뉴스</a>
+            <a href="https://dart.fss.or.kr/dsab007/main.do?textCrpNm={{ p.name|urlencode }}"
+               target="_blank" rel="noopener" title="금융감독원 전자공시">공시</a>
+          </span>
+        </td>
         <td class="num">{{ '{:,}'.format(p.qty) }}</td>
         <td class="num">{{ '{:,.0f}'.format(p.avg_price) }}</td>
         <td class="num">{{ '{:,.0f}'.format(p.current_price) }}</td>
         <td class="num">{{ '{:,.0f}'.format(p.eval_amount) }}</td>
-        <td class="num {{ 'up' if p.pnl_pct > 0 else ('down' if p.pnl_pct < 0 else '') }}">
-          {{ '%+.2f'|format(p.pnl_pct) }}%
+        <td class="num">
+          <span class="chip {{ 'up' if p.pnl_pct > 0 else ('down' if p.pnl_pct < 0 else 'flat') }}">
+            {{ '%+.2f'|format(p.pnl_pct) }}%
+          </span>
         </td>
         <td class="num dim">{{ '%.1f'|format(p.to_stop_loss) }}%p</td>
         <td class="num dim">{{ '%.1f'|format(p.to_take_profit) }}%p</td>
