@@ -151,13 +151,17 @@ def create_app(*, testing: bool = False) -> Flask:
         take_profit = risk.take_profit_pct if risk else FALLBACK_RISK["take_profit_pct"]
 
         equity = queries.equity_series(db)
+        held = queries.positions(db, stop_loss, take_profit, risk)
+        themes = settings.universe.themes if settings else {}
         return render_template(
             "index.html",
             status=runtime_status(),
             overview=queries.overview(db),
             benchmark=queries.benchmark_comparison(db),
             trade_stats=queries.trade_stats(db),
-            positions=queries.positions(db, stop_loss, take_profit, risk),
+            positions=held,
+            rationale=queries.buy_rationale(db, [p['code'] for p in held]),
+            themes=queries.theme_performance(db, themes),
             decisions=queries.recent_decisions(db, 25),
             orders=queries.recent_orders(db, 15),
             risk_blocks=queries.recent_risk_blocks(db),

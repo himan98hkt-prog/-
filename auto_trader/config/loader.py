@@ -145,6 +145,8 @@ class UniverseConfig:
     exclude_keywords: list[str]
     min_price: int
     max_candidates_per_cycle: int
+    # 종목코드 → 테마. 테마별 성과를 묶어 보여줄 때 쓴다.
+    themes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -408,9 +410,22 @@ def _load_universe(raw: dict[str, Any], errors: list[str]) -> UniverseConfig:
     if mode == "watchlist" and not watchlist:
         errors.append("universe.watchlist: watchlist 모드에서는 최소 1종목이 필요합니다")
 
+    themes: dict[str, str] = {}
+    raw_themes = section.get("themes") or {}
+    if not isinstance(raw_themes, dict):
+        errors.append("universe.themes: 매핑(종목코드: 테마명)이어야 합니다")
+    else:
+        for code, theme in raw_themes.items():
+            code = str(code).strip()
+            if not (code.isdigit() and len(code) == 6):
+                errors.append(f"universe.themes: 종목코드는 숫자 6자리여야 합니다 (현재: {code!r})")
+                continue
+            themes[code] = str(theme).strip()
+
     return UniverseConfig(
         mode=mode,  # type: ignore[arg-type]
         watchlist=watchlist,
+        themes=themes,
         volume_rank_top_n=_num(section, "volume_rank_top_n", "universe", errors, minimum=1, maximum=100),
         exclude_keywords=_str_list(section, "exclude_keywords", "universe", errors),
         min_price=_num(section, "min_price", "universe", errors, minimum=0),

@@ -102,6 +102,70 @@
   </div>
 </div>
 
+<!-- ── 매수 사유 ─────────────────────────────────────────────── -->
+{% if rationale %}
+<div class="card">
+  <h2>보유 종목 매수 사유<span class="sub">살 때 세 AI 가 뭐라고 했는지</span></h2>
+  {% for p in positions %}
+  {% set r = rationale.get(p.code) %}
+  {% if r %}
+  <div class="why">
+    <div class="why-head">
+      <strong>{{ p.name }}</strong>
+      <span class="dim mono">{{ p.code }}</span>
+      <span class="dim">{{ r.bought_at[:16].replace('T', ' ') }} ·
+        {{ '{:,.0f}'.format(r.bought_price) }}원 × {{ r.bought_qty }}주</span>
+      <span class="why-now {{ 'up' if p.pnl_pct > 0 else 'down' if p.pnl_pct < 0 else '' }}">
+        지금 {{ '%+.2f'|format(p.pnl_pct) }}%
+      </span>
+    </div>
+    <div class="why-final">{{ r.final_action }} — {{ r.final_reason }}</div>
+    {% for e in r.engines %}
+    <div class="why-engine">
+      <span class="why-name">{{ e.name }}</span>
+      <span class="why-act {{ 'up' if e.action == 'BUY' else 'down' if e.action == 'SELL' else '' }}">
+        {{ e.action }}{% if e.confidence %} {{ '%.2f'|format(e.confidence) }}{% endif %}
+      </span>
+      <span class="why-reason">{{ e.reason or '—' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── 테마별 이슈 ───────────────────────────────────────────── -->
+<div class="card">
+  <h2>테마별 이슈<span class="sub">한 테마가 통째로 밀리면 종목이 아니라 업황 문제</span></h2>
+  {% if themes %}
+  <table>
+    <thead>
+      <tr><th>테마</th><th class="num">전일 대비</th><th class="num">시작 이후</th><th>종목</th></tr>
+    </thead>
+    <tbody>
+      {% for th in themes %}
+      <tr>
+        <td><strong>{{ th.theme }}</strong> <span class="dim">{{ th.codes }}종목</span></td>
+        <td class="num {{ 'up' if th.since_prev > 0 else 'down' if th.since_prev < 0 else '' }}">
+          {{ '%+.2f'|format(th.since_prev) }}%
+        </td>
+        <td class="num {{ 'up' if th.since_start > 0 else 'down' if th.since_start < 0 else '' }}">
+          {{ '%+.2f'|format(th.since_start) }}%
+        </td>
+        <td class="dim">
+          {% for leg in th.legs %}{{ leg.name }}
+          <span class="{{ 'up' if leg.since_start > 0 else 'down' if leg.since_start < 0 else '' }}">{{ '%+.1f'|format(leg.since_start) }}%</span>{% if not loop.last %} · {% endif %}{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">거래일 2일치가 쌓이면 테마별 등락이 표시됩니다</div>
+  {% endif %}
+</div>
+
 <!-- ── 매매 성적 ─────────────────────────────────────────────── -->
 <div class="card">
   <h2>매매 성적<span class="sub">체결된 매수·매도를 짝지어 계산 · 수수료·세금 반영</span></h2>

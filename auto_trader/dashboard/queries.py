@@ -354,3 +354,105 @@ def trade_stats(db_path: Path | str) -> dict[str, Any]:
         "fee_krw": round(fee),
         "trades": trades[:15],
     }
+
+
+# --- 매수 사유 --------------------------------------------------------------- #
+
+def buy_rationale(db_path: Path | str, codes: list[str]) -> dict[str, dict[str, Any]]:
+    """보유 종목별 '왜 샀는지'. 매수 주문 직전의 판단을 찾아 온다.
+
+    사유는 이미 decisions 에 쌓여 있었는데 화면에 내보내지 않고 있었다.
+    무엇을 근거로 내 돈이 들어갔는지 볼 수 없으면 신뢰할 수가 없다.
+    """
+    if not codes:
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    conn = connect(db_path)
+    try:
+        for code in codes:
+            # 가장 최근 매수 체결 시각을 찾고, 그 시각 이전의 마지막 매수 판단을 붙인다.
+            bought = conn.execute(
+                """SELECT created_at, filled_price, filled_qty FROM orders
+                   WHERE code = ? AND side = 'BUY' AND filled_qty > 0
+                   ORDER BY id DESC LIMIT 1""", (code,)).fetchone()
+            if bought is None:
+                continue
+            row = conn.execute(
+                """SELECT created_at, final_action, final_reason,
+                          claude_action, claude_confidence, claude_reason,
+                          gemini_action, gemini_confidence, gemini_reason,
+                          chatgpt_action, chatgpt_confidence, chatgpt_reason
+                   FROM decisions
+                   WHERE code = ? AND created_at <= ?
+                   ORDER BY id DESC LIMIT 1""", (code, bought["created_at"])).fetchone()
+            if row is None:
+                continue
+            engines = [
+                {"name": label, "action": row[f"{key}_action"],
+                 "confidence": row[f"{key}_confidence"], "reason": row[f"{key}_reason"]}
+                for key, label in (("claude", "Claude"), ("gemini", "Gemini"),
+                                   ("chatgpt", "ChatGPT"))
+                if row[f"{key}_action"]
+            ]
+            result[code] = {
+                "bought_at": bought["created_at"],
+                "bought_price": float(bought["filled_price"]),
+                "bought_qty": int(bought["filled_qty"]),
+                "final_action": row["final_action"],
+                "final_reason": row["final_reason"] or "",
+                "engines": engines,
+            }
+    finally:
+        conn.close()
+    return result
+
+
+# --- 테마별 성과 ------------------------------------------------------------- #
+
+def theme_performance(db_path: Path | str, themes: dict[str, str]) -> list[dict[str, Any]]:
+    """테마별 등락. 한 테마가 통째로 밀리면 종목 문제가 아니라 업황 문제다.
+
+    사이클이 적어 둔 관측가를 그대로 쓰므로 추가 조회가 없다.
+    """
+    if not themes:
+        return []
+    conn = connect(db_path)
+    try:
+        dates = [r["date"] for r in conn.execute(
+            "SELECT DISTINCT date FROM benchmark_prices ORDER BY date")]
+        if len(dates) < 2:
+            return []
+        first, last = dates[0], dates[-1]
+        prev = dates[-2]
+        rows = {}
+        for label, day in (("start", first), ("prev", prev), ("now", last)):
+            rows[label] = {r["code"]: (r["price"], r["name"])
+                           for r in conn.execute(
+                               "SELECT code, name, price FROM benchmark_prices WHERE date = ?",
+                               (day,))}
+    finally:
+        conn.close()
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for code, theme in themes.items():
+        start, now = rows["start"].get(code), rows["now"].get(code)
+        if not start or not now or start[0] <= 0:
+            continue
+        previous = rows["prev"].get(code)
+        grouped.setdefault(theme or "기타", []).append({
+            "code": code, "name": now[1] or code,
+            "since_start": (now[0] / start[0] - 1) * 100,
+            "since_prev": ((now[0] / previous[0] - 1) * 100
+                           if previous and previous[0] > 0 else 0.0),
+        })
+
+    result = [
+        {"theme": theme,
+         "codes": len(legs),
+         "since_start": round(sum(l["since_start"] for l in legs) / len(legs), 2),
+         "since_prev": round(sum(l["since_prev"] for l in legs) / len(legs), 2),
+         "legs": sorted(legs, key=lambda l: l["since_start"], reverse=True)}
+        for theme, legs in grouped.items()
+    ]
+    result.sort(key=lambda row: row["since_start"], reverse=True)
+    return result

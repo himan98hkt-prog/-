@@ -364,3 +364,78 @@ def test_positions_hide_the_trailing_line_when_off(tmp_path):
 
     row = positions(db, RISK.stop_loss_pct, RISK.take_profit_pct, RISK)[0]
     assert row["trailing_stop"] == 0.0
+
+
+# --- 매수 사유 / 테마별 이슈 --------------------------------------------------- #
+
+def _decision(db, code, at, final="STRONG_BUY", reason="전원 매수 합의"):
+    from utils.db import session
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding,
+                   claude_action, claude_confidence, claude_reason,
+                   gemini_action, gemini_confidence, gemini_reason,
+                   final_action, final_weight_pct, final_reason, risk_passed, created_at)
+               VALUES ('c', ?, '종목', 0, 'BUY', 0.7, '클로드 근거',
+                       'BUY', 0.6, '제미나이 근거', ?, 18, ?, 1, ?)""",
+            (code, final, reason, at))
+
+
+def test_rationale_points_at_the_decision_that_bought(tmp_path):
+    """살 때의 판단이어야 한다 — 그 뒤의 판단을 붙이면 사후설명이 된다."""
+    from dashboard.queries import buy_rationale
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _decision(db, "005930", "2026-09-16T09:34:00+09:00", reason="매수 당시 판단")
+    _order(db, "005930", "BUY", 10, 78_000, "2026-09-16T09:35:00+09:00")
+    _decision(db, "005930", "2026-09-17T09:34:00+09:00", final="HOLD", reason="나중 판단")
+
+    got = buy_rationale(db, ["005930"])["005930"]
+    assert got["final_reason"] == "매수 당시 판단"
+    assert got["bought_price"] == 78_000
+    assert [e["name"] for e in got["engines"]] == ["Claude", "Gemini"]
+    assert got["engines"][0]["reason"] == "클로드 근거"
+
+
+def test_rationale_skips_codes_never_bought(tmp_path):
+    from dashboard.queries import buy_rationale
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _decision(db, "005930", "2026-09-16T09:34:00+09:00")
+    assert buy_rationale(db, ["005930"]) == {}
+
+
+def test_theme_groups_and_averages(tmp_path):
+    """테마 등락은 소속 종목의 평균이다."""
+    from dashboard.queries import theme_performance
+    from utils.db import init_db, record_benchmark_price
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    for code, p0, p1 in (("005930", 100.0, 110.0), ("000660", 100.0, 90.0),
+                         ("035420", 100.0, 105.0)):
+        record_benchmark_price(db, date="2026-09-16", code=code, name=code, price=p0)
+        record_benchmark_price(db, date="2026-09-17", code=code, name=code, price=p1)
+
+    themes = {"005930": "반도체", "000660": "반도체", "035420": "인터넷"}
+    result = {row["theme"]: row for row in theme_performance(db, themes)}
+
+    assert result["반도체"]["since_start"] == 0.0     # (+10 - 10) / 2
+    assert result["반도체"]["codes"] == 2
+    assert result["인터넷"]["since_start"] == 5.0
+    # 큰 쪽이 위로 온다 — 무엇이 끌고 무엇이 미는지 바로 보이게
+    assert [r["theme"] for r in theme_performance(db, themes)] == ["인터넷", "반도체"]
+
+
+def test_theme_needs_two_days(tmp_path):
+    from dashboard.queries import theme_performance
+    from utils.db import init_db, record_benchmark_price
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    record_benchmark_price(db, date="2026-09-17", code="005930", name="삼성전자", price=100.0)
+    assert theme_performance(db, {"005930": "반도체"}) == []
