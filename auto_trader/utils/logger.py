@@ -63,6 +63,14 @@ class _KstFormatter(logging.Formatter):
         return moment.strftime(datefmt or DATE_FORMAT)
 
 
+def redact(text: str) -> str:
+    """등록된 비밀값을 지운다. 화면에 오류 원문을 띄울 때도 이걸 태운다."""
+    for secret in _SECRETS:
+        if secret and secret in text:
+            text = text.replace(secret, "***REDACTED***")
+    return text
+
+
 class SecretFilter(logging.Filter):
     """`register_secret()`으로 등록된 값이 메시지에 섞이면 `***`로 치환한다."""
 

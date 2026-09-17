@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import secrets
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from dashboard.env_file import (ALL_FIELDS, GROUPS, missing_required, read_env,
 from utils import autostart, updater
 from utils.db import get_bot_state, init_db
 from utils.key_check import SKIP, Result, find_telegram_chats, run_all, summarize
+from utils.logger import redact
 from utils.runtime import ProcessLock, StopFlag, pid_path, stop_flag_path
 
 KST = ZoneInfo("Asia/Seoul")
@@ -131,6 +133,30 @@ def create_app(*, testing: bool = False) -> Flask:
             "base_dir": str(app.config["BASE_DIR"]),
         }
 
+    # ------------------------------------------------------ 오류 화면 #
+    @app.errorhandler(Exception)
+    def _show_the_error(exc):
+        """빈 500 화면 대신 원인을 보여준다.
+
+        지금까지 화면이 깨지면 '내부 서버 오류' 한 줄만 남아, 무엇이 문제인지
+        알 방법이 없었다. 로그는 대시보드가 멀쩡할 때나 볼 수 있다.
+        """
+        from werkzeug.exceptions import HTTPException
+
+        if isinstance(exc, HTTPException) and exc.code and exc.code < 500:
+            return exc  # 404 같은 것은 그대로 둔다
+
+        app.logger.exception("대시보드 오류")
+        trace = traceback.format_exc()
+        # 예외 메시지에 키가 섞여 들어갈 수 있다 — 화면에 내보내기 전에 지운다.
+        return render_template(
+            "error.html",
+            kind=type(exc).__name__,
+            message=redact(str(exc)),
+            trace=redact(trace),
+            base_dir=str(app.config["BASE_DIR"]),
+        ), 500
+
     # ------------------------------------------------------------- 라우트 #
     @app.route("/")
     def index() -> str:
@@ -150,27 +176,47 @@ def create_app(*, testing: bool = False) -> Flask:
         stop_loss = risk.stop_loss_pct if risk else FALLBACK_RISK["stop_loss_pct"]
         take_profit = risk.take_profit_pct if risk else FALLBACK_RISK["take_profit_pct"]
 
-        equity = queries.equity_series(db)
-        held = queries.positions(db, stop_loss, take_profit, risk)
+        # 한 칸이 깨져도 화면 전체가 날아가면 안 된다. 지금까지 이 화면이
+        # 통째로 500 이 나면 사용자에게는 아무 정보도 남지 않았다.
+        broken: list[str] = []
+
+        def card(label, make, fallback):
+            try:
+                return make()
+            except Exception as exc:  # noqa: BLE001 — 어느 칸이 왜 깨졌는지만 남긴다
+                app.logger.exception("대시보드 '%s' 계산 실패", label)
+                broken.append(f"{label}: {type(exc).__name__} {exc}")
+                return fallback
+
+        equity = card("자산 추이", lambda: queries.equity_series(db), [])
+        held = card("보유 종목",
+                    lambda: queries.positions(db, stop_loss, take_profit, risk), [])
         themes = settings.universe.themes if settings else {}
         return render_template(
             "index.html",
             status=runtime_status(),
-            overview=queries.overview(db),
-            benchmark=queries.benchmark_comparison(db),
-            trade_stats=queries.trade_stats(db),
+            overview=card("요약", lambda: queries.overview(db), {}),
+            benchmark=card("단순 보유 대비",
+                           lambda: queries.benchmark_comparison(db),
+                           {"ready": False, "reason": "계산에 실패했습니다"}),
+            trade_stats=card("매매 성적", lambda: queries.trade_stats(db),
+                             {"ready": False, "trades": []}),
             positions=held,
-            rationale=queries.buy_rationale(db, [p['code'] for p in held]),
-            themes=queries.theme_performance(db, themes),
-            accuracy=queries.engine_accuracy(db),
-            decisions=queries.recent_decisions(db, 25),
-            orders=queries.recent_orders(db, 15),
-            risk_blocks=queries.recent_risk_blocks(db),
-            decision_mix=queries.decision_mix(db),
-            logs=queries.log_tail(app.config["LOG_DIR"]),
-            equity_chart=charts.equity_line(equity),
-            pnl_chart=charts.pnl_bars(equity),
-            cost_chart=charts.cost_bars(queries.ai_cost_series(db)),
+            rationale=card("매수 사유",
+                           lambda: queries.buy_rationale(db, [p["code"] for p in held]), {}),
+            themes=card("테마별 이슈", lambda: queries.theme_performance(db, themes), []),
+            accuracy=card("엔진별 적중률", lambda: queries.engine_accuracy(db),
+                          {"ready": False, "horizon_days": 5, "engines": []}),
+            decisions=card("최근 AI 판단", lambda: queries.recent_decisions(db, 25), []),
+            orders=card("최근 주문", lambda: queries.recent_orders(db, 15), []),
+            risk_blocks=card("리스크 차단", lambda: queries.recent_risk_blocks(db), []),
+            decision_mix=card("판단 분포", lambda: queries.decision_mix(db), {}),
+            logs=card("로그", lambda: queries.log_tail(app.config["LOG_DIR"]), ""),
+            equity_chart=card("자산 차트", lambda: charts.equity_line(equity), ""),
+            pnl_chart=card("손익 차트", lambda: charts.pnl_bars(equity), ""),
+            cost_chart=card("비용 차트",
+                            lambda: charts.cost_bars(queries.ai_cost_series(db)), ""),
+            broken=broken,
             settings=settings,
             config_error=config_error,
             missing=[(key, FIELD_LABELS.get(key, key)) for key in missing],

@@ -2,6 +2,16 @@
 {% block title %}현황 · 자동매매{% endblock %}
 {% block content %}
 
+{% if broken %}
+<div class="notice danger">
+  <strong>일부 화면을 그리지 못했습니다</strong>
+  아래 칸만 비어 있고 나머지는 정상입니다. 매매에는 영향이 없습니다.
+  <ul class="missing-list">
+    {% for item in broken %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% if missing %}
 <div class="notice danger">
   <strong>아직 채우지 않은 항목이 {{ missing|length }}개 있습니다</strong>

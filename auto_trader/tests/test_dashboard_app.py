@@ -846,3 +846,73 @@ def test_stale_csrf_redirects_instead_of_dead_ending(tmp_path, monkeypatch):
         response = client.post("/control", data={"action": "start", "csrf": "틀린토큰"})
 
     assert response.status_code == 302, "400 오류 화면이면 사용자가 빠져나갈 길이 없다"
+
+
+# --- 화면이 깨졌을 때 --------------------------------------------------------- #
+
+def test_one_broken_card_does_not_blank_the_page(tmp_path, monkeypatch):
+    """칸 하나가 터졌다고 화면 전체가 500 이면 사용자에게 아무 정보도 안 남는다."""
+    import dashboard.app as module
+    from dashboard import queries
+
+    monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(queries, "engine_accuracy",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("일부러 낸 오류")))
+    init_db(tmp_path / "trader.db")
+    env = tmp_path / ".env"
+    env.write_text("KIS_ENV=VTS\nDRY_RUN=true\n", encoding="utf-8")
+
+    app = module.create_app(testing=True)
+    app.config.update(DB_PATH=tmp_path / "trader.db", DATA_DIR=tmp_path,
+                      LOG_DIR=tmp_path / "logs", ENV_PATH=env)
+    response = app.test_client().get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "일부러 낸 오류" in html, "무엇이 깨졌는지 알려주지 않았습니다"
+    assert "단순 보유 대비" in html, "멀쩡한 칸까지 사라졌습니다"
+
+
+def test_a_fatal_error_shows_the_cause(tmp_path, monkeypatch):
+    """빈 '내부 서버 오류' 화면은 막다른 길이다."""
+    import dashboard.app as module
+
+    monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+    init_db(tmp_path / "trader.db")
+    app = module.create_app(testing=False)
+    app.config.update(DB_PATH=tmp_path / "trader.db", DATA_DIR=tmp_path,
+                      LOG_DIR=tmp_path / "logs", ENV_PATH=module.ENV_PATH)
+
+    @app.route("/boom")
+    def boom():
+        raise ValueError("치명적 오류 예시")
+
+    response = app.test_client().get("/boom")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 500
+    assert "ValueError" in html and "치명적 오류 예시" in html
+    assert "Traceback" in html, "원인을 복사해 전달할 수 없습니다"
+    assert "update.bat" in html, "다음에 뭘 할지 알려주지 않았습니다"
+
+
+def test_the_error_page_hides_secrets(tmp_path, monkeypatch):
+    """오류 원문에 키가 섞여 들어갈 수 있다."""
+    import dashboard.app as module
+    from utils.logger import register_secret
+
+    monkeypatch.setattr(module, "DATA_DIR", tmp_path)
+    init_db(tmp_path / "trader.db")
+    register_secret("sk-ant-super-secret-value")
+
+    app = module.create_app(testing=False)
+    app.config.update(DB_PATH=tmp_path / "trader.db", DATA_DIR=tmp_path,
+                      LOG_DIR=tmp_path / "logs", ENV_PATH=module.ENV_PATH)
+
+    @app.route("/leak")
+    def leak():
+        raise ValueError("키가 틀렸습니다: sk-ant-super-secret-value")
+
+    html = app.test_client().get("/leak").get_data(as_text=True)
+    assert "sk-ant-super-secret-value" not in html
+    assert "REDACTED" in html
