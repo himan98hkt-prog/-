@@ -63,6 +63,18 @@ class _KstFormatter(logging.Formatter):
         return moment.strftime(datefmt or DATE_FORMAT)
 
 
+def _force_utf8(stream) -> None:
+    """표준 출력을 UTF-8 로 바꾼다. 실패해도 조용히 넘어간다.
+
+    `errors="replace"` 까지 주는 이유는, 어떤 이유로 UTF-8 이 안 되더라도
+    **로그 한 줄이 프로그램을 죽이는 일만은 없게** 하기 위해서다.
+    """
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError, OSError):
+        pass
+
+
 def redact(text: str) -> str:
     """등록된 비밀값을 지운다. 화면에 오류 원문을 띄울 때도 이걸 태운다."""
     for secret in _SECRETS:
@@ -120,6 +132,12 @@ def setup_logging(level: str = "INFO", log_dir: Path | str = "logs") -> logging.
 
     formatter = _KstFormatter(LOG_FORMAT, DATE_FORMAT)
     secret_filter = SecretFilter()
+
+    # Windows 한글 환경의 기본 출력 인코딩은 cp949 다. 로그에 쓰는 em-dash(—)나
+    # 화살표(→) 같은 문자가 cp949 에 없어서, 그대로 두면 로그 한 줄 때문에
+    # 출력이 터진다(실제로 매매 프로세스가 이렇게 죽었다).
+    _force_utf8(sys.stdout)
+    _force_utf8(sys.stderr)
 
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(formatter)

@@ -67,3 +67,40 @@ def test_short_values_are_not_registered():
 
     register_secret("abc")  # 6자 미만은 오탐이 많아 등록하지 않는다
     assert "abc" not in _SECRETS
+
+
+# --- Windows 콘솔 인코딩 ------------------------------------------------------ #
+
+def test_log_messages_survive_a_cp949_console(tmp_path, monkeypatch):
+    """cp949 에 없는 문자(—, →) 때문에 로그 한 줄이 프로그램을 죽이면 안 된다."""
+    import io
+    import sys
+
+    import utils.logger as logger_module
+
+    # Windows 한글 기본 출력(cp949)을 흉내 낸다.
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp949", errors="strict", line_buffering=True)
+    monkeypatch.setattr(sys, "stdout", stream)
+    monkeypatch.setattr(logger_module, "_configured", False)
+
+    log = logger_module.setup_logging("INFO", tmp_path)
+    log.info("종료 요청을 받았습니다 — 진행 중 사이클을 마치고 종료합니다")
+    log.info("손절선 도달 → 전량 매도")
+
+    text = raw.getvalue().decode("utf-8", errors="replace")
+    assert "종료 요청을 받았습니다" in text
+    assert "손절선 도달" in text
+
+
+def test_force_utf8_never_raises():
+    """표준 출력이 무엇이든 로깅 설정이 터지면 안 된다."""
+    from utils.logger import _force_utf8
+
+    class Awkward:
+        def reconfigure(self, **kwargs):
+            raise OSError("이 스트림은 바꿀 수 없습니다")
+
+    _force_utf8(Awkward())
+    _force_utf8(object())      # reconfigure 자체가 없는 경우
+    _force_utf8(None)

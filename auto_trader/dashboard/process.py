@@ -60,6 +60,9 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
     else:
         creation["start_new_session"] = True  # 대시보드를 껐다 켜도 봇은 살아 있게
 
+    # 로깅이 구성되기 전(임포트 오류 등)의 출력도 UTF-8 이어야 한다. Windows 한글
+    # 기본값인 cp949 로는 로그의 em-dash 하나에 출력이 터진다.
+    child_env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     try:
         with log_file.open("a", encoding="utf-8") as handle:
             subprocess.Popen(
@@ -68,6 +71,7 @@ def start(base_dir: Path, data_dir: Path, log_dir: Path) -> ControlResult:
                 stdout=handle,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
+                env=child_env,
                 **creation,
             )
     except OSError as exc:

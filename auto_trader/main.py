@@ -544,10 +544,23 @@ class TradingBot:
         """
         path = shutdown_path(self.settings.paths["data"])
         path.unlink(missing_ok=True)  # 지난번에 남은 요청으로 곧장 죽지 않게
+        # 지우는 것만으로는 부족하다. 기동에 몇 초가 걸리는 사이 예전 요청 파일이
+        # 남아 있으면, 방금 뜬 프로세스가 그걸 보고 곧장 내려간다. 이 시점보다
+        # 오래된 파일은 우리 얘기가 아니다.
+        started = time.time()
 
         def watch() -> None:
             while not self._shutting_down:
                 if path.exists():
+                    try:
+                        stale = path.stat().st_mtime < started
+                    except OSError:
+                        stale = False
+                    if stale:
+                        logger.info("기동 전에 남아 있던 종료 요청을 무시합니다")
+                        path.unlink(missing_ok=True)
+                        time.sleep(SHUTDOWN_POLL_SEC)
+                        continue
                     path.unlink(missing_ok=True)
                     logger.info("종료 요청을 받았습니다 — 진행 중 사이클을 마치고 종료합니다")
                     self._shutting_down = True

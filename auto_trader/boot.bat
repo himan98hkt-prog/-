@@ -4,6 +4,8 @@ rem Starts the dashboard, and the trading bot too when the flag file exists.
 setlocal
 chcp 65001 >nul 2>&1
 cd /d "%~dp0"
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 
 rem Wait for the network to settle after a reboot before touching the broker API.
 timeout /t 30 /nobreak >nul 2>&1

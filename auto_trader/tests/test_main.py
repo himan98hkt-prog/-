@@ -631,3 +631,28 @@ def test_stale_request_file_does_not_kill_a_fresh_start(bot, monkeypatch):
     bot._watch_shutdown_request()
     _time.sleep(0.2)
     assert not done, "묵은 요청 파일을 보고 내려갔습니다"
+
+
+def test_shutdown_request_from_before_startup_is_ignored(bot, monkeypatch):
+    """기동에 몇 초 걸리는 사이 남아 있던 옛 요청으로 죽으면 안 된다."""
+    import os
+    import time as _time
+
+    from utils.runtime import shutdown_path
+
+    monkeypatch.setattr(main_module, "SHUTDOWN_POLL_SEC", 0.01)
+    request = shutdown_path(bot.settings.paths["data"])
+    request.parent.mkdir(parents=True, exist_ok=True)
+
+    done: list[str] = []
+    monkeypatch.setattr(bot, "_graceful_shutdown", lambda: done.append("stopped"))
+    bot._watch_shutdown_request()
+
+    # 감시가 시작된 '뒤' 에 만들되, 시각은 그 이전으로 돌려 둔다.
+    request.write_text("stale", encoding="utf-8")
+    old = _time.time() - 600
+    os.utime(request, (old, old))
+
+    _time.sleep(0.2)
+    assert not done, "기동 전에 남은 요청으로 내려갔습니다"
+    assert not request.exists(), "묵은 요청 파일을 치우지 않았습니다"
