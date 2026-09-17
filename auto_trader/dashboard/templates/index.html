@@ -215,7 +215,7 @@
     <thead>
       <tr>
         <th>종목</th><th class="num">수량</th><th class="num">평단</th><th class="num">현재가</th>
-        <th class="num">평가금액</th><th class="num">손익</th><th class="num">손절까지</th><th class="num">익절까지</th>
+        <th class="num">평가금액</th><th class="num">손익</th><th class="num">손절까지</th><th class="num">익절까지</th><th class="num">트레일링</th>
       </tr>
     </thead>
     <tbody>
@@ -231,6 +231,10 @@
         </td>
         <td class="num dim">{{ '%.1f'|format(p.to_stop_loss) }}%p</td>
         <td class="num dim">{{ '%.1f'|format(p.to_take_profit) }}%p</td>
+        <td class="num {{ 'up' if p.trailing_stop else 'dim' }}">
+          {% if p.trailing_stop %}{{ '{:,.0f}'.format(p.trailing_stop) }}원
+          {% else %}—{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

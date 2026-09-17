@@ -18,7 +18,8 @@ from utils.logger import get_logger
 KST = ZoneInfo("Asia/Seoul")
 logger = get_logger("risk_manager")
 
-ForcedExit = Literal["STOP_LOSS", "TAKE_PROFIT"]
+ForcedExit = Literal["STOP_LOSS", "TAKE_PROFIT", "TRAILING_STOP"]
+EPSILON = 1e-6  # 원 단위 가격 비교에서 부동소수점 오차를 흡수한다
 
 
 @dataclass
@@ -128,6 +129,12 @@ class RiskManager:
                 position.code, position.pnl_pct, self.risk.stop_loss_pct,
             )
             return "STOP_LOSS"
+        # 트레일링이 켜져 있으면 **승자의 청산은 트레일링이 전담한다.**
+        # 예전 익절 경로를 함께 두면 +10% 마다 AI 재판단이 걸리고, 그때 AI 가
+        # 응답하지 않으면 절반을 팔아버려 트레일링이 하려던 일을 무너뜨린다.
+        if self.risk.trailing_stop_pct > 0:
+            return self.trailing_exit(position)
+
         if position.pnl_pct >= self.risk.take_profit_pct:
             logger.info(
                 "익절선 도달: %s %+.2f%% ≥ %.1f%% → AI 재판단 요청",
@@ -135,6 +142,38 @@ class RiskManager:
             )
             return "TAKE_PROFIT"
         return None
+
+    def trailing_stop_price(self, position: Position) -> float:
+        """고점 대비 트레일링 손절가. 기능이 꺼져 있거나 아직 발동 전이면 0.
+
+        **활성화 가격 아래로는 내려가지 않는다.** 그래야 +10% 에 켜진 트레일링이
+        나중에 +4% 에 팔아치우는 일이 없다 — 고정 익절선보다 나쁠 수가 없게 만든다.
+        """
+        risk = self.risk
+        if risk.trailing_stop_pct <= 0 or position.avg_price <= 0:
+            return 0.0
+        peak = max(getattr(position, "peak_price", 0.0) or 0.0, position.current_price)
+        armed_at = position.avg_price * (1 + risk.trailing_activate_pct / 100)
+        # 부동소수점 때문에 '딱 +10%' 가 미달로 판정되지 않게 한 호가 미만을 눈감는다.
+        if peak < armed_at - EPSILON:
+            return 0.0  # 아직 활성화 가격을 밟은 적이 없다
+        # 주가는 원 단위다. 소수점을 남기면 비교가 지저분해지고 로그도 읽기 어렵다.
+        return float(round(max(peak * (1 - risk.trailing_stop_pct / 100), armed_at)))
+
+    def trailing_exit(self, position: Position) -> ForcedExit | None:
+        """트레일링 스톱에 걸렸으면 전량 청산."""
+        stop = self.trailing_stop_price(position)
+        # 기준선에 **닿은** 것만으로는 팔지 않는다. 활성화되는 순간에는 현재가와
+        # 기준선이 같은데, 그때 팔아버리면 고정 익절선과 똑같아져 트레일링이
+        # 하려던 일(승자를 더 태우기)을 전혀 못 하게 된다.
+        if stop <= 0 or position.current_price >= stop - EPSILON:
+            return None
+        logger.info(
+            "트레일링 스톱: %s 고점 %s → 현재 %s (기준 %s) %+.2f%% → 전량 매도",
+            position.code, f"{max(getattr(position, 'peak_price', 0.0), position.current_price):,.0f}",
+            f"{position.current_price:,.0f}", f"{stop:,.0f}", position.pnl_pct,
+        )
+        return "TRAILING_STOP"
 
     # -- 주문 수량 --------------------------------------------------------- #
 

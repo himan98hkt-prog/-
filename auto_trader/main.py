@@ -331,9 +331,11 @@ class TradingBot:
         forced = self.risk.check_forced_exit(position)
         decisions: dict[str, AgentDecision] = {}
 
-        if forced == "STOP_LOSS":
-            # 손절은 AI 판단을 건너뛴다.
-            final = FinalDecision(action="SELL_ALL", reason="손절선 도달(강제 청산)", sell_ratio=1.0)
+        if forced in ("STOP_LOSS", "TRAILING_STOP"):
+            # 손절·트레일링은 AI 판단을 건너뛴다. 되묻는 사이에 더 밀린다.
+            reason = ("손절선 도달(강제 청산)" if forced == "STOP_LOSS"
+                      else "고점 대비 하락(트레일링 청산)")
+            final = FinalDecision(action="SELL_ALL", reason=reason, sell_ratio=1.0)
         else:
             decisions = run_agents_parallel(self.agents, snapshot, self.settings.ai)
             # 호출조차 못 한 엔진도 '판단 없음' 으로 세어야 만장일치가 느슨해지지 않는다.
@@ -446,19 +448,26 @@ class TradingBot:
     def _run_guard_body(self) -> list[dict[str, Any]]:
         now = datetime.now(KST)
         state = self.portfolio.sync(now=now)
+        # 트레일링도 여기서 본다. 30분마다만 확인하면 고점에서 밀린 뒤에야
+        # 알아차려 이익을 그만큼 돌려주게 된다.
         breached = [
-            position for position in state.positions.values()
-            if self.risk.check_forced_exit(position) == "STOP_LOSS"
+            (position, exit_kind)
+            for position, exit_kind in (
+                (p, self.risk.check_forced_exit(p)) for p in state.positions.values()
+            )
+            if exit_kind in ("STOP_LOSS", "TRAILING_STOP")
         ]
         if not breached:
             return []
 
         cycle_id = f"{now:%Y%m%d_%H%M%S}_guard"
         results: list[dict[str, Any]] = []
-        for position in breached:
-            logger.warning("손절 감시 발동: %s(%s) %+.2f%%",
-                           position.name, position.code, position.pnl_pct)
-            final = FinalDecision(action="SELL_ALL", reason="손절선 도달(감시 청산)", sell_ratio=1.0)
+        for position, exit_kind in breached:
+            label = "손절" if exit_kind == "STOP_LOSS" else "트레일링"
+            logger.warning("%s 감시 발동: %s(%s) %+.2f%%",
+                           label, position.name, position.code, position.pnl_pct)
+            final = FinalDecision(action="SELL_ALL",
+                                  reason=f"{label} 감시 청산", sell_ratio=1.0)
             snapshot = {
                 "code": position.code,
                 "name": position.name,
@@ -471,7 +480,7 @@ class TradingBot:
                                       execution.qty, execution.price)
             self.portfolio.record_decision(
                 cycle_id=cycle_id, snapshot=snapshot, decisions={}, final=final,
-                forced_exit="STOP_LOSS", risk_passed=True, risk_reason="",
+                forced_exit=exit_kind, risk_passed=True, risk_reason="",
             )
             results.append({
                 "code": position.code, "name": position.name,

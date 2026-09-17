@@ -218,3 +218,98 @@ def test_first_failing_rule_is_reported(manager):
     """여러 규칙을 동시에 위반해도 최소 주문 금액이 먼저 걸린다."""
     verdict = manager.check_buy("005930", 1_000, state(daily_pnl_pct=-10), now=MIDDAY)
     assert verdict.rule == "min_order_krw"
+
+
+# --- 트레일링 스톱 ----------------------------------------------------------- #
+
+import dataclasses  # noqa: E402
+
+TRAILING = dataclasses.replace(RISK, trailing_activate_pct=10, trailing_stop_pct=5)
+
+
+@pytest.fixture
+def trailing():
+    return RiskManager(TRAILING, SCHEDULE)
+
+
+def _held(peak, current, avg=100_000):
+    """고점 peak 를 찍고 지금 current 인 보유 종목."""
+    return Position(
+        code="005930", name="삼성전자", qty=10, orderable_qty=10,
+        avg_price=avg, current_price=current, eval_amount=10 * current,
+        pnl_amount=10 * (current - avg), pnl_pct=(current / avg - 1) * 100,
+        peak_price=peak,
+    )
+
+
+def test_trailing_is_dormant_before_the_activation_level(trailing):
+    """+10% 를 밟은 적이 없으면 트레일링은 아직 없는 규칙이다."""
+    position = _held(peak=108_000, current=104_000)
+    assert trailing.trailing_stop_price(position) == 0.0
+    assert trailing.check_forced_exit(position) is None
+
+
+def test_trailing_arms_at_the_activation_level(trailing):
+    """딱 +10% 를 밟으면 켜지고, 기준선은 +10% 가격이다."""
+    position = _held(peak=110_000, current=110_000)
+    assert trailing.trailing_stop_price(position) == 110_000
+
+
+def test_trailing_never_falls_below_the_activation_level(trailing):
+    """+10% 에 켜진 트레일링이 +4% 에 팔아치우면 고정 익절선보다 나쁘다."""
+    position = _held(peak=112_000, current=111_000)
+    # 고점 대비 5% 는 106,400 이지만 활성화 가격 110,000 이 바닥이다
+    assert trailing.trailing_stop_price(position) == 110_000
+
+
+def test_trailing_follows_the_peak_up(trailing):
+    """고점이 오르면 기준선도 따라 오른다 — 승자를 더 태우는 부분."""
+    position = _held(peak=150_000, current=145_000)
+    assert trailing.trailing_stop_price(position) == 142_500   # 150,000 x 0.95
+    # 기준선 위라면 팔지 않는다. 예전 익절 경로도 끼어들면 안 된다 — 끼어들면
+    # +10% 넘은 종목마다 AI 재판단이 걸려 트레일링이 무의미해진다.
+    assert trailing.check_forced_exit(position) is None
+
+
+def test_trailing_sells_everything_when_breached(trailing):
+    position = _held(peak=150_000, current=142_000)            # 기준 142,500 밑
+    assert trailing.check_forced_exit(position) == "TRAILING_STOP"
+
+
+def test_hard_stop_loss_still_wins(trailing):
+    """트레일링이 켜져도 -5% 손절은 그대로 최우선이다."""
+    position = _held(peak=150_000, current=94_000)             # -6%
+    assert trailing.check_forced_exit(position) == "STOP_LOSS"
+
+
+def test_trailing_off_keeps_the_old_take_profit(manager):
+    """기능을 끄면(기본값) 예전대로 +10% 에서 AI 재판단을 요청한다."""
+    position = _held(peak=150_000, current=130_000)
+    assert manager.trailing_stop_price(position) == 0.0
+    assert manager.check_forced_exit(position) == "TAKE_PROFIT"
+
+
+def test_arming_alone_does_not_sell(trailing):
+    """활성화되는 순간 현재가와 기준선이 같다 — 여기서 팔면 고정 익절선과 똑같다."""
+    position = _held(peak=110_000, current=110_000)
+    assert trailing.trailing_stop_price(position) == 110_000
+    assert trailing.check_forced_exit(position) is None, "켜지자마자 팔았습니다"
+
+
+def test_worst_case_is_never_worse_than_the_fixed_take_profit(trailing):
+    """올랐다가 곧바로 되밀려도 활성화 가격(+10%) 아래로는 팔지 않는다."""
+    # +10% 를 찍자마자 반락 — 기준선은 여전히 110,000
+    position = _held(peak=110_000, current=109_000)
+    assert trailing.check_forced_exit(position) == "TRAILING_STOP"
+    assert trailing.trailing_stop_price(position) == 110_000
+
+
+def test_a_full_price_path(trailing):
+    """매수 → 상승 → 고점 → 되밀림까지 한 줄기로 확인한다."""
+    path = [(103_000, None), (110_000, None), (125_000, None),
+            (140_000, None), (133_000, None), (132_900, "TRAILING_STOP")]
+    peak = 0.0
+    for price, expected in path:
+        peak = max(peak, price)                      # sync_peaks 와 같은 규칙
+        position = _held(peak=peak, current=price)
+        assert trailing.check_forced_exit(position) == expected, f"{price:,}원에서 어긋남"

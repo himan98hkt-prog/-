@@ -314,3 +314,53 @@ def test_dry_run_orders_are_excluded(tmp_path):
                 (side, price))
 
     assert trade_stats(db)["count"] == 0
+
+
+def test_positions_show_the_trailing_line(tmp_path):
+    """화면의 기준선이 실제 청산 기준과 달라지면 사용자가 속는다."""
+    import dataclasses
+
+    from dashboard.queries import positions
+    from logic.risk_manager import RiskManager
+    from utils.db import init_db, session, sync_peaks
+
+    from tests.test_risk_manager import RISK, SCHEDULE
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO positions (code, name, qty, avg_price, current_price,
+                                      eval_amount, pnl_amount, pnl_pct, updated_at)
+               VALUES ('005930','삼성전자',10,100000,140000,1400000,400000,40.0,'x')""")
+    sync_peaks(db, {"005930": 150_000})
+
+    risk = dataclasses.replace(RISK, trailing_activate_pct=10, trailing_stop_pct=5)
+    row = positions(db, risk.stop_loss_pct, risk.take_profit_pct, risk)[0]
+
+    assert row["peak_price"] == 150_000
+    assert row["trailing_stop"] == 142_500          # 150,000 x 0.95
+    # 리스크 매니저가 실제로 쓰는 값과 같아야 한다
+    from logic.portfolio import Position
+    position = Position(code="005930", name="삼성전자", qty=10, orderable_qty=10,
+                        avg_price=100_000, current_price=140_000, eval_amount=1_400_000,
+                        pnl_amount=400_000, pnl_pct=40.0, peak_price=150_000)
+    assert RiskManager(risk, SCHEDULE).trailing_stop_price(position) == row["trailing_stop"]
+
+
+def test_positions_hide_the_trailing_line_when_off(tmp_path):
+    from dashboard.queries import positions
+    from utils.db import init_db, session
+
+    from tests.test_risk_manager import RISK
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO positions (code, name, qty, avg_price, current_price,
+                                      eval_amount, pnl_amount, pnl_pct, updated_at)
+               VALUES ('005930','삼성전자',10,100000,140000,1400000,400000,40.0,'x')""")
+
+    row = positions(db, RISK.stop_loss_pct, RISK.take_profit_pct, RISK)[0]
+    assert row["trailing_stop"] == 0.0

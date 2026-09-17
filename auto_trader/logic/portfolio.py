@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 from config.loader import Settings
 from trading.kis_api import Balance, KisApi, KisApiError, OrderStatus
-from utils.db import connect, init_db, now_kst_iso
+from utils.db import connect, init_db, now_kst_iso, sync_peaks
 from utils.logger import get_logger
 
 KST = ZoneInfo("Asia/Seoul")
@@ -37,6 +37,8 @@ class Position:
     eval_amount: float
     pnl_amount: float
     pnl_pct: float
+    # 보유 중 고점 — 트레일링 스톱의 기준. DB 에서 채워 넣는다.
+    peak_price: float = 0.0
 
     @property
     def cost_basis(self) -> float:
@@ -145,6 +147,16 @@ class Portfolio:
             if holding.qty > 0
         }
         self._write_positions(positions, moment)
+
+        # 보유 중 고점을 현재가로 갱신하고 각 포지션에 붙인다. 프로세스가 죽어도
+        # 남아야 해서 DB 에 둔다 — 재기동 때 고점이 현재가로 리셋되면 트레일링
+        # 스톱이 이미 번 이익을 그냥 놓친다.
+        peaks = sync_peaks(
+            self.db_path,
+            {code: position.current_price for code, position in positions.items()},
+        )
+        for code, position in positions.items():
+            position.peak_price = peaks.get(code, position.current_price)
 
         cash = balance.orderable_cash  # 0 이면 실제로 주문 가능 금액이 없는 것이다
         equity = cash + sum(position.eval_amount for position in positions.values())

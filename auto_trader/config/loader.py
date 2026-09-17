@@ -170,6 +170,10 @@ class RiskConfig:
     limit_slippage_pct: float
     # 손절 감시 주기(분). 정규 사이클 사이에 급락해도 이 주기로 잡아낸다.
     guard_interval_min: int = 3
+    # 트레일링 스톱 — 익절선에서 승자를 자르지 않고 고점을 따라 올라간다.
+    # trailing_stop_pct = 0 이면 기능이 꺼지고 기존 익절 방식만 쓴다.
+    trailing_stop_pct: float = 0.0
+    trailing_activate_pct: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -449,7 +453,17 @@ def _load_risk(raw: dict[str, Any], errors: list[str]) -> RiskConfig:
             section, "guard_interval_min", "risk", errors,
             minimum=1, maximum=30, default=3,
         ),
+        trailing_stop_pct=_num(
+            section, "trailing_stop_pct", "risk", errors,
+            cast=float, minimum=0, maximum=50, default=0.0,
+        ),
+        trailing_activate_pct=_num(
+            section, "trailing_activate_pct", "risk", errors,
+            cast=float, minimum=0, maximum=200, default=0.0,
+        ),
     )
+    if risk.trailing_stop_pct and risk.trailing_activate_pct <= 0:
+        errors.append("risk: trailing_stop_pct 를 쓰려면 trailing_activate_pct 도 정해야 합니다")
     if risk.min_order_krw > risk.total_investment_cap_krw:
         errors.append("risk: min_order_krw 가 total_investment_cap_krw 보다 큽니다")
     return risk

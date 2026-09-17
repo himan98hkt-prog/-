@@ -146,6 +146,14 @@ CREATE TABLE IF NOT EXISTS daily_pnl (
     updated_at      TEXT NOT NULL
 );
 
+-- 보유 중 고점. 트레일링 스톱의 기준이라 **프로세스가 죽어도 남아야 한다** —
+-- 재기동 때 초기화되면 고점이 현재가로 리셋되어 눈앞의 이익을 그냥 놓친다.
+CREATE TABLE IF NOT EXISTS position_peaks (
+    code            TEXT PRIMARY KEY,
+    peak_price      REAL NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
 -- 벤치마크: 감시 종목을 그냥 사서 들고만 있었을 때의 성적.
 -- 사이클마다 이미 받아 온 현재가를 그대로 적어 두므로 추가 API 호출이 없다.
 CREATE TABLE IF NOT EXISTS benchmark_prices (
@@ -324,3 +332,46 @@ def record_benchmark_price(db_path: Path | str, *, date: str, code: str,
                    updated_at = excluded.updated_at""",
             (date, code, name, float(price), now_kst_iso()),
         )
+
+
+# --- 보유 중 고점 (트레일링 스톱) -------------------------------------------- #
+
+def read_peaks(db_path: Path | str) -> dict[str, float]:
+    """종목별 보유 중 고점."""
+    conn = connect(db_path)
+    try:
+        return {row["code"]: float(row["peak_price"])
+                for row in conn.execute("SELECT code, peak_price FROM position_peaks")}
+    finally:
+        conn.close()
+
+
+def sync_peaks(db_path: Path | str, prices: dict[str, float]) -> dict[str, float]:
+    """현재가로 고점을 갱신하고, 보유하지 않는 종목의 기록은 지운다.
+
+    고점은 **내려가지 않는다**. 판 종목의 기록을 남겨 두면 나중에 다시 샀을 때
+    예전 고점이 따라와 사자마자 트레일링에 걸린다.
+
+    Returns:
+        갱신 후의 종목별 고점.
+    """
+    held = {code: float(price) for code, price in prices.items() if price > 0}
+    with session(db_path) as conn:
+        if held:
+            placeholders = ",".join("?" * len(held))
+            conn.execute(
+                f"DELETE FROM position_peaks WHERE code NOT IN ({placeholders})",
+                tuple(held),
+            )
+        else:
+            conn.execute("DELETE FROM position_peaks")
+        for code, price in held.items():
+            conn.execute(
+                """INSERT INTO position_peaks (code, peak_price, updated_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(code) DO UPDATE SET
+                       peak_price = MAX(position_peaks.peak_price, excluded.peak_price),
+                       updated_at = excluded.updated_at""",
+                (code, price, now_kst_iso()),
+            )
+    return read_peaks(db_path)

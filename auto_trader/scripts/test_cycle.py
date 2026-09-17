@@ -96,15 +96,17 @@ def main() -> int:
                                         "avg_price": position.avg_price, "pnl_pct": position.pnl_pct}
 
             forced = risk.check_forced_exit(position)
-            if forced == "STOP_LOSS":
-                logger.warning("%s 손절선 도달 — AI 판단 없이 전량 매도", code)
-                final = FinalDecision(action="SELL_ALL", reason="손절선 도달(강제)", sell_ratio=1.0)
-                decisions: dict[str, AgentDecision] = {}
+            decisions: dict[str, AgentDecision] = {}
+            if forced in ("STOP_LOSS", "TRAILING_STOP"):
+                label = "손절선 도달" if forced == "STOP_LOSS" else "고점 대비 하락"
+                logger.warning("%s %s — AI 판단 없이 전량 매도", code, label)
+                final = FinalDecision(action="SELL_ALL", reason=f"{label}(강제)", sell_ratio=1.0)
             else:
                 decisions = (run_agents_parallel(agents, snapshot, settings.ai) if agents else {})
-                claude = decisions.get("claude") or AgentDecision.hold("claude", "AI 미사용")
-                gemini = decisions.get("gemini") or AgentDecision.hold("gemini", "AI 미사용")
-                final = decide(claude, gemini, state.holds(code), settings.risk, settings.ai,
+                # 엔진 수는 설정에 따라 달라진다 — 호출조차 못 한 엔진도 '판단 없음' 으로 센다.
+                votes = [decisions.get(agent.name) or AgentDecision.hold(agent.name, "호출 없음")
+                         for agent in agents]
+                final = decide(votes, state.holds(code), settings.risk, settings.ai,
                                take_profit=forced == "TAKE_PROFIT")
 
             logger.info("%s 최종 결정: %s (%s)", code, final.action, final.reason)

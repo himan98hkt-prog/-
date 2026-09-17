@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from utils.db import connect, get_bot_state
+from types import SimpleNamespace
+
+from utils.db import connect, get_bot_state, read_peaks
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -74,14 +76,29 @@ def overview(db_path: Path | str, *, now: datetime | None = None) -> dict[str, A
     }
 
 
-def positions(db_path: Path | str, stop_loss_pct: float, take_profit_pct: float) -> list[dict[str, Any]]:
-    """보유 종목 + 손절·익절선까지 남은 거리."""
+def positions(db_path: Path | str, stop_loss_pct: float, take_profit_pct: float,
+              risk: Any | None = None) -> list[dict[str, Any]]:
+    """보유 종목 + 손절·익절선까지 남은 거리. 트레일링이 켜져 있으면 기준선도."""
+    from logic.risk_manager import RiskManager
+
+    peaks = read_peaks(db_path)
+    trailing_on = bool(risk and getattr(risk, "trailing_stop_pct", 0) > 0)
     result = []
     for row in _rows(db_path, "SELECT * FROM positions ORDER BY pnl_pct DESC"):
         pnl_pct = float(row["pnl_pct"] or 0)
         row["to_stop_loss"] = round(pnl_pct - stop_loss_pct, 2)
         row["to_take_profit"] = round(take_profit_pct - pnl_pct, 2)
         row["danger"] = pnl_pct <= stop_loss_pct + 1.0  # 손절선 1%p 이내
+        row["peak_price"] = peaks.get(row["code"], 0.0)
+        row["trailing_stop"] = 0.0
+        if trailing_on:
+            # 화면에 보이는 기준선이 실제 청산 기준과 같아야 한다 — 같은 함수를 쓴다.
+            row["trailing_stop"] = RiskManager.trailing_stop_price(
+                SimpleNamespace(risk=risk),
+                SimpleNamespace(avg_price=float(row["avg_price"] or 0),
+                                current_price=float(row["current_price"] or 0),
+                                peak_price=row["peak_price"]),
+            )
         result.append(row)
     return result
 

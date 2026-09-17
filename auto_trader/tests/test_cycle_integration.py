@@ -13,7 +13,7 @@ import pytest
 from agents.base_agent import BaseAgent, run_agents_parallel
 from agents.schemas import AgentDecision
 from config.loader import ScheduleConfig
-from logic.decision_maker import decide
+from logic.decision_maker import FinalDecision, decide
 from logic.portfolio import Portfolio
 from logic.risk_manager import RiskManager
 from tests.conftest import FakeResponse
@@ -103,10 +103,15 @@ def run_cycle(ctx, code="005930"):
     snapshot = collect(code, ctx["api"], settings, holding=position, now=NOW)
 
     forced = ctx["risk"].check_forced_exit(position)
-    decisions = run_agents_parallel(ctx["agents"], snapshot, settings.ai)
-    votes = [decisions[agent.name] for agent in ctx["agents"]]
-    final = decide(votes, state.holds(code),
-                   settings.risk, settings.ai, take_profit=forced == "TAKE_PROFIT")
+    decisions: dict = {}
+    if forced in ("STOP_LOSS", "TRAILING_STOP"):
+        # 운영 코드와 같은 분기 — 강제 청산은 AI 를 건너뛴다.
+        final = FinalDecision(action="SELL_ALL", reason=f"{forced}(강제 청산)", sell_ratio=1.0)
+    else:
+        decisions = run_agents_parallel(ctx["agents"], snapshot, settings.ai)
+        votes = [decisions[agent.name] for agent in ctx["agents"]]
+        final = decide(votes, state.holds(code),
+                       settings.risk, settings.ai, take_profit=forced == "TAKE_PROFIT")
 
     risk_passed, risk_reason = True, ""
     if final.is_buy:
@@ -210,13 +215,45 @@ def test_stop_loss_position_is_detected(cycle):
     assert result["forced"] == "STOP_LOSS"
 
 
-def test_take_profit_with_broken_ai_sells_half(cycle):
+def test_take_profit_with_broken_ai_sells_half(cycle, monkeypatch):
+    """트레일링을 끈 설정에서의 예전 익절 동작 — 설정으로 되돌릴 수 있어야 한다."""
+    import dataclasses
+
     ctx = cycle(holdings=[holding(qty=12, pnl_pct=12.0)], actions=("HOLD", "HOLD"), ok=(False, False))
+    settings = ctx["settings"]
+    object.__setattr__(settings, "risk",
+                       dataclasses.replace(settings.risk, trailing_stop_pct=0.0))
+    ctx["risk"] = RiskManager(settings.risk, SCHEDULE)
+    ctx["executor"] = OrderExecutor(settings, ctx["api"], ctx["portfolio"],
+                                    ctx["risk"], ctx["notifier"])
     result = run_cycle(ctx)
 
     assert result["forced"] == "TAKE_PROFIT"
     assert result["final"].action == "REDUCE"
     assert result["execution"].qty == 6, "보유 12주의 절반"
+
+
+def test_trailing_lets_a_winner_run(cycle):
+    """+12% 라도 고점에서 밀리지 않았으면 팔지 않는다 — 승자를 더 태우는 부분."""
+    ctx = cycle(holdings=[holding(qty=12, pnl_pct=12.0)], actions=("HOLD", "HOLD"))
+    result = run_cycle(ctx)
+
+    assert result["forced"] is None, "고점 근처인데 청산됐습니다"
+    assert result["final"].action == "HOLD"
+
+
+def test_trailing_liquidates_after_giving_back_the_gain(cycle):
+    """고점을 찍은 뒤 되밀리면 AI 에게 묻지 않고 전량 청산한다."""
+    ctx = cycle(holdings=[holding(qty=12, pnl_pct=12.0)], actions=("HOLD", "HOLD"))
+    # 고점 +40% 를 기록해 두고 현재는 +12% — 고점 대비 20% 하락
+    from utils.db import sync_peaks
+    position = ctx["portfolio"].sync().positions["005930"]
+    sync_peaks(ctx["portfolio"].db_path,
+               {"005930": position.avg_price * 1.40})
+
+    result = run_cycle(ctx)
+    assert result["forced"] == "TRAILING_STOP"
+    assert result["final"].action == "SELL_ALL"
 
 
 def test_unanimous_sell_liquidates_holding(cycle):

@@ -436,7 +436,7 @@ def test_guard_sells_position_below_stop_loss(guard_bot):
     results = guard_bot.guard_cycle()
 
     assert len(results) == 1 and results[0]["ordered"]
-    assert guard_bot.orders == [("005930", "SELL_ALL", "손절선 도달(감시 청산)")]
+    assert guard_bot.orders == [("005930", "SELL_ALL", "손절 감시 청산")]
     assert any(text.startswith("alert:🛑") for text in guard_bot.sent)
 
 
