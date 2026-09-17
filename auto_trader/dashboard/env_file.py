@@ -73,6 +73,12 @@ GROUPS: list[Group] = [
         Field("OPENAI_TEMPERATURE", "ChatGPT temperature",
               "비워두세요. 최신 추론 모델은 이 값을 거부합니다", required=False),
     ]),
+    Group("전자공시 (선택)",
+          "보유 종목의 공시를 화면에 띄웁니다. **매매 판단에는 쓰이지 않습니다.**", [
+        Field("DART_API_KEY", "전자공시 API 키",
+              "선택 — opendart.fss.or.kr 에서 무료 발급. 없으면 공시 칸만 비어 있습니다",
+              secret=True, required=False),
+    ]),
     Group("알림", "매매·오류·일간 리포트를 받습니다.", [
         # 필수 여부는 NOTIFIER 값에 따라 달라진다 — missing_required() 참고
         Field("NOTIFIER", "알림 채널", choices=("telegram", "discord")),

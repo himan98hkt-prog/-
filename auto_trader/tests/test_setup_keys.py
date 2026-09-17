@@ -44,6 +44,7 @@ def test_saves_entered_values(wizard, monkeypatch, capsys):
         "sk-ant-1", "", "", "",                       # Claude
         "gem-1", "", "",                              # Gemini
         "", "", "",                                   # ChatGPT (선택)
+        "",                                           # 전자공시 (선택)
         "telegram", "bot-token", "12345", "",         # 알림
     ])
     assert wizard.main() == 0
@@ -79,7 +80,7 @@ TELEGRAM_CHAT_ID=1
 
 def test_enter_keeps_existing_secret(wizard, monkeypatch):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
-    left = _answers(wizard, monkeypatch, [""] * 21)
+    left = _answers(wizard, monkeypatch, [""] * 22)
     assert wizard.main() == 0
     assert not left
     assert read_env(wizard.ENV_PATH)["KIS_APP_SECRET"] == "keepme"
@@ -89,7 +90,7 @@ def test_dash_clears_optional_value(wizard, monkeypatch):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
     # 10번째가 CLAUDE_TEMPERATURE — 선택이고 기본값이 없어 실제로 비울 수 있다.
     # (LOG_LEVEL 처럼 기본값이 있는 항목은 비워도 기본값으로 다시 채워진다.)
-    _answers(wizard, monkeypatch, [""] * 9 + ["-"] + [""] * 11)
+    _answers(wizard, monkeypatch, [""] * 9 + ["-"] + [""] * 12)
     assert wizard.main() == 0
     assert read_env(wizard.ENV_PATH)["CLAUDE_TEMPERATURE"] == ""
 
@@ -97,7 +98,7 @@ def test_dash_clears_optional_value(wizard, monkeypatch):
 def test_dash_refused_on_required_field(wizard, monkeypatch, capsys):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
     # 4번째가 KIS_APP_KEY — 필수라 `-` 로 비울 수 없다.
-    _answers(wizard, monkeypatch, [""] * 3 + ["-", "b"] + [""] * 17)
+    _answers(wizard, monkeypatch, [""] * 3 + ["-", "b"] + [""] * 18)
     assert wizard.main() == 0
     assert "비울 수 없습니다" in capsys.readouterr().out
     assert read_env(wizard.ENV_PATH)["KIS_APP_KEY"] == "b"
@@ -105,7 +106,7 @@ def test_dash_refused_on_required_field(wizard, monkeypatch, capsys):
 
 def test_rejects_invalid_choice_then_accepts(wizard, monkeypatch, capsys):
     wizard.ENV_PATH.write_text(FILLED, encoding="utf-8")
-    _answers(wizard, monkeypatch, ["LIVE", "REAL"] + [""] * 20)
+    _answers(wizard, monkeypatch, ["LIVE", "REAL"] + [""] * 21)
     assert wizard.main() == 0
     assert read_env(wizard.ENV_PATH)["KIS_ENV"] == "REAL"
     assert "골라 주세요" in capsys.readouterr().out

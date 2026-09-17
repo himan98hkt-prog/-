@@ -17,6 +17,7 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 
 from config.loader import BASE_DIR, ConfigError, load
 from dashboard import charts, process, queries, restart
+from data_pipeline import dart
 from dashboard.env_file import (ALL_FIELDS, GROUPS, missing_required, read_env,
                                 read_for_display, remember_account, switch_env,
                                 write_env)
@@ -211,6 +212,13 @@ def create_app(*, testing: bool = False) -> Flask:
                           {"ready": False, "horizon_days": 5, "engines": []}),
             headroom=card("리스크 여력", lambda: queries.risk_headroom(db, risk),
                           {"ready": False, "rows": []}),
+            # 전자공시 — 화면 표시 전용. AI 입력에는 들어가지 않는다.
+            filings=card("전자공시", lambda: dart.recent_filings(
+                read_env(app.config["ENV_PATH"]).get("DART_API_KEY", ""),
+                app.config["DATA_DIR"],
+                [p["code"] for p in held],
+                {p["code"]: p["name"] for p in held},
+            ), {"ready": False, "reason": "조회에 실패했습니다", "filings": []}),
             decisions=card("최근 AI 판단", lambda: queries.recent_decisions(db, 25), []),
             orders=card("최근 주문", lambda: queries.recent_orders(db, 15), []),
             risk_blocks=card("리스크 차단", lambda: queries.recent_risk_blocks(db), []),
