@@ -43,8 +43,14 @@ VERSION_FILE = "version.json"
 
 # 업데이트가 덮어쓸 대상. 여기 없는 것은 손대지 않는다.
 CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests", "trading", "utils")
-CODE_FILES = ("main.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
-              "update.bat", "install.bat", "run_bot.bat", "boot.bat", "check_account.bat", ".env.example", "README.md", "SETUP.md")
+# config/ 는 통째로 복사할 수 없다 — settings.yaml·holidays.txt 가 그 안에 있어
+# 디렉터리를 갈아치우면 사용자가 고친 매매 파라미터가 날아간다. 그래서 코드
+# 파일만 하나씩 집는다. (이게 빠져 있어서 loader.py 가 한 번도 갱신되지 않았고,
+# 설정 스키마를 고칠 때마다 '없는 속성' 오류가 났다.)
+CODE_FILES = ("main.py", "__init__.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
+              "update.bat", "install.bat", "run_bot.bat", "boot.bat", "check_account.bat",
+              "config/__init__.py", "config/loader.py",
+              ".env.example", "README.md", "SETUP.md")
 
 # 사용자가 고쳤을 수 있는 설정 파일 — 손댄 흔적이 있으면 `.new` 로 남긴다.
 # 손대지 않았다면(= 우리가 내려준 그대로라면) 그냥 덮어쓴다. 그러지 않으면
@@ -210,7 +216,9 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
         for name in CODE_FILES:
             incoming = source / name
             if incoming.is_file():
-                shutil.copy2(incoming, base / name)
+                target = base / name
+                target.parent.mkdir(parents=True, exist_ok=True)  # config/ 처럼 하위 경로도 받는다
+                shutil.copy2(incoming, target)
                 changed.append(name)
 
         # 설정 파일은 사용자가 손댔을 수 있다. 손대지 않았으면 덮어쓰고,

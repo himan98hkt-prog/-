@@ -288,3 +288,49 @@ def test_recording_a_version_does_not_wipe_config_hashes(install, remote):
 
     updater.write_version(install, updater.Version(sha="x", message="y"))
     assert updater.read_config_hashes(install) == before
+
+
+# --- 업데이트 누락 방지 -------------------------------------------------------- #
+
+def test_every_python_file_is_covered_by_the_update():
+    """빠진 파일은 **영원히** 옛 버전으로 남는다.
+
+    config/loader.py 가 이 목록에 없어서 한 번도 갱신되지 않았고, 설정 스키마를
+    고칠 때마다 사용자 화면에 '없는 속성' 오류가 났다. 다시는 조용히 빠지지 않게
+    한다.
+    """
+    from utils.updater import CODE_DIRS, CODE_FILES
+
+    root = Path(__file__).resolve().parent.parent
+    uncovered = []
+    for path in root.rglob("*.py"):
+        relative = path.relative_to(root)
+        if "__pycache__" in relative.parts or ".venv" in relative.parts:
+            continue
+        if relative.parts[0] in CODE_DIRS:
+            continue
+        if relative.as_posix() in CODE_FILES:
+            continue
+        uncovered.append(relative.as_posix())
+
+    assert not uncovered, (
+        "업데이트가 건드리지 않는 파이썬 파일이 있습니다 — "
+        f"CODE_DIRS 나 CODE_FILES 에 넣으세요: {sorted(uncovered)}"
+    )
+
+
+def test_user_settings_survive_a_config_code_update(install, remote):
+    """config/ 를 통째로 복사하면 사용자가 고친 매매 파라미터가 날아간다."""
+    settings = install / "config" / "settings.yaml"
+    settings.write_text("risk:\n  stop_loss_pct: -3   # 내가 고침\n", encoding="utf-8")
+    (install / "config" / "loader.py").write_text("VERSION = 1\n", encoding="utf-8")
+
+    remote["zip"] = _make_zip({
+        **COMPLETE,
+        "config/loader.py": "VERSION = 2\n",
+        "config/settings.yaml": "risk:\n  stop_loss_pct: -9\n",
+    })
+    apply_update(install)
+
+    assert (install / "config" / "loader.py").read_text(encoding="utf-8") == "VERSION = 2\n"
+    assert "내가 고침" in settings.read_text(encoding="utf-8"), "사용자 설정이 날아갔습니다"

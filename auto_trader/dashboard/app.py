@@ -191,7 +191,9 @@ def create_app(*, testing: bool = False) -> Flask:
         equity = card("자산 추이", lambda: queries.equity_series(db), [])
         held = card("보유 종목",
                     lambda: queries.positions(db, stop_loss, take_profit, risk), [])
-        themes = settings.universe.themes if settings else {}
+        # getattr 로 읽는다. 업데이트가 반쯤 적용돼 config/loader.py 만 옛 버전이면
+        # 여기서 AttributeError 가 나며 화면 전체가 죽는다 — 실제로 그렇게 깨졌다.
+        themes = getattr(settings.universe, "themes", {}) if settings else {}
         return render_template(
             "index.html",
             status=runtime_status(),
