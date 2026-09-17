@@ -182,10 +182,21 @@ def test_limit_buy_price_adds_slippage(make_executor):
     assert api.orders[0]["price"] == round(71_300 * 1.003), "매수는 현재가 + 슬리피지"
 
 
-def test_limit_sell_price_subtracts_slippage(make_executor):
+def test_sell_is_always_market_even_when_limit_is_configured(make_executor):
+    """지정가 매도는 미체결 시 취소된다 — 손절이 그렇게 되면 떨어지는 종목을 붙들게 된다."""
     executor, api, _ = make_executor(dry_run=False, order_type="limit")
     executor.execute(FinalDecision(action="SELL_ALL", sell_ratio=1.0), SNAPSHOT, state([position()]))
-    assert api.orders[0]["price"] == round(71_300 * 0.997)
+
+    assert api.orders[0]["order_type"] == "market", "매도가 지정가로 나갔습니다"
+    assert api.orders[0]["price"] == 0
+
+
+def test_buy_still_honours_the_limit_setting(make_executor):
+    """사는 쪽은 기다릴 수 있으므로 설정을 따른다."""
+    executor, api, _ = make_executor(dry_run=False, order_type="limit")
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
+    assert api.orders[0]["order_type"] == "limit"
+    assert api.orders[0]["price"] == round(71_300 * 1.003)
 
 
 def test_order_failure_is_not_retried(make_executor):

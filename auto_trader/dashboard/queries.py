@@ -456,3 +456,83 @@ def theme_performance(db_path: Path | str, themes: dict[str, str]) -> list[dict[
     ]
     result.sort(key=lambda row: row["since_start"], reverse=True)
     return result
+
+
+# --- 엔진별 적중률 ----------------------------------------------------------- #
+
+ENGINES = (("claude", "Claude"), ("gemini", "Gemini"), ("chatgpt", "ChatGPT"))
+ACCURACY_HORIZON_DAYS = 5   # 판단 이후 며칠 뒤 가격으로 채점할지 (단기 스윙 기준)
+
+
+def engine_accuracy(db_path: Path | str,
+                    horizon_days: int = ACCURACY_HORIZON_DAYS) -> dict[str, Any]:
+    """엔진별 방향 적중률. 세 곳에 매달 돈을 쓰는데 어디가 값을 하는지 보려는 칸.
+
+    판단한 날의 가격과 `horizon_days` 거래일 뒤 가격을 비교해, BUY 는 올랐으면
+    적중, SELL 은 내렸으면 적중으로 센다. HOLD 는 방향을 주장하지 않으므로
+    **적중률에서 제외**하고 횟수만 센다 — 넣으면 관망만 하는 엔진이 좋아 보인다.
+
+    아직 채점할 미래가 없는 최근 판단은 세지 않는다.
+    """
+    conn = connect(db_path)
+    try:
+        dates = [row["date"] for row in conn.execute(
+            "SELECT DISTINCT date FROM benchmark_prices ORDER BY date")]
+        prices: dict[tuple[str, str], float] = {
+            (row["date"], row["code"]): float(row["price"])
+            for row in conn.execute("SELECT date, code, price FROM benchmark_prices")
+        }
+        rows = _rows(
+            db_path,
+            """SELECT code, created_at, claude_action, gemini_action, chatgpt_action
+               FROM decisions WHERE forced_exit IS NULL OR forced_exit = ''""",
+        )
+    finally:
+        conn.close()
+
+    index = {date: position for position, date in enumerate(dates)}
+    tally = {key: {"name": label, "calls": 0, "hits": 0, "holds": 0, "graded": 0}
+             for key, label in ENGINES}
+
+    for row in rows:
+        day = (row["created_at"] or "")[:10]
+        later = index.get(day, -1) + horizon_days
+        if day not in index or later >= len(dates):
+            continue  # 아직 채점할 미래가 없다
+        start = prices.get((day, row["code"]))
+        end = prices.get((dates[later], row["code"]))
+        if not start or not end:
+            continue
+        rose = end > start
+
+        for key, _label in ENGINES:
+            action = (row[f"{key}_action"] or "").upper()
+            if not action:
+                continue
+            tally[key]["calls"] += 1
+            if action == "HOLD":
+                tally[key]["holds"] += 1
+                continue
+            tally[key]["graded"] += 1
+            if (action == "BUY" and rose) or (action == "SELL" and not rose):
+                tally[key]["hits"] += 1
+
+    engines = []
+    for key, _label in ENGINES:
+        row = tally[key]
+        if not row["calls"]:
+            continue
+        engines.append({
+            "engine": row["name"],
+            "calls": row["calls"],
+            "graded": row["graded"],
+            "holds": row["holds"],
+            "hit_rate": round(row["hits"] / row["graded"] * 100, 1) if row["graded"] else 0.0,
+            "hold_rate": round(row["holds"] / row["calls"] * 100, 1),
+        })
+    engines.sort(key=lambda row: row["hit_rate"], reverse=True)
+    return {
+        "ready": any(row["graded"] for row in engines),
+        "horizon_days": horizon_days,
+        "engines": engines,
+    }

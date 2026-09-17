@@ -176,6 +176,9 @@ class RiskConfig:
     # trailing_stop_pct = 0 이면 기능이 꺼지고 기존 익절 방식만 쓴다.
     trailing_stop_pct: float = 0.0
     trailing_activate_pct: float = 0.0
+    # 산 지 이 일수 안에는 **자발적 매도**를 막는다(손절·트레일링은 예외).
+    # 왕복 거래비용이 수익을 갉아먹는 주범이라, 하루짜리 회전을 끊는다.
+    min_holding_days: int = 0
 
 
 @dataclass(frozen=True)
@@ -475,6 +478,10 @@ def _load_risk(raw: dict[str, Any], errors: list[str]) -> RiskConfig:
         trailing_activate_pct=_num(
             section, "trailing_activate_pct", "risk", errors,
             cast=float, minimum=0, maximum=200, default=0.0,
+        ),
+        min_holding_days=_num(
+            section, "min_holding_days", "risk", errors,
+            minimum=0, maximum=30, default=0,
         ),
     )
     if risk.trailing_stop_pct and risk.trailing_activate_pct <= 0:

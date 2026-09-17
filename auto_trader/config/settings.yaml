@@ -53,8 +53,14 @@ risk:
   # trailing_stop_pct: 0 으로 두면 기능이 꺼진다.
   trailing_activate_pct: 10
   trailing_stop_pct: 5
+  # 산 당일에는 자발적 매도를 막는다 — 하루 회전은 왕복 비용만 내고 남는 게 없다.
+  # 손절·트레일링은 이 제한을 받지 않는다(자산을 지키는 쪽은 언제나 통과).
+  min_holding_days: 1
   min_order_krw: 100000               # 최소 주문 금액
-  order_type: market                  # market | limit
+  # 매수는 지정가로 낸다 — 급변 시 나쁜 가격에 체결되는 것을 막는다.
+  # 미체결이면 30초 뒤 취소하고 다음 사이클로 넘긴다.
+  # 매도는 이 설정과 무관하게 언제나 시장가다(나가는 쪽은 가격보다 나가는 것이 먼저).
+  order_type: limit                   # market | limit
   limit_slippage_pct: 0.3             # limit일 때 현재가 대비 허용 범위
   guard_interval_min: 3               # 손절 감시 주기(분). 사이클 사이 급락을 잡는다
 

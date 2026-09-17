@@ -353,9 +353,19 @@ class TradingBot:
             risk_passed, risk_reason = verdict.allowed, verdict.reason
             if not risk_passed:
                 logger.info("%s 리스크 거부: %s", code, risk_reason)
+        elif final.is_sell and forced is None:
+            # AI 가 스스로 팔자고 한 경우에만 최소 보유기간을 본다.
+            # 손절·트레일링(forced)은 이 자리에 오지 않는다.
+            verdict = self.risk.check_sell(position, now=now)
+            risk_passed, risk_reason = verdict.allowed, verdict.reason
+            if not risk_passed:
+                logger.info("%s 매도 보류: %s", code, risk_reason)
 
         execution = None
-        if risk_passed or final.is_sell:
+        # 매도도 이제 자체 검사(최소 보유기간)를 받는다. 예전처럼 `or final.is_sell`
+        # 을 두면 거부된 매도가 그대로 나가 규칙이 있으나 마나가 된다.
+        # 손절·트레일링은 애초에 거부되지 않으므로 여기서 막히지 않는다.
+        if risk_passed:
             execution = self.executor.execute(final, snapshot, state, cycle_id=cycle_id)
             if execution.ordered:
                 # 같은 사이클 뒤 종목들이 갱신된 현금·보유 수를 보게 한다.

@@ -162,6 +162,7 @@ def create_app(*, testing: bool = False) -> Flask:
             positions=held,
             rationale=queries.buy_rationale(db, [p['code'] for p in held]),
             themes=queries.theme_performance(db, themes),
+            accuracy=queries.engine_accuracy(db),
             decisions=queries.recent_decisions(db, 25),
             orders=queries.recent_orders(db, 15),
             risk_blocks=queries.recent_risk_blocks(db),

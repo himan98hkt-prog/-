@@ -143,6 +143,33 @@ class RiskManager:
             return "TAKE_PROFIT"
         return None
 
+    def check_sell(self, position: Position | None, *,
+                   now: datetime | None = None) -> RiskVerdict:
+        """자발적 매도를 허용할지. **손절·트레일링은 여기를 거치지 않는다** —
+        자산을 지키는 쪽은 언제나 통과해야 한다.
+
+        하루짜리 회전은 왕복 거래비용만 내고 남는 게 없다. AI 가 산 날 바로
+        마음을 바꿔도 한 번은 재워 둔다.
+        """
+        days = self.risk.min_holding_days
+        if not position or days <= 0 or not position.first_bought_at:
+            return RiskVerdict(True, "")
+        try:
+            bought = datetime.fromisoformat(position.first_bought_at)
+        except ValueError:
+            return RiskVerdict(True, "")  # 값이 깨졌으면 막지 않는다
+        moment = (now or datetime.now(KST)).astimezone(KST)
+        if bought.tzinfo is None:
+            bought = bought.replace(tzinfo=KST)
+        held = (moment.date() - bought.date()).days
+        if held < days:
+            return RiskVerdict(
+                False,
+                f"최소 보유기간 미달 ({held}일 < {days}일) — 손절·트레일링은 계속 동작합니다",
+                "min_holding_days",
+            )
+        return RiskVerdict(True, "")
+
     def trailing_stop_price(self, position: Position) -> float:
         """고점 대비 트레일링 손절가. 기능이 꺼져 있거나 아직 발동 전이면 0.
 

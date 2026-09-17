@@ -120,7 +120,10 @@ def main() -> int:
                     logger.warning("%s 리스크 거부: %s", code, risk_reason)
 
             execution = None
-            if risk_passed or final.is_sell:
+            # 매도도 이제 자체 검사(최소 보유기간)를 받는다. 예전처럼 `or final.is_sell`
+            # 을 두면 거부된 매도가 그대로 나가 규칙이 있으나 마나가 된다.
+            # 손절·트레일링은 애초에 거부되지 않으므로 여기서 막히지 않는다.
+            if risk_passed:
                 execution = executor.execute(final, snapshot, state, cycle_id=cycle_id)
                 if execution.ordered:  # 같은 사이클 뒤 종목이 갱신된 현금을 보게 한다
                     state.apply_execution(code, snapshot.get("name", code), execution.side,

@@ -313,3 +313,57 @@ def test_a_full_price_path(trailing):
         peak = max(peak, price)                      # sync_peaks 와 같은 규칙
         position = _held(peak=peak, current=price)
         assert trailing.check_forced_exit(position) == expected, f"{price:,}원에서 어긋남"
+
+
+# --- 최소 보유기간 ------------------------------------------------------------ #
+
+HOLD_DAYS = dataclasses.replace(RISK, min_holding_days=1,
+                                trailing_activate_pct=10, trailing_stop_pct=5)
+
+
+@pytest.fixture
+def holder():
+    return RiskManager(HOLD_DAYS, SCHEDULE)
+
+
+def _bought(at, pnl_pct=2.0, avg=100_000):
+    price = avg * (1 + pnl_pct / 100)
+    return Position(code="005930", name="삼성전자", qty=10, orderable_qty=10,
+                    avg_price=avg, current_price=price, eval_amount=10 * price,
+                    pnl_amount=10 * (price - avg), pnl_pct=pnl_pct,
+                    first_bought_at=at)
+
+
+def test_same_day_sell_is_held_back(holder):
+    """하루 회전은 왕복 비용만 내고 남는 게 없다."""
+    verdict = holder.check_sell(_bought("2026-09-08T09:35:00+09:00"), now=MIDDAY)
+    assert not verdict.allowed
+    assert verdict.rule == "min_holding_days"
+
+
+def test_next_day_sell_is_allowed(holder):
+    verdict = holder.check_sell(_bought("2026-09-07T09:35:00+09:00"), now=MIDDAY)
+    assert verdict.allowed
+
+
+def test_stop_loss_ignores_the_holding_period(holder):
+    """자산을 지키는 쪽은 언제나 통과해야 한다 — check_sell 을 거치지 않는다."""
+    position = _bought("2026-09-08T09:35:00+09:00", pnl_pct=-6.0)
+    assert holder.check_forced_exit(position) == "STOP_LOSS"
+
+
+def test_trailing_ignores_the_holding_period(holder):
+    position = _bought("2026-09-08T09:35:00+09:00", pnl_pct=12.0)
+    position.peak_price = 150_000          # 고점 대비 크게 밀림
+    assert holder.check_forced_exit(position) == "TRAILING_STOP"
+
+
+def test_disabled_by_default(manager):
+    """설정하지 않으면 예전대로 언제든 팔 수 있다."""
+    assert manager.check_sell(_bought("2026-09-08T09:35:00+09:00"), now=MIDDAY).allowed
+
+
+def test_broken_entry_date_does_not_block(holder):
+    """값이 깨졌다고 매도를 막으면 위험을 붙들게 된다."""
+    assert holder.check_sell(_bought("이상한값"), now=MIDDAY).allowed
+    assert holder.check_sell(_bought(""), now=MIDDAY).allowed

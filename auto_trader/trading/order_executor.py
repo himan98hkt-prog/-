@@ -59,8 +59,19 @@ class OrderExecutor:
         factor = (1 + slippage) if side == "BUY" else (1 - slippage)
         return int(round(current_price * factor))
 
+    def order_type_for(self, side: str) -> str:
+        """이 주문을 지정가로 낼지 시장가로 낼지.
+
+        **매도는 언제나 시장가다.** 지정가 매도는 체결되지 않으면 30초 뒤 취소되는데,
+        손절이 그렇게 되면 떨어지는 종목을 그대로 들고 있게 된다. 나가는 쪽은
+        가격보다 나가는 것이 먼저다. 사는 쪽은 기다릴 수 있으므로 설정을 따른다.
+        """
+        if side == "SELL":
+            return "market"
+        return self.settings.risk.order_type
+
     def _order_price(self, current_price: float, side: str) -> int:
-        if self.settings.risk.order_type == "limit":
+        if self.order_type_for(side) == "limit":
             return self._limit_price(current_price, side)
         return 0  # 시장가
 
@@ -115,7 +126,7 @@ class OrderExecutor:
             if qty <= 0:
                 return ExecutionResult.skipped("매도 가능 수량 없음")
 
-        order_type = self.settings.risk.order_type
+        order_type = self.order_type_for(side)
         order_price = self._order_price(price, side)
 
         if self.settings.env.dry_run:

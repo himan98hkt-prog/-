@@ -120,7 +120,10 @@ def run_cycle(ctx, code="005930"):
         risk_passed, risk_reason = verdict.allowed, verdict.reason
 
     execution = None
-    if risk_passed or final.is_sell:
+    # 매도도 이제 자체 검사(최소 보유기간)를 받는다. 예전처럼 `or final.is_sell`
+    # 을 두면 거부된 매도가 그대로 나가 규칙이 있으나 마나가 된다.
+    # 손절·트레일링은 애초에 거부되지 않으므로 여기서 막히지 않는다.
+    if risk_passed:
         execution = ctx["executor"].execute(final, snapshot, state, cycle_id="c1")
 
     ctx["portfolio"].record_decision(cycle_id="c1", snapshot=snapshot, decisions=decisions,

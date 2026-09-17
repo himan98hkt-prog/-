@@ -39,6 +39,8 @@ class Position:
     pnl_pct: float
     # 보유 중 고점 — 트레일링 스톱의 기준. DB 에서 채워 넣는다.
     peak_price: float = 0.0
+    # 이 종목을 처음 보유한 시각(ISO). 최소 보유기간 판단에 쓴다.
+    first_bought_at: str = ""
 
     @property
     def cost_basis(self) -> float:
@@ -155,8 +157,10 @@ class Portfolio:
             self.db_path,
             {code: position.current_price for code, position in positions.items()},
         )
+        entries = self._first_bought_at()
         for code, position in positions.items():
             position.peak_price = peaks.get(code, position.current_price)
+            position.first_bought_at = entries.get(code, "")
 
         cash = balance.orderable_cash  # 0 이면 실제로 주문 가능 금액이 없는 것이다
         equity = cash + sum(position.eval_amount for position in positions.values())
@@ -175,6 +179,15 @@ class Portfolio:
             len(positions), f"{cash:,.0f}", daily_pnl_pct,
         )
         return self.state
+
+    def _first_bought_at(self) -> dict[str, str]:
+        """종목별 최초 보유 시각. _write_positions 가 남긴 값을 그대로 읽는다."""
+        conn = connect(self.db_path)
+        try:
+            return {row["code"]: (row["first_bought_at"] or "")
+                    for row in conn.execute("SELECT code, first_bought_at FROM positions")}
+        finally:
+            conn.close()
 
     def _write_positions(self, positions: dict[str, Position], moment: datetime) -> None:
         conn = connect(self.db_path)

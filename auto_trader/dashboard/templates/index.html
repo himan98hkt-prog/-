@@ -102,6 +102,37 @@
   </div>
 </div>
 
+<!-- ── 엔진별 적중률 ─────────────────────────────────────────── -->
+<div class="card">
+  <h2>엔진별 적중률<span class="sub">판단 {{ accuracy.horizon_days }}거래일 뒤 가격으로 채점 · HOLD 는 제외</span></h2>
+  {% if accuracy.ready %}
+  <table>
+    <thead>
+      <tr><th>엔진</th><th class="num">적중률</th><th class="num">채점된 판단</th>
+          <th class="num">관망 비율</th></tr>
+    </thead>
+    <tbody>
+      {% for e in accuracy.engines %}
+      <tr>
+        <td><strong>{{ e.engine }}</strong></td>
+        <td class="num {{ 'up' if e.hit_rate > 50 else 'down' if e.hit_rate < 50 else '' }}">
+          {{ e.hit_rate }}%
+        </td>
+        <td class="num dim">{{ e.graded }}건 / 전체 {{ e.calls }}건</td>
+        <td class="num dim">{{ e.hold_rate }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="bench-foot">
+    50% 는 동전 던지기입니다. 한 엔진이 오래도록 50% 를 밑돌면 그 비용은 빼는 편이 낫습니다.
+    관망 비율이 높으면 적중률이 좋아도 판단을 거의 안 한 것입니다.
+  </div>
+  {% else %}
+  <div class="empty">판단 {{ accuracy.horizon_days }}거래일치가 쌓이면 채점이 시작됩니다</div>
+  {% endif %}
+</div>
+
 <!-- ── 매수 사유 ─────────────────────────────────────────────── -->
 {% if rationale %}
 <div class="card">

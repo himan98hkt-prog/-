@@ -439,3 +439,69 @@ def test_theme_needs_two_days(tmp_path):
     init_db(db)
     record_benchmark_price(db, date="2026-09-17", code="005930", name="삼성전자", price=100.0)
     assert theme_performance(db, {"005930": "반도체"}) == []
+
+
+# --- 엔진별 적중률 ----------------------------------------------------------- #
+
+def _vote(db, code, at, claude, gemini, chatgpt=None):
+    from utils.db import session
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding,
+                   claude_action, gemini_action, chatgpt_action,
+                   final_action, final_weight_pct, risk_passed, created_at)
+               VALUES ('c', ?, '종목', 0, ?, ?, ?, 'HOLD', 0, 1, ?)""",
+            (code, claude, gemini, chatgpt, at))
+
+
+def _prices(db, code, series):
+    from utils.db import record_benchmark_price
+    for date, price in series:
+        record_benchmark_price(db, date=date, code=code, name="종목", price=price)
+
+
+DAYS = [f"2026-09-{d:02d}" for d in range(1, 10)]
+
+
+def test_buy_is_correct_when_the_price_rises(tmp_path):
+    from dashboard.queries import engine_accuracy
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _prices(db, "005930", [(d, 100.0 + i * 5) for i, d in enumerate(DAYS)])   # 계속 상승
+    _vote(db, "005930", f"{DAYS[0]}T09:05:00+09:00", "BUY", "SELL")
+
+    result = {e["engine"]: e for e in engine_accuracy(db, horizon_days=5)["engines"]}
+    assert result["Claude"]["hit_rate"] == 100.0    # BUY + 상승 = 적중
+    assert result["Gemini"]["hit_rate"] == 0.0      # SELL + 상승 = 빗나감
+
+
+def test_hold_is_excluded_from_the_hit_rate(tmp_path):
+    """관망만 하는 엔진이 100% 로 보이면 안 된다."""
+    from dashboard.queries import engine_accuracy
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _prices(db, "005930", [(d, 100.0 + i * 5) for i, d in enumerate(DAYS)])
+    _vote(db, "005930", f"{DAYS[0]}T09:05:00+09:00", "HOLD", "BUY")
+
+    result = {e["engine"]: e for e in engine_accuracy(db, horizon_days=5)["engines"]}
+    assert result["Claude"]["graded"] == 0
+    assert result["Claude"]["hit_rate"] == 0.0
+    assert result["Claude"]["hold_rate"] == 100.0
+    assert result["Gemini"]["graded"] == 1
+
+
+def test_recent_calls_without_a_future_are_not_graded(tmp_path):
+    """채점할 미래가 없는 판단을 세면 성적이 표본 부족으로 흔들린다."""
+    from dashboard.queries import engine_accuracy
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _prices(db, "005930", [(d, 100.0) for d in DAYS[:3]])
+    _vote(db, "005930", f"{DAYS[0]}T09:05:00+09:00", "BUY", "BUY")   # 5일 뒤가 없다
+
+    assert engine_accuracy(db, horizon_days=5)["ready"] is False
