@@ -156,6 +156,7 @@ def create_app(*, testing: bool = False) -> Flask:
             status=runtime_status(),
             overview=queries.overview(db),
             benchmark=queries.benchmark_comparison(db),
+            trade_stats=queries.trade_stats(db),
             positions=queries.positions(db, stop_loss, take_profit),
             decisions=queries.recent_decisions(db, 25),
             orders=queries.recent_orders(db, 15),

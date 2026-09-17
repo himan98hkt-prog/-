@@ -209,3 +209,108 @@ def test_latest_price_of_the_day_wins(tmp_path):
         assert len(rows) == 1 and rows[0]["price"] == 130.0
     finally:
         conn.close()
+
+
+# --- 매매 성적 --------------------------------------------------------------- #
+
+def _order(db, code, side, qty, price, at, name="테스트"):
+    from utils.db import session
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO orders (code, name, side, order_type, qty, price,
+                                   filled_qty, filled_price, status, kis_env,
+                                   created_at, updated_at)
+               VALUES (?, ?, ?, 'market', ?, ?, ?, ?, 'FILLED', 'VTS', ?, ?)""",
+            (code, name, side, qty, price, qty, price, at, at))
+
+
+def test_round_trip_is_matched_and_costed(tmp_path):
+    """수수료·세금을 빼지 않으면 성적이 실제보다 좋아 보인다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _order(db, "005930", "BUY", 10, 100_000, "2026-09-01T09:05:00+09:00")
+    _order(db, "005930", "SELL", 10, 110_000, "2026-09-08T09:05:00+09:00")
+
+    stats = trade_stats(db)
+    assert stats["count"] == 1
+    # 총수익 10% 에서 수수료(0.015x2)+거래세(0.15) = 0.18%p 를 뺀다
+    assert stats["trades"][0]["pnl_pct"] == 9.82
+    assert stats["trades"][0]["held_days"] == 7
+    assert stats["fee_krw"] > 0
+
+
+def test_partial_sell_consumes_lots_first_in_first_out(tmp_path):
+    """부분 매도는 먼저 산 물량부터 덜어내야 한다."""
+    from dashboard.queries import closed_trades
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _order(db, "005930", "BUY", 10, 100_000, "2026-09-01T09:05:00+09:00")
+    _order(db, "005930", "BUY", 10, 120_000, "2026-09-02T09:05:00+09:00")
+    _order(db, "005930", "SELL", 15, 130_000, "2026-09-05T09:05:00+09:00")
+
+    trades = list(reversed(closed_trades(db)))  # 오래된 순
+    assert len(trades) == 2
+    assert (trades[0]["qty"], trades[0]["entry_price"]) == (10, 100_000)
+    assert (trades[1]["qty"], trades[1]["entry_price"]) == (5, 120_000)
+
+
+def test_breakeven_win_rate_matches_the_payoff(tmp_path):
+    """손익비 2:1 이면 본전 승률은 33.3% — 이보다 낮으면 잃고 있는 것이다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    # 이익 +10%, 손실 -5% 두 건 → 손익비 약 2
+    _order(db, "AAA", "BUY", 1, 100_000, "2026-09-01T09:00:00+09:00")
+    _order(db, "AAA", "SELL", 1, 110_200, "2026-09-03T09:00:00+09:00")
+    _order(db, "BBB", "BUY", 1, 100_000, "2026-09-01T09:00:00+09:00")
+    _order(db, "BBB", "SELL", 1, 94_820, "2026-09-03T09:00:00+09:00")
+
+    stats = trade_stats(db)
+    assert stats["win_rate"] == 50.0
+    # 수수료·세금이 양쪽 모두를 갉아먹으므로 총수익 기준 2:1 은 실질 1.87 이 된다.
+    assert stats["payoff"] == 1.87
+    # 본전 승률 = 1 / (1 + 손익비) — 이 관계가 깨지면 판단 기준이 거짓이 된다.
+    # (표시용 손익비는 반올림된 값이라 소수 첫째 자리까지만 맞춘다.)
+    assert stats["breakeven_win_rate"] == pytest.approx(
+        1 / (1 + stats["payoff"]) * 100, abs=0.1)
+    assert stats["breakeven_win_rate"] == 34.9
+    assert stats["win_rate"] > stats["breakeven_win_rate"], "이 표본은 이기고 있어야 한다"
+
+
+def test_unsold_position_is_not_counted(tmp_path):
+    """아직 안 판 종목을 성적에 넣으면 평가손익을 실현손익으로 착각하게 된다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    _order(db, "005930", "BUY", 10, 100_000, "2026-09-01T09:05:00+09:00")
+
+    assert trade_stats(db)["count"] == 0
+
+
+def test_dry_run_orders_are_excluded(tmp_path):
+    """주문 미전송 기록은 체결이 아니다 — 성적에 섞이면 안 된다."""
+    from dashboard.queries import trade_stats
+    from utils.db import init_db, session
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    with session(db) as conn:
+        for side, price in (("BUY", 100_000), ("SELL", 130_000)):
+            conn.execute(
+                """INSERT INTO orders (code, name, side, order_type, qty, price,
+                                       filled_qty, filled_price, status, kis_env,
+                                       created_at, updated_at)
+                   VALUES ('005930','삼성전자',?,'market',1,?,0,0,'DRY_RUN','VTS',
+                           '2026-09-01T09:05:00+09:00','2026-09-01T09:05:00+09:00')""",
+                (side, price))
+
+    assert trade_stats(db)["count"] == 0

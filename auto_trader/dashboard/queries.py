@@ -224,3 +224,116 @@ def benchmark_comparison(db_path: Path | str) -> dict[str, Any]:
         "edge_pct": round(actual_pct - benchmark_pct, 2),
         "legs": legs,
     }
+
+
+# --- 매매 성적 --------------------------------------------------------------- #
+
+# 왕복 거래비용 추정. 실제 체결가에 이미 반영된 슬리피지는 빼고, 명시적으로
+# 빠져나가는 돈만 센다 — 증권사 수수료(양방향)와 매도 시 증권거래세.
+BROKER_FEE_PCT = 0.015     # 편도, %
+SELL_TAX_PCT = 0.15        # 매도 시, %
+
+
+def _net_pnl_pct(entry: float, exit_price: float) -> float:
+    """수수료·세금을 뺀 실질 수익률(%)."""
+    if entry <= 0:
+        return 0.0
+    gross = (exit_price / entry - 1) * 100
+    return gross - (BROKER_FEE_PCT * 2 + SELL_TAX_PCT)
+
+
+def closed_trades(db_path: Path | str) -> list[dict[str, Any]]:
+    """체결된 주문을 종목별 선입선출로 짝지어 '닫힌 거래' 목록을 만든다.
+
+    주문 기록만으로 계산하므로 별도 테이블이 없다 — 주문과 어긋날 일이 없다.
+    부분 매도는 산 물량을 앞에서부터 덜어내는 방식으로 처리한다.
+    """
+    rows = _rows(
+        db_path,
+        """SELECT code, name, side, filled_qty, filled_price, created_at
+           FROM orders
+           WHERE status = 'FILLED' AND filled_qty > 0 AND filled_price > 0
+           ORDER BY id""",
+    )
+    open_lots: dict[str, list[dict[str, Any]]] = {}
+    trades: list[dict[str, Any]] = []
+
+    for row in rows:
+        code = row["code"]
+        if row["side"] == "BUY":
+            open_lots.setdefault(code, []).append(
+                {"qty": int(row["filled_qty"]), "price": float(row["filled_price"]),
+                 "at": row["created_at"], "name": row["name"] or code}
+            )
+            continue
+
+        remaining = int(row["filled_qty"])
+        lots = open_lots.get(code, [])
+        while remaining > 0 and lots:
+            lot = lots[0]
+            matched = min(remaining, lot["qty"])
+            entry, exit_price = lot["price"], float(row["filled_price"])
+            trades.append({
+                "code": code, "name": lot["name"], "qty": matched,
+                "entry_price": entry, "exit_price": exit_price,
+                "entry_at": lot["at"], "exit_at": row["created_at"],
+                "pnl_pct": round(_net_pnl_pct(entry, exit_price), 2),
+                "pnl_amount": round((exit_price - entry) * matched
+                                    - (entry + exit_price) * matched
+                                    * (BROKER_FEE_PCT + SELL_TAX_PCT / 2) / 100),
+                "held_days": _days_between(lot["at"], row["created_at"]),
+            })
+            lot["qty"] -= matched
+            remaining -= matched
+            if lot["qty"] <= 0:
+                lots.pop(0)
+    trades.reverse()  # 최근 것부터
+    return trades
+
+
+def _days_between(start: str, end: str) -> int:
+    try:
+        opened = datetime.fromisoformat(start)
+        closed = datetime.fromisoformat(end)
+    except (TypeError, ValueError):
+        return 0
+    return max((closed.date() - opened.date()).days, 0)
+
+
+def trade_stats(db_path: Path | str) -> dict[str, Any]:
+    """승률·손익비·평균 보유일. 개선할 지점을 여기서 찾는다."""
+    trades = closed_trades(db_path)
+    blank = {"ready": False, "count": 0, "win_rate": 0.0, "avg_win": 0.0,
+             "avg_loss": 0.0, "payoff": 0.0, "avg_days": 0.0,
+             "realized_krw": 0, "fee_krw": 0, "breakeven_win_rate": 0.0,
+             "trades": []}
+    if not trades:
+        return blank
+
+    wins = [t["pnl_pct"] for t in trades if t["pnl_pct"] > 0]
+    losses = [t["pnl_pct"] for t in trades if t["pnl_pct"] <= 0]
+    avg_win = sum(wins) / len(wins) if wins else 0.0
+    avg_loss = sum(losses) / len(losses) if losses else 0.0
+    # 손익비: 평균 이익 / 평균 손실 크기. 이 값이 클수록 낮은 승률로도 버틴다.
+    payoff = (avg_win / abs(avg_loss)) if avg_loss else 0.0
+    # 본전 승률 = 1 / (1 + 손익비). 실제 승률이 이보다 낮으면 잃고 있는 것이다.
+    breakeven = (1 / (1 + payoff) * 100) if payoff else 0.0
+
+    fee = sum(
+        (t["entry_price"] + t["exit_price"]) * t["qty"]
+        * (BROKER_FEE_PCT + SELL_TAX_PCT / 2) / 100
+        for t in trades
+    )
+    return {
+        "ready": True,
+        "count": len(trades),
+        "win_rate": round(len(wins) / len(trades) * 100, 1),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
+        "payoff": round(payoff, 2),
+        "breakeven_win_rate": round(breakeven, 1),
+        "avg_days": round(sum(t["held_days"] for t in trades) / len(trades), 1),
+        "realized_krw": round(sum(t["pnl_amount"] for t in trades)),
+        "fee_krw": round(fee),
+        "trades": trades[:15],
+    }

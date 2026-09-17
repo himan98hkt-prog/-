@@ -102,6 +102,60 @@
   </div>
 </div>
 
+<!-- ── 매매 성적 ─────────────────────────────────────────────── -->
+<div class="card">
+  <h2>매매 성적<span class="sub">체결된 매수·매도를 짝지어 계산 · 수수료·세금 반영</span></h2>
+  {% if trade_stats.ready %}
+  <div class="bench">
+    <div class="bench-col">
+      <div class="bench-label">승률</div>
+      <div class="bench-val {{ 'up' if trade_stats.win_rate > trade_stats.breakeven_win_rate else 'down' }}">
+        {{ trade_stats.win_rate }}%
+      </div>
+      <div class="note">본전 승률 {{ trade_stats.breakeven_win_rate }}%</div>
+    </div>
+    <div class="bench-col">
+      <div class="bench-label">손익비</div>
+      <div class="bench-val">{{ trade_stats.payoff }}</div>
+      <div class="note">평균 +{{ trade_stats.avg_win }}% / {{ trade_stats.avg_loss }}%</div>
+    </div>
+    <div class="bench-col">
+      <div class="bench-label">평균 보유</div>
+      <div class="bench-val">{{ trade_stats.avg_days }}일</div>
+      <div class="note">거래 {{ trade_stats.count }}건</div>
+    </div>
+    <div class="bench-col bench-edge">
+      <div class="bench-label">실현 손익</div>
+      <div class="bench-val {{ 'up' if trade_stats.realized_krw > 0 else 'down' if trade_stats.realized_krw < 0 else '' }}">
+        {{ '{:+,}'.format(trade_stats.realized_krw) }}
+      </div>
+      <div class="note">수수료·세금 {{ '{:,}'.format(trade_stats.fee_krw) }}원 차감 후</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>종목</th><th class="num">매수</th><th class="num">매도</th>
+          <th class="num">보유</th><th class="num">손익</th></tr>
+    </thead>
+    <tbody>
+      {% for t in trade_stats.trades %}
+      <tr>
+        <td>{{ t.name }}</td>
+        <td class="num">{{ '{:,.0f}'.format(t.entry_price) }}</td>
+        <td class="num">{{ '{:,.0f}'.format(t.exit_price) }}</td>
+        <td class="num">{{ t.held_days }}일</td>
+        <td class="num {{ 'up' if t.pnl_pct > 0 else 'down' if t.pnl_pct < 0 else '' }}">
+          {{ '%+.2f'|format(t.pnl_pct) }}%
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">아직 사고판 거래가 없습니다 — 매수 후 매도가 한 번 끝나면 집계됩니다</div>
+  {% endif %}
+</div>
+
 <!-- ── 단순 보유 대비 ────────────────────────────────────────── -->
 <div class="card">
   <h2>단순 보유 대비<span class="sub">감시 종목을 그냥 사서 들고만 있었다면</span></h2>
