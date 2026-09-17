@@ -102,6 +102,57 @@
   </div>
 </div>
 
+<!-- ── 단순 보유 대비 ────────────────────────────────────────── -->
+<div class="card">
+  <h2>단순 보유 대비<span class="sub">감시 종목을 그냥 사서 들고만 있었다면</span></h2>
+  {% if benchmark.ready %}
+  <div class="bench">
+    <div class="bench-col">
+      <div class="bench-label">자동매매</div>
+      <div class="bench-val {{ 'up' if benchmark.actual_pct > 0 else 'down' if benchmark.actual_pct < 0 else '' }}">
+        {{ '%+.2f'|format(benchmark.actual_pct) }}%
+      </div>
+    </div>
+    <div class="bench-col">
+      <div class="bench-label">그냥 보유</div>
+      <div class="bench-val {{ 'up' if benchmark.benchmark_pct > 0 else 'down' if benchmark.benchmark_pct < 0 else '' }}">
+        {{ '%+.2f'|format(benchmark.benchmark_pct) }}%
+      </div>
+    </div>
+    <div class="bench-col bench-edge">
+      <div class="bench-label">차이</div>
+      <div class="bench-val {{ 'up' if benchmark.edge_pct > 0 else 'down' if benchmark.edge_pct < 0 else '' }}">
+        {{ '%+.2f'|format(benchmark.edge_pct) }}%p
+      </div>
+      <div class="note">
+        {% if benchmark.edge_pct > 0 %}자동매매가 앞섭니다
+        {% elif benchmark.edge_pct < 0 %}그냥 보유가 낫습니다
+        {% else %}같습니다{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="bench-foot">
+    {{ benchmark.start_date }} 시작 · 거래일 {{ benchmark.days }}일 · {{ benchmark.codes }}종목 동일비중 기준
+  </div>
+  <table>
+    <thead>
+      <tr><th>종목</th><th>코드</th><th class="num">단순 보유 수익률</th></tr>
+    </thead>
+    <tbody>
+      {% for leg in benchmark.legs %}
+      <tr>
+        <td>{{ leg.name }}</td>
+        <td class="mono">{{ leg.code }}</td>
+        <td class="num {{ 'up' if leg.pct > 0 else 'down' if leg.pct < 0 else '' }}">{{ '%+.2f'|format(leg.pct) }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ benchmark.reason }}</div>
+  {% endif %}
+</div>
+
 <!-- ── 보유 종목 ─────────────────────────────────────────────── -->
 <div class="card">
   <h2>보유 종목<span class="sub">{{ positions|length }}종목</span></h2>

@@ -46,7 +46,8 @@ from trading.kis_api import KisApi, KisApiError
 from trading.kis_auth import KisAuthError, TokenManager
 from trading.market_calendar import is_market_open, is_trading_day, market_state
 from trading.order_executor import OrderExecutor
-from utils.db import init_db, record_ai_usage, table_names, update_bot_state
+from utils.db import (init_db, record_ai_usage, record_benchmark_price, table_names,
+                      update_bot_state)
 from utils.logger import get_logger, register_secret, setup_logging
 from utils.notifier import Notifier
 from utils.telegram_control import TelegramControl
@@ -319,6 +320,13 @@ class TradingBot:
         if position:  # 보유 정보는 잔고를 진실로 삼는다
             snapshot["position"] = {"holding": True, "qty": position.qty,
                                     "avg_price": position.avg_price, "pnl_pct": position.pnl_pct}
+
+        # 벤치마크용 관측가. 이미 받아 온 값이라 추가 조회가 없다.
+        record_benchmark_price(
+            self.settings.paths["db"], date=now.strftime("%Y-%m-%d"), code=code,
+            name=snapshot.get("name", code),
+            price=float(snapshot.get("price", {}).get("current") or 0),
+        )
 
         forced = self.risk.check_forced_exit(position)
         decisions: dict[str, AgentDecision] = {}

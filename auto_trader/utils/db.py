@@ -145,6 +145,17 @@ CREATE TABLE IF NOT EXISTS daily_pnl (
     sell_count      INTEGER NOT NULL DEFAULT 0,
     updated_at      TEXT NOT NULL
 );
+
+-- 벤치마크: 감시 종목을 그냥 사서 들고만 있었을 때의 성적.
+-- 사이클마다 이미 받아 온 현재가를 그대로 적어 두므로 추가 API 호출이 없다.
+CREATE TABLE IF NOT EXISTS benchmark_prices (
+    date            TEXT NOT NULL,
+    code            TEXT NOT NULL,
+    name            TEXT NOT NULL DEFAULT '',
+    price           REAL NOT NULL,
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (date, code)
+);
 """
 
 
@@ -292,3 +303,24 @@ def record_ai_usage(
         )
     finally:
         conn.close()
+
+
+# --- 벤치마크(단순 보유) ---------------------------------------------------- #
+
+def record_benchmark_price(db_path: Path | str, *, date: str, code: str,
+                           name: str, price: float) -> None:
+    """그날 그 종목의 가장 최근 관측가를 남긴다(같은 날은 덮어쓴다).
+
+    사이클이 이미 조회한 값을 재사용하므로 KIS 호출이 늘지 않는다.
+    """
+    if price <= 0:
+        return  # 값을 못 읽은 경우 — 0 을 남기면 수익률이 망가진다
+    with session(db_path) as conn:
+        conn.execute(
+            """INSERT INTO benchmark_prices (date, code, name, price, updated_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(date, code) DO UPDATE SET
+                   price = excluded.price, name = excluded.name,
+                   updated_at = excluded.updated_at""",
+            (date, code, name, float(price), now_kst_iso()),
+        )

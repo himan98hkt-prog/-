@@ -160,3 +160,67 @@ def log_tail(log_dir: Path | str, lines: int = 40) -> list[str]:
     except OSError:
         return []
     return content[-lines:]
+
+
+def benchmark_comparison(db_path: Path | str) -> dict[str, Any]:
+    """자동매매 성적 vs 감시 종목을 그냥 사서 들고만 있었을 때.
+
+    벤치마크는 **첫날 관측된 종목들에 똑같이 나눠 담고 그대로 둔** 포트폴리오다.
+    동일 비중이므로 수익률은 종목별 수익률의 평균과 같아, 주식 수를 따로
+    들고 있을 필요가 없다. 나중에 감시 목록에 추가된 종목은 시작 가격이 없어
+    제외한다 — 넣으면 '오른 뒤에 담은' 셈이 되어 벤치마크가 유리해진다.
+    """
+    empty = {"ready": False, "reason": "", "start_date": "", "days": 0,
+             "codes": 0, "benchmark_pct": 0.0, "actual_pct": 0.0, "edge_pct": 0.0,
+             "legs": []}
+    conn = connect(db_path)
+    try:
+        dates = [row["date"] for row in conn.execute(
+            "SELECT DISTINCT date FROM benchmark_prices ORDER BY date")]
+        if not dates:
+            empty["reason"] = "아직 기록이 없습니다 — 첫 사이클이 돌면 쌓입니다"
+            return empty
+        first, last = dates[0], dates[-1]
+        if first == last:
+            empty["reason"] = "거래일 2일치가 쌓이면 비교가 표시됩니다"
+            empty["start_date"] = first
+            return empty
+
+        start = {row["code"]: row for row in conn.execute(
+            "SELECT code, name, price FROM benchmark_prices WHERE date = ?", (first,))}
+        end = {row["code"]: row["price"] for row in conn.execute(
+            "SELECT code, price FROM benchmark_prices WHERE date = ?", (last,))}
+
+        legs = []
+        for code, row in start.items():
+            if code not in end or not row["price"]:
+                continue  # 마지막 날 값이 없으면 비교가 성립하지 않는다
+            change = (end[code] / row["price"] - 1) * 100
+            legs.append({"code": code, "name": row["name"] or code,
+                         "pct": round(change, 2)})
+        if not legs:
+            empty["reason"] = "비교할 종목이 없습니다"
+            empty["start_date"] = first
+            return empty
+        legs.sort(key=lambda leg: leg["pct"], reverse=True)
+        benchmark_pct = sum(leg["pct"] for leg in legs) / len(legs)
+
+        # 실제 성적: 첫날 시작 자산 대비 마지막으로 기록된 평가 자산.
+        rows = list(conn.execute(
+            """SELECT date, start_equity, end_equity FROM daily_pnl
+               WHERE date >= ? ORDER BY date""", (first,)))
+    finally:
+        conn.close()
+
+    opening = next((float(r["start_equity"]) for r in rows if r["start_equity"]), 0.0)
+    closing = next((float(r["end_equity"]) for r in reversed(rows) if r["end_equity"]), 0.0)
+    actual_pct = ((closing / opening - 1) * 100) if opening > 0 else 0.0
+
+    return {
+        "ready": True, "reason": "", "start_date": first, "end_date": last,
+        "days": len(dates), "codes": len(legs),
+        "benchmark_pct": round(benchmark_pct, 2),
+        "actual_pct": round(actual_pct, 2),
+        "edge_pct": round(actual_pct - benchmark_pct, 2),
+        "legs": legs,
+    }

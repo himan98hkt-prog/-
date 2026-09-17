@@ -211,3 +211,15 @@ pre.log {
   .field.is-empty input,
   .field.is-empty select { border-color: #e66767; background: #2b1917; }
 }
+
+/* 단순 보유 대비 — 자동매매가 값을 하는지 한눈에 보는 칸 */
+.bench { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.bench-col {
+  flex: 1 1 120px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.bench-col.bench-edge { border-color: var(--text-2); }
+.bench-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.bench-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bench-col .note { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.bench-foot { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
