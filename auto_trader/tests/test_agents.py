@@ -284,3 +284,51 @@ def test_hold_helper_is_safe_default():
     decision = AgentDecision.hold("claude", "타임아웃")
     assert (decision.action, decision.confidence, decision.weight_pct, decision.ok) == ("HOLD", 0.0, 0, False)
     assert "claude 실패" in decision.summary()
+
+
+# --- Gemini 스키마 변환 ------------------------------------------------------ #
+
+def test_gemini_schema_drops_keys_gemini_does_not_know():
+    """additionalProperties 가 섞이면 요청 전체가 400 으로 거절된다."""
+    from agents.gemini_agent import to_gemini_schema
+    from agents.prompts import RESPONSE_JSON_SCHEMA
+
+    converted = to_gemini_schema(RESPONSE_JSON_SCHEMA)
+
+    def walk(node):
+        if isinstance(node, dict):
+            assert "additionalProperties" not in node, f"남아 있음: {node}"
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(converted)
+
+
+def test_gemini_schema_keeps_the_fields_we_need():
+    """필드 이름은 스키마 키워드가 아니다 — 걸러내면 응답이 무의미해진다."""
+    from agents.gemini_agent import to_gemini_schema
+    from agents.prompts import RESPONSE_JSON_SCHEMA
+
+    converted = to_gemini_schema(RESPONSE_JSON_SCHEMA)
+
+    assert set(converted["properties"]) == set(RESPONSE_JSON_SCHEMA["properties"])
+    assert converted["required"] == RESPONSE_JSON_SCHEMA["required"]
+    assert converted["properties"]["action"]["enum"] == ["BUY", "SELL", "HOLD"]
+    assert converted["properties"]["confidence"]["type"] == "number"
+
+
+def test_failed_call_waits_before_retrying(monkeypatch):
+    """즉시 재요청하면 요청량 제한을 더 밀어붙여 셋 다 실패한다."""
+    from agents import base_agent
+
+    slept: list[float] = []
+    monkeypatch.setattr(base_agent.time, "sleep", lambda s: slept.append(s))
+
+    base_agent._pause_before_retry(0)
+    base_agent._pause_before_retry(1)
+    base_agent._pause_before_retry(2)   # 마지막 시도 뒤에는 기다릴 이유가 없다
+
+    assert slept == [1.0, 3.0], f"대기가 늘어나지 않습니다: {slept}"

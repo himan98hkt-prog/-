@@ -20,6 +20,39 @@ logger = get_logger("gemini_agent")
 
 MAX_OUTPUT_TOKENS = 4096
 
+# Gemini 의 response_schema 는 OpenAPI 3.0 스키마의 **부분집합**만 받는다.
+# 모르는 키가 하나라도 있으면 요청 전체를 400 INVALID_ARGUMENT 로 거절한다
+# ("Invalid JSON payload received. Unknown name ..."). 공용 스키마에는
+# Claude·ChatGPT 가 요구하는 additionalProperties 가 들어 있어서 그대로 보내면
+# Gemini 만 매번 실패하고, 한 엔진이 빠지면 합의가 늘 관망이 된다.
+GEMINI_SCHEMA_KEYS = frozenset({
+    "type", "format", "description", "nullable", "enum",
+    "items", "properties", "required", "propertyOrdering",
+    "minItems", "maxItems",
+})
+
+
+def to_gemini_schema(schema: object) -> object:
+    """Gemini 가 아는 키만 남긴다(중첩 포함).
+
+    `properties` 안쪽은 스키마 키워드가 아니라 **필드 이름**이라 걸러내면 안 된다.
+    """
+    if isinstance(schema, dict):
+        cleaned: dict[str, object] = {}
+        for key, value in schema.items():
+            if key not in GEMINI_SCHEMA_KEYS:
+                continue
+            if key == "properties" and isinstance(value, dict):
+                cleaned[key] = {name: to_gemini_schema(sub) for name, sub in value.items()}
+            elif key in ("enum", "required"):
+                cleaned[key] = value  # 값 목록 그대로
+            else:
+                cleaned[key] = to_gemini_schema(value)
+        return cleaned
+    if isinstance(schema, list):
+        return [to_gemini_schema(item) for item in schema]
+    return schema
+
 
 class GeminiAgent(BaseAgent):
     name = "gemini"
@@ -39,7 +72,7 @@ class GeminiAgent(BaseAgent):
         return types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            response_schema=RESPONSE_JSON_SCHEMA,
+            response_schema=to_gemini_schema(RESPONSE_JSON_SCHEMA),
             temperature=self.temperature,
             max_output_tokens=MAX_OUTPUT_TOKENS,
         )

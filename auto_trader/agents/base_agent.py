@@ -17,6 +17,16 @@ from utils.logger import get_logger
 
 logger = get_logger("agent")
 
+# 재요청 전 대기. 호출 실패의 상당수가 요청량 제한이라, 곧바로 다시 부르면
+# 제한을 더 밀어붙이는 꼴이 된다. 사이클 하나가 통째로 늦어지지 않도록 짧게 둔다.
+RETRY_DELAYS = (1.0, 3.0)
+
+
+def _pause_before_retry(attempt: int) -> None:
+    if attempt < len(RETRY_DELAYS):
+        time.sleep(RETRY_DELAYS[attempt])
+
+
 
 class AgentCallError(Exception):
     """모델 호출 자체가 실패(네트워크·인증·타임아웃)."""
@@ -93,6 +103,9 @@ class BaseAgent(ABC):
                 last_raw = ""
                 logger.warning("[%s] %s 호출 실패 (%d/%d): %s",
                                self.name, code, attempt + 1, self.ai.max_retries + 1, exc)
+                # 곧바로 다시 부르지 않는다. 호출 실패의 상당수는 요청량 제한(429)인데,
+                # 즉시 재요청하면 제한을 더 밀어붙여 셋 다 실패하고 한도만 축낸다.
+                _pause_before_retry(attempt)
                 continue
 
             total_usage += self._last_usage
@@ -103,6 +116,7 @@ class BaseAgent(ABC):
                 last_error = str(exc)
                 logger.warning("[%s] %s 응답 파싱 실패 (%d/%d): %s",
                                self.name, code, attempt + 1, self.ai.max_retries + 1, exc)
+                _pause_before_retry(attempt)
                 continue
 
             decision.elapsed_sec = round(time.monotonic() - started, 2)
