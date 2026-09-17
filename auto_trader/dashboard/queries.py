@@ -167,9 +167,9 @@ def recent_risk_blocks(db_path: Path | str, limit: int = 8) -> list[dict[str, An
     )
 
 
-def log_tail(log_dir: Path | str, lines: int = 40) -> list[str]:
-    """오늘 로그의 마지막 N줄."""
-    path = Path(log_dir) / f"trader_{datetime.now(KST):%Y%m%d}.log"
+def log_tail(log_dir: Path | str, lines: int = 40, prefix: str = "trader") -> list[str]:
+    """오늘 로그의 마지막 N줄. prefix 로 매매(trader)·대시보드(dashboard)를 고른다."""
+    path = Path(log_dir) / f"{prefix}_{datetime.now(KST):%Y%m%d}.log"
     if not path.exists():
         return []
     try:

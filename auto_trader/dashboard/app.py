@@ -405,6 +405,10 @@ def create_app(*, testing: bool = False) -> Flask:
             config_error=config_error,
             settings=settings,
             bot_log=process.recent_output(app.config["LOG_DIR"]),
+            # 대시보드 자신의 로그. 창이 닫혀 버려도 여기 남아 있어야
+            # 무엇 때문에 죽었는지 알 수 있다.
+            dashboard_log="\n".join(
+                queries.log_tail(app.config["LOG_DIR"], 30, prefix="dashboard")),
         )
 
     @app.route("/health")

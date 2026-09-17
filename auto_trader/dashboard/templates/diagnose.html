@@ -59,6 +59,15 @@
   {% endif %}
 </div>
 
+<div class="card">
+  <h2>대시보드 기록<span class="sub">화면이 깨지거나 창이 닫혔을 때 원인이 여기 남습니다</span></h2>
+  {% if dashboard_log %}
+  <pre class="logs">{{ dashboard_log }}</pre>
+  {% else %}
+  <div class="chart-empty">기록이 없습니다</div>
+  {% endif %}
+</div>
+
 {% if config_error %}
 <div class="card">
   <h2>설정 검증 오류</h2>

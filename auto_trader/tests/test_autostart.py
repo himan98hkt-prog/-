@@ -161,3 +161,48 @@ def test_boot_trading_skips_when_config_incomplete(tmp_path, monkeypatch):
     started: list[str] = []
     monkeypatch.setattr(module.process, "start", lambda *a: started.append("x"))
     assert module.main() == 0 and started == []
+
+
+# --- 버튼 하나가 대시보드를 무너뜨리면 안 된다 --------------------------------- #
+
+def test_powershell_output_that_is_not_cp949_does_not_raise(tmp_path, monkeypatch):
+    """PowerShell 출력을 cp949 로 디코딩하다 터지면 버튼이 화면을 죽인다."""
+    import subprocess as sp
+
+    from utils import autostart
+
+    monkeypatch.setattr(autostart, "is_supported", lambda: True)
+    monkeypatch.setattr(autostart, "startup_dir", lambda: tmp_path / "Startup")
+    (tmp_path / "boot.bat").write_text("echo hi\n", encoding="utf-8")
+
+    def boom(*args, **kwargs):
+        # 실제 실패 모양: stderr 가 있는 CalledProcessError
+        raise sp.CalledProcessError(1, "powershell", stderr="액세스가 거부되었습니다 — 권한")
+
+    monkeypatch.setattr(autostart.subprocess, "run", boom)
+    result = autostart.enable(tmp_path, tmp_path)
+
+    assert not result.enabled
+    assert "액세스가 거부" in result.detail
+
+
+def test_any_unexpected_failure_is_contained(tmp_path, monkeypatch):
+    from utils import autostart
+
+    monkeypatch.setattr(autostart, "is_supported", lambda: True)
+    monkeypatch.setattr(autostart, "startup_dir", lambda: tmp_path / "Startup")
+    (tmp_path / "boot.bat").write_text("echo hi\n", encoding="utf-8")
+    monkeypatch.setattr(autostart.subprocess, "run",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            UnicodeDecodeError("cp949", b"\xff", 0, 1, "못 읽음")))
+
+    result = autostart.enable(tmp_path, tmp_path)
+    assert not result.enabled and result.detail, "실패 사유를 돌려주지 않았습니다"
+
+
+def test_shortcut_script_quotes_paths_safely():
+    """폴더 이름에 작은따옴표가 있으면 스크립트가 끊긴다."""
+    from utils.autostart import _ps_quote
+
+    assert _ps_quote("C:\\temp\\o'brien") == "'C:\\temp\\o''brien'"
+    assert _ps_quote("C:\\자동매매") == "'C:\\자동매매'"

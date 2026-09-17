@@ -27,13 +27,16 @@ class DailyRotatingFileHandler(RotatingFileHandler):
     돌리는 동안 모든 로그가 첫날 파일에 쌓인다. 크기(10MB×5) 회전은 그대로 유지한다.
     """
 
-    def __init__(self, log_dir: Path, **kwargs) -> None:
+    def __init__(self, log_dir: Path, prefix: str = "trader", **kwargs) -> None:
         self.log_dir = Path(log_dir)
+        # 프로세스마다 파일을 나눈다. 매매와 대시보드가 같은 파일을 돌리면
+        # Windows 에서 회전(이름 바꾸기)이 서로 막혀 로깅이 터진다.
+        self.prefix = prefix
         self.current_date = datetime.now(KST).strftime("%Y%m%d")
         super().__init__(self._path_for(self.current_date), **kwargs)
 
     def _path_for(self, date_str: str) -> str:
-        return str(self.log_dir / f"trader_{date_str}.log")
+        return str(self.log_dir / f"{self.prefix}_{date_str}.log")
 
     def shouldRollover(self, record: logging.LogRecord) -> int:  # noqa: N802 (표준 API)
         if datetime.now(KST).strftime("%Y%m%d") != self.current_date:
@@ -114,7 +117,8 @@ def log_file_path(log_dir: Path) -> Path:
     return log_dir / f"trader_{datetime.now(KST):%Y%m%d}.log"
 
 
-def setup_logging(level: str = "INFO", log_dir: Path | str = "logs") -> logging.Logger:
+def setup_logging(level: str = "INFO", log_dir: Path | str = "logs",
+                  prefix: str = "trader") -> logging.Logger:
     """루트 로거를 1회 구성한다. 반환값은 애플리케이션 루트 로거."""
     global _configured
 
@@ -146,6 +150,7 @@ def setup_logging(level: str = "INFO", log_dir: Path | str = "logs") -> logging.
 
     file_handler = DailyRotatingFileHandler(
         directory,
+        prefix=prefix,
         maxBytes=MAX_BYTES,
         backupCount=BACKUP_COUNT,
         encoding="utf-8",

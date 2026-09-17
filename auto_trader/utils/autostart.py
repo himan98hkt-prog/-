@@ -42,6 +42,15 @@ def startup_dir() -> Path:
     return base / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
 
 
+def _ps_quote(value: Path | str) -> str:
+    """PowerShell 작은따옴표 문자열로 감싼다.
+
+    경로에 작은따옴표가 들어가면(폴더 이름에 쓸 수 있다) 따옴표가 끊겨 스크립트가
+    엉뚱하게 해석된다. PowerShell 은 '' 로 이스케이프한다.
+    """
+    return "'" + str(value).replace("'", "''") + "'"
+
+
 def _shortcut_path() -> Path:
     return startup_dir() / SHORTCUT_NAME
 
@@ -77,25 +86,33 @@ def enable(base_dir: Path | str, data_dir: Path | str, *, trade_on_boot: bool = 
         return AutostartStatus(True, False, False, detail=f"boot.bat 을 찾을 수 없습니다: {target}")
 
     link = _shortcut_path()
-    link.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        link.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return AutostartStatus(True, False, False,
+                               detail=f"시작 프로그램 폴더를 열 수 없습니다: {exc}")
+
     script = (
         "$s = New-Object -ComObject WScript.Shell; "
-        f"$l = $s.CreateShortcut('{link}'); "
-        f"$l.TargetPath = '{target}'; "
-        f"$l.WorkingDirectory = '{target.parent}'; "
+        f"$l = $s.CreateShortcut({_ps_quote(link)}); "
+        f"$l.TargetPath = {_ps_quote(target)}; "
+        f"$l.WorkingDirectory = {_ps_quote(target.parent)}; "
         "$l.WindowStyle = 7; "  # 최소화로 뜬다 — 부팅 때 창이 튀어나오지 않게
-        "$l.Description = 'Multi-Agent 자동매매 자동시작'; "
+        "$l.Description = 'Multi-Agent auto trader'; "
         "$l.Save()"
     )
     try:
         subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-            check=True, capture_output=True, text=True, timeout=60,
+            check=True, capture_output=True, timeout=60,
+            # text=True 로 두면 PowerShell 출력이 cp949 로 디코딩되고, 깨진 바이트
+            # 하나에 UnicodeDecodeError 가 터진다. 버튼 하나가 대시보드를 무너뜨리면 안 된다.
+            encoding="utf-8", errors="replace",
         )
-    except (OSError, subprocess.SubprocessError) as exc:
-        detail = getattr(exc, "stderr", "") or str(exc)
+    except Exception as exc:  # noqa: BLE001 — 어떤 실패도 화면 밖으로 새면 안 된다
+        detail = (getattr(exc, "stderr", "") or "").strip() or str(exc)
         logger.error("자동시작 등록 실패: %s", detail)
-        return AutostartStatus(True, False, False, detail=str(detail)[:200])
+        return AutostartStatus(True, False, False, detail=str(detail)[:300])
 
     flag = _flag_path(data_dir)
     flag.parent.mkdir(parents=True, exist_ok=True)
@@ -118,8 +135,10 @@ def disable(base_dir: Path | str, data_dir: Path | str) -> AutostartStatus:
             except OSError as exc:
                 return AutostartStatus(True, True, False, detail=str(exc)[:200])
     flag = _flag_path(data_dir)
-    if flag.exists():
-        flag.unlink()
+    try:
+        flag.unlink(missing_ok=True)
+    except OSError as exc:
+        return AutostartStatus(True, False, True, detail=str(exc)[:200])
     logger.info("자동시작 해제 완료")
     return status(base_dir, data_dir)
 
