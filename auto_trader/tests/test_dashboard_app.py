@@ -11,7 +11,7 @@ import pytest
 
 from dashboard.app import create_app
 from dashboard.env_file import write_env
-from utils.db import connect, init_db, record_ai_usage, update_bot_state
+from utils.db import connect, init_db, record_ai_usage, session, update_bot_state
 
 KST = ZoneInfo("Asia/Seoul")
 NOW = datetime.now(KST)
@@ -155,7 +155,7 @@ def test_dashboard_shows_positions_and_decisions(app, client):
 def test_dashboard_works_with_empty_database(app, client):
     write_env(app.config["ENV_PATH"], FULL_ENV)
     body = client.get("/").get_data(as_text=True)
-    assert "보유 중인 종목이 없습니다" in body
+    assert "아직 매수한 종목이 없습니다" in body
     assert "아직 판단 기록이 없습니다" in body
 
 
@@ -1065,7 +1065,7 @@ def test_long_tables_scroll_inside_their_card():
     root = Path(__file__).resolve().parent.parent
     page = (root / "dashboard" / "templates" / "index.html").read_text(encoding="utf-8")
 
-    for heading in ("최근 AI 판단", "최근 주문</h2>", "리스크 규칙 차단"):
+    for heading in ("최근 AI 판단", "최근 주문</summary>", "리스크 규칙 차단"):
         start = page.index(heading)
         table = page.index("<table>", start)
         between = page[start:table]
@@ -1084,3 +1084,92 @@ def test_scroll_box_keeps_its_header_and_a_visible_bar():
     scroll_rule = block[:block.index("}")]
     assert "scrollbar-width" not in scroll_rule
     assert "scrollbar-color" not in scroll_rule
+
+
+# --- 접히는 구조: 평소엔 짧게, 필요할 때만 펼친다 --------------------------- #
+
+PINNED = ("tiles", "자산 추이", "일별 손익률", "매수 종목")
+FOLDED = ("합의 근접도", "엔진별 적중률", "전자공시", "테마별 이슈", "매매 성적",
+          "단순 보유 대비", "최근 AI 판단", "최근 주문", "리스크 규칙 차단",
+          "AI 비용 추이", "최근 로그", "제어")
+
+
+def _page() -> str:
+    root = Path(__file__).resolve().parent.parent
+    return (root / "dashboard" / "templates" / "index.html").read_text(encoding="utf-8")
+
+
+def test_only_the_top_stays_pinned():
+    """요약·차트·매수 종목은 늘 보여야 한다 — 접으면 볼 이유가 없어진다."""
+    page = _page()
+    head = page[:page.index('<details class="card fold"')]
+    for marker in PINNED:
+        assert marker in head, f"{marker} 이 고정 영역 밖으로 밀려났습니다"
+
+
+def test_everything_else_is_folded():
+    import re
+
+    summaries = re.findall(r"<summary>(.*?)</summary>", _page(), re.S)
+    for heading in FOLDED:
+        assert any(text.lstrip().startswith(heading) for text in summaries), \
+            f"{heading} 카드가 접히지 않습니다"
+
+
+def test_folds_start_closed_and_are_addressable():
+    """열린 채로 시작하면 접은 의미가 없다. id 가 없으면 상태를 기억할 수 없다."""
+    page = _page()
+    assert '<details class="card fold" id="fold-' in page
+    assert "<details open" not in page and 'fold" open' not in page
+
+
+def test_fold_state_survives_the_auto_refresh():
+    """이 화면은 30초마다 스스로 새로고침한다 — 기억하지 않으면 매번 다시 닫힌다."""
+    page = _page()
+    assert "localStorage" in page and "'fold:'" in page
+    assert "addEventListener('toggle'" in page
+    # 사생활 보호 모드에서는 localStorage 접근 자체가 예외를 던진다.
+    assert page.count("try {") >= 2, "localStorage 접근을 감싸지 않으면 화면이 깨집니다"
+
+
+def test_refresh_waits_after_the_user_opens_a_card():
+    """펼치자마자 새로고침이 끼어들면 성가시다."""
+    page = _page()
+    assert "lastTouch" in page
+
+
+def test_bought_stocks_card_answers_what_why_and_now(app, client):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    with session(app.config["DB_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO positions (code, name, qty, avg_price, current_price,
+               eval_amount, pnl_amount, pnl_pct, first_bought_at, updated_at)
+               VALUES ('005930','삼성전자',10,70000,73500,735000,35000,5.0,
+                       '2026-09-16T09:35:00+09:00','x')""")
+        conn.execute(
+            """INSERT INTO orders (code, name, side, order_type, qty, price, filled_qty,
+               filled_price, status, kis_env, created_at, updated_at)
+               VALUES ('005930','삼성전자','BUY','limit',10,70000,10,70000,'FILLED','VTS',
+                       '2026-09-16T09:35:00+09:00','x')""")
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding, claude_action,
+               claude_confidence, claude_reason, claude_ok, final_action, final_weight_pct,
+               final_reason, risk_passed, created_at)
+               VALUES ('c1','005930','삼성전자',0,'BUY',0.8,'10개 중 거래량이 가장 뚜렷',1,
+                       'STRONG_BUY',18,'전원 매수 합의',1,'2026-09-16T09:34:00+09:00')""")
+
+    body = client.get("/").get_data(as_text=True)
+    holdings = body[body.index('id="holdings"'):body.index('<details class="card fold"')]
+
+    assert "삼성전자" in holdings and "005930" in holdings       # 무엇을
+    assert "전원 매수 합의" in holdings                            # 왜
+    assert "+5.00%" in holdings                                    # 지금
+    assert "손절까지" in holdings and "트레일링" in holdings       # 언제 나갈지
+    assert "시세" in holdings and "공시" in holdings               # 직접 확인할 길
+
+
+def test_empty_bought_card_explains_why_nothing_was_bought(app, client):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    body = client.get("/").get_data(as_text=True)
+    assert "아직 매수한 종목이 없습니다" in body
+    assert "모두" in body and "합의 근접도" in body, "왜 비었는지 알려줘야 합니다"

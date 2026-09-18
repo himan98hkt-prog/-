@@ -131,6 +131,70 @@ header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
   color: var(--muted); font-weight: 400; margin-left: 0;
   text-transform: none; letter-spacing: 0; font-size: 12px;
 }
+
+/* --- 접히는 카드 ---
+   화면 하나에 스무 개가 늘어서 있으면, 정작 볼 것을 보려고 매번 아래까지
+   끌어내려야 한다. 고정 영역(요약 타일·차트·매수 종목)만 남기고 나머지는
+   접어 둔다. 열고 닫은 상태는 브라우저에 기억시킨다 — 30초마다 새로고침
+   하므로 기억하지 않으면 매번 다시 닫힌다. */
+details.card { padding: 0; }
+details.card > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  padding: 12px 16px;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); font-weight: 700;
+  border-radius: var(--radius);
+}
+details.card > summary::-webkit-details-marker { display: none; }  /* 사파리 기본 삼각형 */
+details.card > summary::before {
+  content: "›"; display: inline-block; margin-right: 2px;
+  font-size: 15px; line-height: 1; color: var(--muted);
+  transition: transform .12s ease;
+}
+details.card[open] > summary::before { transform: rotate(90deg); }
+details.card > summary:hover { background: var(--surface-2); color: var(--text-2); }
+details.card > summary:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+details.card[open] > summary {
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+details.card > summary .sub {
+  color: var(--muted); font-weight: 400;
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+}
+.fold-body { padding: 12px 16px 14px; }
+
+/* --- 매수 종목 (고정) ---
+   "무엇을 샀나 / 왜 샀나 / 지금 어떤가" 를 한자리에서 본다. 표로 늘어놓으면
+   가로로 길어져 사유가 들어갈 자리가 없다. */
+.holdings { display: flex; flex-direction: column; gap: 10px; }
+.holding {
+  border: 1px solid var(--border); border-left: 3px solid var(--series-1);
+  border-radius: var(--radius); padding: 10px 13px; background: var(--surface-2);
+}
+.holding.is-danger { border-left-color: var(--critical); }
+.holding-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.holding-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.holding-top .chip { margin-left: auto; }
+.holding-nums {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 5px; font-size: 12.5px; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.holding-why {
+  margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border);
+  font-size: 12.5px; color: var(--text-2); line-height: 1.55;
+}
+.holding-guard {
+  margin-top: 4px; font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.holding-more { margin-left: 8px; }
+.holdings-empty {
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.6;
+}
 /* 내용만큼만 높이를 갖게 한다 — stretch 로 두면 빈 칸이 옆 카드 높이까지 늘어난다. */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
