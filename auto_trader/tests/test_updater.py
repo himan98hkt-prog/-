@@ -334,3 +334,72 @@ def test_user_settings_survive_a_config_code_update(install, remote):
 
     assert (install / "config" / "loader.py").read_text(encoding="utf-8") == "VERSION = 2\n"
     assert "내가 고침" in settings.read_text(encoding="utf-8"), "사용자 설정이 날아갔습니다"
+
+
+# --- 기본 설정이 실제로 갱신되는가 ------------------------------------------ #
+#
+# 감시 종목이 5개에 묶여 있던 적이 있다. 손댄 적이 없는데도 '직접 고친 파일' 로
+# 분류돼, 업데이트가 새 기본값을 옆에 .new 로만 놓고 지나갔기 때문이다.
+# 원인은 SHIPPED_DEFAULTS 에 그 버전의 해시가 빠져 있던 것.
+
+def test_current_default_is_listed_as_shipped():
+    """지금 내려주는 settings.yaml 이 목록에 없으면 다음 갱신이 또 막힌다."""
+    from utils import updater
+
+    current = (Path(__file__).resolve().parent.parent
+               / "config" / "settings.yaml").read_bytes()
+    digest = updater._config_digest(current)
+    assert digest in updater.SHIPPED_DEFAULTS["config/settings.yaml"], (
+        "config/settings.yaml 을 바꿨으면 그 해시를 SHIPPED_DEFAULTS 에 추가하세요: "
+        f"{digest}"
+    )
+
+
+def test_every_version_we_ever_shipped_is_listed():
+    """과거 버전이 하나라도 빠지면 그 설치본은 영영 갱신되지 않는다."""
+    import subprocess
+
+    from utils import updater
+
+    root = Path(__file__).resolve().parent.parent
+    try:
+        revisions = subprocess.run(
+            ["git", "log", "--format=%H", "--", "./config/settings.yaml"],
+            cwd=root, capture_output=True, text=True, timeout=30, check=True).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        pytest.skip("git 이 없는 환경입니다")
+    if not revisions:
+        pytest.skip("설정 파일의 이력이 없습니다")
+
+    listed = updater.SHIPPED_DEFAULTS["config/settings.yaml"]
+    missing = []
+    for revision in revisions:
+        blob = subprocess.run(["git", "show", f"{revision}:./config/settings.yaml"],
+                              cwd=root, capture_output=True, timeout=30).stdout
+        if blob and updater._config_digest(blob) not in listed:
+            missing.append(revision[:7])
+    assert not missing, f"SHIPPED_DEFAULTS 에 빠진 버전: {missing}"
+
+
+def test_untouched_old_default_is_overwritten(tmp_path):
+    """5종목 시절 기본값을 그대로 쓰던 설치본은 새 기본값을 받아야 한다."""
+    from utils import updater
+
+    old = b'universe:\n  watchlist: ["005930", "000660", "035420", "035720", "005380"]\n'
+    updater.SHIPPED_DEFAULTS["config/settings.yaml"].add(updater._config_digest(old))
+    try:
+        assert updater._is_untouched("config/settings.yaml", old, {})
+        # 줄바꿈만 CRLF 로 바뀐 것은 '손댄 것' 이 아니다 (Windows 편집기).
+        assert updater._is_untouched("config/settings.yaml",
+                                     old.replace(b"\n", b"\r\n"), {})
+    finally:
+        updater.SHIPPED_DEFAULTS["config/settings.yaml"].discard(
+            updater._config_digest(old))
+
+
+def test_edited_config_is_still_preserved():
+    """직접 고친 설정은 어떤 경우에도 덮어쓰지 않는다."""
+    from utils import updater
+
+    mine = "risk:\n  max_positions: 3   # 내가 고침\n".encode("utf-8")
+    assert not updater._is_untouched("config/settings.yaml", mine, {})

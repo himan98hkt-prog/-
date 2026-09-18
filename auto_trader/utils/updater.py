@@ -59,15 +59,33 @@ USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")
 
 # 과거에 우리가 내려준 기본 설정들의 해시. 갱신 기록(version.json)이 아직 없는
 # 설치본에서도 '사용자가 손대지 않았다' 를 알아보기 위한 목록이다.
+#
+# **모든** 과거 버전이 들어 있어야 한다. 하나라도 빠지면 그 버전을 쓰고 있는
+# 설치본은 손댄 적이 없는데도 '직접 고친 파일' 로 취급돼, 새 감시 종목이나
+# 새 리스크 값이 영영 반영되지 않는다(실제로 감시 종목이 5개에 묶여 있었다).
+# tests/test_updater.py 가 현재 버전이 이 목록에 있는지 확인한다.
 SHIPPED_DEFAULTS: dict[str, set[str]] = {
     "config/settings.yaml": {
+        "185d5b8c334703a5409980cefcca342fcef652c1ea18d2ee76101f0e83c50b76",
         "18ba5a55fc2152631c80a4a300f4a4f57d9efa1b4cd640f9aeb55a054d19994d",
+        "59d0ea86eba41aa75fbafe10e97939d0dae6dc2190c6a0ab1d0d4844fd891398",
+        "90f47a609591de961addafb12c601493b53d391d1f347f86d666cdedf51cc01d",
+        "acc635f895f55132984253269e6bea2ff7e3bbcef3769c765dc3961581843247",
+        "b591a839c38e47c6c13a1ded321bd1b009bfd14f5414a263b56cdf786de4860a",
+        "d1543e40589410b85c516f0891d97cdfc565eb4af7cfc2983d6b52a94f06d23e",
+        "dd259e12339159941723a28cecc39e0c458e2c397c7fa38aa1981396099971bc",
+        "f9ee1a8ee6fa4ca478ee47daef7f1a752d42db65f92f43ca1480270c2f9cd59a",
     },
 }
 
 
 def _digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _config_digest(data: bytes) -> str:
+    """설정 파일 비교용 해시. 줄바꿈(CRLF/LF) 차이는 손댄 것으로 치지 않는다."""
+    return _digest(data.replace(b"\r\n", b"\n"))
 
 
 def read_config_hashes(base_dir: Path) -> dict[str, str]:
@@ -83,9 +101,9 @@ def read_config_hashes(base_dir: Path) -> dict[str, str]:
 
 def _is_untouched(relative: str, existing: bytes, shipped: dict[str, str]) -> bool:
     """사용자가 손대지 않은 설정 파일인가."""
-    current = _digest(existing)
-    if relative in shipped:
-        return current == shipped[relative]
+    current = _config_digest(existing)
+    if relative in shipped and shipped[relative] == current:
+        return True
     return current in SHIPPED_DEFAULTS.get(relative, set())
 
 
@@ -231,7 +249,7 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
             if not incoming.is_file():
                 continue
             incoming_bytes = incoming.read_bytes()
-            new_hashes[relative] = _digest(incoming_bytes)
+            new_hashes[relative] = _config_digest(incoming_bytes)
 
             if not existing.exists():
                 existing.parent.mkdir(parents=True, exist_ok=True)
