@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import shutil
@@ -99,12 +100,57 @@ def read_config_hashes(base_dir: Path) -> dict[str, str]:
     return hashes if isinstance(hashes, dict) else {}
 
 
-def _is_untouched(relative: str, existing: bytes, shipped: dict[str, str]) -> bool:
+def incoming_shipped_defaults(source: Path | str) -> dict[str, set[str]]:
+    """새로 내려받은 코드가 들고 있는 기본값 해시 목록.
+
+    지금 돌고 있는 updater 는 **옛** 코드다. 목록이 낡아 있으면, 고친 목록을
+    같이 받아 놓고도 이번 판단에는 쓰지 못한다 — 업데이트를 두 번 눌러야
+    설정이 반영되는 이유가 이것이었다. 그래서 받은 쪽 파일에서 목록만 읽어
+    합친다. 실행하지 않고 파싱만 한다(우리 코드라도 돌리지는 않는다).
+    """
+    path = Path(source) / "utils" / "updater.py"
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, SyntaxError):
+        return {}
+
+    for node in tree.body:
+        if isinstance(node, ast.AnnAssign):
+            names = [node.target]
+        elif isinstance(node, ast.Assign):
+            names = node.targets
+        else:
+            continue
+        if not any(isinstance(n, ast.Name) and n.id == "SHIPPED_DEFAULTS" for n in names):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError, SyntaxError):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        return {key: {h for h in hashes if isinstance(h, str)}
+                for key, hashes in value.items()
+                if isinstance(key, str) and isinstance(hashes, (set, frozenset, list, tuple))}
+    return {}
+
+
+def _merge_defaults(*tables: dict[str, set[str]]) -> dict[str, set[str]]:
+    merged: dict[str, set[str]] = {}
+    for table in tables:
+        for key, hashes in table.items():
+            merged.setdefault(key, set()).update(hashes)
+    return merged
+
+
+def _is_untouched(relative: str, existing: bytes, shipped: dict[str, str],
+                  known: dict[str, set[str]] | None = None) -> bool:
     """사용자가 손대지 않은 설정 파일인가."""
     current = _config_digest(existing)
     if relative in shipped and shipped[relative] == current:
         return True
-    return current in SHIPPED_DEFAULTS.get(relative, set())
+    table = SHIPPED_DEFAULTS if known is None else known
+    return current in table.get(relative, set())
 
 
 class UpdateError(RuntimeError):
@@ -242,6 +288,7 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
         # 설정 파일은 사용자가 손댔을 수 있다. 손대지 않았으면 덮어쓰고,
         # 손댔으면 그 사람의 값을 지키고 새 파일만 옆에 둔다.
         shipped = read_config_hashes(base)
+        known = _merge_defaults(SHIPPED_DEFAULTS, incoming_shipped_defaults(source))
         new_hashes: dict[str, str] = {}
         for relative in USER_EDITABLE:
             incoming = source / relative
@@ -260,7 +307,7 @@ def apply_update(base_dir: Path, *, branch: str = BRANCH) -> UpdateResult:
             existing_bytes = existing.read_bytes()
             if incoming_bytes == existing_bytes:
                 continue
-            if _is_untouched(relative, existing_bytes, shipped):
+            if _is_untouched(relative, existing_bytes, shipped, known):
                 shutil.copy2(incoming, existing)
                 changed.append(relative)
                 notes.append(f"{relative} 을(를) 새 기본값으로 갱신했습니다 (손대신 적이 없어서)")

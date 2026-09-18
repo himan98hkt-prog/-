@@ -403,3 +403,56 @@ def test_edited_config_is_still_preserved():
 
     mine = "risk:\n  max_positions: 3   # 내가 고침\n".encode("utf-8")
     assert not updater._is_untouched("config/settings.yaml", mine, {})
+
+
+# --- 낡은 updater 가 새 목록을 쓸 수 있는가 --------------------------------- #
+#
+# 돌고 있는 updater 는 언제나 옛 코드다. 목록을 고쳐 내려보내도 그 판단에는
+# 옛 목록이 쓰여, 설정이 반영되려면 업데이트를 두 번 눌러야 했다.
+
+def _write_updater(path: Path, hashes: list[str]) -> None:
+    body = ",\n        ".join(f'"{h}"' for h in hashes)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "SHIPPED_DEFAULTS: dict[str, set[str]] = {\n"
+        f'    "config/settings.yaml": {{\n        {body},\n    }},\n}}\n',
+        encoding="utf-8")
+
+
+def test_reads_the_hash_list_out_of_the_incoming_code(tmp_path):
+    _write_updater(tmp_path / "utils" / "updater.py", ["aa", "bb"])
+    assert updater.incoming_shipped_defaults(tmp_path) == {
+        "config/settings.yaml": {"aa", "bb"}}
+
+
+def test_missing_or_broken_incoming_list_is_not_fatal(tmp_path):
+    assert updater.incoming_shipped_defaults(tmp_path) == {}   # 파일 자체가 없음
+
+    broken = tmp_path / "utils" / "updater.py"
+    broken.parent.mkdir(parents=True, exist_ok=True)
+    broken.write_text("SHIPPED_DEFAULTS = {(\n", encoding="utf-8")
+    assert updater.incoming_shipped_defaults(tmp_path) == {}
+
+
+def test_incoming_list_is_parsed_not_executed(tmp_path):
+    """받은 코드를 import 하면 그 안의 무엇이든 돌아간다 — 파싱만 해야 한다."""
+    path = tmp_path / "utils" / "updater.py"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "raise SystemExit('이게 돌면 안 됩니다')\n"
+        'SHIPPED_DEFAULTS: dict[str, set[str]] = {"config/settings.yaml": {"cc"}}\n',
+        encoding="utf-8")
+    assert updater.incoming_shipped_defaults(tmp_path) == {
+        "config/settings.yaml": {"cc"}}
+
+
+def test_new_list_decides_even_when_the_running_copy_is_stale():
+    old_default = "우리가 예전에 내려준 설정\n".encode("utf-8")
+    digest = updater._config_digest(old_default)
+
+    # 돌고 있는 목록에는 없다 — 옛 코드의 상황.
+    assert not updater._is_untouched("config/settings.yaml", old_default, {})
+    # 받은 쪽 목록에는 있다 → 이번 업데이트에서 바로 갱신돼야 한다.
+    merged = updater._merge_defaults(
+        updater.SHIPPED_DEFAULTS, {"config/settings.yaml": {digest}})
+    assert updater._is_untouched("config/settings.yaml", old_default, {}, merged)
