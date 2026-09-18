@@ -45,6 +45,17 @@ def client(app):
 
 
 @pytest.fixture(autouse=True)
+def bot_looks_running(monkeypatch):
+    """대부분의 테스트는 '돌고 있는 상태' 를 전제로 한다.
+
+    멈춰 있으면 화면이 그 사실부터 말하므로(그게 진짜 이유니까), 여기서 기본값을
+    돌고 있는 쪽으로 둔다. 멈춘 화면을 보는 테스트는 각자 다시 덮는다.
+    """
+    monkeypatch.setattr("utils.runtime.ProcessLock.is_running",
+                        lambda self: True)
+
+
+@pytest.fixture(autouse=True)
 def never_really_exit(monkeypatch):
     """업데이트 경로는 진짜로 os._exit 를 부른다 — 테스트 실행기까지 죽는다.
 
@@ -381,7 +392,9 @@ def test_saving_keys_while_running_warns_about_restart(app, client, monkeypatch)
     assert "재시작" in response.get_data(as_text=True), "실행 중이면 재적용 안내가 떠야 합니다"
 
 
-def test_start_button_shown_when_not_running(app, client):
+def test_start_button_shown_when_not_running(app, client, monkeypatch):
+    monkeypatch.setattr("utils.runtime.ProcessLock.is_running",
+                        lambda self: False)   # 시작 버튼은 멈춰 있을 때 나온다
     write_env(app.config["ENV_PATH"], FULL_ENV)
     body = client.get("/").get_data(as_text=True)
     assert "자동매매 시작" in body
@@ -698,14 +711,18 @@ def test_status_page_names_the_missing_settings(client, app):
     assert "계좌번호 앞 8자리" in body and "KIS_ACCOUNT_NO" in body
 
 
-def test_start_button_is_disabled_when_settings_are_missing(client, app):
+def test_start_button_is_disabled_when_settings_are_missing(client, app, monkeypatch):
+    monkeypatch.setattr("utils.runtime.ProcessLock.is_running",
+                        lambda self: False)   # 시작 버튼은 멈춰 있을 때 나온다
     _write_env(app, KIS_ACCOUNT_NO="__CLEAR__")
     seed(app)
     body = client.get("/").get_data(as_text=True)
     assert "disabled" in body.split("자동매매 시작")[0][-200:]
 
 
-def test_start_button_is_enabled_when_complete(client, app):
+def test_start_button_is_enabled_when_complete(client, app, monkeypatch):
+    monkeypatch.setattr("utils.runtime.ProcessLock.is_running",
+                        lambda self: False)   # 시작 버튼은 멈춰 있을 때 나온다
     _write_env(app)
     seed(app)
     body = client.get("/").get_data(as_text=True)
@@ -1242,3 +1259,17 @@ def test_without_dry_run_orders_the_card_stays_calm(app, client):
     body = client.get("/").get_data(as_text=True)
     assert "아직 매수한 종목이 없습니다" in body
     assert "주문은 나가지 않았습니다" not in body
+
+
+def test_a_stopped_bot_is_named_before_anything_else(app, client, monkeypatch):
+    """봇이 꺼져 있으면 '세 AI 가 동의해야' 는 틀린 설명이다 — 애초에 안 돈다."""
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    update_bot_state(app.config["DB_PATH"], status="STOPPED", kis_env="VTS", dry_run=0,
+                     last_cycle_label="13:35")
+    monkeypatch.setattr("utils.runtime.ProcessLock.is_running",
+                        lambda self: False)
+
+    body = client.get("/").get_data(as_text=True)
+    assert "자동매매가 꺼져 있습니다" in body
+    assert "13:35" in body, "마지막으로 언제 돌았는지 알려줘야 합니다"
+    assert "아직 매수한 종목이 없습니다" not in body, "틀린 이유를 대면 안 됩니다"

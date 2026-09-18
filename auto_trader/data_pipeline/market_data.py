@@ -125,7 +125,9 @@ def collect(
         logger.warning("%s 호가 조회 실패(%s) — 기본값으로 진행합니다", code, exc)
         book = {"bid_total": 0, "ask_total": 0, "spread_pct": 0.0}
 
-    name = quote["name"] or code
+    # 모의투자(VTS) 시세는 hts_kor_isnm 을 비워 보낼 때가 있다. 그대로 두면
+    # 화면·텔레그램이 전부 "005930" 처럼 숫자로만 보여 무엇을 샀는지 알 수 없다.
+    name = quote["name"] or getattr(settings.universe, "names", {}).get(code) or code
     # 뉴스는 수집하지 않는다. 유일한 출처였던 네이버 검색 API 가 2026-07-31 부로
     # 신규 발급을 닫았고, 2026-09-07 시행 약관이 결과를 AI 에 입력하는 것을
     # 금지한다. 판단은 기술적 지표만으로 한다.

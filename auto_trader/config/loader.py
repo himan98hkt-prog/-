@@ -147,6 +147,9 @@ class UniverseConfig:
     max_candidates_per_cycle: int
     # 종목코드 → 테마. 테마별 성과를 묶어 보여줄 때 쓴다.
     themes: dict[str, str] = field(default_factory=dict)
+    # 종목코드 → 종목명. 모의투자(VTS) 시세는 종목명을 비워 보낼 때가 있어,
+    # 그대로 두면 화면·알림이 전부 숫자 코드로만 보인다.
+    names: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -442,10 +445,23 @@ def _load_universe(raw: dict[str, Any], errors: list[str]) -> UniverseConfig:
                 continue
             themes[code] = str(theme).strip()
 
+    names: dict[str, str] = {}
+    raw_names = section.get("names") or {}
+    if not isinstance(raw_names, dict):
+        errors.append("universe.names: 매핑(종목코드: 종목명)이어야 합니다")
+    else:
+        for code, label in raw_names.items():
+            code = str(code).strip()
+            if not (code.isdigit() and len(code) == 6):
+                errors.append(f"universe.names: 종목코드는 숫자 6자리여야 합니다 (현재: {code!r})")
+                continue
+            names[code] = str(label).strip()
+
     return UniverseConfig(
         mode=mode,  # type: ignore[arg-type]
         watchlist=watchlist,
         themes=themes,
+        names=names,
         volume_rank_top_n=_num(section, "volume_rank_top_n", "universe", errors, minimum=1, maximum=100),
         exclude_keywords=_str_list(section, "exclude_keywords", "universe", errors),
         min_price=_num(section, "min_price", "universe", errors, minimum=0),

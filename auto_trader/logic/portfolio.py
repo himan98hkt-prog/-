@@ -245,17 +245,25 @@ class Portfolio:
             conn.close()
 
     def _bought_today(self, moment: datetime) -> set[str]:
-        """당일 매수 주문을 낸 종목 (DRY_RUN 주문 포함 — 1일 1회 제한 목적)."""
+        """당일 매수 주문을 낸 종목 (1일 1회 제한용).
+
+        **지금 내고 있는 주문과 같은 종류만 센다.** DRY_RUN 주문은 현금을 쓰지도,
+        보유를 만들지도 않았다. 장중에 DRY_RUN 을 끄면 아침에 남긴 모의 기록이
+        그날 남은 진짜 매수를 통째로 막아 버린다(실제로 그런 일이 있었다).
+        DRY_RUN 중에는 모의 기록끼리 세어야 시뮬레이션이 실제와 같아진다.
+        """
+        query = ["""SELECT DISTINCT code FROM orders
+                    WHERE side = 'BUY' AND substr(created_at, 1, 10) = ?
+                      AND status != 'REJECTED'"""]
+        # substr 로 앞 10자를 비교한다. SQLite 의 date() 는 '+09:00' 오프셋을
+        # UTC 로 환산해 09시 이전 기록의 날짜를 하루 앞당긴다.
+        params: list[object] = [moment.strftime("%Y-%m-%d")]
+        if not self.settings.env.dry_run:
+            query.append("AND dry_run = 0")
+
         conn = connect(self.db_path)
         try:
-            rows = conn.execute(
-                # substr 로 앞 10자를 비교한다. SQLite 의 date() 는 '+09:00' 오프셋을
-                # UTC 로 환산해 09시 이전 기록의 날짜를 하루 앞당긴다.
-                """SELECT DISTINCT code FROM orders
-                   WHERE side = 'BUY' AND substr(created_at, 1, 10) = ?
-                     AND status != 'REJECTED'""",
-                (moment.strftime("%Y-%m-%d"),),
-            ).fetchall()
+            rows = conn.execute(" ".join(query), params).fetchall()
         finally:
             conn.close()
         return {row["code"] for row in rows}

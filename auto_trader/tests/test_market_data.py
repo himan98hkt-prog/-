@@ -184,3 +184,41 @@ def test_collect_propagates_price_failure(settings_obj):
 
     with pytest.raises(KisApiError):
         collect("005930", Broken(), settings_obj)
+
+
+# --- 종목명이 비어 오는 경우 (모의투자에서 실제로 그렇다) -------------------- #
+
+def test_falls_back_to_the_configured_name(settings_obj):
+    """VTS 시세는 hts_kor_isnm 을 비워 보낼 때가 있다.
+
+    그대로 두면 화면도 텔레그램도 "005930" 으로만 보여, 무엇을 샀는지 알 수 없다.
+    """
+    from dataclasses import replace
+
+    from data_pipeline.market_data import collect
+
+    api = StubApi(quote={**StubApi().quote, "name": ""})
+    settings = replace(settings_obj, universe=replace(
+        settings_obj.universe, names={"005930": "삼성전자"}))
+
+    assert collect("005930", api, settings)["name"] == "삼성전자"
+
+
+def test_a_real_name_always_wins(settings_obj):
+    """시세가 이름을 보내 주면 그게 진실이다 — 설정이 낡았을 수 있다."""
+    from dataclasses import replace
+
+    from data_pipeline.market_data import collect
+
+    api = StubApi(quote={**StubApi().quote, "name": "삼성전자"})
+    settings = replace(settings_obj, universe=replace(
+        settings_obj.universe, names={"005930": "옛이름"}))
+
+    assert collect("005930", api, settings)["name"] == "삼성전자"
+
+
+def test_an_unlisted_code_still_shows_something(settings_obj):
+    from data_pipeline.market_data import collect
+
+    api = StubApi(quote={**StubApi().quote, "name": ""})
+    assert collect("999999", api, settings_obj)["name"] == "999999"

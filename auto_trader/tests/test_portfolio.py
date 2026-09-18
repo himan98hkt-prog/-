@@ -459,3 +459,55 @@ def test_old_database_gains_the_new_columns(tmp_path):
     conn.close()
     assert "chatgpt_action" in cols, "옛 DB 에 컬럼이 추가되지 않았습니다"
     assert kept[0] == "005930", "기존 기록이 사라졌습니다"
+
+
+# --- 모드를 바꿔도 예전 기록이 발목을 잡지 않게 ------------------------------ #
+
+def _order(conn, code, *, dry_run, day="2026-09-18"):
+    conn.execute(
+        """INSERT INTO orders (code, name, side, order_type, qty, price, status,
+           dry_run, kis_env, created_at, updated_at)
+           VALUES (?,?,'BUY','limit',1,1000,'FILLED',?,'VTS',?,?)""",
+        (code, code, 1 if dry_run else 0, f"{day}T09:35:00+09:00", "x"))
+
+
+def test_dry_run_orders_do_not_block_a_real_buy(settings_obj, tmp_path):
+    """장중에 DRY_RUN 을 끄면, 아침에 남긴 모의 기록이 그날 진짜 매수를 막았다."""
+    from dataclasses import replace
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from logic.portfolio import Portfolio
+    from utils.db import init_db, session
+
+    db = tmp_path / "trader.db"
+    init_db(db)
+    with session(db) as conn:
+        _order(conn, "005930", dry_run=True)     # DRY_RUN 이던 오전에 남은 기록
+        _order(conn, "000660", dry_run=False)    # 실제로 나간 주문
+
+    live = replace(settings_obj, env=replace(settings_obj.env, dry_run=False))
+    moment = datetime(2026, 9, 18, 13, 40, tzinfo=ZoneInfo("Asia/Seoul"))
+
+    bought = Portfolio(live, None, db_path=db)._bought_today(moment)
+    assert bought == {"000660"}, "모의 기록은 현금도 보유도 만들지 않았습니다"
+
+
+def test_dry_run_mode_still_counts_its_own_records(settings_obj, tmp_path):
+    """모의 중에는 모의끼리 세야 시뮬레이션이 실제와 같아진다."""
+    from dataclasses import replace
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from logic.portfolio import Portfolio
+    from utils.db import init_db, session
+
+    db = tmp_path / "trader.db"
+    init_db(db)
+    with session(db) as conn:
+        _order(conn, "005930", dry_run=True)
+
+    dry = replace(settings_obj, env=replace(settings_obj.env, dry_run=True))
+    moment = datetime(2026, 9, 18, 13, 40, tzinfo=ZoneInfo("Asia/Seoul"))
+
+    assert Portfolio(dry, None, db_path=db)._bought_today(moment) == {"005930"}

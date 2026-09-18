@@ -174,7 +174,17 @@
     {% endfor %}
   </div>
   {% else %}
-  {% if s.dry_run and o.dry_run_orders %}
+  {% if not status.running %}
+  <div class="holdings-empty warn">
+    <b>자동매매가 꺼져 있습니다 — 아무것도 사지 않습니다.</b>
+    AI 판단도, 손절 감시도 돌지 않습니다. 마지막 사이클은
+    <b>{{ s.last_cycle_label or '기록 없음' }}</b> 였습니다.
+    <div class="holdings-fix">
+      아래 <b>제어</b> 칸에서 <b>자동매매 시작</b>을 누르세요.
+      바로 뜨지 않으면 <b>최근 로그</b>에 이유가 남아 있습니다.
+    </div>
+  </div>
+  {% elif s.dry_run and o.dry_run_orders %}
   <div class="holdings-empty warn">
     <b>오늘 매수가 {{ o.dry_run_orders }}건 결정됐지만, 주문은 나가지 않았습니다.</b>
     지금은 <b>DRY_RUN</b> — 주문을 보내지 않고 <b>기록만</b> 하는 상태이기 때문입니다.
