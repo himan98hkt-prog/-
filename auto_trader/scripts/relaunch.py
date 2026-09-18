@@ -11,10 +11,11 @@
 from __future__ import annotations
 
 import argparse
-import os
 import socket
+import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,14 +49,54 @@ def main() -> int:
     args = parser.parse_args()
 
     if not wait_for_port(args.port):
-        print(f"포트 {args.port} 가 계속 사용 중입니다 — 재기동을 포기합니다", file=sys.stderr)
-        return 1
+        return _stop(f"포트 {args.port} 를 예전 대시보드가 계속 쓰고 있습니다.",
+                     "작업 관리자에서 python.exe 를 끝낸 뒤 다시 시도하세요.")
 
     dashboard = BASE_DIR / "scripts" / "dashboard.py"
-    # execv 로 이 프로세스를 대시보드로 갈아 끼운다 — 중간 프로세스가 남지 않는다.
-    os.execv(sys.executable, [sys.executable, str(dashboard),
-                              "--port", str(args.port), "--open-browser"])
-    return 0  # execv 가 성공하면 여기 오지 않는다
+    if not dashboard.exists():
+        return _stop(f"대시보드 파일을 찾을 수 없습니다: {dashboard}")
+
+    # execv 로 갈아 끼우지 않는다. 그러면 새 대시보드가 기동 중에 죽었을 때
+    # 창이 그대로 닫혀 이유를 볼 수 없다 — 사용자에게는 '연결할 수 없음' 만 남는다.
+    # 자식으로 띄우고 지켜보다가, 실패하면 창을 붙잡고 원인을 보여준다.
+    code = subprocess.call([sys.executable, str(dashboard),
+                            "--port", str(args.port), "--open-browser"])
+    if code != 0:
+        return _stop(
+            f"대시보드가 코드 {code} 로 종료됐습니다.",
+            "위에 찍힌 오류가 원인입니다. logs 폴더의 dashboard_*.log 에도 남아 있습니다.",
+        )
+    return 0
+
+
+def _log(lines: tuple[str, ...]) -> None:
+    """창을 닫아 버려도 진단 화면에서 볼 수 있게 파일에도 남긴다."""
+    try:
+        log_dir = BASE_DIR / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now()
+        path = log_dir / f"dashboard_{stamp.strftime('%Y%m%d')}.log"
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"\n[{stamp.isoformat(timespec='seconds')}] 재기동 실패\n")
+            for line in lines:
+                handle.write(f"  {line}\n")
+    except OSError:
+        pass                 # 로그를 못 써도 화면에는 아래에서 찍는다
+
+
+def _stop(*lines: str) -> int:
+    """창을 닫지 않고 이유를 남긴다."""
+    _log(lines)
+    print("\n" + "=" * 62, file=sys.stderr)
+    for line in lines:
+        print("  " + line, file=sys.stderr)
+    print("=" * 62, file=sys.stderr)
+    print("\n  start.bat 을 다시 실행하면 대시보드가 올라옵니다.", file=sys.stderr)
+    try:
+        input("\n  Enter 를 누르면 이 창을 닫습니다... ")
+    except (EOFError, KeyboardInterrupt, OSError):
+        pass          # 콘솔이 없는 환경(서비스·테스트)에서는 그냥 빠진다
+    return 1
 
 
 if __name__ == "__main__":
