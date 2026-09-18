@@ -916,3 +916,142 @@ def test_the_error_page_hides_secrets(tmp_path, monkeypatch):
     html = app.test_client().get("/leak").get_data(as_text=True)
     assert "sk-ant-super-secret-value" not in html
     assert "REDACTED" in html
+
+
+# --- 업데이트 버튼 (update.bat 과 같은 일을 하는가) ---------------------------- #
+
+def _fake_release(files: dict[str, str]) -> bytes:
+    """GitHub ZIP 대역 — repo/auto_trader/ 구조를 그대로 만든다."""
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as bundle:
+        for name, text in files.items():
+            bundle.writestr(f"repo-main/auto_trader/{name}", text)
+    return buffer.getvalue()
+
+
+@pytest.fixture()
+def installed(tmp_path, monkeypatch):
+    """업데이트 버튼을 누를 수 있는 최소 설치본 + 네트워크 대역."""
+    import json
+
+    from utils import updater
+
+    base = tmp_path / "install"
+    for folder in ("config", "data", "logs", "utils"):
+        (base / folder).mkdir(parents=True)
+    (base / "main.py").write_text("print('old')\n", encoding="utf-8")
+    (base / "requirements.txt").write_text("requests>=2.32.0\n", encoding="utf-8")
+    (base / "config" / "loader.py").write_text("SCHEMA = 'old'\n", encoding="utf-8")
+    (base / "config" / "settings.yaml").write_text("risk:\n  stop_loss_pct: -5\n",
+                                                   encoding="utf-8")
+    (base / ".env").write_text("KIS_ENV=VTS\nDRY_RUN=true\n", encoding="utf-8")
+
+    incoming = {
+        "main.py": "print('new')\n",
+        "requirements.txt": "requests>=2.32.0\n",     # 의존성 변화 없음
+        "config/loader.py": "SCHEMA = 'new'\n",
+        "config/settings.yaml": "risk:\n  stop_loss_pct: -5\n",
+    }
+    state = {"zip": _fake_release(incoming), "sha": "abcdef1234567890",
+             "message": "새 기능"}
+
+    def fake_http(url, *, as_json=False):
+        if as_json:
+            return {"sha": state["sha"], "commit": {"message": state["message"]}}
+        return state["zip"]
+
+    monkeypatch.setattr(updater, "_http_get", fake_http)
+    return {"base": base, "data": base / "data", "logs": base / "logs", "state": state}
+
+
+def test_update_button_does_what_update_bat_does(installed, monkeypatch):
+    """대시보드 하단 '업데이트' 버튼이 실제로 코드를 갈아 끼우는지.
+
+    가장 자주 쓰는 버튼인데 그동안 테스트가 없었다.
+    """
+    import dashboard.app as module
+    from dashboard import process, restart
+
+    base, data, logs = installed["base"], installed["data"], installed["logs"]
+    monkeypatch.setattr(module, "DATA_DIR", data)
+
+    events: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda d: True)
+    monkeypatch.setattr(process, "stop",
+                        lambda d: events.append("봇 정지") or process.ControlResult(True, "종료"))
+    monkeypatch.setattr(process, "start",
+                        lambda b, d, l: events.append("봇 시작") or process.ControlResult(True, "시작"))
+    monkeypatch.setattr(restart, "request_restart",
+                        lambda b, p, **kw: events.append("대시보드 재시작"))
+
+    app = module.create_app(testing=True)
+    app.config.update(BASE_DIR=base, DATA_DIR=data, LOG_DIR=logs,
+                      DB_PATH=data / "trader.db", ENV_PATH=base / ".env", PORT=8765)
+    init_db(data / "trader.db")
+
+    with app.test_request_context():
+        module._apply_update(base, data, logs, 8765)
+
+    assert (base / "main.py").read_text(encoding="utf-8") == "print('new')\n"
+    # config/loader.py 가 갱신되지 않아 '없는 속성' 오류가 났던 적이 있다.
+    assert (base / "config" / "loader.py").read_text(encoding="utf-8") == "SCHEMA = 'new'\n"
+    # 순서가 중요하다 — 돌던 봇을 멈추고, 갈아 끼우고, 다시 띄운다.
+    assert events == ["봇 정지", "봇 시작", "대시보드 재시작"]
+
+
+def test_update_button_restarts_the_bot_even_when_it_fails(installed, monkeypatch):
+    """멈춰만 놓고 끝내면 매매가 죽은 채로 남는다."""
+    import dashboard.app as module
+    from dashboard import process
+    from utils import updater
+
+    base, data, logs = installed["base"], installed["data"], installed["logs"]
+    monkeypatch.setattr(module, "DATA_DIR", data)
+    monkeypatch.setattr(updater, "_http_get",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            updater.UpdateError("인터넷 연결을 확인하세요")))
+
+    events: list[str] = []
+    monkeypatch.setattr(process, "is_running", lambda d: True)
+    monkeypatch.setattr(process, "stop",
+                        lambda d: events.append("정지") or process.ControlResult(True, "종료"))
+    monkeypatch.setattr(process, "start",
+                        lambda b, d, l: events.append("재시작") or process.ControlResult(True, "시작"))
+
+    app = module.create_app(testing=True)
+    app.config.update(BASE_DIR=base, DATA_DIR=data, LOG_DIR=logs,
+                      DB_PATH=data / "trader.db", ENV_PATH=base / ".env", PORT=8765)
+    init_db(data / "trader.db")
+
+    with app.test_request_context():
+        module._apply_update(base, data, logs, 8765)
+
+    assert events == ["정지", "재시작"], "업데이트가 실패했는데 봇을 안 살렸습니다"
+    assert (base / "main.py").read_text(encoding="utf-8") == "print('old')\n"
+
+
+def test_update_button_keeps_user_settings(installed, monkeypatch):
+    """직접 고친 매매 파라미터를 버튼이 덮어쓰면 안 된다."""
+    import dashboard.app as module
+    from dashboard import process, restart
+
+    base, data, logs = installed["base"], installed["data"], installed["logs"]
+    (base / "config" / "settings.yaml").write_text(
+        "risk:\n  stop_loss_pct: -3   # 내가 고침\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DATA_DIR", data)
+    monkeypatch.setattr(process, "is_running", lambda d: False)
+    monkeypatch.setattr(restart, "request_restart", lambda b, p, **kw: None)
+
+    app = module.create_app(testing=True)
+    app.config.update(BASE_DIR=base, DATA_DIR=data, LOG_DIR=logs,
+                      DB_PATH=data / "trader.db", ENV_PATH=base / ".env", PORT=8765)
+    init_db(data / "trader.db")
+
+    with app.test_request_context():
+        module._apply_update(base, data, logs, 8765)
+
+    assert "내가 고침" in (base / "config" / "settings.yaml").read_text(encoding="utf-8")
+    assert (base / ".env").read_text(encoding="utf-8") == "KIS_ENV=VTS\nDRY_RUN=true\n"
