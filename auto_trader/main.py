@@ -89,18 +89,22 @@ def describe_outcome(final, execution) -> str:
         return ""
     if execution is None:
         return ""                       # 리스크 거부 — 비고에 사유가 따로 실린다
-    if not execution.ordered:
-        return execution.reason or "주문하지 않았습니다"
+    # 이 함수는 화면에 적을 한 줄을 만들 뿐이다. 값이 하나 비었다고 여기서
+    # 터지면 매매 자체가 멈춘다 — 표시용 코드가 주문 경로를 죽이면 안 된다.
+    get = lambda name, default="": getattr(execution, name, default)  # noqa: E731
+    if not get("ordered", False):
+        return get("reason") or "주문하지 않았습니다"
 
-    side = "매수" if execution.side == "BUY" else "매도"
-    detail = f"{side} {execution.qty:,}주 @{execution.price:,.0f}원"
-    if execution.dry_run:
+    side = "매수" if get("side") == "BUY" else "매도"
+    detail = f"{side} {get('qty', 0):,}주 @{get('price', 0):,.0f}원"
+    if get("dry_run", False):
         return f"{detail} — 기록만 (DRY_RUN, 실제 주문 아님)"
-    if execution.status == "FILLED":
+    status = get("status")
+    if status == "FILLED":
         return f"{detail} 체결"
-    if execution.status == "REJECTED":
-        return f"{detail} 거부 — {execution.error or execution.reason}"
-    return f"{detail} {execution.status or '접수'}"
+    if status == "REJECTED":
+        return f"{detail} 거부 — {get('error') or get('reason')}"
+    return f"{detail} {status or '접수'}"
 
 class TradingBot:
     """사이클 실행과 스케줄 관리를 묶은 애플리케이션 객체."""
@@ -349,34 +353,55 @@ class TradingBot:
                 logger.exception("%s 시세 수집 실패", code)
                 failed[code] = {"code": code, "name": code, "error": str(exc)}
 
-        # 2단계 — 강제 청산 대상은 AI 에게 묻지 않는다. 되묻는 사이에 더 밀린다.
+        # 2단계 — 강제 청산 판정.
         forced = {code: self.risk.check_forced_exit(state.get(code)) for code in snapshots}
-        ask = [snapshots[code] for code in snapshots
-               if forced[code] not in ("STOP_LOSS", "TRAILING_STOP")]
+        exits = [c for c in codes if forced.get(c) in ("STOP_LOSS", "TRAILING_STOP")]
 
-        # 3단계 — 후보를 한꺼번에 보여주고 서로 비교하게 한다(상대평가).
-        votes_by_code = self._collect_votes(ask)
+        # 3단계 — 손절·트레일링을 **AI 보다 먼저** 내보낸다.
+        #
+        # AI 판단을 건너뛰는 것만으로는 부족하다. 뒤에 두면 후보 전부를 보는
+        # 호출(최악 13분)이 끝날 때까지 손절 주문이 대기한다. 그 사이 손절 감시
+        # 잡도 사이클 락에 막혀 건너뛴다 — 떨어지는 종목을 붙잡고 있게 된다.
+        # 자산을 지키는 주문은 무엇보다 먼저 나가야 한다.
+        done: dict[str, dict[str, Any]] = {}
+        for code in exits:
+            done[code] = self._run_code(code, state, cycle_id, now, snapshots[code],
+                                        forced[code], None)
 
-        # 4단계 — 종목별 리스크·주문·기록. 순서대로 돌아야 앞 종목의 체결이
-        # 뒤 종목의 한도 계산에 반영된다.
+        # 4단계 — 남은 후보를 한꺼번에 보여주고 서로 비교하게 한다(상대평가).
+        if self._shutting_down:
+            logger.info("종료 요청 — AI 판단을 건너뜁니다")
+            votes_by_code: dict[str, dict[str, AgentDecision]] = {}
+        else:
+            votes_by_code = self._collect_votes(
+                [snapshots[c] for c in snapshots if c not in done])
+
+        # 5단계 — 나머지 종목의 리스크·주문·기록. 순서대로 돌아야 앞 종목의
+        # 체결이 뒤 종목의 한도 계산에 반영된다.
         for code in codes:   # 결과 순서는 입력 순서 그대로 — 보유 종목이 먼저다
             if code in failed:
                 results.append(failed[code])
+                continue
+            if code in done:
+                results.append(done[code])
                 continue
             if code not in snapshots:      # 종료 요청으로 수집이 중단된 뒤쪽
                 continue
             if self._shutting_down:
                 logger.info("종료 요청 — 남은 종목 처리를 중단합니다")
                 break
-            try:
-                results.append(self._process_code(
-                    code, state, cycle_id, now,
-                    snapshot=snapshots[code], forced=forced[code],
-                    decisions=votes_by_code.get(code)))
-            except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
-                logger.exception("%s 처리 실패", code)   # 요약에 실리므로 따로 알리지 않는다
-                results.append({"code": code, "name": code, "error": str(exc)})
+            results.append(self._run_code(code, state, cycle_id, now, snapshots[code],
+                                          forced[code], votes_by_code.get(code)))
         return results
+
+    def _run_code(self, code, state, cycle_id, now, snapshot, forced, decisions) -> dict[str, Any]:
+        """한 종목 처리. 여기서 터져도 사이클은 계속된다."""
+        try:
+            return self._process_code(code, state, cycle_id, now, snapshot=snapshot,
+                                      forced=forced, decisions=decisions)
+        except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
+            logger.exception("%s 처리 실패", code)   # 요약에 실리므로 따로 알리지 않는다
+            return {"code": code, "name": snapshot.get("name", code), "error": str(exc)}
 
     def _collect_snapshot(self, code: str, state, now: datetime) -> dict[str, Any]:
         snapshot = collect(code, self.api, self.settings, holding=None, now=now)
@@ -606,10 +631,12 @@ class TradingBot:
             self.portfolio.record_decision(
                 cycle_id=cycle_id, snapshot=snapshot, decisions={}, final=final,
                 forced_exit=exit_kind, risk_passed=True, risk_reason="",
+                outcome=describe_outcome(final, execution),
             )
             results.append({
                 "code": position.code, "name": position.name,
                 "final_action": final.action, "pnl_pct": position.pnl_pct,
+                "outcome": describe_outcome(final, execution),
                 "ordered": bool(execution and execution.ordered),
                 "side": execution.side if execution else "",
                 "qty": execution.qty if execution else 0,

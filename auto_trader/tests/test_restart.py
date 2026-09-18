@@ -196,3 +196,46 @@ def test_app_creation_is_inside_the_guard():
     source = (BASE_DIR / "scripts" / "dashboard.py").read_text(encoding="utf-8")
     body = source.split("    try:\n", 1)[1]
     assert "create_app()" in body.split("    except KeyboardInterrupt", 1)[0]
+
+
+def test_relaunch_honours_the_please_restart_me_code():
+    """대시보드가 42 로 끝나는 건 오류가 아니라 '다시 띄워 달라' 는 뜻이다."""
+    from scripts.relaunch import RESTART_EXIT_CODE as RELAUNCH_CODE
+
+    assert RELAUNCH_CODE == RESTART_EXIT_CODE, "두 파일의 약속이 어긋났습니다"
+
+
+def test_restart_request_is_retried_not_treated_as_a_crash(monkeypatch, tmp_path):
+    import scripts.relaunch as relaunch
+
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "dashboard.py").write_text("", encoding="utf-8")
+    codes = [RESTART_EXIT_CODE, RESTART_EXIT_CODE, 0]
+    seen: list[int] = []
+
+    monkeypatch.setattr(relaunch, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(relaunch, "wait_for_port", lambda p, **kw: True)
+    monkeypatch.setattr(relaunch.subprocess, "call",
+                        lambda *a, **kw: seen.append(1) or codes.pop(0))
+    monkeypatch.setattr(relaunch.sys, "argv", ["relaunch.py"])
+
+    assert relaunch.main() == 0
+    assert len(seen) == 3, "42 를 받으면 다시 띄워야 합니다"
+
+
+def test_endless_restart_requests_are_stopped(monkeypatch, tmp_path, capsys):
+    """무한 반복이 되면 화면이 영영 안 뜨는 것과 같다."""
+    import scripts.relaunch as relaunch
+
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "dashboard.py").write_text("", encoding="utf-8")
+    seen: list[int] = []
+    monkeypatch.setattr(relaunch, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(relaunch, "wait_for_port", lambda p, **kw: True)
+    monkeypatch.setattr(relaunch.subprocess, "call",
+                        lambda *a, **kw: seen.append(1) or RESTART_EXIT_CODE)
+    monkeypatch.setattr(relaunch.sys, "argv", ["relaunch.py"])
+
+    assert relaunch.main() == 1
+    assert len(seen) == relaunch.MAX_RELAUNCHES
+    assert "연속 재기동" in capsys.readouterr().err

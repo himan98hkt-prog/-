@@ -174,11 +174,34 @@
     {% endfor %}
   </div>
   {% else %}
+  {% if s.dry_run and o.dry_run_orders %}
+  <div class="holdings-empty warn">
+    <b>오늘 매수가 {{ o.dry_run_orders }}건 결정됐지만, 주문은 나가지 않았습니다.</b>
+    지금은 <b>DRY_RUN</b> — 주문을 보내지 않고 <b>기록만</b> 하는 상태이기 때문입니다.
+    AI 도 리스크 검사도 정상으로 통과했고, 마지막 단계에서 멈춘 것입니다.
+    <div class="holdings-fix">
+      실제로 체결시키려면 →
+      <a class="btn primary" href="{{ url_for('setup') }}">설정에서 ‘주문 전송’ 을 false 로</a>
+      바꾸고 저장한 뒤, 아래 <b>제어 → 재시작</b>을 누르세요.
+      모의투자(VTS)는 가짜 돈이라 위험이 없습니다.
+    </div>
+  </div>
+  {% elif s.dry_run %}
+  <div class="holdings-empty">
+    <b>아직 매수한 종목이 없습니다.</b>
+    매수는 세 AI 가 <b>모두</b> 동의해야 나갑니다 — 한 표라도 빠지면 관망입니다.
+    몇 표까지 갔는지는 아래 <b>합의 근접도</b>에서 볼 수 있습니다.
+    <div class="holdings-fix dim">
+      참고: 지금은 <b>DRY_RUN</b> 이라, 합의가 나더라도 주문은 기록만 되고 실제로는 나가지 않습니다.
+    </div>
+  </div>
+  {% else %}
   <div class="holdings-empty">
     <b>아직 매수한 종목이 없습니다.</b>
     매수는 세 AI 가 <b>모두</b> 동의해야 나갑니다 — 한 표라도 빠지면 관망입니다.
     몇 표까지 갔는지는 아래 <b>합의 근접도</b>에서 볼 수 있습니다.
   </div>
+  {% endif %}
   {% endif %}
 </div>
 

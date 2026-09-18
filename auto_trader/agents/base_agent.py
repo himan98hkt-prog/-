@@ -259,17 +259,25 @@ def run_agents_parallel(
     return results
 
 
-def _fallback_per_code(agent: BaseAgent, snapshots: list[dict[str, Any]]
-                       ) -> dict[str, AgentDecision]:
+def _fallback_per_code(agent: BaseAgent, snapshots: list[dict[str, Any]],
+                       deadline: float) -> dict[str, AgentDecision]:
     """상대평가가 실패한 엔진만 예전 방식(종목별)으로 되돌린다.
 
     한 번의 응답이 깨졌다고 후보 전부를 관망으로 밀어버리면, 모델의 사소한
     형식 실수 하나가 그 사이클의 매수를 통째로 막는다. 비용은 더 들지만
     사이클을 살린다.
+
+    **마감시각을 스스로 지킨다.** 밖에서 future 를 포기해도 이 스레드는 멈추지
+    않는다(cancel 은 실행 중인 스레드를 못 막는다). 그대로 두면 아무도 안 쓸
+    답을 받으려고 유료 API 를 계속 두드리고, 그 비용이 다음 사이클까지 겹친다.
     """
     results: dict[str, AgentDecision] = {}
     for snapshot in snapshots:
         code = str(snapshot.get("code", ""))
+        if time.monotonic() >= deadline:
+            logger.warning("[%s] 시간이 다 되어 %s 이후는 건너뜁니다", agent.name, code)
+            results[code] = AgentDecision.hold(agent.name, "시간 초과로 건너뜀")
+            continue
         try:
             results[code] = agent.analyze(snapshot)
         except Exception as exc:  # noqa: BLE001 — 한 종목이 죽어도 나머지는 살린다
@@ -294,18 +302,19 @@ def run_agents_batch(
     if not snapshots:
         return {}
 
+    # 폴백까지 감안한 마감시각. 종목별로 되돌면 호출이 종목 수만큼 늘어난다.
+    budget = ai.batch_timeout_sec + ai.timeout_sec * len(snapshots)
+    deadline = time.monotonic() + budget
+
     def work(agent: BaseAgent) -> dict[str, AgentDecision]:
         decisions = agent.analyze_many(snapshots)
         if decisions is None:                       # 상대평가 실패 → 종목별로
-            return _fallback_per_code(agent, snapshots)
+            return _fallback_per_code(agent, snapshots, deadline)
         return decisions
 
     executor = ThreadPoolExecutor(max_workers=max(len(agents), 1), thread_name_prefix="agent")
     try:
         futures = {executor.submit(work, agent): agent for agent in agents}
-        # 폴백까지 감안한 마감시각. 종목별로 되돌면 호출이 종목 수만큼 늘어난다.
-        budget = ai.batch_timeout_sec + ai.timeout_sec * len(snapshots)
-        deadline = time.monotonic() + budget
         for future, agent in futures.items():
             try:
                 per_agent[agent.name] = future.result(

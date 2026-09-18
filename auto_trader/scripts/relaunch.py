@@ -23,6 +23,12 @@ HOST = "127.0.0.1"
 WAIT_TIMEOUT_SEC = 40.0
 POLL_SEC = 0.3
 
+# 대시보드가 이 코드로 끝나면 "나를 다시 띄워 달라" 는 뜻이다.
+# 원본은 dashboard/restart.py 의 RESTART_EXIT_CODE — 테스트가 두 값을 맞춰 둔다.
+# (여기서 import 하지 않는 이유: 이 스크립트는 업데이트 도중에도 떠야 한다.)
+RESTART_EXIT_CODE = 42
+MAX_RELAUNCHES = 3
+
 
 def port_is_free(port: int) -> bool:
     with socket.socket() as probe:
@@ -59,14 +65,26 @@ def main() -> int:
     # execv 로 갈아 끼우지 않는다. 그러면 새 대시보드가 기동 중에 죽었을 때
     # 창이 그대로 닫혀 이유를 볼 수 없다 — 사용자에게는 '연결할 수 없음' 만 남는다.
     # 자식으로 띄우고 지켜보다가, 실패하면 창을 붙잡고 원인을 보여준다.
-    code = subprocess.call([sys.executable, str(dashboard),
-                            "--port", str(args.port), "--open-browser"])
-    if code != 0:
+    for _ in range(MAX_RELAUNCHES):
+        code = subprocess.call([sys.executable, str(dashboard),
+                                "--port", str(args.port), "--open-browser"])
+        if code == 0:
+            return 0
+        if code == RESTART_EXIT_CODE:
+            # 대시보드가 "나를 다시 띄워 달라" 고 한 것이다(업데이트 직후).
+            # 이걸 오류로 보고 창을 붙잡으면 대시보드가 영영 돌아오지 않는다.
+            print(f"\n  대시보드가 재기동을 요청했습니다 — 다시 띄웁니다 (포트 {args.port})",
+                  file=sys.stderr)
+            if not wait_for_port(args.port):
+                return _stop(f"포트 {args.port} 가 풀리지 않습니다.",
+                             "작업 관리자에서 python.exe 를 끝낸 뒤 다시 시도하세요.")
+            continue
         return _stop(
             f"대시보드가 코드 {code} 로 종료됐습니다.",
             "위에 찍힌 오류가 원인입니다. logs 폴더의 dashboard_*.log 에도 남아 있습니다.",
         )
-    return 0
+    return _stop(f"대시보드가 {MAX_RELAUNCHES}번 연속 재기동을 요청했습니다.",
+                 "무한 반복을 막기 위해 멈췄습니다. 로그를 확인해 주세요.")
 
 
 def _log(lines: tuple[str, ...]) -> None:

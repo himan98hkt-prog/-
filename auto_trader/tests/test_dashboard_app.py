@@ -1213,3 +1213,32 @@ def test_risk_rejection_still_wins_the_remarks_cell(app, client):
 
     body = client.get("/").get_data(as_text=True)
     assert "리스크 거부: 당일 손실 한도 도달" in body
+
+
+def test_dry_run_is_named_as_the_reason_nothing_was_bought(app, client):
+    """가장 헷갈리는 상태다 — AI 도 리스크도 통과했는데 마지막에서 멈춘 것.
+
+    설정 파일이 아니라 **돌고 있는 봇이 기록한 상태**를 본다. 설정만 바꾸고
+    재시작하지 않으면 봇은 여전히 DRY_RUN 이므로, 그 사실을 그대로 보여야 한다.
+    """
+    write_env(app.config["ENV_PATH"], {**FULL_ENV, "DRY_RUN": "true"})
+    update_bot_state(app.config["DB_PATH"], status="RUNNING", kis_env="VTS", dry_run=1)
+    with session(app.config["DB_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO orders (code, name, side, order_type, qty, price, filled_qty,
+               filled_price, status, kis_env, dry_run, created_at, updated_at)
+               VALUES ('000660','SK하이닉스','BUY','limit',13,76228,0,0,'DRY_RUN','VTS',1,?,?)""",
+            (datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),) * 2)
+
+    body = client.get("/").get_data(as_text=True)
+    assert "주문은 나가지 않았습니다" in body
+    assert "DRY_RUN" in body
+    assert "주문 전송" in body, "고치는 방법을 같이 알려줘야 합니다"
+
+
+def test_without_dry_run_orders_the_card_stays_calm(app, client):
+    write_env(app.config["ENV_PATH"], {**FULL_ENV, "DRY_RUN": "false"})
+    update_bot_state(app.config["DB_PATH"], status="RUNNING", kis_env="VTS", dry_run=0)
+    body = client.get("/").get_data(as_text=True)
+    assert "아직 매수한 종목이 없습니다" in body
+    assert "주문은 나가지 않았습니다" not in body

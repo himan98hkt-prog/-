@@ -195,6 +195,14 @@ details.card > summary .sub {
   border: 1px dashed var(--border); border-radius: var(--radius);
   padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.6;
 }
+/* 매수 결정은 났는데 DRY_RUN 이라 안 나간 경우. 가장 헷갈리는 상태이므로
+   눈에 띄게 하고, 고치는 방법을 한 번의 클릭 거리에 둔다. */
+.holdings-empty.warn {
+  border: 1px solid var(--serious); border-left-width: 3px;
+  background: color-mix(in srgb, var(--serious) 8%, var(--surface));
+}
+.holdings-fix { margin-top: 9px; }
+.holdings-fix .btn { margin-right: 4px; }
 /* 내용만큼만 높이를 갖게 한다 — stretch 로 두면 빈 칸이 옆 카드 높이까지 늘어난다. */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
