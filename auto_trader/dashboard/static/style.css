@@ -187,6 +187,43 @@ tbody tr:last-child td { border-bottom: none; }
 .dim { color: var(--muted); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 
+/* --- 계속 쌓이는 표는 칸 안에서만 굴린다 ---
+   판단 기록은 사이클마다 늘어난다. 그대로 두면 카드 하나가 화면을 다 먹어,
+   아래에 있는 주문·리스크를 보려면 한참 내려야 한다. 높이를 묶고 안에서
+   스크롤한다 — 카드의 위치가 고정되니 어디에 뭐가 있는지 외울 수 있다.
+   높이는 --rows 로 조절한다(행 수 기준). */
+.scroll-table {
+  --rows: 9;
+  max-height: calc(var(--rows) * 31px + 30px);   /* 행 높이 + 머리글 */
+  overflow-y: auto;
+  overscroll-behavior: contain;      /* 끝에 닿아도 페이지까지 같이 밀리지 않게 */
+  scrollbar-gutter: stable;          /* 막대 자리를 늘 비워 둔다 — 표 폭이 흔들리지 않게 */
+}
+/* 머리글은 붙여 둔다 — 굴리다 보면 어느 열이 무엇인지 잊는다. */
+.scroll-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface);
+  /* border-collapse 아래에서 sticky 는 테두리를 남기지 않는다 — 그림자로 선을 만든다. */
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border-strong);
+}
+/* 굴러가는 표에서 마지막 행의 선을 지우면 잘린 것처럼 보인다 — 살려 둔다. */
+.scroll-table tbody tr:last-child td { border-bottom: 1px solid var(--border); }
+
+/* 잡아끌 것이 있다는 게 보여야 한다. OS 기본 막대는 굴릴 때만 잠깐 나타나는
+   경우가 있어(오버레이 스크롤바), 항상 보이도록 직접 그린다.
+   scrollbar-width / scrollbar-color 는 **쓰지 않는다** — Chrome 121+ 는 그 둘이
+   있으면 아래 규칙을 통째로 무시하고 다시 오버레이로 돌아간다. */
+.scroll-table::-webkit-scrollbar { width: 12px; }
+.scroll-table::-webkit-scrollbar-track {
+  background: var(--surface-2); border-radius: 6px;
+}
+.scroll-table::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 6px;
+  border: 2px solid var(--surface);
+}
+.scroll-table::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
 /* --- 차트 --- */
 .chart { width: 100%; height: auto; display: block; }
 .chart .grid { stroke: var(--grid); stroke-width: 1; }

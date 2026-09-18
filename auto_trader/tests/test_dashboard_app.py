@@ -1055,3 +1055,32 @@ def test_update_button_keeps_user_settings(installed, monkeypatch):
 
     assert "내가 고침" in (base / "config" / "settings.yaml").read_text(encoding="utf-8")
     assert (base / ".env").read_text(encoding="utf-8") == "KIS_ENV=VTS\nDRY_RUN=true\n"
+
+
+# --- 계속 쌓이는 표가 화면을 밀어내지 않는가 -------------------------------- #
+
+def test_long_tables_scroll_inside_their_card():
+    """판단 기록은 사이클마다 늘어난다. 카드 높이가 같이 늘면 아래 카드를
+    보려고 한참 내려야 한다 — 표 안에서만 굴러야 한다."""
+    root = Path(__file__).resolve().parent.parent
+    page = (root / "dashboard" / "templates" / "index.html").read_text(encoding="utf-8")
+
+    for heading in ("최근 AI 판단", "최근 주문</h2>", "리스크 규칙 차단"):
+        start = page.index(heading)
+        table = page.index("<table>", start)
+        between = page[start:table]
+        assert 'class="scroll-table"' in between, f"{heading} 표가 묶여 있지 않습니다"
+
+
+def test_scroll_box_keeps_its_header_and_a_visible_bar():
+    root = Path(__file__).resolve().parent.parent
+    css = (root / "dashboard" / "static" / "style.css").read_text(encoding="utf-8")
+    block = css[css.index(".scroll-table {"):]
+
+    assert "max-height" in block and "overflow-y: auto" in block
+    assert "position: sticky" in block, "굴리다 보면 어느 열인지 알 수 없게 됩니다"
+    assert "::-webkit-scrollbar-thumb" in block, "잡아끌 막대가 보여야 합니다"
+    # Chrome 121+ 는 이 둘이 있으면 위 규칙을 무시하고 오버레이 막대로 돌아간다.
+    scroll_rule = block[:block.index("}")]
+    assert "scrollbar-width" not in scroll_rule
+    assert "scrollbar-color" not in scroll_rule

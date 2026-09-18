@@ -232,24 +232,26 @@
 <div class="card">
   <h2>전자공시<span class="sub">보유 종목 최근 30일 · 금융감독원 DART · 매매 판단에는 쓰이지 않습니다</span></h2>
   {% if filings.ready and filings.filings %}
-  <table>
-    <thead>
-      <tr><th>공시일</th><th>종목</th><th>보고서</th><th>제출인</th></tr>
-    </thead>
-    <tbody>
-      {% for f in filings.filings %}
-      <tr>
-        <td class="mono dim">{{ f.filed_at }}</td>
-        <td>{{ f.name }} <span class="dim mono">{{ f.code }}</span></td>
-        <td>
-          {% if f.url %}<a href="{{ f.url }}" target="_blank" rel="noopener">{{ f.title }}</a>
-          {% else %}{{ f.title }}{% endif %}
-        </td>
-        <td class="dim">{{ f.filer }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="scroll-table" style="--rows: 7">
+    <table>
+      <thead>
+        <tr><th>공시일</th><th>종목</th><th>보고서</th><th>제출인</th></tr>
+      </thead>
+      <tbody>
+        {% for f in filings.filings %}
+        <tr>
+          <td class="mono dim">{{ f.filed_at }}</td>
+          <td>{{ f.name }} <span class="dim mono">{{ f.code }}</span></td>
+          <td>
+            {% if f.url %}<a href="{{ f.url }}" target="_blank" rel="noopener">{{ f.title }}</a>
+            {% else %}{{ f.title }}{% endif %}
+          </td>
+          <td class="dim">{{ f.filer }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% if filings.reason %}<div class="bench-foot">{{ filings.reason }}</div>{% endif %}
   {% elif filings.ready %}
   <div class="empty">최근 30일 공시가 없습니다</div>
@@ -360,25 +362,27 @@
     <b class="down">음수이므로 거래를 반복할수록 줄어듭니다.</b> 승률이나 손익비 중 하나를 고쳐야 합니다.
     {% endif %}
   </div>
-  <table>
-    <thead>
-      <tr><th>종목</th><th class="num">매수</th><th class="num">매도</th>
-          <th class="num">보유</th><th class="num">손익</th></tr>
-    </thead>
-    <tbody>
-      {% for t in trade_stats.trades %}
-      <tr>
-        <td>{{ t.name }}</td>
-        <td class="num">{{ '{:,.0f}'.format(t.entry_price) }}</td>
-        <td class="num">{{ '{:,.0f}'.format(t.exit_price) }}</td>
-        <td class="num">{{ t.held_days }}일</td>
-        <td class="num {{ 'up' if t.pnl_pct > 0 else 'down' if t.pnl_pct < 0 else '' }}">
-          {{ '%+.2f'|format(t.pnl_pct) }}%
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="scroll-table" style="--rows: 8">
+    <table>
+      <thead>
+        <tr><th>종목</th><th class="num">매수</th><th class="num">매도</th>
+            <th class="num">보유</th><th class="num">손익</th></tr>
+      </thead>
+      <tbody>
+        {% for t in trade_stats.trades %}
+        <tr>
+          <td>{{ t.name }}</td>
+          <td class="num">{{ '{:,.0f}'.format(t.entry_price) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(t.exit_price) }}</td>
+          <td class="num">{{ t.held_days }}일</td>
+          <td class="num {{ 'up' if t.pnl_pct > 0 else 'down' if t.pnl_pct < 0 else '' }}">
+            {{ '%+.2f'|format(t.pnl_pct) }}%
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <div class="empty">아직 사고판 거래가 없습니다 — 매수 후 매도가 한 번 끝나면 집계됩니다</div>
   {% endif %}
@@ -490,41 +494,44 @@
     최근 AI 판단
     <span class="sub">
       {% if decision_mix %}오늘 {% for action, n in decision_mix.items() %}{{ action }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}
+      {%- if decisions %} · 최근 {{ decisions|length }}건{% if decisions|length > 9 %} (표 안에서 스크롤){% endif %}{% endif %}
     </span>
   </h2>
   {% if decisions %}
-  <table>
-    <thead>
-      <tr><th>시각</th><th>종목</th><th>Claude</th><th>Gemini</th><th>ChatGPT</th><th>최종</th><th>비고</th></tr>
-    </thead>
-    <tbody>
-      {% for d in decisions %}
-      <tr>
-        <td class="dim mono">{{ d.created_at[11:16] }}</td>
-        <td>{{ d.name or d.code }}{% if d.holding %} <span class="badge">보유</span>{% endif %}</td>
-        <td class="{{ 'dim' if not d.claude_ok }}">
-          {% if d.claude_ok %}{{ d.claude_action }} <span class="dim">{{ '%.2f'|format(d.claude_confidence or 0) }}</span>
-          {% else %}파싱 실패{% endif %}
-        </td>
-        <td class="{{ 'dim' if not d.gemini_ok }}">
-          {% if d.gemini_ok %}{{ d.gemini_action }} <span class="dim">{{ '%.2f'|format(d.gemini_confidence or 0) }}</span>
-          {% else %}파싱 실패{% endif %}
-        </td>
-        <td class="{{ 'dim' if not d.chatgpt_ok }}">
-          {% if d.chatgpt_action %}
-            {% if d.chatgpt_ok %}{{ d.chatgpt_action }} <span class="dim">{{ '%.2f'|format(d.chatgpt_confidence or 0) }}</span>
+  <div class="scroll-table" style="--rows: 9">
+    <table>
+      <thead>
+        <tr><th>시각</th><th>종목</th><th>Claude</th><th>Gemini</th><th>ChatGPT</th><th>최종</th><th>비고</th></tr>
+      </thead>
+      <tbody>
+        {% for d in decisions %}
+        <tr>
+          <td class="dim mono">{{ d.created_at[11:16] }}</td>
+          <td>{{ d.name or d.code }}{% if d.holding %} <span class="badge">보유</span>{% endif %}</td>
+          <td class="{{ 'dim' if not d.claude_ok }}">
+            {% if d.claude_ok %}{{ d.claude_action }} <span class="dim">{{ '%.2f'|format(d.claude_confidence or 0) }}</span>
             {% else %}파싱 실패{% endif %}
-          {% else %}<span class="dim">미사용</span>{% endif %}
-        </td>
-        <td><b>{{ d.final_action }}</b>{% if d.final_weight_pct %} {{ d.final_weight_pct }}%{% endif %}</td>
-        <td class="dim">
-          {% if d.forced_exit %}<span class="badge stop">{{ d.forced_exit }}</span>{% endif %}
-          {% if not d.risk_passed and d.risk_reason %}리스크 거부: {{ d.risk_reason }}{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+          </td>
+          <td class="{{ 'dim' if not d.gemini_ok }}">
+            {% if d.gemini_ok %}{{ d.gemini_action }} <span class="dim">{{ '%.2f'|format(d.gemini_confidence or 0) }}</span>
+            {% else %}파싱 실패{% endif %}
+          </td>
+          <td class="{{ 'dim' if not d.chatgpt_ok }}">
+            {% if d.chatgpt_action %}
+              {% if d.chatgpt_ok %}{{ d.chatgpt_action }} <span class="dim">{{ '%.2f'|format(d.chatgpt_confidence or 0) }}</span>
+              {% else %}파싱 실패{% endif %}
+            {% else %}<span class="dim">미사용</span>{% endif %}
+          </td>
+          <td><b>{{ d.final_action }}</b>{% if d.final_weight_pct %} {{ d.final_weight_pct }}%{% endif %}</td>
+          <td class="dim">
+            {% if d.forced_exit %}<span class="badge stop">{{ d.forced_exit }}</span>{% endif %}
+            {% if not d.risk_passed and d.risk_reason %}리스크 거부: {{ d.risk_reason }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <div class="chart-empty">아직 판단 기록이 없습니다</div>
   {% endif %}
@@ -535,26 +542,28 @@
   <div class="card">
     <h2>최근 주문</h2>
     {% if orders %}
-    <table>
-      <thead><tr><th>시각</th><th>종목</th><th>구분</th><th class="num">수량</th><th class="num">가격</th><th>상태</th></tr></thead>
-      <tbody>
-        {% for r in orders %}
-        <tr>
-          <td class="dim mono">{{ r.created_at[11:16] }}</td>
-          <td>{{ r.name or r.code }}</td>
-          <td class="{{ 'up' if r.side == 'BUY' else 'down' }}">{{ '매수' if r.side == 'BUY' else '매도' }}</td>
-          <td class="num">{{ '{:,}'.format(r.filled_qty or r.qty) }}</td>
-          <td class="num">{{ '{:,.0f}'.format(r.filled_price or r.price) }}</td>
-          <td>
-            {% if r.dry_run %}<span class="badge dry">DRY_RUN</span>
-            {% elif r.status == 'FILLED' %}<span class="badge live">체결</span>
-            {% elif r.status == 'REJECTED' %}<span class="badge stop">거부</span>
-            {% else %}<span class="badge">{{ r.status }}</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="scroll-table" style="--rows: 7">
+      <table>
+        <thead><tr><th>시각</th><th>종목</th><th>구분</th><th class="num">수량</th><th class="num">가격</th><th>상태</th></tr></thead>
+        <tbody>
+          {% for r in orders %}
+          <tr>
+            <td class="dim mono">{{ r.created_at[11:16] }}</td>
+            <td>{{ r.name or r.code }}</td>
+            <td class="{{ 'up' if r.side == 'BUY' else 'down' }}">{{ '매수' if r.side == 'BUY' else '매도' }}</td>
+            <td class="num">{{ '{:,}'.format(r.filled_qty or r.qty) }}</td>
+            <td class="num">{{ '{:,.0f}'.format(r.filled_price or r.price) }}</td>
+            <td>
+              {% if r.dry_run %}<span class="badge dry">DRY_RUN</span>
+              {% elif r.status == 'FILLED' %}<span class="badge live">체결</span>
+              {% elif r.status == 'REJECTED' %}<span class="badge stop">거부</span>
+              {% else %}<span class="badge">{{ r.status }}</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <div class="chart-empty">주문 기록이 없습니다</div>
     {% endif %}
@@ -564,18 +573,20 @@
   <div class="card">
     <h2>리스크 규칙 차단<span class="sub">AI 판단보다 상위</span></h2>
     {% if risk_blocks %}
-    <table>
-      <thead><tr><th>시각</th><th>종목</th><th>사유</th></tr></thead>
-      <tbody>
-        {% for r in risk_blocks %}
-        <tr>
-          <td class="dim mono">{{ r.created_at[11:16] }}</td>
-          <td>{{ r.name or r.code }}</td>
-          <td class="dim">{{ r.risk_reason }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="scroll-table" style="--rows: 7">
+      <table>
+        <thead><tr><th>시각</th><th>종목</th><th>사유</th></tr></thead>
+        <tbody>
+          {% for r in risk_blocks %}
+          <tr>
+            <td class="dim mono">{{ r.created_at[11:16] }}</td>
+            <td>{{ r.name or r.code }}</td>
+            <td class="dim">{{ r.risk_reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <div class="chart-empty">차단된 주문이 없습니다</div>
     {% endif %}
