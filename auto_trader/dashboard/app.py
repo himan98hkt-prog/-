@@ -212,6 +212,8 @@ def create_app(*, testing: bool = False) -> Flask:
                           {"ready": False, "horizon_days": 5, "engines": []}),
             headroom=card("리스크 여력", lambda: queries.risk_headroom(db, risk),
                           {"ready": False, "rows": []}),
+            consensus=card("합의 근접도", lambda: queries.consensus_stats(db),
+                           {"ready": False, "buckets": [], "engines": []}),
             # 전자공시 — 화면 표시 전용. AI 입력에는 들어가지 않는다.
             filings=card("전자공시", lambda: dart.recent_filings(
                 read_env(app.config["ENV_PATH"]).get("DART_API_KEY", ""),

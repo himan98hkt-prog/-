@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
+
+KST = ZoneInfo("Asia/Seoul")
 
 from dashboard.charts import cost_bars, equity_line, pnl_bars
 
@@ -543,3 +547,73 @@ def test_expectancy_is_negative_when_costs_win(tmp_path):
     stats = trade_stats(db)
     assert stats["win_rate"] == 75.0, "승률은 높다"
     assert stats["expectancy"] < 0, "그런데도 기대값은 음수여야 한다"
+
+
+# --- 합의 근접도 -------------------------------------------------------------- #
+
+def _three(db, at, claude, gemini, chatgpt, ok=(1, 1, 1)):
+    from utils.db import session
+    with session(db) as conn:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding,
+                   claude_action, claude_ok, gemini_action, gemini_ok,
+                   chatgpt_action, chatgpt_ok,
+                   final_action, final_weight_pct, risk_passed, created_at)
+               VALUES ('c','005930','종목',0,?,?,?,?,?,?,'HOLD',0,1,?)""",
+            (claude, ok[0], gemini, ok[1], chatgpt, ok[2], at))
+
+
+def test_consensus_buckets_count_buy_votes(tmp_path):
+    from dashboard.queries import consensus_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    now = datetime.now(KST)
+    at = now.strftime("%Y-%m-%dT09:05:00+09:00")
+    _three(db, at, "BUY", "BUY", "BUY")      # 3표
+    _three(db, at, "BUY", "BUY", "HOLD")     # 2표
+    _three(db, at, "BUY", "HOLD", "HOLD")    # 1표
+    _three(db, at, "HOLD", "HOLD", "SELL")   # 0표
+
+    result = consensus_stats(db, now=now)
+    got = {b["votes"]: b["count"] for b in result["buckets"]}
+    assert got == {3: 1, 2: 1, 1: 1, 0: 1}
+    assert result["total"] == 4
+
+
+def test_broken_engine_is_excluded_not_counted_as_hold(tmp_path):
+    """응답이 깨진 것은 '매수 안 함' 이 아니라 '판단 없음' 이다.
+
+    HOLD 로 세면 기준이 멀쩡한데도 '합의가 안 된다' 고 잘못 읽게 된다.
+    """
+    from dashboard.queries import consensus_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    now = datetime.now(KST)
+    at = now.strftime("%Y-%m-%dT09:05:00+09:00")
+    _three(db, at, "BUY", "BUY", "BUY")
+    _three(db, at, "BUY", "HOLD", "BUY", ok=(1, 0, 1))   # 제미나이 실패
+
+    result = consensus_stats(db, now=now)
+    assert result["total"] == 1, "깨진 판단이 분포에 섞였습니다"
+    assert result["broken"] == 1
+
+
+def test_engine_buy_rate_finds_the_bottleneck(tmp_path):
+    """한 엔진만 매수를 안 하면 그 엔진이 병목이라는 게 보여야 한다."""
+    from dashboard.queries import consensus_stats
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    now = datetime.now(KST)
+    at = now.strftime("%Y-%m-%dT09:05:00+09:00")
+    for _ in range(4):
+        _three(db, at, "HOLD", "BUY", "BUY")    # 클로드만 계속 관망
+
+    rates = {e["engine"]: e["buy_pct"] for e in consensus_stats(db, now=now)["engines"]}
+    assert rates["Claude"] == 0.0
+    assert rates["Gemini"] == 100.0 and rates["ChatGPT"] == 100.0

@@ -595,3 +595,78 @@ def risk_headroom(db_path: Path | str, risk: Any | None,
         "can_buy": not any(row["blocked"] for row in rows),
         "last_buy_at": f"{last_buy:%H:%M}" if last_buy else "",
     }
+
+
+# --- 합의 근접도 -------------------------------------------------------------- #
+
+def consensus_stats(db_path: Path | str, days: int = 7,
+                    *, now: datetime | None = None) -> dict[str, Any]:
+    """매수 몇 표까지 갔는지의 분포, 그리고 엔진별 매수 제안 비율.
+
+    '전원 HOLD 라 못 샀다' 를 봤을 때 물어야 할 것은 둘이다 —
+    기준이 너무 높은 건가, 시장이 안 주는 건가. 3표/2표/1표 분포가 그 답이다.
+    2표가 자주 나오는데 3표가 없으면 기준 문제고, 1표도 드물면 시장 문제다.
+    한 엔진만 유독 매수를 안 하면 그 엔진이 병목이다.
+    """
+    since = ((now or datetime.now(KST)) - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = _rows(
+        db_path,
+        """SELECT claude_action, gemini_action, chatgpt_action,
+                  claude_ok, gemini_ok, chatgpt_ok
+           FROM decisions
+           WHERE substr(created_at, 1, 10) >= ?
+             AND (forced_exit IS NULL OR forced_exit = '')""",
+        (since,),
+    )
+    if not rows:
+        return {"ready": False, "days": days, "buckets": [], "engines": [], "total": 0}
+
+    buckets = {3: 0, 2: 0, 1: 0, 0: 0}
+    engine_buy = {key: 0 for key, _ in ENGINES}
+    engine_seen = {key: 0 for key, _ in ENGINES}
+    broken = 0
+
+    for row in rows:
+        votes = 0
+        participating = 0
+        failed = False
+        for key, _label in ENGINES:
+            action = (row[f"{key}_action"] or "").upper()
+            if not action:
+                continue
+            participating += 1
+            engine_seen[key] += 1
+            # 응답이 깨진 엔진은 '매수 안 함' 이 아니라 '판단 없음' 이다.
+            if row[f"{key}_ok"] == 0:
+                failed = True
+                continue
+            if action == "BUY":
+                votes += 1
+                engine_buy[key] += 1
+        if failed:
+            broken += 1
+            continue
+        if participating:
+            buckets[min(votes, 3)] += 1
+
+    graded = sum(buckets.values())
+    labels = {3: "전원 매수 (주문 나감)", 2: "2표 — 한 표 모자람",
+              1: "1표", 0: "매수 의견 없음"}
+    return {
+        "ready": True,
+        "days": days,
+        "total": graded,
+        "broken": broken,
+        "buckets": [
+            {"votes": votes, "label": labels[votes], "count": buckets[votes],
+             "pct": round(buckets[votes] / graded * 100, 1) if graded else 0.0}
+            for votes in (3, 2, 1, 0)
+        ],
+        "engines": [
+            {"engine": label,
+             "buy_pct": round(engine_buy[key] / engine_seen[key] * 100, 1)
+                        if engine_seen[key] else 0.0,
+             "seen": engine_seen[key]}
+            for key, label in ENGINES if engine_seen[key]
+        ],
+    }

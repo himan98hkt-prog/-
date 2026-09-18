@@ -122,6 +122,48 @@
   </div>
 </div>
 
+<!-- ── 합의 근접도 ───────────────────────────────────────────── -->
+<div class="card">
+  <h2>합의 근접도<span class="sub">최근 {{ consensus.days }}일 · 매수 몇 표까지 갔는지</span></h2>
+  {% if consensus.ready %}
+  <div class="gauges">
+    {% for b in consensus.buckets %}
+    <div class="gauge">
+      <div class="gauge-top">
+        <span class="gauge-label">{{ b.label }}</span>
+        <span class="gauge-text {{ 'up' if b.votes == 3 else '' }}">{{ b.count }}건 · {{ b.pct }}%</span>
+      </div>
+      <div class="gauge-track">
+        <div class="gauge-fill {{ 'hot' if b.votes == 3 else '' }}" style="width: {{ b.pct }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <table style="margin-top:12px">
+    <thead><tr><th>엔진</th><th class="num">매수 제안 비율</th><th class="num">판단 수</th></tr></thead>
+    <tbody>
+      {% for e in consensus.engines %}
+      <tr>
+        <td>{{ e.engine }}</td>
+        <td class="num">{{ e.buy_pct }}%</td>
+        <td class="num dim">{{ e.seen }}건</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="bench-foot">
+    <b>2표가 자주 나오는데 3표가 없으면</b> 만장일치 기준이 높은 것이고,
+    <b>1표도 드물면</b> 시장이 살 만한 자리를 안 주는 것입니다.
+    한 엔진만 매수 제안 비율이 유독 낮으면 그 엔진이 병목입니다.
+    {% if consensus.broken %}
+    응답이 깨진 판단 {{ consensus.broken }}건은 집계에서 뺐습니다.
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty">판단 기록이 쌓이면 표시됩니다</div>
+  {% endif %}
+</div>
+
 <!-- ── 엔진별 적중률 ─────────────────────────────────────────── -->
 <div class="card">
   <h2>엔진별 적중률<span class="sub">판단 {{ accuracy.horizon_days }}거래일 뒤 가격으로 채점 · HOLD 는 제외</span></h2>
