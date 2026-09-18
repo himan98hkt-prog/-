@@ -146,13 +146,14 @@ class Notifier:
         text = f"{name}: {agents} → {final}" if agents else f"{name}: {final}"
         if row.get("weight_pct"):
             text += f" {row['weight_pct']}%"
-        if row.get("ordered"):
+        # 실제로 어떻게 됐는지는 outcome 한 줄이 전부 담고 있다(체결·거부·DRY_RUN·
+        # 수량 0주). 여기서 다시 만들면 DRY_RUN 인데도 "매수 13주" 로만 보여,
+        # 요약만 본 사람은 진짜 산 줄 안다.
+        if row.get("outcome"):
+            text += f" → {row['outcome']}"
+        elif row.get("ordered"):        # outcome 이 없던 시절의 기록
             side = "매수" if row.get("side") == "BUY" else "매도"
             text += f" → {side} {row.get('qty', 0):,}주 @{row.get('price', 0):,.0f}"
-        elif row.get("outcome"):
-            # 매수 판단이 났는데 주문이 안 나간 경우. 이유를 적지 않으면
-            # 'STRONG_BUY 20%' 만 덩그러니 남아 왜 안 샀는지 알 수 없다.
-            text += f" → {row['outcome']}"
         return text
 
     def send_error(self, exc: BaseException, context: str = "", *, dedupe: bool = True) -> bool:

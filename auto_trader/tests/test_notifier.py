@@ -262,3 +262,15 @@ def test_a_placed_order_does_not_repeat_the_outcome():
         "outcome": "매수 1주 @176,628원 체결",
     })
     assert text.count("176,628") == 1, "같은 내용을 두 번 적지 않습니다"
+
+
+def test_a_dry_run_order_never_reads_as_a_real_one():
+    """요약만 보는 사람이 '매수 13주' 를 보면 진짜 산 줄 안다."""
+    from utils.notifier import Notifier
+
+    text = Notifier._format_row({
+        "name": "SK하이닉스", "agents": "claude BUY(0.80)", "final_action": "STRONG_BUY",
+        "weight_pct": 20, "ordered": True, "side": "BUY", "qty": 13, "price": 76228,
+        "outcome": "매수 13주 @76,228원 — 기록만 (DRY_RUN, 실제 주문 아님)",
+    })
+    assert "DRY_RUN" in text
