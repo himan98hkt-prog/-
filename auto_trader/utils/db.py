@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS decisions (
     forced_exit       TEXT,
     risk_passed       INTEGER NOT NULL DEFAULT 0,
     risk_reason       TEXT,
+    outcome           TEXT,
     snapshot_json     TEXT,
     created_at        TEXT    NOT NULL
 );
@@ -206,6 +207,8 @@ LATER_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("decisions", "chatgpt_reason", "TEXT"),
     ("decisions", "chatgpt_ok", "INTEGER"),
     ("decisions", "chatgpt_raw", "TEXT"),
+    # 판단이 주문까지 갔는지. 없으면 화면에 "BUY 였는데 왜 안 샀지?" 가 답 없이 남는다.
+    ("decisions", "outcome", "TEXT"),
 )
 
 

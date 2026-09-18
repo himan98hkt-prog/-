@@ -73,6 +73,31 @@ def cycle_times(first: dt_time, interval_min: int, end: dt_time = CYCLE_END) -> 
     return times
 
 
+
+def describe_outcome(final, execution) -> str:
+    """판단이 주문까지 갔는지 한 줄로. 화면의 '비고' 에 그대로 실린다.
+
+    이게 없으면 "세 AI 가 모두 매수라는데 왜 안 샀지?" 에 답이 없다. 판단과 주문
+    사이에는 리스크 검사·수량 계산·DRY_RUN·거래소 거부가 있고, 그중 어디서
+    멈췄는지는 기록해 두지 않으면 나중에 알 길이 없다.
+    """
+    if getattr(final, "action", "HOLD") == "HOLD":
+        return ""
+    if execution is None:
+        return ""                       # 리스크 거부 — 비고에 사유가 따로 실린다
+    if not execution.ordered:
+        return execution.reason or "주문하지 않았습니다"
+
+    side = "매수" if execution.side == "BUY" else "매도"
+    detail = f"{side} {execution.qty:,}주 @{execution.price:,.0f}원"
+    if execution.dry_run:
+        return f"{detail} — 기록만 (DRY_RUN, 실제 주문 아님)"
+    if execution.status == "FILLED":
+        return f"{detail} 체결"
+    if execution.status == "REJECTED":
+        return f"{detail} 거부 — {execution.error or execution.reason}"
+    return f"{detail} {execution.status or '접수'}"
+
 class TradingBot:
     """사이클 실행과 스케줄 관리를 묶은 애플리케이션 객체."""
 
@@ -432,6 +457,7 @@ class TradingBot:
         self.portfolio.record_decision(
             cycle_id=cycle_id, snapshot=snapshot, decisions=decisions, final=final,
             forced_exit=forced, risk_passed=risk_passed, risk_reason=risk_reason,
+            outcome=describe_outcome(final, execution),
         )
         for decision in decisions.values():
             record_ai_usage(

@@ -1173,3 +1173,43 @@ def test_empty_bought_card_explains_why_nothing_was_bought(app, client):
     body = client.get("/").get_data(as_text=True)
     assert "아직 매수한 종목이 없습니다" in body
     assert "모두" in body and "합의 근접도" in body, "왜 비었는지 알려줘야 합니다"
+
+
+def test_folded_cards_do_not_nest_another_card():
+    """카드 안에 카드가 또 그려지면 테두리가 이중으로 보인다."""
+    import re
+
+    page = _page()
+    for body in re.findall(r'<div class="fold-body">(.*?)\n  </div>\n</details>', page, re.S):
+        assert '<div class="card">' not in body
+
+
+def test_remarks_say_what_happened_to_a_buy(app, client):
+    """'세 AI 가 모두 매수라는데 왜 안 샀지?' 에 화면이 답해야 한다."""
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    with session(app.config["DB_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding, claude_action,
+               claude_confidence, claude_ok, final_action, final_weight_pct, final_reason,
+               risk_passed, outcome, created_at)
+               VALUES ('c1','000660','SK하이닉스',0,'BUY',0.75,1,'STRONG_BUY',20,
+                       '전원 매수 합의',1,
+                       '매수 5주 @188,500원 — 기록만 (DRY_RUN, 실제 주문 아님)',
+                       '2026-09-18T11:07:00+09:00')""")
+
+    body = client.get("/").get_data(as_text=True)
+    assert "DRY_RUN, 실제 주문 아님" in body
+
+
+def test_risk_rejection_still_wins_the_remarks_cell(app, client):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    with session(app.config["DB_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, holding, claude_action,
+               claude_confidence, claude_ok, final_action, final_weight_pct, final_reason,
+               risk_passed, risk_reason, outcome, created_at)
+               VALUES ('c1','000660','SK하이닉스',0,'BUY',0.75,1,'STRONG_BUY',20,'합의',
+                       0,'당일 손실 한도 도달','','2026-09-18T11:07:00+09:00')""")
+
+    body = client.get("/").get_data(as_text=True)
+    assert "리스크 거부: 당일 손실 한도 도달" in body

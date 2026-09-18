@@ -186,8 +186,6 @@
 <details class="card fold" id="fold-consensus">
   <summary>합의 근접도<span class="sub">최근 {{ consensus.days }}일 · 매수 몇 표까지 갔는지</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if consensus.ready %}
     <div class="gauges">
       {% for b in consensus.buckets %}
@@ -232,8 +230,6 @@
 <details class="card fold" id="fold-accuracy">
   <summary>엔진별 적중률<span class="sub">판단 {{ accuracy.horizon_days }}거래일 뒤 가격으로 채점 · HOLD 는 제외</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if accuracy.ready %}
     <table>
       <thead>
@@ -268,8 +264,6 @@
 <details class="card fold" id="fold-rationale">
   <summary>보유 종목 매수 사유<span class="sub">살 때 세 AI 가 뭐라고 했는지</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% for p in positions %}
     {% set r = rationale.get(p.code) %}
     {% if r %}
@@ -304,8 +298,6 @@
 <details class="card fold" id="fold-filings">
   <summary>전자공시<span class="sub">보유 종목 최근 30일 · 금융감독원 DART · 매매 판단에는 쓰이지 않습니다</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if filings.ready and filings.filings %}
     <div class="scroll-table" style="--rows: 7">
       <table>
@@ -340,8 +332,6 @@
 <details class="card fold" id="fold-themes">
   <summary>테마별 이슈<span class="sub">한 테마가 통째로 밀리면 종목이 아니라 업황 문제</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if themes %}
     <table>
       <thead>
@@ -376,8 +366,6 @@
 <details class="card fold" id="fold-headroom">
   <summary>리스크 여력<span class="sub">지금 더 살 수 있는지 · 한도에 얼마나 다가섰는지</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     <div class="gauges">
       {% for row in headroom.rows %}
       <div class="gauge">
@@ -408,8 +396,6 @@
 <details class="card fold" id="fold-stats">
   <summary>매매 성적<span class="sub">체결된 매수·매도를 짝지어 계산 · 수수료·세금 반영</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if trade_stats.ready %}
     <div class="bench">
       <div class="bench-col">
@@ -480,8 +466,6 @@
 <details class="card fold" id="fold-benchmark">
   <summary>단순 보유 대비<span class="sub">감시 종목을 그냥 사서 들고만 있었다면</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if benchmark.ready %}
     <div class="bench">
       <div class="bench-col">
@@ -538,8 +522,6 @@
       {%- if decisions %} · 최근 {{ decisions|length }}건{% if decisions|length > 9 %} (표 안에서 스크롤){% endif %}{% endif %}
     </span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if decisions %}
     <div class="scroll-table" style="--rows: 9">
       <table>
@@ -568,7 +550,9 @@
             <td><b>{{ d.final_action }}</b>{% if d.final_weight_pct %} {{ d.final_weight_pct }}%{% endif %}</td>
             <td class="dim">
               {% if d.forced_exit %}<span class="badge stop">{{ d.forced_exit }}</span>{% endif %}
-              {% if not d.risk_passed and d.risk_reason %}리스크 거부: {{ d.risk_reason }}{% endif %}
+              {% if not d.risk_passed and d.risk_reason %}<span class="down">리스크 거부: {{ d.risk_reason }}</span>
+              {% elif d.outcome %}{{ d.outcome }}
+              {% elif d.final_action != 'HOLD' %}<span class="dim">결과 기록 없음 (예전 버전에서 판단)</span>{% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -586,8 +570,6 @@
     <details class="card fold" id="fold-orders">
     <summary>최근 주문</summary>
     <div class="fold-body">
-  <div class="card">
-    
       {% if orders %}
       <div class="scroll-table" style="--rows: 7">
         <table>
@@ -621,8 +603,6 @@
     <details class="card fold" id="fold-blocks">
     <summary>리스크 규칙 차단<span class="sub">AI 판단보다 상위</span></summary>
     <div class="fold-body">
-  <div class="card">
-    
       {% if risk_blocks %}
       <div class="scroll-table" style="--rows: 7">
         <table>
@@ -649,8 +629,6 @@
 <details class="card fold" id="fold-cost">
   <summary>AI 비용 추이<span class="sub">일별 추정 (USD)</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {{ cost_chart|safe }}
   </div>
 </details>
@@ -659,8 +637,6 @@
 <details class="card fold" id="fold-log">
   <summary>최근 로그<span class="sub">오늘 로그 마지막 40줄</span></summary>
   <div class="fold-body">
-  <div class="card">
-  
     {% if logs %}<pre class="log">{{ logs|join('\n') }}</pre>
     {% else %}<div class="chart-empty">오늘 로그가 아직 없습니다</div>{% endif %}
   </div>
@@ -670,9 +646,6 @@
 <details class="card fold" id="fold-control">
   <summary>제어</summary>
   <div class="fold-body">
-  <div class="card">
-  
-
     <div class="mode-bar {{ 'mode-real' if status.kis_env == 'REAL' else 'mode-vts' }}">
       <div>
         현재 <b>{{ '실전 (REAL) — 실제 자금' if status.kis_env == 'REAL' else '모의투자 (VTS) — 가짜 돈' }}</b>

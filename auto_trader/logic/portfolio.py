@@ -315,6 +315,7 @@ class Portfolio:
         forced_exit: str | None = None,
         risk_passed: bool = False,
         risk_reason: str = "",
+        outcome: str = "",
     ) -> int:
         """AI 원문·파싱 결과·최종 결정을 전부 남긴다(사후 검증용)."""
         claude = decisions.get("claude")
@@ -329,8 +330,8 @@ class Portfolio:
                     gemini_action, gemini_confidence, gemini_weight_pct, gemini_reason, gemini_ok, gemini_raw,
                     chatgpt_action, chatgpt_confidence, chatgpt_weight_pct, chatgpt_reason, chatgpt_ok, chatgpt_raw,
                     final_action, final_weight_pct, final_reason, forced_exit,
-                    risk_passed, risk_reason, snapshot_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    risk_passed, risk_reason, outcome, snapshot_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     cycle_id, snapshot.get("code", ""), snapshot.get("name", ""),
                     1 if snapshot.get("position", {}).get("holding") else 0,
@@ -344,7 +345,7 @@ class Portfolio:
                     getattr(chatgpt, "weight_pct", None), getattr(chatgpt, "reason", None),
                     1 if getattr(chatgpt, "ok", False) else 0, getattr(chatgpt, "raw", None),
                     final.action, final.weight_pct, final.reason, forced_exit,
-                    1 if risk_passed else 0, risk_reason,
+                    1 if risk_passed else 0, risk_reason, outcome,
                     json.dumps(snapshot, ensure_ascii=False), now_kst_iso(),
                 ),
             )

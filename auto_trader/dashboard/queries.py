@@ -106,7 +106,8 @@ def positions(db_path: Path | str, stop_loss_pct: float, take_profit_pct: float,
 def recent_decisions(db_path: Path | str, limit: int = 30) -> list[dict[str, Any]]:
     return _rows(
         db_path,
-        """SELECT cycle_id, code, name, holding, claude_action, claude_confidence, claude_ok,
+        """SELECT cycle_id, code, name, holding, outcome,
+                  claude_action, claude_confidence, claude_ok,
                   gemini_action, gemini_confidence, gemini_ok,
                   chatgpt_action, chatgpt_confidence, chatgpt_ok,
                   final_action, final_weight_pct,

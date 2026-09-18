@@ -764,3 +764,70 @@ def test_per_code_call_is_not_repeated_when_batch_answered(bot, monkeypatch):
                       snapshot={"code": "005930", "name": "005930"},
                       forced=None, decisions=None)
     assert called == ["005930"], "판단이 없으면 종목별로 되물어야 합니다"
+
+
+# --- 판단이 주문까지 갔는지 남긴다 ------------------------------------------- #
+
+def _execution(**kw):
+    base = {"ordered": True, "side": "BUY", "qty": 5, "price": 188500.0,
+            "status": "FILLED", "dry_run": False, "reason": "", "error": ""}
+    return SimpleNamespace(**{**base, **kw})
+
+
+def test_hold_leaves_no_outcome():
+    from main import describe_outcome
+
+    assert describe_outcome(FinalDecision(action="HOLD", reason="관망"), None) == ""
+
+
+def test_dry_run_says_no_real_order_went_out():
+    """'세 AI 가 모두 매수였는데 왜 안 샀지?' 의 가장 흔한 답이다."""
+    from main import describe_outcome
+
+    text = describe_outcome(FinalDecision(action="STRONG_BUY", weight_pct=20),
+                            _execution(dry_run=True, status="DRY_RUN"))
+    assert "5주" in text and "DRY_RUN" in text and "실제 주문 아님" in text
+
+
+def test_filled_order_is_stated_plainly():
+    from main import describe_outcome
+
+    text = describe_outcome(FinalDecision(action="STRONG_BUY", weight_pct=20), _execution())
+    assert "매수 5주 @188,500원 체결" == text
+
+
+def test_rejected_order_carries_the_reason():
+    from main import describe_outcome
+
+    text = describe_outcome(FinalDecision(action="STRONG_BUY"),
+                            _execution(status="REJECTED", error="주문가능금액 부족"))
+    assert "거부" in text and "주문가능금액 부족" in text
+
+
+def test_skipped_order_explains_itself():
+    """수량이 0주라 넘어간 경우가 여기 걸린다 — 없으면 화면에 아무 흔적이 없다."""
+    from main import describe_outcome
+
+    text = describe_outcome(FinalDecision(action="STRONG_BUY"),
+                            _execution(ordered=False, status="SKIPPED",
+                                       reason="매수 수량 0주 (가용현금 12,000원)"))
+    assert text == "매수 수량 0주 (가용현금 12,000원)"
+
+
+def test_outcome_reaches_the_record(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    saved: list[str] = []
+    bot.portfolio.record_decision = lambda **kw: saved.append(kw.get("outcome")) or 1
+    bot.executor.execute = lambda *a, **kw: _execution(dry_run=True, status="DRY_RUN")
+    monkeypatch.setattr(main_module, "run_agents_parallel", lambda agents, snapshot, ai: {})
+    monkeypatch.setattr(main_module, "decide",
+                        lambda *a, **kw: FinalDecision(action="STRONG_BUY", weight_pct=20,
+                                                       reason="전원 매수 합의"))
+    monkeypatch.setattr(bot.risk, "check_buy",
+                        lambda *a, **kw: SimpleNamespace(allowed=True, reason=""))
+
+    bot._process_code("000660", bot.state, "c1", datetime.now(KST),
+                      snapshot={"code": "000660", "name": "SK하이닉스",
+                                "price": {"current": 188500}},
+                      forced=None, decisions={})
+    assert saved and "DRY_RUN" in saved[0]
