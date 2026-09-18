@@ -1273,3 +1273,22 @@ def test_a_stopped_bot_is_named_before_anything_else(app, client, monkeypatch):
     assert "자동매매가 꺼져 있습니다" in body
     assert "13:35" in body, "마지막으로 언제 돌았는지 알려줘야 합니다"
     assert "아직 매수한 종목이 없습니다" not in body, "틀린 이유를 대면 안 됩니다"
+
+
+def test_a_rejected_order_is_not_invisible(app, client):
+    """'오늘 주문' 은 거부된 주문을 세지 않는다(체결도 접수도 아니므로).
+
+    그래서 아무 데도 안 보이면, 거래소가 주문을 튕겨내도 화면은 조용하다.
+    실주문을 내기 시작한 지금은 그게 가장 위험한 침묵이다.
+    """
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    with session(app.config["DB_PATH"]) as conn:
+        conn.execute(
+            """INSERT INTO orders (code, name, side, order_type, qty, price, filled_qty,
+               filled_price, status, kis_env, dry_run, error, created_at, updated_at)
+               VALUES ('000660','SK하이닉스','BUY','limit',5,188500,0,0,'REJECTED','VTS',0,
+                       '주문가능금액 부족',?,?)""",
+            (datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),) * 2)
+
+    body = client.get("/").get_data(as_text=True)
+    assert "거부 1" in body

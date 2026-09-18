@@ -93,7 +93,7 @@
   <div class="tile">
     <div class="label">오늘 주문</div>
     <div class="value">{{ o.buy_count + o.sell_count }}</div>
-    <div class="note">매수 {{ o.buy_count }} · 매도 {{ o.sell_count }}{% if o.dry_run_orders %} · DRY_RUN {{ o.dry_run_orders }}{% endif %}</div>
+    <div class="note">매수 {{ o.buy_count }} · 매도 {{ o.sell_count }}{% if o.dry_run_orders %} · DRY_RUN {{ o.dry_run_orders }}{% endif %}{% if o.rejected_orders %} · <span class="down">거부 {{ o.rejected_orders }}</span>{% endif %}</div>
   </div>
   <div class="tile">
     <div class="label">오늘 AI 비용</div>
