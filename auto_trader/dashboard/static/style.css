@@ -1,0 +1,459 @@
+/* 로컬 대시보드 스타일 — 증권 단말(HTS/터미널) 계열.
+ *
+ * 색 규칙은 한국 시장 관행을 따른다: **상승 빨강, 하락 파랑.** 서양 관행(상승 초록)
+ * 과 반대라, 손익을 잘못 읽으면 바로 판단이 틀어진다. 그래서 색만으로 구분하지
+ * 않고 부호(+/-)와 배경 칩을 함께 쓴다 — 색각 이상이 있어도 읽히도록.
+ *
+ * 중립색은 따뜻한 회색 대신 **푸른 기가 도는 그래파이트**를 쓴다. 계기판처럼
+ * 데이터가 앞에 나오고 배경이 뒤로 물러난다.
+ */
+:root {
+  color-scheme: light;
+  --page:           #eef1f5;
+  --surface:        #ffffff;
+  --surface-2:      #f4f6fa;
+  --surface-3:      #e9edf3;
+  --border:         #d7dee8;
+  --border-strong:  #b9c3d1;
+  --text:           #0d1422;
+  --text-2:         #47536a;
+  --muted:          #8a94a6;
+  --grid:           #e3e8ef;
+  --axis:           #b9c3d1;
+
+  --accent:         #1560bd;   /* 기본 강조 — 링크·포커스 */
+  --series-1:       #1560bd;
+  --series-1-soft:  rgba(21, 96, 189, .12);
+
+  /* 한국 시장 관행 */
+  --up:             #d62828;   /* 상승 */
+  --up-soft:        #fdeaea;
+  --down:           #1560bd;   /* 하락 */
+  --down-soft:      #e7f0fb;
+  --flat:           #6b7280;   /* 보합 */
+  --flat-soft:      #eef0f3;
+
+  --good:           #0a7d4b;
+  --warning:        #b06f00;
+  --serious:        #c2540f;
+  --critical:       #c0292b;
+
+  --radius:         6px;
+  --radius-sm:      4px;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0b0e13; --surface: #141920; --surface-2: #1b212b; --surface-3: #232b37;
+    --border: #262d38; --border-strong: #38414f;
+    --text: #e9eef6; --text-2: #9aa5b6; --muted: #6b7686;
+    --grid: #1f2732; --axis: #38414f;
+    --accent: #4d9fff; --series-1: #4d9fff; --series-1-soft: rgba(77, 159, 255, .16);
+    --up: #ff5f5f; --up-soft: rgba(255, 95, 95, .15);
+    --down: #4d9fff; --down-soft: rgba(77, 159, 255, .15);
+    --flat: #8a94a6; --flat-soft: rgba(138, 148, 166, .14);
+    --good: #3ecf8e; --warning: #e0a43c; --serious: #ee8b4f; --critical: #ff6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b0e13; --surface: #141920; --surface-2: #1b212b; --surface-3: #232b37;
+  --border: #262d38; --border-strong: #38414f;
+  --text: #e9eef6; --text-2: #9aa5b6; --muted: #6b7686;
+  --grid: #1f2732; --axis: #38414f;
+  --accent: #4d9fff; --series-1: #4d9fff; --series-1-soft: rgba(77, 159, 255, .16);
+  --up: #ff5f5f; --up-soft: rgba(255, 95, 95, .15);
+  --down: #4d9fff; --down-soft: rgba(77, 159, 255, .15);
+  --flat: #8a94a6; --flat-soft: rgba(138, 148, 166, .14);
+  --good: #3ecf8e; --warning: #e0a43c; --serious: #ee8b4f; --critical: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--text);
+  font: 13.5px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic",
+        "Noto Sans KR", system-ui, sans-serif;
+  /* 숫자가 세로로 줄 맞게 — 단말에서 가장 먼저 눈에 띄는 차이다. */
+  font-variant-numeric: tabular-nums;
+}
+a { color: var(--accent); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 16px 20px 64px; }
+
+/* --- 헤더 --- */
+header.bar {
+  position: sticky; top: 0; z-index: 5; background: var(--surface);
+  border-bottom: 1px solid var(--border-strong); padding: 10px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+header.bar h1 {
+  font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+header.bar nav { display: flex; gap: 4px; margin-left: auto; }
+header.bar nav a, .btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); text-decoration: none; font-size: 12.5px; cursor: pointer;
+  font-family: inherit;
+}
+header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
+.btn:hover, header.bar nav a:hover { background: var(--surface-2); }
+.btn.danger { border-color: var(--critical); color: var(--critical); }
+.btn.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* --- 배지 --- */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .02em;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+}
+.badge.live   { border-color: var(--good);     color: var(--good); }
+.badge.idle   { border-color: var(--muted);    color: var(--muted); }
+.badge.stop   { border-color: var(--critical); color: var(--critical); }
+.badge.warn   { border-color: var(--serious);  color: var(--serious); }
+.badge.dry    { border-color: var(--series-1); color: var(--series-1); }
+
+/* --- 카드 --- */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
+}
+.card > h2 {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  margin: 0 0 12px; font-weight: 700;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.card > h2 .sub {
+  color: var(--muted); font-weight: 400; margin-left: 0;
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+}
+
+/* --- 접히는 카드 ---
+   화면 하나에 스무 개가 늘어서 있으면, 정작 볼 것을 보려고 매번 아래까지
+   끌어내려야 한다. 고정 영역(요약 타일·차트·매수 종목)만 남기고 나머지는
+   접어 둔다. 열고 닫은 상태는 브라우저에 기억시킨다 — 30초마다 새로고침
+   하므로 기억하지 않으면 매번 다시 닫힌다. */
+details.card { padding: 0; }
+details.card > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  padding: 12px 16px;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); font-weight: 700;
+  border-radius: var(--radius);
+}
+details.card > summary::-webkit-details-marker { display: none; }  /* 사파리 기본 삼각형 */
+details.card > summary::before {
+  content: "›"; display: inline-block; margin-right: 2px;
+  font-size: 15px; line-height: 1; color: var(--muted);
+  transition: transform .12s ease;
+}
+details.card[open] > summary::before { transform: rotate(90deg); }
+details.card > summary:hover { background: var(--surface-2); color: var(--text-2); }
+details.card > summary:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+details.card[open] > summary {
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+details.card > summary .sub {
+  color: var(--muted); font-weight: 400;
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+}
+.fold-body { padding: 12px 16px 14px; }
+
+/* --- 매수 종목 (고정) ---
+   "무엇을 샀나 / 왜 샀나 / 지금 어떤가" 를 한자리에서 본다. 표로 늘어놓으면
+   가로로 길어져 사유가 들어갈 자리가 없다. */
+.holdings { display: flex; flex-direction: column; gap: 10px; }
+.holding {
+  border: 1px solid var(--border); border-left: 3px solid var(--series-1);
+  border-radius: var(--radius); padding: 10px 13px; background: var(--surface-2);
+}
+.holding.is-danger { border-left-color: var(--critical); }
+.holding-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.holding-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.holding-top .chip { margin-left: auto; }
+.holding-nums {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 5px; font-size: 12.5px; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.holding-why {
+  margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border);
+  font-size: 12.5px; color: var(--text-2); line-height: 1.55;
+}
+.holding-guard {
+  margin-top: 4px; font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.holding-more { margin-left: 8px; }
+.holdings-empty {
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.6;
+}
+/* 매수 결정은 났는데 DRY_RUN 이라 안 나간 경우. 가장 헷갈리는 상태이므로
+   눈에 띄게 하고, 고치는 방법을 한 번의 클릭 거리에 둔다. */
+.holdings-empty.warn {
+  border: 1px solid var(--serious); border-left-width: 3px;
+  background: color-mix(in srgb, var(--serious) 8%, var(--surface));
+}
+.holdings-fix { margin-top: 9px; }
+.holdings-fix .btn { margin-right: 4px; }
+/* 내용만큼만 높이를 갖게 한다 — stretch 로 두면 빈 칸이 옆 카드 높이까지 늘어난다. */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* --- KPI 타일 --- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; }
+.tile {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  border-top: 2px solid var(--border-strong);   /* 계기판 느낌의 상단 레일 */
+}
+.tile .label {
+  font-size: 10.5px; color: var(--muted); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+}
+.tile .value {
+  font-size: 25px; font-weight: 700; letter-spacing: -.02em;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
+.tile .note  { font-size: 11.5px; color: var(--text-2); margin-top: 5px; }
+/* 손익 타일은 방향에 따라 상단 레일 색이 바뀐다 — 한 눈에 읽히도록 */
+.tile.is-up   { border-top-color: var(--up); }
+.tile.is-down { border-top-color: var(--down); }
+.tile.is-flat { border-top-color: var(--flat); }
+
+.up   { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--flat); }
+
+/* 손익 칩 — 색만으로 구분하지 않도록 배경까지 준다 */
+.chip {
+  display: inline-block; padding: 1px 7px; border-radius: var(--radius-sm);
+  font-family: var(--mono); font-weight: 700; font-size: 12px;
+}
+.chip.up   { background: var(--up-soft);   color: var(--up); }
+.chip.down { background: var(--down-soft); color: var(--down); }
+.chip.flat { background: var(--flat-soft); color: var(--flat); }
+
+/* --- 표 --- */
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+th {
+  color: var(--muted); font-weight: 700; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--border-strong); white-space: nowrap;
+}
+td.num, th.num {
+  text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono);
+}
+th.num { font-family: inherit; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr:last-child td { border-bottom: none; }
+.row-danger td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
+.dim { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+/* --- 계속 쌓이는 표는 칸 안에서만 굴린다 ---
+   판단 기록은 사이클마다 늘어난다. 그대로 두면 카드 하나가 화면을 다 먹어,
+   아래에 있는 주문·리스크를 보려면 한참 내려야 한다. 높이를 묶고 안에서
+   스크롤한다 — 카드의 위치가 고정되니 어디에 뭐가 있는지 외울 수 있다.
+   높이는 --rows 로 조절한다(행 수 기준). */
+.scroll-table {
+  --rows: 9;
+  max-height: calc(var(--rows) * 31px + 30px);   /* 행 높이 + 머리글 */
+  overflow-y: auto;
+  overscroll-behavior: contain;      /* 끝에 닿아도 페이지까지 같이 밀리지 않게 */
+  scrollbar-gutter: stable;          /* 막대 자리를 늘 비워 둔다 — 표 폭이 흔들리지 않게 */
+}
+/* 머리글은 붙여 둔다 — 굴리다 보면 어느 열이 무엇인지 잊는다. */
+.scroll-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface);
+  /* border-collapse 아래에서 sticky 는 테두리를 남기지 않는다 — 그림자로 선을 만든다. */
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border-strong);
+}
+/* 굴러가는 표에서 마지막 행의 선을 지우면 잘린 것처럼 보인다 — 살려 둔다. */
+.scroll-table tbody tr:last-child td { border-bottom: 1px solid var(--border); }
+
+/* 잡아끌 것이 있다는 게 보여야 한다. OS 기본 막대는 굴릴 때만 잠깐 나타나는
+   경우가 있어(오버레이 스크롤바), 항상 보이도록 직접 그린다.
+   scrollbar-width / scrollbar-color 는 **쓰지 않는다** — Chrome 121+ 는 그 둘이
+   있으면 아래 규칙을 통째로 무시하고 다시 오버레이로 돌아간다. */
+.scroll-table::-webkit-scrollbar { width: 12px; }
+.scroll-table::-webkit-scrollbar-track {
+  background: var(--surface-2); border-radius: 6px;
+}
+.scroll-table::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 6px;
+  border: 2px solid var(--surface);
+}
+.scroll-table::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* --- 차트 --- */
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .grid.zero { stroke: var(--axis); }
+.chart .axis { fill: var(--muted); font-size: 11px; }
+.chart .value-label { fill: var(--text-2); font-size: 11px; font-weight: 600; }
+.chart .line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; }
+.chart .area { fill: var(--series-1-soft); stroke: none; }
+.chart .marker { fill: var(--series-1); stroke: var(--surface); stroke-width: 2; }
+.chart .marker:hover { r: 6; }
+.chart .bar { stroke: var(--surface); stroke-width: 2; }
+.chart .bar.up { fill: var(--up); }
+.chart .bar.down { fill: var(--down); }
+.chart .bar.cost { fill: var(--series-1); }
+.chart .bar:hover { filter: brightness(1.12); }
+.chart-empty {
+  padding: 20px 12px; text-align: center; color: var(--muted); font-size: 12.5px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+}
+.empty { padding: 16px 0; color: var(--muted); font-size: 12.5px; }
+
+/* --- 폼 --- */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.field .help { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.field input, .field select {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 13px;
+}
+.field input:focus, .field select:focus { outline: 2px solid var(--series-1); outline-offset: -1px; }
+.field .saved { font-size: 12px; color: var(--good); margin-top: 4px; }
+.field.required label::after { content: " *"; color: var(--critical); }
+.flash {
+  padding: 11px 14px; border-radius: 9px; margin-bottom: 12px; font-size: 13px;
+  white-space: pre-wrap;          /* 로그 꼬리가 줄바꿈 그대로 보이도록 */
+  word-break: break-word;
+  max-height: 320px; overflow: auto;
+}
+.flash.ok   { background: color-mix(in srgb, var(--good) 12%, var(--surface)); border: 1px solid var(--good); }
+.flash.warn { background: color-mix(in srgb, var(--serious) 14%, var(--surface)); border: 1px solid var(--serious); }
+.notice {
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  background: var(--surface-2); padding: 10px 13px; border-radius: var(--radius);
+  margin-bottom: 12px; font-size: 12.5px; color: var(--text-2);
+}
+.notice.danger { border-left-color: var(--critical); }
+.notice strong { display: block; margin-bottom: 3px; color: var(--text); }
+/* 설정 오류 원문처럼 긴 것은 접어 둔다 — 화면을 밀어내면 정작 볼 것을 못 본다. */
+.notice pre, .notice .detail {
+  margin: 6px 0 0; max-height: 120px; overflow: auto; font-size: 11.5px;
+  font-family: var(--mono); color: var(--muted); white-space: pre-wrap;
+}
+pre.log {
+  margin: 0; padding: 12px; background: var(--surface-2); border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+  line-height: 1.5; max-height: 260px; overflow: auto; color: var(--text-2);
+}
+.footnote { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.control-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.control-row form { margin: 0; }
+
+
+/* 실전/모의 전환 바 — 어느 쪽인지 한눈에 보여야 한다 */
+.mode-bar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px; margin-bottom: 14px;
+  border-radius: 8px; border: 1px solid transparent;
+}
+.mode-bar.mode-vts { background: #eef4fb; border-color: #c3d7ef; color: #1d3f66; }
+.mode-bar.mode-real { background: #fdeceb; border-color: #f0b6b2; color: #7d2019; }
+.mode-bar .tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border-radius: 999px; font-size: .82em; background: rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  .mode-bar.mode-vts { background: #17263a; border-color: #2c4a66; color: #bcd4f0; }
+  .mode-bar.mode-real { background: #3a1b18; border-color: #6b2f28; color: #f3b8b2; }
+}
+
+
+/* 비어 있는 설정 항목 목록 */
+.missing-list { margin: 8px 0 12px; padding-left: 20px; }
+.missing-list li { margin: 3px 0; }
+.missing-list code { font-size: .85em; opacity: .7; margin-left: 4px; }
+
+
+/* 진단 화면에서 비어 있는 줄을 눈에 띄게 */
+.row-missing { background: #fdeceb; }
+@media (prefers-color-scheme: dark) { .row-missing { background: #3a1b18; } }
+
+
+/* 비어 있는 필수 칸은 한눈에 보여야 한다 — 회색 예시 글자를 값으로 오해하기 쉽다 */
+.field.is-empty input,
+.field.is-empty select { border-color: #e34948; background: #fdf4f3; }
+@media (prefers-color-scheme: dark) {
+  .field.is-empty input,
+  .field.is-empty select { border-color: #e66767; background: #2b1917; }
+}
+
+/* 단순 보유 대비 — 자동매매가 값을 하는지 한눈에 보는 칸 */
+.bench { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.bench-col {
+  flex: 1 1 120px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.bench-col.bench-edge { border-color: var(--text-2); }
+.bench-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.bench-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bench-col .note { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.bench-foot { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+
+/* 매수 사유 — 내 돈이 왜 들어갔는지 */
+.why { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.why:last-child { border-bottom: none; }
+.why-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 6px; }
+.why-now { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+.why-final { font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+.why-engine {
+  display: grid; grid-template-columns: 62px 74px 1fr;
+  gap: 8px; font-size: 13px; padding: 3px 0; align-items: baseline;
+}
+.why-name { color: var(--muted); }
+.why-act { font-variant-numeric: tabular-nums; font-weight: 600; }
+.why-reason { color: var(--text-2); }
+@media (max-width: 560px) {
+  .why-engine { grid-template-columns: 56px 68px; }
+  .why-reason { grid-column: 1 / -1; }
+}
+
+/* 오류 화면 — 막다른 500 대신 원인을 보여준다 */
+.err-msg { font-size: 15px; color: var(--text); margin: 0 0 16px; }
+.err-h3 { font-size: 13px; color: var(--text-2); margin: 16px 0 6px; }
+.err-steps { margin: 0 0 16px; padding-left: 20px; font-size: 14px; }
+.err-steps li { margin-bottom: 4px; }
+.err-trace {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; font-size: 12px; line-height: 1.5; overflow-x: auto;
+  white-space: pre; color: var(--text-2); margin: 0;
+}
+.err-foot { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+/* 리스크 여력 — 한도에 얼마나 다가섰는지 */
+.gauges { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+.gauge-top { display: flex; justify-content: space-between; align-items: baseline;
+             font-size: 13px; margin-bottom: 4px; }
+.gauge-label { color: var(--muted); }
+.gauge-text { font-variant-numeric: tabular-nums; font-weight: 600; }
+.gauge-track { background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; background: var(--text-2); border-radius: 4px; }
+.gauge-fill.hot { background: var(--down); }
+
+/* 종목 바로가기 — 뉴스·공시는 API 로 끌어오지 않고 원문으로 보낸다 */
+.links { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.links a {
+  font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); text-decoration: none; letter-spacing: .02em;
+}
+.links a:hover { background: var(--surface-3); color: var(--accent); border-color: var(--accent); }
