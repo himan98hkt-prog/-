@@ -239,3 +239,26 @@ def test_alert_without_key_always_sends():
     notifier.send_alert("알림", ["내용"])
     notifier.send_alert("알림", ["내용"])
     assert len(session.posts) == 2
+
+
+def test_cycle_summary_says_why_a_buy_did_not_go_out():
+    """'STRONG_BUY 20%' 만 덩그러니 남으면 왜 안 샀는지 알 수 없다."""
+    from utils.notifier import Notifier
+
+    text = Notifier._format_row({
+        "name": "SK하이닉스", "agents": "claude BUY(0.78)", "final_action": "STRONG_BUY",
+        "weight_pct": 20, "ordered": False,
+        "outcome": "매수 5주 @188,500원 — 기록만 (DRY_RUN, 실제 주문 아님)",
+    })
+    assert "DRY_RUN" in text and "STRONG_BUY 20%" in text
+
+
+def test_a_placed_order_does_not_repeat_the_outcome():
+    from utils.notifier import Notifier
+
+    text = Notifier._format_row({
+        "name": "KB금융", "agents": "claude BUY(0.40)", "final_action": "BUY_SMALL",
+        "weight_pct": 5, "ordered": True, "side": "BUY", "qty": 1, "price": 176628,
+        "outcome": "매수 1주 @176,628원 체결",
+    })
+    assert text.count("176,628") == 1, "같은 내용을 두 번 적지 않습니다"

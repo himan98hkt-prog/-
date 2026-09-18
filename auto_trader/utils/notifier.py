@@ -149,6 +149,10 @@ class Notifier:
         if row.get("ordered"):
             side = "매수" if row.get("side") == "BUY" else "매도"
             text += f" → {side} {row.get('qty', 0):,}주 @{row.get('price', 0):,.0f}"
+        elif row.get("outcome"):
+            # 매수 판단이 났는데 주문이 안 나간 경우. 이유를 적지 않으면
+            # 'STRONG_BUY 20%' 만 덩그러니 남아 왜 안 샀는지 알 수 없다.
+            text += f" → {row['outcome']}"
         return text
 
     def send_error(self, exc: BaseException, context: str = "", *, dedupe: bool = True) -> bool:

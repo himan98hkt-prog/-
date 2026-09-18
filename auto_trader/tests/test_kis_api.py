@@ -537,3 +537,16 @@ def test_server_error_without_json_falls_back_to_body(auth, monkeypatch):
     with pytest.raises(KisApiError) as exc_info:
         api.get_current_price("005930")
     assert "Bad Gateway" in str(exc_info.value)
+
+
+def test_connect_and_read_have_separate_budgets():
+    """연결이 안 되는 것(서버가 죽음)과 느린 것(서버가 바쁨)은 다른 문제다.
+
+    한 값으로 묶어 15초에 끊으면, 모의투자 서버가 살아 있는데도 응답이 조금
+    늦었다는 이유로 매번 'Read timed out' 으로 버리게 된다.
+    """
+    from trading.kis_api import CONNECT_TIMEOUT, HTTP_TIMEOUT, READ_TIMEOUT
+
+    assert HTTP_TIMEOUT == (CONNECT_TIMEOUT, READ_TIMEOUT)
+    assert READ_TIMEOUT > CONNECT_TIMEOUT
+    assert READ_TIMEOUT >= 20, "모의투자 서버는 장중에 수십 초씩 늘어질 때가 있습니다"

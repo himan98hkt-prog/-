@@ -27,7 +27,13 @@ logger = get_logger("kis_api")
 
 KST = ZoneInfo("Asia/Seoul")
 
-HTTP_TIMEOUT = 15
+# 연결은 빨리 포기하고, 응답은 오래 기다린다.
+# 모의투자(VTS) 서버는 장중에 응답이 수십 초씩 늘어질 때가 있다. 한 값으로 묶어
+# 15초에 끊으면, 서버가 살아 있는데도 'Read timed out' 으로 매번 버리게 된다.
+# 연결 자체가 안 되는 것(서버가 죽음)과 느린 것(서버가 바쁨)은 다른 문제다.
+CONNECT_TIMEOUT = 5
+READ_TIMEOUT = 25
+HTTP_TIMEOUT = (CONNECT_TIMEOUT, READ_TIMEOUT)
 MAX_ROWS_PER_DAILY_CALL = 100  # KIS 기간별 시세 1회 최대 100건
 
 # 초당 호출 제한 (여유분 1건씩 뺀 보수적 값)

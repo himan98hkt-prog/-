@@ -74,6 +74,10 @@ def cycle_times(first: dt_time, interval_min: int, end: dt_time = CYCLE_END) -> 
 
 
 
+# 일시적 실패를 이만큼 연달아 겪어야 알린다. KIS 가 한 번 느린 것까지 휴대폰을
+# 울리면, 정작 매매가 멈춘 날의 알림을 그 속에서 놓친다.
+NOTIFY_AFTER_FAILURES = 3
+
 def describe_outcome(final, execution) -> str:
     """판단이 주문까지 갔는지 한 줄로. 화면의 '비고' 에 그대로 실린다.
 
@@ -119,6 +123,7 @@ class TradingBot:
         self.universe: list[str] = list(settings.universe.watchlist)
         self.scheduler: BlockingScheduler | None = None
         self.consecutive_failures = 0
+        self._flaky: dict[str, int] = {}   # 일시적 실패의 연속 횟수
 
         self._cycle_lock = threading.Lock()
         self._shutting_down = False
@@ -339,8 +344,9 @@ class TradingBot:
             try:
                 snapshots[code] = self._collect_snapshot(code, state, now)
             except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
+                # 따로 알리지 않는다. 이 줄은 아래 사이클 요약에 '(오류) …' 로
+                # 그대로 실린다 — 같은 내용을 두 번 울리면 알림이 소음이 된다.
                 logger.exception("%s 시세 수집 실패", code)
-                self.notifier.send_error(exc, context=f"{cycle_label} 사이클 / {code}")
                 failed[code] = {"code": code, "name": code, "error": str(exc)}
 
         # 2단계 — 강제 청산 대상은 AI 에게 묻지 않는다. 되묻는 사이에 더 밀린다.
@@ -368,8 +374,7 @@ class TradingBot:
                     snapshot=snapshots[code], forced=forced[code],
                     decisions=votes_by_code.get(code)))
             except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
-                logger.exception("%s 처리 실패", code)
-                self.notifier.send_error(exc, context=f"{cycle_label} 사이클 / {code}")
+                logger.exception("%s 처리 실패", code)   # 요약에 실리므로 따로 알리지 않는다
                 results.append({"code": code, "name": code, "error": str(exc)})
         return results
 
@@ -454,10 +459,11 @@ class TradingBot:
                 state.apply_execution(code, snapshot.get("name", code), execution.side,
                                       execution.qty, execution.price)
 
+        outcome = describe_outcome(final, execution)
         self.portfolio.record_decision(
             cycle_id=cycle_id, snapshot=snapshot, decisions=decisions, final=final,
             forced_exit=forced, risk_passed=risk_passed, risk_reason=risk_reason,
-            outcome=describe_outcome(final, execution),
+            outcome=outcome,
         )
         for decision in decisions.values():
             record_ai_usage(
@@ -476,6 +482,8 @@ class TradingBot:
             "side": execution.side if execution else "",
             "qty": execution.qty if execution else 0,
             "price": execution.price if execution else 0,
+            # 매수 판단이 주문까지 못 간 이유. 휴대폰에서도 "왜 안 샀지" 가 풀리게.
+            "outcome": outcome,
         }
 
     def _check_daily_loss_limit(self, state) -> None:
@@ -530,13 +538,37 @@ class TradingBot:
             logger.debug("정규 사이클 진행 중 — 손절 감시를 건너뜁니다")
             return []
         try:
-            return self._run_guard_body()
+            results = self._run_guard_body()
         except Exception as exc:  # 감시가 죽어도 정규 사이클은 계속 돈다
             logger.exception("손절 감시 실패")
-            self.notifier.send_error(exc, context="손절 감시")
+            self._report_flaky(exc, context="손절 감시", key="guard")
             return []
+        else:
+            self._clear_flaky("guard", context="손절 감시")
+            return results
         finally:
             self._cycle_lock.release()
+
+    def _report_flaky(self, exc: BaseException, *, context: str, key: str) -> None:
+        """일시적 실패. **연달아** 반복될 때만 휴대폰을 울린다.
+
+        KIS 가 한 번 느린 것(Read timed out)과 계좌가 막힌 것은 전혀 다른 일이다.
+        전자까지 알리면 알림이 소음이 되어, 정작 봐야 할 것을 놓친다. 로그에는
+        언제나 남으므로 기록이 사라지지는 않는다 — 알림만 참는다.
+        """
+        self._flaky[key] = self._flaky.get(key, 0) + 1
+        count = self._flaky[key]
+        if count < NOTIFY_AFTER_FAILURES:
+            logger.warning("%s 일시 실패 %d회 — %d회 연속이면 알립니다: %s",
+                           context, count, NOTIFY_AFTER_FAILURES, exc)
+            return
+        self.notifier.send_error(exc, context=f"{context} — {count}회 연속 실패")
+
+    def _clear_flaky(self, key: str, *, context: str = "") -> None:
+        """성공했으면 연속 실패 수를 지운다 — 띄엄띄엄 나는 실패는 알림 대상이 아니다."""
+        if self._flaky.pop(key, 0) >= NOTIFY_AFTER_FAILURES:
+            logger.info("%s 정상으로 돌아왔습니다", context or key)
+            self.notifier.send(f"✅ {context or key} 정상으로 돌아왔습니다")
 
     def _run_guard_body(self) -> list[dict[str, Any]]:
         now = datetime.now(KST)

@@ -92,7 +92,8 @@ def bot(settings_obj, tmp_path, monkeypatch):
 
 
 def stub_processing(bot, monkeypatch, *, action="HOLD", raises=None):
-    """_process_code 를 단순화한다."""
+    """_process_code 를 단순화한다. AI 호출도 함께 막는다."""
+    monkeypatch.setattr(main_module, "run_agents_batch", lambda agents, snaps, ai: {})
 
     def fake_process(code, state, cycle_id, now, **_):
         if raises:
@@ -153,7 +154,10 @@ def test_one_code_failure_does_not_stop_cycle(bot, monkeypatch):
     results = bot.run_cycle()
     assert len(results) == 2
     assert results[0]["error"] and results[1]["final_action"] == "HOLD"
-    assert any(text.startswith("error:") for text in bot.sent)
+    # 사이클 요약에 '(오류) …' 로 실리므로 따로 울리지 않는다 — 같은 내용을
+    # 두 번 보내면 알림이 소음이 되어 정작 봐야 할 것을 놓친다.
+    assert not any(text.startswith("error:") for text in bot.sent)
+    assert any(text.startswith("summary:") for text in bot.sent)
     assert bot.consecutive_failures == 0, "종목 단위 실패는 사이클 실패가 아닙니다"
 
 
@@ -674,9 +678,9 @@ def test_cycle_shows_every_candidate_at_once(bot, monkeypatch):
     """종목별로 따로 물으면 절대평가가 된다 — 한 번에 보여줘야 비교가 된다."""
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     seen: list[list[str]] = []
+    stub_processing(bot, monkeypatch)        # run_agents_batch 도 덮으므로 먼저 부른다
     monkeypatch.setattr(main_module, "run_agents_batch",
                         lambda agents, snaps, ai: seen.append([s["code"] for s in snaps]) or {})
-    stub_processing(bot, monkeypatch)
     bot.universe = ["005930", "000660", "035420"]
 
     bot.run_cycle()
@@ -687,12 +691,12 @@ def test_forced_exits_are_not_sent_to_the_ai(bot, monkeypatch):
     """손절·트레일링은 되묻는 사이에 더 밀린다. 물어볼 후보에서 빠져야 한다."""
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     seen: list[list[str]] = []
+    stub_processing(bot, monkeypatch)        # run_agents_batch 도 덮으므로 먼저 부른다
     monkeypatch.setattr(main_module, "run_agents_batch",
                         lambda agents, snaps, ai: seen.append([s["code"] for s in snaps]) or {})
     monkeypatch.setattr(bot.risk, "check_forced_exit",
                         lambda position: "STOP_LOSS" if position == "hit" else None)
     bot.state.get = lambda code: "hit" if code == "005930" else None
-    stub_processing(bot, monkeypatch)
     bot.universe = ["005930", "000660", "035420"]
 
     bot.run_cycle()
@@ -831,3 +835,66 @@ def test_outcome_reaches_the_record(bot, monkeypatch):
                                 "price": {"current": 188500}},
                       forced=None, decisions={})
     assert saved and "DRY_RUN" in saved[0]
+
+
+# --- 알림이 소음이 되지 않게 --------------------------------------------- #
+
+def test_one_slow_kis_response_does_not_ring_the_phone(bot, monkeypatch):
+    """Read timed out 한 번은 다음 감시에서 대개 저절로 풀린다."""
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: True)
+    monkeypatch.setattr(bot, "_run_guard_body",
+                        lambda: (_ for _ in ()).throw(KisApiError("balance 요청 실패: Read timed out")))
+
+    bot.guard_cycle()
+    bot.guard_cycle()
+    assert not any(t.startswith("error:") for t in bot.sent), "두 번까지는 참아야 합니다"
+
+
+def test_a_stuck_guard_does_ring_the_phone(bot, monkeypatch):
+    """계속 막혀 있으면 손절 감시가 죽은 것이다 — 이건 알려야 한다."""
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: True)
+    monkeypatch.setattr(bot, "_run_guard_body",
+                        lambda: (_ for _ in ()).throw(KisApiError("balance 요청 실패")))
+
+    for _ in range(main_module.NOTIFY_AFTER_FAILURES):
+        bot.guard_cycle()
+    assert any("연속 실패" in t for t in bot.sent)
+
+
+def test_recovery_resets_the_counter_and_says_so(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: True)
+    failing = True
+
+    def body():
+        if failing:
+            raise KisApiError("balance 요청 실패")
+        return []
+
+    monkeypatch.setattr(bot, "_run_guard_body", body)
+    for _ in range(main_module.NOTIFY_AFTER_FAILURES):
+        bot.guard_cycle()
+    assert any("연속 실패" in t for t in bot.sent)
+
+    failing = False
+    bot.sent.clear()
+    bot.guard_cycle()
+    assert any("정상으로 돌아왔습니다" in t for t in bot.sent)
+
+    # 회복을 알린 뒤에는 처음부터 다시 센다 — 한 번 더 실패했다고 또 울리면 안 된다.
+    failing = True
+    bot.sent.clear()
+    bot.guard_cycle()
+    assert not any(t.startswith("error:") for t in bot.sent)
+
+
+def test_quiet_recovery_after_a_single_hiccup(bot, monkeypatch):
+    """한 번 실패하고 곧 회복한 것은 알릴 일이 아니다 — 그것까지 울리면 소음이다."""
+    monkeypatch.setattr(main_module, "is_market_open", lambda *a, **kw: True)
+    monkeypatch.setattr(bot, "_run_guard_body",
+                        lambda: (_ for _ in ()).throw(KisApiError("일시 실패")))
+    bot.guard_cycle()
+
+    monkeypatch.setattr(bot, "_run_guard_body", lambda: [])
+    bot.sent.clear()
+    bot.guard_cycle()
+    assert bot.sent == []
