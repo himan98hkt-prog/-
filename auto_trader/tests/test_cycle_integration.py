@@ -58,7 +58,7 @@ class FixedAgent(BaseAgent):
     def analyze(self, payload):
         return self._decision
 
-    def _call_model(self, system_prompt, user_prompt):  # 사용되지 않음
+    def _call_model(self, system_prompt, user_prompt, schema=None):  # 사용되지 않음
         raise NotImplementedError
 
 

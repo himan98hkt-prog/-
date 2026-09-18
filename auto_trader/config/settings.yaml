@@ -68,6 +68,13 @@ ai:
   timeout_sec: 60
   max_retries: 2
   min_confidence: 0.6                 # 두 AI 모두 이 값 이상이어야 STRONG_BUY 인정
+  # 후보를 한꺼번에 주고 **서로 비교**하게 한다(상대평가).
+  # 종목을 하나씩 물으면 "이거 살 만한가" 라는 절대평가가 되고, 그 기준선은 높아
+  # 대부분의 날은 아무도 못 넘어 답이 관망으로 쏠린다. 실제 자금은 "이 중 어디에"
+  # 로 배분되므로 후보를 함께 보여준다. false 면 예전처럼 종목별로 따로 묻는다.
+  compare_candidates: true
+  max_buy_picks: 3                    # 한 번에 매수 제안을 줄 수 있는 상한
+  batch_timeout_sec: 180              # 후보 전부를 한 번에 볼 때의 대기 한도(초)
   news_max_items: 5
   news_lookback_hours: 24
   # 모델별 100만 토큰당 단가 [입력, 출력] USD — 대시보드 비용 추정에 쓰인다.

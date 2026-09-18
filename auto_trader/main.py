@@ -30,7 +30,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from agents.base_agent import BaseAgent, run_agents_parallel
+from agents.base_agent import BaseAgent, run_agents_batch, run_agents_parallel
 from agents.claude_agent import ClaudeAgent
 from agents.gemini_agent import GeminiAgent
 from agents.openai_agent import OpenAiAgent
@@ -302,21 +302,55 @@ class TradingBot:
             return []
 
         results: list[dict[str, Any]] = []
+
+        # 1단계 — 시세를 먼저 모두 모은다. AI 에게 후보를 **함께** 보여주려면
+        # 개별 처리를 시작하기 전에 전부 손에 쥐고 있어야 한다.
+        snapshots: dict[str, dict[str, Any]] = {}
+        failed: dict[str, dict[str, Any]] = {}
         for code in codes:
             if self._shutting_down:
                 logger.info("종료 요청 — 남은 종목 처리를 중단합니다")
                 break
             try:
-                results.append(self._process_code(code, state, cycle_id, now))
+                snapshots[code] = self._collect_snapshot(code, state, now)
+            except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
+                logger.exception("%s 시세 수집 실패", code)
+                self.notifier.send_error(exc, context=f"{cycle_label} 사이클 / {code}")
+                failed[code] = {"code": code, "name": code, "error": str(exc)}
+
+        # 2단계 — 강제 청산 대상은 AI 에게 묻지 않는다. 되묻는 사이에 더 밀린다.
+        forced = {code: self.risk.check_forced_exit(state.get(code)) for code in snapshots}
+        ask = [snapshots[code] for code in snapshots
+               if forced[code] not in ("STOP_LOSS", "TRAILING_STOP")]
+
+        # 3단계 — 후보를 한꺼번에 보여주고 서로 비교하게 한다(상대평가).
+        votes_by_code = self._collect_votes(ask)
+
+        # 4단계 — 종목별 리스크·주문·기록. 순서대로 돌아야 앞 종목의 체결이
+        # 뒤 종목의 한도 계산에 반영된다.
+        for code in codes:   # 결과 순서는 입력 순서 그대로 — 보유 종목이 먼저다
+            if code in failed:
+                results.append(failed[code])
+                continue
+            if code not in snapshots:      # 종료 요청으로 수집이 중단된 뒤쪽
+                continue
+            if self._shutting_down:
+                logger.info("종료 요청 — 남은 종목 처리를 중단합니다")
+                break
+            try:
+                results.append(self._process_code(
+                    code, state, cycle_id, now,
+                    snapshot=snapshots[code], forced=forced[code],
+                    decisions=votes_by_code.get(code)))
             except Exception as exc:  # 종목 단위 예외 — 사이클은 계속된다
                 logger.exception("%s 처리 실패", code)
                 self.notifier.send_error(exc, context=f"{cycle_label} 사이클 / {code}")
                 results.append({"code": code, "name": code, "error": str(exc)})
         return results
 
-    def _process_code(self, code: str, state, cycle_id: str, now: datetime) -> dict[str, Any]:
-        position = state.get(code)
+    def _collect_snapshot(self, code: str, state, now: datetime) -> dict[str, Any]:
         snapshot = collect(code, self.api, self.settings, holding=None, now=now)
+        position = state.get(code)
         if position:  # 보유 정보는 잔고를 진실로 삼는다
             snapshot["position"] = {"holding": True, "qty": position.qty,
                                     "avg_price": position.avg_price, "pnl_pct": position.pnl_pct}
@@ -327,17 +361,40 @@ class TradingBot:
             name=snapshot.get("name", code),
             price=float(snapshot.get("price", {}).get("current") or 0),
         )
+        return snapshot
 
-        forced = self.risk.check_forced_exit(position)
-        decisions: dict[str, AgentDecision] = {}
+    def _collect_votes(self, snapshots: list[dict[str, Any]]
+                       ) -> dict[str, dict[str, AgentDecision]]:
+        """후보 전부를 한 번에 판단시킨다. 끄면 None 을 돌려 종목별로 묻게 한다.
+
+        후보가 하나뿐이면 비교할 것이 없으므로 예전 방식이 그대로 낫다.
+        """
+        if not snapshots:
+            return {}
+        if not self.settings.ai.compare_candidates or len(snapshots) < 2:
+            return {}
+        return run_agents_batch(self.agents, snapshots, self.settings.ai)
+
+    def _process_code(self, code: str, state, cycle_id: str, now: datetime, *,
+                      snapshot: dict[str, Any] | None = None,
+                      forced: str | None = None,
+                      decisions: dict[str, AgentDecision] | None = None) -> dict[str, Any]:
+        position = state.get(code)
+        if snapshot is None:
+            snapshot = self._collect_snapshot(code, state, now)
+        if forced is None:
+            forced = self.risk.check_forced_exit(position)
+        decisions = dict(decisions or {})
 
         if forced in ("STOP_LOSS", "TRAILING_STOP"):
             # 손절·트레일링은 AI 판단을 건너뛴다. 되묻는 사이에 더 밀린다.
+            decisions = {}
             reason = ("손절선 도달(강제 청산)" if forced == "STOP_LOSS"
                       else "고점 대비 하락(트레일링 청산)")
             final = FinalDecision(action="SELL_ALL", reason=reason, sell_ratio=1.0)
         else:
-            decisions = run_agents_parallel(self.agents, snapshot, self.settings.ai)
+            if not decisions:   # 상대평가를 끈 경우·후보가 하나인 경우
+                decisions = run_agents_parallel(self.agents, snapshot, self.settings.ai)
             # 호출조차 못 한 엔진도 '판단 없음' 으로 세어야 만장일치가 느슨해지지 않는다.
             votes = [
                 decisions.get(agent.name) or AgentDecision.hold(agent.name, "호출 없음")

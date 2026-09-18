@@ -67,6 +67,7 @@ USER_EDITABLE = ("config/settings.yaml", "config/holidays.txt")
 # tests/test_updater.py 가 현재 버전이 이 목록에 있는지 확인한다.
 SHIPPED_DEFAULTS: dict[str, set[str]] = {
     "config/settings.yaml": {
+        "f266707c74ebc98b73080d850245647b437c92bbc007761e3147501476cf8caa",
         "185d5b8c334703a5409980cefcca342fcef652c1ea18d2ee76101f0e83c50b76",
         "18ba5a55fc2152631c80a4a300f4a4f57d9efa1b4cd640f9aeb55a054d19994d",
         "59d0ea86eba41aa75fbafe10e97939d0dae6dc2190c6a0ab1d0d4844fd891398",

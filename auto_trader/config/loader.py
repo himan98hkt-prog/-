@@ -188,8 +188,25 @@ class AiConfig:
     min_confidence: float
     news_max_items: int
     news_lookback_hours: int
+    # 후보를 한꺼번에 주고 **서로 비교**하게 한다(상대평가). 끄면 예전처럼 종목을
+    # 하나씩 따로 묻는다 — 절대평가라 판단이 관망 쪽으로 쏠린다.
+    compare_candidates: bool = True
+    max_buy_picks: int = 3          # 상대평가 한 번에 BUY 를 줄 수 있는 상한
+    batch_timeout_sec: int = 180    # 후보 전부를 한 번에 볼 때의 대기 한도
     # 모델별 100만 토큰당 단가 (입력, 출력) USD. 비우면 내장 기본표를 쓴다.
     pricing: dict[str, tuple[float, float]] = field(default_factory=dict)
+
+    @property
+    def client_timeout_sec(self) -> int:
+        """SDK 클라이언트에 걸 대기 한도.
+
+        클라이언트는 한 번 만들면 계속 쓰므로, 상대평가를 켠 경우 더 긴 쪽에
+        맞춰야 한다 — 10종목을 한 번에 보는 호출이 60초에 잘리면 매 사이클
+        전부 폴백으로 떨어진다.
+        """
+        if not self.compare_candidates:
+            return self.timeout_sec
+        return max(self.timeout_sec, self.batch_timeout_sec)
 
 
 @dataclass(frozen=True)
@@ -520,6 +537,13 @@ def _load_ai(raw: dict[str, Any], errors: list[str]) -> AiConfig:
         min_confidence=_num(section, "min_confidence", "ai", errors, cast=float, minimum=0.0, maximum=1.0),
         news_max_items=_num(section, "news_max_items", "ai", errors, minimum=0, maximum=50),
         news_lookback_hours=_num(section, "news_lookback_hours", "ai", errors, minimum=1, maximum=720),
+        compare_candidates=_parse_bool(
+            str(section["compare_candidates"]) if "compare_candidates" in section else None,
+            default=True, key="ai.compare_candidates", errors=errors),
+        max_buy_picks=_num(section, "max_buy_picks", "ai", errors,
+                           minimum=1, maximum=20, default=3),
+        batch_timeout_sec=_num(section, "batch_timeout_sec", "ai", errors,
+                               minimum=10, maximum=900, default=180),
         pricing=_load_pricing(section, errors),
     )
 

@@ -50,7 +50,7 @@ class ScriptedAgent(BaseAgent):
         self.delay = delay
         self.prompts: list[str] = []
 
-    def _call_model(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_model(self, system_prompt: str, user_prompt: str, schema=None) -> str:
         self.prompts.append(user_prompt)
         if self.delay:
             time.sleep(self.delay)
@@ -236,7 +236,7 @@ def test_unexpected_exception_becomes_hold():
     class Exploding(BaseAgent):
         name = "gemini"
 
-        def _call_model(self, system_prompt, user_prompt):
+        def _call_model(self, system_prompt, user_prompt, schema=None):
             raise RuntimeError("예기치 못한 오류")
 
     results = run_agents_parallel([Exploding(AI)], SNAPSHOT, AI)

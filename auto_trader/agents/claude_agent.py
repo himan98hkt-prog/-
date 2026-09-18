@@ -9,7 +9,7 @@ from __future__ import annotations
 import anthropic
 
 from agents.base_agent import AgentCallError, BaseAgent
-from agents.prompts import RESPONSE_JSON_SCHEMA
+from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
 from utils.logger import get_logger, register_secret
@@ -18,6 +18,9 @@ logger = get_logger("claude_agent")
 
 # 응답 JSON 자체는 짧지만, 최신 모델은 사고(thinking) 토큰도 max_tokens 를 함께 쓴다.
 MAX_TOKENS = 8000
+# 후보 전부를 한 번에 볼 때는 답이 종목 수만큼 길어진다. 모자라면 JSON 이 중간에
+# 잘려 파싱 실패로 떨어지고, 종목별 호출로 되돌아가 비용만 두 배가 된다.
+BATCH_MAX_TOKENS = 24000
 SDK_MAX_RETRIES = 1  # 429/5xx 재시도. 나머지 재시도는 base_agent 가 담당한다.
 
 
@@ -33,18 +36,20 @@ class ClaudeAgent(BaseAgent):
         register_secret(env.anthropic_api_key)
         self.client = client or anthropic.Anthropic(
             api_key=env.anthropic_api_key,
-            timeout=float(ai.timeout_sec),
+            timeout=float(ai.client_timeout_sec),
             max_retries=SDK_MAX_RETRIES,
         )
 
-    def _request_kwargs(self, system_prompt: str, user_prompt: str, *, with_temperature: bool) -> dict:
-        output_config: dict = {"format": {"type": "json_schema", "schema": RESPONSE_JSON_SCHEMA}}
+    def _request_kwargs(self, system_prompt: str, user_prompt: str, schema: dict, *,
+                        with_temperature: bool) -> dict:
+        output_config: dict = {"format": {"type": "json_schema", "schema": schema}}
         if self.effort:
             output_config["effort"] = self.effort
 
         kwargs: dict = {
             "model": self.model,
-            "max_tokens": MAX_TOKENS,
+            "max_tokens": (BATCH_MAX_TOKENS if schema is BATCH_RESPONSE_JSON_SCHEMA
+                           else MAX_TOKENS),
             "system": system_prompt,
             "messages": [{"role": "user", "content": user_prompt}],
             "output_config": output_config,
@@ -53,12 +58,15 @@ class ClaudeAgent(BaseAgent):
             kwargs["temperature"] = self.temperature
         return kwargs
 
-    def _call_model(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_model(self, system_prompt: str, user_prompt: str,
+                    schema: dict | None = None) -> str:
+        schema = schema or RESPONSE_JSON_SCHEMA
         send_temperature = self.temperature is not None
         for _ in range(2):  # temperature 거부 시 한 번만 제외하고 재시도
             try:
                 response = self.client.messages.create(
-                    **self._request_kwargs(system_prompt, user_prompt, with_temperature=send_temperature)
+                    **self._request_kwargs(system_prompt, user_prompt, schema,
+                                           with_temperature=send_temperature)
                 )
             except anthropic.BadRequestError as exc:
                 if send_temperature and "temperature" in str(exc).lower():

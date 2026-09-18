@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import main as main_module
+from agents.schemas import AgentDecision
 from logic.decision_maker import FinalDecision
 from main import MAX_CONSECUTIVE_FAILURES, TradingBot, cycle_times
 from trading.kis_api import KisApiError
@@ -83,13 +84,17 @@ def bot(settings_obj, tmp_path, monkeypatch):
     instance.sent = sent
     instance.synced = synced
     instance.state = state
+    # 사이클은 이제 시세를 **먼저 전부** 모은 뒤 종목별 처리로 넘어간다(상대평가).
+    # 여기 테스트들은 그 뒤의 흐름을 보므로 수집은 대역으로 둔다.
+    instance._collect_snapshot = lambda code, state, now: {
+        "code": code, "name": code, "price": {"current": 70_000}}
     return instance
 
 
 def stub_processing(bot, monkeypatch, *, action="HOLD", raises=None):
     """_process_code 를 단순화한다."""
 
-    def fake_process(code, state, cycle_id, now):
+    def fake_process(code, state, cycle_id, now, **_):
         if raises:
             raise raises
         return {"code": code, "name": code, "final_action": action, "ordered": False}
@@ -138,7 +143,7 @@ def test_one_code_failure_does_not_stop_cycle(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     bot.universe = ["005930", "000660"]
 
-    def fake_process(code, state, cycle_id, now):
+    def fake_process(code, state, cycle_id, now, **_):
         if code == "005930":
             raise KisApiError("시세 조회 실패")
         return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
@@ -156,7 +161,7 @@ def test_eod_review_targets_holdings_only(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     processed: list[str] = []
 
-    def fake_process(code, state, cycle_id, now):
+    def fake_process(code, state, cycle_id, now, **_):
         processed.append(code)
         return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
 
@@ -228,7 +233,7 @@ def test_signal_waits_for_running_cycle(bot, monkeypatch):
     cycle_entered = threading.Event()
     allow_finish = threading.Event()
 
-    def slow_process(code, state, cycle_id, now):
+    def slow_process(code, state, cycle_id, now, **_):
         cycle_entered.set()
         allow_finish.wait(2)
         return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
@@ -324,7 +329,7 @@ def test_holdings_are_always_processed_first(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     processed: list[str] = []
 
-    def fake_process(code, state, cycle_id, now):
+    def fake_process(code, state, cycle_id, now, **_):
         processed.append(code)
         return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
 
@@ -340,7 +345,7 @@ def test_holdings_are_always_processed_first(bot, monkeypatch):
 def test_held_code_in_universe_is_not_duplicated(bot, monkeypatch):
     monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
     processed: list[str] = []
-    monkeypatch.setattr(bot, "_process_code", lambda code, *a: (
+    monkeypatch.setattr(bot, "_process_code", lambda code, *a, **kw: (
         processed.append(code), {"code": code, "name": code, "final_action": "HOLD", "ordered": False})[1])
     bot.universe = ["005930", "000660"]
     bot.state.positions = {"005930": object()}
@@ -361,7 +366,7 @@ def test_executed_order_updates_state_within_cycle(settings_obj, bot, monkeypatc
 
     seen_cash: list[float] = []
 
-    def fake_process(code, state, cycle_id, now):
+    def fake_process(code, state, cycle_id, now, **_):
         seen_cash.append(state.cash)
         state.apply_execution(code, code, "BUY", 10, 70_000)
         return {"code": code, "name": code, "final_action": "STRONG_BUY", "ordered": True}
@@ -656,3 +661,106 @@ def test_shutdown_request_from_before_startup_is_ignored(bot, monkeypatch):
     _time.sleep(0.2)
     assert not done, "기동 전에 남은 요청으로 내려갔습니다"
     assert not request.exists(), "묵은 요청 파일을 치우지 않았습니다"
+
+
+# --- 상대평가: 후보를 한꺼번에 본다 ------------------------------------------ #
+
+def _with_ai(bot, **changes):
+    from dataclasses import replace
+    bot.settings = replace(bot.settings, ai=replace(bot.settings.ai, **changes))
+
+
+def test_cycle_shows_every_candidate_at_once(bot, monkeypatch):
+    """종목별로 따로 물으면 절대평가가 된다 — 한 번에 보여줘야 비교가 된다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    seen: list[list[str]] = []
+    monkeypatch.setattr(main_module, "run_agents_batch",
+                        lambda agents, snaps, ai: seen.append([s["code"] for s in snaps]) or {})
+    stub_processing(bot, monkeypatch)
+    bot.universe = ["005930", "000660", "035420"]
+
+    bot.run_cycle()
+    assert seen == [["005930", "000660", "035420"]]
+
+
+def test_forced_exits_are_not_sent_to_the_ai(bot, monkeypatch):
+    """손절·트레일링은 되묻는 사이에 더 밀린다. 물어볼 후보에서 빠져야 한다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    seen: list[list[str]] = []
+    monkeypatch.setattr(main_module, "run_agents_batch",
+                        lambda agents, snaps, ai: seen.append([s["code"] for s in snaps]) or {})
+    monkeypatch.setattr(bot.risk, "check_forced_exit",
+                        lambda position: "STOP_LOSS" if position == "hit" else None)
+    bot.state.get = lambda code: "hit" if code == "005930" else None
+    stub_processing(bot, monkeypatch)
+    bot.universe = ["005930", "000660", "035420"]
+
+    bot.run_cycle()
+    assert seen == [["000660", "035420"]], "손절 대상까지 물으면 토큰만 쓰고 늦어집니다"
+
+
+def test_a_single_candidate_skips_the_comparison(bot, monkeypatch):
+    """비교할 상대가 없으면 예전 방식이 그대로 낫다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    called: list[int] = []
+    monkeypatch.setattr(main_module, "run_agents_batch",
+                        lambda agents, snaps, ai: called.append(1) or {})
+    stub_processing(bot, monkeypatch)
+    bot.universe = ["005930"]
+
+    bot.run_cycle()
+    assert not called
+
+
+def test_comparison_can_be_turned_off(bot, monkeypatch):
+    """매매 방식을 바꾸는 설정이다 — 코드를 고치지 않고 되돌릴 수 있어야 한다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    called: list[int] = []
+    monkeypatch.setattr(main_module, "run_agents_batch",
+                        lambda agents, snaps, ai: called.append(1) or {})
+    _with_ai(bot, compare_candidates=False)
+    stub_processing(bot, monkeypatch)
+    bot.universe = ["005930", "000660", "035420"]
+
+    bot.run_cycle()
+    assert not called
+
+
+def test_batch_votes_reach_the_per_code_step(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    votes = {"005930": {"claude": AgentDecision.hold("claude", "")},
+             "000660": {"claude": AgentDecision.hold("claude", "")}}
+    monkeypatch.setattr(main_module, "run_agents_batch", lambda agents, snaps, ai: votes)
+
+    got: list[dict | None] = []
+
+    def fake_process(code, state, cycle_id, now, **kw):
+        got.append(kw.get("decisions"))
+        return {"code": code, "name": code, "final_action": "HOLD", "ordered": False}
+
+    monkeypatch.setattr(bot, "_process_code", fake_process)
+    bot.universe = ["005930", "000660"]
+
+    bot.run_cycle()
+    assert got == [votes["005930"], votes["000660"]]
+
+
+def test_per_code_call_is_not_repeated_when_batch_answered(bot, monkeypatch):
+    """배치가 답했는데 종목별로 또 부르면 비용이 두 배가 된다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    called: list[str] = []
+    monkeypatch.setattr(main_module, "run_agents_parallel",
+                        lambda agents, snapshot, ai: called.append(snapshot["code"]) or {})
+    monkeypatch.setattr(bot, "_collect_snapshot",
+                        lambda code, state, now: {"code": code, "name": code,
+                                                  "price": {"current": 70_000}})
+    vote = {"claude": AgentDecision.hold("claude", "")}
+    bot._process_code("005930", bot.state, "c1", datetime.now(KST),
+                      snapshot={"code": "005930", "name": "005930"},
+                      forced=None, decisions=vote)
+    assert not called
+
+    bot._process_code("005930", bot.state, "c1", datetime.now(KST),
+                      snapshot={"code": "005930", "name": "005930"},
+                      forced=None, decisions=None)
+    assert called == ["005930"], "판단이 없으면 종목별로 되물어야 합니다"

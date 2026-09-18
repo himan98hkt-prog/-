@@ -5,6 +5,7 @@ AI 응답을 신뢰할 수 없으면 기본 행동은 **항상 HOLD**다(절대 
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -108,3 +109,46 @@ def validate_payload(payload: Any, agent: str, raw: str = "") -> AgentDecision:
         raw=raw[:RAW_MAX_CHARS],
         ok=True,
     )
+
+
+def validate_batch_payload(payload: Any, agent: str, codes: list[str],
+                           raw: str = "") -> dict[str, AgentDecision]:
+    """상대평가 응답 `{"picks": [...]}` → 종목코드별 AgentDecision.
+
+    빠진 종목이 하나라도 있으면 `SchemaError` 다. 조용히 HOLD 로 채우면
+    "모델이 관망했다" 와 "모델이 빠뜨렸다" 가 구분되지 않는다 — 전자는 판단이고
+    후자는 고장이다. 섞이면 합의 통계도, 엔진 적중률도 믿을 수 없게 된다.
+    """
+    if not isinstance(payload, dict):
+        raise SchemaError(f"최상위가 객체가 아닙니다 ({type(payload).__name__})")
+
+    picks = payload.get("picks")
+    if not isinstance(picks, list):
+        raise SchemaError("picks: 배열이 아닙니다")
+
+    wanted = list(dict.fromkeys(codes))          # 순서 유지, 중복 제거
+    decisions: dict[str, AgentDecision] = {}
+    unknown: list[str] = []
+
+    for index, item in enumerate(picks):
+        if not isinstance(item, dict):
+            raise SchemaError(f"picks[{index}]: 객체가 아닙니다")
+        code = str(item.get("code", "")).strip()
+        if not code:
+            raise SchemaError(f"picks[{index}]: code 가 비어 있습니다")
+        if code not in wanted:
+            unknown.append(code)                 # 주지 않은 종목은 버린다
+            continue
+        if code in decisions:
+            raise SchemaError(f"picks: {code} 가 두 번 나옵니다")
+        # 항목 원문만 담는다 — 응답 전체를 종목 수만큼 복사하면 DB 가 비대해진다.
+        decisions[code] = validate_payload(item, agent, json.dumps(item, ensure_ascii=False))
+
+    missing = [code for code in wanted if code not in decisions]
+    if missing:
+        raise SchemaError(f"picks 에 빠진 종목: {', '.join(missing)}")
+    if unknown:
+        # 버리고 계속한다 — 요청한 종목이 다 왔다면 판단 자체는 쓸 수 있다.
+        for decision in decisions.values():
+            decision.error = f"목록에 없는 종목코드 무시: {', '.join(unknown)}"
+    return decisions

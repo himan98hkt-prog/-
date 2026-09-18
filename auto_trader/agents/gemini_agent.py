@@ -11,7 +11,7 @@ from google.genai import errors as genai_errors
 from google.genai import types
 
 from agents.base_agent import AgentCallError, BaseAgent
-from agents.prompts import RESPONSE_JSON_SCHEMA
+from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
 from utils.logger import get_logger, register_secret
@@ -19,6 +19,10 @@ from utils.logger import get_logger, register_secret
 logger = get_logger("gemini_agent")
 
 MAX_OUTPUT_TOKENS = 4096
+# 후보 전부를 한 번에 볼 때는 답이 종목 수만큼 길어진다. 게다가 Gemini 는 사고
+# 토큰도 이 한도를 함께 쓴다 — 모자라면 JSON 이 중간에 잘려 파싱 실패로 떨어지고,
+# 그러면 종목별 호출로 되돌아가 비용만 두 배가 된다.
+BATCH_MAX_OUTPUT_TOKENS = 16384
 
 # Gemini 의 response_schema 는 OpenAPI 3.0 스키마의 **부분집합**만 받는다.
 # 모르는 키가 하나라도 있으면 요청 전체를 400 INVALID_ARGUMENT 로 거절한다
@@ -65,24 +69,26 @@ class GeminiAgent(BaseAgent):
         register_secret(env.gemini_api_key)
         self.client = client or genai.Client(
             api_key=env.gemini_api_key,
-            http_options=types.HttpOptions(timeout=ai.timeout_sec * 1000),  # ms
+            http_options=types.HttpOptions(timeout=ai.client_timeout_sec * 1000),  # ms
         )
 
-    def _config(self, system_prompt: str) -> types.GenerateContentConfig:
+    def _config(self, system_prompt: str, schema: dict) -> types.GenerateContentConfig:
         return types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            response_schema=to_gemini_schema(RESPONSE_JSON_SCHEMA),
+            response_schema=to_gemini_schema(schema),
             temperature=self.temperature,
-            max_output_tokens=MAX_OUTPUT_TOKENS,
+            max_output_tokens=(BATCH_MAX_OUTPUT_TOKENS if _is_batch(schema)
+                               else MAX_OUTPUT_TOKENS),
         )
 
-    def _call_model(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_model(self, system_prompt: str, user_prompt: str,
+                    schema: dict | None = None) -> str:
         try:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=user_prompt,
-                config=self._config(system_prompt),
+                config=self._config(system_prompt, schema or RESPONSE_JSON_SCHEMA),
             )
         except genai_errors.APIError as exc:
             raise AgentCallError(f"API 오류: {exc}") from exc
@@ -111,3 +117,8 @@ def _extract_usage(response: object) -> Usage:
         input_tokens=int(getattr(meta, "prompt_token_count", 0) or 0),
         output_tokens=output,
     )
+
+
+def _is_batch(schema: object) -> bool:
+    """후보 전부를 한 번에 보는 요청인가."""
+    return schema is BATCH_RESPONSE_JSON_SCHEMA
