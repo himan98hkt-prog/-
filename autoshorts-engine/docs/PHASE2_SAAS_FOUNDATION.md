@@ -1,7 +1,8 @@
 # Phase 2 — SaaS Foundation (ADR / 인계 문서)
 
-상태: **미완료 (WIP)** — 코드·테스트는 통과하지만 Phase 2 의 GO 판정에 필요한
-실엔진 E2E 증거를 남기기 전에 작업이 중단됐다. 아래 "남은 일" 참조.
+상태: **완료** — 실엔진 E2E 증거를 확보했고 GO/NO-GO 보고서를 작성했다
+(`docs/PHASE2_GO_NO_GO.md`). 남은 항목은 아래 "남은 일" 로 좁혀졌고 모두
+Phase 3 이후 또는 배포 전 과제다.
 
 목표(명세): *두 명 이상의 사용자가 독립적으로 브라우저에서 프로젝트를 만들고
 worker job 을 실행할 수 있는 기반을 만든다.*
@@ -126,11 +127,14 @@ MASTER_V3 Phase 2 추가 요구 반영:
 | User A project → upload → job → result | 통과 | `test_saas_api.py::test_user_a_project_upload_job_result` |
 | User B → A project/file 접근 거부 | 통과 | `test_saas_api.py` 의 `test_user_b_cannot_*` 8건 (프로젝트·업로드·자산·작업·진행률·취소·산출물 다운로드·사용량) |
 | 3 jobs concurrent queue | 통과 | `test_saas_api.py::test_three_jobs_queue_concurrently` (워커 3개 스레드) |
-| browser close 후 worker 지속 | **부분** | `test_job_completes_after_the_submitting_client_is_gone` — HTTP 클라이언트를 완전히 닫은 뒤 워커가 처리하고 **새 클라이언트**로 결과를 읽는다. 다만 이는 같은 프로세스 안이다. 별도 OS 프로세스(uvicorn + worker) 로 다시 확인해야 한다. |
+| browser close 후 worker 지속 | 통과 | 두 겹으로 확인했다. ① `test_job_completes_after_the_submitting_client_is_gone` (같은 프로세스). ② `scripts/e2e_phase2.py` — `uvicorn` 과 워커를 **각각 별도 OS 프로세스**로 띄우고 TCP HTTP 로 제출한 뒤 세션을 닫았고, 다른 PID 의 워커가 FFmpeg 렌더까지 끝냈다. API 를 재시작해도 결과가 남는 것까지 확인했다. |
 
-**아직 없는 증거**: 실제 엔진(FFmpeg 렌더 포함)을 태운 Phase 2 E2E.
-지금까지의 워커·API 테스트는 `tests/saas_fakes.py` 의 대역 파이프라인을 쓴다
-(엔진 자체는 Phase 0/1 테스트가 검증한다).
+**실엔진 증거 확보**: `scripts/e2e_phase2.py` 가 진짜 MP4 를 presigned 업로드해
+FFmpeg 렌더까지 돌리고, 내려받은 산출물을 `ffprobe` 로 검사한다 (1080×1920 h264+aac
+48kHz, 2편). 12단계 전부 통과. 결과는 `docs/PHASE2_GO_NO_GO.md` 에 있다.
+
+단위·통합 테스트는 여전히 `tests/saas_fakes.py` 의 대역 파이프라인을 쓴다 — 빠르고
+FFmpeg 이 필요 없어야 CI 에서 돌기 때문이다. 실엔진 검증은 위 스크립트가 맡는다.
 
 ---
 
@@ -147,12 +151,10 @@ MASTER_V3: *"결제 자체는 아직 구현하지 않는다."* → 크레딧 **�
 
 ## 6. 남은 일 (다음 담당자용)
 
-1. **실엔진 E2E 미실행.** `uvicorn` 과 워커를 각각 별도 프로세스로 띄우고, 실제
-   MP4 를 presigned 업로드해 FFmpeg 렌더까지 돌린 뒤 1080×1920 산출물을
-   `ffprobe` 로 확인하는 스크립트가 아직 없다. 이 환경의 제약:
-   `faster-whisper` 미설치 + huggingface.co 차단이라 STT 를 실제로 돌릴 수 없고,
-   Phase 0/1 과 같이 전사 캐시를 미리 넣어야 한다.
-2. **Phase 2 GO/NO-GO 보고서 미작성.** 1번의 증거가 나와야 쓸 수 있다.
+1. ~~실엔진 E2E 미실행.~~ **완료** — `scripts/e2e_phase2.py`. FFmpeg 은 이 환경에
+   설치했고(`apt-get update` 후 `ffmpeg` 설치), STT 는 예고한 대로 전사 캐시를
+   미리 심어 우회한다. 따라서 **STT 정확도는 여전히 미검증**이다.
+2. ~~Phase 2 GO/NO-GO 보고서 미작성.~~ **완료** — `docs/PHASE2_GO_NO_GO.md`.
 3. **P6(타임아웃 미적용)** — Phase 1 부터 넘어온 항목. 계약에 정의만 돼 있고
    워커가 강제하지 않는다. 큐 lease(기본 900초)가 사실상의 상한 역할을 하지만
    렌더를 중단시키지는 않는다.
