@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "name": "phase0-baseline-example",
+  "notes": "구조를 보여 주는 예시입니다. source 를 실제로 권리 확인이 끝난 영상으로 바꾸고, gold_moments 를 사람이 직접 지정한 뒤 쓰세요. 이 파일 자체로는 측정이 되지 않습니다(source 가 가짜입니다).",
+  "samples": [
+    {
+      "id": "pod-01",
+      "source": "REPLACE_ME/podcast-30min.mp4",
+      "duration_bucket": 30,
+      "content_mode": "podcast",
+      "rights_status": "owned",
+      "gold_moments": [
+        { "start": 245.0, "end": 288.0, "label": "핵심 주장을 처음 꺼내는 대목" },
+        { "start": 903.0, "end": 947.0, "label": "반론에 답하는 대목" },
+        { "start": 1510.0, "end": 1552.0, "label": "결론 요약" }
+      ],
+      "notes": "화자 2명. 화면 전환 없음 — talking head 리프레이밍 기준선."
+    },
+    {
+      "id": "lec-01",
+      "source": "REPLACE_ME/lecture-60min.mp4",
+      "duration_bucket": 60,
+      "content_mode": "lecture",
+      "rights_status": "owned",
+      "gold_moments": [
+        { "start": 612.0, "end": 660.0, "label": "개념 정의" },
+        { "start": 2040.0, "end": 2090.0, "label": "예제 풀이 결론" }
+      ],
+      "notes": "화면 공유(슬라이드) 위주. 얼굴이 없는 구간이 길다 — 리프레이밍 fallback 확인용."
+    },
+    {
+      "id": "game-01",
+      "source": "REPLACE_ME/gameplay-10min.mp4",
+      "duration_bucket": 10,
+      "content_mode": "gaming",
+      "rights_status": "owned",
+      "gold_moments": [
+        { "start": 128.0, "end": 160.0, "label": "결정적 플레이" }
+      ],
+      "notes": "게임 화면 + 구석 페이스캠. 고움직임."
+    },
+    {
+      "id": "news-01",
+      "source": "REPLACE_ME/news-10min.mp4",
+      "duration_bucket": 10,
+      "content_mode": "news",
+      "rights_status": "licensed",
+      "gold_moments": [
+        { "start": 45.0, "end": 88.0, "label": "발표 핵심" }
+      ],
+      "notes": "자료 화면과 앵커 컷이 섞인다."
+    },
+    {
+      "id": "vlog-01",
+      "source": "REPLACE_ME/vlog-30min.mp4",
+      "duration_bucket": 30,
+      "content_mode": "vlog",
+      "rights_status": "owned",
+      "gold_moments": [
+        { "start": 300.0, "end": 342.0, "label": "제품을 처음 보여 주는 대목" }
+      ],
+      "notes": "손 들고 찍은 화면. 흔들림 있음."
+    },
+    {
+      "id": "sport-01",
+      "source": "REPLACE_ME/sports-30min.mp4",
+      "duration_bucket": 30,
+      "content_mode": "sports",
+      "rights_status": "unverified",
+      "gold_moments": [
+        { "start": 1105.0, "end": 1135.0, "label": "득점 장면" }
+      ],
+      "notes": "rights_status 가 unverified 다 — 권리 확인 전에는 결과를 공개용으로 쓰지 않는다."
+    }
+  ]
+}

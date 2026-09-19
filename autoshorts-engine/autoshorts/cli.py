@@ -20,6 +20,7 @@ from typing import Sequence
 
 from . import __version__
 from .config import REFRAME_MODES, Settings, SubtitleStyle, load_dotenv
+from .quota import DEFAULT_POLICY
 from .models import Clip, Transcript
 from .utils import get_logger, human_duration, setup_logging
 
@@ -260,12 +261,29 @@ def build_parser() -> argparse.ArgumentParser:
         help='auto 에 넘길 추가 인자. 값이 -로 시작하면 등호를 쓰세요: --auto-args="--upload"')
     _add_common_arguments(sch_parser)
 
+    bm_parser = subparsers.add_parser(
+        "benchmark", help="벤치마크 manifest 를 돌려 처리시간·메모리·품질 기준선을 기록")
+    bm_parser.add_argument("manifest", help="벤치마크 manifest JSON 경로")
+    bm_parser.add_argument("--report", default=None, help="결과 JSON 을 저장할 경로")
+    bm_parser.add_argument("--markdown", default=None, help="결과 표(Markdown)를 저장할 경로")
+    bm_parser.add_argument(
+        "--only", default=None,
+        help="특정 길이 구간만 측정 (예: --only 10 또는 --only 10,30)")
+    _add_common_arguments(bm_parser)
+
+    quota_parser = subparsers.add_parser(
+        "quota", help="현재 적용 중인 YouTube 할당량 정책 출력")
+    _add_common_arguments(quota_parser)
+
     ui_parser = subparsers.add_parser("ui", help="Gradio 웹 대시보드 실행")
     ui_parser.add_argument("--host", default="127.0.0.1", help="바인딩 주소")
     ui_parser.add_argument("--port", type=int, default=7860, help="포트")
     ui_parser.add_argument("--share", action="store_true", help="Gradio 공유 링크 생성")
     _add_common_arguments(ui_parser)
 
+    # 서브커맨드 목록을 파서에 붙여 둔다. main() 이 손으로 복사한 집합을 들고
+    # 있으면 명령을 추가할 때마다 어긋나므로, 등록된 것을 그대로 쓴다.
+    parser.subcommand_names = tuple(subparsers.choices)
     return parser
 
 
@@ -418,7 +436,9 @@ def _print_trend_table(videos, quota_used: int) -> None:
             f"{human_duration(video.duration_seconds):>7}  {video.title[:44]}"
         )
         print(f"{'':>4}  {video.url}  · {video.channel_title}")
-    print(f"\n할당량 {quota_used} 유닛 사용 (무료 한도 하루 10,000)")
+    limit = DEFAULT_POLICY.daily_search_limit
+    cap = f"검색 전용 버킷 하루 {limit}회" if limit else "정책 미확정"
+    print(f"\n할당량 {quota_used} 유닛 사용 ({cap})")
 
 
 def _cmd_trend(args: argparse.Namespace) -> int:
@@ -754,6 +774,60 @@ def _cmd_schedule(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_quota(args: argparse.Namespace) -> int:
+    from .quota import describe_policy
+
+    print(describe_policy())
+    return 0
+
+
+def _cmd_benchmark(args: argparse.Namespace) -> int:
+    from dataclasses import replace as _replace
+
+    from .benchmark import load_manifest, run_benchmark
+    from .pipeline import run_pipeline
+
+    manifest = load_manifest(args.manifest)
+    problems = manifest.validate()
+    for problem in problems:
+        print(f"⚠️  {problem}", file=sys.stderr)
+    if not manifest.samples:
+        print("manifest 에 영상이 없습니다.", file=sys.stderr)
+        return 1
+
+    if args.only:
+        wanted = {int(v.strip()) for v in args.only.split(",") if v.strip()}
+        manifest = _replace(
+            manifest,
+            samples=tuple(s for s in manifest.samples if s.duration_bucket in wanted),
+        )
+        if not manifest.samples:
+            print(f"길이 구간 {sorted(wanted)} 에 해당하는 영상이 없습니다.", file=sys.stderr)
+            return 1
+
+    base = settings_from_args(args)
+
+    def settings_for(sample):
+        # 영상마다 작업 디렉터리를 분리해 캐시가 섞이지 않게 한다.
+        return _replace(base, source=sample.source,
+                        work_dir=base.work_dir / "benchmark" / sample.id)
+
+    print(f"벤치마크 {len(manifest.samples)}편 측정을 시작합니다. 영상 길이에 따라 오래 걸립니다.")
+    report = run_benchmark(settings_for, manifest, runner=run_pipeline)
+
+    print()
+    print(report.to_markdown())
+    if args.report:
+        print(f"결과 JSON: {report.save(args.report)}")
+    if args.markdown:
+        path = Path(args.markdown)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(report.to_markdown(), encoding="utf-8")
+        print(f"결과 표: {path}")
+    # 한 편이라도 실패하면 0 이 아닌 값을 돌려 CI 가 알아채게 한다.
+    return 0 if all(r.ok for r in report.runs) else 1
+
+
 def _cmd_ui(args: argparse.Namespace) -> int:
     from .app import launch
 
@@ -766,8 +840,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     argv = list(sys.argv[1:] if argv is None else argv)
     # 서브커맨드를 생략하면 run 으로 간주한다: `autoshorts <URL>`
-    known = {"run", "transcribe", "analyze", "render", "trend", "auto", "upload",
-             "login", "setup", "doctor", "schedule", "ui", "-h", "--help", "--version"}
+    # 목록은 파서에서 직접 읽는다 — 손으로 복사해 두면 명령을 추가할 때 어긋난다.
+    known = set(getattr(parser, "subcommand_names", ())) | {"-h", "--help", "--version"}
     if argv and argv[0] not in known:
         argv.insert(0, "run")
 
@@ -800,6 +874,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "setup": _cmd_setup,
         "doctor": _cmd_doctor,
         "schedule": _cmd_schedule,
+        "benchmark": _cmd_benchmark,
+        "quota": _cmd_quota,
         "ui": _cmd_ui,
     }
     try:

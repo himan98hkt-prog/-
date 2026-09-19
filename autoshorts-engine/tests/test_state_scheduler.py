@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -10,7 +9,6 @@ import pytest
 from autoshorts.scheduler import (
     TASK_NAME,
     Schedule,
-    ScheduleError,
     build_auto_command,
     cron_line,
     detect_platform,

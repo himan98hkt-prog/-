@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from autoshorts import trend_finder
+from autoshorts.quota import DEFAULT_POLICY
 from autoshorts.trend_finder import (
     ChannelNotFoundError,
     InvalidApiKeyError,
@@ -23,6 +23,8 @@ from autoshorts.trend_finder import (
     score_video,
     watch_url,
 )
+
+SEARCH_COST = DEFAULT_POLICY.cost_for("search")
 
 NOW = datetime.now(timezone.utc)
 
@@ -267,14 +269,17 @@ class TestClientCalls:
         client.search_video_ids("x", published_after=NOW, max_results=5)
         client.fetch_videos(["v1"])
         client.fetch_channels(["UC1"])
-        assert client.quota_used == 102               # 100 + 1 + 1
+        # 비용은 정책 계층에서 읽는다 — 숫자를 테스트에 박지 않는다.
+        assert client.quota_used == (
+            SEARCH_COST + DEFAULT_POLICY.cost_for("videos") + DEFAULT_POLICY.cost_for("channels")
+        )
 
     def test_resolve_handle_uses_cheap_endpoint(self):
         transport = FakeTransport({"channels": {"items": [{"id": "UCxyz"}]}})
         client = YouTubeClient("k", transport=transport)
         assert client.resolve_channel_id("@someone") == "UCxyz"
         assert transport.params_for("channels")["forHandle"] == "@someone"
-        assert client.quota_used == 1                 # 검색(100)을 쓰지 않는다
+        assert client.quota_used == DEFAULT_POLICY.cost_for("channels")   # 검색 버킷을 쓰지 않는다
 
     def test_raw_channel_id_costs_nothing(self):
         transport = FakeTransport({})
@@ -395,7 +400,9 @@ class TestFindTrending:
         assert videos[0].rank == 1
         assert videos[0].vs_ratio == 9.0
         assert videos[0].url == "https://www.youtube.com/watch?v=hot"
-        assert quota == 102                            # search 100 + videos 1 + channels 1
+        assert quota == (
+            SEARCH_COST + DEFAULT_POLICY.cost_for("videos") + DEFAULT_POLICY.cost_for("channels")
+        )
 
     def test_channel_mode_avoids_expensive_search(self):
         channel = "UC" + "a" * 22
@@ -413,7 +420,7 @@ class TestFindTrending:
         videos, quota = find_trending(f"https://www.youtube.com/channel/{channel}", api_key="k", client=client)
         assert [v.video_id for v in videos] == ["hot"]
         assert transport.count("search") == 0
-        assert quota == 4                              # 검색 100 유닛을 쓰지 않는다
+        assert quota == 4                              # 검색 버킷을 전혀 쓰지 않는다
 
     def test_live_broadcasts_are_excluded(self):
         channel = "UC" + "a" * 22
@@ -429,7 +436,7 @@ class TestFindTrending:
         transport = FakeTransport({"search": {"items": []}})
         client = YouTubeClient("k", transport=transport)
         videos, quota = find_trending("없는키워드", api_key="k", client=client)
-        assert videos == [] and quota == 100
+        assert videos == [] and quota == SEARCH_COST
 
     def test_force_channel_mode(self):
         # 일반 키워드를 채널로 강제하면 핸들 조회를 건너뛰고 곧장 검색으로 해석한다

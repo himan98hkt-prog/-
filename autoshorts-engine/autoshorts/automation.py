@@ -18,8 +18,9 @@ from typing import Any, Callable
 
 from . import downloader, pipeline, trend_finder, uploader
 from .config import Settings
+from .quota import QuotaPolicy, load_policy
 from .state import HistoryStore
-from .uploader import DAILY_UPLOAD_LIMIT, UploadRequest, UploadResult
+from .uploader import UploadRequest, UploadResult
 from .utils import get_logger
 
 __all__ = ["AutoOptions", "AutoResult", "run_auto", "resolve_target", "build_upload_request"]
@@ -45,6 +46,8 @@ class AutoOptions:
     trend_min_duration: float = 180.0
     as_channel: bool | None = None
     dry_run_upload: bool = False             # 업로드 직전까지만 수행
+    #: 할당량 정책. None 이면 환경변수/기본값에서 읽는다.
+    quota_policy: QuotaPolicy | None = None
 
 
 @dataclass
@@ -218,14 +221,19 @@ def run_auto(
 
     # ── 업로드 ────────────────────────────────────────────────
     if options.upload:
-        remaining = history.remaining_uploads_today(DAILY_UPLOAD_LIMIT)
+        # 할당량은 정책 계층에서 읽는다(상수 하드코딩 금지). 실제 초과 판정은
+        # 업로드 호출이 돌려주는 API 오류가 최종 진실이며, 여기서는 불필요한
+        # 호출을 줄이기 위한 사전 예산으로만 쓴다.
+        quota_policy = load_policy(options.quota_policy)
+        daily_limit = quota_policy.daily_upload_limit
+        remaining = history.remaining_uploads_today(daily_limit)
         wanted = options.upload_count if options.upload_count is not None else len(result.renders)
         allowed = min(wanted, remaining, len(result.renders))
         if allowed < wanted:
             LOG.warning(
                 "오늘 남은 업로드 한도가 %d건이라 %d건만 올립니다. "
                 "(업로드 1건 = %d 유닛, 무료 한도 하루 %d건)",
-                remaining, allowed, uploader.UPLOAD_QUOTA_COST, DAILY_UPLOAD_LIMIT,
+                remaining, allowed, quota_policy.upload_unit_cost, daily_limit,
             )
 
         schedule_times = _spread_publish_times(options.publish_at, allowed)

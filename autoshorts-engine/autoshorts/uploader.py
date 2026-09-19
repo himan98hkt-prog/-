@@ -6,15 +6,17 @@
 
 주의할 점 둘:
 
-1. ``videos.insert`` 는 **1회 1,600 유닛**을 쓴다. 무료 한도가 하루 10,000
-   유닛이므로 **하루 6개**가 사실상의 상한이다.
+1. 업로드 할당량은 **정책 계층**(:mod:`autoshorts.quota`)에서 읽는다. 예전에는
+   ``1,600 유닛 / 하루 6건`` 을 상수로 박아 뒀지만 2026년 granular quota 에서
+   ``videos.insert`` 가 전용 버킷(호출당 1 유닛, 기본 하루 100건)으로 분리되어
+   그 가정이 깨졌다. 숫자는 설정으로 빼고, **한도 판정은 API 오류를 최종 진실로**
+   삼는다.
 2. 남의 영상을 잘라 올리면 저작권 신고 대상이 될 수 있다. 그래서 기본
    공개범위를 ``private`` 으로 두고, 공개 전환은 명시적으로 선택하게 했다.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import stat
@@ -23,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+from .quota import DEFAULT_POLICY, QuotaPolicy, load_policy
 from .utils import get_logger
 
 __all__ = [
@@ -50,9 +53,12 @@ LOG = get_logger("uploader")
 # 업로드 권한만 요청한다(읽기/삭제 권한은 받지 않는다).
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
-UPLOAD_QUOTA_COST = 1600
-DAILY_FREE_QUOTA = 10_000
-DAILY_UPLOAD_LIMIT = DAILY_FREE_QUOTA // UPLOAD_QUOTA_COST   # = 6
+# 아래 세 값은 **하위 호환용 기본값 스냅샷**이다. 새 코드는 정책 계층
+# (:func:`autoshorts.quota.load_policy`) 에서 읽어라. 상수를 직접 비교하거나
+# 사용자에게 안내 문구로 쓰지 않는다 — 정책은 운영 중에 바뀔 수 있다.
+UPLOAD_QUOTA_COST = DEFAULT_POLICY.upload_unit_cost
+DAILY_FREE_QUOTA = DEFAULT_POLICY.buckets["queries"].daily_units or 10_000
+DAILY_UPLOAD_LIMIT = DEFAULT_POLICY.daily_upload_limit
 
 PRIVACY_CHOICES = ("private", "unlisted", "public")
 
@@ -309,15 +315,20 @@ def load_credentials(
     return run_oauth_flow(client_secret_path, token_path)
 
 
-def _classify_http_error(exc: Exception) -> UploadError:
-    """googleapiclient 오류를 읽기 쉬운 예외로 바꾼다."""
+def _classify_http_error(exc: Exception, *, policy: QuotaPolicy | None = None) -> UploadError:
+    """googleapiclient 오류를 읽기 쉬운 예외로 바꾼다.
+
+    할당량 초과는 **API 응답으로만** 판정한다. 정책값은 안내 문구를 만드는 데만
+    쓰고, 사용자에게는 그것이 추정치임을 밝힌다.
+    """
     status = getattr(getattr(exc, "resp", None), "status", None)
     text = str(exc)
     if "quotaExceeded" in text or "uploadLimitExceeded" in text:
+        policy = load_policy(policy)
         return QuotaExceededError(
-            "YouTube 업로드 할당량을 초과했습니다. "
-            f"업로드 1건이 {UPLOAD_QUOTA_COST} 유닛이라 무료 한도로는 하루 "
-            f"{DAILY_UPLOAD_LIMIT}건이 상한입니다. 내일 다시 시도하세요."
+            "YouTube 업로드 할당량을 초과했습니다(API 응답 기준). "
+            f"현재 정책 추정치로는 호출당 {policy.upload_unit_cost} 유닛, "
+            f"하루 {policy.daily_upload_limit}건이 상한입니다. 내일 다시 시도하세요."
         )
     if status in (401, 403) and ("authError" in text or "unauthorized" in text.lower()):
         return AuthRequiredError("인증이 만료됐습니다. `autoshorts login` 으로 다시 로그인하세요.")
@@ -336,6 +347,7 @@ def upload_video(
     chunk_size: int = 4 * 1024 * 1024,
     on_progress: Callable[[float], None] | None = None,
     service: Any = None,
+    policy: QuotaPolicy | None = None,
 ) -> UploadResult:
     """영상 한 개를 업로드한다.
 
@@ -380,7 +392,7 @@ def upload_video(
             if status and on_progress:
                 on_progress(float(getattr(status, "progress", lambda: 0.0)()))
     except Exception as exc:
-        raise _classify_http_error(exc) from None
+        raise _classify_http_error(exc, policy=policy) from None
 
     video_id = (response or {}).get("id")
     if not video_id:
@@ -391,6 +403,7 @@ def upload_video(
         title=body["snippet"]["title"],
         privacy=request.privacy,
         publish_at=request.publish_at,
+        quota_used=load_policy(policy).upload_unit_cost,
     )
     LOG.info("업로드 완료: %s", result.shorts_url)
     return result

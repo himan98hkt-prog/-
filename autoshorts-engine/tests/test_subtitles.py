@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-import pytest
 
 from autoshorts.config import SubtitleStyle
 from autoshorts.models import Word

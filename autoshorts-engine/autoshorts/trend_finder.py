@@ -4,7 +4,7 @@
 **구독자 대비 조회수(V/S Ratio)** 가 높은 '떡상 영상'을 찾아 URL 목록으로 돌려준다.
 1위 영상 URL 을 그대로 :mod:`autoshorts.pipeline` 에 넘기면 쇼츠까지 자동 완성된다.
 
-무료 할당량(하루 10,000 유닛)을 아끼도록 호출을 배치하고, 소모한 유닛을
+할당량을 아끼도록 호출을 배치하고(정책은 :mod:`autoshorts.quota`), 소모한 유닛을
 추적해 알려준다. 새 서드파티 의존성 없이 표준 라이브러리만 쓴다.
 """
 
@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Sequence
 
+from .quota import DEFAULT_POLICY, QuotaPolicy, load_policy
 from .utils import get_logger
 
 __all__ = [
@@ -41,9 +42,17 @@ LOG = get_logger("trend")
 
 API_ROOT = "https://www.googleapis.com/youtube/v3"
 
-# 엔드포인트별 할당량 소모(유닛). 무료 한도는 하루 10,000 유닛이다.
-# search.list 만 유독 비싸서(100) 채널 모드를 쓰면 수백 배 저렴하다.
-API_COSTS = {"search": 100, "videos": 1, "channels": 1, "playlistItems": 1}
+# 엔드포인트별 할당량 소모(유닛)는 :mod:`autoshorts.quota` 정책 계층에서 읽는다.
+# 아래 표는 **하위 호환용 스냅샷**이다. 2026-06-01 granular quota 에서
+# ``search.list`` 가 전용 버킷(호출당 1 유닛, 기본 하루 100회)으로 분리되어
+# 예전의 "search 는 100 유닛" 가정은 더 이상 맞지 않는다. 새 코드는
+# ``policy.cost_for(endpoint)`` 를 써라.
+API_COSTS = {
+    "search": DEFAULT_POLICY.cost_for("search"),
+    "videos": DEFAULT_POLICY.cost_for("videos"),
+    "channels": DEFAULT_POLICY.cost_for("channels"),
+    "playlistItems": DEFAULT_POLICY.cost_for("playlistItems"),
+}
 
 # 한 번에 조회할 수 있는 id 개수 상한 (videos.list / channels.list 공통)
 MAX_IDS_PER_CALL = 50
@@ -307,6 +316,7 @@ class YouTubeClient:
         *,
         transport: Callable[[str, float], tuple[int, bytes]] | None = None,
         timeout: float = 20.0,
+        policy: QuotaPolicy | None = None,
     ) -> None:
         if not api_key:
             raise InvalidApiKeyError(
@@ -317,6 +327,7 @@ class YouTubeClient:
         self._api_key = api_key
         self._transport = transport or _default_transport
         self._timeout = timeout
+        self._policy = load_policy(policy)
         self.quota_used = 0
 
     # ── 저수준 ────────────────────────────────────────────────
@@ -328,7 +339,7 @@ class YouTubeClient:
         # 키가 새지 않도록 URL 대신 엔드포인트와 파라미터만 남긴다.
         LOG.debug("YouTube API %s %s", endpoint, {k: v for k, v in query.items() if k != "key"})
         status, body = self._transport(url, self._timeout)
-        self.quota_used += API_COSTS.get(endpoint, 1)
+        self.quota_used += self._policy.cost_for(endpoint)
 
         try:
             payload = json.loads(body.decode("utf-8") or "{}")
@@ -347,8 +358,10 @@ class YouTubeClient:
 
         if "quotaExceeded" in reasons or "dailyLimitExceeded" in reasons or "rateLimitExceeded" in reasons:
             return QuotaExceededError(
-                "YouTube Data API 일일 할당량(무료 10,000 유닛)을 초과했습니다. "
-                "내일 초기화되며, 채널 모드(--channel)는 검색보다 100배 저렴합니다. "
+                "YouTube Data API 일일 할당량을 초과했습니다(API 응답 기준). "
+                "내일 초기화됩니다. 검색(search.list)은 전용 버킷의 호출 수 상한에 "
+                "걸리기 쉬우므로, 특정 채널을 반복해 볼 때는 채널 모드(--channel)가 "
+                "공용 버킷을 쓰는 만큼 여유롭습니다. "
                 f"(원문: {message})"
             )
         if status in (400, 401) or "keyInvalid" in reasons or "badRequest" in reasons:

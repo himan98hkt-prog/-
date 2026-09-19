@@ -178,7 +178,9 @@ autoshorts trend "@채널핸들" --days 30        # 특정 채널의 최근 30�
 - **3분 미만 영상**: 이미 쇼츠이거나, 30~60초 하이라이트를 뽑을 여지가 없습니다.
 - **라이브/예정 방송**: 다운로드 대상이 아닙니다.
 
-**할당량 주의.** 무료 한도는 하루 10,000 유닛인데 `search.list` 만 **1회 100 유닛**입니다(하루 100회). 채널을 지정하면 `playlistItems` 경로를 타서 **1회 4 유닛 안팎**으로 끝나므로, 특정 채널을 반복해서 볼 때는 `--channel` 쪽이 압도적으로 유리합니다. 실행할 때마다 소모한 유닛을 출력합니다.
+**할당량 주의.** 2026-06-01 시행된 granular quota 에서 `search.list` 는 **전용 버킷**으로 분리됐습니다 — 호출당 1 유닛, 기본 **하루 100회**입니다. 공용 10,000 유닛 풀과 별도로 세므로, 공용 유닛이 남아 있어도 검색 호출 100회를 넘기면 `403` 이 돌아옵니다. 채널을 지정하면 `playlistItems` 경로를 타서 공용 버킷만 쓰므로(1회 4 유닛 안팎) 특정 채널을 반복해서 볼 때는 `--channel` 쪽이 여유롭습니다. 실행할 때마다 소모한 유닛을 출력합니다.
+
+정확한 한도는 프로젝트마다 다를 수 있습니다. 숫자는 코드에 박혀 있지 않고 정책 계층(`autoshorts/quota.py`)에 있으며, 환경변수로 덮어쓸 수 있습니다 — `AUTOSHORTS_YT_SEARCH_DAILY_CALLS`, `AUTOSHORTS_YT_UPLOAD_DAILY_CALLS`, `AUTOSHORTS_YT_QUERIES_DAILY_UNITS`. **한도 초과 판정의 최종 근거는 언제나 API 응답**이고, 정책값은 사전 예산과 안내 문구에만 씁니다.
 
 ### 자동 업로드 (`autoshorts upload` · `--upload`)
 
@@ -204,9 +206,14 @@ autoshorts auto "재테크" --upload --publish-in 6h            # 만들고 6시
 **예약 공개**를 쓰면 비공개로 올라간 뒤 지정한 시각에 YouTube 가 알아서 공개합니다.
 여러 개를 한 번에 올리면 24시간 간격으로 자동으로 벌려 줍니다.
 
-> **업로드 할당량이 진짜 제약입니다.** `videos.insert` 는 **1건에 1,600 유닛**이라
-> 무료 한도(하루 10,000)로는 **하루 6건**이 상한입니다. 이 도구는 이력을 보고 한도를
-> 넘지 않도록 스스로 멈춥니다.
+> **업로드 할당량.** `videos.insert` 도 2026-06-01 부터 **전용 버킷**입니다 —
+> 호출당 1 유닛, 기본 **하루 100건**. 예전 문서에 있던 "1건에 1,600 유닛이라 하루 6건"
+> 은 더 이상 맞지 않습니다(2025-12-04 비용 인하, 2026-06-01 버킷 분리).
+> 이 도구는 이력을 보고 정책상 한도를 넘지 않도록 스스로 멈추지만, 그 숫자는 추정치이고
+> **실제 한도는 API 가 돌려주는 오류로만 판정**합니다. 증액을 받았다면
+> `AUTOSHORTS_YT_UPLOAD_DAILY_CALLS` 로 맞추세요.
+>
+> 확인일과 근거는 `autoshorts/quota.py` 의 `POLICY_SOURCES` 에 적혀 있습니다.
 
 ### 정기 예약 발행 (`autoshorts schedule`)
 
@@ -331,6 +338,27 @@ pytest                 # 454건 — FFmpeg·API 키·네트워크 없이 전부 
   0.3~1배, `--model tiny` 면 더 빠르고 `small` 이상은 더 정확합니다.
 - **Gemini 무료 티어**에는 분당/일일 요청 한도가 있습니다. 한도를 넘으면 자동으로
   오프라인 분석으로 넘어갑니다.
+- **클립 경계가 문장을 자릅니다.** 현재 하이라이트 선정기는 Whisper 세그먼트 경계에
+  맞추는데, 그 경계가 문장 단위가 아니라서 문장 중간에서 끊기는 일이 잦습니다.
+  측정값과 원인은 `docs/PHASE0_PRODUCTIZATION_REPORT.md` §4-1 에 있습니다.
+- **리프레이밍이 화자를 따라가지 않습니다.** 중앙 크롭 또는 블러 배치뿐이라, 화자가
+  화면 좌우에 있으면 잘리거나 작아집니다.
+
+## 품질 측정과 상용화 문서
+
+| 문서 | 내용 |
+|---|---|
+| [`docs/PHASE0_PRODUCTIZATION_REPORT.md`](docs/PHASE0_PRODUCTIZATION_REPORT.md) | 테스트·할당량·품질 기준선과 알려진 한계, 위험 목록 |
+| [`benchmarks/README.md`](benchmarks/README.md) | 벤치마크 세트 만드는 법, 재는 지표 / 아직 못 재는 지표 |
+| [`docs/PRIVATE_UPLOAD_SMOKE.md`](docs/PRIVATE_UPLOAD_SMOKE.md) | private 업로드 수동 검증 체크리스트 |
+| [`docs/SOURCE_RIGHTS.md`](docs/SOURCE_RIGHTS.md) | 원본 영상 권리를 확인해야 하는 지점 |
+
+```bash
+autoshorts quota                                    # 현재 할당량 정책 확인
+autoshorts benchmark benchmarks/manifest.json       # 기준선 측정
+python benchmarks/probe_boundary_baseline.py        # 클립 경계 품질 probe (영상 불필요)
+```
+
 ## 라이선스
 
 MIT

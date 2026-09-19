@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pytest
 
@@ -11,6 +11,7 @@ from autoshorts import automation
 from autoshorts.automation import AutoOptions, build_upload_request, resolve_target, run_auto
 from autoshorts.config import Settings
 from autoshorts.models import Clip
+from autoshorts.quota import DEFAULT_POLICY, QuotaPolicy
 from autoshorts.pipeline import PipelineResult
 from autoshorts.state import HistoryStore
 from autoshorts.trend_finder import TrendVideo
@@ -155,12 +156,29 @@ class TestRunAuto:
         assert len(result.uploads) == 1
 
     def test_daily_quota_is_respected(self, settings, stub, history):
-        # 이미 오늘 6건을 올린 상태
-        history.record("earlier", uploads=[{"video_id": str(i)} for i in range(6)])
+        # 오늘 이미 정책상 한도까지 올린 상태. 한도 숫자를 테스트에 박지 않고
+        # 정책 계층에서 읽는다 — 정책이 바뀌어도 이 테스트는 계속 옳다.
+        limit = DEFAULT_POLICY.daily_upload_limit
+        history.record("earlier", uploads=[{"video_id": str(i)} for i in range(limit)])
         result = run_auto(settings, "재테크", AutoOptions(upload=True), history=history,
                           upload_fn=lambda r, **k: pytest.fail("한도를 넘겨 업로드하면 안 된다"))
         assert result.uploads == []
         assert result.renders                       # 제작은 되었다
+
+    def test_daily_quota_limit_comes_from_policy(self, settings, stub, history):
+        """한도를 1건으로 좁힌 정책을 주면 그대로 1건만 올린다."""
+        narrow = QuotaPolicy(buckets={
+            **DEFAULT_POLICY.buckets,
+            "uploads": replace(DEFAULT_POLICY.buckets["uploads"], daily_calls=1),
+        })
+        calls = []
+        result = run_auto(
+            settings, "재테크",
+            AutoOptions(upload=True, quota_policy=narrow), history=history,
+            upload_fn=lambda r, **k: (calls.append(r), UploadResult(video_id=f"u{len(calls)}"))[1],
+        )
+        assert len(result.uploads) == 1
+        assert len(calls) == 1
 
     def test_publish_times_are_spread(self, settings, stub, history):
         base = datetime(2026, 9, 15, 9, 0, tzinfo=timezone.utc)

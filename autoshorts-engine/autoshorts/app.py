@@ -10,9 +10,16 @@ from pathlib import Path
 from typing import Any
 
 from .config import REFRAME_MODES, Settings, SubtitleStyle, load_dotenv
+from .quota import DEFAULT_POLICY
 from .utils import get_logger, human_duration, setup_logging
 
 LOG = get_logger("app")
+
+
+def _search_quota_note() -> str:
+    """검색 할당량 안내 문구. 숫자는 정책 계층에서 읽는다."""
+    limit = DEFAULT_POLICY.daily_search_limit
+    return f"검색 전용 버킷 하루 {limit}회" if limit else "정책 미확정"
 
 DESCRIPTION = """
 # 🎬 AutoShorts-Engine
@@ -78,7 +85,6 @@ def _run_job(
     if do_upload and result.renders:
         from datetime import datetime, timedelta, timezone
 
-        from . import uploader
         from .automation import AutoOptions, build_upload_request
 
         publish_at = None
@@ -154,7 +160,8 @@ def _find_trending(target, is_channel, days, top, min_vs, min_subscribers, min_d
     if not videos:
         return rows, "", "조건에 맞는 영상이 없습니다. 기간을 늘리거나 V/S 기준을 낮춰 보세요."
     note = (
-        f"**{len(videos)}개 발견** · 할당량 {quota} 유닛 사용 (무료 한도 하루 10,000)\n\n"
+        f"**{len(videos)}개 발견** · 할당량 {quota} 유닛 사용 "
+        f"({_search_quota_note()})\n\n"
         f"1위: [{videos[0].title}]({videos[0].url}) — V/S {videos[0].vs_ratio:.2f}"
     )
     return rows, videos[0].url, note
