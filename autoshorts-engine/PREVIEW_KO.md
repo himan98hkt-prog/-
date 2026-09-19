@@ -14,7 +14,13 @@
 5. 열리지 않으면 http://localhost:8765 에 접속합니다.
 
 Windows 실행 스크립트는 Docker 명령과 서버 준비 확인을 묶은 것입니다.
+Docker Desktop이 꺼져 있으면 자동으로 실행하고 최대 3분간 준비를 기다립니다.
+실패하면 같은 폴더의 `studio-startup.log`에 원인이 저장됩니다.
 자동 검증은 Linux Docker 환경에서 수행했으며 Windows PC에서 직접 실행한 것은 아닙니다.
+
+더블클릭해도 아무 변화가 없으면 파일을 우클릭하여 **속성 → 차단 해제 → 적용**을
+선택한 뒤 다시 실행하세요. `studio-startup.log`가 생겼다면 마지막 `ERROR:` 줄을
+확인합니다. 로그가 전혀 생기지 않으면 Windows가 CMD/PowerShell 실행을 차단한 것입니다.
 
 터미널로 실행할 수도 있습니다.
 

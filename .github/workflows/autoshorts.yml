@@ -21,6 +21,25 @@ defaults:
     working-directory: autoshorts-engine
 
 jobs:
+  windows-launcher:
+    name: Windows launcher syntax
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Parse PowerShell launcher
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'autoshorts-engine/start-studio.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
+          if (-not (Test-Path 'autoshorts-engine/start-studio.cmd')) { throw 'CMD launcher missing' }
+
   preview:
     name: Local Docker preview
     runs-on: ubuntu-latest
