@@ -21,6 +21,7 @@ from typing import Sequence
 from . import __version__
 from .config import REFRAME_MODES, Settings, SubtitleStyle, load_dotenv
 from .models import Clip, Transcript
+from .quota import QUOTA_DOC_URLS, QUOTA_SOURCE_NOTE, QuotaPolicy, load_quota_policy
 from .utils import get_logger, human_duration, setup_logging
 
 LOG = get_logger("cli")
@@ -274,12 +275,18 @@ def build_parser() -> argparse.ArgumentParser:
     _add_analyze_arguments(bm_parser)
     _add_render_arguments(bm_parser)
 
+    quota_parser = subparsers.add_parser(
+        "quota", help="현재 적용 중인 YouTube 할당량 정책 출력")
+    _add_common_arguments(quota_parser)
+
     ui_parser = subparsers.add_parser("ui", help="Gradio 웹 대시보드 실행")
     ui_parser.add_argument("--host", default="127.0.0.1", help="바인딩 주소")
     ui_parser.add_argument("--port", type=int, default=7860, help="포트")
     ui_parser.add_argument("--share", action="store_true", help="Gradio 공유 링크 생성")
     _add_common_arguments(ui_parser)
 
+    # main() 이 "서브커맨드인가 source 인가"를 판단할 때 쓴다.
+    parser.subcommand_names = tuple(subparsers.choices)
     return parser
 
 
@@ -800,6 +807,35 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
     return 0 if report.render_success_rate > 0 else 1
 
 
+def _format_quota_policy(policy: QuotaPolicy) -> str:
+    """할당량 정책을 사람이 읽을 형태로. 숫자는 정책 계층에서만 온다."""
+    upload = policy.upload
+    search = policy.search
+    lines = [
+        "YouTube 할당량 정책",
+        "",
+        f"  업로드(videos.insert)  호출당 {upload.cost_per_call} 유닛 · {policy.describe_upload_limit()}",
+        f"                         사전 가드 {'켜짐' if upload.enforce_local_guard else '꺼짐'}",
+        f"  조회(공용 버킷)        하루 {search.daily_units:,} 유닛",
+        f"                         search.list {search.search_cost} · videos.list {search.videos_cost}"
+        f" · channels.list {search.channels_cost} · playlistItems.list {search.playlist_items_cost}",
+        "",
+        f"  공식 문서 대조: {'완료' if policy.verified else '미완료'}",
+        f"  출처: {policy.source}",
+        "",
+        f"  {QUOTA_SOURCE_NOTE}",
+        "",
+        "  근거 문서:",
+    ]
+    lines += [f"    - {url}" for url in QUOTA_DOC_URLS]
+    return "\n".join(lines)
+
+
+def _cmd_quota(args: argparse.Namespace) -> int:
+    print(_format_quota_policy(load_quota_policy()))
+    return 0
+
+
 def _cmd_ui(args: argparse.Namespace) -> int:
     from .app import launch
 
@@ -812,9 +848,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     argv = list(sys.argv[1:] if argv is None else argv)
     # 서브커맨드를 생략하면 run 으로 간주한다: `autoshorts <URL>`
-    known = {"run", "transcribe", "analyze", "render", "trend", "auto", "upload",
-             "login", "setup", "doctor", "schedule", "benchmark", "ui",
-             "-h", "--help", "--version"}
+    # 목록은 파서에 등록된 것을 그대로 읽는다. 손으로 복사해 두면 명령을 추가할 때
+    # 갱신을 잊고, 그 명령이 조용히 run 의 source 인자로 해석된다.
+    known = set(parser.subcommand_names) | {"-h", "--help", "--version"}
     if argv and argv[0] not in known:
         argv.insert(0, "run")
 
@@ -848,6 +884,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "doctor": _cmd_doctor,
         "schedule": _cmd_schedule,
         "benchmark": _cmd_benchmark,
+        "quota": _cmd_quota,
         "ui": _cmd_ui,
     }
     try:
