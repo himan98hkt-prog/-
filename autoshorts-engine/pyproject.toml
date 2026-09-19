@@ -25,20 +25,50 @@ dependencies = [
 [project.optional-dependencies]
 # 업로드는 OAuth 2.0 인증이 필요해 공식 클라이언트를 쓴다.
 upload = ["google-api-python-client>=2.100.0", "google-auth-oauthlib>=1.2.0"]
+# Phase 1 엔진 서비스 경계의 HTTP API. 엔진 자체에는 필요 없다.
+api = ["fastapi>=0.110", "uvicorn>=0.27"]
+# Phase 2 멀티테넌트 SaaS. 엔진만 쓸 거면 설치할 필요가 없다.
+saas = ["fastapi>=0.110", "uvicorn>=0.27", "psycopg[binary]>=3.1", "python-multipart>=0.0.9"]
 ui = ["gradio>=4.44"]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]
 all = [
   "google-api-python-client>=2.100.0",
   "google-auth-oauthlib>=1.2.0",
   "gradio>=4.44",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "psycopg[binary]>=3.1",
+  "python-multipart>=0.0.9",
 ]
 
 [project.scripts]
 autoshorts = "autoshorts.cli:main"
 
 [tool.setuptools]
-packages = ["autoshorts"]
+packages = ["autoshorts", "saas", "apps", "apps.api", "apps.worker"]
+
+[tool.setuptools.package-data]
+# 마이그레이션 SQL 과 점검 콘솔은 코드가 런타임에 읽는다. 휠에 반드시 들어가야 한다.
+saas = ["migrations/*.sql", "console.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+# ── 최소 품질 게이트 (Phase 0) ─────────────────────────────
+# 기존 구조를 바꾸지 않는 선에서 "되돌아가는 것"만 막는다.
+# 엄격한 타입 검사는 Phase 1 서비스 경계에서 contract 와 함께 도입한다.
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+exclude = [".venv", "benchmark-results", "work", "output", "var"]
+
+[tool.ruff.lint]
+# F: 논리 오류(미사용/미정의 이름), E9: 구문 오류, I: import 정렬
+select = ["F", "E9", "I"]
+ignore = [
+  "F401",  # __init__ 재수출이 많아 모듈 단위로만 관리한다
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F811", "F841"]

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoShorts 점검 콘솔</title>
+<!--
+  Phase 2 점검용 화면이다. 브랜드·카피·디자인 시스템은 여기 없다.
+  브라우저에서 (1) 로그인 (2) 프로젝트 생성 (3) 업로드 (4) 작업 제출
+  (5) 진행률/결과 (6) 다른 계정의 접근 거부 를 눈으로 확인하기 위한 것이고,
+  Phase 3 의 웹 셸이 이 파일을 대체한다.
+-->
+<style>
+  :root { color-scheme: light dark; --line:#d6d6db; --muted:#6b6b76; }
+  body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+         margin: 0 auto; max-width: 860px; padding: 24px 16px 64px; line-height: 1.55; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  section { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; margin: 8px 0 2px; color: var(--muted); }
+  input, button, select { font: inherit; padding: 7px 10px; border-radius: 7px;
+         border: 1px solid var(--line); background: transparent; color: inherit; }
+  input { width: 100%; box-sizing: border-box; }
+  button { cursor: pointer; margin-top: 10px; margin-right: 6px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  pre { background: rgba(127,127,127,.12); padding: 10px; border-radius: 7px;
+        overflow-x: auto; font-size: 12px; margin: 10px 0 0; white-space: pre-wrap; word-break: break-all; }
+  .bar { height: 8px; background: rgba(127,127,127,.2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .bar > i { display: block; height: 100%; width: 0; background: currentColor; transition: width .3s; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 200px; }
+</style>
+</head>
+<body>
+<h1>AutoShorts 점검 콘솔</h1>
+<p class="sub">Phase 2 검증용 화면입니다. 디자인과 카피는 Phase 3 에서 만듭니다.</p>
+
+<section>
+  <h2>1. 계정</h2>
+  <div class="row">
+    <div><label for="email">이메일</label><input id="email" value="a@example.com"></div>
+    <div><label for="password">비밀번호</label><input id="password" type="password" value="verysafepassword"></div>
+  </div>
+  <button onclick="signup()">가입</button>
+  <button onclick="login()">로그인</button>
+  <button onclick="me()">내 정보</button>
+  <pre id="out-auth">(미로그인)</pre>
+</section>
+
+<section>
+  <h2>2. 프로젝트</h2>
+  <label for="project-name">이름</label><input id="project-name" value="테스트 프로젝트">
+  <button onclick="createProject()">만들기</button>
+  <button onclick="listProjects()">목록</button>
+  <pre id="out-project">-</pre>
+</section>
+
+<section>
+  <h2>3. 소스 업로드</h2>
+  <input id="file" type="file" accept="video/*">
+  <button onclick="upload()">presigned 업로드</button>
+  <button onclick="confirmRights()">권리 확인(owned)</button>
+  <pre id="out-upload">-</pre>
+</section>
+
+<section>
+  <h2>4. 작업</h2>
+  <button onclick="submitJob()">작업 제출</button>
+  <button onclick="submitJob()">같은 조건으로 재제출(멱등 확인)</button>
+  <button onclick="cancelJob()">취소</button>
+  <div class="bar"><i id="bar"></i></div>
+  <pre id="out-job">-</pre>
+</section>
+
+<section>
+  <h2>5. 사용량 · 크레딧</h2>
+  <button onclick="usage()">조회</button>
+  <pre id="out-usage">-</pre>
+</section>
+
+<script>
+const S = { token: "", workspace: "", project: "", asset: "", job: "" };
+const $ = (id) => document.getElementById(id);
+const show = (id, value) => { $(id).textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2); };
+
+async function call(method, path, body) {
+  const headers = {};
+  if (S.token) headers["Authorization"] = "Bearer " + S.token;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw new Error(res.status + " " + (data && data.detail ? data.detail : text));
+  return data;
+}
+
+async function signup() {
+  try {
+    const data = await call("POST", "/v1/auth/signup", {
+      email: $("email").value, password: $("password").value, workspace_name: "점검 워크스페이스" });
+    S.token = data.token; S.workspace = data.workspace.id;
+    show("out-auth", data);
+  } catch (e) { show("out-auth", String(e)); }
+}
+
+async function login() {
+  try {
+    const data = await call("POST", "/v1/auth/login", { email: $("email").value, password: $("password").value });
+    S.token = data.token;
+    const info = await call("GET", "/v1/me");
+    S.workspace = info.workspaces.length ? info.workspaces[0].id : "";
+    show("out-auth", info);
+  } catch (e) { show("out-auth", String(e)); }
+}
+
+async function me() {
+  try { show("out-auth", await call("GET", "/v1/me")); } catch (e) { show("out-auth", String(e)); }
+}
+
+async function createProject() {
+  try {
+    const data = await call("POST", `/v1/workspaces/${S.workspace}/projects`, { name: $("project-name").value });
+    S.project = data.id; show("out-project", data);
+  } catch (e) { show("out-project", String(e)); }
+}
+
+async function listProjects() {
+  try { show("out-project", await call("GET", `/v1/workspaces/${S.workspace}/projects`)); }
+  catch (e) { show("out-project", String(e)); }
+}
+
+async function upload() {
+  const file = $("file").files[0];
+  if (!file) { show("out-upload", "파일을 선택하세요."); return; }
+  try {
+    const ticket = await call("POST", `/v1/projects/${S.project}/uploads`,
+      { filename: file.name, content_type: file.type || "video/mp4" });
+    S.asset = ticket.asset_id;
+    // 바이트는 API 본문이 아니라 presigned URL 로 직접 간다.
+    const put = await fetch(ticket.upload.url, { method: ticket.upload.method, body: file });
+    show("out-upload", { ticket, upload_status: put.status, result: await put.json() });
+  } catch (e) { show("out-upload", String(e)); }
+}
+
+async function confirmRights() {
+  try {
+    show("out-upload", await call("POST", `/v1/assets/${S.asset}/rights`,
+      { status: "owned", note: "점검용 자체 제작 파일" }));
+  } catch (e) { show("out-upload", String(e)); }
+}
+
+async function submitJob() {
+  try {
+    const data = await call("POST", `/v1/projects/${S.project}/jobs`, { asset_id: S.asset });
+    S.job = data.job.id; show("out-job", data); poll();
+  } catch (e) { show("out-job", String(e)); }
+}
+
+async function cancelJob() {
+  try { show("out-job", await call("POST", `/v1/jobs/${S.job}/cancel`)); }
+  catch (e) { show("out-job", String(e)); }
+}
+
+async function poll() {
+  if (!S.job) return;
+  try {
+    const data = await call("GET", `/v1/jobs/${S.job}/progress`);
+    $("bar").style.width = (data.percent || 0) + "%";
+    const job = await call("GET", `/v1/jobs/${S.job}`);
+    show("out-job", { status: job.status, stage: job.stage, percent: job.progress,
+                      outputs: job.outputs_detail, warnings: job.warnings });
+    if (!["succeeded", "failed", "cancelled"].includes(job.status)) setTimeout(poll, 1500);
+  } catch (e) { show("out-job", String(e)); }
+}
+
+async function usage() {
+  try { show("out-usage", await call("GET", `/v1/workspaces/${S.workspace}/usage`)); }
+  catch (e) { show("out-usage", String(e)); }
+}
+</script>
+</body>
+</html>

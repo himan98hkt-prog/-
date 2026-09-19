@@ -6,8 +6,9 @@
 
 주의할 점 둘:
 
-1. ``videos.insert`` 는 **1회 1,600 유닛**을 쓴다. 무료 한도가 하루 10,000
-   유닛이므로 **하루 6개**가 사실상의 상한이다.
+1. ``videos.insert`` 는 조회용 할당량과 **다른 버킷**에서 집계된다. 구체적인
+   한도는 프로젝트마다 다르므로 :mod:`autoshorts.quota` 의 정책 계층에서 읽고,
+   최종 판정은 API 응답에 맡긴다.
 2. 남의 영상을 잘라 올리면 저작권 신고 대상이 될 수 있다. 그래서 기본
    공개범위를 ``private`` 으로 두고, 공개 전환은 명시적으로 선택하게 했다.
 """
@@ -23,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+from .quota import QUOTA_SOURCE_NOTE, load_quota_policy
 from .utils import get_logger
 
 __all__ = [
@@ -42,6 +44,7 @@ __all__ = [
     "PRIVACY_CHOICES",
     "UPLOAD_QUOTA_COST",
     "DAILY_UPLOAD_LIMIT",
+    "upload_quota_policy",
     "SHORTS_MAX_SECONDS",
 ]
 
@@ -50,9 +53,11 @@ LOG = get_logger("uploader")
 # 업로드 권한만 요청한다(읽기/삭제 권한은 받지 않는다).
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
-UPLOAD_QUOTA_COST = 1600
-DAILY_FREE_QUOTA = 10_000
-DAILY_UPLOAD_LIMIT = DAILY_FREE_QUOTA // UPLOAD_QUOTA_COST   # = 6
+# 할당량은 상수가 아니라 정책이다. autoshorts/quota.py 참고.
+# 아래 이름들은 기존 호출부 호환을 위해 남기되, 값은 정책 계층에서 가져온다.
+_POLICY = load_quota_policy()
+UPLOAD_QUOTA_COST = _POLICY.upload.cost_per_call
+DAILY_UPLOAD_LIMIT = _POLICY.upload.daily_uploads
 
 PRIVACY_CHOICES = ("private", "unlisted", "public")
 
@@ -76,6 +81,11 @@ class AuthRequiredError(UploadError):
 
 class QuotaExceededError(UploadError):
     """업로드 할당량 초과."""
+
+
+def upload_quota_policy():
+    """현재 업로드 할당량 정책. 환경변수 변경을 즉시 반영한다."""
+    return load_quota_policy().upload
 
 
 def default_token_path() -> Path:
@@ -314,10 +324,12 @@ def _classify_http_error(exc: Exception) -> UploadError:
     status = getattr(getattr(exc, "resp", None), "status", None)
     text = str(exc)
     if "quotaExceeded" in text or "uploadLimitExceeded" in text:
+        # API 응답이 최종 기준이다. 클라이언트 추정치를 단정해 말하지 않는다.
+        policy = load_quota_policy()
         return QuotaExceededError(
-            "YouTube 업로드 할당량을 초과했습니다. "
-            f"업로드 1건이 {UPLOAD_QUOTA_COST} 유닛이라 무료 한도로는 하루 "
-            f"{DAILY_UPLOAD_LIMIT}건이 상한입니다. 내일 다시 시도하세요."
+            "YouTube 업로드 할당량을 초과했다고 API 가 응답했습니다. "
+            f"{policy.describe_upload_limit()}이지만 프로젝트마다 다를 수 있습니다. "
+            f"{QUOTA_SOURCE_NOTE} 보통 태평양시 자정에 초기화됩니다."
         )
     if status in (401, 403) and ("authError" in text or "unauthorized" in text.lower()):
         return AuthRequiredError("인증이 만료됐습니다. `autoshorts login` 으로 다시 로그인하세요.")
