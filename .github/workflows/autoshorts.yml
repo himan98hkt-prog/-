@@ -18,6 +18,26 @@ defaults:
     working-directory: autoshorts-engine
 
 jobs:
+  # pyproject 의 [tool.ruff.lint] 설정은 있었지만 CI 가 돌리지 않아 gate 가
+  # 실제로 걸리지 않았다. 린트 결과는 파이썬 버전과 무관하므로 매트릭스에
+  # 넣지 않고 한 번만 돈다.
+  lint:
+    name: 린트
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: ruff 설치
+        run: pip install ruff
+
+      - name: ruff check
+        run: ruff check .
+
   test:
     name: 테스트 (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest

@@ -193,6 +193,25 @@ class TestCliParsing:
         with pytest.raises(SystemExit):
             cli.build_parser().parse_args(["run", "v.mp4", "--mode", "zoom"])
 
+    def test_known_subcommands_come_from_the_parser(self):
+        """서브커맨드 목록을 손으로 복사해 두지 않는다.
+
+        복사본을 두면 명령을 추가할 때 갱신을 잊고, 그 명령이 조용히 run 의
+        source 인자로 해석된다.
+        """
+        names = set(cli.build_parser().subcommand_names)
+        for expected in ("run", "transcribe", "analyze", "render", "trend", "auto",
+                         "upload", "login", "setup", "doctor", "schedule",
+                         "benchmark", "quota", "ui"):
+            assert expected in names
+
+    def test_subcommand_is_not_mistaken_for_a_source(self, monkeypatch):
+        """새 서브커맨드가 run 으로 오인되지 않는다."""
+        called = []
+        monkeypatch.setattr(cli, "_cmd_run", lambda args: called.append("run") or 0)
+        assert cli.main(["quota"]) == 0
+        assert called == []
+
     def test_no_arguments_prints_help(self, capsys):
         assert cli.main([]) == 0
         assert "autoshorts" in capsys.readouterr().out
@@ -562,3 +581,60 @@ class TestDoctorCli:
         code = cli.main(["setup", "--non-interactive", "--env-path", str(tmp_path / ".env")])
         assert code in (0, 1)
         assert "설치 상태 점검" in capsys.readouterr().out
+
+
+class TestQuotaCli:
+    def test_prints_policy(self, capsys):
+        assert cli.main(["quota"]) == 0
+        out = capsys.readouterr().out
+        assert "YouTube 할당량 정책" in out
+        assert "하루 100건" in out                      # 정책 기본값
+        assert "API 응답이 최종 기준" in out             # 판정 근거를 밝힌다
+
+    def test_shows_stale_assumption_is_gone(self, capsys):
+        """예전 1,600 유닛 / 하루 6건 가정이 출력되지 않는다."""
+        cli.main(["quota"])
+        out = capsys.readouterr().out
+        assert "1,600" not in out and "1600" not in out
+        assert "하루 6건" not in out
+
+    def test_reflects_env_override(self, capsys, monkeypatch):
+        monkeypatch.setenv("AUTOSHORTS_UPLOAD_DAILY_LIMIT", "7")
+        cli.main(["quota"])
+        out = capsys.readouterr().out
+        assert "하루 7건" in out
+        assert "환경변수 재정의" in out
+
+    def test_marks_verification_state(self, capsys, monkeypatch):
+        cli.main(["quota"])
+        assert "공식 문서 대조: 미완료" in capsys.readouterr().out
+        monkeypatch.setenv("AUTOSHORTS_QUOTA_VERIFIED", "1")
+        cli.main(["quota"])
+        out = capsys.readouterr().out
+        assert "공식 문서 대조: 완료" in out
+        assert "미검증 기본값" not in out
+
+    def test_shows_local_guard_state(self, capsys, monkeypatch):
+        monkeypatch.setenv("AUTOSHORTS_UPLOAD_LOCAL_GUARD", "0")
+        cli.main(["quota"])
+        assert "사전 가드 꺼짐" in capsys.readouterr().out
+
+    def test_lists_source_documents(self, capsys):
+        from autoshorts.quota import QUOTA_DOC_URLS
+
+        cli.main(["quota"])
+        out = capsys.readouterr().out
+        for url in QUOTA_DOC_URLS:
+            assert url in out
+
+    def test_formatter_reads_only_from_policy(self):
+        """표시값이 하드코딩이 아니라 정책 객체에서 온다."""
+        from dataclasses import replace
+
+        from autoshorts.quota import DEFAULT_POLICY
+
+        narrow = replace(DEFAULT_POLICY,
+                         upload=replace(DEFAULT_POLICY.upload, daily_uploads=3, cost_per_call=9))
+        text = cli._format_quota_policy(narrow)
+        assert "하루 3건" in text
+        assert "호출당 9 유닛" in text
