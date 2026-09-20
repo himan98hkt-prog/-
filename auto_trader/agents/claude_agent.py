@@ -41,9 +41,9 @@ class ClaudeAgent(BaseAgent):
         )
 
     def _request_kwargs(self, system_prompt: str, user_prompt: str, schema: dict, *,
-                        with_temperature: bool) -> dict:
+                        with_temperature: bool, with_effort: bool = True) -> dict:
         output_config: dict = {"format": {"type": "json_schema", "schema": schema}}
-        if self.effort:
+        if with_effort and self.effort:
             output_config["effort"] = self.effort
 
         kwargs: dict = {
@@ -62,11 +62,15 @@ class ClaudeAgent(BaseAgent):
                     schema: dict | None = None) -> str:
         schema = schema or RESPONSE_JSON_SCHEMA
         send_temperature = self.temperature is not None
-        for _ in range(2):  # temperature 거부 시 한 번만 제외하고 재시도
+        send_effort = True
+        # 모델마다 받아주는 파라미터가 다르다. 하나씩 빼면서 최대 두 번까지 물러선다
+        # (temperature 거부 1회 + effort 거부 1회 + 성공 1회).
+        for _ in range(3):
             try:
                 response = self.client.messages.create(
                     **self._request_kwargs(system_prompt, user_prompt, schema,
-                                           with_temperature=send_temperature)
+                                           with_temperature=send_temperature,
+                                           with_effort=send_effort)
                 )
             except anthropic.BadRequestError as exc:
                 if send_temperature and "temperature" in str(exc).lower():
@@ -75,6 +79,16 @@ class ClaudeAgent(BaseAgent):
                     )
                     self.temperature = None
                     send_temperature = False
+                    continue
+                # Haiku 4.5 처럼 effort 를 아예 받지 않는 모델이 있다. 비용을 줄이려고
+                # 모델만 바꿨다가 전 호출이 400 으로 떨어지면, 클로드는 늘 실패하고
+                # 매수는 만장일치라서 영영 아무것도 못 산다. 조용히 빼고 다시 부른다.
+                if send_effort and self.effort and "effort" in str(exc).lower():
+                    logger.warning(
+                        "%s 모델은 effort 를 지원하지 않습니다 — 이후 호출에서 제외합니다", self.model
+                    )
+                    self.effort = None
+                    send_effort = False
                     continue
                 raise AgentCallError(f"요청 거부: {exc}") from exc
             except anthropic.APITimeoutError as exc:

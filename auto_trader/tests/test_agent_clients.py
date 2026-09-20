@@ -98,6 +98,55 @@ def test_claude_drops_temperature_when_model_rejects_it():
     assert agent.temperature is None, "이후 호출에서도 제외되어야 합니다"
 
 
+def test_claude_drops_effort_when_model_rejects_it():
+    """비용을 줄이려고 Haiku 로 바꿨는데 effort 때문에 전 호출이 400 이면,
+    클로드는 늘 실패하고 매수는 만장일치라 영영 아무것도 못 산다."""
+    env = make_env(claude_effort="low")
+    client = FakeAnthropic([
+        bad_request("output_config.effort: not supported for this model"),
+        text_response(VALID),
+    ])
+    agent = ClaudeAgent(env, AI, client=client)
+    decision = agent.analyze({"code": "005930"})
+
+    assert decision.ok
+    assert "effort" in client.messages.calls[0]["output_config"]
+    assert "effort" not in client.messages.calls[1]["output_config"]
+    assert agent.effort is None, "이후 호출에서도 제외되어야 합니다"
+    # 스키마는 끝까지 붙어 있어야 한다 — 그게 JSON 을 보장하는 유일한 장치다.
+    assert client.messages.calls[1]["output_config"]["format"]["type"] == "json_schema"
+
+
+def test_claude_can_shed_both_temperature_and_effort():
+    """둘 다 거부하는 모델이어도 세 번째 호출에서는 성공해야 한다."""
+    env = make_env(claude_temperature=0.2, claude_effort="low")
+    client = FakeAnthropic([
+        bad_request("temperature: Extra inputs are not permitted"),
+        bad_request("output_config.effort: not supported for this model"),
+        text_response(VALID),
+    ])
+    agent = ClaudeAgent(env, AI, client=client)
+
+    assert agent.analyze({"code": "005930"}).ok
+    assert len(client.messages.calls) == 3
+
+
+def test_claude_does_not_retry_forever_on_other_bad_requests():
+    """effort·temperature 와 무관한 400 은 파라미터를 벗기지 말고 그대로 올려야 한다.
+
+    벗길 것이 없는데 계속 물러서면, 잘못된 모델명 하나로 매 사이클 API 를
+    세 번씩 두드리게 된다. 바깥의 재시도(AI.max_retries)만 도는 게 맞다.
+    """
+    attempts = AI.max_retries + 1   # 첫 시도 + 재시도
+    client = FakeAnthropic([bad_request("model: unknown model name")] * attempts)
+    agent = ClaudeAgent(make_env(), AI, client=client)
+
+    decision = agent.analyze({"code": "005930"})
+    assert not decision.ok
+    # 한 번의 시도 = 한 번의 호출. 안에서 더 돌지 않았다는 뜻이다.
+    assert len(client.messages.calls) == attempts
+
+
 def test_claude_other_bad_request_becomes_hold():
     client = FakeAnthropic([bad_request("model: unknown model") for _ in range(AI.max_retries + 1)])
     decision = ClaudeAgent(make_env(), AI, client=client).analyze({"code": "005930"})
