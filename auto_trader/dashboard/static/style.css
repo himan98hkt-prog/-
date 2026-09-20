@@ -342,6 +342,8 @@ tbody tr:last-child td { border-bottom: none; }
   margin-bottom: 12px; font-size: 12.5px; color: var(--text-2);
 }
 .notice.danger { border-left-color: var(--critical); }
+/* 지금 당장 위험하지는 않지만 사람이 손봐야 하는 것 — 휴장일 달력 같은. */
+.notice.warn { border-left-color: var(--warning); }
 .notice strong { display: block; margin-bottom: 3px; color: var(--text); }
 /* 설정 오류 원문처럼 긴 것은 접어 둔다 — 화면을 밀어내면 정작 볼 것을 못 본다. */
 .notice pre, .notice .detail {
