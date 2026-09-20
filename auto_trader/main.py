@@ -44,7 +44,8 @@ from logic.reporting import build_daily_report
 from logic.risk_manager import RiskManager
 from trading.kis_api import KisApi, KisApiError
 from trading.kis_auth import KisAuthError, TokenManager
-from trading.market_calendar import is_market_open, is_trading_day, market_state
+from trading.market_calendar import (calendar_health, is_market_open, is_trading_day,
+                                     market_state, next_trading_day, upcoming_holidays)
 from trading.order_executor import OrderExecutor
 from utils.db import (init_db, record_ai_usage, record_benchmark_price, table_names,
                       update_bot_state)
@@ -136,6 +137,8 @@ class TradingBot:
         self.stop_flag = StopFlag(stop_flag_path(settings.paths["data"]))
         self._loss_limit_notified = False
         self.remote: TelegramControl | None = None
+        # 기동 때 _announce_calendar() 가 채운다. 그 전에 읽혀도 터지지 않게 둔다.
+        self._calendar: dict[str, Any] = {"state": "ok", "next": [], "message": ""}
 
     # -- 기동 -------------------------------------------------------------- #
 
@@ -169,6 +172,7 @@ class TradingBot:
             self.notifier.send_error(exc, context="기동 시 잔고 조회")
             update_bot_state(self.settings.paths["db"], last_error=str(exc)[:500])
 
+        self._announce_calendar()
         self.refresh_universe()
         update_bot_state(
             self.settings.paths["db"],
@@ -177,9 +181,48 @@ class TradingBot:
             started_at=datetime.now(KST).isoformat(timespec="seconds"),
             universe_size=len(self.universe), consecutive_failures=0, last_error="",
         )
-        self.notifier.send_startup(len(self.universe))
+        health = self._calendar
+        self.notifier.send_startup(
+            len(self.universe),
+            holidays=[f"{d:%m/%d}({'월화수목금토일'[d.weekday()]})" for d in health.get("next", [])],
+            calendar_warning=health.get("message", ""),
+        )
         self._start_remote_control()
         logger.info("=" * 60)
+
+    def _announce_calendar(self) -> None:
+        """휴장일 달력 상태를 기동 로그에 남기고, 낡았으면 따로 알린다.
+
+        이 파일이 비어 있으면 봇은 추석에도 평소처럼 돈다 — 전날 종가를 보고
+        판단하고, 주문은 거래소에 거부당하고, 그 알림이 30분마다 온다. 코드는
+        멀쩡하기 때문에 아무도 눈치채지 못한다. 그래서 기동할 때마다 확인한다.
+        """
+        self._calendar = calendar_health()
+        state = self._calendar["state"]
+        upcoming = self._calendar.get("next") or []
+
+        if not is_trading_day():
+            logger.info("오늘은 휴장일입니다 — 다음 거래일 %s", next_trading_day())
+        if upcoming:
+            logger.info("다가오는 휴장일: %s",
+                        ", ".join(f"{d:%Y-%m-%d}" for d in upcoming))
+
+        if state == "ok":
+            logger.info("휴장일 달력: %s 까지 (%d일 남음)",
+                        self._calendar["covered_until"], self._calendar["days_left"])
+            return
+
+        logger.warning("휴장일 달력 확인 필요: %s", self._calendar["message"])
+        # 매매를 막지는 않는다. 달력이 없어도 주말은 걸러지고, 공휴일에 나간
+        # 주문은 거래소가 거부할 뿐 손실로 이어지지 않는다. 다만 조용히 두지는
+        # 않는다 — 거부 알림이 쌓이기 전에 사람이 먼저 알아야 한다.
+        self.notifier.send_alert(
+            "📅 휴장일 달력을 채워 주세요",
+            [self._calendar["message"],
+             "채우지 않으면 공휴일에도 사이클이 돌고, 주문이 거부되는 알림이 반복됩니다.",
+             "KRX 공지(open.krx.co.kr)의 휴장일을 config/holidays.txt 에 적어 주세요."],
+            key="holiday_calendar_stale",
+        )
 
     # -- 폰에서 쓰는 리모컨 -------------------------------------------------- #
 
@@ -660,6 +703,15 @@ class TradingBot:
         if not is_trading_day():
             logger.info("휴장일 — 일간 리포트를 건너뜁니다")
             return {}
+        # 마지막 사이클(15:10 청산 점검)이 낸 주문은 아직 PENDING 일 수 있다.
+        # 그대로 집계하면 체결되지도 않은 매도가 '매도 1건' 으로 실리고, 장 마감
+        # 뒤 소멸한 주문이 영영 미체결로 남는다. 리포트 전에 한 번 확정한다.
+        try:
+            for change in self.portfolio.reconcile_open_orders():
+                logger.info("리포트 전 미체결 정리: %s %s %s → %s",
+                            change["name"], change["side"], change["before"], change["after"])
+        except Exception:  # 정리에 실패해도 리포트는 나가야 한다
+            logger.exception("리포트 전 미체결 정리 실패 — 집계는 그대로 진행합니다")
         report = build_daily_report(self.settings.paths["db"])
         logger.info("일간 리포트: 손익 %+.2f%% / 매수 %d건 / 매도 %d건 / 보유 %d종목",
                     report["total_pnl_pct"], report["buy_count"],

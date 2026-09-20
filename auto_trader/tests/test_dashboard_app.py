@@ -1292,3 +1292,56 @@ def test_a_rejected_order_is_not_invisible(app, client):
 
     body = client.get("/").get_data(as_text=True)
     assert "거부 1" in body
+
+
+# --- 휴장일을 화면이 먼저 말하는가 ------------------------------------------- #
+#
+# 추석 목요일 아침에 판단도 주문도 없으면, 화면이 이유를 말하지 않는 한
+# '봇이 죽었나' 를 먼저 의심하게 된다. 그 질문을 화면이 미리 막는다.
+
+def test_holiday_is_explained_on_the_page(app, client, monkeypatch):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    monkeypatch.setattr("trading.market_calendar.market_state", lambda *a, **k: "HOLIDAY")
+    body = client.get("/").get_data(as_text=True)
+    assert "오늘은 휴장일입니다" in body
+    assert "정상입니다" in body
+
+
+def test_open_market_has_no_holiday_banner(app, client, monkeypatch):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    monkeypatch.setattr("trading.market_calendar.market_state", lambda *a, **k: "OPEN")
+    body = client.get("/").get_data(as_text=True)
+    assert "오늘은 휴장일입니다" not in body
+
+
+def test_upcoming_holidays_show_next_to_the_cycle_tile(app, client, monkeypatch):
+    from datetime import date
+
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    monkeypatch.setattr("trading.market_calendar.upcoming_holidays",
+                        lambda *a, **k: [date(2026, 9, 24), date(2026, 9, 25)])
+    body = client.get("/").get_data(as_text=True)
+    assert "09/24(목)" in body and "09/25(금)" in body
+
+
+def test_stale_calendar_asks_to_be_filled(app, client, monkeypatch):
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+    monkeypatch.setattr(
+        "trading.market_calendar.calendar_health",
+        lambda *a, **k: {"state": "stale", "next": [], "covered_until": None, "days_left": 0,
+                         "message": "달력이 2026-12-31 까지뿐입니다"},
+    )
+    body = client.get("/").get_data(as_text=True)
+    assert "휴장일 달력을 채워 주세요" in body
+    assert "2026-12-31" in body
+
+
+def test_a_broken_calendar_does_not_take_the_page_down(app, client, monkeypatch):
+    """달력을 못 읽는 것은 매매와 무관하다 — 화면까지 죽일 이유가 없다."""
+    write_env(app.config["ENV_PATH"], FULL_ENV)
+
+    def boom(*a, **k):
+        raise RuntimeError("달력 없음")
+
+    monkeypatch.setattr("trading.market_calendar.calendar_health", boom)
+    assert client.get("/").status_code == 200

@@ -132,7 +132,30 @@ def create_app(*, testing: bool = False) -> Flask:
             "kis_env": (read_env(app.config["ENV_PATH"]).get("KIS_ENV") or "VTS").upper(),
             "dry_run": (read_env(app.config["ENV_PATH"]).get("DRY_RUN") or "true").lower() != "false",
             "base_dir": str(app.config["BASE_DIR"]),
+            "market": _market_status(),
         }
+
+    def _market_status() -> dict[str, Any]:
+        """장이 열려 있는지, 아니면 언제 다시 여는지.
+
+        화면이 이걸 말하지 않으면 추석 목요일 아침에 '봇이 고장났나' 를 묻게
+        된다. 판단도 주문도 없는 날은 없는 이유를 화면이 먼저 말해야 한다.
+        """
+        try:
+            from trading.market_calendar import (calendar_health, market_state,
+                                                 next_trading_day, upcoming_holidays)
+            health = calendar_health()
+            return {
+                "state": market_state(),
+                "next_trading_day": next_trading_day().strftime("%m/%d"),
+                "upcoming": [d.strftime("%m/%d") + f"({'월화수목금토일'[d.weekday()]})"
+                             for d in upcoming_holidays(limit=2)],
+                "calendar_warning": health.get("message", ""),
+            }
+        except Exception:  # 달력을 못 읽어도 대시보드는 떠야 한다
+            app.logger.exception("장 상태를 읽지 못했습니다")
+            return {"state": "", "next_trading_day": "", "upcoming": [],
+                    "calendar_warning": ""}
 
     # ------------------------------------------------------ 오류 화면 #
     @app.errorhandler(Exception)

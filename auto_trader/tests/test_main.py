@@ -58,7 +58,7 @@ def bot(settings_obj, tmp_path, monkeypatch):
     sent: list[str] = []
     monkeypatch.setattr(main_module, "Notifier", lambda env: SimpleNamespace(
         send=lambda text: sent.append(text) or True,
-        send_startup=lambda n: sent.append(f"startup:{n}") or True,
+        send_startup=lambda n, **kw: sent.append(f"startup:{n}") or True,
         send_cycle_summary=lambda label, rows: sent.append(f"summary:{label}:{len(list(rows))}") or True,
         send_error=lambda exc, context="": sent.append(f"error:{context}:{exc}") or True,
         send_fatal=lambda message: sent.append(f"fatal:{message}") or True,
@@ -898,3 +898,75 @@ def test_quiet_recovery_after_a_single_hiccup(bot, monkeypatch):
     bot.sent.clear()
     bot.guard_cycle()
     assert bot.sent == []
+
+
+# --- 휴장일 달력이 낡았을 때 ---------------------------------------------------- #
+#
+# 달력이 비어 있어도 코드는 멀쩡히 돈다 — 공휴일에 전날 종가를 보고 판단하고,
+# 주문은 거래소에 거부당하고, 그 알림이 30분마다 온다. 조용히 두면 안 된다.
+
+def test_startup_warns_when_the_holiday_calendar_is_stale(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "calendar_health",
+                        lambda *a, **k: {"state": "stale", "next": [], "covered_until": None,
+                                         "days_left": 0, "message": "달력이 바닥났습니다"})
+    bot._announce_calendar()
+    assert any("휴장일 달력을 채워 주세요" in line for line in bot.sent)
+
+
+def test_startup_is_quiet_when_the_calendar_is_fine(bot, monkeypatch):
+    monkeypatch.setattr(main_module, "calendar_health",
+                        lambda *a, **k: {"state": "ok", "next": [], "covered_until": None,
+                                         "days_left": 200, "message": ""})
+    bot._announce_calendar()
+    assert not any("휴장일 달력" in line for line in bot.sent)
+
+
+def test_startup_notice_carries_the_upcoming_holidays(bot, monkeypatch):
+    """기동 알림에 다가오는 휴장일이 실려야 목요일 아침에 놀라지 않는다."""
+    from datetime import date
+
+    captured: dict = {}
+    bot.notifier.send_startup = lambda n, **kw: captured.update(kw) or True
+    monkeypatch.setattr(main_module, "calendar_health",
+                        lambda *a, **k: {"state": "ok", "next": [date(2026, 9, 24)],
+                                         "covered_until": None, "days_left": 100, "message": ""})
+    bot._announce_calendar()
+    health = bot._calendar
+    bot.notifier.send_startup(
+        len(bot.universe),
+        holidays=[f"{d:%m/%d}({'월화수목금토일'[d.weekday()]})" for d in health.get("next", [])],
+        calendar_warning=health.get("message", ""),
+    )
+    assert captured["holidays"] == ["09/24(목)"]
+
+
+# --- 리포트 전에 미체결을 확정하는가 -------------------------------------------- #
+
+_REPORT = {"total_pnl_pct": 0.0, "buy_count": 0, "sell_count": 0, "position_count": 0}
+
+
+def test_daily_report_settles_open_orders_first(bot, monkeypatch):
+    """15:10 청산 점검이 낸 주문이 PENDING 인 채로 집계되면 매도 건수가 틀린다."""
+    order = []
+    bot.portfolio.reconcile_open_orders = lambda now=None: (
+        order.append("reconciled") or [])
+    monkeypatch.setattr(main_module, "build_daily_report",
+                        lambda db: order.append("report") or _REPORT)
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **k: True)
+
+    bot.daily_report()
+
+    assert order == ["reconciled", "report"]
+
+
+def test_daily_report_still_goes_out_if_settling_fails(bot, monkeypatch):
+    """미체결 정리가 실패했다고 그날 리포트를 통째로 잃을 이유는 없다."""
+    def boom(now=None):
+        raise RuntimeError("KIS 응답 없음")
+
+    bot.portfolio.reconcile_open_orders = boom
+    monkeypatch.setattr(main_module, "build_daily_report", lambda db: {**_REPORT, "total_pnl_pct": 1.5})
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **k: True)
+
+    assert bot.daily_report()["total_pnl_pct"] == 1.5
+    assert any("report:1.5" in line for line in bot.sent)

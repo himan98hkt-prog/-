@@ -342,43 +342,44 @@ def test_user_settings_survive_a_config_code_update(install, remote):
 # 분류돼, 업데이트가 새 기본값을 옆에 .new 로만 놓고 지나갔기 때문이다.
 # 원인은 SHIPPED_DEFAULTS 에 그 버전의 해시가 빠져 있던 것.
 
-def test_current_default_is_listed_as_shipped():
-    """지금 내려주는 settings.yaml 이 목록에 없으면 다음 갱신이 또 막힌다."""
-    from utils import updater
+# settings.yaml 만 지키면 되는 줄 알았는데, holidays.txt 도 같은 USER_EDITABLE
+# 이면서 목록이 비어 있었다. 그래서 새 휴장일 달력을 내려줘도 '직접 고친 파일'
+# 로 분류돼 .new 로만 떨어졌다 — 봇은 추석에도 계속 돌았을 것이다.
+# 파일을 하나 더 늘릴 때 같은 실수를 반복하지 않도록 USER_EDITABLE 전부를 돈다.
 
-    current = (Path(__file__).resolve().parent.parent
-               / "config" / "settings.yaml").read_bytes()
+@pytest.mark.parametrize("relative", updater.USER_EDITABLE)
+def test_current_default_is_listed_as_shipped(relative):
+    """지금 내려주는 기본 설정이 목록에 없으면 다음 갱신이 또 막힌다."""
+    current = (Path(__file__).resolve().parent.parent / relative).read_bytes()
     digest = updater._config_digest(current)
-    assert digest in updater.SHIPPED_DEFAULTS["config/settings.yaml"], (
-        "config/settings.yaml 을 바꿨으면 그 해시를 SHIPPED_DEFAULTS 에 추가하세요: "
-        f"{digest}"
+    assert digest in updater.SHIPPED_DEFAULTS.get(relative, set()), (
+        f"{relative} 을(를) 바꿨으면 그 해시를 SHIPPED_DEFAULTS 에 추가하세요: {digest}"
     )
 
 
-def test_every_version_we_ever_shipped_is_listed():
+@pytest.mark.parametrize("relative", updater.USER_EDITABLE)
+def test_every_version_we_ever_shipped_is_listed(relative):
     """과거 버전이 하나라도 빠지면 그 설치본은 영영 갱신되지 않는다."""
     import subprocess
-
-    from utils import updater
 
     root = Path(__file__).resolve().parent.parent
     try:
         revisions = subprocess.run(
-            ["git", "log", "--format=%H", "--", "./config/settings.yaml"],
+            ["git", "log", "--format=%H", "--", f"./{relative}"],
             cwd=root, capture_output=True, text=True, timeout=30, check=True).stdout.split()
     except (OSError, subprocess.SubprocessError):
         pytest.skip("git 이 없는 환경입니다")
     if not revisions:
         pytest.skip("설정 파일의 이력이 없습니다")
 
-    listed = updater.SHIPPED_DEFAULTS["config/settings.yaml"]
+    listed = updater.SHIPPED_DEFAULTS.get(relative, set())
     missing = []
     for revision in revisions:
-        blob = subprocess.run(["git", "show", f"{revision}:./config/settings.yaml"],
+        blob = subprocess.run(["git", "show", f"{revision}:./{relative}"],
                               cwd=root, capture_output=True, timeout=30).stdout
         if blob and updater._config_digest(blob) not in listed:
             missing.append(revision[:7])
-    assert not missing, f"SHIPPED_DEFAULTS 에 빠진 버전: {missing}"
+    assert not missing, f"{relative}: SHIPPED_DEFAULTS 에 빠진 버전 {missing}"
 
 
 def test_untouched_old_default_is_overwritten(tmp_path):

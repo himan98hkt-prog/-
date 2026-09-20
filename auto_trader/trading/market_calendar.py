@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from config.loader import HOLIDAYS_PATH
@@ -97,3 +98,69 @@ def market_state(now: datetime | None = None, holidays_path: Path | str = DEFAUL
     if moment.time() > MARKET_CLOSE:
         return "CLOSED"
     return "OPEN"
+
+
+# -- 달력이 낡았는지 --------------------------------------------------------- #
+#
+# 휴장일 파일은 해마다 사람이 채워 넣어야 한다. 비어 있어도 코드는 멀쩡히 돌기
+# 때문에, 아무도 모르는 채 휴장일에 주문을 내고 거부 알림만 쌓이게 된다.
+# 그래서 달력이 바닥나기 전에 **먼저 말하게** 한다.
+
+COVERAGE_WARN_DAYS = 30  # 남은 휴장일 범위가 이보다 짧으면 경고한다
+
+
+def next_trading_day(after: date | datetime | None = None,
+                     holidays_path: Path | str = DEFAULT_HOLIDAYS_PATH) -> date:
+    """`after` **다음**의 첫 거래일. 최대 30일까지만 찾는다(그 이상은 달력 문제)."""
+    start = after or now_kst()
+    day = start.date() if isinstance(start, datetime) else start
+    for _ in range(30):
+        day += timedelta(days=1)
+        if is_trading_day(day, holidays_path):
+            return day
+    return day
+
+
+def upcoming_holidays(limit: int = 3, now: datetime | None = None,
+                      holidays_path: Path | str = DEFAULT_HOLIDAYS_PATH) -> list[date]:
+    """오늘 이후로 다가오는 휴장일 (주말 제외, 가까운 순)."""
+    today = (now or now_kst()).date()
+    future = sorted(d for d in load_holidays(holidays_path)
+                    if d > today and d.weekday() < 5)
+    return future[:limit]
+
+
+def calendar_health(now: datetime | None = None,
+                    holidays_path: Path | str = DEFAULT_HOLIDAYS_PATH) -> dict[str, Any]:
+    """휴장일 달력이 아직 쓸 만한지.
+
+    Returns:
+        ``ok``      — 아직 여유가 있다
+        ``stale``   — 달력이 곧 바닥난다(또는 이미 바닥났다). 채워야 한다
+        ``missing`` — 파일 자체가 없다
+    """
+    today = (now or now_kst()).date()
+    path = Path(holidays_path)
+    if not path.exists():
+        return {"state": "missing", "covered_until": None, "days_left": 0, "next": [],
+                "message": f"휴장일 파일이 없습니다 ({path}) — 주말만 제외하고 돕니다."}
+
+    holidays = load_holidays(holidays_path)
+    future = sorted(d for d in holidays if d >= today)
+    covered_until = max(holidays) if holidays else None
+    days_left = (covered_until - today).days if covered_until else 0
+
+    if not holidays:
+        return {"state": "stale", "covered_until": None, "days_left": 0, "next": [],
+                "message": "휴장일이 하나도 없습니다 — 공휴일에도 주문을 시도합니다. "
+                           "KRX 공지를 보고 config/holidays.txt 를 채워 주세요."}
+    if days_left < COVERAGE_WARN_DAYS:
+        tail = f"{covered_until:%Y-%m-%d}" if covered_until else "?"
+        detail = (f"달력이 {tail} 까지뿐입니다"
+                  if future else f"남은 휴장일이 없습니다 (마지막 {tail})")
+        return {"state": "stale", "covered_until": covered_until, "days_left": days_left,
+                "next": future[:3],
+                "message": f"{detail} — 다음 해 휴장일을 config/holidays.txt 에 추가해 주세요."}
+
+    return {"state": "ok", "covered_until": covered_until, "days_left": days_left,
+            "next": future[:3], "message": ""}

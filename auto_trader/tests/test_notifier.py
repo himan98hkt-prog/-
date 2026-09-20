@@ -124,6 +124,32 @@ def test_startup_in_paper_mode_has_no_warning():
     assert "모의(VTS)" in message and "DRY_RUN: on" in message
 
 
+def test_startup_spells_out_what_dry_run_means():
+    """'DRY_RUN: on' 만으로는 주문이 안 나간다는 뜻인 줄 모른다 — 하루를 날렸다."""
+    session = StubSession()
+    Notifier(make_env(), session=session).send_startup(5)
+    message = text_of(session)
+    assert "주문은 내지 않습니다" in message
+    assert "DRY_RUN 을 false" in message
+
+
+def test_startup_does_not_nag_when_orders_are_real():
+    session = StubSession()
+    Notifier(make_env(dry_run=False), session=session).send_startup(5)
+    message = text_of(session)
+    assert "주문은 내지 않습니다" not in message
+    assert "실주문이 전송됩니다" in message
+
+
+def test_startup_lists_upcoming_holidays_and_calendar_warning():
+    session = StubSession()
+    Notifier(make_env(), session=session).send_startup(
+        5, holidays=["09/24(목)", "09/25(금)"], calendar_warning="달력이 곧 바닥납니다")
+    message = text_of(session)
+    assert "09/24(목), 09/25(금)" in message
+    assert "달력이 곧 바닥납니다" in message
+
+
 def test_trade_message_marks_dry_run():
     session = StubSession()
     Notifier(make_env(), session=session).send_trade(

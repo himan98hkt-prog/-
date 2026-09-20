@@ -97,7 +97,8 @@ class Notifier:
 
     # -- 메시지 포맷 ------------------------------------------------------- #
 
-    def send_startup(self, universe_size: int) -> bool:
+    def send_startup(self, universe_size: int, *, holidays: list[str] | None = None,
+                     calendar_warning: str = "") -> bool:
         mode = "실전(REAL)" if self.env.is_real else "모의(VTS)"
         lines = [
             "🚀 자동매매 기동 완료",
@@ -107,8 +108,18 @@ class Notifier:
         ]
         if self.env.is_real:
             lines.insert(0, "⚠️ 실전 모드 시작 — 실제 자금이 사용됩니다 ⚠️")
-        if not self.env.dry_run:
+        # DRY_RUN 은 켜져 있어도 화면이 평소와 똑같이 돈다. 판단도 하고 기록도
+        # 남기는데 주문만 나가지 않아서, 하루가 지나서야 '왜 안 샀지' 를 묻게 된다.
+        # 그래서 on/off 를 적는 것으로 끝내지 않고 그게 무슨 뜻인지 적는다.
+        if self.env.dry_run:
+            lines.append("• ⚠️ 모의 기록 모드입니다 — 판단만 하고 주문은 내지 않습니다.")
+            lines.append("  실제로 매매하려면 .env 의 DRY_RUN 을 false 로 바꾸고 재시작하세요.")
+        else:
             lines.append("• 실주문이 전송됩니다.")
+        if holidays:
+            lines.append(f"• 다가오는 휴장일: {', '.join(holidays)}")
+        if calendar_warning:
+            lines.append(f"• ⚠️ {calendar_warning}")
         return self.send("\n".join(lines))
 
     def send_trade(self, order: dict[str, Any]) -> bool:

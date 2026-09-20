@@ -69,6 +69,23 @@
 <div class="notice danger"><strong>⚠️ 실전 모드로 실주문이 나가고 있습니다</strong>실제 자금이 사용됩니다.</div>
 {% endif %}
 
+{# 휴장일에 아무 일도 안 일어나는 것은 정상이다. 화면이 그렇게 말해 주지 않으면
+   '봇이 죽었나' 를 먼저 의심하게 된다. #}
+{% if status.market.state == 'HOLIDAY' %}
+<div class="notice">
+  <strong>😴 오늘은 휴장일입니다</strong>
+  판단도 주문도 하지 않습니다 — 정상입니다. 다음 거래일은 {{ status.market.next_trading_day }} 입니다.
+</div>
+{% endif %}
+
+{% if status.market.calendar_warning %}
+<div class="notice warn">
+  <strong>📅 휴장일 달력을 채워 주세요</strong>
+  {{ status.market.calendar_warning }}
+  채우지 않으면 공휴일에도 사이클이 돌고, 거래소가 주문을 거부하는 알림이 반복됩니다.
+</div>
+{% endif %}
+
 <!-- ── 요약 타일 ─────────────────────────────────────────────── -->
 <div class="tiles" style="margin-bottom:16px">
   <div class="tile {{ 'is-up' if o.daily_pnl_pct > 0 else ('is-down' if o.daily_pnl_pct < 0 else 'is-flat') }}">
@@ -106,6 +123,7 @@
     <div class="note">
       {% if s.next_cycle_at %}다음 {{ s.next_cycle_at[11:16] }}{% else %}대기 중{% endif %}
       {% if s.last_cycle_codes %} · {{ s.last_cycle_codes }}종목{% endif %}
+      {% if status.market.upcoming %}<br>휴장 {{ status.market.upcoming|join(', ') }}{% endif %}
     </div>
   </div>
 </div>
