@@ -301,14 +301,22 @@ class Portfolio:
         finally:
             conn.close()
 
-    def update_order_fill(self, order_id: int, status: OrderStatus | None, state: str) -> None:
+    def update_order_fill(self, order_id: int, status: OrderStatus | None, state: str,
+                          error: str = "") -> None:
+        """체결 결과를 기록한다. 거부라면 **거래소가 뭐라고 했는지까지** 남긴다.
+
+        예전에는 상태만 'REJECTED' 로 적어서, 화면에 빨간 '거부' 두 글자만 남고
+        이유는 로그를 뒤져야 알 수 있었다. 거부는 드물게 일어나고 그때마다
+        원인이 다르므로, 기록해 두지 않으면 매번 처음부터 찾아야 한다.
+        """
         conn = connect(self.db_path)
         try:
             conn.execute(
-                """UPDATE orders SET filled_qty = ?, filled_price = ?, status = ?, updated_at = ?
+                """UPDATE orders SET filled_qty = ?, filled_price = ?, status = ?,
+                                     error = ?, updated_at = ?
                    WHERE id = ?""",
                 (status.filled_qty if status else 0, status.filled_price if status else 0.0,
-                 state, now_kst_iso(), order_id),
+                 state, error[:500], now_kst_iso(), order_id),
             )
         finally:
             conn.close()

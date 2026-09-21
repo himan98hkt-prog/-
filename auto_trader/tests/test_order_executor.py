@@ -177,9 +177,20 @@ def test_market_order_sends_zero_price(make_executor):
 
 
 def test_limit_buy_price_adds_slippage(make_executor):
+    """매수는 현재가 + 슬리피지, 단 호가단위 안으로.
+
+    71,300 × 1.003 = 71,514 인데, 7만원대의 호가단위는 100원이라 71,514원짜리
+    주문은 거래소가 받지 않는다. 이 테스트가 예전에는 71,514 를 기대하고
+    있었고, 그래서 첫 실주문이 나가기 전까지 아무도 몰랐다.
+    """
     executor, api, _ = make_executor(dry_run=False, order_type="limit")
     executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
-    assert api.orders[0]["price"] == round(71_300 * 1.003), "매수는 현재가 + 슬리피지"
+
+    price = api.orders[0]["price"]
+    assert price == 71_500
+    assert price % 100 == 0, "호가단위(100원)를 벗어난 가격은 거부된다"
+    assert price >= 71_300, "현재가보다 낮으면 체결되지 않는다"
+    assert price <= round(71_300 * 1.003), "허용한 슬리피지를 넘으면 안 된다"
 
 
 def test_sell_is_always_market_even_when_limit_is_configured(make_executor):
@@ -196,7 +207,7 @@ def test_buy_still_honours_the_limit_setting(make_executor):
     executor, api, _ = make_executor(dry_run=False, order_type="limit")
     executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state())
     assert api.orders[0]["order_type"] == "limit"
-    assert api.orders[0]["price"] == round(71_300 * 1.003)
+    assert api.orders[0]["price"] == 71_500
 
 
 def test_order_failure_is_not_retried(make_executor):
@@ -340,3 +351,58 @@ def test_successful_order_sends_no_alert(make_executor):
 
     assert notifier.alerts == []
     assert len(notifier.trades) == 1
+
+
+# --- 호가단위 (2026-09-21 첫 실주문 거부) ---------------------------------------- #
+
+@pytest.mark.parametrize("current, expected, tick", [
+    (176_899.0, 177_400, 100),   # KB금융 — 예전엔 177,431 로 나가 거부당했다
+    (269_000.0, 269_500, 500),   # 삼성전자 — 예전엔 269,807
+    (4_980.0,   4_990,   5),     # 저가주 — 5원 단위 (4,994.94 → 4,990)
+    (612_000.0, 613_000, 1_000),  # 고가주 — 1,000원 단위
+])
+def test_limit_buy_always_lands_on_a_valid_tick(make_executor, current, expected, tick):
+    executor, api, _ = make_executor(dry_run=False, order_type="limit")
+    snapshot = {**SNAPSHOT, "price": {**SNAPSHOT["price"], "current": current}}
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), snapshot, state())
+
+    price = api.orders[0]["price"]
+    assert price % tick == 0, f"{price:,}원은 {tick}원 단위가 아니다 — 거래소가 거부한다"
+    assert price == expected
+    assert current <= price <= current * 1.003
+
+
+def test_a_tick_wider_than_the_slippage_still_produces_a_fillable_price(make_executor):
+    """슬리피지 여유(0.3%)보다 호가단위가 크면, 내림이 현재가 아래로 떨어진다.
+
+    그대로 두면 체결될 수 없는 주문이 된다. 안 사는 것보다는 한 호가 더 주는
+    편이 낫다 — 현재가 위의 첫 호가로 돌아와야 한다.
+    """
+    executor, api, _ = make_executor(dry_run=False, order_type="limit")
+    # 500,100원: 0.3% = 1,500원이지만 호가단위가 1,000원이라 아슬아슬하다.
+    snapshot = {**SNAPSHOT, "price": {**SNAPSHOT["price"], "current": 500_100.0}}
+    executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), snapshot, state())
+
+    price = api.orders[0]["price"]
+    assert price % 1_000 == 0
+    assert price >= 500_100, "현재가보다 낮은 지정가는 체결되지 않는다"
+
+
+def test_rejection_reason_is_written_to_the_order_row(make_executor):
+    """빨간 '거부' 두 글자만 남으면 원인을 찾으려 매번 로그를 뒤져야 한다."""
+    from utils.db import connect
+
+    executor, _, portfolio = make_executor(
+        dry_run=False, api=StubApi(error=KisApiError("[40310000] 호가단위 오류")))
+
+    result = executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20),
+                              SNAPSHOT, state(), cycle_id="c1")
+
+    assert result.status == "REJECTED"
+    conn = connect(portfolio.db_path)
+    try:
+        row = conn.execute("SELECT status, error FROM orders ORDER BY id DESC LIMIT 1").fetchone()
+    finally:
+        conn.close()
+    assert row["status"] == "REJECTED"
+    assert row["error"] == "[40310000] 호가단위 오류", "거래소가 뭐라고 했는지가 남아야 한다"

@@ -624,7 +624,7 @@
       {% if orders %}
       <div class="scroll-table" style="--rows: 7">
         <table>
-          <thead><tr><th>시각</th><th>종목</th><th>구분</th><th class="num">수량</th><th class="num">가격</th><th>상태</th></tr></thead>
+          <thead><tr><th>시각</th><th>종목</th><th>구분</th><th class="num">수량</th><th class="num">가격</th><th>상태</th><th>사유</th></tr></thead>
           <tbody>
             {% for r in orders %}
             <tr>
@@ -639,6 +639,9 @@
                 {% elif r.status == 'REJECTED' %}<span class="badge stop">거부</span>
                 {% else %}<span class="badge">{{ r.status }}</span>{% endif %}
               </td>
+              {# 거부는 드물게 일어나고 그때마다 원인이 다르다. 빨간 '거부' 두 글자만
+                 남기면 매번 로그를 뒤져야 한다 — 거래소가 뭐라고 했는지를 그대로 둔다. #}
+              <td class="dim">{{ r.error or r.reason or '' }}</td>
             </tr>
             {% endfor %}
           </tbody>

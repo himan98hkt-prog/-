@@ -20,6 +20,7 @@ import requests
 
 from config.loader import EnvConfig
 from trading.kis_auth import VTS_UNSUPPORTED, KisAuthError, TokenManager
+from trading.tick import is_valid_tick, tick_size
 from utils.logger import get_logger
 from utils.retry import RetryExhausted, retry
 
@@ -572,6 +573,12 @@ class KisApi:
             raise KisApiError(f"알 수 없는 주문 유형: {order_type}")
         if order_type == "limit" and price <= 0:
             raise KisApiError("지정가 주문에는 가격이 필요합니다")
+        if order_type == "limit" and not is_valid_tick(price):
+            # 여기까지 온 것은 호출한 쪽의 실수다. 거래소가 튕겨낸 뒤에 원인을
+            # 찾는 것보다, 나가기 전에 무엇이 틀렸는지 말하는 편이 훨씬 싸다.
+            raise KisApiError(
+                f"호가단위 위반: {price:,}원은 {tick_size(price):,}원 단위가 아닙니다"
+            )
 
         body = {
             "CANO": self.env.kis_account_no,

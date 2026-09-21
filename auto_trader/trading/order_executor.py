@@ -13,6 +13,7 @@ from logic.decision_maker import FinalDecision
 from logic.portfolio import Portfolio, PortfolioState
 from logic.risk_manager import RiskManager
 from trading.kis_api import KisApi, KisApiError
+from trading.tick import snap
 from utils.logger import get_logger
 from utils.notifier import Notifier
 
@@ -54,10 +55,28 @@ class OrderExecutor:
     # -- 가격·수량 계산 ----------------------------------------------------- #
 
     def _limit_price(self, current_price: float, side: str) -> int:
-        """지정가 = 현재가 ± 허용 슬리피지 (매수는 위로, 매도는 아래로)."""
+        """지정가 = 현재가 ± 허용 슬리피지, **호가단위에 맞춰서**.
+
+        한국 주식은 아무 가격이나 주문할 수 없다 — 주가 구간마다 정해진 단위의
+        배수여야 하고 아니면 거래소가 주문을 통째로 거부한다. 예전에는 1원
+        단위로 반올림해서, 삼성전자에 269,807원(500원 단위 위반) 같은 값을
+        내보내고 있었다.
+
+        맞추는 방향은 매수는 아래로, 매도는 위로다. 슬리피지는 '여기까지는
+        감수하겠다' 는 한도이므로, 그 한도를 넘기는 쪽으로 올림하지 않는다.
+        """
         slippage = self.settings.risk.limit_slippage_pct / 100
         factor = (1 + slippage) if side == "BUY" else (1 - slippage)
-        return int(round(current_price * factor))
+        price = snap(current_price * factor, side)
+
+        # 호가단위가 슬리피지 여유보다 크면, 맞추는 과정에서 현재가 반대편으로
+        # 넘어가 영원히 체결되지 않는 주문이 될 수 있다. 그때는 현재가 쪽
+        # 첫 호가로 돌아온다 — 안 사는 것보다는 한 호가 더 주는 편이 낫다.
+        if side == "BUY" and price < current_price:
+            return snap(current_price, "SELL")   # 현재가 이상의 첫 호가
+        if side == "SELL" and price > current_price:
+            return snap(current_price, "BUY")    # 현재가 이하의 첫 호가
+        return price
 
     def order_type_for(self, side: str) -> str:
         """이 주문을 지정가로 낼지 시장가로 낼지.
@@ -167,7 +186,7 @@ class OrderExecutor:
             # 주문 API는 재시도하지 않는다(중복 체결 위험). 대신 반드시 알린다 —
             # 특히 손절 매도가 조용히 실패하면 손실이 그대로 커진다.
             logger.error("%s %s 주문 실패: %s", code, side, exc)
-            self.portfolio.update_order_fill(order_id, None, "REJECTED")
+            self.portfolio.update_order_fill(order_id, None, "REJECTED", error=str(exc))
             self._notify_rejected(code, name, side, qty, reason, str(exc))
             return ExecutionResult(ordered=False, side=side, qty=qty, price=current_price,
                                    status="REJECTED", reason=reason, dry_run=False, error=str(exc))
