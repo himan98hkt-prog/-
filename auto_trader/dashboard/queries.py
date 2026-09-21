@@ -381,9 +381,22 @@ def buy_rationale(db_path: Path | str, codes: list[str]) -> dict[str, dict[str, 
         for code in codes:
             # 가장 최근 매수 체결 시각을 찾고, 그 시각 이전의 마지막 매수 판단을 붙인다.
             bought = conn.execute(
-                """SELECT created_at, filled_price, filled_qty FROM orders
+                """SELECT created_at, filled_price, filled_qty, price, qty, status FROM orders
                    WHERE code = ? AND side = 'BUY' AND filled_qty > 0
                    ORDER BY id DESC LIMIT 1""", (code,)).fetchone()
+            # 체결 수량이 기록되지 않은 주문도 '우리가 낸 주문' 이다. 체결 기록만
+            # 찾다가 없다고 "이 프로그램 밖에서 산 종목" 이라고 말해 버리면,
+            # 방금 봇이 산 종목을 두고 남이 손댄 것처럼 보이게 된다.
+            # (취소가 체결보다 늦게 닿으면 실제로 이런 기록이 남는다.)
+            partial_record = False
+            if bought is None:
+                bought = conn.execute(
+                    """SELECT created_at, filled_price, filled_qty, price, qty, status
+                       FROM orders
+                       WHERE code = ? AND side = 'BUY' AND dry_run = 0
+                             AND status != 'REJECTED'
+                       ORDER BY id DESC LIMIT 1""", (code,)).fetchone()
+                partial_record = bought is not None
             if bought is None:
                 continue
             row = conn.execute(
@@ -405,8 +418,11 @@ def buy_rationale(db_path: Path | str, codes: list[str]) -> dict[str, dict[str, 
             ]
             result[code] = {
                 "bought_at": bought["created_at"],
-                "bought_price": float(bought["filled_price"]),
-                "bought_qty": int(bought["filled_qty"]),
+                # 체결가가 없으면 주문가라도 보여 준다 — 빈칸보다 낫다.
+                "bought_price": float(bought["filled_price"] or bought["price"] or 0),
+                "bought_qty": int(bought["filled_qty"] or bought["qty"] or 0),
+                "fill_unconfirmed": partial_record,
+                "order_status": bought["status"] or "",
                 "final_action": row["final_action"],
                 "final_reason": row["final_reason"] or "",
                 "engines": engines,

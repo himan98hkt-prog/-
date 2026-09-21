@@ -176,6 +176,10 @@
         <b>{{ r.bought_at[:16].replace('T', ' ') }}</b> 에
         {{ '{:,.0f}'.format(r.bought_price) }}원 × {{ r.bought_qty }}주 매수 —
         {{ r.final_reason }}
+        {% if r.fill_unconfirmed %}
+        <span class="dim">(체결 수량이 아직 기록되지 않았습니다 — 상태 {{ r.order_status }}.
+        다음 사이클에서 자동으로 맞춰집니다. 보유 수량·손익은 증권사 잔고 기준이라 정확합니다.)</span>
+        {% endif %}
         {% else %}
         <span class="dim">매수 기록을 찾지 못했습니다 — 이 프로그램 밖에서 산 종목입니다</span>
         {% endif %}

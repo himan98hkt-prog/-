@@ -379,6 +379,11 @@ class Portfolio:
         시장가 미체결은 `wait_for_fill` 이 30초만 보고 넘어가므로, 다음 사이클
         시작 때 여기서 최종 상태를 확정한다. 이걸 하지 않으면 이미 체결된 주문이
         영원히 PENDING 으로 남아 리포트와 손익이 어긋난다.
+
+        **체결 0주로 적힌 취소 주문도 함께 본다.** 취소 요청이 체결보다 늦게
+        닿으면 거래소는 취소를 거부하는데, 그때 취소된 줄로 적어 둔 기록이
+        남아 있을 수 있다. 진짜로 취소된 주문이면 조회 결과도 그대로라 아무
+        일도 일어나지 않고, 실제로는 체결됐던 주문만 여기서 바로잡힌다.
         """
         moment = now or datetime.now(KST)
         today = moment.strftime("%Y-%m-%d")
@@ -389,7 +394,8 @@ class Portfolio:
             rows = conn.execute(
                 f"""SELECT id, order_no, code, name, side, qty, status FROM orders
                     WHERE dry_run = 0 AND order_no != ''
-                      AND status IN ({placeholders})
+                      AND (status IN ({placeholders})
+                           OR (status = 'CANCELED' AND filled_qty = 0))
                       AND substr(created_at, 1, 10) = ?""",
                 (*self.OPEN_STATUSES, today),
             ).fetchall()
@@ -458,12 +464,45 @@ class Portfolio:
         if order_type == "limit":
             # 지정가 미체결은 취소하고 이번 사이클은 넘긴다.
             try:
-                self.api.cancel_order(last.order_no, code, last.remain_qty or qty)
-                logger.info("지정가 미체결 취소: %s (%d주)", order_no, last.remain_qty)
-                return "CANCELED", last
+                canceled = self.api.cancel_order(last.order_no, code, last.remain_qty or qty)
             except KisApiError as exc:
                 logger.error("주문 취소 실패(%s) — 미체결로 남깁니다", exc)
                 return "PENDING", last
 
+            if not canceled:
+                # 취소가 거부되는 가장 흔한 이유는 **이미 체결됐다** 는 것이다.
+                # 30초 폴링의 마지막 조회와 취소 요청 사이에 체결되면 이렇게 된다.
+                # 예전에는 반환값을 버리고 무조건 CANCELED 로 적었다. 그래서
+                # 실제로는 산 주문이 '체결 0주 · 취소' 로 남고, 화면은 그 종목을
+                # "이 프로그램 밖에서 산 종목" 이라고 말했다.
+                logger.warning("취소가 받아들여지지 않았습니다(%s) — 체결됐는지 다시 봅니다", order_no)
+                return self._settle_after_failed_cancel(order_no, last)
+
+            logger.info("지정가 미체결 취소: %s (%d주)", order_no, last.remain_qty)
+            return "CANCELED", last
+
         # 시장가 미체결은 다음 사이클에서 다시 조회한다.
         return ("PARTIAL" if last.is_partially_filled else "PENDING"), last
+
+    def _settle_after_failed_cancel(self, order_no: str,
+                                    last: OrderStatus) -> tuple[str, OrderStatus | None]:
+        """취소가 거부된 주문의 진짜 상태를 한 번 더 확인한다.
+
+        확인하지 못하면 PENDING 으로 남긴다 — 그래야 다음 사이클의
+        reconcile_open_orders 가 이어서 확정한다. CANCELED 로 적어 버리면
+        재확인 대상에서 빠져 체결 수량 0 인 채로 영영 굳는다.
+        """
+        try:
+            status = self.api.get_order_status(order_no)
+        except KisApiError as exc:
+            logger.warning("취소 실패 후 재조회도 실패(%s) — 미체결로 남깁니다", exc)
+            return "PENDING", last
+        if status is None:
+            return "PENDING", last
+        if status.is_filled:
+            logger.info("취소 전에 이미 체결돼 있었습니다: %s (%d주 @%s원)",
+                        order_no, status.filled_qty, f"{status.filled_price:,.0f}")
+            return "FILLED", status
+        if status.is_partially_filled:
+            return "PARTIAL", status
+        return "PENDING", status

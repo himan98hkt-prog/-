@@ -617,3 +617,82 @@ def test_engine_buy_rate_finds_the_bottleneck(tmp_path):
     rates = {e["engine"]: e["buy_pct"] for e in consensus_stats(db, now=now)["engines"]}
     assert rates["Claude"] == 0.0
     assert rates["Gemini"] == 100.0 and rates["ChatGPT"] == 100.0
+
+
+# --- 봇이 산 종목을 '남이 산 것' 이라고 말하지 않기 (2026-09-21) ----------------- #
+
+def test_a_buy_with_no_recorded_fill_is_still_our_order(tmp_path):
+    """체결 수량이 기록되지 않았다고 '프로그램 밖에서 산 종목' 이 되면 안 된다.
+
+    취소가 체결보다 늦게 닿으면 '체결 0주 · 취소' 기록이 남는다. 그때 화면이
+    남이 손댄 종목처럼 말하면, 방금 자기가 산 것을 두고 계좌를 의심하게 된다.
+    """
+    from dashboard.queries import buy_rationale
+    from utils.db import connect, init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    conn = connect(db)
+    try:
+        conn.execute(
+            """INSERT INTO orders (cycle_id, order_no, code, name, side, order_type, qty,
+                                   price, filled_qty, filled_price, status, dry_run, kis_env,
+                                   created_at, updated_at)
+               VALUES ('c1','O1','005930','삼성전자','BUY','limit',3,269500,0,0,
+                       'CANCELED',0,'VTS','2026-09-21T09:36:00+09:00','2026-09-21T09:36:30+09:00')""")
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, final_action, final_reason,
+                                      claude_action, created_at)
+               VALUES ('c1','005930','삼성전자','BUY_SMALL','반도체 업황 회복',
+                       'BUY','2026-09-21T09:35:00+09:00')""")
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = buy_rationale(db, ["005930"])
+
+    assert "005930" in result, "우리가 낸 주문인데 기록이 없다고 하면 안 된다"
+    row = result["005930"]
+    assert row["fill_unconfirmed"] is True
+    assert row["order_status"] == "CANCELED"
+    assert row["bought_price"] == 269_500, "체결가가 없으면 주문가라도 보여야 한다"
+    assert row["bought_qty"] == 3
+    assert row["final_reason"] == "반도체 업황 회복"
+
+
+def test_a_properly_filled_buy_is_not_flagged(tmp_path):
+    from dashboard.queries import buy_rationale
+    from utils.db import connect, init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    conn = connect(db)
+    try:
+        conn.execute(
+            """INSERT INTO orders (cycle_id, order_no, code, name, side, order_type, qty,
+                                   price, filled_qty, filled_price, status, dry_run, kis_env,
+                                   created_at, updated_at)
+               VALUES ('c1','O1','005930','삼성전자','BUY','limit',3,269500,3,269500,
+                       'FILLED',0,'VTS','2026-09-21T09:36:00+09:00','2026-09-21T09:36:30+09:00')""")
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, final_action, final_reason,
+                                      claude_action, created_at)
+               VALUES ('c1','005930','삼성전자','BUY_SMALL','합의','BUY',
+                       '2026-09-21T09:35:00+09:00')""")
+        conn.commit()
+    finally:
+        conn.close()
+
+    row = buy_rationale(db, ["005930"])["005930"]
+    assert row["fill_unconfirmed"] is False
+    assert row["bought_qty"] == 3
+
+
+def test_a_code_we_never_ordered_is_still_reported_as_outside(tmp_path):
+    """진짜로 밖에서 산 종목은 그대로 그렇게 말해야 한다."""
+    from dashboard.queries import buy_rationale
+    from utils.db import init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    assert buy_rationale(db, ["005930"]) == {}

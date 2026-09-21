@@ -511,3 +511,98 @@ def test_dry_run_mode_still_counts_its_own_records(settings_obj, tmp_path):
     moment = datetime(2026, 9, 18, 13, 40, tzinfo=ZoneInfo("Asia/Seoul"))
 
     assert Portfolio(dry, None, db_path=db)._bought_today(moment) == {"005930"}
+
+
+# --- 취소가 체결보다 늦게 닿았을 때 (2026-09-21) -------------------------------- #
+#
+# 30초 폴링의 마지막 조회와 취소 요청 사이에 체결되면, 거래소는 취소를 거부한다.
+# 그런데 cancel_order 의 반환값을 버리고 무조건 CANCELED 로 적고 있었다.
+# 그래서 실제로 산 주문이 '체결 0주 · 취소' 로 남고, 화면은 그 종목을
+# "이 프로그램 밖에서 산 종목" 이라고 말했다.
+
+class _CancelRaceApi:
+    """취소를 거부하고, 다시 물으면 '이미 체결됨' 이라고 답하는 대역."""
+
+    def __init__(self, cancel_returns=False, after=None):
+        self.cancel_returns = cancel_returns
+        self.after = after
+        self.cancel_calls = 0
+        self.status_calls = 0
+        self._pending = OrderStatus(order_no="O1", code="005930", name="삼성전자", side="BUY",
+                                    order_qty=3, filled_qty=0, remain_qty=3,
+                                    filled_price=0, filled_amount=0, status="접수")
+
+    def get_order_status(self, order_no, date=None):
+        self.status_calls += 1
+        if self.cancel_calls and self.after is not None:
+            return self.after
+        return self._pending
+
+    def cancel_order(self, order_no, code, qty, org_no=""):
+        self.cancel_calls += 1
+        return self.cancel_returns
+
+
+def _filled(qty=3, price=269_500.0):
+    return OrderStatus(order_no="O1", code="005930", name="삼성전자", side="BUY",
+                       order_qty=3, filled_qty=qty, remain_qty=3 - qty,
+                       filled_price=price, filled_amount=qty * price, status="체결")
+
+
+def test_a_refused_cancel_is_rechecked_and_recorded_as_filled(settings_obj, tmp_path, monkeypatch):
+    monkeypatch.setattr("logic.portfolio.time.sleep", lambda *_: None)
+    api = _CancelRaceApi(cancel_returns=False, after=_filled())
+    portfolio = Portfolio(settings_obj, api, db_path=tmp_path / "t.db")
+
+    state, status = portfolio.wait_for_fill("O1", "limit", "005930", 3)
+
+    assert state == "FILLED", "취소가 거부됐으면 체결됐는지 다시 봐야 한다"
+    assert status.filled_qty == 3
+    assert api.cancel_calls == 1
+
+
+def test_a_refused_cancel_stays_open_when_it_really_did_not_fill(settings_obj, tmp_path, monkeypatch):
+    """재조회에도 미체결이면 PENDING 으로 남겨야 다음 사이클이 이어받는다."""
+    monkeypatch.setattr("logic.portfolio.time.sleep", lambda *_: None)
+    api = _CancelRaceApi(cancel_returns=False, after=None)
+    portfolio = Portfolio(settings_obj, api, db_path=tmp_path / "t.db")
+
+    state, _ = portfolio.wait_for_fill("O1", "limit", "005930", 3)
+
+    assert state == "PENDING"
+    assert state in Portfolio.OPEN_STATUSES, "재확인 대상에서 빠지면 영영 굳는다"
+
+
+def test_a_confirmed_cancel_is_still_canceled(settings_obj, tmp_path, monkeypatch):
+    monkeypatch.setattr("logic.portfolio.time.sleep", lambda *_: None)
+    api = _CancelRaceApi(cancel_returns=True)
+    portfolio = Portfolio(settings_obj, api, db_path=tmp_path / "t.db")
+
+    state, _ = portfolio.wait_for_fill("O1", "limit", "005930", 3)
+
+    assert state == "CANCELED"
+    assert api.status_calls == 6, "취소가 받아들여졌으면 더 물을 이유가 없다"
+
+
+def test_reconcile_picks_up_a_cancelled_order_that_actually_filled(settings_obj, tmp_path):
+    """이미 남아 있는 잘못된 기록도 다음 사이클에 스스로 바로잡혀야 한다."""
+    from utils.db import connect
+
+    api = _CancelRaceApi(cancel_returns=True, after=_filled())
+    api.get_order_status = lambda order_no, date=None: _filled()
+    portfolio = Portfolio(settings_obj, api, db_path=tmp_path / "t.db")
+    order_id = portfolio.record_order(
+        cycle_id="c1", code="005930", name="삼성전자", side="BUY", order_type="limit",
+        qty=3, price=269_500, status="SUBMITTING", order_no="O1", dry_run=False)
+    portfolio.update_order_fill(order_id, None, "CANCELED")   # 체결 0주로 굳은 상태
+
+    changes = portfolio.reconcile_open_orders()
+
+    assert [c["after"] for c in changes] == ["FILLED"]
+    conn = connect(portfolio.db_path)
+    try:
+        row = conn.execute("SELECT status, filled_qty FROM orders WHERE id = ?",
+                           (order_id,)).fetchone()
+    finally:
+        conn.close()
+    assert row["status"] == "FILLED" and row["filled_qty"] == 3
