@@ -50,6 +50,7 @@ CODE_DIRS = ("agents", "data_pipeline", "dashboard", "logic", "scripts", "tests"
 # 설정 스키마를 고칠 때마다 '없는 속성' 오류가 났다.)
 CODE_FILES = ("main.py", "__init__.py", "requirements.txt", "pytest.ini", "start.sh", "start.bat",
               "update.bat", "install.bat", "run_bot.bat", "boot.bat", "check_account.bat",
+              "mobile.bat",
               "config/__init__.py", "config/loader.py",
               ".env.example", "README.md", "SETUP.md")
 
