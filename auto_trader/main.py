@@ -236,7 +236,9 @@ class TradingBot:
                 env.telegram_bot_token, env.telegram_chat_id,
                 {
                     "/상태": self._cmd_status, "/status": self._cmd_status,
-                    "/보유": self._cmd_positions, "/오늘": self._cmd_today,
+                    "/보유": self._cmd_positions, "/positions": self._cmd_positions,
+                    "/오늘": self._cmd_today, "/today": self._cmd_today,
+                    "/판단": self._cmd_decisions, "/decisions": self._cmd_decisions,
                     "/정지": self._cmd_stop, "/stop": self._cmd_stop,
                     "/재개": self._cmd_resume, "/resume": self._cmd_resume,
                     "/도움말": self._cmd_help, "/help": self._cmd_help,
@@ -252,39 +254,150 @@ class TradingBot:
         return HELP
 
     def _cmd_status(self) -> str:
+        """대시보드 상단 타일을 그대로 폰으로 옮긴다.
+
+        폰에서 가장 자주 묻는 것은 '지금 잘 돌고 있나' 하나다. 그 답이
+        한 화면에 다 들어가야 하고, 무언가 이상하면 그 줄이 먼저 보여야 한다.
+        """
+        from dashboard.queries import overview
+
         env = self.settings.env
-        mode = "실전(REAL)" if env.is_real else "모의투자(VTS)"
-        lines = [
-            f"{'🟥' if env.is_real else '🟦'} {mode}" + ("  · 주문 미전송(DRY_RUN)" if env.dry_run else ""),
-            f"상태: {'정지됨 — ' + self.stop_flag.reason() if self.stop_flag.is_set() else '가동 중'}",
-        ]
+        head = "🟥 실전(REAL)" if env.is_real else "🟦 모의투자(VTS)"
+        lines = [head + ("  ⚠️ 주문 미전송(DRY_RUN)" if env.dry_run else "")]
+
+        if self.stop_flag.is_set():
+            lines.append(f"🛑 정지됨 — {self.stop_flag.reason()}")
+            lines.append("손절·익절은 계속 동작합니다. /재개 로 풀 수 있습니다.")
+        elif not is_trading_day():
+            lines.append(f"😴 휴장일 — 다음 거래일 {next_trading_day():%m/%d}")
+        else:
+            lines.append(f"✅ 가동 중 · 장 {market_state()}")
+
         try:
-            state = self.portfolio.state
-            lines.append(f"당일 손익: {state.daily_pnl_pct:+.2f}%")
-            lines.append(f"보유: {state.position_count}종목 / 주문가능 {state.cash:,.0f}원")
+            data = overview(self.settings.paths["db"])
+            sign = "🔴" if data["daily_pnl_pct"] > 0 else ("🔵" if data["daily_pnl_pct"] < 0 else "⚪")
+            lines.append("")
+            lines.append(f"{sign} 당일 {data['daily_pnl_pct']:+.2f}%  "
+                         f"({data['unrealized_pnl']:+,.0f}원)")
+            lines.append(f"평가자산 {data['end_equity']:,.0f}원")
+            lines.append(f"보유 {data['position_count']}종목 · "
+                         f"평가 {data['eval_amount']:,.0f}원")
+            order_line = f"오늘 주문 매수 {data['buy_count']} · 매도 {data['sell_count']}"
+            if data["rejected_orders"]:
+                order_line += f" · ⚠️거부 {data['rejected_orders']}"
+            lines.append(order_line)
+            lines.append(f"AI {data['ai_calls']}건 / ${data['ai_cost_usd']:.2f}"
+                         + (f" · ⚠️실패 {data['ai_failures']}" if data["ai_failures"] else ""))
         except Exception:
-            lines.append("잔고 정보를 아직 읽지 못했습니다")
+            logger.exception("상태 조회 실패")
+            lines.append("(수치를 읽지 못했습니다 — 대시보드를 확인하세요)")
+
+        try:
+            lines.append(f"주문가능 현금 {self.portfolio.state.cash:,.0f}원")
+        except Exception:
+            pass
+
         next_at = self._next_run_at()
-        lines.append(f"다음 사이클: {next_at[11:16] if len(next_at) > 15 else '미정'}")
-        lines.append(f"AI: {len(self.agents)}개 엔진")
+        lines.append("")
+        lines.append(f"다음 사이클 {next_at[11:16] if len(next_at) > 15 else '미정'}")
+        upcoming = upcoming_holidays(limit=2)
+        if upcoming:
+            lines.append("휴장 " + ", ".join(f"{d:%m/%d}" for d in upcoming))
         return "\n".join(lines)
 
     def _cmd_positions(self) -> str:
-        positions = list(self.portfolio.state.positions.values())
-        if not positions:
+        """보유 종목 — 손절·익절까지 얼마나 남았는지까지 같이 본다.
+
+        폰에서 수익률만 보면 '더 둬도 되나' 를 판단할 수 없다. 기계가 언제
+        자동으로 파는지를 함께 보여야 손을 댈지 말지 결정할 수 있다.
+        """
+        from dashboard.queries import positions as position_rows
+
+        risk = self.settings.risk
+        try:
+            rows = position_rows(self.settings.paths["db"], risk.stop_loss_pct,
+                                 risk.take_profit_pct, risk)
+        except Exception:
+            logger.exception("보유 조회 실패")
+            rows = []
+
+        if not rows:
             return "보유 종목이 없습니다."
-        lines = ["보유 종목"]
-        for position in positions:
-            lines.append(f"· {position.name} {position.qty}주 "
-                         f"{position.pnl_pct:+.2f}% ({position.pnl_amount:+,.0f}원)")
+
+        lines = [f"보유 {len(rows)}종목"]
+        for row in rows:
+            mark = "🔴" if row["pnl_pct"] > 0 else ("🔵" if row["pnl_pct"] < 0 else "⚪")
+            lines.append("")
+            lines.append(f"{mark} {row['name']} {row['qty']:,}주  {row['pnl_pct']:+.2f}%")
+            lines.append(f"   평단 {row['avg_price']:,.0f} → 현재 {row['current_price']:,.0f}")
+            lines.append(f"   평가 {row['eval_amount']:,.0f}원 ({row['pnl_amount']:+,.0f})")
+            guard = (f"   손절까지 {row['to_stop_loss']:.1f}%p · "
+                     f"익절까지 {row['to_take_profit']:.1f}%p")
+            if row.get("trailing_stop"):
+                guard += f"\n   트레일링 {row['trailing_stop']:,.0f}원"
+            lines.append(guard)
         return "\n".join(lines)
 
     def _cmd_today(self) -> str:
+        from dashboard.queries import overview, recent_risk_blocks
+
         report = build_daily_report(self.settings.paths["db"])
-        return ("오늘 매매\n"
-                f"· 손익 {report['total_pnl_pct']:+.2f}%\n"
-                f"· 매수 {report['buy_count']}건 / 매도 {report['sell_count']}건\n"
-                f"· 보유 {report['position_count']}종목")
+        lines = [
+            "오늘 매매",
+            f"· 손익 {report['total_pnl_pct']:+.2f}%",
+            f"· 매수 {report['buy_count']}건 / 매도 {report['sell_count']}건",
+            f"· 보유 {report['position_count']}종목 / 판단 {report['decision_count']}건",
+        ]
+        try:
+            data = overview(self.settings.paths["db"])
+            if data["rejected_orders"]:
+                lines.append(f"· ⚠️ 거래소가 거부한 주문 {data['rejected_orders']}건")
+            if data["dry_run_orders"]:
+                lines.append(f"· 모의 기록 {data['dry_run_orders']}건 (실제 주문 아님)")
+            lines.append(f"· AI 비용 ${data['ai_cost_usd']:.2f}")
+        except Exception:
+            logger.exception("오늘 요약 보강 실패")
+
+        try:
+            blocks = recent_risk_blocks(self.settings.paths["db"], limit=3)
+        except Exception:
+            blocks = []
+        if blocks:
+            lines.append("")
+            lines.append("리스크 규칙이 막은 것")
+            for block in blocks:
+                lines.append(f"· {block.get('name') or block.get('code')}: "
+                             f"{block.get('risk_reason', '')}")
+        return "\n".join(lines)
+
+    def _cmd_decisions(self) -> str:
+        """최근 AI 판단 — '왜 안 샀지' 에 대한 답.
+
+        이번 프로그램에서 가장 자주 나온 질문이다. 대시보드를 못 볼 때
+        폰에서 바로 확인할 수 있어야 한다.
+        """
+        from dashboard.queries import recent_decisions
+
+        try:
+            rows = recent_decisions(self.settings.paths["db"], limit=10)
+        except Exception:
+            logger.exception("판단 조회 실패")
+            return "판단 기록을 읽지 못했습니다."
+        if not rows:
+            return "아직 판단 기록이 없습니다."
+
+        lines = [f"최근 판단 ({rows[0]['created_at'][11:16]} 기준)"]
+        for row in rows:
+            name = row.get("name") or row.get("code")
+            text = f"· {name}: {row.get('final_action', 'HOLD')}"
+            if row.get("outcome"):
+                text += f" → {row['outcome']}"
+            elif row.get("risk_reason"):
+                text += f" → 막힘({row['risk_reason']})"
+            lines.append(text)
+        lines.append("")
+        lines.append("매수는 세 AI 가 모두 동의해야 나갑니다.")
+        return "\n".join(lines)
 
     def _cmd_stop(self) -> str:
         self.stop_flag.set("텔레그램에서 정지")

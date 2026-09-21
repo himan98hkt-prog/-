@@ -556,7 +556,95 @@ def test_resume_when_already_running(bot):
 def test_status_command_reports_the_mode(bot):
     reply = bot._cmd_status()
     assert "모의투자(VTS)" in reply or "실전(REAL)" in reply
-    assert "AI:" in reply
+
+
+# --- 폰에서 보는 화면 ----------------------------------------------------------- #
+#
+# 대시보드는 PC 에만 있다. 장중에 자리를 비우면 '지금 잘 돌고 있나' 를 확인할
+# 길이 텔레그램뿐이므로, 상단 타일이 답하는 것은 여기서도 답해야 한다.
+
+def test_status_answers_the_questions_the_dashboard_tiles_answer(bot):
+    reply = bot._cmd_status()
+    for expected in ("당일", "평가자산", "보유", "오늘 주문", "AI", "다음 사이클"):
+        assert expected in reply, f"{expected} 가 빠졌습니다"
+
+
+def test_status_says_loudly_when_orders_are_not_being_sent(bot):
+    """DRY_RUN 은 화면이 평소와 똑같이 돌아서, 말해 주지 않으면 모른다."""
+    assert "DRY_RUN" in bot._cmd_status()
+
+
+def test_status_leads_with_the_stop_when_stopped(bot):
+    bot.stop_flag.set("테스트 정지")
+    try:
+        reply = bot._cmd_status()
+        assert "정지됨" in reply and "테스트 정지" in reply
+        assert "손절·익절은 계속 동작합니다" in reply
+    finally:
+        bot.stop_flag.clear()
+
+
+def test_positions_shows_how_far_the_machine_will_let_it_run(bot, monkeypatch):
+    """수익률만 보면 '더 둬도 되나' 를 판단할 수 없다."""
+    monkeypatch.setattr(
+        "dashboard.queries.positions",
+        lambda *a, **k: [{"name": "삼성전자", "code": "005930", "qty": 3,
+                          "avg_price": 269_500, "current_price": 274_500,
+                          "eval_amount": 823_500, "pnl_amount": 15_000, "pnl_pct": 1.86,
+                          "to_stop_loss": 6.86, "to_take_profit": 8.14,
+                          "trailing_stop": 0}])
+    reply = bot._cmd_positions()
+    assert "삼성전자" in reply and "+1.86%" in reply
+    assert "손절까지 6.9%p" in reply and "익절까지 8.1%p" in reply
+    assert "269,500" in reply and "274,500" in reply
+
+
+def test_positions_is_plain_when_there_is_nothing(bot, monkeypatch):
+    monkeypatch.setattr("dashboard.queries.positions", lambda *a, **k: [])
+    assert bot._cmd_positions() == "보유 종목이 없습니다."
+
+
+def test_decisions_answers_why_nothing_was_bought(bot, monkeypatch):
+    """이번 프로그램에서 가장 자주 나온 질문이다."""
+    monkeypatch.setattr(
+        "dashboard.queries.recent_decisions",
+        lambda *a, **k: [
+            {"name": "삼성전자", "code": "005930", "final_action": "BUY_SMALL",
+             "outcome": "매수 3주 @269,500", "created_at": "2026-09-21T13:05:00+09:00"},
+            {"name": "SK하이닉스", "code": "000660", "final_action": "BUY_SMALL",
+             "risk_reason": "당일 이미 매수한 종목", "outcome": "",
+             "created_at": "2026-09-21T13:05:00+09:00"},
+        ])
+    reply = bot._cmd_decisions()
+    assert "삼성전자: BUY_SMALL → 매수 3주" in reply
+    assert "막힘(당일 이미 매수한 종목)" in reply
+    assert "세 AI 가 모두 동의해야" in reply
+
+
+def test_a_broken_query_does_not_take_the_command_down(bot, monkeypatch):
+    """폰 명령 하나가 터져도 매매는 계속 돌아야 한다."""
+    def boom(*a, **k):
+        raise RuntimeError("DB 잠김")
+
+    monkeypatch.setattr("dashboard.queries.overview", boom)
+    monkeypatch.setattr("dashboard.queries.positions", boom)
+    monkeypatch.setattr("dashboard.queries.recent_decisions", boom)
+
+    assert "모의투자(VTS)" in bot._cmd_status()      # 앞부분은 그대로 나온다
+    assert bot._cmd_positions() == "보유 종목이 없습니다."
+    assert "읽지 못했습니다" in bot._cmd_decisions()
+
+
+def test_no_command_can_place_an_order(bot):
+    """폰으로 할 수 있는 것은 보기와 멈추기뿐이다."""
+    import inspect
+
+    handlers = [name for name in dir(bot) if name.startswith("_cmd_")]
+    assert set(handlers) == {"_cmd_status", "_cmd_positions", "_cmd_today",
+                             "_cmd_decisions", "_cmd_stop", "_cmd_resume", "_cmd_help"}
+    for name in handlers:
+        source = inspect.getsource(getattr(bot, name))
+        assert "place_order" not in source and "execute" not in source
 
 
 def test_status_never_leaks_keys(bot):
