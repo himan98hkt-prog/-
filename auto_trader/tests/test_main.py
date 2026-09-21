@@ -641,7 +641,8 @@ def test_no_command_can_place_an_order(bot):
 
     handlers = [name for name in dir(bot) if name.startswith("_cmd_")]
     assert set(handlers) == {"_cmd_status", "_cmd_positions", "_cmd_today",
-                             "_cmd_decisions", "_cmd_stop", "_cmd_resume", "_cmd_help"}
+                             "_cmd_decisions", "_cmd_orders", "_cmd_stop",
+                             "_cmd_resume", "_cmd_help"}
     for name in handlers:
         source = inspect.getsource(getattr(bot, name))
         assert "place_order" not in source and "execute" not in source
@@ -1058,3 +1059,104 @@ def test_daily_report_still_goes_out_if_settling_fails(bot, monkeypatch):
 
     assert bot.daily_report()["total_pnl_pct"] == 1.5
     assert any("report:1.5" in line for line in bot.sent)
+
+
+# --- 노트북이 잠들었을 때 (회사 노트북에서 돌리는 경우) -------------------------- #
+#
+# 뚜껑을 닫거나 절전에 들어가면 스케줄러는 조용히 지나간다. 깨어나면 아무 일도
+# 없었던 것처럼 다음 사이클을 도니, 그 사이 손절 감시가 멈춰 있었다는 사실을
+# 알 방법이 없다. 보유 종목이 있었다면 그건 반드시 알아야 한다.
+
+def _seed_last_cycle(bot, when):
+    from utils.db import update_bot_state
+    update_bot_state(bot.settings.paths["db"],
+                     last_cycle_at=when.isoformat(timespec="seconds"))
+
+
+def test_a_long_gap_during_the_day_is_reported(bot):
+    now = datetime(2026, 9, 22, 13, 5, tzinfo=KST)
+    _seed_last_cycle(bot, datetime(2026, 9, 22, 10, 5, tzinfo=KST))   # 3시간 비었다
+
+    bot._warn_if_we_were_asleep(now)
+
+    assert any("사이클이 비어 있었습니다" in line for line in bot.sent)
+
+
+def test_the_gap_warning_names_the_real_risk_when_holding(bot):
+    now = datetime(2026, 9, 22, 13, 5, tzinfo=KST)
+    _seed_last_cycle(bot, datetime(2026, 9, 22, 10, 5, tzinfo=KST))
+    bot.state.positions = {"005930": object()}
+    bot.portfolio.state = bot.state       # 실제 Portfolio 는 .state 를 들고 있다
+    captured = []
+    bot.notifier.send_alert = lambda title, lines, **kw: captured.extend(lines) or True
+
+    bot._warn_if_we_were_asleep(now)
+
+    joined = " ".join(captured)
+    assert "손절" in joined and "멈춰" in joined
+    assert "1종목" in joined
+
+
+def test_a_normal_gap_is_not_reported(bot):
+    now = datetime(2026, 9, 22, 13, 5, tzinfo=KST)
+    _seed_last_cycle(bot, datetime(2026, 9, 22, 12, 35, tzinfo=KST))   # 30분 = 정상
+    bot._warn_if_we_were_asleep(now)
+    assert not any("비어 있었습니다" in line for line in bot.sent)
+
+
+def test_overnight_gap_is_not_reported(bot):
+    """어제 15:00 → 오늘 09:05 는 원래 비어 있다. 그걸 알리면 매일 아침 울린다."""
+    now = datetime(2026, 9, 22, 9, 5, tzinfo=KST)
+    _seed_last_cycle(bot, datetime(2026, 9, 21, 15, 0, tzinfo=KST))
+    bot._warn_if_we_were_asleep(now)
+    assert not any("비어 있었습니다" in line for line in bot.sent)
+
+
+def test_the_first_cycle_ever_is_not_reported(bot):
+    """기록이 없으면 비교할 대상도 없다."""
+    bot._warn_if_we_were_asleep(datetime(2026, 9, 22, 9, 5, tzinfo=KST))
+    assert not any("비어 있었습니다" in line for line in bot.sent)
+
+
+def test_a_broken_gap_check_does_not_kill_the_cycle(bot, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("DB 잠김")
+
+    monkeypatch.setattr(main_module, "get_bot_state", boom)
+    bot._warn_if_we_were_asleep(datetime(2026, 9, 22, 13, 5, tzinfo=KST))   # 터지지 않는다
+
+
+# --- /주문 ---------------------------------------------------------------------- #
+
+def test_orders_command_shows_what_the_exchange_said(bot, monkeypatch):
+    """'거부' 두 글자만 오면 결국 PC 를 켜야 한다."""
+    monkeypatch.setattr(
+        "dashboard.queries.recent_orders",
+        lambda *a, **k: [
+            {"created_at": "2026-09-22T09:06:00+09:00", "name": "삼성전자", "code": "005930",
+             "side": "BUY", "qty": 3, "filled_qty": 3, "price": 269500, "filled_price": 269500,
+             "status": "FILLED", "dry_run": 0, "reason": "세 AI 합의", "error": ""},
+            {"created_at": "2026-09-22T09:06:00+09:00", "name": "KB금융", "code": "105560",
+             "side": "BUY", "qty": 3, "filled_qty": 0, "price": 177431, "filled_price": 0,
+             "status": "REJECTED", "dry_run": 0, "reason": "", "error": "[40310000] 호가단위 오류"},
+        ])
+    reply = bot._cmd_orders()
+    assert "삼성전자 매수 3주 @269,500" in reply and "✅ 체결" in reply
+    assert "❌ 거부" in reply
+    assert "[40310000] 호가단위 오류" in reply, "거래소가 한 말이 그대로 있어야 한다"
+
+
+def test_orders_command_marks_dry_run(bot, monkeypatch):
+    monkeypatch.setattr(
+        "dashboard.queries.recent_orders",
+        lambda *a, **k: [
+            {"created_at": "2026-09-22T09:06:00+09:00", "name": "삼성전자", "code": "005930",
+             "side": "BUY", "qty": 3, "filled_qty": 0, "price": 269500, "filled_price": 0,
+             "status": "DRY_RUN", "dry_run": 1, "reason": "", "error": ""},
+        ])
+    assert "모의" in bot._cmd_orders()
+
+
+def test_orders_command_is_plain_when_empty(bot, monkeypatch):
+    monkeypatch.setattr("dashboard.queries.recent_orders", lambda *a, **k: [])
+    assert bot._cmd_orders() == "주문 기록이 없습니다."

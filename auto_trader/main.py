@@ -47,8 +47,8 @@ from trading.kis_auth import KisAuthError, TokenManager
 from trading.market_calendar import (calendar_health, is_market_open, is_trading_day,
                                      market_state, next_trading_day, upcoming_holidays)
 from trading.order_executor import OrderExecutor
-from utils.db import (init_db, record_ai_usage, record_benchmark_price, table_names,
-                      update_bot_state)
+from utils.db import (get_bot_state, init_db, record_ai_usage, record_benchmark_price,
+                      table_names, update_bot_state)
 from utils.logger import get_logger, register_secret, setup_logging
 from utils.notifier import Notifier
 from utils.telegram_control import TelegramControl
@@ -239,6 +239,7 @@ class TradingBot:
                     "/보유": self._cmd_positions, "/positions": self._cmd_positions,
                     "/오늘": self._cmd_today, "/today": self._cmd_today,
                     "/판단": self._cmd_decisions, "/decisions": self._cmd_decisions,
+                    "/주문": self._cmd_orders, "/orders": self._cmd_orders,
                     "/정지": self._cmd_stop, "/stop": self._cmd_stop,
                     "/재개": self._cmd_resume, "/resume": self._cmd_resume,
                     "/도움말": self._cmd_help, "/help": self._cmd_help,
@@ -399,6 +400,41 @@ class TradingBot:
         lines.append("매수는 세 AI 가 모두 동의해야 나갑니다.")
         return "\n".join(lines)
 
+    def _cmd_orders(self) -> str:
+        """최근 주문 — 무엇이 나갔고, 거부됐다면 거래소가 뭐라고 했는지.
+
+        폰밖에 볼 것이 없을 때 가장 먼저 확인하고 싶은 화면이다. 상태만
+        적으면 '거부' 두 글자로 끝나서, 결국 PC 를 켜야 한다.
+        """
+        from dashboard.queries import recent_orders
+
+        try:
+            rows = recent_orders(self.settings.paths["db"], limit=8)
+        except Exception:
+            logger.exception("주문 조회 실패")
+            return "주문 기록을 읽지 못했습니다."
+        if not rows:
+            return "주문 기록이 없습니다."
+
+        label = {"FILLED": "✅ 체결", "REJECTED": "❌ 거부", "CANCELED": "취소",
+                 "PENDING": "⏳ 미체결", "PARTIAL": "◐ 일부체결", "DRY_RUN": "📝 모의",
+                 "SUBMITTING": "전송 중", "UNKNOWN": "확인 안 됨"}
+        lines = ["최근 주문"]
+        for row in rows:
+            side = "매수" if row["side"] == "BUY" else "매도"
+            state = "📝 모의" if row["dry_run"] else label.get(row["status"], row["status"])
+            qty = row["filled_qty"] or row["qty"]
+            price = row["filled_price"] or row["price"]
+            lines.append("")
+            lines.append(f"{row['created_at'][11:16]} {row['name'] or row['code']} "
+                         f"{side} {qty:,}주 @{price:,.0f}")
+            lines.append(f"   {state}")
+            if row.get("error"):
+                lines.append(f"   ⚠️ {row['error']}")
+            elif row.get("reason"):
+                lines.append(f"   {row['reason']}")
+        return "\n".join(lines)
+
     def _cmd_stop(self) -> str:
         self.stop_flag.set("텔레그램에서 정지")
         update_bot_state(self.settings.paths["db"], status="STOPPED")
@@ -444,6 +480,7 @@ class TradingBot:
 
         with self._cycle_lock:
             now = datetime.now(KST)
+            self._warn_if_we_were_asleep(now)
             cycle_label = label or f"{now:%H:%M}"
             cycle_id = f"{now:%Y%m%d_%H%M%S}"
             logger.info("── 사이클 %s 시작 (cycle_id=%s) ──", cycle_label, cycle_id)
@@ -473,6 +510,55 @@ class TradingBot:
             logger.info("── 사이클 %s 완료: %d종목, 주문 %d건 ──", cycle_label, len(results),
                         sum(1 for row in results if row.get("ordered")))
             return results
+
+    def _warn_if_we_were_asleep(self, now: datetime) -> None:
+        """지난 사이클 이후 시간이 너무 벌어졌으면 알린다.
+
+        노트북 뚜껑을 닫거나 절전에 들어가면 스케줄러는 그냥 조용히 지나간다.
+        깨어나면 아무 일도 없었던 것처럼 다음 사이클을 돌기 때문에, 그 사이
+        무슨 일이 있었는지 아무도 모른다. **보유 종목이 있었다면 그동안
+        손절 감시도 함께 멈춰 있었다** — 그건 반드시 알아야 한다.
+
+        어제 마지막 사이클과 오늘 첫 사이클 사이는 원래 비어 있으므로,
+        같은 날 안에서 벌어진 간격만 센다.
+        """
+        try:
+            last_raw = (get_bot_state(self.settings.paths["db"]) or {}).get("last_cycle_at") or ""
+            if not last_raw:
+                return
+            last = datetime.fromisoformat(last_raw)
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=KST)
+            last = last.astimezone(KST)
+            if last.date() != now.date():
+                return  # 밤 사이 간격은 정상이다
+
+            gap_min = (now - last).total_seconds() / 60
+            limit = self.settings.schedule.cycle_interval_min * 2 + 5
+            if gap_min <= limit:
+                return
+
+            held = 0
+            try:
+                held = len(self.portfolio.state.positions)
+            except Exception:
+                pass
+
+            logger.warning("지난 사이클(%s) 이후 %.0f분이 비었습니다 — 그동안 감시가 멈춰 있었습니다",
+                           last.strftime("%H:%M"), gap_min)
+            lines = [
+                f"{last:%H:%M} 이후 {gap_min:.0f}분 동안 사이클이 돌지 않았습니다.",
+                "절전·잠자기·네트워크 끊김 중 하나입니다.",
+            ]
+            if held:
+                lines.append(f"⚠️ 그동안 {held}종목을 들고 있었고, 손절·트레일링 감시도 함께 멈춰 있었습니다.")
+                lines.append("지금 바로 보유 종목의 손익을 확인하세요.")
+            lines.append("장중에는 절전으로 들어가지 않게 설정해 두세요.")
+            # 하루에 몇 번이고 반복될 수 있으므로 시각을 키에 넣어 각각 알린다.
+            self.notifier.send_alert("😴 사이클이 비어 있었습니다", lines,
+                                     key=f"missed_cycles:{last:%H%M}")
+        except Exception:  # 이 점검이 사이클을 깨뜨리면 본말전도다
+            logger.debug("빈 구간 점검 실패", exc_info=True)
 
     def _run_cycle_body(
         self, cycle_id: str, cycle_label: str, now: datetime, holdings_only: bool
@@ -1007,8 +1093,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.status:
-        from utils.db import get_bot_state
-
         state = get_bot_state(settings.paths["db"])
         lock = ProcessLock(pid_path(settings.paths["data"]))
         flag = StopFlag(stop_flag_path(settings.paths["data"]))
