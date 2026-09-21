@@ -164,3 +164,53 @@ def test_check_token_detects_cache_reuse(env, tmp_path, monkeypatch):
     auth = TokenManager(env, token_file)
     assert script.check_token(auth) is True
     assert len(calls) == 1, "2차 호출에서 재발급되면 안 됩니다"
+
+
+# --- 지정가 형식 + 취소 (2026-09-21 거부 이후) --------------------------------- #
+
+def test_limit_check_sends_a_tick_aligned_price_and_cancels(auth, monkeypatch):
+    """봇이 쓰는 계산기로 가격을 만들어 거래소가 접수하는지 본다."""
+    monkeypatch.setattr(TokenManager, "get_hashkey", lambda self, body: "HASH")
+    monkeypatch.setattr(script, "market_state", lambda *a, **k: "OPEN")
+    session = FakeSession([
+        FakeResponse(_price_payload()),                                        # 현재가
+        FakeResponse(ok({"ODNO": "0000000009", "KRX_FWDG_ORD_ORGNO": "91252",
+                         "ORD_TMD": "100000"})),                               # 지정가 접수
+        FakeResponse(ok()),                                                    # 취소
+    ])
+    api = KisApi(auth.env, auth, rate_limit=1000, session=session)
+
+    assert script.check_limit_order_is_accepted(api, "005930") is True
+
+    body = session.requests[1]["body"]
+    assert body["ORD_DVSN"] == "00", "지정가로 나가야 한다"
+    price = int(body["ORD_UNPR"])
+    # 71,300 × 0.95 = 67,735 → 7만원 아래이므로 호가단위 100원 → 67,700
+    assert price == 67_700
+    assert price % 100 == 0, "호가단위를 벗어나면 거래소가 거부한다"
+    assert price < 71_300, "체결되면 포지션이 남는다 — 확인용 주문은 체결되면 안 된다"
+    assert session.requests[2]["body"]["RVSE_CNCL_DVSN_CD"] == "02", "취소까지 확인해야 한다"
+
+
+def test_limit_check_reports_a_rejection_instead_of_passing(auth, monkeypatch):
+    """거부되면 그대로 실패로 남겨야 한다 — 통과로 넘기면 확인의 의미가 없다."""
+    monkeypatch.setattr(TokenManager, "get_hashkey", lambda self, body: "HASH")
+    monkeypatch.setattr(script, "market_state", lambda *a, **k: "OPEN")
+    session = FakeSession([
+        FakeResponse(_price_payload()),
+        FakeResponse({"rt_cd": "1", "msg_cd": "40310000",
+                      "msg1": "주문가능금액을 초과했습니다"}),
+    ])
+    api = KisApi(auth.env, auth, rate_limit=1000, session=session)
+
+    assert script.check_limit_order_is_accepted(api, "005930") is False
+
+
+def test_limit_check_is_skipped_outside_market_hours(auth, monkeypatch):
+    """장이 닫혀 있으면 접수 자체가 거부된다 — 그걸 실패로 세면 오해만 남는다."""
+    monkeypatch.setattr(script, "market_state", lambda *a, **k: "CLOSED")
+    session = FakeSession([])
+    api = KisApi(auth.env, auth, rate_limit=1000, session=session)
+
+    assert script.check_limit_order_is_accepted(api, "005930") is True
+    assert session.requests == [], "주문을 내지 않아야 한다"

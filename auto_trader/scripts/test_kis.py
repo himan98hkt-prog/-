@@ -5,6 +5,7 @@
   2) 삼성전자 현재가 / 일봉 60일 / 호가 조회
   3) 잔고 조회
   4) 모의투자 1주 시장가 매수 → 체결 확인 → 1주 매도
+  5) 지정가 형식 확인 — 체결되지 않을 가격으로 내고 바로 취소
 
 사용법:
     python scripts/test_kis.py              # 전체(주문 포함)
@@ -27,6 +28,7 @@ from config.loader import ConfigError, load  # noqa: E402
 from trading.kis_api import KisApi, KisApiError  # noqa: E402
 from trading.kis_auth import KisAuthError, TokenManager  # noqa: E402
 from trading.market_calendar import market_state  # noqa: E402
+from trading.tick import is_valid_tick, snap, tick_size  # noqa: E402
 from utils.logger import get_logger, register_secret, setup_logging  # noqa: E402
 
 logger = get_logger("test_kis")
@@ -140,6 +142,56 @@ def check_order_roundtrip(api: KisApi, code: str) -> bool:
     return bought and sold
 
 
+def check_limit_order_is_accepted(api: KisApi, code: str) -> bool:
+    """지정가 **형식**이 거래소에서 통하는지 — 체결되지 않을 가격으로 내고 바로 취소한다.
+
+    2026-09-21 첫 실주문 두 건이 호가단위 위반으로 거부됐다. 한국 주식은 주가
+    구간마다 정해진 단위의 배수만 주문할 수 있는데, 그때는 1원 단위로 반올림해
+    삼성전자에 269,807원을 부르고 있었다.
+
+    DRY_RUN 은 주문 API 를 부르지 않으므로 며칠을 돌려도 이런 건 드러나지 않는다.
+    그래서 실제로 거래소에 한 번 물어본다. 다만 체결되면 포지션이 남으므로
+    현재가보다 5% 낮게 낸다 — 접수되는지만 보면 되고, 확인 뒤 바로 취소한다.
+    이 김에 한 번도 돌아본 적 없는 취소 경로(cancel_order)도 같이 지난다.
+    """
+    step(f"5. 지정가 형식 + 취소 확인 ({code})")
+    if market_state() != "OPEN":
+        logger.warning("장 시간이 아닙니다 — 접수 자체가 거부될 수 있어 건너뜁니다")
+        return True
+
+    current = float(api.get_current_price(code).get("current") or 0)
+    if current <= 0:
+        logger.error("현재가를 읽지 못했습니다")
+        return False
+
+    price = snap(current * 0.95, "BUY")   # 체결되지 않을 만큼 낮게
+    logger.info("현재가 %s원 → 지정가 %s원 (호가단위 %s원, 유효=%s)",
+                f"{current:,.0f}", f"{price:,}", f"{tick_size(price):,}",
+                is_valid_tick(price))
+    if not is_valid_tick(price):
+        logger.error("계산기가 무효 호가를 만들었습니다 — trading/tick.py 를 확인하세요")
+        return False
+
+    try:
+        order = api.place_order(code, 1, "BUY", price=price, order_type="limit")
+    except KisApiError as exc:
+        logger.error("지정가 주문이 거부됐습니다: %s", exc)
+        logger.error("→ 호가단위 외의 원인입니다(주문가능금액·계좌설정 등). 메시지를 그대로 확인하세요.")
+        return False
+
+    logger.info("✅ 접수됨 — 주문번호 %s (가격 형식은 통과)", order.order_no)
+
+    try:
+        ok = api.cancel_order(order.order_no, code, 1, order.org_no)
+    except KisApiError as exc:
+        logger.error("취소 실패: %s", exc)
+        logger.error("→ 주문이 남아 있습니다. 증권사 앱에서 직접 취소하세요: %s", order.order_no)
+        return False
+
+    logger.info("✅ 취소됨 (%s)", "정상" if ok else "응답 코드 확인 필요")
+    return ok
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="KIS 연동 검증 (Step 2)")
     parser.add_argument("--code", default="005930", help="검증할 종목코드 (기본: 삼성전자)")
@@ -173,6 +225,7 @@ def main() -> int:
             logger.warning("실전(REAL) 환경입니다 — 주문 단계를 건너뜁니다 (--allow-real 로 해제)")
         else:
             results["주문 왕복"] = check_order_roundtrip(api, args.code)
+            results["지정가 형식"] = check_limit_order_is_accepted(api, args.code)
     except (KisApiError, KisAuthError) as exc:
         logger.error("검증 중단: %s", exc)
         return 1
