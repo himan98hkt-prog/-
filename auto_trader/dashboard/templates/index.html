@@ -86,47 +86,59 @@
 </div>
 {% endif %}
 
-<!-- ── 요약 타일 ─────────────────────────────────────────────── -->
-<div class="tiles" style="margin-bottom:16px">
-  <div class="tile {{ 'is-up' if o.daily_pnl_pct > 0 else ('is-down' if o.daily_pnl_pct < 0 else 'is-flat') }}">
-    <div class="label">당일 손익</div>
-    <div class="value {{ 'up' if o.daily_pnl_pct > 0 else ('down' if o.daily_pnl_pct < 0 else 'flat') }}">
-      {{ '%+.2f'|format(o.daily_pnl_pct) }}%
+<!-- ── 계좌 요약 ─────────────────────────────────────────────── -->
+{#
+  증권 앱은 계좌 금액 하나가 화면을 지배한다. 그게 맨 먼저 보고 싶은 것이고,
+  나머지는 전부 그 숫자를 설명하는 곁가지다. 타일 여섯 개를 같은 크기로
+  늘어놓으면 무엇부터 봐야 할지 알 수 없다.
+#}
+{% set up = o.daily_pnl_pct > 0 %}
+{% set down = o.daily_pnl_pct < 0 %}
+{% set dir = 'up' if up else ('down' if down else 'flat') %}
+{# 방향 클래스는 is- 를 붙인다. 그냥 'up' 을 쓰면 전역 유틸리티 .up(빨간 글씨)이
+   같이 걸려서 섹션 안의 모든 숫자가 빨갛게 물든다. #}
+<section class="account is-{{ dir }}">
+  <div class="account-head">
+    <span class="account-label">총 평가자산</span>
+    <span class="account-env {{ 'real' if s.kis_env == 'REAL' else 'vts' }}">
+      {{ '실전 REAL' if s.kis_env == 'REAL' else '모의 VTS' }}{% if s.dry_run %} · 주문 미전송{% endif %}
+    </span>
+  </div>
+  <div class="account-value">{{ '{:,.0f}'.format(o.end_equity) }}<small>원</small></div>
+  <div class="account-delta">
+    <span class="chip {{ dir }}">
+      {{ '▲' if up else ('▼' if down else '·') }}
+      {{ '{:+,.0f}'.format(o.unrealized_pnl) }}원
+      ({{ '%+.2f'|format(o.daily_pnl_pct) }}%)
+    </span>
+    <span class="account-meta">시작 {{ '{:,.0f}'.format(o.start_equity) }}원</span>
+  </div>
+  <div class="account-strip">
+    <div>
+      <span class="k">보유</span>
+      <span class="v">{{ o.position_count }}<em>종목</em></span>
+      <span class="s">{{ '{:,.0f}'.format(o.eval_amount) }}원</span>
     </div>
-    <div class="note">시작 {{ '{:,.0f}'.format(o.start_equity) }}원</div>
-  </div>
-  <div class="tile">
-    <div class="label">평가 자산</div>
-    <div class="value">{{ '{:,.0f}'.format(o.end_equity) }}</div>
-    <div class="note">보유 평가 {{ '{:,.0f}'.format(o.eval_amount) }}원</div>
-  </div>
-  <div class="tile {{ 'is-up' if o.unrealized_pnl > 0 else ('is-down' if o.unrealized_pnl < 0 else 'is-flat') }}">
-    <div class="label">평가 손익</div>
-    <div class="value {{ 'up' if o.unrealized_pnl > 0 else ('down' if o.unrealized_pnl < 0 else 'flat') }}">
-      {{ '{:+,.0f}'.format(o.unrealized_pnl) }}
+    <div>
+      <span class="k">오늘 주문</span>
+      <span class="v">{{ o.buy_count + o.sell_count }}<em>건</em></span>
+      <span class="s">매수 {{ o.buy_count }} · 매도 {{ o.sell_count }}{% if o.dry_run_orders %} · DRY_RUN {{ o.dry_run_orders }}{% endif %}{% if o.rejected_orders %} · <b class="down">거부 {{ o.rejected_orders }}</b>{% endif %}</span>
     </div>
-    <div class="note">보유 {{ o.position_count }}종목</div>
-  </div>
-  <div class="tile">
-    <div class="label">오늘 주문</div>
-    <div class="value">{{ o.buy_count + o.sell_count }}</div>
-    <div class="note">매수 {{ o.buy_count }} · 매도 {{ o.sell_count }}{% if o.dry_run_orders %} · DRY_RUN {{ o.dry_run_orders }}{% endif %}{% if o.rejected_orders %} · <span class="down">거부 {{ o.rejected_orders }}</span>{% endif %}</div>
-  </div>
-  <div class="tile">
-    <div class="label">오늘 AI 비용</div>
-    <div class="value">${{ '%.2f'|format(o.ai_cost_usd) }}</div>
-    <div class="note">판단 {{ o.ai_calls }}건{% if o.ai_failures %} · <span class="down">실패 {{ o.ai_failures }}</span>{% endif %}</div>
-  </div>
-  <div class="tile">
-    <div class="label">사이클</div>
-    <div class="value" style="font-size:19px">{{ s.last_cycle_label or '—' }}</div>
-    <div class="note">
-      {% if s.next_cycle_at %}다음 {{ s.next_cycle_at[11:16] }}{% else %}대기 중{% endif %}
-      {% if s.last_cycle_codes %} · {{ s.last_cycle_codes }}종목{% endif %}
-      {% if status.market.upcoming %}<br>휴장 {{ status.market.upcoming|join(', ') }}{% endif %}
+    <div>
+      <span class="k">AI 비용</span>
+      <span class="v">${{ '%.2f'|format(o.ai_cost_usd) }}</span>
+      <span class="s">판단 {{ o.ai_calls }}건{% if o.ai_failures %} · <b class="down">실패 {{ o.ai_failures }}</b>{% endif %}</span>
+    </div>
+    <div>
+      <span class="k">사이클</span>
+      <span class="v">{{ s.last_cycle_label or '—' }}</span>
+      <span class="s">
+        {% if s.next_cycle_at %}다음 {{ s.next_cycle_at[11:16] }}{% else %}대기 중{% endif %}{% if s.last_cycle_codes %} · {{ s.last_cycle_codes }}종목{% endif %}
+        {% if status.market.upcoming %}<br>휴장 {{ status.market.upcoming|join(', ') }}{% endif %}
+      </span>
     </div>
   </div>
-</div>
+</section>
 
 <!-- ── 차트 ──────────────────────────────────────────────────── -->
 <div class="grid-2">

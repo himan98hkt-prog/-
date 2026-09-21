@@ -78,26 +78,56 @@ body {
   font-variant-numeric: tabular-nums;
 }
 a { color: var(--accent); }
-.wrap { max-width: 1240px; margin: 0 auto; padding: 16px 20px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 14px 20px 64px; }
+@media (max-width: 680px) { .wrap { padding: 12px 16px 48px; } }
 
 /* --- 헤더 --- */
 header.bar {
   position: sticky; top: 0; z-index: 5; background: var(--surface);
-  border-bottom: 1px solid var(--border-strong); padding: 10px 20px;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border); padding: 9px 20px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(13, 20, 34, .05);
 }
 header.bar h1 {
-  font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase;
+  font-size: 14px; margin: 0; font-weight: 800; letter-spacing: -.01em;
+  white-space: nowrap;
 }
-header.bar nav { display: flex; gap: 4px; margin-left: auto; }
-header.bar nav a, .btn {
+/* 탭은 버튼 세 개가 아니라 하나의 세그먼트다 — 증권 앱의 상단 탭처럼.
+   테두리를 각각 두르면 '누를 것' 이 여섯 개처럼 보여 시선이 흩어진다. */
+header.bar nav {
+  display: flex; gap: 2px; margin-left: auto;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px;
+}
+header.bar nav a {
+  display: inline-flex; align-items: center; padding: 5px 14px;
+  border: 0; border-radius: 999px; background: transparent;
+  color: var(--text-2); text-decoration: none; font-size: 12.5px; font-weight: 600;
+}
+header.bar nav a.active {
+  background: var(--surface); color: var(--text); font-weight: 700;
+  box-shadow: 0 1px 2px rgba(13, 20, 34, .12);
+}
+header.bar nav a:hover { color: var(--text); background: transparent; }
+header.bar nav a.active:hover { background: var(--surface); }
+
+.btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
   border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
   color: var(--text); text-decoration: none; font-size: 12.5px; cursor: pointer;
   font-family: inherit;
 }
-header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
+
+/* 폰에서는 제목·배지 줄과 탭 줄을 나눈다. 한 줄에 우겨 넣으면 세 줄로
+   접히면서 화면 위쪽을 통째로 잡아먹는다. */
+.only-wide { display: inline; }
+@media (max-width: 680px) {
+  .only-wide { display: none; }
+  header.bar { padding: 8px 16px; gap: 6px; }
+  header.bar nav { width: 100%; margin-left: 0; order: 9; }
+  header.bar nav a { flex: 1; justify-content: center; padding: 6px 0; font-size: 13px; }
+  header.bar .badge { font-size: 10.5px; padding: 2px 6px; }
+}
 .btn:hover, header.bar nav a:hover { background: var(--surface-2); }
 .btn.danger { border-color: var(--critical); color: var(--critical); }
 .btn.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
@@ -120,6 +150,7 @@ header.bar nav a.active { background: var(--surface-2); font-weight: 600; }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(13, 20, 34, .04);
 }
 .card > h2 {
   font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
@@ -206,6 +237,89 @@ details.card > summary .sub {
 /* 내용만큼만 높이를 갖게 한다 — stretch 로 두면 빈 칸이 옆 카드 높이까지 늘어난다. */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* --- 계좌 요약 (증권 앱 방식) ---------------------------------------------
+ *
+ * 하나의 숫자가 화면을 지배한다. 총 평가자산을 먼저 읽고, 그 아래 손익으로
+ * '오늘 어땠나' 를 읽고, 그 다음에야 세부로 내려간다. 타일 여섯 개를 같은
+ * 크기로 늘어놓으면 이 순서가 생기지 않는다.
+ *
+ * 상단의 가는 띠는 손익 방향을 따른다(상승 빨강·하락 파랑). 색만으로 읽히지
+ * 않게 ▲▼ 기호와 부호를 함께 둔다.
+ */
+.account {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px 0; margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(13, 20, 34, .04), 0 8px 24px -12px rgba(13, 20, 34, .12);
+  position: relative; overflow: hidden;
+}
+.account::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 3px;
+  background: var(--flat);
+}
+.account.is-up::before   { background: var(--up); }
+.account.is-down::before { background: var(--down); }
+
+.account-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.account-label {
+  font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .03em;
+}
+.account-env {
+  margin-left: auto; font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 999px; background: var(--surface-3); color: var(--text-2);
+}
+.account-env.real { background: var(--up-soft); color: var(--up); }
+
+.account-value {
+  font-size: 38px; font-weight: 800; letter-spacing: -.035em; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.account-value small {
+  font-size: 17px; font-weight: 600; color: var(--text-2); margin-left: 3px;
+  letter-spacing: 0;
+}
+.account-delta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 8px; padding-bottom: 16px;
+}
+.account-delta .chip { font-size: 13.5px; padding: 3px 10px; border-radius: 999px; }
+.account-meta { font-size: 12px; color: var(--muted); }
+
+/* 아래 띠 — 계좌 숫자를 설명하는 곁가지들. 한 단계 작고 조용하다. */
+.account-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+  margin: 0 -20px; padding: 0;
+}
+.account-strip > div {
+  padding: 12px 20px; min-width: 0;
+  border-left: 1px solid var(--border);
+}
+.account-strip > div:first-child { border-left: 0; }
+.account-strip .k {
+  display: block; font-size: 11px; color: var(--muted); font-weight: 700;
+  margin-bottom: 3px;
+}
+.account-strip .v {
+  display: block; color: var(--text); font-size: 19px; font-weight: 700; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; line-height: 1.25;
+}
+.account-strip .v em { font-size: 12px; font-weight: 600; font-style: normal;
+                       color: var(--text-2); margin-left: 2px; }
+.account-strip .s {
+  display: block; font-size: 11.5px; color: var(--text-2); margin-top: 3px;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .account { padding: 16px 16px 0; border-radius: 10px; }
+  .account-value { font-size: 32px; }
+  .account-strip { grid-template-columns: 1fr 1fr; margin: 0 -16px; }
+  .account-strip > div { padding: 11px 16px; }
+  /* 2열이 되면 3·4번째 칸 위에도 선이 있어야 칸이 구분된다. */
+  .account-strip > div:nth-child(odd) { border-left: 0; }
+  .account-strip > div:nth-child(n+3) { border-top: 1px solid var(--border); }
+}
 
 /* --- KPI 타일 --- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; }

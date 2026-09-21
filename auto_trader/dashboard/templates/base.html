@@ -11,8 +11,9 @@
 <header class="bar">
   <h1>📈 자동매매</h1>
 
+  {# PID 는 진단할 때나 쓰는 값이다. 폰 화면에서는 자리만 차지한다. #}
   {% if status.running %}
-    <span class="badge live">● 실행 중 (PID {{ status.pid }})</span>
+    <span class="badge live">● 실행 중<span class="only-wide"> (PID {{ status.pid }})</span></span>
   {% else %}
     <span class="badge idle">○ 실행 안 함</span>
   {% endif %}
