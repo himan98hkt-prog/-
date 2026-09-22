@@ -17,6 +17,7 @@ const state = {
   dirty: new Map(),    // "bar:i" -> label (아직 저장 안 한 교정)
   audioDirty: true,    // 화성/설정이 바뀌어 반주를 다시 만들어야 하는가
   secPerQl: 0.625,
+  lead: 0,
   url: null,
   stopAt: null,        // 구간 재생 종료 시각(초)
   playingBar: null,
@@ -90,6 +91,9 @@ function render() {
   fill('#style', v.styleList, v.style);
   fill('#level', v.levelList, v.level_name);
   fill('#bpm', bpmOptions(v), String(v.bpm));
+  // 화성을 확인하려면 선율이 같이 들려야 한다. 그래서 확인 화면의 기본은 full.
+  // 원장님께 나가는 것은 mr(반주만)이고, 여기서도 골라 들을 수 있다.
+  fill('#mix', v.mixList, $('#mix').value || 'full');
   $('#done').textContent = v.verified ? '확인 완료됨' : '확인 완료';
   state.savedSeconds = v.verify_seconds;
 }
@@ -123,10 +127,14 @@ function fill(sel, items, current) {
 async function ensureAudio() {
   if (!state.audioDirty && state.url) return;
   say('반주를 다시 만드는 중…');
-  const q = new URLSearchParams({ style: $('#style').value, level: $('#level').value, bpm: $('#bpm').value });
+  const q = new URLSearchParams({
+    style: $('#style').value, level: $('#level').value,
+    bpm: $('#bpm').value, mix: $('#mix').value,
+  });
   const info = await api(`/api/songs/${encodeURIComponent(songId)}/audio?${q}`);
   state.url = info.url + '?v=' + Date.now();
   state.secPerQl = info.sec_per_ql;
+  state.lead = info.lead_seconds || 0;   // 카운트인을 구워 넣었으면 그만큼 밀린다
   state.audioDirty = false;
   audio.src = state.url;
   audio.load();
@@ -139,8 +147,8 @@ async function playRange(fromQl, toQl, barId) {
     if (state.dirty.size) await save({ silent: true });
     await ensureAudio();
     await once(audio, 'loadedmetadata');      // 길이를 알아야 seek 이 먹는다
-    state.stopAt = toQl == null ? null : toQl * state.secPerQl;
-    audio.currentTime = Math.max(0, fromQl * state.secPerQl);
+    state.stopAt = toQl == null ? null : state.lead + toQl * state.secPerQl;
+    audio.currentTime = Math.max(0, state.lead + fromQl * state.secPerQl);
     markBar(barId);
     await audio.play();
   } catch (e) {
@@ -210,6 +218,7 @@ async function save({ verified = null, silent = false } = {}) {
 function attach(v) {
   v.styleList = state.view ? state.view.styleList : null;
   v.levelList = state.view ? state.view.levelList : null;
+  v.mixList = state.view ? state.view.mixList : null;
   state.view = v;
 }
 
@@ -238,7 +247,7 @@ $('#save').addEventListener('click', () => save().catch((e) => say(e.message, tr
 $('#done').addEventListener('click', () =>
   save({ verified: true }).catch((e) => say(e.message, true)));
 
-['#style', '#level', '#bpm'].forEach((sel) =>
+['#style', '#level', '#bpm', '#mix'].forEach((sel) =>
   $(sel).addEventListener('change', () => { state.audioDirty = true; stop(); }));
 
 $('#reanalyze').addEventListener('click', async () => {
@@ -271,6 +280,7 @@ setInterval(() => {
     state.view = v;
     v.styleList = s.styles.map((x) => ({ key: x.key, label: x.label }));
     v.levelList = s.levels;
+    v.mixList = s.mixes;
     render();
     if (v.low_count) say(`확인 필요 ${v.low_count}곳이 노란색입니다. 거기부터 들어보세요.`);
   } catch (e) { say(`불러오기 실패: ${e.message}`, true); }

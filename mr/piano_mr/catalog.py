@@ -104,7 +104,9 @@ class Song:
 
     # --- 2단계 카탈로그 제작 관리용 -------------------------------------
     default_level: str = 'normal'
+    default_curve: str = 'flat'   # flat=곡 전체에 깔린다 / build=발표회용
     default_bpm: int = 96
+    count_in: int = 0             # 음원에 구워 넣을 카운트인 마디 수
     key_locked: bool = False             # 조성을 사람이 확정했는가 (자동 판정 무시)
     verify_seconds: int = 0              # 화성 확인 화면에서 실제로 쓴 시간
     verified_at: str = ''
@@ -122,6 +124,11 @@ class Song:
 
     def validate(self) -> None:
         orch.check_level(self.default_level)
+        if self.default_curve not in ('flat', 'build') and \
+                self.default_curve not in orch.LEVELS:
+            raise ValueError(f'모르는 연출 곡선입니다: {self.default_curve!r}')
+        if not 0 <= int(self.count_in) <= 8:
+            raise ValueError('count_in 은 0~8 마디입니다.')
         if not 20 <= int(self.default_bpm) <= 240:
             raise ValueError('default_bpm 은 20~240 입니다.')
         if not self.id or not re.fullmatch(r'[a-z0-9_\-]+', self.id):

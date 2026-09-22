@@ -79,6 +79,118 @@ def test_stems_split_by_channel_group(tmp_path):
         assert chans <= set(orch.STEMS[name]), (name, chans)
 
 
+# --- MR 은 반주만이다 ----------------------------------------------------------
+
+def test_default_mix_is_mr():
+    """피아노는 아이가 친다. 원곡이 음원에 들어 있으면 MR 이 아니다."""
+    assert render.DEFAULT_MIX == 'mr'
+
+
+@pytest.mark.parametrize('mix,expected', [
+    ('mr', {1, 2, 3, 4, 5, 9}),
+    ('piano', {orch.PIANO_CHANNEL}),
+])
+def test_mix_filters_channels(tmp_path, mix, expected):
+    ls = score_loader.load(score('p07_minuet_g'))
+    arr, _ls, _segs = arranger.arrange(ls, style='chamber', level='rich', bpm=96)
+    acc = str(tmp_path / 'a.mid')
+    arr.save(acc)
+    piano = render.piano_midi(ls, 96, str(tmp_path / 'p.mid'))
+    combined = render.combine(piano, acc, str(tmp_path / 'c.mid'))
+
+    both = {m.channel for tr in MidiFile(combined).tracks for m in tr
+            if m.type == 'note_on'}
+    assert orch.PIANO_CHANNEL in both and both - {orch.PIANO_CHANNEL}
+
+    out = render.filter_channels(combined, str(tmp_path / f'{mix}.mid'),
+                                 render.mix_channels(mix))
+    got = {m.channel for tr in MidiFile(out).tracks for m in tr if m.type == 'note_on'}
+    assert got and got <= expected
+    if mix == 'mr':
+        assert orch.PIANO_CHANNEL not in got
+
+
+def test_mix_keeps_tempo_meta(tmp_path):
+    """반주만 걸러내도 템포·박자가 남아야 길이와 박이 맞는다."""
+    ls = score_loader.load(score('p01_block_c'))
+    arr, _ls, _segs = arranger.arrange(ls, bpm=96)
+    acc = str(tmp_path / 'a.mid')
+    arr.save(acc)
+    piano = render.piano_midi(ls, 96, str(tmp_path / 'p.mid'))
+    combined = render.combine(piano, acc, str(tmp_path / 'c.mid'))
+    out = render.filter_channels(combined, str(tmp_path / 'mr.mid'),
+                                 render.mix_channels('mr'))
+    kinds = {m.type for tr in MidiFile(out).tracks for m in tr if m.is_meta}
+    assert 'set_tempo' in kinds and 'time_signature' in kinds
+
+
+def test_unknown_mix(tmp_path):
+    with pytest.raises(ValueError, match='mix'):
+        render.render(score('p01_block_c'), tag='t', out_dir=str(tmp_path), mix='없는믹스')
+
+
+def test_mr_midi_output_has_no_piano(tmp_path):
+    out = str(tmp_path / 'x.mid')
+    render.render(score('p07_minuet_g'), bpm=96, tag='t', out_dir=str(tmp_path),
+                  outfile=out, mix='mr')
+    got = {m.channel for tr in MidiFile(out).tracks for m in tr if m.type == 'note_on'}
+    assert got and orch.PIANO_CHANNEL not in got
+
+
+@needs_audio
+def test_mr_and_full_are_different_audio(tmp_path):
+    a = render.render(score('p07_minuet_g'), bpm=96, tag='a', out_dir=str(tmp_path),
+                      mix='mr').files['practice']
+    b = render.render(score('p07_minuet_g'), bpm=96, tag='b', out_dir=str(tmp_path),
+                      mix='full').files['practice']
+    assert open(a, 'rb').read() != open(b, 'rb').read()
+
+
+@needs_audio
+def test_mr_runs_the_full_length_of_the_piece(tmp_path):
+    """반주가 먼저 끝나도 음원이 곡보다 짧아지면 안 된다."""
+    full_ = render.render(score('p07_minuet_g'), bpm=96, tag='f', out_dir=str(tmp_path),
+                          mix='full').files['practice']
+    mr = render.render(score('p07_minuet_g'), bpm=96, tag='m', out_dir=str(tmp_path),
+                       mix='mr').files['practice']
+    d1 = float(probe(full_, 'duration'))
+    d2 = float(probe(mr, 'duration'))
+    assert abs(d1 - d2) < 0.5, (d1, d2)
+
+
+# --- 반주는 곡 전체에 깔린다 -----------------------------------------------------
+
+def test_default_curve_covers_the_whole_piece():
+    """MR 은 반주만이라, 앞부분이 비면 아이는 맞출 것이 없다."""
+    assert arranger.DEFAULT_CURVE == 'flat'
+    ls = score_loader.load(score('p07_minuet_g'))
+    arr, _ls, _segs = arranger.arrange(ls, style='chamber', bpm=96)
+    assert 'off' not in set(arr.plan.values())
+
+
+def test_build_curve_is_still_available_for_recitals():
+    ls = score_loader.load(score('p07_minuet_g'))
+    arr, _ls, _segs = arranger.arrange(ls, style='chamber', bpm=96, curve='build')
+    assert 'off' in set(arr.plan.values())
+
+
+def test_accompaniment_starts_in_the_first_bar(tmp_path):
+    ls = score_loader.load(score('p07_minuet_g'))
+    arr, _ls, _segs = arranger.arrange(ls, style='chamber', bpm=96)
+    out = str(tmp_path / 'a.mid')
+    arr.save(out)
+    mf = MidiFile(out)
+    firsts = []
+    for tr in mf.tracks:
+        t = 0
+        for m in tr:
+            t += m.time
+            if m.type == 'note_on':
+                firsts.append(t / mf.ticks_per_beat)
+                break
+    assert firsts and min(firsts) == 0.0
+
+
 # --- 오디오 ------------------------------------------------------------------
 
 @needs_audio

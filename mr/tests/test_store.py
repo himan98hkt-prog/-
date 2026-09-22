@@ -2,6 +2,7 @@
 """카탈로그 저장소 — 지시서 9장 2단계 · 6장 저장 원칙 · 7장 저작권."""
 import json
 import os
+import shutil
 
 import pytest
 
@@ -206,6 +207,78 @@ def test_export_player_only_verified_and_no_audio(st, tmp_path):
     assert [s['id'] for s in data['songs']] == ['p05_waltz_c']
     assert data['songs'][0]['midi'].endswith('.mid')
     assert '.mp3' not in json.dumps(data)
+
+
+# --- MR · 카운트인 · 미리 만들기 ------------------------------------------------
+
+def test_audio_defaults_to_mr(st):
+    """카탈로그가 내보내는 것도 반주만이다. 피아노는 아이가 친다."""
+    from piano_mr import render
+    assert render.DEFAULT_MIX == 'mr'
+
+
+def test_song_defaults_cover_the_whole_piece(st):
+    song = imported(st)
+    assert song.default_curve == 'flat'
+    assert song.default_level == 'normal'
+
+
+def test_bad_curve_and_count_in_are_rejected(st):
+    song = imported(st)
+    song.default_curve = '없는곡선'
+    with pytest.raises(ValueError, match='연출 곡선'):
+        song.validate()
+    song.default_curve = 'flat'
+    song.count_in = 99
+    with pytest.raises(ValueError, match='count_in'):
+        song.validate()
+
+
+def test_prebuild_makes_variants(st):
+    imported(st)
+    made = st.prebuild('p05_waltz_c', styles=['strings', 'march'], levels=['normal'])
+    assert os.path.exists(made['midi'])
+    assert len(made['variants']) == 2
+    for v in made['variants']:
+        assert os.path.exists(v) and os.path.getsize(v) < 20_000
+    assert made['audio'] is None
+    names = sorted(os.path.basename(v) for v in made['variants'])
+    assert names == ['p05_waltz_c__march_normal.mid',
+                     'p05_waltz_c__strings_normal.mid']
+
+
+def test_variants_differ_by_style(st):
+    imported(st)
+    made = st.prebuild('p05_waltz_c', styles=['strings', 'march'], levels=['normal'])
+    a, b = [open(v, 'rb').read() for v in made['variants']]
+    assert a != b
+
+
+def test_stats_counts_prebuilt(st):
+    imported(st)
+    st.prebuild('p05_waltz_c', styles=['march'], levels=['normal'])
+    s = st.stats()
+    assert s['prebuilt'] == 1 and s['midi_files'] == 2 and s['midi_kb'] > 0
+
+
+@pytest.mark.skipif(shutil.which('fluidsynth') is None or shutil.which('ffmpeg') is None,
+                    reason='fluidsynth/ffmpeg 가 없습니다')
+def test_count_in_shifts_the_whole_piece(st):
+    """MR 은 원곡 피아노가 없어 시작 신호가 없다. 카운트인을 구우면 곡이 밀린다."""
+    song = imported(st)
+    none = st.audio('p05_waltz_c', mix='mr')
+    assert none['lead_seconds'] == 0
+    song.count_in = 1
+    with_cue = st.audio('p05_waltz_c', mix='mr')
+    # 3/4 한 마디 @ ♩=108
+    assert with_cue['lead_seconds'] == pytest.approx(3 * 60 / 108, abs=0.01)
+    assert with_cue['path'] != none['path']      # 캐시가 섞이지 않는다
+
+
+def test_unknown_mix_is_rejected(st):
+    imported(st)
+    with pytest.raises(ValueError, match='mix'):
+        st.audio('p05_waltz_c', mix='없는믹스')
 
 
 def test_stats(st):

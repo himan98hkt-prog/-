@@ -14,16 +14,19 @@ import sys
 import time
 from typing import List, Optional
 
-from . import __version__, harmony, orchestration as orch, render, score_loader
+from . import __version__, arranger, harmony, orchestration as orch, render, score_loader
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog='mr.py',
-        description='피아노 악보 -> 오케스트라 반주. 전 과정 로컬 연산, API 호출 0회.',
+        description='피아노 악보 -> 오케스트라 반주(MR). 기본 출력은 **반주만** — '
+                    '피아노는 아이가 칩니다. 전 과정 로컬 연산, API 호출 0회.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""예시
   python mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
+  python mr.py score.mxl --mix full -o 확인용.mp3   # 피아노까지 넣어 확인
+  python mr.py score.mxl --curve build -o 발표회.mp3  # 반주가 중간에 들어온다
   python mr.py score.mxl --analyze-only            # 화성만 확인 (음원 안 만듦)
   python mr.py score.mxl --all-formats --stems     # 연습용/무대용/영상편집용 전부
   python mr.py --styles                            # 스타일 7종 목록
@@ -36,10 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     g = p.add_argument_group('반주')
     g.add_argument('--style', default=orch.DEFAULT_STYLE, choices=sorted(orch.STYLES),
                    help='편성 스타일 (기본: strings — 가장 안전)')
-    g.add_argument('--level', default='rich', choices=list(orch.LEVELS),
-                   help='반주 두께의 상한 (기본: rich)')
-    g.add_argument('--curve', default='build',
-                   help='연출 곡선: build(기본, off->simple->normal->rich) 또는 flat')
+    g.add_argument('--level', default=arranger.DEFAULT_LEVEL, choices=list(orch.LEVELS),
+                   help='반주 두께 (기본: normal — pad+bass+color)')
+    g.add_argument('--curve', default=arranger.DEFAULT_CURVE,
+                   help='flat(기본, 곡 전체에 깔린다) 또는 '
+                        'build(발표회용 — off->simple->normal->rich)')
+    g.add_argument('--mix', default=render.DEFAULT_MIX, choices=list(render.MIXES),
+                   help='mr(기본, 반주만) / full(피아노+반주) / piano(피아노만)')
     g.add_argument('--bpm', type=float, default=96.0, help='템포 (기본: 96)')
     g.add_argument('--transpose', type=int, default=0, help='조옮김 (반음, -12~+12)')
     g.add_argument('--key', help="조성을 직접 지정 ('C' 장조 / 'a' 단조 / 'Bb' / 'f#'). "
@@ -163,7 +169,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                             curve=args.curve, tag=tag, out_dir=args.out_dir,
                             formats=formats, stems=args.stems,
                             keep_midi=args.keep_midi, count_in=args.count_in,
-                            harmony_override=segs, outfile=args.out)
+                            harmony_override=segs, outfile=args.out, mix=args.mix)
     except (render.ToolMissingError, ValueError, RuntimeError) as e:
         print(f'오류: {e}', file=sys.stderr)
         return 1
@@ -175,7 +181,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     if not args.quiet:
-        print(f'{orch.describe(args.style, args.level)}')
+        print(f'{render.MIXES[args.mix]["label"]} · {orch.describe(args.style, args.level)}')
+        if args.curve == 'build' and args.mix == 'mr':
+            print('  주의: build 곡선은 앞부분에 반주가 없습니다. 반주만 내보내면 '
+                  '곡의 앞 1/4 이 무음이 됩니다 (발표회용 연출).')
+        if args.mix == 'mr' and not args.count_in:
+            print('  참고: MR 에는 원곡 피아노가 없어 시작 신호가 없습니다. '
+                  '혼자 연습할 음원이면 --count-in 1 을 권합니다.')
         print(f'조성 {res.info["key"]} · 박자 {res.info["time"]} · '
               f'{res.info["bars"]}마디 · ♩={args.bpm:g}')
     for kind, path in res.files.items():

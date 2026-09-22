@@ -9,6 +9,40 @@
 python3 mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
 ```
 
+## MR 이 무엇인지부터
+
+**출력에는 원곡 피아노가 들어가지 않는다. 반주만 나온다.** 피아노는 아이가 친다.
+원곡이 음원에 섞여 있으면 아이는 자기 연주와 녹음된 피아노를 겹쳐 치게 되고,
+그건 MR 이 아니라 감상용 데모다.
+
+```bash
+python3 mr.py score.mxl -o out.mp3                 # 반주만 (기본)
+python3 mr.py score.mxl --mix full -o 확인용.mp3    # 피아노 + 반주 (확인·감상용)
+python3 mr.py score.mxl --mix piano -o 원곡.mp3     # 피아노만
+```
+
+여기서 따라 나오는 것이 두 가지 있다.
+
+**① 반주는 곡 전체에 깔린다.** 지시서 5장은 `build`(곡을 4등분해
+off → simple → normal → rich)를 기본으로 제안했지만, 그건 음원에 피아노가 있다고
+보았을 때의 이야기다. 반주만 내보내면서 그 곡선을 쓰면 **곡의 앞 1/4 이 완전한
+무음**이 되어 아이가 그동안 맞출 것이 없다. 그래서 기본은 `flat`(전체에 깔림)이고,
+`build` 는 발표회용으로 남겨 뒀다 — 무대에서는 아이 혼자 시작했다가 오케스트라가
+밀려드는 그 효과가 실제로 살아난다.
+
+```bash
+python3 mr.py score.mxl --curve build -o 발표회.mp3
+```
+
+**② 시작 신호가 필요하다.** 피아노가 없으니 아이는 반주가 어디서 시작하는지 알 수
+없다. 혼자 연습할 음원이면 카운트인을 구워 넣는다.
+
+```bash
+python3 mr.py score.mxl --count-in 1 -o 연습용.mp3
+```
+
+카탈로그 곡은 카운트인 1마디가 기본이다.
+
 ## 지금 어디까지 되어 있나
 
 | 1단계 항목 (지시서 9장) | 상태 |
@@ -87,6 +121,9 @@ m5   F    │ m6   C    │ m7   G7   │ m8   C
 python3 seed_catalog.py          # 씨앗 곡 넣기 (아래 참조)
 python3 serve.py                 # http://127.0.0.1:8765  화성 확인 화면
 python3 catalog_cli.py status    # 제작 현황
+
+# 미리 만들어 두기 — 반주 MIDI + 편성 변형 + MR mp3
+python3 catalog_cli.py build --all --styles strings,chamber,march --audio
 ```
 
 ### 화성 확인 화면 (지시서 10장)
@@ -106,6 +143,10 @@ python3 catalog_cli.py status    # 제작 현황
 | 해당 마디만 구간 재생 | 마디마다 ▶ 버튼 |
 | 조성 확인 UI 불필요 | 없다. 대신 자동 판정이 흔들리는 악보는 `--key` 로 못 박는다 |
 
+확인 화면만은 **피아노 + 반주**로 들려준다. 화음이 이 곡에 맞는지는 선율이 같이
+들려야 판단할 수 있기 때문이다. 원장님께 나가는 것은 반주만이고, 화면에서도
+`듣기` 로 골라 들을 수 있다.
+
 **검수 부담이 실제로 얼마나 줄어드는가** — 26곡 764칸 중 노란색은 **78칸(10%)** 이다.
 96마디짜리 클라라 슈만 폴로네즈도 확인할 칸이 128개 중 6개다. 나머지는 훑고 넘어간다.
 
@@ -123,9 +164,22 @@ python3 catalog_cli.py import score.mxl --title "체르니 100번 5번" --id cze
     --composer "Carl Czerny" --book "체르니 100" --level 3 --public-domain --style march
 python3 catalog_cli.py list --status analyzed
 python3 catalog_cli.py show czerny100_05      # 화성 격자를 터미널에서
-python3 catalog_cli.py midi --all             # 반주 MIDI 굽기
+python3 catalog_cli.py build --all            # 반주 MIDI 미리 굽기
 python3 catalog_cli.py export player.json     # 3단계 플레이어용 번들
 ```
+
+### 미리 만들어 두기
+
+```bash
+python3 catalog_cli.py build --all --styles strings,chamber,march --audio
+```
+
+씨앗 26곡 기준 실측 — **반주 MIDI 26개 + 편성 변형 78개 = 180.7 KB, 97초.**
+같은 것을 오디오로 저장했다면 약 406 MB 다.
+
+템포별로는 굽지 않는다. MIDI 는 재생할 때 템포를 바꾸면 되기 때문이다(지시서 8.4).
+바뀌는 것은 **편성(스타일·두께)** 뿐이라 그것만 변형으로 남긴다.
+`--audio` 를 붙이면 MR mp3 까지 캐시에 구워 둬서 현장에서 기다리지 않는다.
 
 디스크 배치 — **오디오는 카탈로그가 아니다** (지시서 6장):
 
@@ -178,7 +232,7 @@ mr/
     pieces.py          회귀 테스트용 오리지널 20곡 사양
     build_fixtures.py  사양 -> MusicXML + 정답 화성
     scores/  truth/
-  tests/               206개
+  tests/               231개
 ```
 
 ## 회귀 테스트
@@ -186,7 +240,7 @@ mr/
 ```bash
 python3 bench.py                # 곡별 표
 python3 bench.py --stages       # 프로토타입 -> 현재까지 무엇이 얼마나 올렸나
-python3 -m pytest               # 정확도 게이트 포함 206개
+python3 -m pytest               # 정확도 게이트 포함 231개
 ```
 
 ```

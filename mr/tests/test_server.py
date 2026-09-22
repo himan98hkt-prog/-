@@ -138,6 +138,37 @@ def test_changing_a_chord_changes_the_audio(client):
     assert after['url'] != before and after['cached'] is False
 
 
+def test_styles_include_mixes(client):
+    d = client.get('/api/styles').json()
+    assert {x['key'] for x in d['mixes']} == {'mr', 'full', 'piano'}
+
+
+@needs_audio
+def test_verify_screen_hears_the_melody_by_default(client):
+    """화음이 곡에 맞는지 판단하려면 선율이 같이 들려야 한다."""
+    assert client.get('/api/songs/waltz/audio').json()['mix'] == 'full'
+
+
+@needs_audio
+def test_mix_is_selectable_and_cached_separately(client):
+    full = client.get('/api/songs/waltz/audio?mix=full').json()
+    mr = client.get('/api/songs/waltz/audio?mix=mr').json()
+    assert full['url'] != mr['url']
+    assert mr['mix'] == 'mr'
+
+
+@needs_audio
+def test_audio_reports_count_in_lead(client):
+    d = client.get('/api/songs/waltz/audio').json()
+    assert d['count_in'] == 0 and d['lead_seconds'] == 0
+    client.put('/api/songs/waltz/harmony', json={'cells': []})
+    client.store.catalog.get('waltz').count_in = 1
+    client.store.save()
+    d = client.get('/api/songs/waltz/audio').json()
+    assert d['count_in'] == 1
+    assert d['lead_seconds'] == pytest.approx(3 * 60 / 108, abs=0.01)
+
+
 def test_midi_endpoint(client):
     d = client.post('/api/songs/waltz/midi').json()
     assert d['path'].endswith('.mid') and d['bytes'] < 10_000

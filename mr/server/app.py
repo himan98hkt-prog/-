@@ -68,6 +68,8 @@ def create_app(catalog_root: str) -> FastAPI:
             'styles': [{'key': k, 'label': lab, 'desc': d}
                        for k, lab, d in orch.list_styles()],
             'levels': [{'key': k, 'label': orch.LEVEL_LABEL[k]} for k in orch.LEVELS],
+            'mixes': [{'key': k, 'label': v['label'], 'desc': v['desc']}
+                      for k, v in render.MIXES.items()],
         }
 
     @app.get('/api/songs')
@@ -108,7 +110,7 @@ def create_app(catalog_root: str) -> FastAPI:
 
     @app.get('/api/songs/{song_id}/audio')
     def audio(song_id: str, style: Optional[str] = None, level: Optional[str] = None,
-              bpm: Optional[int] = None):
+              bpm: Optional[int] = None, mix: str = 'full'):
         """mp3 를 (필요하면) 만들고 위치와 박-초 환산비를 알려준다.
 
         구간 재생은 서버를 다시 부르지 않는다. 한 번 받은 mp3 안에서
@@ -116,7 +118,7 @@ def create_app(catalog_root: str) -> FastAPI:
         """
         _song(song_id)
         try:
-            info = st.audio(song_id, style=style, level=level, bpm=bpm)
+            info = st.audio(song_id, style=style, level=level, bpm=bpm, mix=mix)
         except (render.ToolMissingError, RuntimeError) as e:
             raise HTTPException(503, str(e))
         except (ValueError, KeyError) as e:
@@ -124,7 +126,8 @@ def create_app(catalog_root: str) -> FastAPI:
         name = os.path.basename(info['path'])
         return {'url': f'/api/audio/{name}', 'cached': info['cached'],
                 'seconds': info['seconds'], 'style': info['style'],
-                'level': info['level'], 'bpm': info['bpm'],
+                'level': info['level'], 'bpm': info['bpm'], 'mix': info['mix'],
+                'count_in': info['count_in'], 'lead_seconds': info['lead_seconds'],
                 'sec_per_ql': 60.0 / info['bpm']}
 
     @app.get('/api/audio/{name}', include_in_schema=False)

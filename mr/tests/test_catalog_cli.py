@@ -94,17 +94,32 @@ def test_show_unknown(root, capsys):
     assert run(root, 'show', '없는곡') == 1
 
 
-def test_midi_all(root, capsys):
+def test_build_all(root, capsys):
     seed(root)
-    assert run(root, 'midi', '--all') == 0
+    assert run(root, 'build', '--all') == 0
     out = capsys.readouterr().out
     assert 'waltz' in out and 'bytes' in out
     assert os.path.exists(os.path.join(root, 'midi', 'waltz.mid'))
 
 
-def test_midi_needs_a_target(root, capsys):
+def test_build_with_style_variants(root, capsys):
+    seed(root)
+    assert run(root, 'build', '--all', '--styles', 'strings,march',
+               '--levels', 'normal') == 0
+    out = capsys.readouterr().out
+    assert '변형 2' in out and '편성 변형' in out
+    assert os.path.exists(os.path.join(root, 'midi', 'waltz__march_normal.mid'))
+
+
+def test_build_rejects_unknown_style(root):
+    seed(root)
+    with pytest.raises(Exception):
+        run(root, 'build', '--all', '--styles', '없는스타일')
+
+
+def test_build_needs_a_target(root, capsys):
     store.CatalogStore(root)
-    assert run(root, 'midi') == 1
+    assert run(root, 'build') == 1
 
 
 def test_reanalyze_all(root, capsys):

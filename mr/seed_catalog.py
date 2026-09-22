@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """카탈로그 씨앗 — 지금 이 환경에서 **합법적으로 확보 가능한** 곡만 넣는다.
 
+곡마다 카운트인 1마디를 기본으로 둔다. MR 에는 원곡 피아노가 없어서 시작 신호가
+없기 때문에, 혼자 연습할 음원이라면 세는 소리가 앞에 있어야 아이가 들어올 수 있다.
+
 지시서 9장 2단계의 목표는 약 150곡(체르니 100 전곡 + 바이엘 후반 + 부르크뮐러 25)이다.
 그 악보들은 MuseScore.com·IMSLP 에서 사람이 골라 받아야 하고, 여기서는 못 한다.
 
@@ -66,7 +69,7 @@ def seed_originals(st: store.CatalogStore, verbose=True) -> int:
             path, rec['title'], song_id=rec['id'], composer='자사 오리지널',
             book='오리지널 연습곡', level=rec.get('level', 3), public_domain=True,
             default_style=rec.get('default_style', 'strings'),
-            default_bpm=96, note='회귀 테스트 세트와 같은 곡')
+            default_bpm=96, count_in=1, note='회귀 테스트 세트와 같은 곡')
         n += 1
         if verbose:
             print(f'  {song.id:<24} {song.key:<10} {song.measures:>3}마디 '
@@ -93,7 +96,7 @@ def seed_corpus(st: store.CatalogStore, verbose=True) -> int:
                 path, spec['title'], song_id=spec['id'], composer=spec['composer'],
                 book=spec['book'], level=spec['level'], public_domain=True,
                 default_style=spec['style'], default_bpm=spec['bpm'],
-                note=spec.get('note', ''))
+                count_in=1, note=spec.get('note', ''))
         n += 1
         if verbose:
             print(f'  {song.id:<24} {song.key:<10} {song.measures:>3}마디 '

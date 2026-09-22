@@ -85,5 +85,19 @@ jobs:
         run: |
           python3 seed_catalog.py --catalog /tmp/ci-catalog
           python3 catalog_cli.py --catalog /tmp/ci-catalog status
-          python3 catalog_cli.py --catalog /tmp/ci-catalog midi --all
+          python3 catalog_cli.py --catalog /tmp/ci-catalog build --all \
+              --styles strings,march --levels normal
           python3 catalog_cli.py --catalog /tmp/ci-catalog export /tmp/player.json
+
+      - name: MR 에 원곡 피아노가 섞이지 않았는지 (채널 0 = 피아노)
+        run: |
+          python3 mr.py fixtures/scores/p07_minuet_g.musicxml \
+              --mix mr -o /tmp/mr.mid --quiet
+          python3 -c "
+          from mido import MidiFile
+          ch = {m.channel for t in MidiFile('/tmp/mr.mid').tracks
+                for m in t if m.type == 'note_on'}
+          assert ch, 'MR 이 비어 있습니다'
+          assert 0 not in ch, f'MR 에 피아노(채널 0)가 들어 있습니다: {sorted(ch)}'
+          print('MR 채널', sorted(ch), '— 피아노 없음 OK')
+          "

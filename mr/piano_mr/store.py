@@ -73,6 +73,7 @@ class CatalogStore:
                      public_domain: bool = False, default_style: str = orch.DEFAULT_STYLE,
                      default_level: str = 'normal', default_bpm: int = 96,
                      key_name: Optional[str] = None, recommended_bpm: Sequence[int] = (),
+                     default_curve: str = 'flat', count_in: int = 0,
                      note: str = '', analyze: bool = True) -> cat.Song:
         """악보 파일을 카탈로그로 들인다. 저작권 확인을 통과해야 들어온다."""
         if not os.path.exists(path):
@@ -102,7 +103,8 @@ class CatalogStore:
             id=song_id, title=title, composer=composer, book=book, level=level,
             public_domain=public_domain, source_xml=stored,
             default_style=default_style, default_level=default_level,
-            default_bpm=default_bpm, recommended_bpm=list(recommended_bpm),
+            default_curve=default_curve, default_bpm=default_bpm,
+            count_in=int(count_in), recommended_bpm=list(recommended_bpm),
             key_locked=bool(key_name), key=key_name or '', note=note)
         song.validate()
         self.catalog.songs[song_id] = song
@@ -240,54 +242,104 @@ class CatalogStore:
                  'label': harmony.label(h['root'], h['qual'])}
                 for h in song.harmony]
 
-    def render_key(self, song: cat.Song, style: str, level: str, bpm: int) -> str:
+    def render_key(self, song: cat.Song, style: str, level: str, bpm: int,
+                   mix: str) -> str:
         blob = json.dumps([[h['m'], h['i'], h['root'], h['qual']] for h in song.harmony])
-        raw = f'{song.id}|{style}|{level}|{bpm}|{blob}'
+        raw = f'{song.id}|{style}|{level}|{bpm}|{mix}|{blob}'
         return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
     def audio(self, song_id: str, *, style: Optional[str] = None,
               level: Optional[str] = None, bpm: Optional[int] = None,
+              mix: str = render.DEFAULT_MIX, count_in: Optional[int] = None,
               force: bool = False) -> dict:
-        """반주가 섞인 mp3 를 만든다 (캐시 적중이면 즉시).
+        """음원을 만든다 (캐시 적중이면 즉시).
 
         화음을 하나 바꾸면 키가 달라지므로 자동으로 다시 렌더된다 — 지시서 10장의
         "바꾸면 즉시 반주 재생성".
+
+        mix 기본값은 `mr`(반주만)이다. 다만 **화성 확인 화면은 `full` 로 부른다** —
+        선율 없이 화음만 들어서는 그 화음이 이 곡에 맞는지 판단할 수 없기 때문이다.
         """
         song = self.catalog.get(song_id)
         style = orch.check_style(style or song.default_style)
         level = orch.check_level(level or song.default_level)
         bpm = int(bpm or song.default_bpm)
-        key = self.render_key(song, style, level, bpm)
+        if mix not in render.MIXES:
+            raise ValueError(f"모르는 mix 입니다: {mix} (가능: {', '.join(render.MIXES)})")
+        curve = song.default_curve
+        count_in = song.count_in if count_in is None else int(count_in)
+        key = self.render_key(song, style, level, bpm, f'{mix}|{curve}|{count_in}')
         path = os.path.join(self.cache_dir, f'{song.id}_{key}.mp3')
         hit = os.path.exists(path) and not force
         t0 = time.time()
         if not hit:
             res = render.render(self.load_score(song_id), style=style, level=level,
-                                bpm=bpm, tag=f'{song.id}_{key}', out_dir=self.cache_dir,
-                                formats=('practice',), keep_midi=False,
+                                bpm=bpm, curve=curve, count_in=count_in,
+                                tag=f'{song.id}_{key}', out_dir=self.cache_dir,
+                                formats=('practice',), keep_midi=False, mix=mix,
                                 harmony_override=self._segments(song),
                                 outfile=path)
             if not os.path.exists(path):          # 안전망
                 path = res.first()
+        # 카운트인을 구워 넣으면 곡이 그만큼 뒤로 밀린다. 구간 재생이 이걸 모르면
+        # 마디를 눌렀을 때 엉뚱한 자리가 나온다.
+        lead_ql = (self.bar_length(song_id) * count_in) if count_in else 0.0
         return {'path': path, 'cached': hit, 'seconds': round(time.time() - t0, 2),
-                'style': style, 'level': level, 'bpm': bpm,
+                'style': style, 'level': level, 'bpm': bpm, 'mix': mix,
+                'curve': curve, 'count_in': count_in,
+                'lead_seconds': round(lead_ql * 60.0 / bpm, 4),
                 'ql_per_second': bpm / 60.0}
 
+    def bar_length(self, song_id: str) -> float:
+        """첫 마디의 길이 (4분음표 단위). 카운트인 길이 계산에 쓴다."""
+        ls = self.load_score(song_id)
+        return ls.bars[0].bar_length if ls.bars else 4.0
+
     def build_midi(self, song_id: str, *, style: Optional[str] = None,
-                   level: Optional[str] = None, bpm: Optional[int] = None) -> str:
-        """카탈로그에 보관할 반주 MIDI 를 굽는다. 저장하는 건 이것뿐이다."""
+                   level: Optional[str] = None, bpm: Optional[int] = None,
+                   variant: bool = False) -> str:
+        """카탈로그에 보관할 반주 MIDI 를 굽는다. 저장하는 건 이것뿐이다.
+
+        `variant=True` 면 기본 설정이 아니라 편성별 파일로 따로 남긴다.
+        MIDI 는 1 KB 안팎이라 스타일을 여러 벌 구워 둬도 부담이 없고,
+        템포는 재생할 때 바꾸면 되므로 bpm 별로는 굽지 않는다 (지시서 8.4).
+        """
         song = self.catalog.get(song_id)
+        style = orch.check_style(style or song.default_style)
+        level = orch.check_level(level or song.default_level)
         arr, _ls, _segs = arranger.arrange(
-            self.load_score(song_id),
-            style=orch.check_style(style or song.default_style),
-            level=orch.check_level(level or song.default_level),
-            bpm=int(bpm or song.default_bpm),
+            self.load_score(song_id), style=style, level=level,
+            curve=song.default_curve, bpm=int(bpm or song.default_bpm),
             harmony_override=self._segments(song))
-        out = self.midi_path(song_id)
+        out = (self.variant_path(song_id, style, level) if variant
+               else self.midi_path(song_id))
         arr.save(out)
-        song.accomp_midi = os.path.relpath(out, self.root)
-        self.save()
+        if not variant:
+            song.accomp_midi = os.path.relpath(out, self.root)
+            self.save()
         return out
+
+    def variant_path(self, song_id: str, style: str, level: str) -> str:
+        return os.path.join(self.midi_dir, f'{song_id}__{style}_{level}.mid')
+
+    def prebuild(self, song_id: str, *, styles: Sequence[str] = (),
+                 levels: Sequence[str] = (), audio: bool = False,
+                 mix: str = render.DEFAULT_MIX,
+                 count_in: Optional[int] = None) -> dict:
+        """미리 만들어 둘 수 있는 것을 다 만든다.
+
+        기본 설정 반주 MIDI 는 항상. 편성 변형을 요청하면 그것도. `audio=True` 면
+        MR mp3 까지 캐시에 구워 둔다 — 현장에서 기다리지 않게.
+        """
+        made = {'midi': self.build_midi(song_id), 'variants': [], 'audio': None}
+        song = self.catalog.get(song_id)
+        for st in styles:
+            for lv in (levels or [song.default_level]):
+                made['variants'].append(self.build_midi(song_id, style=st, level=lv,
+                                                        variant=True))
+        if audio:
+            made['audio'] = self.audio(song_id, mix=mix, count_in=count_in)['path']
+        return made
 
     def clear_cache(self) -> int:
         n = 0
@@ -301,8 +353,9 @@ class CatalogStore:
         songs = list(self.catalog.songs.values())
         verified = [s for s in songs if s.harmony_verified]
         times = [s.verify_seconds for s in verified if s.verify_seconds > 0]
-        midi_kb = sum(os.path.getsize(self.midi_path(s.id)) for s in songs
-                      if os.path.exists(self.midi_path(s.id))) / 1024
+        midi_kb = sum(os.path.getsize(os.path.join(self.midi_dir, f))
+                      for f in os.listdir(self.midi_dir)
+                      if f.endswith('.mid')) / 1024
         return {
             'total': len(songs),
             'verified': len(verified),
@@ -312,6 +365,12 @@ class CatalogStore:
             'avg_verify_seconds': round(sum(times) / len(times)) if times else 0,
             'over_20min': sum(1 for t in times if t > 20 * 60),
             'midi_kb': round(midi_kb, 1),
+            'midi_files': sum(1 for f in os.listdir(self.midi_dir)
+                              if f.endswith('.mid')),
+            'prebuilt': sum(1 for s in songs
+                            if os.path.exists(self.midi_path(s.id))),
+            'cached_audio': sum(1 for f in os.listdir(self.cache_dir)
+                                if f.endswith('.mp3')),
         }
 
     def rows(self) -> List[dict]:

@@ -20,6 +20,19 @@ from . import harmony, orchestration as orch
 from . import score_loader
 
 TPB = 480                  # ticks per beat — render.combine 과 반드시 같아야 한다
+
+# 기본값: **곡 전체에 깔리는 보통 반주.**
+#
+# 지시서 5장은 `build`(곡을 4등분해 off -> simple -> normal -> rich)를 기본으로
+# 제안했지만, 그건 음원에 원곡 피아노가 들어 있다고 보았을 때의 이야기다.
+# MR 은 반주만이고 피아노는 아이가 친다. 그래서 `build` 를 기본으로 두면
+# 곡의 **앞 4분의 1이 완전한 무음**이 되어, 아이는 그동안 맞출 것이 없다.
+#
+# 그래서 일상 연습(1차 용도, 매일 씀)은 처음부터 끝까지 깔리는 반주가 기본이고,
+# `build` 는 발표회용으로 남겨 둔다 — 무대에서는 아이 혼자 시작했다가 오케스트라가
+# 밀려들어오는 그 효과가 실제로 살아난다.
+DEFAULT_CURVE = 'flat'
+DEFAULT_LEVEL = 'normal'   # pad + bass + color. rich 를 내내 깔면 너무 두껍다
 PITCH_MIN, PITCH_MAX = 24, 103
 PAD_FLOOR = 36             # 패드가 이보다 내려가면 웅웅거린다
 CLICK_HI, CLICK_LO = 76, 77        # 카운트인 우드블록 (GM 드럼)
@@ -91,9 +104,13 @@ def _seventh_pitch(tri: Sequence[int], qual: str) -> Optional[int]:
 # 연출 곡선 — 지시서 5장 "감동은 반주가 들어오는 순간에서 나온다"
 # --------------------------------------------------------------------------
 
-def stage_plan(bars: Sequence[int], curve: str = 'build',
-               top_level: str = 'rich') -> Dict[int, str]:
-    """마디별 레벨 계획. 기본 `build` 는 곡을 4등분해 off -> simple -> normal -> rich."""
+def stage_plan(bars: Sequence[int], curve: str = DEFAULT_CURVE,
+               top_level: str = DEFAULT_LEVEL) -> Dict[int, str]:
+    """마디별 레벨 계획.
+
+    `flat`(기본)  곡 전체에 같은 두께로 깔린다 — 일상 연습용 보통 반주
+    `build`       곡을 4등분해 off -> simple -> normal -> rich — 발표회용
+    """
     orch.check_level(top_level)
     n = len(bars)
     if n == 0:
@@ -134,7 +151,7 @@ class _Events:
 
 
 def build(segs: Sequence[dict], ls: score_loader.LoadedScore, style: str = 'strings',
-          level: str = 'rich', curve: str = 'build', bpm: float = 120.0,
+          level: str = DEFAULT_LEVEL, curve: str = DEFAULT_CURVE, bpm: float = 120.0,
           count_in: int = 0) -> Arrangement:
     orch.check_style(style)
     orch.check_level(level)
@@ -210,7 +227,7 @@ def _add_accent(ev, merged, bar_info, plan, style, used, lead_ql):
         return
     r = rich['accent']
     last_bar = max(s['bar'] for s in merged)
-    if plan.get(last_bar) != 'rich':
+    if plan.get(last_bar) not in ('rich',):
         return
     last = [s for s in merged if s['bar'] == last_bar]
     if not last:
@@ -279,8 +296,8 @@ def _to_midi(ev: _Events, used: Dict[str, dict], ls, bpm: float,
     return mf
 
 
-def arrange(path_or_score, style: str = 'strings', level: str = 'rich',
-            curve: str = 'build', bpm: float = 120.0, count_in: int = 0,
+def arrange(path_or_score, style: str = 'strings', level: str = DEFAULT_LEVEL,
+            curve: str = DEFAULT_CURVE, bpm: float = 120.0, count_in: int = 0,
             transpose: int = 0, seg_target: float = 2.0,
             harmony_override: Optional[Sequence[dict]] = None):
     """악보 -> (Arrangement, LoadedScore, segments)."""

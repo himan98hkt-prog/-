@@ -163,8 +163,9 @@ cd mr
 pip install -r requirements.txt
 apt-get install fluidsynth ffmpeg fluid-soundfont-gm
 
-# 1단계 — 엔진
+# 1단계 — 엔진. 출력은 **반주만**(MR) — 피아노는 아이가 친다
 python3 mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
+python3 mr.py score.mxl --mix full -o 확인용.mp3   # 피아노까지 넣어 확인
 python3 mr.py score.mxl --analyze-only    # 화성만 확인
 python3 bench.py                          # 회귀 테스트 정확도 표
 
@@ -172,8 +173,9 @@ python3 bench.py                          # 회귀 테스트 정확도 표
 python3 seed_catalog.py                   # 씨앗 곡 26곡
 python3 serve.py                          # http://127.0.0.1:8765
 python3 catalog_cli.py status             # 제작 현황
+python3 catalog_cli.py build --all --audio  # 반주 미리 만들어 두기
 
-python3 -m pytest                         # 테스트 206건
+python3 -m pytest                         # 테스트 231건
 ```
 
 화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
