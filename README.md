@@ -223,7 +223,7 @@ OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올�
 ## 문서
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 데이터 모델, 동기화·충돌 정책, 성능 설계
-- [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 목차
+- [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 집필 규칙 (원고는 [scripts/manual-content.js](scripts/manual-content.js), 만드는 법은 [DEPLOY.md 6장](docs/DEPLOY.md))
 - [docs/PERF.md](docs/PERF.md) — 성능 측정 결과와 재현 방법
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 빌드·배포·판매 운영 절차
 - [docs/LICENSE-KEYS.md](docs/LICENSE-KEYS.md) — 인증키 체계와 발급·재발급 운영
