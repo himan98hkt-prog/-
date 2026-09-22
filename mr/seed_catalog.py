@@ -101,6 +101,12 @@ def seed_corpus(st: store.CatalogStore, verbose=True) -> int:
     return n
 
 
+def shown_path(path: str) -> str:
+    """안내 문구에 넣을 경로. 현재 위치 밖이면 `../../..` 대신 절대경로를 쓴다."""
+    rel = os.path.relpath(path)
+    return path if rel.startswith('..') else rel
+
+
 def main():
     ap = argparse.ArgumentParser(description='카탈로그 씨앗 넣기')
     ap.add_argument('--catalog', default='catalog')
@@ -120,8 +126,7 @@ def main():
     s = st.stats()
     print(f'\n{total}곡 추가 — 카탈로그 총 {s["total"]}곡, 확인 대기 {s["analyzed"]}곡')
     print(f'카탈로그: {st.root}')
-    print('\n다음: python3 serve.py --catalog '
-          f'{os.path.relpath(st.root)}  → 화성 확인 화면')
+    print(f'\n다음: python3 serve.py --catalog {shown_path(st.root)}  → 화성 확인 화면')
     print('지시서 9장 2단계 목표인 약 150곡을 채우려면 체르니 100 / 바이엘 후반 /')
     print('부르크뮐러 25 의 MusicXML 을 확보해 catalog_cli.py import 로 넣으세요.')
     return 0
