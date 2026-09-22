@@ -1,4 +1,4 @@
-# 피아노학원 자동 반주(MR) 엔진 — 1단계
+# 피아노학원 자동 반주(MR) 엔진 — 1·2단계
 
 피아노 악보(MusicXML·MIDI)를 넣으면 **곡의 화성을 자동 분석해** 오케스트라 반주를
 만들어 주는 엔진. 개발지시서 9장의 **1단계(엔진)** 구현분이다.
@@ -19,8 +19,15 @@ python3 mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
 | CLI | 완료 |
 | **완료 기준: 화성 정확도 95% 이상** | **99.5%** |
 
-2단계(카탈로그)부터는 아직 손대지 않았다. 지시서 9장이 "순서를 바꾸지 말 것"이라고
-못 박았고, PDF 업로드를 1단계에 넣으면 프로젝트가 죽는다고 적혀 있다.
+| 2단계 항목 (지시서 9장) | 상태 |
+|---|---|
+| **화성 확인 화면** ← 제작 속도를 좌우 | 완료 — `python3 serve.py` |
+| 카탈로그 저장소·CLI | 완료 — `python3 catalog_cli.py` |
+| MusicXML 확보 (약 150곡) | 부분 — 26곡 (아래 "카탈로그에 무엇이 들어 있나") |
+| 곡당 검수 20분 이내 | 측정 가능 상태 — 화면이 검수 시간을 곡별로 기록한다 |
+
+3단계(플레이어 PWA) 이후는 손대지 않았다. 지시서 9장이 "순서를 바꾸지 말 것"이라고
+못 박았고, PDF 업로드를 앞으로 당기면 프로젝트가 죽는다고 적혀 있다.
 
 ## 설치
 
@@ -74,12 +81,86 @@ m5   F    │ m6   C    │ m7   G7   │ m8   C
 `conf`(1위와 2위의 점수 차)와 `alts`(다음 후보 3개)를 같이 내보내므로,
 2단계 확인 화면은 이 값만 읽어서 색칠하면 된다.
 
+## 2단계 — 카탈로그와 화성 확인 화면
+
+```bash
+python3 seed_catalog.py          # 씨앗 곡 넣기 (아래 참조)
+python3 serve.py                 # http://127.0.0.1:8765  화성 확인 화면
+python3 catalog_cli.py status    # 제작 현황
+```
+
+### 화성 확인 화면 (지시서 10장)
+
+> "PDF 경로가 실용적이냐 아니냐가 이 화면 하나로 갈린다."
+> "악보를 음표 단위로 교정하면 40분, 화성만 보면 3~5분"
+
+그래서 이 화면은 **음표를 아예 보여주지 않는다.** API 도 음표를 내보내지 않는다
+(`test_view_carries_no_notes_only_chords` 가 이를 지킨다).
+
+| 지시서 10장 요구 | 구현 |
+|---|---|
+| 음표가 아니라 화음 이름만 | 마디 카드 + 화음 이름. 음표 데이터는 서버가 안 보낸다 |
+| 각 칸은 드롭다운 | 조성의 화음이 먼저, 그 외 전체가 뒤에 |
+| 바꾸면 즉시 반주 재생성 | 화음이 바뀌면 렌더 키가 바뀌어 자동 재생성 (약 2초) |
+| 자신 없는 구간은 노란색 | 1위와 2위의 점수 차(`conf`)가 작은 칸. "다음 후보"도 같이 |
+| 해당 마디만 구간 재생 | 마디마다 ▶ 버튼 |
+| 조성 확인 UI 불필요 | 없다. 대신 자동 판정이 흔들리는 악보는 `--key` 로 못 박는다 |
+
+**검수 부담이 실제로 얼마나 줄어드는가** — 26곡 764칸 중 노란색은 **78칸(10%)** 이다.
+96마디짜리 클라라 슈만 폴로네즈도 확인할 칸이 128개 중 6개다. 나머지는 훑고 넘어간다.
+
+구간 재생은 서버를 다시 부르지 않는다. 받아 둔 mp3 안에서
+`초 = 마디 시작(4분음표) × 60 / bpm` 으로 건너뛴다. 템포가 일정해서 이 환산이 정확하다
+(브라우저 실측: ♩=126 곡의 3번 마디 → 3.81초, 오차 0.0초).
+
+화면은 곡별 **검수 시간을 자동으로 기록한다.** 지시서의 "곡당 20분 이내" 목표가
+지켜지는지 `catalog_cli.py status` 에서 바로 보인다.
+
+### 카탈로그
+
+```bash
+python3 catalog_cli.py import score.mxl --title "체르니 100번 5번" --id czerny100_05 \
+    --composer "Carl Czerny" --book "체르니 100" --level 3 --public-domain --style march
+python3 catalog_cli.py list --status analyzed
+python3 catalog_cli.py show czerny100_05      # 화성 격자를 터미널에서
+python3 catalog_cli.py midi --all             # 반주 MIDI 굽기
+python3 catalog_cli.py export player.json     # 3단계 플레이어용 번들
+```
+
+디스크 배치 — **오디오는 카탈로그가 아니다** (지시서 6장):
+
+```
+catalog/
+  catalog.json          곡 메타 + 확정된 화성 + 검수 상태   ← 백업 대상
+  scores/<id>.musicxml  원본 악보                          ← 백업 대상
+  midi/<id>.mid         반주 MIDI (1 KB 미만)              ← 백업 대상
+  cache/<key>.mp3       렌더 캐시 — 지워도 2초면 다시 생긴다
+```
+
+저작권(지시서 7장)은 **파일을 복사하기 전에** 검사한다. 블랙리스트에 걸리거나
+`--public-domain` 이 없으면 악보가 디스크에 남지 않는다.
+
+### 카탈로그에 무엇이 들어 있나
+
+`seed_catalog.py` 가 **이 환경에서 합법적으로 확보 가능한 곡만** 넣는다 — 26곡:
+
+- 퍼블릭도메인 피아노곡 6곡 (music21 코퍼스): 바흐 평균율 1권 1번 전주곡,
+  모차르트 K.545 1악장 제시부, 클라라 슈만 폴로네즈 Op.1 네 곡 (64~96마디)
+- 자사 오리지널 연습곡 20곡 (회귀 테스트 세트와 같은 곡)
+
+지시서 2단계의 목표는 **약 150곡** (체르니 100 전곡 + 바이엘 후반 + 부르크뮐러 25)이다.
+그 악보들은 MuseScore.com·IMSLP 에서 **사람이 골라 받아야 하고, 여기서는 못 했다.**
+받아 오면 `catalog_cli.py import` 로 같은 자리에 들어가고 파이프라인은 그대로 돈다.
+
 ## 구성
 
 ```
 mr/
-  mr.py                CLI 진입점
+  mr.py                CLI 진입점 (1단계)
   bench.py             회귀 테스트 정확도 표
+  catalog_cli.py       카탈로그 관리 (2단계)
+  serve.py             화성 확인 화면 띄우기 (2단계)
+  seed_catalog.py      씨앗 곡 넣기
   piano_mr/
     score_loader.py    ① 악보 파서 — 반복 전개, 못갖춘마디, 마디별 멜로디 최저음
     harmony.py         ② 화성 분석  ← 품질의 핵심
@@ -87,13 +168,17 @@ mr/
     arranger.py        반주 MIDI 생성 (보이싱·연출 곡선)
     render.py          ④ 렌더링 — FluidSynth + ffmpeg, 출력 3종 + 스템
     catalog.py         데이터 모델 (곡·배정·발표회 큐) + 저작권 방어선
+    store.py           카탈로그 저장소 — 들이기·분석·검수·내보내기
     evaluate.py        정확도 측정
     cli.py
+  server/
+    app.py             FastAPI — 음표가 아니라 화음만 내보낸다
+    static/            화성 확인 화면 (빌드 단계 없는 순수 HTML/CSS/JS)
   fixtures/
     pieces.py          회귀 테스트용 오리지널 20곡 사양
     build_fixtures.py  사양 -> MusicXML + 정답 화성
     scores/  truth/
-  tests/               151개
+  tests/               206개
 ```
 
 ## 회귀 테스트
@@ -101,7 +186,7 @@ mr/
 ```bash
 python3 bench.py                # 곡별 표
 python3 bench.py --stages       # 프로토타입 -> 현재까지 무엇이 얼마나 올렸나
-python3 -m pytest               # 정확도 게이트 포함 151개
+python3 -m pytest               # 정확도 게이트 포함 206개
 ```
 
 ```
@@ -183,15 +268,9 @@ p17_two_four_pickup        82.4%    58.8%   X     2/9     0.03s
 
 ## 다음 단계가 쓸 수 있는 것
 
-2단계(카탈로그·화성 확인 화면)가 바로 얹을 수 있도록 미리 내어 둔 것:
-
-- `harmony.analyze_segments()` 가 세그먼트마다 `conf`·`alts` 를 낸다 → 노란색 강조
-- `harmony.parse_label()` 가 사람이 타이핑한 화음 이름을 되읽는다 → 드롭다운 교정
-- `catalog.Catalog.apply_corrections()` 가 교정을 반영하고 `harmony_verified` 를 세운다
-- `mr.py --use-harmony h.json` 으로 교정된 화성만으로 반주를 다시 만든다 (재분석 없음)
-- `catalog.check_copyright()` 가 블랙리스트와 `public_domain` 을 강제한다
-
 3단계(플레이어 PWA)가 쓸 것:
+
+- `catalog_cli.py export player.json` 이 확인 완료된 곡만, 오디오 없이 내보낸다
 
 - 반주 MIDI 를 그대로 내려주면 브라우저에서 템포·조옮김을 실시간으로 바꿀 수 있다
   (지시서 8.4). 서버 렌더가 필요한 스템·음질 일관성은 `render.py` 가 담당한다

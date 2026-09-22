@@ -39,6 +39,26 @@ BLACKLIST = (
 )
 
 
+LOW_CONF = 0.15          # 이보다 확신이 약하면 확인 화면에서 노란색 (지시서 10장)
+
+
+def segment_record(seg: dict) -> dict:
+    """분석 세그먼트 -> 카탈로그에 저장할 화성 레코드.
+
+    `conf`/`alts` 를 같이 남긴다. 확인 화면이 노란색을 칠하고 드롭다운의
+    다음 후보를 보여주는 근거이고, 사람이 고친 뒤에도 "원래 뭐였는지"가 남는다.
+    """
+    return {
+        'm': seg['m'], 'i': seg['i'],
+        'bar': seg.get('bar', seg['m']),
+        'off': seg.get('off', 0.0), 'len': seg.get('len', 0.0),
+        'root': seg['root'], 'qual': seg['qual'],
+        'conf': seg.get('conf', 1.0),
+        'alts': [harmony.label(a['root'], a['qual']) for a in seg.get('alts', [])],
+        'auto': harmony.label(seg['root'], seg['qual']),   # 엔진이 처음 낸 값
+    }
+
+
 class CopyrightError(ValueError):
     """화이트리스트 밖의 곡을 카탈로그에 넣으려 할 때."""
 
@@ -82,7 +102,28 @@ class Song:
     recommended_bpm: List[int] = field(default_factory=list)
     accomp_midi: str = ''                # 반주 MIDI 경로 (오디오는 저장하지 않는다)
 
+    # --- 2단계 카탈로그 제작 관리용 -------------------------------------
+    default_level: str = 'normal'
+    default_bpm: int = 96
+    key_locked: bool = False             # 조성을 사람이 확정했는가 (자동 판정 무시)
+    verify_seconds: int = 0              # 화성 확인 화면에서 실제로 쓴 시간
+    verified_at: str = ''
+    note: str = ''
+
+    @property
+    def status(self) -> str:
+        if self.harmony_verified:
+            return 'verified'
+        return 'analyzed' if self.harmony else 'new'
+
+    @property
+    def low_confidence_count(self) -> int:
+        return sum(1 for h in self.harmony if h.get('conf', 1.0) < LOW_CONF)
+
     def validate(self) -> None:
+        orch.check_level(self.default_level)
+        if not 20 <= int(self.default_bpm) <= 240:
+            raise ValueError('default_bpm 은 20~240 입니다.')
         if not self.id or not re.fullmatch(r'[a-z0-9_\-]+', self.id):
             raise ValueError(f'곡 id 는 소문자·숫자·_- 만 씁니다: {self.id!r}')
         if not self.title:
@@ -102,8 +143,7 @@ class Song:
         s = cls(id=song_id, title=title,
                 key=str(ls.key), time=ls.time_signature.ratioString,
                 measures=len(ls.bars),
-                harmony=[{'m': x['m'], 'i': x['i'], 'root': x['root'],
-                          'qual': x['qual']} for x in segs],
+                harmony=[segment_record(x) for x in segs],
                 **kw)
         return s
 
@@ -224,20 +264,38 @@ class Catalog:
     # 화성 교정 (확인 화면에서 넘어온 값)
     def apply_corrections(self, song_id: str, corrections: Sequence[dict],
                           verified: bool = True) -> Song:
-        """`[{'m':1,'i':0,'label':'G7'}, ...]` 를 곡의 화성에 반영한다."""
+        """`[{'bar':1,'i':0,'label':'G7'}, ...]` 를 곡의 화성에 반영한다.
+
+        `bar`(연주 순서)로 찍으면 그 한 칸만, `m`(인쇄된 마디 번호)으로 찍으면
+        같은 번호의 칸 전부에 적용한다. 반복기호를 펼친 곡은 같은 `m` 이
+        여러 번 나오기 때문에 이 구분이 필요하다.
+        """
         song = self.get(song_id)
-        index = {(h['m'], h['i']): h for h in song.harmony}
+        by_bar: Dict[tuple, dict] = {}
+        by_m: Dict[tuple, List[dict]] = {}
+        for h in song.harmony:
+            by_bar[(h.get('bar', h['m']), h['i'])] = h
+            by_m.setdefault((h['m'], h['i']), []).append(h)
+
         for c in corrections:
-            key = (c['m'], c['i'])
-            if key not in index:
-                raise KeyError(f'{song_id}: 없는 세그먼트입니다 (m={c["m"]}, i={c["i"]})')
+            if 'bar' in c:
+                hit = by_bar.get((c['bar'], c['i']))
+                targets = [hit] if hit else []
+                where = f'bar={c["bar"]}, i={c["i"]}'
+            else:
+                targets = by_m.get((c['m'], c['i']), [])
+                where = f'm={c["m"]}, i={c["i"]}'
+            if not targets:
+                raise KeyError(f'{song_id}: 없는 세그먼트입니다 ({where})')
             if 'label' in c:
                 parsed = harmony.parse_label(c['label'])
                 if parsed is None:
                     raise ValueError(f'화음 이름을 알아볼 수 없습니다: {c["label"]!r}')
-                index[key]['root'], index[key]['qual'] = parsed
+                root, qual = parsed
             else:
-                index[key]['root'], index[key]['qual'] = c['root'], c['qual']
+                root, qual = c['root'], c['qual']
+            for h in targets:
+                h['root'], h['qual'] = root, qual
         song.harmony_verified = verified
         return song
 

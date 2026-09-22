@@ -80,3 +80,10 @@ jobs:
 
       - name: 화성 정확도 게이트 (95% 미만이면 실패)
         run: python3 bench.py --stages
+
+      - name: 카탈로그 파이프라인 (들이기 → 분석 → 검수 → 내보내기)
+        run: |
+          python3 seed_catalog.py --catalog /tmp/ci-catalog
+          python3 catalog_cli.py --catalog /tmp/ci-catalog status
+          python3 catalog_cli.py --catalog /tmp/ci-catalog midi --all
+          python3 catalog_cli.py --catalog /tmp/ci-catalog export /tmp/player.json

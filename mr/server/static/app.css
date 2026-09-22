@@ -1,0 +1,93 @@
+/* 화성 확인 화면 — 종이톤. 관리노트 본체와 같은 결. */
+:root {
+  --paper:#faf8f4; --card:#fff; --ink:#22201c; --muted:#6b6459;
+  --line:#e4ded3; --accent:#7a5c3e; --accent-soft:#f0e7da;
+  --warn:#f6c453; --warn-bg:#fff8e4; --warn-line:#e8b93c;
+  --ok:#3f7d58; --ok-bg:#eaf4ee; --changed:#2f6f9f; --changed-bg:#e9f2f9;
+  --radius:10px;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",
+    "Noto Sans KR",sans-serif;
+  font-size:15px; line-height:1.6;
+}
+a { color:var(--accent); }
+header {
+  position:sticky; top:0; z-index:10; background:var(--card);
+  border-bottom:1px solid var(--line); padding:12px 20px;
+  display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+}
+header h1 { font-size:17px; margin:0; font-weight:700; }
+header .sub { color:var(--muted); font-size:13px; }
+.spacer { flex:1; }
+main { padding:20px; max-width:1180px; margin:0 auto; }
+
+button, select {
+  font:inherit; color:inherit; background:var(--card);
+  border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer;
+}
+button:hover:not(:disabled) { border-color:var(--accent); }
+button:disabled { opacity:.45; cursor:default; }
+button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+button.big { padding:11px 20px; font-size:16px; font-weight:600; }
+
+.stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+.stat {
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:11px 16px; min-width:104px;
+}
+.stat b { display:block; font-size:22px; line-height:1.25; }
+.stat span { color:var(--muted); font-size:12px; }
+
+table { width:100%; border-collapse:collapse; background:var(--card);
+  border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+th, td { padding:9px 12px; text-align:left; border-bottom:1px solid var(--line);
+  font-size:14px; }
+th { background:#f4efe6; font-weight:600; font-size:13px; color:var(--muted); }
+tr:last-child td { border-bottom:none; }
+td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+.pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px;
+  border:1px solid var(--line); }
+.pill.verified { background:var(--ok-bg); color:var(--ok); border-color:#bcdcc8; }
+.pill.analyzed { background:var(--warn-bg); color:#8a6512; border-color:var(--warn-line); }
+.pill.new { background:#f2f0ec; color:var(--muted); }
+
+/* --- 화성 격자 (지시서 10장) ------------------------------------------- */
+.bars { display:grid; grid-template-columns:repeat(auto-fill,minmax(188px,1fr));
+  gap:10px; margin-top:14px; }
+.bar { background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); padding:9px 10px; }
+.bar.playing { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.bar-head { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+.bar-no { font-size:12px; color:var(--muted); font-weight:600;
+  font-variant-numeric:tabular-nums; }
+.bar-head button { padding:2px 8px; font-size:12px; border-radius:6px; }
+.cells { display:flex; gap:6px; }
+.cells select { flex:1; min-width:0; padding:6px 4px; text-align:center;
+  font-weight:600; font-size:15px; }
+.cells select.low { background:var(--warn-bg); border-color:var(--warn-line); }
+.cells select.changed { background:var(--changed-bg); border-color:#a8c8e0;
+  color:var(--changed); }
+.hint { font-size:11px; color:var(--muted); margin-top:4px; min-height:14px; }
+
+.legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px;
+  color:var(--muted); margin:10px 0 0; }
+.swatch { display:inline-block; width:11px; height:11px; border-radius:3px;
+  vertical-align:-1px; margin-right:4px; border:1px solid var(--line); }
+.swatch.low { background:var(--warn-bg); border-color:var(--warn-line); }
+.swatch.changed { background:var(--changed-bg); border-color:#a8c8e0; }
+
+.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); padding:12px 14px; }
+.toolbar label { font-size:13px; color:var(--muted); }
+.status { font-size:13px; color:var(--muted); min-height:20px; margin-top:10px; }
+.status.err { color:#a8382f; }
+.empty { color:var(--muted); padding:28px; text-align:center; }
+@media (max-width:640px) {
+  main { padding:12px; }
+  .bars { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+}

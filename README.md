@@ -151,26 +151,37 @@ RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어
   Actions 탭에서 **수동 실행**합니다. 원생 수·출결 건수를 입력으로 조절할 수 있고,
   `perf-report.json` 을 아티팩트로 남깁니다. 릴리스 전 점검용입니다.
 
-## 피아노 자동 반주(MR) 엔진 — `mr/`
+## 피아노 자동 반주(MR) — `mr/`
 
-피아노학원용 **자동 반주 생성 엔진**. 악보(MusicXML·MIDI)를 넣으면 곡의 화성을
-자동 분석해 오케스트라 반주를 만든다. 개발지시서 9장의 **1단계(엔진)** 구현분이고,
-관리노트 본체(JS/PWA)와는 별개로 도는 파이썬 패키지다. 연동은 5단계 과제다.
+피아노학원용 **자동 반주 생성 엔진 + 카탈로그 제작 도구**. 악보(MusicXML·MIDI)를
+넣으면 곡의 화성을 자동 분석해 오케스트라 반주를 만든다. 개발지시서 9장의
+**1단계(엔진)·2단계(카탈로그·화성 확인 화면)** 구현분이고, 관리노트 본체(JS/PWA)와는
+별개로 도는 파이썬 패키지다. 연동은 5단계 과제다.
 
 ```bash
 cd mr
 pip install -r requirements.txt
 apt-get install fluidsynth ffmpeg fluid-soundfont-gm
 
+# 1단계 — 엔진
 python3 mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
 python3 mr.py score.mxl --analyze-only    # 화성만 확인
 python3 bench.py                          # 회귀 테스트 정확도 표
-python3 -m pytest                         # 테스트 151건
+
+# 2단계 — 카탈로그와 화성 확인 화면
+python3 seed_catalog.py                   # 씨앗 곡 26곡
+python3 serve.py                          # http://127.0.0.1:8765
+python3 catalog_cli.py status             # 제작 현황
+
+python3 -m pytest                         # 테스트 206건
 ```
 
 화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
+화성 확인 화면은 음표를 보여주지 않고 화음 이름만 다루며, 판단이 필요한 칸은
+전체의 **10%** 뿐이다.
+
 자세한 내용은 [mr/README.md](mr/README.md), 작업 보고는
-[docs/MR-ENGINE.md](docs/MR-ENGINE.md).
+[docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md).
 
 ## 문서
 
@@ -180,3 +191,4 @@ python3 -m pytest                         # 테스트 151건
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 빌드·배포·판매 운영 절차
 - [docs/LICENSE-KEYS.md](docs/LICENSE-KEYS.md) — 인증키 체계와 발급·재발급 운영
 - [docs/MR-ENGINE.md](docs/MR-ENGINE.md) — 피아노 자동 반주 엔진 1단계 작업 보고
+- [docs/MR-CATALOG.md](docs/MR-CATALOG.md) — 카탈로그·화성 확인 화면 2단계 작업 보고
