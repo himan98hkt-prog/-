@@ -1,0 +1,159 @@
+{
+ "id": "p06_waltz_fast_d",
+ "title": "화성이 빠른 왈츠 (D장조)",
+ "key": "D",
+ "time": "3/4",
+ "level": 5,
+ "default_style": "chamber",
+ "lh": "waltz",
+ "rh": "waltz_melody",
+ "pickup": false,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 1,
+   "off": 0.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 1,
+   "off": 1.0,
+   "len": 1.0,
+   "root": 9,
+   "qual": "M",
+   "label": "A"
+  },
+  {
+   "m": 1,
+   "off": 2.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 2,
+   "off": 3.0,
+   "len": 1.0,
+   "root": 7,
+   "qual": "M",
+   "label": "G"
+  },
+  {
+   "m": 2,
+   "off": 4.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 2,
+   "off": 5.0,
+   "len": 1.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 3,
+   "off": 6.0,
+   "len": 1.0,
+   "root": 11,
+   "qual": "m",
+   "label": "Bm"
+  },
+  {
+   "m": 3,
+   "off": 7.0,
+   "len": 1.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  },
+  {
+   "m": 3,
+   "off": 8.0,
+   "len": 1.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 4,
+   "off": 9.0,
+   "len": 3.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 5,
+   "off": 12.0,
+   "len": 1.0,
+   "root": 7,
+   "qual": "M",
+   "label": "G"
+  },
+  {
+   "m": 5,
+   "off": 13.0,
+   "len": 1.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 5,
+   "off": 14.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 6,
+   "off": 15.0,
+   "len": 1.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  },
+  {
+   "m": 6,
+   "off": 16.0,
+   "len": 1.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 6,
+   "off": 17.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  },
+  {
+   "m": 7,
+   "off": 18.0,
+   "len": 3.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 8,
+   "off": 21.0,
+   "len": 3.0,
+   "root": 2,
+   "qual": "M",
+   "label": "D"
+  }
+ ]
+}

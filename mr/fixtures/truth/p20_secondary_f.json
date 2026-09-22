@@ -1,0 +1,87 @@
+{
+ "id": "p20_secondary_f",
+ "title": "부속화음 연습 (F장조)",
+ "key": "F",
+ "time": "4/4",
+ "level": 7,
+ "default_style": "orchestra",
+ "lh": "arp",
+ "rh": "eighth",
+ "pickup": false,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 1,
+   "off": 0.0,
+   "len": 4.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  },
+  {
+   "m": 2,
+   "off": 4.0,
+   "len": 4.0,
+   "root": 2,
+   "qual": "7",
+   "label": "D7"
+  },
+  {
+   "m": 3,
+   "off": 8.0,
+   "len": 4.0,
+   "root": 7,
+   "qual": "m",
+   "label": "Gm"
+  },
+  {
+   "m": 4,
+   "off": 12.0,
+   "len": 4.0,
+   "root": 0,
+   "qual": "7",
+   "label": "C7"
+  },
+  {
+   "m": 5,
+   "off": 16.0,
+   "len": 4.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  },
+  {
+   "m": 6,
+   "off": 20.0,
+   "len": 4.0,
+   "root": 9,
+   "qual": "7",
+   "label": "A7"
+  },
+  {
+   "m": 7,
+   "off": 24.0,
+   "len": 4.0,
+   "root": 2,
+   "qual": "m",
+   "label": "Dm"
+  },
+  {
+   "m": 8,
+   "off": 28.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "7",
+   "label": "C7"
+  },
+  {
+   "m": 8,
+   "off": 30.0,
+   "len": 2.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  }
+ ]
+}

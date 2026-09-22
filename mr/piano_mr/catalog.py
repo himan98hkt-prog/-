@@ -1,0 +1,280 @@
+# -*- coding: utf-8 -*-
+"""데이터 모델 — 곡(catalog) / 배정(assignment) / 발표회 프로그램(queue).
+
+지시서 6장 그대로. 저장 원칙은 하나다:
+
+    **오디오를 저장하지 않는다.** MIDI(2.4 KB) + 설정만 저장하고 요청 시 렌더한다.
+    100곡 × 10개 버전 기준 26 GB -> 2 MB.
+
+7장(저작권)이 "위반 시 사업 전체가 무너짐"이라고 못 박았기 때문에
+카탈로그에 넣는 순간 화이트/블랙리스트를 강제로 확인한다. 편곡은 2차적저작물이고,
+비영리 예외는 판매 제품에 적용되지 않는다.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+from dataclasses import asdict, dataclass, field
+from typing import Dict, List, Optional, Sequence
+
+from . import harmony, orchestration as orch
+
+# --- 지시서 7장 -------------------------------------------------------------
+WHITELIST_HINTS = (
+    '바이엘', 'beyer', '체르니', 'czerny', '하농', 'hanon',
+    '부르크뮐러', 'burgmuller', 'burgmüller', '소나티네', 'sonatine', 'sonatina',
+    '클레멘티', 'clementi', '쿨라우', 'kuhlau', '디아벨리', 'diabelli',
+    '모차르트', 'mozart', '하이든', 'haydn', '바흐', 'bach',
+    '미뉴에트', 'minuet', '인벤션', 'invention', '안나 막달레나', 'anna magdalena',
+    '슈만', 'schumann', '어린이 정경', 'kinderszenen',
+    '차이콥스키', 'tchaikovsky', '어린이 앨범', 'children',
+    '오리지널', 'original', '자사',
+)
+BLACKLIST = (
+    '바스티앙', 'bastien', '알프레드', 'alfred',
+    '피아노 어드벤처', 'piano adventures', 'faber',
+    '이루마', 'yiruma', '지브리', 'ghibli', '히사이시', 'hisaishi',
+    '디즈니', 'disney', 'ost', 'k-pop', 'kpop', '뉴에이지',
+)
+
+
+class CopyrightError(ValueError):
+    """화이트리스트 밖의 곡을 카탈로그에 넣으려 할 때."""
+
+
+def check_copyright(*texts: Optional[str], public_domain: bool = False) -> None:
+    """블랙리스트 문구가 있으면 거부. 퍼블릭도메인 표시가 없어도 거부."""
+    blob = ' '.join(t for t in texts if t).lower()
+    for bad in BLACKLIST:
+        if bad in blob:
+            raise CopyrightError(
+                f'저작권 블랙리스트에 걸렸습니다: {bad!r} — 지시서 7장. '
+                '편곡은 2차적저작물이라 작곡가·출판사와 직접 계약이 필요합니다.')
+    if not public_domain:
+        raise CopyrightError(
+            'public_domain=True 가 아닌 곡은 카탈로그에 넣을 수 없습니다 (지시서 7장). '
+            '사용자가 올린 악보는 카탈로그가 아니라 해당 계정 전용으로 두세요.')
+
+
+def looks_whitelisted(*texts: Optional[str]) -> bool:
+    blob = ' '.join(t for t in texts if t).lower()
+    return any(h in blob for h in WHITELIST_HINTS)
+
+
+# --- 곡 ---------------------------------------------------------------------
+
+@dataclass
+class Song:
+    id: str
+    title: str
+    composer: str = ''
+    book: str = ''
+    level: int = 1                       # 1~10 학원 기준 난이도
+    public_domain: bool = False
+    source_xml: str = ''
+    key: str = ''
+    time: str = ''
+    measures: int = 0
+    harmony: List[dict] = field(default_factory=list)
+    harmony_verified: bool = False       # 사람이 화성 확인 화면에서 확인했는가
+    default_style: str = orch.DEFAULT_STYLE
+    recommended_bpm: List[int] = field(default_factory=list)
+    accomp_midi: str = ''                # 반주 MIDI 경로 (오디오는 저장하지 않는다)
+
+    def validate(self) -> None:
+        if not self.id or not re.fullmatch(r'[a-z0-9_\-]+', self.id):
+            raise ValueError(f'곡 id 는 소문자·숫자·_- 만 씁니다: {self.id!r}')
+        if not self.title:
+            raise ValueError('곡 제목이 비어 있습니다.')
+        if not 1 <= int(self.level) <= 10:
+            raise ValueError('level 은 1~10 입니다.')
+        orch.check_style(self.default_style)
+        check_copyright(self.title, self.composer, self.book,
+                        public_domain=self.public_domain)
+
+    def harmony_labels(self) -> List[str]:
+        return [harmony.label(h.get('root'), h.get('qual')) for h in self.harmony]
+
+    @classmethod
+    def from_analysis(cls, song_id: str, title: str, ls, segs: Sequence[dict], **kw):
+        """분석 결과로 곡 레코드를 만든다. harmony 는 확인 화면에서 교정될 초안."""
+        s = cls(id=song_id, title=title,
+                key=str(ls.key), time=ls.time_signature.ratioString,
+                measures=len(ls.bars),
+                harmony=[{'m': x['m'], 'i': x['i'], 'root': x['root'],
+                          'qual': x['qual']} for x in segs],
+                **kw)
+        return s
+
+
+# --- 배정 (학생별) -----------------------------------------------------------
+
+@dataclass
+class Assignment:
+    student_id: str
+    song_id: str
+    bpm: int = 84
+    style: str = orch.DEFAULT_STYLE
+    level: str = 'normal'
+    transpose: int = 0
+    volume: float = 0.7
+    use_accompaniment: bool = True       # 박자 불안한 저학년은 False
+
+    def validate(self) -> None:
+        if not self.student_id or not self.song_id:
+            raise ValueError('student_id 와 song_id 는 필수입니다.')
+        if not 20 <= int(self.bpm) <= 240:
+            raise ValueError('bpm 은 20~240 입니다.')
+        if not -12 <= int(self.transpose) <= 12:
+            raise ValueError('transpose 는 -12~+12 반음입니다.')
+        if not 0.0 <= float(self.volume) <= 1.0:
+            raise ValueError('volume 은 0.0~1.0 입니다.')
+        orch.check_style(self.style)
+        orch.check_level(self.level)
+
+
+# --- 발표회 프로그램 (큐) -----------------------------------------------------
+
+@dataclass
+class QueueItem:
+    order: int
+    student: str
+    song_id: str
+    bpm: int = 84
+    style: str = orch.DEFAULT_STYLE
+    level: str = 'normal'
+    note: str = ''
+
+    def validate(self) -> None:
+        if int(self.order) < 1:
+            raise ValueError('order 는 1부터입니다.')
+        orch.check_style(self.style)
+        orch.check_level(self.level)
+
+
+@dataclass
+class Program:
+    event: str
+    date: str = ''
+    queue: List[QueueItem] = field(default_factory=list)
+
+    def validate(self) -> None:
+        if not self.event:
+            raise ValueError('event 이름이 비어 있습니다.')
+        seen = set()
+        for q in self.queue:
+            q.validate()
+            if q.order in seen:
+                raise ValueError(f'순서가 겹칩니다: {q.order}')
+            seen.add(q.order)
+
+    def sorted_queue(self) -> List[QueueItem]:
+        return sorted(self.queue, key=lambda q: q.order)
+
+    def cue_lines(self) -> List[str]:
+        """원장님 화면에 뜨는 큐 목록 — `1. 김지우 — 아라베스크 (♩=84, 실내악, 보통)`"""
+        out = []
+        for q in self.sorted_queue():
+            style = orch.STYLES[q.style]['label']
+            out.append(f"{q.order}. {q.student} — {q.song_id} "
+                       f"(♩={q.bpm}, {style}, {orch.LEVEL_LABEL[q.level]})")
+        return out
+
+
+# --- 저장소 ------------------------------------------------------------------
+
+class Catalog:
+    """곡·배정·프로그램을 JSON 한 벌로 보관한다. 오디오는 절대 넣지 않는다."""
+
+    def __init__(self, root: str):
+        self.root = root
+        self.songs: Dict[str, Song] = {}
+        self.assignments: List[Assignment] = []
+        self.programs: List[Program] = []
+
+    # 곡
+    def add(self, song: Song, allow_unverified: bool = True) -> Song:
+        song.validate()
+        if not allow_unverified and not song.harmony_verified:
+            raise ValueError(f'{song.id}: 화성 확인 전에는 카탈로그에 넣지 않습니다.')
+        self.songs[song.id] = song
+        return song
+
+    def get(self, song_id: str) -> Song:
+        if song_id not in self.songs:
+            raise KeyError(f'카탈로그에 없는 곡입니다: {song_id}')
+        return self.songs[song_id]
+
+    def assign(self, a: Assignment) -> Assignment:
+        a.validate()
+        self.get(a.song_id)
+        self.assignments = [x for x in self.assignments
+                            if not (x.student_id == a.student_id and x.song_id == a.song_id)]
+        self.assignments.append(a)
+        return a
+
+    def add_program(self, p: Program) -> Program:
+        p.validate()
+        for q in p.queue:
+            self.get(q.song_id)
+        self.programs.append(p)
+        return p
+
+    # 화성 교정 (확인 화면에서 넘어온 값)
+    def apply_corrections(self, song_id: str, corrections: Sequence[dict],
+                          verified: bool = True) -> Song:
+        """`[{'m':1,'i':0,'label':'G7'}, ...]` 를 곡의 화성에 반영한다."""
+        song = self.get(song_id)
+        index = {(h['m'], h['i']): h for h in song.harmony}
+        for c in corrections:
+            key = (c['m'], c['i'])
+            if key not in index:
+                raise KeyError(f'{song_id}: 없는 세그먼트입니다 (m={c["m"]}, i={c["i"]})')
+            if 'label' in c:
+                parsed = harmony.parse_label(c['label'])
+                if parsed is None:
+                    raise ValueError(f'화음 이름을 알아볼 수 없습니다: {c["label"]!r}')
+                index[key]['root'], index[key]['qual'] = parsed
+            else:
+                index[key]['root'], index[key]['qual'] = c['root'], c['qual']
+        song.harmony_verified = verified
+        return song
+
+    # 직렬화
+    def to_dict(self) -> dict:
+        return {
+            'version': 1,
+            'songs': [asdict(s) for s in self.songs.values()],
+            'assignments': [asdict(a) for a in self.assignments],
+            'programs': [{'event': p.event, 'date': p.date,
+                          'queue': [asdict(q) for q in p.queue]} for p in self.programs],
+        }
+
+    def save(self, path: Optional[str] = None) -> str:
+        path = path or os.path.join(self.root, 'catalog.json')
+        os.makedirs(os.path.dirname(os.path.abspath(path)) or '.', exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
+        return path
+
+    @classmethod
+    def load(cls, path: str) -> 'Catalog':
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+        c = cls(os.path.dirname(os.path.abspath(path)))
+        for s in data.get('songs', []):
+            c.songs[s['id']] = Song(**s)
+        for a in data.get('assignments', []):
+            c.assignments.append(Assignment(**a))
+        for p in data.get('programs', []):
+            c.programs.append(Program(event=p['event'], date=p.get('date', ''),
+                                      queue=[QueueItem(**q) for q in p.get('queue', [])]))
+        return c
+
+    def storage_note(self) -> str:
+        n = len(self.songs)
+        midi_kb = n * 2.4
+        wav_mb = n * 5.56 * 10
+        return (f'곡 {n}개 · 반주 MIDI {midi_kb:.1f} KB 보관 '
+                f'(같은 곡을 WAV 10버전으로 저장했다면 {wav_mb:.0f} MB)')

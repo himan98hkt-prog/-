@@ -49,3 +49,34 @@ jobs:
           name: dist
           path: dist
           retention-days: 7
+
+  mr:
+    name: 반주 엔진 · 회귀 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mr
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: mr/requirements.txt
+
+      - name: 파이썬 의존성
+        run: pip install -r requirements.txt
+
+      - name: 렌더링 도구 (지시서 부록 A)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            fluidsynth ffmpeg fluid-soundfont-gm
+
+      - name: 테스트
+        run: python3 -m pytest
+
+      - name: 화성 정확도 게이트 (95% 미만이면 실패)
+        run: python3 bench.py --stages

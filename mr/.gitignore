@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+out/
+*.mp3
+*.wav
+*.mid
+!fixtures/**/*.mid

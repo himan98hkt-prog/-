@@ -1,0 +1,79 @@
+{
+ "id": "p01_block_c",
+ "title": "첫 화음 연습 (C장조)",
+ "key": "C",
+ "time": "4/4",
+ "level": 1,
+ "default_style": "strings",
+ "lh": "block",
+ "rh": "quarter",
+ "pickup": false,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 1,
+   "off": 0.0,
+   "len": 4.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 2,
+   "off": 4.0,
+   "len": 4.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  },
+  {
+   "m": 3,
+   "off": 8.0,
+   "len": 4.0,
+   "root": 7,
+   "qual": "M",
+   "label": "G"
+  },
+  {
+   "m": 4,
+   "off": 12.0,
+   "len": 4.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 5,
+   "off": 16.0,
+   "len": 4.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 6,
+   "off": 20.0,
+   "len": 4.0,
+   "root": 9,
+   "qual": "m",
+   "label": "Am"
+  },
+  {
+   "m": 7,
+   "off": 24.0,
+   "len": 4.0,
+   "root": 7,
+   "qual": "7",
+   "label": "G7"
+  },
+  {
+   "m": 8,
+   "off": 28.0,
+   "len": 4.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  }
+ ]
+}
