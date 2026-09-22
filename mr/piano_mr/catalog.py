@@ -204,11 +204,15 @@ class QueueItem:
 class Program:
     event: str
     date: str = ''
+    id: str = ''
+    venue: str = ''
     queue: List[QueueItem] = field(default_factory=list)
 
     def validate(self) -> None:
         if not self.event:
             raise ValueError('event 이름이 비어 있습니다.')
+        if self.id and not re.fullmatch(r'[a-z0-9_\-]+', self.id):
+            raise ValueError(f'프로그램 id 는 소문자·숫자·_- 만 씁니다: {self.id!r}')
         seen = set()
         for q in self.queue:
             q.validate()
@@ -227,6 +231,11 @@ class Program:
             out.append(f"{q.order}. {q.student} — {q.song_id} "
                        f"(♩={q.bpm}, {style}, {orch.LEVEL_LABEL[q.level]})")
         return out
+
+    @property
+    def minutes(self) -> int:
+        """대략의 진행 시간(분). 곡 길이를 모르니 곡당 3분으로 잡는다."""
+        return len(self.queue) * 3
 
 
 # --- 저장소 ------------------------------------------------------------------
@@ -312,7 +321,8 @@ class Catalog:
             'version': 1,
             'songs': [asdict(s) for s in self.songs.values()],
             'assignments': [asdict(a) for a in self.assignments],
-            'programs': [{'event': p.event, 'date': p.date,
+            'programs': [{'event': p.event, 'date': p.date, 'id': p.id,
+                          'venue': p.venue,
                           'queue': [asdict(q) for q in p.queue]} for p in self.programs],
         }
 
@@ -333,8 +343,10 @@ class Catalog:
         for a in data.get('assignments', []):
             c.assignments.append(Assignment(**a))
         for p in data.get('programs', []):
-            c.programs.append(Program(event=p['event'], date=p.get('date', ''),
-                                      queue=[QueueItem(**q) for q in p.get('queue', [])]))
+            c.programs.append(Program(
+                event=p['event'], date=p.get('date', ''), id=p.get('id', ''),
+                venue=p.get('venue', ''),
+                queue=[QueueItem(**q) for q in p.get('queue', [])]))
         return c
 
     def storage_note(self) -> str:

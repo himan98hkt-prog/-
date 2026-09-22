@@ -104,6 +104,52 @@ def seed_corpus(st: store.CatalogStore, verbose=True) -> int:
     return n
 
 
+# 발표회 프로그램 예시 (지시서 6장 · 모듈 ⑤-3).
+# 운영 화면이 실제 데이터로 도는 것을 보여 주기 위한 것이라, 카탈로그에 실제로
+# 들어 있는 곡만 쓴다.
+PROGRAM = dict(
+    id='winter_2026', event='2026 겨울 발표회', date='2026-12-20',
+    venue='구민회관 아트홀',
+    queue=[
+        ('김지우', 'p05_waltz_c', 84, 'fairytale', 'normal', '리허설 완료'),
+        ('박서준', 'p08_three_eight', 88, 'fairytale', 'simple', ''),
+        ('이하은', 'p01_block_c', 76, 'strings', 'simple', '첫 무대'),
+        ('정도윤', 'p07_minuet_g', 104, 'chamber', 'normal', ''),
+        ('최서아', 'p12_minor_dm_waltz', 92, 'warm', 'normal', ''),
+        ('강민준', 'p03_scale_g', 112, 'march', 'normal', ''),
+        ('윤채원', 'bach_bwv846_prelude', 72, 'chamber', 'normal', '반주 볼륨 낮게'),
+        ('임시우', 'p20_secondary_f', 96, 'orchestra', 'normal', ''),
+        ('한지호', 'cschumann_op1n2', 104, 'chamber', 'rich', ''),
+        ('오예린', 'mozart_k545_1_exp', 120, 'orchestra', 'rich', '마지막 순서'),
+    ])
+
+
+def seed_program(st: store.CatalogStore, verbose=True) -> int:
+    from piano_mr import catalog as cat
+    if any(p.id == PROGRAM['id'] for p in st.catalog.programs):
+        return 0
+    items = []
+    for n, (student, song_id, bpm, style, level, note) in enumerate(PROGRAM['queue'], 1):
+        if song_id not in st.catalog.songs:
+            if verbose:
+                print(f'  건너뜀 {student}: 카탈로그에 {song_id} 가 없습니다')
+            continue
+        items.append(cat.QueueItem(order=n, student=student, song_id=song_id,
+                                   bpm=bpm, style=style, level=level, note=note))
+    if not items:
+        return 0
+    prog = cat.Program(id=PROGRAM['id'], event=PROGRAM['event'], date=PROGRAM['date'],
+                       venue=PROGRAM['venue'], queue=items)
+    st.catalog.add_program(prog)
+    st.save()
+    if verbose:
+        print(f"  {prog.event} — {len(items)}곡 · 약 {prog.minutes}분")
+        for line in prog.cue_lines()[:3]:
+            print(f'    {line}')
+        print('    ...')
+    return 1
+
+
 def shown_path(path: str) -> str:
     """안내 문구에 넣을 경로. 현재 위치 밖이면 `../../..` 대신 절대경로를 쓴다."""
     rel = os.path.relpath(path)
@@ -115,6 +161,7 @@ def main():
     ap.add_argument('--catalog', default='catalog')
     ap.add_argument('--skip-corpus', action='store_true')
     ap.add_argument('--skip-originals', action='store_true')
+    ap.add_argument('--skip-program', action='store_true')
     a = ap.parse_args()
 
     st = store.CatalogStore(a.catalog)
@@ -125,11 +172,16 @@ def main():
     if not a.skip_corpus:
         print('\n퍼블릭도메인 코퍼스:')
         total += seed_corpus(st)
+    if not a.skip_program:
+        print('\n발표회 프로그램:')
+        seed_program(st)
 
     s = st.stats()
     print(f'\n{total}곡 추가 — 카탈로그 총 {s["total"]}곡, 확인 대기 {s["analyzed"]}곡')
     print(f'카탈로그: {st.root}')
-    print(f'\n다음: python3 serve.py --catalog {shown_path(st.root)}  → 화성 확인 화면')
+    print(f'\n다음: python3 serve.py --catalog {shown_path(st.root)}')
+    print('  화성 확인 화면   http://127.0.0.1:8765/')
+    print('  발표회 운영 화면 http://127.0.0.1:8765/static/program.html')
     print('지시서 9장 2단계 목표인 약 150곡을 채우려면 체르니 100 / 바이엘 후반 /')
     print('부르크뮐러 25 의 MusicXML 을 확보해 catalog_cli.py import 로 넣으세요.')
     return 0

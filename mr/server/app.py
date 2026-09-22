@@ -139,6 +139,29 @@ def create_app(catalog_root: str) -> FastAPI:
             raise HTTPException(404, '만료된 음원입니다. 다시 요청하세요.')
         return FileResponse(path, media_type='audio/mpeg')
 
+    @app.get('/api/stage')
+    def stage():
+        """무대 배경으로 쓸 파일이 있는지. 없으면 화면은 CSS 무대로 간다.
+
+        `static/img/hall.mp4` 또는 `hall.jpg` 를 넣어 두면 자동으로 얹힌다.
+        """
+        img_dir = os.path.join(STATIC, 'img')
+        def have(name):
+            return f'img/{name}' if os.path.exists(os.path.join(img_dir, name)) else None
+        return {'video': have('hall.mp4'), 'image': have('hall.jpg'),
+                'keys': have('keys.jpg'), 'curtain': have('curtain.jpg')}
+
+    @app.get('/api/programs')
+    def programs():
+        return {'programs': st.programs()}
+
+    @app.get('/api/programs/{index}')
+    def program(index: int):
+        try:
+            return st.program_view(index)
+        except KeyError as e:
+            raise HTTPException(404, str(e))
+
     @app.post('/api/songs/{song_id}/midi')
     def midi(song_id: str):
         _song(song_id)

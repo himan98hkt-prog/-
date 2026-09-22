@@ -174,8 +174,88 @@ def test_midi_endpoint(client):
     assert d['path'].endswith('.mid') and d['bytes'] < 10_000
 
 
+# --- 발표회 운영 화면 (지시서 모듈 ⑤-3) ---------------------------------------
+
+def program_client(tmp_path):
+    from piano_mr import catalog as cat
+    root = str(tmp_path / 'catalog')
+    st = store.CatalogStore(root)
+    st.import_score(score('p05_waltz_c'), '작은 왈츠 (C장조)', song_id='waltz',
+                    composer='자사 오리지널', book='오리지널 연습곡', level=2,
+                    public_domain=True, default_style='fairytale', default_bpm=108)
+    st.import_score(score('p01_block_c'), '첫 화음 연습', song_id='block',
+                    composer='자사 오리지널', book='오리지널 연습곡',
+                    public_domain=True)
+    st.catalog.add_program(cat.Program(
+        id='winter', event='2026 겨울 발표회', date='2026-12-20', venue='아트홀',
+        queue=[cat.QueueItem(order=2, student='박서준', song_id='block', bpm=76),
+               cat.QueueItem(order=1, student='김지우', song_id='waltz', bpm=84,
+                             style='fairytale', level='normal', note='리허설 완료')]))
+    st.save()
+    return TestClient(create_app(root))
+
+
+def test_program_list(tmp_path):
+    c = program_client(tmp_path)
+    d = c.get('/api/programs').json()
+    assert len(d['programs']) == 1
+    assert d['programs'][0]['event'] == '2026 겨울 발표회'
+
+
+def test_program_is_ordered_and_named(tmp_path):
+    """원장님 화면에 song_id 를 보여 줄 수는 없다. 곡 제목이 붙어 나와야 한다."""
+    c = program_client(tmp_path)
+    d = c.get('/api/programs/0').json()
+    assert [i['order'] for i in d['items']] == [1, 2]
+    assert d['items'][0]['student'] == '김지우'
+    assert d['items'][0]['title'] == '작은 왈츠 (C장조)'
+    assert d['items'][0]['style_label'] == '동화풍'
+    assert d['items'][0]['level_label'] == '보통'
+    assert d['venue'] == '아트홀' and d['count'] == 2
+
+
+def test_program_cue_line_matches_the_spec(tmp_path):
+    """`1. 김지우 — 아라베스크 (♩=84, 실내악, 보통)` (지시서 모듈 ⑤-3)"""
+    c = program_client(tmp_path)
+    cue = c.get('/api/programs/0').json()['items'][0]['cue']
+    assert cue.startswith('1. 김지우 — 작은 왈츠 (C장조) (♩=84,')
+    assert '동화풍' in cue and '보통' in cue
+
+
+def test_program_flags_unready_songs(tmp_path):
+    c = program_client(tmp_path)
+    d = c.get('/api/programs/0').json()
+    assert d['ready'] is False                 # 아직 화성 확인 전
+    assert all(not i['missing'] for i in d['items'])
+
+
+def test_program_marks_missing_song(tmp_path):
+    from piano_mr import catalog as cat
+    c = program_client(tmp_path)
+    st = c.app.state.store
+    st.catalog.programs[0].queue.append(
+        cat.QueueItem(order=3, student='이하은', song_id='waltz'))
+    st.catalog.songs.pop('block')
+    st.save()
+    d = TestClient(create_app(st.root)).get('/api/programs/0').json()
+    missing = [i for i in d['items'] if i['missing']]
+    assert len(missing) == 1 and missing[0]['student'] == '박서준'
+
+
+def test_unknown_program_is_404(tmp_path):
+    assert program_client(tmp_path).get('/api/programs/99').status_code == 404
+
+
+def test_stage_media_is_optional(client):
+    """배경 파일이 없어도 화면은 떠야 한다 (지시서 ⑤-1 오프라인)."""
+    d = client.get('/api/stage').json()
+    assert set(d) == {'video', 'image', 'keys', 'curtain'}
+    assert all(v is None or v.startswith('img/') for v in d.values())
+
+
 def test_static_screens_are_served(client):
     for path in ('/static/index.html', '/static/verify.html',
+                 '/static/program.html', '/static/hall.css', '/static/program.js',
                  '/static/app.css', '/static/verify.js', '/static/index.js'):
         assert client.get(path).status_code == 200, path
     assert client.get('/', follow_redirects=False).status_code in (307, 302)

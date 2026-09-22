@@ -174,8 +174,9 @@ python3 seed_catalog.py                   # 씨앗 곡 26곡
 python3 serve.py                          # http://127.0.0.1:8765
 python3 catalog_cli.py status             # 제작 현황
 python3 catalog_cli.py build --all --audio  # 반주 미리 만들어 두기
+#   화성 확인 화면   /            발표회 운영 화면 /static/program.html
 
-python3 -m pytest                         # 테스트 231건
+python3 -m pytest                         # 테스트 240건
 ```
 
 화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
@@ -194,3 +195,4 @@ python3 -m pytest                         # 테스트 231건
 - [docs/LICENSE-KEYS.md](docs/LICENSE-KEYS.md) — 인증키 체계와 발급·재발급 운영
 - [docs/MR-ENGINE.md](docs/MR-ENGINE.md) — 피아노 자동 반주 엔진 1단계 작업 보고
 - [docs/MR-CATALOG.md](docs/MR-CATALOG.md) — 카탈로그·화성 확인 화면 2단계 작업 보고
+- [docs/MR-DASHBOARD.md](docs/MR-DASHBOARD.md) — 발표회 운영 화면(프로그램 대시보드)

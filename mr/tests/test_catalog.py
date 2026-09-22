@@ -103,6 +103,19 @@ def test_program_cue_lines():
     assert '♩=84' in lines[0] and '실내악' in lines[0] and '풍성' in lines[0]
 
 
+def test_program_minutes_estimate():
+    p = catalog.Program(event='x', queue=[
+        catalog.QueueItem(order=i, student=f's{i}', song_id='s') for i in range(1, 11)])
+    assert p.minutes == 30
+
+
+def test_program_id_is_validated():
+    p = catalog.Program(event='x', id='대문자Id')
+    with pytest.raises(ValueError, match='프로그램 id'):
+        p.validate()
+    catalog.Program(event='x', id='winter_2026').validate()
+
+
 def test_duplicate_order_is_refused():
     p = catalog.Program(event='x', queue=[
         catalog.QueueItem(order=1, student='a', song_id='s'),

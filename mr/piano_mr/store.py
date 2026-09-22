@@ -384,6 +384,43 @@ class CatalogStore:
                         'style': s.default_style, 'bpm': s.default_bpm})
         return out
 
+    # --- 발표회 프로그램 (지시서 모듈 ⑤-3) ---------------------------------
+    def programs(self) -> List[dict]:
+        return [self.program_view(i) for i in range(len(self.catalog.programs))]
+
+    def program_view(self, index: int) -> dict:
+        """운영 화면이 그대로 그릴 수 있는 프로그램 한 벌.
+
+        큐의 각 줄에 곡 제목까지 붙여 준다. 원장님 화면에서 song_id 를 보여 줄 수는
+        없기 때문이다.
+        """
+        if not 0 <= index < len(self.catalog.programs):
+            raise KeyError(f'없는 프로그램입니다: {index}')
+        p = self.catalog.programs[index]
+        items = []
+        for q in p.sorted_queue():
+            song = self.catalog.songs.get(q.song_id)
+            items.append({
+                'order': q.order, 'student': q.student, 'song_id': q.song_id,
+                'title': song.title if song else q.song_id,
+                'composer': song.composer if song else '',
+                'book': song.book if song else '',
+                'measures': song.measures if song else 0,
+                'missing': song is None,
+                'verified': bool(song and song.harmony_verified),
+                'bpm': q.bpm, 'style': q.style, 'level': q.level, 'note': q.note,
+                'style_label': orch.STYLES[q.style]['label'],
+                'level_label': orch.LEVEL_LABEL[q.level],
+                'count_in': song.count_in if song else 0,
+                'cue': f"{q.order}. {q.student} — {song.title if song else q.song_id} "
+                       f"(♩={q.bpm}, {orch.STYLES[q.style]['label']}, "
+                       f"{orch.LEVEL_LABEL[q.level]})",
+            })
+        return {'index': index, 'id': p.id, 'event': p.event, 'date': p.date,
+                'venue': p.venue, 'count': len(items),
+                'minutes': p.minutes, 'items': items,
+                'ready': all(i['verified'] for i in items) if items else False}
+
     def export_player(self, out_path: str) -> str:
         """3단계 플레이어가 읽을 번들. 확인된 곡만, 오디오 없이."""
         songs = [s for s in self.catalog.songs.values() if s.harmony_verified]

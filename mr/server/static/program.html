@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>발표회 운영</title>
+<link rel="stylesheet" href="hall.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2226%22 font-size=%2226%22%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<section class="stage" id="stage">
+  <video class="stage__media" id="bg" muted playsinline loop preload="none"></video>
+  <div class="stage__paint"></div>
+  <div class="beam"></div>
+  <div class="floor"></div>
+  <svg class="piano" viewBox="0 0 520 250" aria-hidden="true">
+    <defs>
+      <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2b2028"/><stop offset="100%" stop-color="#0d0a0e"/>
+      </linearGradient>
+      <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="rgba(240,205,133,0)"/>
+        <stop offset="48%" stop-color="rgba(240,205,133,.5)"/>
+        <stop offset="100%" stop-color="rgba(240,205,133,0)"/>
+      </linearGradient>
+    </defs>
+    <!-- 열린 뚜껑 -->
+    <path d="M104 150 C150 74 300 52 404 74 L470 96 C392 84 214 96 152 152 Z" fill="url(#lid)"/>
+    <path d="M104 150 C150 74 300 52 404 74" fill="none" stroke="url(#sheen)" stroke-width="2"/>
+    <!-- 몸통 -->
+    <path d="M96 152 C150 118 320 104 448 120 L452 152 C452 166 440 174 424 174
+             L124 174 C108 174 96 166 96 152 Z" fill="url(#lid)"/>
+    <rect x="96" y="168" width="356" height="7" rx="3" fill="#1a141c"/>
+    <!-- 건반 -->
+    <rect x="132" y="158" width="238" height="9" rx="2" fill="#efe6d6" opacity=".78"/>
+    <!-- 다리 -->
+    <rect x="128" y="174" width="9" height="54" fill="#120e14"/>
+    <rect x="404" y="174" width="9" height="46" fill="#120e14"/>
+    <!-- 의자 -->
+    <rect x="228" y="196" width="72" height="7" rx="3" fill="#1d1620"/>
+    <rect x="236" y="203" width="6" height="26" fill="#150f18"/>
+    <rect x="288" y="203" width="6" height="26" fill="#150f18"/>
+  </svg>
+  <div class="motes" id="motes"></div>
+  <div class="vignette"></div>
+
+  <div class="stage__inner">
+    <div class="event" id="event">불러오는 중…</div>
+    <div id="now"></div>
+    <div class="controls">
+      <button class="btn btn--play" id="play">▶ 재생</button>
+      <button class="btn btn--fade" id="fade" disabled>반주 페이드아웃</button>
+      <button class="btn" id="prev">◀ 이전</button>
+      <button class="btn" id="next">다음 ▶</button>
+      <div class="progress">
+        <span id="elapsed">0:00</span>
+        <div class="bar"><i id="barfill"></i></div>
+        <span id="total">—</span>
+      </div>
+    </div>
+    <div class="next" id="upnext"></div>
+  </div>
+</section>
+
+<section class="sheet">
+  <h2>프로그램</h2>
+  <div id="cues"><div class="empty">불러오는 중…</div></div>
+</section>
+
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="none"></audio>
+<script src="program.js"></script>
+</body>
+</html>

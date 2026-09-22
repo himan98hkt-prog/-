@@ -206,6 +206,25 @@ catalog/
 그 악보들은 MuseScore.com·IMSLP 에서 **사람이 골라 받아야 하고, 여기서는 못 했다.**
 받아 오면 `catalog_cli.py import` 로 같은 자리에 들어가고 파이프라인은 그대로 돈다.
 
+## 발표회 운영 화면 (프로그램 대시보드)
+
+```bash
+python3 serve.py            # http://127.0.0.1:8765/static/program.html
+```
+
+지시서 모듈 ⑤-3 의 큐 리스트와 ⑤-2 의 페이드아웃. 카탈로그의 MR 을 실제로 튼다.
+
+- 순서대로 세팅, 곡이 끝나면 **다음 곡 자동 대기** (자동 재생은 하지 않는다 — 무대는 원장님이 연다)
+- **반주 페이드아웃** 버튼 — 실측 **3.04초** (지시서 11장 기준: 3초 내 완전 무음)
+- 다음 곡을 미리 받아 둬서 무대에서 기다리지 않는다
+- 스페이스=재생/정지, Esc=페이드아웃, ←→=순서 이동
+
+무대 장면(커튼·조명·먼지·피아노)은 **CSS 와 인라인 SVG** 다. 이미지 파일이 없어도,
+네트워크가 죽어도 화면이 뜬다 — ⑤-1 이 "연주홀 와이파이는 믿을 수 없다"고 한 이유다.
+`server/static/img/` 에 `hall.mp4`/`hall.jpg` 를 넣으면 그 위에 얹힌다.
+
+자세한 것은 [docs/MR-DASHBOARD.md](../docs/MR-DASHBOARD.md).
+
 ## 구성
 
 ```
@@ -227,12 +246,13 @@ mr/
     cli.py
   server/
     app.py             FastAPI — 음표가 아니라 화음만 내보낸다
-    static/            화성 확인 화면 (빌드 단계 없는 순수 HTML/CSS/JS)
+    static/            화성 확인 화면 · 발표회 운영 화면
+                       (빌드 단계 없는 순수 HTML/CSS/JS)
   fixtures/
     pieces.py          회귀 테스트용 오리지널 20곡 사양
     build_fixtures.py  사양 -> MusicXML + 정답 화성
     scores/  truth/
-  tests/               231개
+  tests/               240개
 ```
 
 ## 회귀 테스트
@@ -240,7 +260,7 @@ mr/
 ```bash
 python3 bench.py                # 곡별 표
 python3 bench.py --stages       # 프로토타입 -> 현재까지 무엇이 얼마나 올렸나
-python3 -m pytest               # 정확도 게이트 포함 231개
+python3 -m pytest               # 정확도 게이트 포함 240개
 ```
 
 ```
