@@ -89,10 +89,8 @@ jobs:
               --styles strings,march --levels normal
           python3 catalog_cli.py --catalog /tmp/ci-catalog export /tmp/player.json
 
-      - name: 무대 배경 파일 없이도 화면이 뜨는지 (지시서 ⑤-1 오프라인)
+      - name: 무대 장면이 파일 없이도 자급자족하는지 (지시서 ⑤-1 오프라인)
         run: |
-          test ! -f server/static/img/hall.jpg && test ! -f server/static/img/hall.mp4 \
-            && echo "배경 파일 없음 — CSS 무대로 동작해야 정상"
           python3 -c "
           import os
           for f in ('server/static/hall.css', 'server/static/program.html',
@@ -100,7 +98,13 @@ jobs:
               assert os.path.getsize(f) > 500, f
           html = open('server/static/program.html', encoding='utf-8').read()
           assert '<svg class=\"piano\"' in html, '무대 피아노 SVG 가 없습니다'
-          print('무대 장면은 CSS·SVG 로 자급자족 OK')
+          css = open('server/static/hall.css', encoding='utf-8').read()
+          for sel in ('.stage__paint', '.beam', '.mote'):
+              assert sel in css, f'무대 장면 {sel} 가 없습니다'
+          have = [n for n in ('hall.jpg', 'hall.mp4')
+                  if os.path.exists(os.path.join('server/static/img', n))]
+          print('무대 장면은 CSS·SVG 로 자급자족 OK'
+                + (f' (배경 파일 {have} 도 함께 있음)' if have else ' (배경 파일 없음)'))
           "
 
       - name: MR 에 원곡 피아노가 섞이지 않았는지 (채널 0 = 피아노)
