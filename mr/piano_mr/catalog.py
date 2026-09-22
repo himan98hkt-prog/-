@@ -42,6 +42,25 @@ BLACKLIST = (
 LOW_CONF = 0.15          # 이보다 확신이 약하면 확인 화면에서 노란색 (지시서 10장)
 
 
+# music21 은 조성을 'E- major' / 'f# minor' 처럼 쓴다. 원장님 화면에 그대로 내보내면
+# 「E- major」 가 뜬다 — 학원에서 쓰는 말은 「E♭장조」다.
+_KEY_RE = re.compile(r'^([A-Ga-g])([#b\-]*)\s+(major|minor)$')
+_ACCIDENTAL = {'': '', '#': '♯', 'b': '♭', '-': '♭',
+               '##': '𝄪', 'bb': '♭♭', '--': '♭♭'}
+
+
+def key_label(name: Optional[str]) -> str:
+    """'E- major' → 'E♭장조'. 못 알아보면 원문 그대로 돌려준다."""
+    if not name:
+        return ''
+    m = _KEY_RE.match(name.strip())
+    if not m:
+        return name
+    letter, acc, mode = m.groups()
+    sign = _ACCIDENTAL.get(acc.replace('-', 'b'), acc)
+    return f'{letter.upper()}{sign}{"장조" if mode == "major" else "단조"}'
+
+
 def segment_record(seg: dict) -> dict:
     """분석 세그먼트 -> 카탈로그에 저장할 화성 레코드.
 

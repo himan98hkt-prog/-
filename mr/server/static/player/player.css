@@ -1,0 +1,145 @@
+/* 반주 플레이어 — 연주홀·연습실의 어두운 조명에서 쓰는 화면.
+ * 손가락으로 누르는 것이 전제라 버튼이 크다. */
+:root {
+  --bg:#0f0d14; --card:#1a1722; --card-2:#221d2c; --line:#2f2839;
+  --ink:#f2ecdf; --dim:#a39a8c; --faint:#6f6759;
+  --gold:#d8a94a; --gold-2:#f0cd85; --wine:#5b1f2a; --ok:#5fae7f; --warn:#e0995f;
+  --r:14px;
+}
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",
+    "Noto Sans KR",sans-serif;
+  font-size:16px; line-height:1.55;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h1,h2,h3 { margin:0; }
+button { font:inherit; color:inherit; }
+
+.top {
+  position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px;
+  padding:12px 16px calc(12px) 16px; background:rgba(15,13,20,.94);
+  border-bottom:1px solid var(--line); backdrop-filter:blur(10px);
+  padding-top:calc(12px + env(safe-area-inset-top));
+}
+.top h1 { font-size:17px; font-weight:700; }
+.grow { flex:1; }
+.icon {
+  background:transparent; border:1px solid var(--line); border-radius:10px;
+  width:38px; height:38px; font-size:17px; cursor:pointer;
+}
+.icon:active { background:var(--card-2); }
+.net { font-size:12px; color:var(--faint); }
+.net.off { color:var(--warn); }
+
+main { padding:16px; max-width:760px; margin:0 auto; }
+
+.card { background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+  padding:16px; margin-bottom:12px; }
+.muted { color:var(--dim); font-size:14px; }
+.tiny { color:var(--faint); font-size:12.5px; }
+
+/* --- 목록 --- */
+.rows { display:flex; flex-direction:column; gap:8px; }
+.row {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+  cursor:pointer; text-align:left; width:100%;
+}
+.row:active { background:var(--card-2); }
+.row__main { flex:1; min-width:0; }
+.row__title { font-weight:600; font-size:16px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row__sub { color:var(--dim); font-size:13px; margin-top:2px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row__go { color:var(--faint); }
+.chip { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px;
+  border:1px solid var(--line); color:var(--dim); }
+.chip.ok { color:var(--ok); border-color:#2f5a42; }
+.chip.warn { color:var(--warn); border-color:#5c4128; }
+
+.seg { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.seg button {
+  background:var(--card); border:1px solid var(--line); border-radius:99px;
+  padding:8px 16px; cursor:pointer; font-size:14px; color:var(--dim);
+}
+.seg button.on { background:var(--gold); border-color:var(--gold); color:#2a1c05;
+  font-weight:700; }
+
+select, input[type=text] {
+  background:var(--card-2); color:var(--ink); border:1px solid var(--line);
+  border-radius:10px; padding:10px 12px; font:inherit; width:100%;
+}
+
+/* --- 연주 화면 --- */
+.now { text-align:center; padding:22px 8px 8px; }
+.now__student { color:var(--gold); font-size:13px; letter-spacing:.14em; }
+.now__title { font-size:clamp(22px,5.4vw,30px); font-weight:700; margin:6px 0 4px; }
+.now__meta { color:var(--dim); font-size:14px; }
+
+.transport { display:flex; align-items:center; justify-content:center; gap:14px;
+  margin:22px 0 10px; }
+.big {
+  width:86px; height:86px; border-radius:50%; border:none; cursor:pointer;
+  background:linear-gradient(180deg,var(--gold-2),var(--gold)); color:#2a1c05;
+  font-size:30px; font-weight:700; box-shadow:0 10px 30px rgba(216,169,74,.28);
+}
+.big:active { transform:scale(.97); }
+.round {
+  width:56px; height:56px; border-radius:50%; cursor:pointer;
+  background:var(--card-2); border:1px solid var(--line); font-size:17px;
+}
+.round:disabled { opacity:.35; }
+
+/* 지시서 ⑤-2: 크게. 이 버튼 하나가 원장님 마음을 산다 */
+.fade {
+  width:100%; padding:18px; border-radius:var(--r); cursor:pointer;
+  background:var(--wine); border:1px solid #7a2c3a; color:#fff;
+  font-size:18px; font-weight:700; margin-top:6px;
+}
+.fade:disabled { opacity:.4; }
+.fade.active { background:#7a2c3a; }
+
+.bar { height:4px; background:#2a2434; border-radius:3px; overflow:hidden;
+  margin:4px 0 6px; cursor:pointer; }
+.bar > i { display:block; height:100%; width:0;
+  background:linear-gradient(90deg,var(--gold),var(--gold-2)); }
+.times { display:flex; justify-content:space-between; color:var(--dim);
+  font-size:13px; font-variant-numeric:tabular-nums; }
+
+.ctl { display:flex; align-items:center; gap:12px; padding:12px 0;
+  border-bottom:1px solid var(--line); }
+.ctl:last-child { border-bottom:none; }
+.ctl__label { width:74px; color:var(--dim); font-size:14px; flex:none; }
+.ctl__val { width:70px; text-align:right; font-variant-numeric:tabular-nums;
+  font-size:15px; flex:none; }
+input[type=range] { flex:1; accent-color:var(--gold); height:34px; }
+
+.steps { display:flex; gap:6px; }
+.steps button { flex:1; padding:10px 0; border-radius:10px; cursor:pointer;
+  background:var(--card-2); border:1px solid var(--line); font-size:15px; }
+.steps button.on { background:var(--gold); border-color:var(--gold); color:#2a1c05;
+  font-weight:700; }
+
+.queue .row.current { border-color:var(--gold); background:#231d18; }
+.queue .row.done { opacity:.45; }
+
+.toast {
+  position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom));
+  transform:translateX(-50%); background:#2a2434; border:1px solid var(--line);
+  padding:11px 18px; border-radius:99px; font-size:14px; opacity:0;
+  transition:.25s; pointer-events:none; max-width:90vw; text-align:center;
+}
+.toast.on { opacity:1; }
+.empty { color:var(--faint); text-align:center; padding:48px 16px; }
+a { color:var(--gold); }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+
+/* 카운트인을 들을 장치 고르기 (⑤-4) */
+.pick { flex:1; min-height:40px; padding:0 12px; cursor:pointer;
+  background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+  color:var(--ink); font:inherit; font-size:15px; text-align:left;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pick:active { border-color:var(--gold); }

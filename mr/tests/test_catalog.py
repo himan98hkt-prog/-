@@ -184,3 +184,17 @@ def test_unverified_can_be_blocked(tmp_path):
     c = catalog.Catalog(str(tmp_path))
     with pytest.raises(ValueError, match='화성 확인'):
         c.add(a_song(harmony_verified=False), allow_unverified=False)
+
+
+# --- 조성 이름 (원장님 화면에 music21 표기를 내보내지 않는다) --------------------
+
+def test_key_label_is_korean():
+    assert catalog.key_label('C major') == 'C장조'
+    assert catalog.key_label('E- major') == 'E♭장조'     # music21 의 '-' 는 플랫
+    assert catalog.key_label('f# minor') == 'F♯단조'
+    assert catalog.key_label('a minor') == 'A단조'
+
+
+def test_key_label_passes_through_what_it_cannot_read():
+    assert catalog.key_label('') == '' and catalog.key_label(None) == ''
+    assert catalog.key_label('알 수 없음') == '알 수 없음'

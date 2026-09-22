@@ -205,7 +205,10 @@ def test_export_player_only_verified_and_no_audio(st, tmp_path):
     st.export_player(out)
     data = json.load(open(out, encoding='utf-8'))
     assert [s['id'] for s in data['songs']] == ['p05_waltz_c']
-    assert data['songs'][0]['midi'].endswith('.mid')
+    row = data['songs'][0]
+    assert row['midi'] == '/api/player/midi/p05_waltz_c'   # 플레이어가 받는 주소
+    assert row['midi_file'].endswith('.mid')               # 카탈로그 안의 파일
+    assert os.path.exists(os.path.join(st.root, row['midi_file']))
     assert '.mp3' not in json.dumps(data)
 
 
@@ -299,3 +302,41 @@ def test_reopening_keeps_everything(st, tmp_path):
     song = again.catalog.get('p05_waltz_c')
     assert song.harmony_verified and song.verify_seconds == 42
     assert again.view('p05_waltz_c')['bars'][0]['cells'][0]['label'] == 'Am'
+
+
+# --- 3단계 플레이어가 받아 가는 것 -----------------------------------------------
+
+def test_player_bundle_is_tiny_per_song(st):
+    """MIDI 라서 오프라인이 된다. 한 곡당 1 KB 미만 (지시서 ⑤-1)."""
+    imported(st)
+    st.import_score(score('p01_block_c'), '첫 화음 연습', song_id='p01',
+                    composer='자사 오리지널', book='오리지널 연습곡', public_domain=True)
+    d = st.player_bundle()
+    assert len(d['songs']) == 2
+    per_song = len(json.dumps(d, ensure_ascii=False).encode()) / len(d['songs'])
+    assert per_song < 1_000
+
+
+def test_accomp_midi_bytes_builds_on_demand(st):
+    """아직 안 구운 곡을 플레이어가 달라고 하면, 그 자리에서 굽는다."""
+    imported(st)
+    assert not os.path.exists(st.midi_path('p05_waltz_c'))
+    data = st.accomp_midi_bytes('p05_waltz_c')
+    assert data[:4] == b'MThd'
+    assert os.path.exists(st.midi_path('p05_waltz_c'))      # 다음엔 캐시에서
+    assert st.accomp_midi_bytes('p05_waltz_c') == data
+
+
+def test_accomp_midi_bytes_keeps_variants_apart(st):
+    imported(st)
+    base = st.accomp_midi_bytes('p05_waltz_c')
+    march = st.accomp_midi_bytes('p05_waltz_c', style='march', level='rich')
+    assert march != base
+    assert os.path.exists(st.variant_path('p05_waltz_c', 'march', 'rich'))
+    assert st.accomp_midi_bytes('p05_waltz_c') == base       # 기본은 안 건드린다
+
+
+def test_accomp_midi_bytes_rejects_unknown_style(st):
+    imported(st)
+    with pytest.raises(ValueError):
+        st.accomp_midi_bytes('p05_waltz_c', style='없는스타일')

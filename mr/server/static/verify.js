@@ -63,7 +63,7 @@ function render() {
   const v = state.view;
   $('#title').textContent = v.title;
   $('#meta').textContent =
-    `${v.key} · ${v.time} · ${v.measures}마디` + (v.low_count ? ` · 확인 필요 ${v.low_count}곳` : '');
+    `${v.key_label || v.key} · ${v.time} · ${v.measures}마디` + (v.low_count ? ` · 확인 필요 ${v.low_count}곳` : '');
   document.title = `${v.title} — 화성 확인`;
 
   $('#bars').innerHTML = v.bars.map((bar) => {

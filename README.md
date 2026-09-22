@@ -176,15 +176,22 @@ python3 catalog_cli.py status             # 제작 현황
 python3 catalog_cli.py build --all --audio  # 반주 미리 만들어 두기
 #   화성 확인 화면   /            발표회 운영 화면 /static/program.html
 
-python3 -m pytest                         # 테스트 240건
+# 3단계 — 플레이어 PWA (태블릿에 설치, 오프라인 재생)
+#   /static/player/           "홈 화면에 추가"
+make player                               # 브라우저에서 실제 재생·오프라인 검사
+
+python3 -m pytest                         # 테스트 257건
 ```
 
 화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
 화성 확인 화면은 음표를 보여주지 않고 화음 이름만 다루며, 판단이 필요한 칸은
-전체의 **10%** 뿐이다.
+전체의 **10%** 뿐이다. 플레이어는 mp3 가 아니라 반주 MIDI 를 받아 브라우저에서
+합성하므로, **26곡 전체를 오프라인에 넣어도 121 KB** 이고 템포·조옮김이 실시간이다.
+서버를 죽인 상태에서 전곡 재생을 확인한다.
 
 자세한 내용은 [mr/README.md](mr/README.md), 작업 보고는
-[docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md).
+[docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md) ·
+[docs/MR-PLAYER.md](docs/MR-PLAYER.md).
 
 ## 문서
 
@@ -196,3 +203,4 @@ python3 -m pytest                         # 테스트 240건
 - [docs/MR-ENGINE.md](docs/MR-ENGINE.md) — 피아노 자동 반주 엔진 1단계 작업 보고
 - [docs/MR-CATALOG.md](docs/MR-CATALOG.md) — 카탈로그·화성 확인 화면 2단계 작업 보고
 - [docs/MR-DASHBOARD.md](docs/MR-DASHBOARD.md) — 발표회 운영 화면(프로그램 대시보드)
+- [docs/MR-PLAYER.md](docs/MR-PLAYER.md) — 플레이어 PWA 3단계 작업 보고

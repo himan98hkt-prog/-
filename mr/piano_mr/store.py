@@ -21,6 +21,7 @@ import os
 import re
 import shutil
 import time
+from dataclasses import asdict
 
 from typing import Dict, List, Optional, Sequence
 
@@ -179,7 +180,8 @@ class CatalogStore:
         return {
             'id': song.id, 'title': song.title, 'composer': song.composer,
             'book': song.book, 'level': song.level, 'note': song.note,
-            'key': song.key, 'key_locked': song.key_locked, 'time': song.time,
+            'key': song.key, 'key_label': cat.key_label(song.key),
+            'key_locked': song.key_locked, 'time': song.time,
             'measures': song.measures, 'status': song.status,
             'verified': song.harmony_verified, 'verify_seconds': song.verify_seconds,
             'style': song.default_style, 'level_name': song.default_level,
@@ -377,7 +379,8 @@ class CatalogStore:
         out = []
         for s in sorted(self.catalog.songs.values(), key=lambda x: (x.book, x.level, x.id)):
             out.append({'id': s.id, 'title': s.title, 'composer': s.composer,
-                        'book': s.book, 'level': s.level, 'key': s.key, 'time': s.time,
+                        'book': s.book, 'level': s.level, 'key': s.key,
+                        'key_label': cat.key_label(s.key), 'time': s.time,
                         'measures': s.measures, 'status': s.status,
                         'low': s.low_confidence_count,
                         'verify_seconds': s.verify_seconds,
@@ -421,17 +424,55 @@ class CatalogStore:
                 'minutes': p.minutes, 'items': items,
                 'ready': all(i['verified'] for i in items) if items else False}
 
+    # --- 3단계 플레이어 ------------------------------------------------
+    def song_row(self, song: cat.Song) -> dict:
+        return {'id': song.id, 'title': song.title, 'composer': song.composer,
+                'book': song.book, 'level': song.level, 'key': song.key,
+                'key_label': cat.key_label(song.key),
+                'time': song.time, 'measures': song.measures,
+                'style': song.default_style, 'level_name': song.default_level,
+                'bpm': song.default_bpm, 'count_in': song.count_in,
+                'recommended_bpm': song.recommended_bpm,
+                'verified': song.harmony_verified,
+                # 플레이어가 받아 가는 주소와, 카탈로그 안의 파일 위치.
+                # 이름 하나가 상황 따라 다른 뜻이 되면 나중에 꼭 틀린다.
+                'midi': f'/api/player/midi/{song.id}',
+                'midi_file': song.accomp_midi or None}
+
+    def player_bundle(self, only_verified: bool = False) -> dict:
+        """플레이어가 통째로 받아 오프라인에 넣어 둘 목록.
+
+        오디오는 들어가지 않는다. 곡마다 반주 MIDI 주소 하나뿐이고 그건 1 KB 다.
+        mp3 였다면 한 곡에 600 KB — 카탈로그를 오프라인에 담을 수 없다 (⑤-1).
+        """
+        songs = [s for s in self.catalog.songs.values()
+                 if s.harmony_verified or not only_verified]
+        return {
+            'version': 2,
+            'generated_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'songs': [self.song_row(s) for s in
+                      sorted(songs, key=lambda x: (x.book, x.level, x.id))],
+            'assignments': [asdict(a) for a in self.catalog.assignments],
+            'programs': self.programs(),
+        }
+
+    def accomp_midi_bytes(self, song_id: str, *, style: Optional[str] = None,
+                          level: Optional[str] = None) -> bytes:
+        """반주 MIDI 를 돌려준다. 없으면 그 자리에서 굽는다."""
+        song = self.catalog.get(song_id)
+        style = orch.check_style(style or song.default_style)
+        level = orch.check_level(level or song.default_level)
+        variant = (style != song.default_style or level != song.default_level)
+        path = (self.variant_path(song_id, style, level) if variant
+                else self.midi_path(song_id))
+        if not os.path.exists(path):
+            self.build_midi(song_id, style=style, level=level, variant=variant)
+        with open(path, 'rb') as f:
+            return f.read()
+
     def export_player(self, out_path: str) -> str:
-        """3단계 플레이어가 읽을 번들. 확인된 곡만, 오디오 없이."""
-        songs = [s for s in self.catalog.songs.values() if s.harmony_verified]
-        data = {'version': 1, 'generated_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
-                'songs': [{'id': s.id, 'title': s.title, 'composer': s.composer,
-                           'book': s.book, 'level': s.level, 'key': s.key,
-                           'time': s.time, 'measures': s.measures,
-                           'style': s.default_style, 'level_name': s.default_level,
-                           'bpm': s.default_bpm,
-                           'recommended_bpm': s.recommended_bpm,
-                           'midi': s.accomp_midi} for s in songs]}
+        """플레이어 번들을 파일로. 확인된 곡만, 오디오 없이."""
+        data = self.player_bundle(only_verified=True)
         os.makedirs(os.path.dirname(os.path.abspath(out_path)) or '.', exist_ok=True)
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

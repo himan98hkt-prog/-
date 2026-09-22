@@ -259,3 +259,86 @@ def test_static_screens_are_served(client):
                  '/static/app.css', '/static/verify.js', '/static/index.js'):
         assert client.get(path).status_code == 200, path
     assert client.get('/', follow_redirects=False).status_code in (307, 302)
+
+
+# --- 3단계 플레이어 PWA (지시서 모듈 ⑤) ---------------------------------------
+
+def test_player_bundle_lists_songs_with_a_midi_link(client):
+    d = client.get('/api/player/bundle').json()
+    assert [s['id'] for s in d['songs']] == ['waltz']
+    s = d['songs'][0]
+    assert s['title'] == '작은 왈츠 (C장조)' and s['bpm'] == 108
+    assert s['style'] == 'fairytale' and s['level_name'] == 'normal'
+    assert s['midi'] == '/api/player/midi/waltz'
+    assert client.get(s['midi']).status_code == 200      # 죽은 링크가 아니다
+
+
+def test_player_bundle_carries_no_audio(client):
+    """오프라인 캐시는 MIDI 라서 가능하다. mp3 주소가 섞이면 설계가 깨진다."""
+    blob = json.dumps(client.get('/api/player/bundle').json())
+    for forbidden in ('.mp3', '.wav', '/api/audio/'):
+        assert forbidden not in blob
+
+
+def test_player_bundle_is_small_enough_to_cache(client):
+    """한 곡당 수백 바이트. 150곡이어도 수십 KB 다 (지시서 ⑤-1)."""
+    raw = client.get('/api/player/bundle').content
+    assert len(raw) / max(1, len(client.get('/api/player/bundle').json()['songs'])) < 2_000
+
+
+def test_player_bundle_can_be_limited_to_verified(client):
+    assert client.get('/api/player/bundle?verified_only=true').json()['songs'] == []
+    client.put('/api/songs/waltz/harmony', json={'cells': [], 'verified': True})
+    d = client.get('/api/player/bundle?verified_only=true').json()
+    assert [s['id'] for s in d['songs']] == ['waltz'] and d['songs'][0]['verified'] is True
+
+
+def test_player_bundle_includes_programs(tmp_path):
+    """발표회 당일 와이파이가 없어도 큐가 떠야 한다."""
+    c = program_client(tmp_path)
+    d = c.get('/api/player/bundle').json()
+    assert len(d['programs']) == 1
+    assert [i['student'] for i in d['programs'][0]['items']] == ['김지우', '박서준']
+
+
+def test_player_midi_is_a_midi_file(client):
+    r = client.get('/api/player/midi/waltz')
+    assert r.status_code == 200
+    assert r.headers['content-type'] == 'audio/midi'
+    assert r.content[:4] == b'MThd'
+    assert len(r.content) < 10_000            # 한 곡 1 KB 안팎
+
+
+def test_player_midi_has_no_original_piano(client):
+    """MR — 원음은 빠지고 반주만. 피아노 채널(0)이 있으면 안 된다."""
+    import io
+    from mido import MidiFile
+    from piano_mr import orchestration as orch
+    mf = MidiFile(file=io.BytesIO(client.get('/api/player/midi/waltz').content))
+    chans = {m.channel for tr in mf.tracks for m in tr
+             if m.type == 'note_on' and m.velocity > 0}
+    assert chans and orch.PIANO_CHANNEL not in chans
+    assert chans <= set(orch.CHANNEL.values())
+
+
+def test_player_midi_is_cacheable_forever(client):
+    """반주 MIDI 는 내용이 바뀌면 곡을 다시 구우므로 영구 캐시해도 된다."""
+    r = client.get('/api/player/midi/waltz')
+    assert 'max-age=31536000' in r.headers['cache-control']
+
+
+def test_player_midi_variant_differs_from_default(client):
+    base = client.get('/api/player/midi/waltz').content
+    rich = client.get('/api/player/midi/waltz?style=orchestra&level=rich').content
+    assert rich[:4] == b'MThd' and rich != base
+
+
+def test_player_midi_rejects_unknown_song_and_style(client):
+    assert client.get('/api/player/midi/없는곡').status_code == 404
+    assert client.get('/api/player/midi/waltz?style=없는스타일').status_code == 400
+
+
+def test_player_bundle_shows_the_key_in_korean(client):
+    """원장님 화면에 'E- major' 같은 music21 표기가 나가면 안 된다."""
+    s = client.get('/api/player/bundle').json()['songs'][0]
+    assert s['key_label'] == 'C장조'

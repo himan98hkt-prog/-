@@ -16,7 +16,7 @@ import os
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -161,6 +161,26 @@ def create_app(catalog_root: str) -> FastAPI:
             return st.program_view(index)
         except KeyError as e:
             raise HTTPException(404, str(e))
+
+    # --- 3단계 플레이어 (지시서 모듈 ⑤) -----------------------------------
+    @app.get('/api/player/bundle')
+    def player_bundle(verified_only: bool = False):
+        """플레이어가 통째로 받아 오프라인에 넣어 둘 목록. 오디오는 없다."""
+        return st.player_bundle(only_verified=verified_only)
+
+    @app.get('/api/player/midi/{song_id}')
+    def player_midi(song_id: str, style: Optional[str] = None,
+                    level: Optional[str] = None):
+        """반주 MIDI 원본. 1 KB 안팎이라 카탈로그 전체를 캐시할 수 있다."""
+        _song(song_id)
+        try:
+            data = st.accomp_midi_bytes(song_id, style=style, level=level)
+        except (ValueError, KeyError) as e:
+            raise HTTPException(400, str(e))
+        return Response(content=data, media_type='audio/midi', headers={
+            'Cache-Control': 'public, max-age=31536000',
+            'Content-Disposition': f'inline; filename="{song_id}.mid"',
+        })
 
     @app.post('/api/songs/{song_id}/midi')
     def midi(song_id: str):

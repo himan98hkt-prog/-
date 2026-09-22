@@ -1,0 +1,15 @@
+{
+  "name": "학원 반주 플레이어",
+  "short_name": "반주",
+  "description": "피아노 연습·발표회용 반주(MR) 플레이어. 오프라인에서 돕니다.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f0d14",
+  "theme_color": "#0f0d14",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

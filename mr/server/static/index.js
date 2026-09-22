@@ -36,7 +36,7 @@ async function load() {
           <div class="sub" style="font-size:12px;color:var(--muted)">${esc(s.book || s.composer || '')}</div></td>
       <td><span class="pill ${s.status}">${STATUS[s.status]}</span></td>
       <td class="num">${s.level}</td>
-      <td>${esc(s.key)} · ${esc(s.time)}</td>
+      <td>${esc(s.key_label || s.key)} · ${esc(s.time)}</td>
       <td class="num">${s.measures}</td>
       <td class="num">${s.low ? `<span style="color:#8a6512">${s.low}</span>` : '0'}</td>
       <td class="num">${mmss(s.verify_seconds)}</td>
