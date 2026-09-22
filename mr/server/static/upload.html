@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF 악보 올리기</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="upload.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2226%22 font-size=%2226%22%3E%F0%9F%93%84%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<header>
+  <h1>PDF 악보 올리기</h1>
+  <span class="sub"><a href="/">화성 확인 화면</a></span>
+  <span class="spacer"></span>
+  <span class="sub" id="who"></span>
+</header>
+
+<main>
+  <!-- 지시서 3장: "'PDF 넣으면 바로 완성'을 약속하지 말 것" -->
+  <div class="notice" id="notice">
+    <b>올리면 바로 완성되지는 않습니다.</b>
+    <span id="accuracy">악보 인식은 90~95% 입니다.</span>
+    <span class="notice__why">인식이 끝나면 <b>화성 확인 화면</b>에서 한 번 보셔야
+      반주가 만들어집니다. 곡당 3~5분입니다.</span>
+  </div>
+
+  <div class="stats" id="quota"></div>
+
+  <form class="drop" id="drop">
+    <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+    <div class="drop__art" aria-hidden="true">
+      <svg viewBox="0 0 48 56" width="52" height="60">
+        <path d="M6 2h26l10 10v42a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+              fill="#fff" stroke="currentColor" stroke-width="2.5"
+              stroke-linejoin="round"/>
+        <path d="M32 2v10h10" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linejoin="round"/>
+        <g stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55">
+          <path d="M11 24h26M11 30h26M11 36h26M11 42h26"/>
+        </g>
+        <circle cx="19" cy="40" r="3.4" fill="currentColor"/>
+        <path d="M22.4 40V27l7 2" fill="none" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="drop__text">
+      <b>PDF 악보를 여기에 끌어다 놓으세요</b>
+      <span class="sub">또는 눌러서 고르기 · 한 번에 한 곡</span>
+    </div>
+    <div class="drop__fields">
+      <label>곡 제목
+        <input type="text" id="title" placeholder="예) 체르니 100번 5번">
+      </label>
+      <button type="submit" class="primary big" id="go" disabled>올리기</button>
+    </div>
+    <div class="drop__picked" id="picked" hidden></div>
+  </form>
+
+  <div class="msg" id="msg" hidden></div>
+
+  <h2 class="h2">올린 악보</h2>
+  <div id="jobs"><div class="empty">불러오는 중…</div></div>
+</main>
+
+<script src="upload.js"></script>
+</body>
+</html>

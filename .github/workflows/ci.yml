@@ -107,6 +107,25 @@ jobs:
                 + (f' (배경 파일 {have} 도 함께 있음)' if have else ' (배경 파일 없음)'))
           "
 
+      - name: 올린 PDF 를 서버가 들고 있지 않는지 (지시서 7장 · 4단계)
+        run: |
+          python3 -c "
+          from piano_mr import store, omr
+          import os
+          st = store.CatalogStore('/tmp/ci-uploads')
+          xml = open('fixtures/scores/p05_waltz_c.musicxml','rb').read()
+          prov = omr.FakeProvider(musicxml=xml)
+          blob = open('fixtures/pdf/three_pages.pdf','rb').read()
+          j = st.submit_pdf(blob, 'a.pdf', account='CI학원', title='연습곡', provider=prov)
+          assert os.listdir(st.incoming_dir) == [j['id'] + '.pdf'], '인식 중에는 격리 폴더에 있어야 합니다'
+          j = st.poll_upload(j['id'], provider=prov)
+          left = os.listdir(st.incoming_dir)
+          assert left == [], f'MusicXML 이 왔는데 PDF 가 남아 있습니다: {left}'
+          assert st.catalog.get(j['song_id']).owner == 'CI학원', '업로드본에 계정 표시가 없습니다'
+          assert j['state'] == 'review', f'확인 화면을 건너뛰었습니다: {j[\"state\"]}'
+          print('PDF 업로드 OK — 격리 폴더 비었고, 곡은 계정 전용이고, 확인 대기입니다')
+          "
+
       - name: 플레이어 PWA — 브라우저에서 실제 재생·오프라인 (지시서 모듈 ⑤)
         run: |
           pip install playwright

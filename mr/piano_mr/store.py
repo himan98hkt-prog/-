@@ -21,11 +21,13 @@ import os
 import re
 import shutil
 import time
+from urllib.parse import quote
 from dataclasses import asdict
 
 from typing import Dict, List, Optional, Sequence
 
-from . import arranger, catalog as cat, harmony, orchestration as orch, render, score_loader
+from . import (arranger, catalog as cat, harmony, omr, orchestration as orch,
+               pdf, render, score_loader, uploads)
 
 SCORE_SUFFIXES = score_loader.SUPPORTED_SUFFIXES
 
@@ -75,7 +77,8 @@ class CatalogStore:
                      default_level: str = 'normal', default_bpm: int = 96,
                      key_name: Optional[str] = None, recommended_bpm: Sequence[int] = (),
                      default_curve: str = 'flat', count_in: int = 0,
-                     note: str = '', analyze: bool = True) -> cat.Song:
+                     note: str = '', analyze: bool = True,
+                     owner: str = '') -> cat.Song:
         """악보 파일을 카탈로그로 들인다. 저작권 확인을 통과해야 들어온다."""
         if not os.path.exists(path):
             raise FileNotFoundError(f'악보 파일이 없습니다: {path}')
@@ -92,7 +95,8 @@ class CatalogStore:
             raise ValueError(f'이미 있는 곡 id 입니다: {song_id}')
 
         # 파일을 복사하기 전에 저작권부터 본다 (지시서 7장)
-        cat.check_copyright(title, composer, book, public_domain=public_domain)
+        cat.check_copyright(title, composer, book,
+                            public_domain=public_domain, owner=owner)
 
         suffix = os.path.splitext(path)[1].lower()
         if suffix not in SCORE_SUFFIXES:
@@ -106,7 +110,8 @@ class CatalogStore:
             default_style=default_style, default_level=default_level,
             default_curve=default_curve, default_bpm=default_bpm,
             count_in=int(count_in), recommended_bpm=list(recommended_bpm),
-            key_locked=bool(key_name), key=key_name or '', note=note)
+            key_locked=bool(key_name), key=key_name or '', note=note,
+            owner=owner, source='upload' if owner else 'catalog')
         song.validate()
         self.catalog.songs[song_id] = song
         if analyze:
@@ -477,3 +482,186 @@ class CatalogStore:
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return out_path
+
+    # --- 4단계 PDF 업로드 (지시서 9장 4단계 · 7장 · 8.2) ----------------------
+    @property
+    def incoming_dir(self) -> str:
+        """올라온 PDF 를 **잠깐만** 두는 격리 폴더.
+
+        지시서 7장: "서버 영구 저장·재배포 금지". 그래서 이 폴더는 카탈로그가 아니고,
+        MusicXML 이 나오는 순간 비운다. `sweep()` 이 방치된 것도 쓸어낸다.
+        """
+        d = os.path.join(self.root, 'incoming')
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    @property
+    def ledger(self) -> 'uploads.UploadLedger':
+        if getattr(self, '_ledger', None) is None:
+            self._ledger = uploads.UploadLedger(
+                os.path.join(self.root, 'uploads.json'))
+        return self._ledger
+
+    def _pdf_path(self, job_id: str) -> str:
+        return os.path.join(self.incoming_dir, f'{job_id}.pdf')
+
+    def _drop_pdf(self, job) -> bool:
+        """격리 폴더의 PDF 를 지운다. 지웠으면 True."""
+        path = self._pdf_path(job.id)
+        existed = os.path.exists(path)
+        if existed:
+            os.remove(path)
+        if job.pdf_kept or existed:
+            self.ledger.update(job.id, pdf_kept=False)
+        return existed
+
+    def submit_pdf(self, data: bytes, filename: str, *, account: str,
+                   title: str = '', provider=None) -> dict:
+        """PDF 를 받아 OMR 작업을 연다.
+
+        순서가 중요하다. **저작권 → 형식 → 쿼터 → 그 다음에야 디스크**.
+        돈이 나가거나 파일이 남는 일은 전부 검사 뒤에 온다.
+        """
+        title = (title or os.path.splitext(os.path.basename(filename))[0]).strip()
+        # ① 저작권 — 파일이 디스크에 닿기 전에 (지시서 7장)
+        cat.check_copyright(title, filename, owner=account or '_')
+        if not account:
+            raise ValueError('업로드는 계정이 있어야 합니다 (지시서 7장 — 계정 전용).')
+        if len(data) > uploads.MAX_BYTES:
+            raise ValueError(
+                f'파일이 너무 큽니다 ({len(data) // 1024 // 1024} MB). '
+                f'{uploads.MAX_BYTES // 1024 // 1024} MB 까지 받습니다.')
+        # ② 진짜 PDF 인가, 몇 쪽인가 (쪽수가 과금 단위 — 지시서 8.2)
+        info = pdf.inspect(data)
+        if not info.countable:
+            raise ValueError(
+                '페이지 수를 읽을 수 없는 PDF 입니다. 다른 뷰어에서 '
+                '다시 저장한 뒤 올려 주세요 — 몇 쪽인지 알아야 접수됩니다.')
+        # ③ 쿼터 (지시서 9장 4단계 "월 업로드 제한")
+        prov = provider or omr.make_provider()
+        job = self.ledger.add(account=account, filename=filename,
+                              pages=info.pages, provider=prov.name, title=title)
+        # ④ 여기서 처음으로 디스크에 쓴다
+        with open(self._pdf_path(job.id), 'wb') as f:
+            f.write(data)
+        self.ledger.update(job.id, pdf_kept=True,
+                           pdf_at=time.strftime('%Y-%m-%dT%H:%M:%S'))
+        try:
+            ref = prov.submit(data, filename)
+        except omr.OmrError as e:
+            self._drop_pdf(job)
+            self.ledger.update(job.id, state=uploads.FAILED, detail=str(e))
+            raise
+        self.ledger.update(job.id, state=uploads.RUNNING, job_ref=ref)
+        return self.job_view(job.id)
+
+    def poll_upload(self, job_id: str, provider=None) -> dict:
+        """OMR 이 끝났는지 보고, 끝났으면 카탈로그로 들인다."""
+        job = self.ledger.get(job_id)
+        if job.state != uploads.RUNNING:
+            return self.job_view(job_id)
+        prov = provider or omr.make_provider(job.provider or None)
+        try:
+            result = prov.poll(job.job_ref)
+        except omr.OmrError as e:
+            self.ledger.update(job_id, detail=str(e))
+            return self.job_view(job_id)
+        if result.state == omr.FAILED:
+            self._drop_pdf(job)
+            self.ledger.update(job_id, state=uploads.FAILED, detail=result.detail)
+            return self.job_view(job_id)
+        if result.state != omr.READY:
+            self.ledger.update(job_id, detail=result.detail)
+            return self.job_view(job_id)
+        xml = result.musicxml
+        if xml is None:
+            xml = prov.fetch(job.job_ref)
+        return self.adopt_musicxml(job_id, xml)
+
+    def adopt_musicxml(self, job_id: str, musicxml: bytes,
+                       *, song_id: Optional[str] = None) -> dict:
+        """OMR 결과(또는 사람이 만든 MusicXML)를 카탈로그로 들인다.
+
+        여기가 지시서 7장의 핵심이다 — **MusicXML 이 들어오는 순간 PDF 를 지운다.**
+        들어간 곡은 계정 전용이라 `owner` 를 달고 나간다.
+        """
+        job = self.ledger.get(job_id)
+        if job.state in (uploads.DONE, uploads.CANCELLED):
+            raise ValueError(f'이미 {job.label} 상태인 작업입니다.')
+        sid = song_id or slugify(job.title) or f'upload_{job.id}'
+        tmp = os.path.join(self.incoming_dir, f'{job.id}.musicxml')
+        with open(tmp, 'wb') as f:
+            f.write(musicxml)
+        try:
+            self.import_score(tmp, job.title or job.filename, song_id=sid,
+                              owner=job.account, note=f'PDF 업로드 {job.filename}')
+        except Exception as e:
+            self.ledger.update(job_id, state=uploads.FAILED, detail=str(e))
+            self._drop_pdf(job)
+            raise
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        # 악보가 들어왔으니 PDF 는 더 들고 있을 이유가 없다 (지시서 7장)
+        self._drop_pdf(job)
+        self.ledger.update(job_id, state=uploads.REVIEW, song_id=sid, detail='')
+        return self.job_view(job_id)
+
+    def finish_upload(self, job_id: str) -> dict:
+        """화성 확인까지 끝났다고 표시한다."""
+        job = self.ledger.get(job_id)
+        if not job.song_id:
+            raise ValueError('아직 악보가 들어오지 않은 작업입니다.')
+        if not self.catalog.get(job.song_id).harmony_verified:
+            raise ValueError(
+                '화성 확인이 아직 안 끝났습니다. OMR 은 90~95% 라서 '
+                '32마디에 2~6마디가 틀립니다 (지시서 2.2) — 확인 화면을 거쳐야 합니다.')
+        self.ledger.update(job_id, state=uploads.DONE)
+        return self.job_view(job_id)
+
+    def cancel_upload(self, job_id: str) -> dict:
+        job = self.ledger.get(job_id)
+        if job.state in uploads.CLOSED_STATES:
+            raise ValueError(f'이미 {job.label} 상태입니다.')
+        self._drop_pdf(job)
+        self.ledger.update(job_id, state=uploads.CANCELLED)
+        return self.job_view(job_id)
+
+    def sweep(self, older_than_hours: float = 72.0) -> dict:
+        """방치된 작업의 PDF 를 쓸어낸다 (지시서 7장 — 영구 보관 금지).
+
+        원장에 없는 고아 파일도 같이 지운다. 작업이 지워졌는데 PDF 만 남는 경우다.
+        """
+        gone = []
+        for job in self.ledger.stale(older_than_hours):
+            self._drop_pdf(job)
+            if job.open:
+                self.ledger.update(job.id, state=uploads.FAILED,
+                                   detail='시간이 지나 접수가 취소됐습니다.')
+            gone.append(job.id)
+        orphans = 0
+        known = {f'{j}.pdf' for j in self.ledger.jobs}
+        for name in os.listdir(self.incoming_dir):
+            if name.endswith('.pdf') and name not in known:
+                os.remove(os.path.join(self.incoming_dir, name))
+                orphans += 1
+        return {'swept': gone, 'orphans': orphans,
+                'held': len([j for j in self.ledger.jobs.values() if j.pdf_kept])}
+
+    def job_view(self, job_id: str) -> dict:
+        job = self.ledger.get(job_id)
+        d = job.view()
+        d['verified'] = (bool(job.song_id) and job.song_id in self.catalog.songs
+                         and self.catalog.get(job.song_id).harmony_verified)
+        # 화성 확인 화면의 진짜 주소. 목록 페이지로 보내면 원장님이 곡을 다시 찾아야 한다.
+        d['verify_url'] = (f'/static/verify.html?id={quote(job.song_id)}'
+                           if job.song_id else '')
+        return d
+
+    def uploads_view(self, account: str = '') -> dict:
+        return {'quota': self.ledger.quota(account),
+                'jobs': [self.job_view(r['id']) for r in self.ledger.rows(account)],
+                'provider': omr.make_provider().name,
+                # 지시서 3장: "'PDF 넣으면 바로 완성'을 약속하지 말 것"
+                'accuracy_note': ('악보 인식은 90~95% 입니다. 32마디 기준 2~6마디가 '
+                                  '틀리므로 화성 확인 화면을 꼭 거쳐야 합니다.')}

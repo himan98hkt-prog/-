@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import time  # noqa: E402
 
 from piano_mr import (catalog as cat, harmony, orchestration as orch,  # noqa: E402
-                      render, store)
+                      render, store, uploads)
 
 STATUS_LABEL = {'verified': '확인 완료', 'analyzed': '확인 대기', 'new': '분석 전'}
 
@@ -183,6 +183,79 @@ def cmd_cache(st: store.CatalogStore, a) -> int:
     return 0
 
 
+# --- 4단계 PDF 업로드 (지시서 9장 4단계) ---------------------------------------
+
+def cmd_uploads(st: store.CatalogStore, a) -> int:
+    """신청제 운영자 화면. 지금 무엇을 처리해야 하는지 한눈에 (지시서 8.3 ③)."""
+    v = st.uploads_view(a.account)
+    q = v['quota']
+    print(f"{q['month']}  {q['used']}/{q['limit']}쪽 사용 · "
+          f"남은 몫 {q['remaining']}쪽 · 이번 달 {q['spent_won']:,}원 · 인식 {v['provider']}")
+    if not v['jobs']:
+        print('올라온 악보가 없습니다.')
+        return 0
+    print()
+    for j in v['jobs']:
+        mark = '★' if j['state'] == uploads.RUNNING else ' '
+        print(f"{mark} {j['id']}  {j['label']:<8} {j['pages']}쪽  "
+              f"{j['title'] or j['filename']}")
+        if j['detail']:
+            print(f"      {j['detail']}")
+        if j['song_id']:
+            print(f"      곡 {j['song_id']} — {j['verify_url']}")
+    todo = [j for j in v['jobs'] if j['state'] == uploads.RUNNING]
+    if todo:
+        print(f"\n★ {len(todo)}건이 인식을 기다립니다. PDF 는 {st.incoming_dir} 에 있습니다.")
+        print('   MusicXML 을 만들어 넣으세요:')
+        print(f"   python3 catalog_cli.py --catalog {a.catalog} "
+              f"deliver {todo[0]['id']} 결과.musicxml")
+    return 0
+
+
+def cmd_deliver(st: store.CatalogStore, a) -> int:
+    """사람이 만든 MusicXML 을 그 작업에 붙인다 (신청제 납품)."""
+    with open(a.musicxml, 'rb') as f:
+        data = f.read()
+    j = st.adopt_musicxml(a.job_id, data, song_id=a.id)
+    print(f"{j['id']} → {j['label']} · 곡 {j['song_id']}")
+    print(f"화성 확인 화면: {j['verify_url']}")
+    print('OMR 은 90~95% 입니다 — 32마디에 2~6마디가 틀립니다 (지시서 2.2). '
+          '확인 화면을 꼭 거치세요.')
+    return 0
+
+
+def cmd_poll(st: store.CatalogStore, a) -> int:
+    """OMR 서비스에 끝났는지 물어본다."""
+    ids = [a.job_id] if a.job_id else [
+        j['id'] for j in st.ledger.rows(state=uploads.RUNNING)]
+    if not ids:
+        print('인식 중인 작업이 없습니다.')
+        return 0
+    for jid in ids:
+        j = st.poll_upload(jid)
+        print(f"{jid}  {j['label']}  {j['detail'] or ''}".rstrip())
+    return 0
+
+
+def cmd_sweep(st: store.CatalogStore, a) -> int:
+    """오래 들고 있던 PDF 를 지운다 (지시서 7장 — 서버 영구 저장 금지)."""
+    out = st.sweep(older_than_hours=a.hours)
+    print(f"{a.hours}시간 넘은 작업 {len(out['swept'])}건 정리 · "
+          f"주인 없는 파일 {out['orphans']}개 삭제 · 남은 PDF {out['held']}개")
+    return 0
+
+
+def cmd_limit(st: store.CatalogStore, a) -> int:
+    """월 업로드 제한을 바꾼다 (지시서 8.3 ① — 변동비를 묶는 손잡이)."""
+    if a.pages is not None:
+        st.ledger.monthly_pages = int(a.pages)
+        st.ledger.save()
+    q = st.ledger.quota(a.account)
+    print(f"월 {q['limit']}쪽 (쪽당 {q['won_per_page']}원 → 최대 "
+          f"월 {q['limit'] * q['won_per_page']:,}원)")
+    return 0
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog='catalog_cli.py', description='카탈로그 관리')
     p.add_argument('--catalog', default='catalog', help='카탈로그 디렉터리 (기본: ./catalog)')
@@ -245,6 +318,30 @@ def build_parser():
 
     c = sub.add_parser('cache', help='렌더 캐시 비우기')
     c.set_defaults(fn=cmd_cache)
+
+    # 4단계 PDF 업로드
+    u = sub.add_parser('uploads', help='올라온 PDF 악보와 이번 달 몫')
+    u.add_argument('--account', default='', help='이 계정 것만')
+    u.set_defaults(fn=cmd_uploads)
+
+    d = sub.add_parser('deliver', help='신청제 납품 — MusicXML 을 작업에 붙인다')
+    d.add_argument('job_id')
+    d.add_argument('musicxml')
+    d.add_argument('--id', help='곡 id 를 직접 지정')
+    d.set_defaults(fn=cmd_deliver)
+
+    pl = sub.add_parser('poll', help='OMR 서비스에 끝났는지 물어본다')
+    pl.add_argument('job_id', nargs='?', help='생략하면 인식 중인 것 전부')
+    pl.set_defaults(fn=cmd_poll)
+
+    sw = sub.add_parser('sweep', help='오래 들고 있던 PDF 삭제 (지시서 7장)')
+    sw.add_argument('--hours', type=float, default=72.0)
+    sw.set_defaults(fn=cmd_sweep)
+
+    lm = sub.add_parser('limit', help='월 업로드 제한 보기/바꾸기')
+    lm.add_argument('pages', nargs='?', type=int, help='생략하면 현재 값만 본다')
+    lm.add_argument('--account', default='')
+    lm.set_defaults(fn=cmd_limit)
     return p
 
 

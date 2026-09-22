@@ -342,3 +342,108 @@ def test_player_bundle_shows_the_key_in_korean(client):
     """원장님 화면에 'E- major' 같은 music21 표기가 나가면 안 된다."""
     s = client.get('/api/player/bundle').json()['songs'][0]
     assert s['key_label'] == 'C장조'
+
+
+# --- 4단계 PDF 업로드 (지시서 9장 4단계) -----------------------------------------
+
+def upload_pdf(client, name='three_pages.pdf', filename='체르니 100-5.pdf',
+               account='행복피아노', title='체르니 100번 5번'):
+    import os
+    from conftest import FIXTURES
+    with open(os.path.join(FIXTURES, 'pdf', name), 'rb') as f:
+        blob = f.read()
+    return client.post('/api/uploads',
+                       files={'file': (filename, blob, 'application/pdf')},
+                       data={'account': account, 'title': title})
+
+
+def test_upload_accepts_a_pdf_and_charges_pages(client):
+    r = upload_pdf(client)
+    assert r.status_code == 200
+    d = r.json()
+    assert d['pages'] == 3 and d['won'] == 1200
+    assert d['state'] == 'omr' and d['provider'] == 'manual'
+    q = client.get('/api/uploads?account=행복피아노').json()['quota']
+    assert q['used'] == 3 and q['remaining'] == 7
+
+
+def test_upload_screen_does_not_promise_instant_results(client):
+    """지시서 3장 — "PDF 넣으면 바로 완성"을 약속하지 말 것."""
+    d = client.get('/api/uploads').json()
+    assert '90~95%' in d['accuracy_note']
+
+
+def test_upload_rejects_a_blacklisted_title_with_451(client):
+    r = upload_pdf(client, title='지브리 피아노 메들리')
+    assert r.status_code == 451
+    assert '블랙리스트' in r.json()['detail']
+    assert client.get('/api/uploads').json()['jobs'] == []
+
+
+def test_upload_rejects_a_non_pdf_with_415(client):
+    r = upload_pdf(client, name='not_a_pdf.png', filename='x.png')
+    assert r.status_code == 415
+
+
+def test_upload_rejects_an_encrypted_pdf(client):
+    r = upload_pdf(client, name='encrypted.pdf')
+    assert r.status_code == 415 and '암호' in r.json()['detail']
+
+
+def test_upload_returns_429_when_the_month_is_spent(client):
+    client.store.ledger.monthly_pages = 4
+    assert upload_pdf(client).status_code == 200
+    r = upload_pdf(client)
+    assert r.status_code == 429 and '남은 몫' in r.json()['detail']
+
+
+def test_manual_musicxml_drop_off_hands_over_to_the_verify_screen(client):
+    """지시서 8.3 ③ 신청제 + 4단계 "화성 확인 화면 재사용"."""
+    job = upload_pdf(client).json()
+    with open(score('p05_waltz_c'), 'rb') as f:
+        xml = f.read()
+    r = client.post(f"/api/uploads/{job['id']}/musicxml",
+                    files={'file': ('out.musicxml', xml, 'application/xml')})
+    assert r.status_code == 200
+    d = r.json()
+    assert d['state'] == 'review' and d['song_id']
+    # 바로 그 곡을 화성 확인 화면이 열 수 있어야 한다
+    view = client.get(f"/api/songs/{d['song_id']}").json()
+    assert view['bars'] and view['key'] == 'C major'
+
+
+def test_finishing_before_review_is_refused(client):
+    job = upload_pdf(client).json()
+    with open(score('p05_waltz_c'), 'rb') as f:
+        client.post(f"/api/uploads/{job['id']}/musicxml",
+                    files={'file': ('o.musicxml', f.read(), 'application/xml')})
+    r = client.post(f"/api/uploads/{job['id']}/finish")
+    assert r.status_code == 400 and '화성 확인' in r.json()['detail']
+
+    sid = client.get(f"/api/uploads/{job['id']}").json()['song_id']
+    client.put(f'/api/songs/{sid}/harmony', json={'cells': [], 'verified': True})
+    assert client.post(f"/api/uploads/{job['id']}/finish").json()['state'] == 'done'
+
+
+def test_cancel_removes_the_pdf_and_refunds(client):
+    import os
+    job = upload_pdf(client).json()
+    assert os.listdir(client.store.incoming_dir) == [f"{job['id']}.pdf"]
+    assert client.delete(f"/api/uploads/{job['id']}").json()['state'] == 'cancelled'
+    assert os.listdir(client.store.incoming_dir) == []
+    assert client.get('/api/uploads?account=행복피아노').json()['quota']['remaining'] == 10
+
+
+def test_sweep_endpoint_drops_old_pdfs(client):
+    import os
+    job = upload_pdf(client).json()
+    client.store.ledger.update(job['id'], pdf_at='2020-01-01T00:00:00')
+    out = client.post('/api/uploads/sweep?hours=1').json()
+    assert out['swept'] == [job['id']] and out['held'] == 0
+    assert os.listdir(client.store.incoming_dir) == []
+
+
+def test_unknown_upload_job_is_404(client):
+    assert client.get('/api/uploads/없는작업').status_code == 404
+    assert client.delete('/api/uploads/없는작업').status_code == 404
+    assert client.post('/api/uploads/없는작업/poll').status_code == 404

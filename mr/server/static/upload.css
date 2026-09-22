@@ -1,0 +1,71 @@
+/* PDF 업로드 화면 — 화성 확인 화면과 같은 종이톤 (app.css 의 변수를 그대로 쓴다). */
+
+.notice {
+  background: var(--warn-bg); border: 1px solid var(--warn-line);
+  border-radius: var(--radius); padding: 13px 16px; margin-bottom: 16px;
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline;
+}
+.notice b { color: #7a5a0c; }
+.notice__why { color: #8a6512; font-size: 13px; flex-basis: 100%; }
+
+.h2 { font-size: 15px; margin: 26px 0 10px; }
+
+/* --- 끌어다 놓는 곳 ------------------------------------------------------ */
+.drop {
+  background: var(--card); border: 2px dashed var(--line);
+  border-radius: var(--radius); padding: 22px 20px;
+  display: grid; grid-template-columns: auto 1fr; gap: 6px 18px;
+  align-items: center; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: #fffdf9; }
+.drop.over { border-style: solid; }
+.drop__art { color: var(--accent); grid-row: span 2; display: flex; }
+.drop__text { display: flex; flex-direction: column; }
+.drop__text .sub { color: var(--muted); font-size: 13px; }
+.drop__fields {
+  grid-column: 2; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+}
+.drop__fields label {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 12px; color: var(--muted); flex: 1; min-width: 220px;
+}
+.drop__fields input {
+  font: inherit; color: inherit; background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+}
+.drop__fields input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.drop__picked {
+  grid-column: 2; font-size: 13px; color: var(--accent); font-weight: 600;
+}
+
+/* --- 알림 --------------------------------------------------------------- */
+.msg {
+  margin-top: 14px; padding: 11px 15px; border-radius: var(--radius);
+  border: 1px solid var(--line); background: var(--card); font-size: 14px;
+}
+.msg.bad { background: #fdecea; border-color: #e9b6ae; color: #8d2f1f; }
+.msg.good { background: var(--ok-bg); border-color: #bcdcc8; color: var(--ok); }
+
+/* --- 작업 목록 ----------------------------------------------------------- */
+.job {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 15px; margin-bottom: 9px;
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+.job__main { flex: 1; min-width: 220px; }
+.job__title { font-weight: 600; }
+.job__sub { color: var(--muted); font-size: 13px; }
+.job__sub .detail { color: #8d2f1f; }
+.job .pill.review { background: var(--changed-bg); color: var(--changed); border-color: #b9d4ea; }
+.job .pill.omr, .job .pill.received { background: var(--warn-bg); color: #8a6512;
+  border-color: var(--warn-line); }
+.job .pill.done { background: var(--ok-bg); color: var(--ok); border-color: #bcdcc8; }
+.job .pill.failed { background: #fdecea; color: #8d2f1f; border-color: #e9b6ae; }
+.job .pill.cancelled { background: #f2f0ec; color: var(--muted); }
+.job button { padding: 6px 11px; font-size: 13px; }
+
+@media (max-width: 620px) {
+  .drop { grid-template-columns: 1fr; }
+  .drop__art { grid-row: auto; }
+  .drop__fields, .drop__picked { grid-column: 1; }
+}

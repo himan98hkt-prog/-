@@ -82,14 +82,25 @@ class CopyrightError(ValueError):
     """화이트리스트 밖의 곡을 카탈로그에 넣으려 할 때."""
 
 
-def check_copyright(*texts: Optional[str], public_domain: bool = False) -> None:
-    """블랙리스트 문구가 있으면 거부. 퍼블릭도메인 표시가 없어도 거부."""
+def check_copyright(*texts: Optional[str], public_domain: bool = False,
+                    owner: str = '') -> None:
+    """블랙리스트 문구가 있으면 거부. 카탈로그 곡은 퍼블릭도메인이어야 한다.
+
+    `owner` 가 있으면 **그 계정이 올린 악보**다 (지시서 7장). 이 경우 퍼블릭도메인을
+    요구하지 않는다 — 약관으로 생성 책임이 사용자에게 귀속되기 때문이다. 대신
+    카탈로그로 팔 수 없고, 그 계정에서만 쓴다.
+
+    **블랙리스트는 어느 경로든 예외가 없다.** 지시서 7장이 "절대 금지"라고 적었고,
+    약관으로도 면책되지 않는 쪽이다.
+    """
     blob = ' '.join(t for t in texts if t).lower()
     for bad in BLACKLIST:
         if bad in blob:
             raise CopyrightError(
                 f'저작권 블랙리스트에 걸렸습니다: {bad!r} — 지시서 7장. '
                 '편곡은 2차적저작물이라 작곡가·출판사와 직접 계약이 필요합니다.')
+    if owner:
+        return
     if not public_domain:
         raise CopyrightError(
             'public_domain=True 가 아닌 곡은 카탈로그에 넣을 수 없습니다 (지시서 7장). '
@@ -126,6 +137,11 @@ class Song:
     default_curve: str = 'flat'   # flat=곡 전체에 깔린다 / build=발표회용
     default_bpm: int = 96
     count_in: int = 0             # 음원에 구워 넣을 카운트인 마디 수
+    # 지시서 7장 "업로드본은 해당 계정에서만 사용".
+    # 빈 값 = 우리가 넣은 카탈로그 곡(퍼블릭도메인이어야 한다).
+    # 값이 있으면 = 그 계정이 올린 악보. 카탈로그로 팔 수 없다.
+    owner: str = ''
+    source: str = ''                     # 'catalog' | 'upload'
     key_locked: bool = False             # 조성을 사람이 확정했는가 (자동 판정 무시)
     verify_seconds: int = 0              # 화성 확인 화면에서 실제로 쓴 시간
     verified_at: str = ''
@@ -158,7 +174,7 @@ class Song:
             raise ValueError('level 은 1~10 입니다.')
         orch.check_style(self.default_style)
         check_copyright(self.title, self.composer, self.book,
-                        public_domain=self.public_domain)
+                        public_domain=self.public_domain, owner=self.owner)
 
     def harmony_labels(self) -> List[str]:
         return [harmony.label(h.get('root'), h.get('qual')) for h in self.harmony]

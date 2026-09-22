@@ -15,12 +15,13 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from piano_mr import catalog as cat, orchestration as orch, render, store
+from piano_mr import (catalog as cat, omr, orchestration as orch, pdf,
+                      render, store, uploads)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(HERE, 'static')
@@ -188,6 +189,75 @@ def create_app(catalog_root: str) -> FastAPI:
         path = st.build_midi(song_id)
         return {'path': os.path.relpath(path, st.root),
                 'bytes': os.path.getsize(path)}
+
+    # --- 4단계 PDF 업로드 (지시서 9장 4단계) --------------------------------
+    def _job(job_id: str):
+        try:
+            return st.ledger.get(job_id)
+        except KeyError as e:
+            raise HTTPException(404, str(e))
+
+    def _guard(fn, *a, **kw):
+        """업로드 경로의 거절 사유를 그대로 화면에 보낸다.
+
+        왜 무엇이 거절됐는지 모르면 원장님은 같은 PDF 를 다시 올린다. 그때마다
+        쿼터가 깎이지는 않지만(검사가 먼저다) 시간이 낭비되고 신뢰가 깎인다.
+        """
+        try:
+            return fn(*a, **kw)
+        except cat.CopyrightError as e:
+            raise HTTPException(451, str(e))       # 법적 사유로 못 받는다
+        except uploads.QuotaExceeded as e:
+            raise HTTPException(429, str(e))
+        except pdf.PdfError as e:
+            raise HTTPException(415, str(e))
+        except omr.OmrUnavailable as e:
+            raise HTTPException(503, str(e))
+        except (ValueError, KeyError) as e:
+            raise HTTPException(400, str(e))
+
+    @app.get('/api/uploads')
+    def upload_list(account: str = ''):
+        return st.uploads_view(account)
+
+    @app.post('/api/uploads')
+    async def upload_pdf(file: UploadFile = File(...), account: str = Form(...),
+                         title: str = Form('')):
+        data = await file.read()
+        return _guard(st.submit_pdf, data, file.filename or 'score.pdf',
+                      account=account, title=title)
+
+    @app.get('/api/uploads/{job_id}')
+    def upload_one(job_id: str):
+        _job(job_id)
+        return _guard(st.job_view, job_id)
+
+    @app.post('/api/uploads/{job_id}/poll')
+    def upload_poll(job_id: str):
+        _job(job_id)
+        return _guard(st.poll_upload, job_id)
+
+    @app.post('/api/uploads/{job_id}/musicxml')
+    async def upload_adopt(job_id: str, file: UploadFile = File(...)):
+        """신청제 투입구 — 사람이 만든 MusicXML 을 그 작업에 붙인다 (지시서 8.3 ③)."""
+        _job(job_id)
+        data = await file.read()
+        return _guard(st.adopt_musicxml, job_id, data)
+
+    @app.post('/api/uploads/{job_id}/finish')
+    def upload_finish(job_id: str):
+        _job(job_id)
+        return _guard(st.finish_upload, job_id)
+
+    @app.delete('/api/uploads/{job_id}')
+    def upload_cancel(job_id: str):
+        _job(job_id)
+        return _guard(st.cancel_upload, job_id)
+
+    @app.post('/api/uploads/sweep')
+    def upload_sweep(hours: float = 72.0):
+        """올라온 PDF 를 오래 들고 있지 않는다 (지시서 7장)."""
+        return st.sweep(older_than_hours=hours)
 
     app.mount('/static', StaticFiles(directory=STATIC, html=True), name='static')
     return app

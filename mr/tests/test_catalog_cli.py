@@ -145,3 +145,66 @@ def test_cache_clear(root, capsys):
     open(os.path.join(st.cache_dir, 'a.mp3'), 'w').close()
     assert run(root, 'cache') == 0
     assert '1개 삭제' in capsys.readouterr().out
+
+
+# --- 4단계 PDF 업로드 (신청제 운영자용) ------------------------------------------
+
+def submit(root, pages='three_pages.pdf', title='체르니 100번 5번'):
+    from conftest import FIXTURES
+    st = store.CatalogStore(root)
+    with open(os.path.join(FIXTURES, 'pdf', pages), 'rb') as f:
+        blob = f.read()
+    return st.submit_pdf(blob, 'czerny.pdf', account='행복피아노', title=title)
+
+
+def test_uploads_shows_what_needs_doing(root, capsys):
+    job = submit(root)
+    assert run(root, 'uploads') == 0
+    out = capsys.readouterr().out
+    assert job['id'] in out and '악보 인식 중' in out
+    assert '3쪽' in out and '1,200원' in out
+    assert 'incoming' in out              # 사람이 PDF 를 어디서 집어 가는지
+    assert 'deliver' in out               # 다음에 칠 명령
+
+
+def test_uploads_on_an_empty_catalog_says_so(root, capsys):
+    store.CatalogStore(root)
+    assert run(root, 'uploads') == 0
+    assert '올라온 악보가 없습니다' in capsys.readouterr().out
+
+
+def test_deliver_attaches_a_musicxml_and_points_at_the_verify_screen(root, capsys):
+    job = submit(root)
+    assert run(root, 'deliver', job['id'], score('p05_waltz_c'),
+               '--id', 'czerny100_05') == 0
+    out = capsys.readouterr().out
+    assert '화성 확인 대기' in out and 'czerny100_05' in out
+    assert '90~95%' in out                # "바로 완성"이라고 하지 않는다
+    st = store.CatalogStore(root)
+    assert st.catalog.get('czerny100_05').owner == '행복피아노'
+    assert os.listdir(st.incoming_dir) == []      # PDF 는 지워졌다
+
+
+def test_limit_changes_the_monthly_cap_and_shows_the_money(root, capsys):
+    store.CatalogStore(root)
+    assert run(root, 'limit', '6') == 0
+    assert '월 6쪽' in capsys.readouterr().out
+    assert run(root, 'limit') == 0
+    out = capsys.readouterr().out
+    assert '월 6쪽' in out and '2,400원' in out    # 6쪽 × 400원
+
+
+def test_sweep_reports_what_it_cleared(root, capsys):
+    job = submit(root)
+    st = store.CatalogStore(root)
+    st.ledger.update(job['id'], pdf_at='2020-01-01T00:00:00')
+    assert run(root, 'sweep', '--hours', '1') == 0
+    out = capsys.readouterr().out
+    assert '1건 정리' in out
+    assert os.listdir(store.CatalogStore(root).incoming_dir) == []
+
+
+def test_poll_with_no_running_jobs_says_so(root, capsys):
+    store.CatalogStore(root)
+    assert run(root, 'poll') == 0
+    assert '인식 중인 작업이 없습니다' in capsys.readouterr().out

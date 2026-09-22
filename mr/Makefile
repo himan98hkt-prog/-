@@ -1,6 +1,6 @@
 # 피아노학원 자동 반주(MR) 엔진 — 1단계
 
-.PHONY: help setup test bench fixtures demo seed serve player clean
+.PHONY: help setup test bench fixtures demo seed serve player uploads clean
 
 help:
 	@echo "make setup     의존성 설치 (music21·mido·fluidsynth·ffmpeg·SoundFont)"
@@ -11,6 +11,7 @@ help:
 	@echo "make seed      카탈로그에 씨앗 곡 넣기 (2단계)"
 	@echo "make serve     화성 확인 화면 띄우기 (2단계)"
 	@echo "make player    플레이어 PWA 를 브라우저에서 검사 (3단계)"
+	@echo "make uploads   올라온 PDF 악보와 이번 달 몫 (4단계)"
 	@echo "make clean     생성물 삭제"
 
 setup:
@@ -40,6 +41,9 @@ serve:
 # 브라우저가 필요하다: pip install playwright && python3 -m playwright install chromium
 player:
 	python3 tools/player_check.py --catalog catalog
+
+uploads:
+	python3 catalog_cli.py --catalog catalog uploads
 
 clean:
 	rm -rf out catalog/cache __pycache__ server/__pycache__ piano_mr/__pycache__ tests/__pycache__ .pytest_cache
