@@ -80,6 +80,27 @@ class RetryableKisError(KisApiError):
     """일시적 오류 — `utils.retry`가 다시 시도한다."""
 
 
+class KisUnreachableError(RetryableKisError):
+    """KIS 서버에 **연결 자체가 닿지 않았다**(방화벽·네트워크·서버 점검).
+
+    이건 계좌나 키 문제가 아니다. 그런데 예전에는 보통 실패와 똑같이 세어서,
+    네트워크가 90분만 막혀도(사이클 3회) 봇이 스스로 치명적 오류로 판단하고
+    내려갔다. 그러고 나면 네트워크가 돌아와도 사람이 다시 켜야 한다.
+    회사망·공용 와이파이를 오가는 노트북에서는 충분히 일어나는 일이다.
+    """
+
+
+def is_unreachable(exc: BaseException | None) -> bool:
+    """이 예외가 '서버에 못 닿았다' 인가. RetryExhausted 로 감싸인 것도 푼다."""
+    seen = 0
+    while exc is not None and seen < 8:
+        if isinstance(exc, KisUnreachableError):
+            return True
+        exc = getattr(exc, "last_error", None) or exc.__cause__
+        seen += 1
+    return False
+
+
 # --------------------------------------------------------------------------- #
 # 반환 모델
 # --------------------------------------------------------------------------- #
@@ -266,8 +287,17 @@ class KisApi:
             response = self.session.request(
                 method, url, headers=headers, params=params, json=body, timeout=HTTP_TIMEOUT
             )
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            # 원문은 URL·쿼리스트링까지 통째로 들어 있어 화면에서 읽을 수가 없다.
+            # 게다가 계좌번호가 쿼리에 실려 있어 그대로 두면 알림에까지 나간다.
+            # 무엇이 안 됐고 무엇을 확인해야 하는지만 남긴다.
+            kind = "응답이 없습니다" if isinstance(exc, requests.ReadTimeout) else "연결되지 않습니다"
+            raise KisUnreachableError(
+                f"KIS 서버에 {kind} ({self.env.base_url.split('//')[-1]}) — "
+                f"인터넷 연결·방화벽·서버 점검 여부를 확인하세요"
+            ) from exc
         except requests.RequestException as exc:
-            raise RetryableKisError(f"{tr_name} 요청 실패: {exc}") from exc
+            raise RetryableKisError(f"{tr_name} 요청 실패: {type(exc).__name__}") from exc
 
         if response.status_code >= 500:
             # KIS 는 5xx 에도 msg_cd/msg1 로 이유를 실어 보낸다. 그걸 버리면

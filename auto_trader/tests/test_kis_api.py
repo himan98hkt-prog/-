@@ -550,3 +550,76 @@ def test_connect_and_read_have_separate_budgets():
     assert HTTP_TIMEOUT == (CONNECT_TIMEOUT, READ_TIMEOUT)
     assert READ_TIMEOUT > CONNECT_TIMEOUT
     assert READ_TIMEOUT >= 20, "모의투자 서버는 장중에 수십 초씩 늘어질 때가 있습니다"
+
+
+# --- 서버에 닿지 않을 때 (2026-09-22) ------------------------------------------ #
+#
+# 회사망·공용 와이파이를 오가는 노트북에서는 KIS(포트 29443)가 막히는 일이 있다.
+# 이건 계좌나 키 문제가 아니라 '지금은 안 된다' 이므로, 구분해서 다뤄야 한다.
+
+def test_a_connect_timeout_becomes_an_unreachable_error(auth):
+    import requests
+
+    from trading.kis_api import KisUnreachableError
+
+    api, _ = make_api(auth, [requests.ConnectTimeout("Connection to host timed out")] * 3)
+    with pytest.raises(KisUnreachableError) as caught:
+        api.get_balance()
+
+    assert "연결되지 않습니다" in str(caught.value)
+    assert "방화벽" in str(caught.value), "무엇을 확인해야 하는지가 있어야 한다"
+
+
+def test_the_unreachable_message_does_not_leak_the_account_number(auth):
+    """원문에는 쿼리스트링이 통째로 들어 있어 계좌번호가 화면·알림에 실렸다."""
+    import requests
+
+    from trading.kis_api import KisUnreachableError
+
+    api, _ = make_api(auth, [
+        requests.ConnectTimeout(
+            "HTTPSConnectionPool(host='openapivts.koreainvestment.com', port=29443): "
+            "Max retries exceeded with url: /uapi/domestic-stock/v1/trading/inquire-balance"
+            "?CANO=50204881&ACNT_PRDT_CD=01 (Caused by ConnectTimeoutError(...))")
+    ] * 3)
+    with pytest.raises(KisUnreachableError) as caught:
+        api.get_balance()
+
+    message = str(caught.value)
+    assert "50204881" not in message
+    assert "CANO" not in message
+
+
+def test_a_read_timeout_says_so_differently(auth):
+    import requests
+
+    from trading.kis_api import KisUnreachableError
+
+    api, _ = make_api(auth, [requests.ReadTimeout("read timed out")] * 3)
+    with pytest.raises(KisUnreachableError) as caught:
+        api.get_balance()
+    assert "응답이 없습니다" in str(caught.value)
+
+
+def test_is_unreachable_recognises_it_however_it_arrives(auth):
+    """직접 올라오든 RetryExhausted 에 감싸이든 같은 판단이어야 한다."""
+    import requests
+
+    from trading.kis_api import KisUnreachableError, is_unreachable
+    from utils.retry import RetryExhausted
+
+    direct = KisUnreachableError("KIS 서버에 연결되지 않습니다")
+    assert is_unreachable(direct)
+    assert is_unreachable(RetryExhausted(3, direct))
+
+    try:
+        raise RuntimeError("사이클 실패") from direct
+    except RuntimeError as exc:
+        assert is_unreachable(exc), "원인 사슬도 따라가야 한다"
+
+
+def test_an_ordinary_api_error_is_not_unreachable(auth):
+    from trading.kis_api import is_unreachable
+
+    assert not is_unreachable(KisApiError("balance 실패 [40310000] 모의투자 미신청 계좌입니다"))
+    assert not is_unreachable(None)

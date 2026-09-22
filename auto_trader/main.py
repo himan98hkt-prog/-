@@ -42,7 +42,7 @@ from logic.decision_maker import FinalDecision, decide
 from logic.portfolio import Portfolio
 from logic.reporting import build_daily_report
 from logic.risk_manager import RiskManager
-from trading.kis_api import KisApi, KisApiError
+from trading.kis_api import KisApi, KisApiError, is_unreachable
 from trading.kis_auth import KisAuthError, TokenManager
 from trading.market_calendar import (calendar_health, is_market_open, is_trading_day,
                                      market_state, next_trading_day, upcoming_holidays)
@@ -488,9 +488,26 @@ class TradingBot:
             try:
                 results = self._run_cycle_body(cycle_id, cycle_label, now, holdings_only)
             except Exception as exc:  # 사이클 단위 예외
-                self.consecutive_failures += 1
-                logger.exception("사이클 실패 (%d/%d)", self.consecutive_failures, MAX_CONSECUTIVE_FAILURES)
-                self.notifier.send_error(exc, context=f"{cycle_label} 사이클")
+                # 서버에 닿지도 못한 것은 '고장' 이 아니라 '지금은 안 된다' 다.
+                # 이걸 연속 실패로 세면 네트워크가 90분 막혔을 때(사이클 3회)
+                # 봇이 스스로 내려가고, 네트워크가 돌아와도 사람이 다시 켜야 한다.
+                # 회사망·공용 와이파이를 오가는 노트북에서는 충분히 일어난다.
+                offline = is_unreachable(exc)
+                if not offline:
+                    self.consecutive_failures += 1
+                logger.exception("사이클 실패 (%s%d/%d)", "네트워크 · " if offline else "",
+                                 self.consecutive_failures, MAX_CONSECUTIVE_FAILURES)
+                if offline:
+                    # 같은 내용을 30분마다 울리지 않게 한 키로 묶는다.
+                    self.notifier.send_alert(
+                        "🌐 KIS 서버에 닿지 않습니다",
+                        [str(exc),
+                         "매매를 멈추지는 않습니다 — 다음 사이클에 다시 시도합니다.",
+                         "계속되면 인터넷 연결과 방화벽(포트 29443)을 확인하세요."],
+                        key="kis_unreachable",
+                    )
+                else:
+                    self.notifier.send_error(exc, context=f"{cycle_label} 사이클")
                 update_bot_state(self.settings.paths["db"], status="ERROR",
                                  consecutive_failures=self.consecutive_failures,
                                  last_error=str(exc)[:500])

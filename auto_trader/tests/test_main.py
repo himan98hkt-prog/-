@@ -1160,3 +1160,58 @@ def test_orders_command_marks_dry_run(bot, monkeypatch):
 def test_orders_command_is_plain_when_empty(bot, monkeypatch):
     monkeypatch.setattr("dashboard.queries.recent_orders", lambda *a, **k: [])
     assert bot._cmd_orders() == "주문 기록이 없습니다."
+
+
+# --- 네트워크가 끊겼을 때 봇이 스스로 죽지 않는가 (2026-09-22) ------------------- #
+#
+# 회사망으로 옮기거나 와이파이가 바뀌면 KIS(포트 29443)가 막히는 일이 있다.
+# 예전에는 이걸 보통 실패로 세어, 90분(사이클 3회)이면 치명적 오류로 판단하고
+# 스스로 내려갔다. 그러고 나면 네트워크가 돌아와도 사람이 다시 켜야 했다.
+
+def _offline(bot, monkeypatch):
+    from trading.kis_api import KisUnreachableError
+
+    def boom(now=None):
+        raise KisUnreachableError("KIS 서버에 연결되지 않습니다 — 방화벽을 확인하세요")
+
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+    bot.portfolio.sync = boom
+
+
+def test_a_network_outage_does_not_count_toward_the_fatal_limit(bot, monkeypatch):
+    _offline(bot, monkeypatch)
+
+    for _ in range(MAX_CONSECUTIVE_FAILURES + 3):
+        bot.run_cycle()
+
+    assert bot.consecutive_failures == 0, "네트워크 문제는 '고장' 이 아니다"
+    assert not any("fatal:" in line for line in bot.sent), "스스로 내려가면 안 된다"
+    assert not bot._shutting_down
+
+
+def test_the_outage_is_reported_but_only_once(bot, monkeypatch):
+    """30분마다 같은 내용을 울리면 알림이 소음이 된다."""
+    _offline(bot, monkeypatch)
+    keys = []
+    bot.notifier.send_alert = lambda title, lines, **kw: keys.append(kw.get("key")) or True
+
+    bot.run_cycle()
+    bot.run_cycle()
+
+    assert keys == ["kis_unreachable", "kis_unreachable"], "같은 키로 묶여 중복이 억제된다"
+
+
+def test_a_real_failure_still_stops_the_bot(bot, monkeypatch):
+    """네트워크가 아닌 진짜 고장까지 눈감으면 안전장치가 사라진다."""
+    monkeypatch.setattr(main_module, "is_trading_day", lambda *a, **kw: True)
+
+    def boom(now=None):
+        raise KisApiError("balance 실패 [40310000] 모의투자 미신청 계좌입니다")
+
+    bot.portfolio.sync = boom
+
+    for _ in range(MAX_CONSECUTIVE_FAILURES):
+        bot.run_cycle()
+
+    assert bot.consecutive_failures >= MAX_CONSECUTIVE_FAILURES
+    assert any("fatal:" in line for line in bot.sent)
