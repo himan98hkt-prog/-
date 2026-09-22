@@ -13,6 +13,8 @@ import { icon } from '../icons.js'
 import { openImportStudents } from './import-students.js'
 import { openBulkNotice } from './bulk-notice.js'
 import { downloadCsv } from '../../core/csv.js'
+import { humanDuration, summarize as summarizePractice }
+  from '../../core/practice-piano.js'
 
 export async function render(root, ctx) {
   const { repo } = ctx
@@ -123,11 +125,13 @@ export async function render(root, ctx) {
     const pairs = displayPairs(fields, student.custom || {}, 'card')
     const sibs = repo.siblingsOf(student)
     const month = toMonth(toYmd())
-    const [pays, att] = await Promise.all([
+    const [pays, att, practice] = await Promise.all([
       repo.paymentsOfStudent(student.id, 6),
-      repo.attendanceOfStudentRange(student.id, `${addMonths(month, -2)}-01`, toYmd())
+      repo.attendanceOfStudentRange(student.id, `${addMonths(month, -2)}-01`, toYmd()),
+      repo.practiceOf(student.id, month)
     ])
     const sum = summarize(att)
+    const prac = summarizePractice(practice, month)
 
     modal({
       title: student.name,
@@ -149,6 +153,15 @@ export async function render(root, ctx) {
           h('div', { class: 'small' }, `학생 ${student.phone || '-'} / 학부모 ${student.parent_phone || '-'}`),
           sibs.length ? h('div', { class: 'small muted', style: { marginTop: '6px' } }, `형제·자매: ${sibs.map((s) => s.name).join(', ')} (학부모 번호 매칭)`) : null
         ),
+        // 반주를 안 쓰는 학원에는 이 칸 자체가 없어야 한다. 0 이라고 써 두면
+        // 매달 "왜 0 이냐"는 질문만 생긴다.
+        prac.count ? h('div', { class: 'card' },
+          h('div', { class: 'card-title' }, '이번 달 연습 (피아노 반주)'),
+          h('div', { class: 'small' },
+            `${prac.days}일 · ${prac.count}번 · ${humanDuration(prac.seconds)}`),
+          prac.songs.length ? h('div', { class: 'small muted', style: { marginTop: '6px' } },
+            prac.songs.slice(0, 4).map((x) => `${x.title} ${x.count}번`).join(' · ')) : null
+        ) : null,
         pairs.length ? h('div', { class: 'card' },
           h('div', { class: 'card-title' }, '학습 현황'),
           h('table', {}, h('tbody', {}, ...pairs.map((p) => h('tr', {}, h('th', {}, p.label), h('td', {}, String(p.value))))))

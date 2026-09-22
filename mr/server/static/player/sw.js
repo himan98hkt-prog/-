@@ -7,7 +7,9 @@
  */
 // v2 — 미리 받는 주소에 편성(style·level)이 붙었다. v1 캐시에는 편성 없는 주소만
 // 들어 있어 영영 맞지 않으므로, 버전을 올려 activate 에서 통째로 지운다.
-const VERSION = 'mr-player-v2';
+// v3 — 연습 기록 파일이 둘 늘었다. 목록에 안 넣으면 **오프라인에서 앱이 안 뜬다**
+// (⑤-1 은 「타협 불가」다). 버전을 올려야 이미 깔린 기기가 새로 받아 간다.
+const VERSION = 'mr-player-v3';
 
 // 이 워커가 놓인 폴더. 경로를 박아 두면 안 된다 — 원장님은 도메인 루트에 올릴 수도,
 // `/반주/` 같은 하위 폴더에 올릴 수도 있다. 그때마다 껍데기가 오프라인에서 안 뜨면
@@ -20,6 +22,7 @@ const MIDI = `${VERSION}-midi`;
 const SHELL_FILES = [
   './', './index.html', './player.css', './manifest.webmanifest', './icon.svg',
   './js/app.js', './js/engine.js', './js/midi.js', './js/synth.js', './js/store.js',
+  './js/practice.js', './js/practice-format.js',
 ];
 
 self.addEventListener('install', (e) => {

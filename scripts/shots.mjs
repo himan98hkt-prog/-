@@ -86,6 +86,21 @@ await page.evaluate(async () => {
   await mount('students')
 })
 await page.waitForSelector('.student-row')
+
+// 연습 기록이 있는 아이를 찾아 검색으로 띄운다. 목록은 가상 스크롤이라 그냥 두면
+// 그 아이가 화면 밖에 있을 수 있고, 첫 줄을 누르면 연습 칸 없는 카드가 찍힌다.
+const practicing = await page.evaluate(async () => {
+  const repo = await import('/src/data/repo.js')
+  const month = new Date().toISOString().slice(0, 7)
+  for (const st of repo.cache.students) {
+    if ((await repo.practiceOf(st.id, month)).length) return st.name
+  }
+  return null
+})
+if (practicing) {
+  await page.fill('input[type="search"]', practicing)
+  await page.waitForTimeout(350)      // 즉시 검색 debounce 200ms
+}
 await page.click('.student-row')
 await page.waitForSelector('.modal')
 await page.waitForTimeout(400)
@@ -98,17 +113,28 @@ const reportDataUrl = await page.evaluate(async () => {
   const { drawReportCard } = await import('/src/ui/report.js')
   const { summarize } = await import('/src/core/attendance.js')
   const { displayPairs } = await import('/src/core/customfields.js')
-  const s = repo.cache.students[0]
+  const { humanDuration, summarize: sumPractice } =
+    await import('/src/core/practice-piano.js')
+  const month = new Date().toISOString().slice(0, 7)
+  // 연습 기록이 있는 아이를 고른다. 데모에서 네 명 중 한 명은 안 치는 것으로 만들어
+  // 두었는데, 하필 그 아이가 걸리면 설명서 그림에서 연습 칸이 통째로 빠진다.
+  const withPractice = []
+  for (const st of repo.cache.students) {
+    if ((await repo.practiceOf(st.id, month)).length) withPractice.push(st)
+  }
+  const s = withPractice[0] || repo.cache.students[0]
   const att = await repo.attendanceOfStudentRange(s.id, '2000-01-01', '2100-01-01')
   const pays = await repo.paymentsOfStudent(s.id, 1)
   const cls = repo.studentClasses(s.id)
+  const prac = sumPractice(await repo.practiceOf(s.id, month), month)
   const canvas = await drawReportCard({
     student: s,
-    month: new Date().toISOString().slice(0, 7),
+    month,
     className: cls.map((c) => c.name).join(', '),
     attendance: summarize(att),
     payment: pays[0] || null,
     customPairs: displayPairs(repo.getSetting('customFields', []), s.custom, 'report'),
+    practice: prac.count ? { ...prac, human: humanDuration(prac.seconds) } : null,
     comment: '이번 달 수업 태도가 좋았고 진도도 계획대로 나갔습니다. 다음 달에는 발표 활동을 늘려 보겠습니다.',
     teacherName: repo.cache.users[1]?.name || ''
   })

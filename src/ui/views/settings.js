@@ -434,6 +434,15 @@ function billingSection(repo) {
 // ── 백업/복원 ───────────────────────────────────────────────
 function backupSection(repo) {
   const fileInput = h('input', { type: 'file', accept: 'application/json' })
+  const practiceFile = h('input', { type: 'file', accept: 'application/json' })
+
+  practiceFile.addEventListener('change', async () => {
+    const f = practiceFile.files?.[0]
+    if (!f) return
+    try { await importPianoPractice(repo, f) }
+    catch (err) { toast(err.message, 'error') }
+    practiceFile.value = ''      // 같은 파일을 다시 고를 수 있게
+  })
 
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0]
@@ -482,12 +491,67 @@ function backupSection(repo) {
       h('button', { class: 'btn sm', onClick: () => exportPianoRoster(repo) }, '학생 명단 내보내기')),
     h('p', { class: 'small muted' },
       '반주 프로그램에서 발표회 순서를 짤 때 이 명단을 읽습니다. ' +
-      '이름·반만 나가고 연락처·메모·수납 정보는 들어가지 않습니다.'))
+      '이름·반만 나가고 연락처·메모·수납 정보는 들어가지 않습니다.'),
+    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
+      h('div', { class: 'grow' },
+        h('div', { class: 'small muted' }, '연습 기록 불러오기 (반주에서 받은 파일)'),
+        practiceFile)),
+    h('p', { class: 'small muted' },
+      '아이가 무슨 곡을 며칠에 몇 번 쳤는지가 원생 카드와 학부모 리포트에 들어갑니다. ' +
+      '같은 파일을 여러 번 넣어도 숫자가 늘어나지 않습니다.'))
 }
 
 // 지시서 9장 5단계 "학생 정보 공유".
 // 반주 쪽에 필요한 건 누가 어느 반인지까지다. 연락처·메모를 같이 넘기면 개인정보가
 // 두 시스템에 흩어지기만 하므로, roster-piano.js 가 항목을 좁혀서 내보낸다.
+/* 반주에서 되받기. 붙일 원생을 못 찾은 기록은 **버리지 않고** 누구인지 여쭤 본다 —
+ * 이름만 보고 아무 데나 붙이면 남의 아이 연습이 우리 아이 리포트에 찍힌다. */
+async function importPianoPractice(repo, file) {
+  const r = await repo.importPractice(await file.text())
+  const parts = []
+  if (r.added) parts.push(`${r.added}건 추가`)
+  if (r.updated) parts.push(`${r.updated}건 갱신`)
+  if (r.same) parts.push(`${r.same}건은 이미 있음`)
+  toast(parts.length ? `연습 기록 ${parts.join(' · ')}` : '새로운 연습 기록이 없습니다', 'ok')
+
+  if (r.unmatched.length) await askWhoPracticed(repo, r.unmatched)
+}
+
+/** 누구 것인지 모르는 기록을 원장님이 골라 주신다. */
+async function askWhoPracticed(repo, rows) {
+  const byName = new Map()
+  for (const row of rows) {
+    const key = row.student || '(이름 없음)'
+    if (!byName.has(key)) byName.set(key, [])
+    byName.get(key).push(row)
+  }
+  for (const [name, group] of byName) {
+    const pick = h('select', {},
+      h('option', { value: '' }, '(넣지 않음)'),
+      ...repo.cache.students.map((st) => h('option', { value: st.id }, st.name)))
+    const chosen = await new Promise((resolve) => {
+      modal({
+        title: '이 연습은 누구 것인가요',
+        body: h('div', {},
+          h('p', { class: 'muted' },
+            `반주에서 「${name}」 이름으로 온 연습 ${group.length}건이 어느 원생인지 ` +
+            '확실하지 않습니다.'),
+          h('p', { class: 'small muted' },
+            '동명이인이거나, 반주 쪽에서 이름을 다르게 적으신 경우입니다.'),
+          field('이 기록의 주인', pick)),
+        actions: [
+          { label: '넘기기', onClick: () => resolve('') },
+          { label: '넣기', kind: 'primary', onClick: () => resolve(pick.value) }
+        ],
+        onClose: () => resolve('')
+      })
+    })
+    if (!chosen) continue
+    const saved = await repo.linkPractice(group, chosen)
+    toast(`${name} → ${saved.added + saved.updated}건을 넣었습니다`, 'ok')
+  }
+}
+
 async function exportPianoRoster(repo) {
   const roster = buildRoster(
     repo.cache.students,

@@ -165,6 +165,23 @@ create table if not exists notices (
   updated_at  timestamptz not null default now()
 );
 
+-- 피아노 반주에서 되받는 연습 기록.
+-- id 는 무작위가 아니라 "그 연습"을 가리키는 열쇠(학생::곡::날짜::기기)다. 같은 파일을
+-- 두 번 넣어도 줄이 안 늘어나야 한다 — 이 숫자는 학부모 리포트로 나간다.
+create table if not exists practice (
+  id          text primary key,
+  academy_id  uuid not null references academies(id) on delete cascade,
+  student_id  text,
+  song_id     text,
+  title       text,
+  date        date,
+  device      text,
+  count       int  not null default 0,
+  seconds     int  not null default 0,
+  bpm         int,
+  updated_at  timestamptz not null default now()
+);
+
 -- ── 인덱스 (조회는 전부 월/반 단위 범위 질의) ────────────────────────────────
 create index if not exists students_academy_idx     on students(academy_id, status, name);
 create index if not exists classes_academy_idx      on classes(academy_id);
@@ -176,12 +193,13 @@ create index if not exists attendance_sync_idx      on attendance(academy_id, up
 create index if not exists payments_month_idx       on payments(academy_id, month, status);
 create index if not exists expenses_date_idx        on expenses(academy_id, date);
 create index if not exists counsel_student_idx      on counsel_logs(academy_id, student_id, created_at);
+create index if not exists practice_student_date_ix on practice(academy_id, student_id, date);
 
 -- 동기화 커서(updated_at) 질의용 인덱스
 do $$
 declare t text;
 begin
-  foreach t in array array['users','subjects','classes','students','enrollments','payments','expenses','counsel_logs','notices']
+  foreach t in array array['users','subjects','classes','students','enrollments','payments','expenses','counsel_logs','notices','practice']
   loop
     execute format('create index if not exists %I on %I(academy_id, updated_at)', t || '_sync_idx', t);
   end loop;
@@ -200,7 +218,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices','academies']
+  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices','practice','academies']
   loop
     execute format('drop trigger if exists %I on %I', t || '_touch', t);
     execute format('create trigger %I before update on %I for each row execute function touch_updated_at()', t || '_touch', t);
@@ -227,7 +245,7 @@ create policy members_read on academy_members
 do $$
 declare t text;
 begin
-  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices']
+  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices','practice']
   loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists %I on %I', t || '_tenant_select', t);
@@ -305,7 +323,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices']
+  foreach t in array array['users','subjects','classes','students','enrollments','attendance','payments','expenses','counsel_logs','notices','practice']
   loop
     begin
       execute format('alter publication supabase_realtime add table %I', t);

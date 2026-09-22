@@ -6,10 +6,12 @@ import { uid } from '../core/id.js'
 import { monthRange, toYmd, toMonth } from '../core/date.js'
 import { decorate, statusOf, computeBill, billingPolicy, PAY_STATUS } from '../core/fees.js'
 import { assignSiblingGroups } from '../core/siblings.js'
+import { linkToStudents, mergePractice, parsePractice, practiceKey }
+  from '../core/practice-piano.js'
 
 const SYNCED_TABLES = new Set([
   'users', 'subjects', 'classes', 'students', 'enrollments',
-  'attendance', 'payments', 'expenses', 'counselLogs', 'notices'
+  'attendance', 'payments', 'expenses', 'counselLogs', 'notices', 'practice'
 ])
 
 // ── 변경 알림 ────────────────────────────────────────────────
@@ -524,6 +526,73 @@ export async function statsRange(months) {
 export async function cachedStats(months) {
   const rows = await db.monthlyStats.bulkGet(months)
   return months.map((m, i) => rows[i] || null)
+}
+
+/* ── 피아노 반주 연습 기록 ──────────────────────────────────
+ *
+ * 반주 쪽에서 되받는다. 형식과 합치는 규칙은 `core/practice-piano.js` 에 있고,
+ * 그 파일은 반주 플레이어에도 글자 그대로 들어간다.
+ *
+ * 다른 표와 달리 **id 를 우리가 만들지 않는다.** id 가 곧 "그 연습"이라
+ * (학생::곡::날짜::기기) 같은 파일을 두 번 넣어도 줄이 안 늘어난다.
+ */
+
+/** 그 학생의 그 달 연습. 다른 표와 같이 **월 범위**로만 읽는다. */
+export async function practiceOf(studentId, month) {
+  if (!studentId) return []
+  if (!month) return db.practice.where('student_id').equals(studentId).toArray()
+  return db.practice.where('[student_id+date]')
+    .between([studentId, `${month}-00`], [studentId, `${month}-32`]).toArray()
+}
+
+/** 여러 학생을 한 번에 (원생 목록처럼 여러 줄을 그릴 때). */
+export async function practiceByStudent(studentIds = [], month) {
+  const out = new Map(studentIds.map((id) => [id, []]))
+  await Promise.all(studentIds.map(async (id) => {
+    out.set(id, await practiceOf(id, month))
+  }))
+  return out
+}
+
+/**
+ * 반주가 보낸 파일을 받아 넣는다.
+ *
+ * 붙일 학생을 못 찾은 기록은 **버리지 않고 돌려준다.** 원장님이 누구인지 고르시면
+ * `linkPractice` 로 다시 넣는다 — 이름만 보고 아무 데나 붙이면 남의 아이 연습이
+ * 우리 아이 리포트에 찍힌다.
+ *
+ * @returns {{added, updated, same, unmatched, students}}
+ */
+export async function importPractice(text) {
+  const file = parsePractice(text)
+  const { linked, unmatched } = linkToStudents(file.practice, cache.students)
+  const result = await savePractice(linked)
+  return { ...result, unmatched, academy: file.academy, exported_at: file.exported_at }
+}
+
+/** 원장님이 "이 기록은 이 아이 것"이라고 골라 주신 것을 넣는다. */
+export async function linkPractice(rows, studentId) {
+  if (!studentId) throw new Error('어느 원생인지 골라 주세요')
+  return savePractice(rows.map((r) => ({ ...r, student_id: studentId })))
+}
+
+async function savePractice(rows) {
+  if (!rows.length) return { added: 0, updated: 0, same: 0, students: [] }
+  const ids = [...new Set(rows.map((r) => r.student_id))]
+  const existing = (await Promise.all(
+    ids.map((id) => db.practice.where('student_id').equals(id).toArray()))).flat()
+
+  const merged = mergePractice(existing, rows)
+  // 바뀐 줄만 쓴다. 안 바뀐 줄까지 쓰면 Pro 에서 동기화 큐가 쓸데없이 불어난다.
+  const before = new Map(existing.map((r) => [r.id, r]))
+  const write = merged.rows
+    .map((r) => ({ ...r, id: practiceKey(r) }))
+    .filter((r) => {
+      const old = before.get(r.id)
+      return !old || old.count !== r.count || old.seconds !== r.seconds
+    })
+  if (write.length) await putMany('practice', write)
+  return { added: merged.added, updated: merged.updated, same: merged.same, students: ids }
 }
 
 export { db }

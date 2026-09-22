@@ -23,6 +23,16 @@ export function createDb(name = DB_NAME) {
     monthlyStats: 'month',
     outbox: '++seq, table, ts'
   })
+
+  // v2 — 피아노 반주에서 되받는 연습 기록.
+  //
+  // id 는 무작위가 아니라 **그 연습을 가리키는 열쇠**(학생::곡::날짜::기기)다.
+  // 그래야 같은 파일을 두 번 넣어도 줄이 안 늘어난다. 이 숫자는 학부모 리포트로
+  // 나가기 때문에, 두 번 세는 것이 안 세는 것보다 나쁘다.
+  db.version(2).stores({
+    practice: 'id, student_id, date, [student_id+date]'
+  })
+
   return db
 }
 

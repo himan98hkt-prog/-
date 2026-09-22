@@ -157,7 +157,7 @@ jobs:
           print('PDF 업로드 OK — 격리 폴더 비었고, 곡은 계정 전용이고, 확인 대기입니다')
           "
 
-      - name: 플레이어 PWA — 브라우저에서 실제 재생·오프라인 (지시서 모듈 ⑤)
+      - name: 플레이어 PWA — 재생·오프라인·연습 기록 (지시서 모듈 ⑤ + 연습 기록)
         run: |
           pip install playwright
           python3 -m playwright install --with-deps chromium
@@ -167,7 +167,7 @@ jobs:
         run: |
           python3 catalog_cli.py --catalog /tmp/ci-catalog package /tmp/ci-pkg \
               --academy "CI학원"
-          # MR 서버가 아니라 평범한 정적 서버로 띄워 같은 11항목을 본다
+          # MR 서버가 아니라 평범한 정적 서버로 띄워 같은 13항목을 본다
           python3 tools/player_check.py --static /tmp/ci-pkg
           python3 -c "
           import os

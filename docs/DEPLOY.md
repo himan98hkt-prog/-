@@ -122,7 +122,7 @@ python3 tools/player_check.py --static /tmp/pkg
 ```
 
 `--static` 은 MR 서버가 아니라 **평범한 정적 서버**(`python -m http.server`)로 띄워
-11항목을 봅니다. 그 뒤 서버를 죽이고 오프라인 재생까지 확인합니다 — 원장님 PC 에
+13항목을 봅니다. 그 뒤 서버를 죽이고 오프라인 재생·연습 기록까지 확인합니다 — 원장님 PC 에
 파이썬이 필요 없다는 것의 유일한 증거입니다.
 
 ### 인증키
@@ -150,8 +150,8 @@ npm run manual:verify    # 브라우저로 열어 확인 + dist/manual.pdf
 > 그러면 원장님이 여는 **주소 자체가 안 열립니다.** 화면에 보이는 제목은 한글입니다.
 > 한글 이름으로 내려받게 하시려면 `--out` 으로 바꿀 수 있습니다.
 
-실측 — **3부 16장 70절, 그림 20장, 자주 하는 실수 28개, 1.4 MB.**
-1부 관리노트 · 2부 피아노 반주 · 3부 문제 해결과 부록. 인쇄하면 **A4 38쪽**입니다.
+실측 — **3부 16장 73절, 그림 20장, 자주 하는 실수 31개, 1.4 MB.**
+1부 관리노트 · 2부 피아노 반주 · 3부 문제 해결과 부록. 인쇄하면 **A4 39쪽**입니다.
 
 ### 검사는 두 겹입니다
 
@@ -193,7 +193,7 @@ npm run manual:verify    # 브라우저로 열어 확인 + dist/manual.pdf
 
 | 워크플로 | 실행 시점 | 하는 일 |
 |---|---|---|
-| `CI` | push(main), PR | `npm ci` → 테스트 209건 → 프로덕션 빌드 → 산출물 3종 확인 → `dist` 아티팩트 업로드 |
+| `CI` | push(main), PR | `npm ci` → 테스트 257건 → 프로덕션 빌드 → 산출물 3종 확인 → `dist` 아티팩트 업로드 |
 | `브라우저 검증` | 수동 (Actions 탭) | Chromium 설치 후 `npm run smoke` + `node scripts/perf.mjs` → `perf-report.json` 아티팩트 |
 
 브라우저 검증은 20만 건 더미 생성 때문에 10분 이상 걸려 매 PR 자동 실행에서 제외했습니다.
@@ -201,7 +201,7 @@ npm run manual:verify    # 브라우저로 열어 확인 + dist/manual.pdf
 
 ## 8. 릴리스 체크리스트
 
-- [ ] `npm test` 전부 통과 (209건)
+- [ ] `npm test` 전부 통과 (257건)
 - [ ] `npm run perf` 전 항목 기준 이내 (perf-report.json 보관)
 - [ ] `npm run smoke` 전부 통과 (39건) — 인증 게이트·계열 전환·브랜딩·백업 왕복·청구 할인·엑셀 가져오기
 - [ ] 데모 3종(영어학원·태권도장·피아노학원) 눈으로 확인
@@ -211,7 +211,9 @@ npm run manual:verify    # 브라우저로 열어 확인 + dist/manual.pdf
 - [ ] 인쇄 미리보기: 월간 출석부 · 수납대장 A4 한 장에 들어가는지
 - [ ] 반주: `cd mr && python3 -m pytest` 전부 통과
 - [ ] 반주: `python3 catalog_cli.py package /tmp/pkg && python3 tools/player_check.py --static /tmp/pkg`
-      11항목 통과 (정적 배포 그대로 — 서버를 죽인 뒤 오프라인 재생까지)
+      13항목 통과 (정적 배포 그대로 — 서버를 죽인 뒤 오프라인 재생·연습 기록까지)
+- [ ] 반주: `python3 tools/player_check.py` 13항목 (서버 없이 연습이 기록되는지까지)
+- [ ] 연습 기록: 반주에서 보낸 파일을 관리노트에 **두 번** 넣어도 숫자가 안 늘어나는지
 - [ ] 반주 꾸러미에 악보 원본(`.musicxml`)·mp3 가 섞이지 않았는지
 - [ ] 꾸러미를 하위 폴더에 올려도 열리는지 (상대경로 배포)
 - [ ] 설명서: `npm run manual:shots && npm run manual` — 그림이 최신 화면인지
