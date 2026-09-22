@@ -217,15 +217,25 @@ async def check(base: str, song_id: str, stop_server) -> None:
             '곡 목록이 서비스워커 캐시에 없습니다 (브라우저 HTTP 캐시에 기대면 안 됩니다)'
         midi = cached.get(f'{version}-midi', [])
         assert len(midi) >= songs, f'반주 캐시가 모자랍니다 ({len(midi)}/{songs})'
-        # 곡마다 **편성이 붙은** 주소가 있어야 한다. 재생할 때 붙여서 부르므로,
-        # 편성 없는 주소만 받아 두면 오프라인에서 정확히 맞는 캐시가 없다.
-        ids = await pg.evaluate(
-            "async () => (await (await fetch('/api/player/bundle')).json())"
-            ".songs.map((s) => s.id)")
-        missing = [i for i in ids
-                   if not any(f'/midi/{i}?' in u for u in midi)]
-        assert not missing, f'편성이 붙은 주소가 없는 곡: {missing[:3]}'
-        print(f'[6] 오프라인 준비 — 목록 1 · 반주 {len(ids)}곡 (편성까지 일치)')
+        # 곡마다 **재생할 때 부르는 바로 그 주소**가 캐시에 있어야 한다.
+        #   서버 배포 : /api/player/midi/<곡>?style=..&level=..  (쿼리로 편성을 지정)
+        #   정적 배포 : /api/player/midi/<곡>[__<편성>_<두께>]    (편성마다 파일이 따로)
+        # 어느 쪽이든, 미리 받은 주소와 재생하는 주소가 다르면 오프라인에서 엉뚱한
+        # 편성이 조용히 나온다. 모양만 다를 뿐 지켜야 할 성질은 같다.
+        info = await pg.evaluate(
+            "async () => { const b = await (await fetch('/api/player/bundle')).json();"
+            " return { static: !!b.static, ids: b.songs.map((s) => s.id),"
+            " urls: b.songs.flatMap((s) => s.variants ? s.variants.map((v) => v.url) : []) }; }")
+        ids, is_static = info['ids'], info['static']
+        if is_static:
+            missing = [u for u in info['urls']
+                       if not any(c.endswith(u) for c in midi)]
+            assert not missing, f'꾸러미에 있는데 캐시에 없는 반주: {missing[:3]}'
+        else:
+            missing = [i for i in ids if not any(f'/midi/{i}?' in u for u in midi)]
+            assert not missing, f'편성이 붙은 주소가 없는 곡: {missing[:3]}'
+        where = '정적 꾸러미' if is_static else '서버'
+        print(f'[6] 오프라인 준비 — 목록 1 · 반주 {len(ids)}곡 ({where} · 주소까지 일치)')
 
         # 서버를 **내린다**. 브라우저의 오프라인 흉내는 서비스워커 안의 fetch 를
         # 막지 못해서, 캐시가 비어 있어도 통과해 버린다.
@@ -285,22 +295,38 @@ def main() -> int:
     ap.add_argument('--catalog', default=os.path.join(ROOT, 'catalog'))
     ap.add_argument('--song', default='p05_waltz_c', help='재생해 볼 곡 id')
     ap.add_argument('--port', type=int, default=0)
+    ap.add_argument('--static', metavar='폴더',
+                    help='정적 꾸러미를 **평범한 정적 서버**로 띄워 검사한다 '
+                         '(MR 서버 없이 — 원장님 배포 형태 그대로)')
     args = ap.parse_args()
 
     if importlib.util.find_spec('playwright') is None:
         print('playwright 가 없습니다: pip install playwright && '
               'python3 -m playwright install chromium', file=sys.stderr)
         return 2
-    if not os.path.exists(os.path.join(args.catalog, 'catalog.json')):
+    if not args.static and not os.path.exists(
+            os.path.join(args.catalog, 'catalog.json')):
         print(f'카탈로그가 없습니다: {args.catalog} '
               '(python3 seed_catalog.py --catalog ... 먼저)', file=sys.stderr)
         return 2
 
     port = args.port or free_port()
-    srv = subprocess.Popen(
-        [sys.executable, 'serve.py', '--catalog', args.catalog,
-         '--port', str(port), '--host', '127.0.0.1'],
-        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    if args.static:
+        # 파이썬 반주 서버가 아니라 **아무 파일이나 내주는 서버**다. 원장님 홈페이지와
+        # 같은 조건이다 — 여기서 통과하면 원장님 PC 에 파이썬이 필요 없다는 뜻이다.
+        base_dir = os.path.abspath(args.static)
+        if not os.path.exists(os.path.join(base_dir, 'api', 'player', 'bundle')):
+            print(f'정적 꾸러미가 아닙니다: {base_dir} '
+                  '(catalog_cli.py package 로 먼저 만드세요)', file=sys.stderr)
+            return 2
+        srv = subprocess.Popen(
+            [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1'],
+            cwd=base_dir, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    else:
+        srv = subprocess.Popen(
+            [sys.executable, 'serve.py', '--catalog', args.catalog,
+             '--port', str(port), '--host', '127.0.0.1'],
+            cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
     def stop_server():
         if srv.poll() is None:
@@ -313,8 +339,12 @@ def main() -> int:
 
     try:
         base = f'http://127.0.0.1:{port}'
-        wait_for(f'{base}/api/stats')
-        asyncio.run(check(f'{base}/static/player/', args.song, stop_server))
+        if args.static:
+            wait_for(f'{base}/api/player/bundle')
+            asyncio.run(check(f'{base}/', args.song, stop_server))
+        else:
+            wait_for(f'{base}/api/stats')
+            asyncio.run(check(f'{base}/static/player/', args.song, stop_server))
     finally:
         stop_server()
     return 0

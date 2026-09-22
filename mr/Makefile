@@ -1,6 +1,6 @@
 # 피아노학원 자동 반주(MR) 엔진 — 1단계
 
-.PHONY: help setup test bench fixtures demo seed serve player uploads roster clean
+.PHONY: help setup test bench fixtures demo seed serve player uploads roster package clean
 
 help:
 	@echo "make setup     의존성 설치 (music21·mido·fluidsynth·ffmpeg·SoundFont)"
@@ -13,6 +13,7 @@ help:
 	@echo "make player    플레이어 PWA 를 브라우저에서 검사 (3단계)"
 	@echo "make uploads   올라온 PDF 악보와 이번 달 몫 (4단계)"
 	@echo "make roster    관리노트에서 받은 학생 명단 (5단계)"
+	@echo "make package   원장님께 드릴 정적 꾸러미 (배포)"
 	@echo "make clean     생성물 삭제"
 
 setup:
@@ -48,6 +49,11 @@ uploads:
 
 roster:
 	python3 catalog_cli.py --catalog catalog roster
+
+# 만든 꾸러미를 정적 서버로 띄워 검사까지 한다 (파이썬 없이 도는지)
+package:
+	python3 catalog_cli.py --catalog catalog package out/반주
+	python3 tools/player_check.py --static out/반주
 
 clean:
 	rm -rf out catalog/cache __pycache__ server/__pycache__ piano_mr/__pycache__ tests/__pycache__ .pytest_cache

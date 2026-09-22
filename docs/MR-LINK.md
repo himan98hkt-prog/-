@@ -231,7 +231,7 @@ export MR_ACADEMY=행복피아노학원        # 학원명 방식 키일 때만 
 
 ```bash
 npm test                       # 관리노트 198개 (명단 내보내기 16개 포함)
-cd mr && python3 -m pytest     # 반주 389개 (명단 16 · 인증키 22 포함)
+cd mr && python3 -m pytest     # 반주 404개 (명단 16 · 인증키 22 포함)
 ```
 
 CI 가 도는 것: 위 둘 전부, 그리고 **교차 시험이 skip 되면 실패**시키는 단계 하나.

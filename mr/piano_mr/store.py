@@ -31,6 +31,45 @@ from . import (arranger, catalog as cat, harmony, omr, orchestration as orch,
 
 SCORE_SUFFIXES = score_loader.SUPPORTED_SUFFIXES
 
+# 꾸러미를 받은 원장님이 제일 먼저 여는 파일. 기술 용어를 쓰지 않는다.
+STATIC_README = """{academy} 반주 플레이어
+{line}
+
+곡 {songs}개 · 발표회 프로그램 {programs}개가 들어 있습니다.
+
+■ 어떻게 쓰나요
+
+1. 이 폴더를 통째로 홈페이지(웹호스팅)에 올립니다.
+   - 관리노트를 올려 둔 그 자리에 나란히 올리면 됩니다.
+   - **https 로 열려야 합니다.** http 로는 오프라인 기능이 켜지지 않습니다.
+
+2. 태블릿·휴대폰에서 그 주소를 열고 「홈 화면에 추가」를 누릅니다.
+   앱처럼 설치됩니다.
+
+3. 첫 화면 오른쪽 위 ⤓ 를 한 번 누르면 전곡을 내려받습니다.
+   **이 다음부터는 인터넷이 없어도 됩니다.** 연주홀 와이파이를 믿지 않아도 됩니다.
+
+■ 무엇이 되나요
+
+  · 곡을 고르고 반주를 재생 (원곡 피아노는 빠져 있습니다 — 피아노는 아이가 칩니다)
+  · 템포·조옮김을 그 자리에서 바꾸기 (다시 받지 않습니다)
+  · 반주 페이드아웃 — 아이가 멈췄을 때 3초 안에 반주만 사라집니다
+  · 발표회 프로그램 순서대로 진행
+  · 카운트인 (원장님 이어폰으로만 들리게도 됩니다 — 크롬에서)
+  · 집 연습 링크 — 카톡으로 보내면 학부모님은 설치도 로그인도 없이 그대로 재생됩니다
+
+■ 곡을 더 넣으려면
+
+이 꾸러미는 만들어진 시점의 곡만 들어 있습니다. 곡이 추가되면 새 꾸러미를
+받아 같은 자리에 덮어써 주세요. 태블릿에서 한 번 새로고침하면 최신으로 바뀝니다.
+
+■ 안 될 때
+
+  · 소리가 안 나요        → 화면을 한 번 눌러 보세요 (브라우저가 첫 소리를 막습니다)
+  · 오프라인이 안 돼요     → 주소가 https 인지 확인해 주세요
+  · 목록이 비어 있어요     → 새로고침 한 번. 그래도 비면 꾸러미가 덜 올라간 것입니다
+"""
+
 
 def slugify(text: str) -> str:
     """제목 -> 곡 id 후보. 쓸 만한 게 안 나오면 빈 문자열.
@@ -436,8 +475,18 @@ class CatalogStore:
                 'ready': all(i['verified'] for i in items) if items else False}
 
     # --- 3단계 플레이어 ------------------------------------------------
-    def song_row(self, song: cat.Song) -> dict:
-        return {'id': song.id, 'title': song.title, 'composer': song.composer,
+    def song_row(self, song: cat.Song,
+                 variants: Optional[Sequence] = None) -> dict:
+        """플레이어가 받아 가는 곡 한 줄.
+
+        `variants` 는 **정적 배포**에서만 채운다. 서버가 있으면 어떤 편성이든 그
+        자리에서 구우므로 목록이 필요 없지만, 정적 호스트는 미리 구워 둔 것밖에
+        못 준다. 그런데 정적 호스트는 쿼리스트링을 무시하기 때문에, 없는 편성을
+        골라도 **같은 파일이 조용히 돌아온다** — 화면엔 「실내악」인데 스피커에서는
+        기본 편성이 나오는, 3단계에서 오프라인에 대해 고쳤던 바로 그 버그다.
+        그래서 꾸러미에 실제로 들어 있는 편성을 알려 주고 화면이 그것만 보여 준다.
+        """
+        row = {'id': song.id, 'title': song.title, 'composer': song.composer,
                 'book': song.book, 'level': song.level, 'key': song.key,
                 'key_label': cat.key_label(song.key),
                 'time': song.time, 'measures': song.measures,
@@ -449,6 +498,10 @@ class CatalogStore:
                 # 이름 하나가 상황 따라 다른 뜻이 되면 나중에 꼭 틀린다.
                 'midi': f'/api/player/midi/{song.id}',
                 'midi_file': song.accomp_midi or None}
+        if variants is not None:
+            row['variants'] = [{'style': st, 'level': lv, 'url': url}
+                               for st, lv, url in variants]
+        return row
 
     def player_bundle(self, only_verified: bool = False) -> dict:
         """플레이어가 통째로 받아 오프라인에 넣어 둘 목록.
@@ -681,3 +734,90 @@ class CatalogStore:
                 # 지시서 3장: "'PDF 넣으면 바로 완성'을 약속하지 말 것"
                 'accuracy_note': ('악보 인식은 90~95% 입니다. 32마디 기준 2~6마디가 '
                                   '틀리므로 화성 확인 화면을 꼭 거쳐야 합니다.')}
+
+    # --- 배포 꾸러미 (원장님 PC 에는 파이썬이 없다) --------------------------
+    def export_static(self, out_dir: str, *, styles: Sequence[str] = (),
+                      levels: Sequence[str] = (), only_verified: bool = False,
+                      academy: str = '') -> dict:
+        """플레이어를 **서버 없이 도는 정적 파일 한 벌**로 내보낸다.
+
+        원장님 PC 에 파이썬·fluidsynth·SoundFont 를 깔게 할 수는 없다. 그런데
+        플레이어가 런타임에 부르는 건 곡 목록과 반주 MIDI 둘뿐이고, 둘 다 그냥
+        파일이다 (지시서 8.4 — "MIDI 를 클라이언트에 내려주고 브라우저에서 재생하면
+        서버 렌더링조차 불필요하다"). 그래서 앱이 부르는 **그 경로 그대로** 파일을
+        깔아 두면 코드를 한 줄도 안 고치고 정적 호스트에서 돈다.
+
+        카탈로그 제작 서버(화성 확인·PDF 업로드)는 우리 쪽 도구로 남는다.
+        `scores/` 와 `cache/` 는 꾸러미에 들어가지 않는다 — 원장님께 필요 없고,
+        악보 원본을 재배포하는 모양이 되어서도 안 된다 (지시서 7장).
+        """
+        out_dir = os.path.abspath(out_dir)
+        player_src = os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), 'server', 'static', 'player')
+        if not os.path.isdir(player_src):
+            raise FileNotFoundError(f'플레이어 파일을 못 찾았습니다: {player_src}')
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        shutil.copytree(player_src, out_dir)
+
+        # 주소를 상대경로로 돌린다. 원장님은 도메인 루트에 올릴 수도, `/반주/` 같은
+        # 하위 폴더에 올릴 수도 있다. 절대경로면 하위 폴더에서 전부 404 가 된다.
+        index = os.path.join(out_dir, 'index.html')
+        with open(index, encoding='utf-8') as f:
+            html = f.read()
+        if 'data-api="/"' not in html:
+            raise ValueError('index.html 에 data-api="/" 가 없습니다 — '
+                             '정적 배포에서 주소를 상대경로로 못 돌립니다.')
+        with open(index, 'w', encoding='utf-8') as f:
+            f.write(html.replace('data-api="/"', 'data-api="./"'))
+
+        midi_dir = os.path.join(out_dir, 'api', 'player', 'midi')
+        os.makedirs(midi_dir, exist_ok=True)
+
+        songs = [s for s in self.catalog.songs.values()
+                 if s.harmony_verified or not only_verified]
+        songs.sort(key=lambda x: (x.book, x.level, x.id))
+
+        rows, total = [], 0
+        for song in songs:
+            wanted = [(song.default_style, song.default_level)]
+            for st in styles:
+                for lv in (levels or [song.default_level]):
+                    if (st, lv) not in wanted:
+                        wanted.append((st, lv))
+            made = []
+            for st, lv in wanted:
+                data = self.accomp_midi_bytes(song.id, style=st, level=lv)
+                default = (st, lv) == (song.default_style, song.default_level)
+                name = song.id if default else f'{song.id}__{st}_{lv}'
+                with open(os.path.join(midi_dir, name), 'wb') as f:
+                    f.write(data)
+                total += len(data)
+                made.append((st, lv, f'api/player/midi/{name}'))
+            rows.append(self.song_row(song, variants=made))
+
+        bundle = {
+            'version': 2,
+            'generated_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'static': True,            # 서버가 없다 — 화면이 이걸 보고 판단한다
+            'academy': academy or self.roster.academy,
+            'songs': rows,
+            'assignments': [asdict(a) for a in self.catalog.assignments],
+            'programs': self.programs(),
+        }
+        bundle_path = os.path.join(out_dir, 'api', 'player', 'bundle')
+        with open(bundle_path, 'w', encoding='utf-8') as f:
+            json.dump(bundle, f, ensure_ascii=False)
+
+        readme = os.path.join(out_dir, '읽어보세요.txt')
+        with open(readme, 'w', encoding='utf-8') as f:
+            name = bundle['academy'] or '학원'
+            f.write(STATIC_README.format(
+                academy=name, line='=' * (len(name) * 2 + 16),
+                songs=len(rows), programs=len(bundle['programs'])))
+
+        return {'out': out_dir, 'songs': len(rows),
+                'files': sum(len(fs) for _, _, fs in os.walk(out_dir)),
+                'midi_bytes': total,
+                'total_bytes': sum(os.path.getsize(os.path.join(r, n))
+                                   for r, _, fs in os.walk(out_dir) for n in fs)}

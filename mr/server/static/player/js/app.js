@@ -11,6 +11,12 @@ const $ = (s) => document.querySelector(s);
 const view = $('#view');
 const player = new Player();
 
+/* API 가 어디 붙어 있는지. 서버로 띄우면 `/`, 정적 꾸러미로 올리면 `./` 다.
+ * 원장님은 도메인 루트에 올릴 수도 `/반주/` 같은 하위 폴더에 올릴 수도 있으므로
+ * 절대경로를 박아 두면 안 된다. 번들이 준 주소가 절대경로면 그게 이긴다. */
+const API_ROOT = new URL(document.documentElement.dataset.api || '/', document.baseURI);
+const apiUrl = (u) => new URL(u, API_ROOT).href;
+
 const state = {
   bundle: null,
   song: null,
@@ -46,7 +52,7 @@ addEventListener('offline', netBadge);
 /* ---------- 데이터 ---------- */
 async function bundle() {
   if (state.bundle) return state.bundle;
-  const r = await fetch('/api/player/bundle');
+  const r = await fetch(apiUrl('api/player/bundle'));
   if (!r.ok) throw new Error('곡 목록을 받지 못했습니다');
   state.bundle = await r.json();
   return state.bundle;
@@ -55,10 +61,19 @@ const songById = (id) => (state.bundle.songs || []).find((s) => s.id === id);
 
 /* 반주 주소. **미리 받기와 재생이 반드시 같은 함수를 써야 한다.**
  * 하나라도 다르면 오프라인에서 캐시가 빗나가고, 그러면 화면은 「실내악」인데
- * 스피커에서는 기본 편성이 나온다 — 발표회장에서 제일 겪으면 안 되는 일이다. */
+ * 스피커에서는 기본 편성이 나온다 — 발표회장에서 제일 겪으면 안 되는 일이다.
+ *
+ * 정적 배포(서버 없이 파일만 올린 경우)에는 미리 구워 둔 편성밖에 없다. 게다가
+ * 정적 호스트는 쿼리스트링을 무시하므로 없는 편성을 불러도 **같은 파일이 조용히
+ * 돌아온다.** 그래서 번들이 알려 준 목록에서 고른다. */
 function midiUrl(song, settings) {
+  if (song.variants) {
+    const hit = song.variants.find(
+      (v) => v.style === settings.style && v.level === settings.level);
+    return apiUrl((hit || song.variants[0]).url);
+  }
   const q = new URLSearchParams({ style: settings.style, level: settings.level });
-  return `${song.midi}?${q}`;
+  return apiUrl(`${song.midi}?${q}`);
 }
 
 async function loadSong(song, settings) {
@@ -74,6 +89,19 @@ async function loadSong(song, settings) {
     countInBars: settings.countIn,
   });
   player.setVolume(settings.volume);
+}
+
+/* 정적 배포는 미리 구워 둔 편성만 들어 있다. 없는 걸 고른 상태로 두면
+ * 화면엔 「실내악」인데 스피커에선 기본 편성이 나온다. */
+function clampToPackage(song, settings) {
+  if (!song.variants) return false;
+  const has = song.variants.some(
+    (v) => v.style === settings.style && v.level === settings.level);
+  if (has) return false;
+  const fallback = song.variants[0];
+  settings.style = fallback.style;
+  settings.level = fallback.level;
+  return true;
 }
 
 function defaultsFor(song) {
@@ -193,6 +221,10 @@ async function screenPlay(q) {
     countIn: Number(q.get('countIn') === null ? saved.countIn : q.get('countIn')),
   } : {});
 
+  // 꾸러미에 없는 편성이 저장돼 있거나 링크에 실려 왔으면 있는 것으로 맞춘다.
+  // 화면과 소리가 어긋나는 것보다, 화면이 사실을 말하는 편이 낫다.
+  clampToPackage(song, settings);
+
   state.song = song;
   state.settings = settings;
   state.student = student;
@@ -235,9 +267,9 @@ async function screenPlay(q) {
       <div class="ctl"><span class="ctl__label">딸깍 소리</span>
         <button class="pick" id="cueOut">${esc(cueLabel())}</button></div>
       <div class="ctl"><span class="ctl__label">편성</span>
-        <select id="style">${styleOptions(settings.style)}</select></div>
+        <select id="style">${styleOptions(settings.style, song)}</select></div>
       <div class="ctl"><span class="ctl__label">두께</span>
-        <select id="level">${levelOptions(settings.level)}</select></div>
+        <select id="level">${levelOptions(settings.level, song)}</select></div>
     </div>
 
     <div class="card" id="loopCard" hidden>
@@ -265,16 +297,23 @@ async function screenPlay(q) {
 }
 
 const fmtTr = (n) => n === 0 ? '원조' : (n > 0 ? `+${n}` : `${n}`);
-function styleOptions(cur) {
-  const list = [['strings', '현악 앙상블'], ['chamber', '실내악'], ['orchestra', '풀 오케스트라'],
-                ['fairytale', '동화풍'], ['warm', '따뜻한 소편성'], ['march', '행진곡풍'],
-                ['pop', '팝·재즈풍']];
-  return list.map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${v}</option>`).join('');
+const STYLE_LABEL = [['strings', '현악 앙상블'], ['chamber', '실내악'],
+  ['orchestra', '풀 오케스트라'], ['fairytale', '동화풍'], ['warm', '따뜻한 소편성'],
+  ['march', '행진곡풍'], ['pop', '팝·재즈풍']];
+const LEVEL_LABEL = [['simple', '간단'], ['normal', '보통'], ['rich', '풍성']];
+
+/* 꾸러미에 없는 편성을 고르게 두지 않는다. 고를 수 있는데 안 바뀌는 것보다
+ * 애초에 없는 편이 낫다 — 원장님이 "왜 안 바뀌지" 로 헤매지 않는다. */
+function options(all, cur, allowed) {
+  const list = allowed ? all.filter(([k]) => allowed.has(k)) : all;
+  return (list.length ? list : all)
+    .map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${v}</option>`)
+    .join('');
 }
-function levelOptions(cur) {
-  return [['simple', '간단'], ['normal', '보통'], ['rich', '풍성']]
-    .map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${v}</option>`).join('');
-}
+const styleOptions = (cur, song) => options(STYLE_LABEL, cur,
+  song && song.variants ? new Set(song.variants.map((v) => v.style)) : null);
+const levelOptions = (cur, song) => options(LEVEL_LABEL, cur,
+  song && song.variants ? new Set(song.variants.map((v) => v.level)) : null);
 
 function wirePlay(song, settings, student) {
   const persist = () => store.saveSettings(student, song.id, settings);
@@ -526,7 +565,7 @@ $('#offline').onclick = async () => {
   const urls = b.songs.map((s) => midiUrl(s, defaultsFor(s)));
   toast(`곡 ${urls.length}개를 내려받는 중…`);
   navigator.serviceWorker.controller.postMessage({
-    type: 'precache', urls, data: ['/api/player/bundle'],
+    type: 'precache', urls, data: [apiUrl('api/player/bundle')],
   });
 };
 
@@ -543,7 +582,7 @@ if (navigator.serviceWorker) {
   // 지나갔을 수 있어서, 이게 없으면 오프라인 목록이 브라우저 캐시 운에 달린다.
   navigator.serviceWorker.ready.then(() => {
     if (navigator.serviceWorker.controller) {
-      fetch('/api/player/bundle').catch(() => {});
+      fetch(apiUrl('api/player/bundle')).catch(() => {});
     }
   });
 }

@@ -340,6 +340,38 @@ export MR_LICENSE_KEY=ALAB-CDEF-XYEV
 
 자세한 것은 [docs/MR-LINK.md](../docs/MR-LINK.md).
 
+## 원장님께 드리는 것 — 배포 꾸러미
+
+원장님 PC 에 파이썬·fluidsynth·SoundFont 를 깔게 할 수는 없다. 그럴 필요도 없다 —
+플레이어가 런타임에 부르는 건 **곡 목록과 반주 MIDI 둘뿐**이고 둘 다 그냥 파일이다
+(지시서 8.4). 그래서 앱이 부르는 **그 경로 그대로** 깔아 두면 정적 호스트에서 돈다.
+
+```bash
+python3 catalog_cli.py package ../dist/반주 --academy "행복피아노"
+#   곡 26개 · 파일 38개 · 전체 128 KB (반주 45 KB)
+```
+
+| | 누가 쓰나 | 고객에게 나가나 |
+|---|---|---|
+| 카탈로그 제작 서버 (`serve.py`) — 화성 확인·PDF 업로드 | 우리 | ✗ |
+| **플레이어 꾸러미** (정적 파일) | 원장님 | ✅ |
+
+**악보 원본과 렌더 캐시는 꾸러미에 안 들어간다.** 용량 때문만이 아니라, 넣으면
+악보를 재배포하는 모양이 되기 때문이다 (지시서 7장). 테스트가 막는다.
+
+주소는 전부 상대경로라 `/반주/` 같은 **하위 폴더에 올려도 그대로 돈다.**
+HTTPS 여야 오프라인과 홈 화면 설치가 켜진다.
+
+```bash
+python3 tools/player_check.py --static /tmp/pkg
+```
+
+`--static` 은 MR 서버가 아니라 **평범한 정적 서버**로 띄워 11항목을 본다. 그 뒤
+서버를 죽이고 오프라인 재생까지 확인한다 — "원장님 PC 에 파이썬이 필요 없다"의
+유일한 증거다. CI 가 매번 돌린다.
+
+배포 절차 전체는 [docs/DEPLOY.md](../docs/DEPLOY.md) 5장.
+
 ## 구성
 
 ```
@@ -381,7 +413,7 @@ mr/
     pieces.py          회귀 테스트용 오리지널 20곡 사양
     build_fixtures.py  사양 -> MusicXML + 정답 화성
     scores/  truth/
-  tests/               389개
+  tests/               404개
 ```
 
 ## 회귀 테스트
@@ -389,7 +421,7 @@ mr/
 ```bash
 python3 bench.py                # 곡별 표
 python3 bench.py --stages       # 프로토타입 -> 현재까지 무엇이 얼마나 올렸나
-python3 -m pytest               # 정확도 게이트 포함 389개
+python3 -m pytest               # 정확도 게이트 포함 404개
 ```
 
 ```

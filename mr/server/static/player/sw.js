@@ -8,6 +8,11 @@
 // v2 — 미리 받는 주소에 편성(style·level)이 붙었다. v1 캐시에는 편성 없는 주소만
 // 들어 있어 영영 맞지 않으므로, 버전을 올려 activate 에서 통째로 지운다.
 const VERSION = 'mr-player-v2';
+
+// 이 워커가 놓인 폴더. 경로를 박아 두면 안 된다 — 원장님은 도메인 루트에 올릴 수도,
+// `/반주/` 같은 하위 폴더에 올릴 수도 있다. 그때마다 껍데기가 오프라인에서 안 뜨면
+// 「타협 불가」라던 ⑤-1 이 무너진다.
+const SCOPE = new URL('./', self.location.href).pathname;
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 const MIDI = `${VERSION}-midi`;
@@ -38,17 +43,19 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
 
   // 반주 MIDI — 한 번 받으면 바뀌지 않는다. 캐시 우선.
-  if (url.pathname.startsWith('/api/player/midi/')) {
+  // `startsWith` 가 아니라 `includes` 인 이유는 위 SCOPE 와 같다 — 하위 폴더에
+  // 올리면 경로 앞에 그 폴더가 붙는다.
+  if (url.pathname.includes('/api/player/midi/')) {
     e.respondWith(cacheFirst(e.request, MIDI));
     return;
   }
   // 곡 목록 — 새 것이 있으면 받고, 없으면 캐시로.
-  if (url.pathname.startsWith('/api/player/bundle')) {
+  if (url.pathname.includes('/api/player/bundle')) {
     e.respondWith(networkFirst(e.request, DATA));
     return;
   }
-  // 앱 껍데기
-  if (url.origin === self.location.origin && url.pathname.includes('/player/')) {
+  // 앱 껍데기 — 이 워커의 폴더 안이면 전부
+  if (url.origin === self.location.origin && url.pathname.startsWith(SCOPE)) {
     e.respondWith(cacheFirst(e.request, SHELL));
   }
 });

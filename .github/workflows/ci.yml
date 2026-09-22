@@ -148,6 +148,24 @@ jobs:
           python3 -m playwright install --with-deps chromium
           python3 tools/player_check.py --catalog /tmp/ci-catalog
 
+      - name: 배포 꾸러미가 파이썬 없이 도는지 (원장님 배포 형태 그대로)
+        run: |
+          python3 catalog_cli.py --catalog /tmp/ci-catalog package /tmp/ci-pkg \
+              --academy "CI학원"
+          # MR 서버가 아니라 평범한 정적 서버로 띄워 같은 11항목을 본다
+          python3 tools/player_check.py --static /tmp/ci-pkg
+          python3 -c "
+          import os
+          names = [n for _, _, fs in os.walk('/tmp/ci-pkg') for n in fs]
+          bad = [n for n in names if n.endswith(('.musicxml', '.xml', '.mxl', '.mp3', '.wav'))]
+          assert not bad, f'꾸러미에 악보 원본·오디오가 섞였습니다: {bad[:3]}'
+          html = open('/tmp/ci-pkg/index.html', encoding='utf-8').read()
+          assert 'data-api=\"./\"' in html, '주소가 상대경로가 아닙니다 — 하위 폴더 배포가 깨집니다'
+          kb = sum(os.path.getsize(os.path.join(r, n))
+                   for r, _, fs in os.walk('/tmp/ci-pkg') for n in fs) / 1024
+          print(f'꾸러미 {len(names)}개 파일 · {kb:.0f} KB — 악보 원본 없음 OK')
+          "
+
       - name: MR 에 원곡 피아노가 섞이지 않았는지 (채널 0 = 피아노)
         run: |
           python3 mr.py fixtures/scores/p07_minuet_g.musicxml \

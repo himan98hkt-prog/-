@@ -285,6 +285,29 @@ def cmd_roster(st: store.CatalogStore, a) -> int:
     return 0
 
 
+# --- 배포 꾸러미 -----------------------------------------------------------
+
+def cmd_package(st: store.CatalogStore, a) -> int:
+    """원장님 PC 에 파이썬 없이 올릴 수 있는 정적 꾸러미를 만든다."""
+    styles = [x.strip() for x in (a.styles or '').split(',') if x.strip()]
+    levels = [x.strip() for x in (a.levels or '').split(',') if x.strip()]
+    for x in styles:
+        orch.check_style(x)
+    for x in levels:
+        orch.check_level(x)
+    out = st.export_static(a.out, styles=styles, levels=levels,
+                           only_verified=a.verified_only, academy=a.academy)
+    kb = out['total_bytes'] / 1024
+    print(f"{out['out']}")
+    print(f"  곡 {out['songs']}개 · 파일 {out['files']}개 · "
+          f"전체 {kb:.0f} KB (반주 {out['midi_bytes'] / 1024:.0f} KB)")
+    if styles:
+        print(f"  편성 변형: {', '.join(styles)} × {', '.join(levels) or '기본 두께'}")
+    print('  이 폴더를 통째로 웹호스팅에 올리면 됩니다. https 여야 오프라인이 켜집니다.')
+    print('  악보 원본(scores/)과 렌더 캐시는 들어가지 않습니다.')
+    return 0
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog='catalog_cli.py', description='카탈로그 관리')
     p.add_argument('--catalog', default='catalog', help='카탈로그 디렉터리 (기본: ./catalog)')
@@ -366,6 +389,15 @@ def build_parser():
     sw = sub.add_parser('sweep', help='오래 들고 있던 PDF 삭제 (지시서 7장)')
     sw.add_argument('--hours', type=float, default=72.0)
     sw.set_defaults(fn=cmd_sweep)
+
+    pk = sub.add_parser('package', help='원장님께 드릴 정적 꾸러미 만들기 (배포)')
+    pk.add_argument('out', help='만들 폴더 (있으면 지우고 다시 만든다)')
+    pk.add_argument('--styles', help='같이 구울 편성 (쉼표로, 예: chamber,march)')
+    pk.add_argument('--levels', help='같이 구울 두께 (쉼표로, 예: simple,normal)')
+    pk.add_argument('--verified-only', action='store_true',
+                    help='화성 확인이 끝난 곡만')
+    pk.add_argument('--academy', default='', help='꾸러미에 적을 학원명')
+    pk.set_defaults(fn=cmd_package)
 
     ro = sub.add_parser('roster', help='관리노트 학생 명단 받기/보기 (5단계)')
     ro.add_argument('file', nargs='?', help='관리노트가 내보낸 명단 JSON')

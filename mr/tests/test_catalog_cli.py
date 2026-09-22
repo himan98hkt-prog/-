@@ -256,3 +256,22 @@ def test_roster_reports_who_left(root, tmp_path, capsys):
         encoding='utf-8')
     run(root, 'roster', str(smaller))
     assert '빠진 학생 1명' in capsys.readouterr().out
+
+
+# --- 배포 꾸러미 -------------------------------------------------------------
+
+def test_package_reports_size_and_how_to_deploy(root, tmp_path, capsys):
+    seed(root)
+    out = str(tmp_path / 'pkg')
+    assert run(root, 'package', out, '--academy', '행복피아노') == 0
+    text = capsys.readouterr().out
+    assert 'KB' in text and 'https' in text
+    assert '악보 원본' in text                  # 무엇이 안 들어가는지도 말한다
+    assert os.path.exists(os.path.join(out, 'index.html'))
+    assert os.path.exists(os.path.join(out, 'api', 'player', 'bundle'))
+
+
+def test_package_refuses_an_unknown_style(root, tmp_path):
+    seed(root)
+    with pytest.raises(Exception):
+        run(root, 'package', str(tmp_path / 'pkg'), '--styles', '없는스타일')
