@@ -249,6 +249,47 @@
   {% endif %}
 </div>
 
+<!-- ── 매수 깔때기 ───────────────────────────────────────────── -->
+{#
+  "왜 안 사지" 에 추측으로 답하지 않기 위한 표다. 매수 하나가 나가려면 관문을
+  전부 통과해야 하는데, 어디서 막히는지 모르면 엉뚱한 손잡이를 돌리게 된다.
+#}
+<div class="card">
+  <h2>매수 깔때기 <span class="sub">최근 {{ funnel.days or 7 }}일 · 어디서 막혔는지</span></h2>
+  {% if funnel.ready %}
+  <div class="funnel">
+    {% for stage in funnel.stages %}
+    <div class="funnel-row {{ 'is-out' if stage.key in ('engine_failed', 'votes_short', 'risk_blocked') }}
+                {{ 'is-goal' if stage.key == 'ordered' }}">
+      <div class="funnel-bar"><span style="width: {{ stage.pct }}%"></span></div>
+      <div class="funnel-text">
+        <b>{{ stage.label }}</b>
+        <span class="funnel-num">{{ stage.count }}건 · {{ stage.pct }}%</span>
+        {% if stage.note %}<span class="dim">{{ stage.note }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if funnel.bottleneck %}
+  <p class="funnel-verdict">
+    가장 많이 잃은 곳은 <b>{{ funnel.bottleneck }}</b> 입니다.
+    {% if funnel.bottleneck == '엔진 실패' %}엔진이 응답을 못 주면 그 종목은 무조건 관망입니다 — 한도·키를 먼저 확인하세요.
+    {% elif funnel.bottleneck == '만장일치 조건' %}세 AI 가 모두 동의해야 삽니다. 한 표 모자란 건이 {{ funnel.near_miss }}건이면 기준을 조정할 여지가 있습니다.
+    {% else %}합의까지는 갔는데 한도·시각에 걸렸습니다. 아래 규칙을 보세요.{% endif %}
+  </p>
+  {% endif %}
+  {% if funnel.blockers %}
+  <div class="funnel-rules">
+    {% for blocker in funnel.blockers %}
+    <span class="chip flat">{{ blocker.rule }} {{ blocker.count }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="chart-empty">판단 기록이 쌓이면 표시됩니다</div>
+  {% endif %}
+</div>
+
 <!-- ── 합의 근접도 ───────────────────────────────────────────── -->
 <details class="card fold" id="fold-consensus">
   <summary>합의 근접도<span class="sub">최근 {{ consensus.days }}일 · 매수 몇 표까지 갔는지</span></summary>

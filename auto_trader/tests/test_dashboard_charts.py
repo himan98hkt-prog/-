@@ -696,3 +696,118 @@ def test_a_code_we_never_ordered_is_still_reported_as_outside(tmp_path):
     db = tmp_path / "t.db"
     init_db(db)
     assert buy_rationale(db, ["005930"]) == {}
+
+
+# --- 매수가 어디서 죽는가 ------------------------------------------------------- #
+#
+# "왜 안 사지" 에 추측으로 답하지 않기 위한 표다. 기준이 높아서 못 사는 것과,
+# 리스크 규칙에 걸려 못 사는 것과, 엔진이 고장나 못 사는 것은 고치는 방법이
+# 전혀 다르다. 어디서 막히는지 모르면 엉뚱한 손잡이를 돌리게 된다.
+
+def _funnel_row(conn, **kw):
+    row = {"claude_action": "HOLD", "gemini_action": "HOLD", "chatgpt_action": "HOLD",
+           "claude_ok": 1, "gemini_ok": 1, "chatgpt_ok": 1,
+           "final_action": "HOLD", "risk_passed": 1, "risk_reason": "", "outcome": ""}
+    row.update(kw)
+    conn.execute(
+        """INSERT INTO decisions (cycle_id, code, name, claude_action, gemini_action,
+               chatgpt_action, claude_ok, gemini_ok, chatgpt_ok, final_action,
+               risk_passed, risk_reason, outcome, created_at)
+           VALUES ('c1','005930','삼성전자',?,?,?,?,?,?,?,?,?,?,?)""",
+        (row["claude_action"], row["gemini_action"], row["chatgpt_action"],
+         row["claude_ok"], row["gemini_ok"], row["chatgpt_ok"], row["final_action"],
+         row["risk_passed"], row["risk_reason"], row["outcome"],
+         datetime.now(KST).isoformat(timespec="seconds")))
+
+
+def _funnel(tmp_path, seed):
+    from dashboard.queries import buy_funnel
+    from utils.db import connect, init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    conn = connect(db)
+    try:
+        seed(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return buy_funnel(db)
+
+
+def test_funnel_counts_each_gate(tmp_path):
+    def seed(conn):
+        # 엔진 실패 2건
+        for _ in range(2):
+            _funnel_row(conn, gemini_ok=0, gemini_action="HOLD")
+        # 한 표 모자람 3건
+        for _ in range(3):
+            _funnel_row(conn, claude_action="BUY", gemini_action="BUY", chatgpt_action="HOLD")
+        # 아무도 안 삼 4건
+        for _ in range(4):
+            _funnel_row(conn)
+        # 만장일치 → 리스크 차단 1건
+        _funnel_row(conn, claude_action="BUY", gemini_action="BUY", chatgpt_action="BUY",
+                  risk_passed=0, risk_reason="당일 이미 매수한 종목")
+        # 만장일치 → 주문 1건
+        _funnel_row(conn, claude_action="BUY", gemini_action="BUY", chatgpt_action="BUY",
+                  final_action="BUY_SMALL", outcome="매수 3주 @269,500")
+
+    result = _funnel(tmp_path, seed)
+    stages = {s["key"]: s["count"] for s in result["stages"]}
+
+    assert result["ready"] and result["total"] == 11
+    assert stages["engine_failed"] == 2
+    assert stages["votes_short"] == 7
+    assert stages["unanimous"] == 2
+    assert stages["risk_blocked"] == 1
+    assert stages["ordered"] == 1
+    assert result["near_miss"] == 3, "한 표 모자란 건수는 따로 세야 한다"
+
+
+def test_funnel_names_the_bottleneck(tmp_path):
+    """가장 크게 잃은 관문을 지목해야 어디를 손볼지 알 수 있다."""
+    def seed(conn):
+        for _ in range(9):
+            _funnel_row(conn, gemini_ok=0)
+        _funnel_row(conn)
+
+    assert _funnel(tmp_path, seed)["bottleneck"] == "엔진 실패"
+
+
+def test_funnel_lists_which_risk_rules_blocked(tmp_path):
+    def seed(conn):
+        for _ in range(3):
+            _funnel_row(conn, claude_action="BUY", gemini_action="BUY", chatgpt_action="BUY",
+                      risk_passed=0, risk_reason="당일 이미 매수한 종목")
+        _funnel_row(conn, claude_action="BUY", gemini_action="BUY", chatgpt_action="BUY",
+                  risk_passed=0, risk_reason="신규 매수 마감 시각 경과 (14:35 > 14:30)")
+
+    blockers = _funnel(tmp_path, seed)["blockers"]
+    assert blockers[0] == {"rule": "당일 이미 매수한 종목", "count": 3}
+    assert blockers[1]["rule"] == "신규 매수 마감 시각 경과"
+
+
+def test_funnel_is_honest_when_there_is_no_data(tmp_path):
+    result = _funnel(tmp_path, lambda conn: None)
+    assert result["ready"] is False and result["stages"] == []
+
+
+def test_forced_exits_are_excluded(tmp_path):
+    """손절은 AI 판단을 거치지 않는다 — 합의 통계에 섞으면 숫자가 오염된다."""
+    from dashboard.queries import buy_funnel
+    from utils.db import connect, init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    conn = connect(db)
+    try:
+        conn.execute(
+            """INSERT INTO decisions (cycle_id, code, name, final_action, forced_exit,
+                                      risk_passed, created_at)
+               VALUES ('c1','005930','삼성전자','SELL_ALL','STOP_LOSS',1,?)""",
+            (datetime.now(KST).isoformat(timespec="seconds"),))
+        conn.commit()
+    finally:
+        conn.close()
+    assert buy_funnel(db)["ready"] is False

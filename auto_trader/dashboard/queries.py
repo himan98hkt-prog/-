@@ -616,6 +616,102 @@ def risk_headroom(db_path: Path | str, risk: Any | None,
 
 # --- 합의 근접도 -------------------------------------------------------------- #
 
+def buy_funnel(db_path: Path | str, days: int = 7,
+               *, now: datetime | None = None) -> dict[str, Any]:
+    """매수가 **어느 관문에서 죽었는지** 단계별로 센다.
+
+    "왜 안 사지" 라는 질문에 추측으로 답하지 않기 위한 표다. 매수 하나가
+    나가려면 관문을 전부 통과해야 하는데, 어디서 막히는지 모르면 엉뚱한
+    손잡이를 돌리게 된다 — 기준이 높아서 못 사는 것과, 리스크 규칙에 걸려
+    못 사는 것과, 엔진이 고장나 못 사는 것은 고치는 방법이 전혀 다르다.
+    """
+    since = ((now or datetime.now(KST)) - timedelta(days=days)).strftime("%Y-%m-%d")
+    rows = _rows(
+        db_path,
+        """SELECT claude_action, gemini_action, chatgpt_action,
+                  claude_ok, gemini_ok, chatgpt_ok,
+                  final_action, risk_passed, risk_reason, outcome
+           FROM decisions
+           WHERE substr(created_at, 1, 10) >= ?
+             AND (forced_exit IS NULL OR forced_exit = '')""",
+        (since,),
+    )
+    if not rows:
+        return {"ready": False, "days": days, "stages": [], "blockers": [], "total": 0}
+
+    total = len(rows)
+    engine_failed = 0
+    votes_short = 0          # 만장일치에 못 미친 것
+    unanimous = 0            # 전원 매수까지 간 것
+    risk_blocked = 0
+    ordered = 0
+    blockers: dict[str, int] = {}
+    near_miss = 0            # 한 표 모자람 — 기준을 건드리면 바뀔 수 있는 몫
+
+    for row in rows:
+        actions, failed = [], False
+        for key, _label in ENGINES:
+            action = (row[f"{key}_action"] or "").upper()
+            if not action:
+                continue
+            if row[f"{key}_ok"] == 0:
+                failed = True
+                continue
+            actions.append(action)
+        if failed:
+            engine_failed += 1
+            continue
+        if not actions:
+            continue
+
+        buys = sum(1 for a in actions if a == "BUY")
+        if buys < len(actions):
+            votes_short += 1
+            if buys == len(actions) - 1:
+                near_miss += 1
+            continue
+
+        unanimous += 1
+        if row["risk_passed"] == 0:
+            risk_blocked += 1
+            rule = (row["risk_reason"] or "사유 없음").split("(")[0].strip()
+            blockers[rule] = blockers.get(rule, 0) + 1
+            continue
+        if row["outcome"] or (row["final_action"] or "") in ("STRONG_BUY", "BUY_SMALL"):
+            ordered += 1
+
+    def pct(n: int) -> float:
+        return round(n / total * 100, 1) if total else 0.0
+
+    stages = [
+        {"key": "total", "label": "판단한 종목·사이클", "count": total, "pct": 100.0,
+         "note": f"최근 {days}일"},
+        {"key": "engine_failed", "label": "엔진 실패로 소멸", "count": engine_failed,
+         "pct": pct(engine_failed),
+         "note": "한 엔진이라도 응답을 못 주면 그 종목은 무조건 관망"},
+        {"key": "votes_short", "label": "만장일치에 못 미침", "count": votes_short,
+         "pct": pct(votes_short),
+         "note": f"이 중 {near_miss}건은 한 표 모자랐습니다"},
+        {"key": "unanimous", "label": "전원 매수 합의", "count": unanimous,
+         "pct": pct(unanimous), "note": "여기까지 와야 주문 후보가 됩니다"},
+        {"key": "risk_blocked", "label": "리스크 규칙이 막음", "count": risk_blocked,
+         "pct": pct(risk_blocked), "note": "합의는 됐지만 한도·시각에 걸린 것"},
+        {"key": "ordered", "label": "주문까지 나감", "count": ordered, "pct": pct(ordered),
+         "note": ""},
+    ]
+    return {
+        "ready": True, "days": days, "total": total, "near_miss": near_miss,
+        "stages": stages,
+        "blockers": sorted(({"rule": k, "count": v} for k, v in blockers.items()),
+                           key=lambda b: -b["count"])[:5],
+        # 가장 크게 잃은 관문. 여기가 병목이고, 여기를 손대야 달라진다.
+        "bottleneck": max(
+            (("엔진 실패", engine_failed), ("만장일치 조건", votes_short),
+             ("리스크 규칙", risk_blocked)),
+            key=lambda pair: pair[1])[0] if total else "",
+    }
+
+
 def consensus_stats(db_path: Path | str, days: int = 7,
                     *, now: datetime | None = None) -> dict[str, Any]:
     """매수 몇 표까지 갔는지의 분포, 그리고 엔진별 매수 제안 비율.

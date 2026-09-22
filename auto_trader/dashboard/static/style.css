@@ -573,3 +573,23 @@ pre.log {
   color: var(--text-2); text-decoration: none; letter-spacing: .02em;
 }
 .links a:hover { background: var(--surface-3); color: var(--accent); border-color: var(--accent); }
+
+/* --- 매수 깔때기 — 어느 관문에서 죽었는지 ---------------------------------- */
+.funnel { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.funnel-row { display: grid; grid-template-columns: 90px 1fr; gap: 12px; align-items: center; }
+.funnel-bar { background: var(--surface-3); height: 22px; border-radius: 4px; overflow: hidden; }
+.funnel-bar span { display: block; height: 100%; background: var(--series-1); }
+/* 빠져나간 몫은 잃은 것이다 — 통과한 몫과 같은 색이면 읽히지 않는다. */
+.funnel-row.is-out .funnel-bar span { background: var(--muted); }
+.funnel-row.is-goal .funnel-bar span { background: var(--good); }
+.funnel-text { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.funnel-num { font-variant-numeric: tabular-nums; color: var(--text-2); font-weight: 600; }
+.funnel-verdict {
+  margin: 0 0 8px; padding: 10px 12px; background: var(--surface-2);
+  border-radius: var(--radius); font-size: 12.5px; color: var(--text-2);
+}
+.funnel-rules { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 680px) {
+  .funnel-row { grid-template-columns: 1fr; gap: 4px; }
+  .funnel-bar { height: 8px; }
+}

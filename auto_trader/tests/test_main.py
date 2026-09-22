@@ -641,8 +641,8 @@ def test_no_command_can_place_an_order(bot):
 
     handlers = [name for name in dir(bot) if name.startswith("_cmd_")]
     assert set(handlers) == {"_cmd_status", "_cmd_positions", "_cmd_today",
-                             "_cmd_decisions", "_cmd_orders", "_cmd_stop",
-                             "_cmd_resume", "_cmd_help"}
+                             "_cmd_decisions", "_cmd_orders", "_cmd_why",
+                             "_cmd_stop", "_cmd_resume", "_cmd_help"}
     for name in handlers:
         source = inspect.getsource(getattr(bot, name))
         assert "place_order" not in source and "execute" not in source
@@ -1215,3 +1215,31 @@ def test_a_real_failure_still_stops_the_bot(bot, monkeypatch):
 
     assert bot.consecutive_failures >= MAX_CONSECUTIVE_FAILURES
     assert any("fatal:" in line for line in bot.sent)
+
+
+# --- /왜 ------------------------------------------------------------------------ #
+
+def test_why_command_names_the_bottleneck(bot, monkeypatch):
+    """'답답하다' 에 추측이 아니라 관문별 숫자로 답해야 한다."""
+    monkeypatch.setattr(
+        "dashboard.queries.buy_funnel",
+        lambda *a, **k: {
+            "ready": True, "days": 7, "total": 100, "near_miss": 18,
+            "bottleneck": "만장일치 조건",
+            "stages": [
+                {"key": "total", "label": "판단한 종목·사이클", "count": 100, "pct": 100.0},
+                {"key": "votes_short", "label": "만장일치에 못 미침", "count": 74, "pct": 74.0},
+                {"key": "ordered", "label": "주문까지 나감", "count": 2, "pct": 2.0},
+            ],
+            "blockers": [{"rule": "당일 이미 매수한 종목", "count": 5}],
+        })
+    reply = bot._cmd_why()
+    assert "만장일치에 못 미침: 74건" in reply
+    assert "가장 많이 잃은 곳: 만장일치 조건" in reply
+    assert "한 표 모자란 건: 18건" in reply
+    assert "당일 이미 매수한 종목 5건" in reply
+
+
+def test_why_command_is_honest_with_no_data(bot, monkeypatch):
+    monkeypatch.setattr("dashboard.queries.buy_funnel", lambda *a, **k: {"ready": False})
+    assert bot._cmd_why() == "아직 판단 기록이 없습니다."

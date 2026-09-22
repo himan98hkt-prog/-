@@ -240,6 +240,7 @@ class TradingBot:
                     "/오늘": self._cmd_today, "/today": self._cmd_today,
                     "/판단": self._cmd_decisions, "/decisions": self._cmd_decisions,
                     "/주문": self._cmd_orders, "/orders": self._cmd_orders,
+                    "/왜": self._cmd_why, "/why": self._cmd_why,
                     "/정지": self._cmd_stop, "/stop": self._cmd_stop,
                     "/재개": self._cmd_resume, "/resume": self._cmd_resume,
                     "/도움말": self._cmd_help, "/help": self._cmd_help,
@@ -398,6 +399,37 @@ class TradingBot:
             lines.append(text)
         lines.append("")
         lines.append("매수는 세 AI 가 모두 동의해야 나갑니다.")
+        return "\n".join(lines)
+
+    def _cmd_why(self) -> str:
+        """왜 안 샀는지 — 관문별로 몇 건이 죽었는지.
+
+        "답답할 정도로 진행하는 것이 없다" 는 물음에 추측으로 답하지 않기 위한
+        명령이다. 기준이 높아서인지, 리스크 규칙 때문인지, 엔진이 고장나서인지
+        고치는 방법이 전혀 다르다.
+        """
+        from dashboard.queries import buy_funnel
+
+        try:
+            data = buy_funnel(self.settings.paths["db"])
+        except Exception:
+            logger.exception("깔때기 조회 실패")
+            return "판단 기록을 읽지 못했습니다."
+        if not data.get("ready"):
+            return "아직 판단 기록이 없습니다."
+
+        lines = [f"매수 깔때기 (최근 {data['days']}일)"]
+        for stage in data["stages"]:
+            lines.append(f"· {stage['label']}: {stage['count']}건 ({stage['pct']}%)")
+        lines.append("")
+        lines.append(f"가장 많이 잃은 곳: {data['bottleneck']}")
+        if data.get("near_miss"):
+            lines.append(f"한 표 모자란 건: {data['near_miss']}건")
+        if data.get("blockers"):
+            lines.append("")
+            lines.append("리스크 규칙이 막은 것")
+            for blocker in data["blockers"]:
+                lines.append(f"· {blocker['rule']} {blocker['count']}건")
         return "\n".join(lines)
 
     def _cmd_orders(self) -> str:
