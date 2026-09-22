@@ -49,9 +49,14 @@ class AgentDecision:
                    ok=False, error=error)
 
     def summary(self) -> str:
-        """알림·로그용 한 줄 요약."""
+        """알림·로그용 **한 줄** 요약.
+
+        제공사가 돌려주는 오류 원문은 JSON 수십 줄짜리가 흔하다. 그걸 그대로
+        실으면 종목 10개 × 20줄이 되어, 정작 봐야 할 판단 결과가 묻힌다.
+        """
         if not self.ok:
-            return f"{self.agent} 실패({self.error or '알 수 없음'}) → HOLD"
+            from agents.base_agent import short_error
+            return f"{self.agent} 실패({short_error(self.error) or '알 수 없음'}) → HOLD"
         return f"{self.agent} {self.action}({self.confidence:.2f})"
 
 

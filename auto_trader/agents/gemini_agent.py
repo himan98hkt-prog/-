@@ -10,7 +10,8 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from agents.base_agent import AgentCallError, BaseAgent
+from agents.base_agent import (AgentCallError, AgentQuotaError, BaseAgent,
+                               looks_like_quota, quota_details, short_error)
 from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
@@ -91,7 +92,12 @@ class GeminiAgent(BaseAgent):
                 config=self._config(system_prompt, schema or RESPONSE_JSON_SCHEMA),
             )
         except genai_errors.APIError as exc:
-            raise AgentCallError(f"API 오류: {exc}") from exc
+            text = str(exc)
+            if getattr(exc, "code", None) == 429 or looks_like_quota(text):
+                wait, daily = quota_details(text)
+                raise AgentQuotaError(short_error(text), retry_after=wait,
+                                      daily=daily) from exc
+            raise AgentCallError(f"API 오류: {short_error(text)}") from exc
         except Exception as exc:  # 네트워크·타임아웃 등 SDK 외 예외
             raise AgentCallError(f"{type(exc).__name__}: {exc}") from exc
 

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import anthropic
 
-from agents.base_agent import AgentCallError, BaseAgent
+from agents.base_agent import (AgentCallError, AgentQuotaError, BaseAgent,
+                               quota_details, short_error)
 from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
@@ -93,8 +94,13 @@ class ClaudeAgent(BaseAgent):
                 raise AgentCallError(f"요청 거부: {exc}") from exc
             except anthropic.APITimeoutError as exc:
                 raise AgentCallError(f"타임아웃: {exc}") from exc
+            except anthropic.RateLimitError as exc:
+                wait, daily = quota_details(str(exc))
+                raise AgentQuotaError(short_error(str(exc)), retry_after=wait,
+                                      daily=daily) from exc
             except anthropic.APIStatusError as exc:
-                raise AgentCallError(f"API 오류(HTTP {exc.status_code}): {exc}") from exc
+                raise AgentCallError(
+                    f"API 오류(HTTP {exc.status_code}): {short_error(str(exc))}") from exc
             except anthropic.APIConnectionError as exc:
                 raise AgentCallError(f"연결 실패: {exc}") from exc
 

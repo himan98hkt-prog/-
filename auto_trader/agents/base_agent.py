@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import re
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
@@ -43,6 +44,60 @@ class AgentCallError(Exception):
     """모델 호출 자체가 실패(네트워크·인증·타임아웃)."""
 
 
+class AgentQuotaError(AgentCallError):
+    """요청량 한도에 걸렸다(429). **다시 부르면 상황이 나빠지기만 한다.**
+
+    예전에는 이걸 보통 실패와 똑같이 다뤘다. 그래서 한도에 걸리면 재요청을
+    2번 더 하고, 그래도 실패하니 종목별 폴백으로 10종목 × 3회를 또 불렀다.
+    한 사이클에 최대 33번. 하루 20회짜리 무료 한도는 두 번째 사이클에
+    바닥나고, 그 뒤로는 매 사이클이 33번씩 헛수고를 반복했다.
+
+    Args:
+        retry_after: 제공사가 알려준 재시도 대기 시간(초). 모르면 0.
+        daily:       일일 한도인가. 그렇다면 오늘은 더 부르지 않는다.
+    """
+
+    def __init__(self, message: str, *, retry_after: float = 0.0, daily: bool = False):
+        super().__init__(message)
+        self.retry_after = retry_after
+        self.daily = daily
+
+
+# 한도 메시지에서 짧은 한 줄만 남긴다. 제공사가 돌려주는 원문은 JSON 수십 줄이라,
+# 그대로 알림에 실으면 종목 10개 × 20줄이 되어 정작 볼 것을 덮어 버린다.
+_QUOTA_HINTS = ("quota", "rate limit", "rate_limit", "resource_exhausted",
+                "too many requests", "429")
+
+
+def looks_like_quota(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(hint in lowered for hint in _QUOTA_HINTS)
+
+
+def quota_details(message: str) -> tuple[float, bool]:
+    """(재시도 대기 초, 일일 한도인가). 읽어내지 못하면 (0, False)."""
+    daily = bool(re.search(r"per\s*day|perday|daily", message or "", re.I))
+    match = re.search(r"retry[ _]?(?:in|after|delay)['\"]?[:=\s]*['\"]?([0-9.]+)\s*s",
+                      message or "", re.I)
+    try:
+        return (float(match.group(1)) if match else 0.0), daily
+    except (TypeError, ValueError):
+        return 0.0, daily
+
+
+def short_error(message: str, limit: int = 110) -> str:
+    """알림에 실을 한 줄. 줄바꿈을 없애고 길면 자른다."""
+    text = " ".join((message or "").split())
+    if looks_like_quota(text):
+        wait, daily = quota_details(text)
+        if daily:
+            return "요청량 한도 초과(일일) — 오늘은 이 엔진을 건너뜁니다"
+        if wait:
+            return f"요청량 한도 초과 — {wait:.0f}초 뒤 재개"
+        return "요청량 한도 초과"
+    return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
 def extract_json(text: str) -> Any:
     """응답에서 첫 '{' ~ 마지막 '}' 만 잘라 파싱한다.
 
@@ -76,6 +131,29 @@ class BaseAgent(ABC):
         # 타임아웃된 호출의 스레드가 뒤늦게 값을 써도 다음 종목의 집계를 오염시키지
         # 않도록 스레드별로 분리해 둔다(future.cancel() 은 실행 중 스레드를 못 멈춘다).
         self._usage_store = threading.local()
+        # 한도에 걸린 엔진은 이 시각까지 아예 부르지 않는다. 일일 한도면
+        # 자정(태평양시 기준으로 리셋되지만, 우리는 우리 날짜로 충분하다)까지.
+        self._quota_until: float = 0.0
+        self._quota_note: str = ""
+
+    def _note_quota(self, exc: "AgentQuotaError") -> None:
+        if exc.daily:
+            # 남은 오늘 내내 건너뛴다. 정확한 리셋 시각을 몰라도, 다시 불러서
+            # 얻을 것이 없다는 점은 같다.
+            wait = 24 * 3600.0
+            self._quota_note = "일일 한도 소진 — 오늘은 건너뜁니다"
+        else:
+            wait = max(exc.retry_after, 60.0)
+            self._quota_note = f"요청량 한도 — {wait:.0f}초 쉽니다"
+        self._quota_until = time.monotonic() + wait
+        logger.error("[%s] %s", self.name, self._quota_note)
+
+    def _quota_blocked(self) -> str:
+        """지금 부르면 안 되는 상태면 그 이유를, 아니면 빈 문자열."""
+        if self._quota_until and time.monotonic() < self._quota_until:
+            return self._quota_note or "요청량 한도"
+        self._quota_until = 0.0
+        return ""
 
     @property
     def _last_usage(self) -> Usage:
@@ -102,6 +180,9 @@ class BaseAgent(ABC):
         last_error = "알 수 없는 오류"
         last_raw = ""
         code = payload.get("code", "?")
+        blocked = self._quota_blocked()
+        if blocked:   # 부르지 않는다. 부를수록 나빠지기만 한다.
+            return AgentDecision.hold(self.name, blocked)
         total_usage = Usage()  # 재요청까지 포함한 누적 토큰
 
         # 첫 호출 + max_retries 회의 재요청
@@ -110,14 +191,19 @@ class BaseAgent(ABC):
             self._last_usage = Usage()
             try:
                 raw = self._call_model(SYSTEM_PROMPT, user_prompt, RESPONSE_JSON_SCHEMA)
+            except AgentQuotaError as exc:
+                # 한도에 걸린 상태에서 다시 부르는 것은 한도만 더 축낸다.
+                total_usage += self._last_usage
+                self._note_quota(exc)
+                last_error = str(exc)
+                last_raw = ""
+                break
             except AgentCallError as exc:
                 total_usage += self._last_usage
                 last_error = str(exc)
                 last_raw = ""
                 logger.warning("[%s] %s 호출 실패 (%d/%d): %s",
                                self.name, code, attempt + 1, self.ai.max_retries + 1, exc)
-                # 곧바로 다시 부르지 않는다. 호출 실패의 상당수는 요청량 제한(429)인데,
-                # 즉시 재요청하면 제한을 더 밀어붙여 셋 다 실패하고 한도만 축낸다.
                 _pause_before_retry(attempt)
                 continue
 
@@ -159,6 +245,10 @@ class BaseAgent(ABC):
             return {}
 
         codes = [str(s.get("code", "")) for s in snapshots]
+        blocked = self._quota_blocked()
+        if blocked:
+            # None 을 주면 호출자가 종목별 폴백을 돈다 — 그건 더 많이 부른다는 뜻이다.
+            return {code: AgentDecision.hold(self.name, blocked) for code in codes}
         system = batch_system_prompt(self.ai.max_buy_picks)
         started = time.monotonic()
         problem = ""
@@ -169,6 +259,13 @@ class BaseAgent(ABC):
             self._last_usage = Usage()
             try:
                 raw = self._call_model(system, user_prompt, BATCH_RESPONSE_JSON_SCHEMA)
+            except AgentQuotaError as exc:
+                self._note_quota(exc)
+                total_usage += self._last_usage
+                # None 이 아니라 '전원 관망' 을 돌려준다. None 은 호출자에게
+                # 종목별 폴백을 돌리라는 뜻인데, 한도에 걸린 상태에서 그것만큼
+                # 나쁜 선택이 없다 — 10종목 × 3회를 더 부른다.
+                return {code: AgentDecision.hold(self.name, str(exc)) for code in codes}
             except AgentCallError as exc:
                 total_usage += self._last_usage
                 problem = str(exc)

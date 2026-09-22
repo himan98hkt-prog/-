@@ -332,3 +332,125 @@ def test_failed_call_waits_before_retrying(monkeypatch):
     base_agent._pause_before_retry(2)   # 마지막 시도 뒤에는 기다릴 이유가 없다
 
     assert slept == [1.0, 3.0], f"대기가 늘어나지 않습니다: {slept}"
+
+
+# --- 요청량 한도 (2026-09-22, Gemini 무료 등급 하루 20회) ------------------------ #
+#
+# 한도에 걸린 엔진을 보통 실패처럼 다루면 최악의 일이 벌어진다. 재요청 2회를
+# 더 하고, 그래도 실패하니 종목별 폴백으로 10종목 × 3회를 또 부른다 — 한
+# 사이클에 최대 33번. 하루 20회짜리 한도는 두 번째 사이클에 바닥나고, 그 뒤로는
+# 매 사이클이 33번씩 헛수고를 반복한다. 한도 오류는 '그만 부르라' 는 뜻이다.
+
+from agents.base_agent import AgentQuotaError, looks_like_quota, quota_details, short_error
+
+GEMINI_429 = (
+    "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your "
+    "current quota, please check your plan and billing details. * Quota exceeded for "
+    "metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, "
+    "limit: 20, model: gemini-3.5-flash Please retry in 12.489307345s.', 'status': "
+    "'RESOURCE_EXHAUSTED', 'details': [{'quotaId': "
+    "'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}]}}"
+)
+
+
+def test_a_quota_message_is_recognised():
+    assert looks_like_quota(GEMINI_429)
+    wait, daily = quota_details(GEMINI_429)
+    assert round(wait) == 12
+    assert daily is True, "PerDay 한도는 오늘 내내 유효하다"
+
+
+def test_a_quota_message_becomes_one_short_line():
+    """원문은 JSON 수십 줄이다. 종목 10개면 알림이 200줄이 된다."""
+    line = short_error(GEMINI_429)
+    assert "\n" not in line and len(line) < 80
+    assert "일일" in line
+
+
+def test_an_ordinary_error_keeps_its_text():
+    assert short_error("연결 실패: timed out") == "연결 실패: timed out"
+
+
+def test_a_very_long_ordinary_error_is_cut():
+    line = short_error("x" * 500)
+    assert len(line) <= 110 and line.endswith("…")
+
+
+class _QuotaAgent(BaseAgent):
+    """첫 호출부터 한도를 돌려주는 엔진."""
+
+    name = "quota"
+
+    def __init__(self, ai=AI, *, daily=True):
+        super().__init__(ai)
+        self.calls = 0
+        self._daily = daily
+
+    def _call_model(self, system_prompt, user_prompt, schema=None):
+        self.calls += 1
+        raise AgentQuotaError(short_error(GEMINI_429), retry_after=12.0, daily=self._daily)
+
+
+def test_a_quota_error_is_not_retried():
+    """재요청은 한도를 더 축낼 뿐이다."""
+    agent = _QuotaAgent(AI)
+    decision = agent.analyze({"code": "005930"})
+
+    assert not decision.ok and decision.action == "HOLD"
+    assert agent.calls == 1, f"한도 오류로 {agent.calls}번 불렀습니다"
+
+
+def test_batch_quota_does_not_trigger_the_per_code_fallback():
+    """None 을 주면 호출자가 10종목을 하나씩 다시 부른다 — 가장 나쁜 선택이다."""
+    agent = _QuotaAgent(AI)
+    snapshots = [{"code": f"00{i}", "name": f"종목{i}"} for i in range(10)]
+
+    result = agent.analyze_many(snapshots)
+
+    assert result is not None, "None 은 종목별 폴백을 부른다"
+    assert len(result) == 10 and all(not d.ok for d in result.values())
+    assert agent.calls == 1
+
+
+def test_an_exhausted_engine_is_skipped_until_it_resets():
+    """한 번 걸렸으면 그 뒤로는 부르지도 않는다."""
+    agent = _QuotaAgent(AI)
+    agent.analyze({"code": "005930"})
+    before = agent.calls
+
+    for _ in range(5):
+        agent.analyze({"code": "005930"})
+        agent.analyze_many([{"code": "000660"}])
+
+    assert agent.calls == before, f"건너뛰어야 하는데 {agent.calls - before}번 더 불렀습니다"
+
+
+def test_a_short_cooldown_expires(monkeypatch):
+    """분당 한도는 잠깐 쉬었다가 다시 시도해야 한다 — 하루를 버리면 안 된다."""
+    agent = _QuotaAgent(AI, daily=False)
+    agent.analyze({"code": "005930"})
+    assert agent._quota_blocked()
+
+    clock = [agent._quota_until + 1]
+    monkeypatch.setattr("agents.base_agent.time.monotonic", lambda: clock[0])
+    assert not agent._quota_blocked(), "대기 시간이 지나면 다시 부를 수 있어야 한다"
+
+
+def test_an_ordinary_failure_still_retries():
+    """한도가 아닌 실패까지 한 번에 포기하면 사소한 오류에 사이클을 잃는다."""
+    from agents.base_agent import AgentCallError
+
+    class _Flaky(BaseAgent):
+        name = "flaky"
+
+        def __init__(self, ai=AI):
+            super().__init__(ai)
+            self.calls = 0
+
+        def _call_model(self, system_prompt, user_prompt, schema=None):
+            self.calls += 1
+            raise AgentCallError("연결 실패: timed out")
+
+    agent = _Flaky(AI)
+    agent.analyze({"code": "005930"})
+    assert agent.calls == AI.max_retries + 1
