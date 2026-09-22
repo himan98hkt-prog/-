@@ -6,7 +6,7 @@ export const BACKUP_VERSION = 1
 export const BACKUP_TABLES = [
   'settings', 'users', 'subjects', 'classes', 'students',
   'enrollments', 'attendance', 'payments', 'expenses',
-  'counselLogs', 'notices', 'monthlyStats', 'practice'
+  'counselLogs', 'notices', 'monthlyStats'
 ]
 
 // 인증키·설치 식별자는 "이 기기" 의 것이라 백업에 담지 않는다.

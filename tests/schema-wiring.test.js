@@ -42,7 +42,7 @@ const ALL = dexieTables()
 describe('표를 새로 만들면 빠뜨리지 않는다', () => {
   it('스키마에서 표를 읽어 온다 (읽기 자체가 안 되면 아래가 전부 헛검사다)', () => {
     expect(ALL).toContain('students')
-    expect(ALL).toContain('practice')
+    expect(ALL).toContain('payments')
     expect(ALL.length).toBeGreaterThan(10)
   })
 

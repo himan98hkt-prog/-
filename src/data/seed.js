@@ -190,11 +190,7 @@ export async function seedDemo(key = 'english', { students = 40 } = {}) {
     updated_at: new Date().toISOString()
   }))
 
-  // 피아노 학원에는 반주에서 되받은 연습 기록까지 넣어 둔다. 이게 없으면 데모에서
-  // 원생 카드와 리포트의 연습 칸이 안 보이고, 그러면 있는 기능을 못 보고 가신다.
-  const practice = key === 'piano' ? demoPractice(studentRows) : []
-
-  await db.transaction('rw', [db.users, db.subjects, db.classes, db.students, db.enrollments, db.attendance, db.payments, db.expenses, db.counselLogs, db.practice, db.settings], async () => {
+  await db.transaction('rw', [db.users, db.subjects, db.classes, db.students, db.enrollments, db.attendance, db.payments, db.expenses, db.counselLogs, db.settings], async () => {
     await db.users.bulkPut(teachers)
     await db.subjects.bulkPut(subjects)
     await db.classes.bulkPut(classes)
@@ -204,7 +200,6 @@ export async function seedDemo(key = 'english', { students = 40 } = {}) {
     await db.payments.bulkPut(payments)
     await db.expenses.bulkPut(expenses)
     await db.counselLogs.bulkPut(counsel)
-    await db.practice.bulkPut(practice)
     await db.settings.bulkPut([
       { key: 'branding', value: { ...sc.academy, logo: null } },
       { key: 'customFields', value: sc.customFields },
@@ -215,38 +210,7 @@ export async function seedDemo(key = 'english', { students = 40 } = {}) {
     ])
   })
 
-  return { students: studentRows.length, classes: classes.length, attendance: attendance.length, payments: payments.length, practice: practice.length }
-}
-
-/* 데모용 연습 기록 — 반주 플레이어가 보낸 파일을 받아 넣은 모양 그대로.
- * id 는 무작위가 아니라 `practiceKey` 가 만드는 열쇠여야 한다(학생::곡::날짜::기기).
- * 실제 불러오기와 같은 모양이라야 데모에서 본 것이 현장에서도 그대로 나온다. */
-function demoPractice(studentRows) {
-  const songs = [
-    { song_id: 'p_czerny_30_12', title: '체르니 30-12' },
-    { song_id: 'p_sonatine_4', title: '소나티네 4번' },
-    { song_id: 'p_invention_1', title: '인벤션 1번' },
-  ]
-  const rows = []
-  // 다니는 아이 전부가 매일 치지는 않는다. 4명 중 3명, 그 중에서도 며칠씩만.
-  studentRows.filter((st) => st.status === '재원').forEach((st, i) => {
-    if (i % 4 === 3) return
-    for (let back = 0; back < 26; back++) {
-      if ((i + back) % 3 === 0) continue
-      const song = songs[(i + back) % songs.length]
-      const count = 1 + ((i + back) % 3)
-      rows.push({
-        id: `id:${st.id}::${song.song_id}::${addDays(toYmd(), -back)}::ddemo`,
-        student_id: st.id, student: st.name,
-        song_id: song.song_id, title: song.title,
-        date: addDays(toYmd(), -back), device: 'ddemo',
-        count, seconds: count * (240 + ((i * 7 + back * 13) % 300)),
-        bpm: 84 + ((i + back) % 5) * 4,
-        updated_at: new Date().toISOString(),
-      })
-    }
-  })
-  return rows
+  return { students: studentRows.length, classes: classes.length, attendance: attendance.length, payments: payments.length }
 }
 
 /**

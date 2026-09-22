@@ -9,7 +9,6 @@
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "test": "vitest run",
-    "sync:shared": "node scripts/sync-shared.mjs",
     "test:watch": "vitest",
     "perf": "node scripts/perf.mjs",
     "smoke": "node scripts/smoke.mjs",

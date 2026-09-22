@@ -76,7 +76,6 @@ select, input[type=text] {
 /* --- 연주 화면 --- */
 .now { text-align:center; padding:22px 8px 8px; }
 .now__student { color:var(--gold); font-size:13px; letter-spacing:.14em; }
-.now__hint { color:var(--muted); margin-top:6px; }
 .now__title { font-size:clamp(22px,5.4vw,30px); font-weight:700; margin:6px 0 4px; }
 .now__meta { color:var(--dim); font-size:14px; }
 

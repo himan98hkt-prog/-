@@ -86,49 +86,6 @@ CUE_JS = """async (id) => {
 
 # ⑤-2 페이드아웃. `setTargetAtTime` 은 지수라 영원히 0 에 닿지 않는다 — 연주홀에서
 # -60 dB 는 무음이 아니다. 진짜 0 이 되는 시각을 잰다.
-# 연습이 실제로 기록되는가 (6단계). 화면을 진짜로 눌러서 본다 — 장부 코드만 부르면
-# 버튼과 장부가 연결됐는지는 알 수 없다.
-PRACTICE_JS = """async () => {
-  const { store } = await import('./js/store.js');
-  store.clearPractice();
-  const play = document.querySelector('#play');
-
-  // ① 5초만 누르고 끈다 → 연습이 아니다 (곡을 잘못 눌러 본 것이다)
-  play.click(); window.__skew += 5_000; play.click();
-  const short = store.practiceRows().length;
-
-  // ② 90초 친다 → 한 번으로 친다
-  play.click(); window.__skew += 90_000; play.click();
-  const rows = store.practiceRows();
-  const r = rows[0] || {};
-  return { short, rows: rows.length, count: r.count || 0, seconds: r.seconds || 0 };
-}"""
-
-# 아이를 안 고르면 기록하지 않는다 — 보낼 수 없는 기록이기 때문이다.
-NAMELESS_JS = """async () => {
-  const { store } = await import('./js/store.js');
-  store.clearPractice();
-  const play = document.querySelector('#play');
-  play.click(); window.__skew += 90_000; play.click();
-  return store.practiceRows().length;
-}"""
-
-# 보낼 파일이 관리노트가 읽는 모양인가, 그리고 연락처가 안 섞였는가.
-SEND_JS = """async () => {
-  const { store } = await import('./js/store.js');
-  const { buildPractice, parsePractice } =
-    await import('./js/practice-format.js');
-  const file = buildPractice(store.practiceRows(),
-    { academy: '검사학원', device: store.deviceId });
-  const text = JSON.stringify(file);
-  const back = parsePractice(text);        // 받는 쪽 검사를 그대로 통과해야 한다
-  const leaks = ['phone', 'parent_phone', 'memo', 'discount', 'school', 'grade']
-    .filter((k) => text.includes('"' + k + '"'));
-  return { format: back.format, rows: back.practice.length,
-           device: back.practice[0] && back.practice[0].device,
-           bytes: text.length, leaks };
-}"""
-
 FADE_JS = """async (id) => {
     const { Player, FADE_SECONDS } = await import('./js/engine.js');
     const pl = new Player();
@@ -199,13 +156,6 @@ async def check(base: str, song_id: str, stop_server) -> None:
         b = await p.chromium.launch(**launch)
         ctx = await b.new_context(viewport={'width': 420, 'height': 880},
                                   permissions=['microphone'])
-        # 연습 기록 검사용 — 1분 넘게 친 것을 1분 기다리지 않고 만들어 본다.
-        # 기본 보정값이 0 이라 다른 검사는 아무 영향을 받지 않는다.
-        await ctx.add_init_script('''
-            window.__skew = 0;
-            const real = Date.now.bind(Date);
-            Date.now = () => real() + window.__skew;
-        ''')
         pg = await ctx.new_page()
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -335,35 +285,9 @@ async def check(base: str, song_id: str, stop_server) -> None:
         print(f"[11] 카운트인 이어폰 {cue['during']['cue']} · 그때 스피커 "
               f"{cue['during']['main']} → 반주는 스피커 {cue['after']['main']}")
 
-        # 연습 기록 (6단계) — **서버가 죽은 채로** 본다. 집 연습은 인터넷이 없는
-        # 데서도 일어나고, 그때 기록이 안 남으면 리포트에 그 연습이 통째로 빠진다.
-        # 누구 건지 모르면 기록하지 않는 게 맞다 (보낼 수 없는 기록이라서)
-        nameless = await pg2.evaluate(NAMELESS_JS)
-        assert nameless == 0, f'아이를 안 골랐는데 연습을 적었습니다 ({nameless}건)'
-
-        await pg2.evaluate("(id) => { location.hash = "
-                           "`#/play?song=${id}&student=검사아이&sid=stest`; }", song_id)
-        await pg2.wait_for_selector('#play', timeout=30_000)
-        rec = await pg2.evaluate(PRACTICE_JS)
-        assert rec['short'] == 0, \
-            f"5초 누른 것까지 연습으로 셌습니다 ({rec['short']}건)"
-        assert rec['rows'] == 1, f"연습이 안 남았습니다 ({rec})"
-        assert rec['count'] == 1, f"횟수가 틀립니다 ({rec['count']})"
-        assert 80 <= rec['seconds'] <= 100, f"시간이 틀립니다 ({rec['seconds']}초)"
-        print(f"[12] 서버 없이 연습 기록 — {rec['count']}번 · {rec['seconds']}초 "
-              f"(5초만 누른 건 안 셈)")
-
-        sent = await pg2.evaluate(SEND_JS)
-        assert sent['format'] == 'academy-note-piano-practice', f'형식이 다릅니다: {sent}'
-        assert sent['rows'] >= 1, '보낼 기록이 비었습니다'
-        assert sent['device'], '기기 표시가 없습니다 (같은 날 두 기기가 겹칩니다)'
-        assert not sent['leaks'], f'개인정보가 섞였습니다: {sent["leaks"]}'
-        print(f"[13] 보낼 파일 {sent['bytes']}바이트 · {sent['rows']}줄 · "
-              f'연락처 0건 · 관리노트가 읽는 형식')
-
         assert not errs, f'자바스크립트 오류: {errs}'
         await b.close()
-    print('\n플레이어 PWA 검사 통과 — 서버가 죽어도 반주가 나오고 연습이 남습니다.')
+    print('\n플레이어 PWA 검사 통과 — 서버가 죽어도 반주가 나옵니다.')
 
 
 def main() -> int:

@@ -243,7 +243,7 @@ at = startTime - this.ctx.currentTime + this.cueCtx.currentTime;
 ```bash
 cd mr
 python3 -m pytest              # 257개
-make player                    # 브라우저 13항목 (위 1장 + 연습 기록 2항목)
+make player                    # 브라우저 11항목 (위 1장)
 ```
 
 CI 는 둘 다 돌린다. `make player` 는 크로미움이 필요하다:

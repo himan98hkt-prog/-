@@ -6,9 +6,6 @@
  */
 import { Player, FADE_SECONDS } from './engine.js';
 import { store } from './store.js';
-import { PracticeTracker } from './practice.js';
-import { buildPractice, practiceFilename, summarize, humanDuration }
-  from './practice-format.js';
 
 const $ = (s) => document.querySelector(s);
 const view = $('#view');
@@ -25,20 +22,8 @@ const state = {
   song: null,
   settings: null,
   student: store.lastStudent,
-  studentId: '',      // 관리노트 학생 id — 발표회 큐나 집 연습 링크가 알려 준다
   queue: null,        // {program, at}
-  practice: null,     // 지금 화면의 연습 장부 (PracticeTracker)
 };
-
-/* 화면을 떠나거나 앱을 닫으면 그때까지 친 만큼을 장부에 적는다.
- * 학부모 기기에서는 "닫기"가 곧 연습 끝이라, 여기서 안 적으면 그 연습이 통째로 없어진다. */
-function closePractice() {
-  if (state.practice) { state.practice.stop(); state.practice = null; }
-}
-addEventListener('pagehide', closePractice);
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && state.practice) state.practice.stop();
-});
 
 /* ---------- 유틸 ---------- */
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g,
@@ -130,7 +115,6 @@ function route() {
   const [path, qs] = hash.split('?');
   const q = new URLSearchParams(qs || '');
   player.pause();
-  closePractice();        // 화면을 떠나기 전에 지금까지 친 만큼을 적는다
   $('#back').hidden = path === '/';
   if (path === '/play') return screenPlay(q);
   if (path === '/program') return screenProgram(q);
@@ -155,8 +139,6 @@ async function screenHome() {
   }
 
   const students = store.students();
-  const practice = store.practiceRows();
-  const sum = summarize(practice);
   const byBook = new Map();
   for (const s of b.songs) {
     if (!byBook.has(s.book)) byBook.set(s.book, []);
@@ -168,13 +150,6 @@ async function screenHome() {
       <div class="row__main">
         <div class="row__title">${esc(b.programs[0].event)}</div>
         <div class="row__sub">${b.programs[0].count}곡 · 약 ${b.programs[0].minutes}분 · 발표회 진행</div>
-      </div><div class="row__go">→</div></button>` : ''}
-
-    ${practice.length ? `<button class="row" id="sendPractice">
-      <div class="row__main">
-        <div class="row__title">연습 기록 보내기</div>
-        <div class="row__sub">${sum.days}일 · ${sum.count}번 · ${humanDuration(sum.seconds)}
-          — 원장님께 보내면 리포트에 들어갑니다</div>
       </div><div class="row__go">→</div></button>` : ''}
 
     <div class="card">
@@ -207,8 +182,6 @@ async function screenHome() {
 
   const go = $('#toProgram');
   if (go) go.onclick = () => { location.hash = '#/program?i=0'; };
-  const send = $('#sendPractice');
-  if (send) send.onclick = () => sendPractice(practice, b);
   $('#student').onchange = (e) => {
     state.student = e.target.value;
     store.lastStudent = state.student;
@@ -236,9 +209,6 @@ async function screenPlay(q) {
 
   // 집 연습 링크로 들어왔으면 링크에 담긴 설정이 이긴다 (⑤-10)
   const student = q.get('student') || state.student;
-  // 관리노트 학생 id. 발표회 큐나 집 연습 링크가 실어 준다 — 이게 있으면 연습 기록이
-  // 이름이 아니라 id 로 붙어서, 개명하거나 동명이인이 들어와도 안 엉킨다.
-  const studentId = q.get('sid') || '';
   const fromLink = ['bpm', 'style', 'level', 'transpose', 'volume', 'countIn']
     .some((k) => q.has(k));
   const saved = store.settingsFor(student, song.id, defaultsFor(song));
@@ -258,9 +228,6 @@ async function screenPlay(q) {
   state.song = song;
   state.settings = settings;
   state.student = student;
-  state.studentId = studentId;
-  state.practice = new PracticeTracker(
-    { student, studentId, song, bpm: settings.bpm });
   $('#heading').textContent = student ? `${student} 연습` : '연주';
 
   view.innerHTML = `
@@ -269,8 +236,6 @@ async function screenPlay(q) {
       <h2 class="now__title">${esc(song.title)}</h2>
       <div class="now__meta">${esc(song.composer || song.book || '')} ·
         ${esc(song.key_label || song.key)} · ${song.measures}마디</div>
-      ${state.practice.tracking ? ''
-        : '<div class="now__hint tiny">아이를 고르면 연습한 날짜와 시간이 남습니다</div>'}
     </div>
 
     <div class="card">
@@ -352,7 +317,6 @@ const levelOptions = (cur, song) => options(LEVEL_LABEL, cur,
 
 function wirePlay(song, settings, student) {
   const persist = () => store.saveSettings(student, song.id, settings);
-  const practice = state.practice;
   const refreshBars = () => {
     const n = player.totalBars || 1;
     ['loopFrom', 'loopTo'].forEach((id) => { $(`#${id}`).max = n; });
@@ -363,14 +327,13 @@ function wirePlay(song, settings, student) {
   $('#dur').textContent = mmss(player.totalSeconds);
 
   $('#play').onclick = () => {
-    if (player.playing) { player.pause(); practice.stop(); $('#play').textContent = '▶'; }
-    else { player.play(); practice.start(); $('#play').textContent = '❚❚'; }
+    if (player.playing) { player.pause(); $('#play').textContent = '▶'; }
+    else { player.play(); $('#play').textContent = '❚❚'; }
   };
   $('#rewind').onclick = () => { player.seek(0); paint(); };
   $('#fade').onclick = async () => {
     $('#fade').classList.add('active');
     await player.fadeOut();
-    practice.stop();
     $('#fade').classList.remove('active');
     $('#play').textContent = '▶';
     toast('반주를 내렸습니다.');
@@ -387,7 +350,7 @@ function wirePlay(song, settings, student) {
     $('#bpmVal').textContent = `♩=${settings.bpm}`;
     $('#dur').textContent = mmss(player.totalSeconds);
   };
-  $('#bpm').onchange = () => { practice.what.bpm = settings.bpm; persist(); };
+  $('#bpm').onchange = persist;
   $('#tr').oninput = (e) => {
     settings.transpose = Number(e.target.value);
     player.setTranspose(settings.transpose);
@@ -427,12 +390,11 @@ function wirePlay(song, settings, student) {
     persist();
     const wasPlaying = player.playing;
     player.pause();
-    practice.stop();
     try {
       await loadSong(song, settings);
       refreshBars();
       $('#dur').textContent = mmss(player.totalSeconds);
-      if (wasPlaying) { player.play(0); practice.start(); }
+      if (wasPlaying) player.play(0);
     } catch (e) { toast(e.message); }
   };
   $('#style').onchange = (e) => reload('style', e.target.value);
@@ -468,7 +430,6 @@ function wirePlay(song, settings, student) {
       countIn: settings.countIn,
     });
     if (student) q.set('student', student);
-    if (state.studentId) q.set('sid', state.studentId);
     const url = `${location.origin}${location.pathname}#/play?${q}`;
     try {
       if (navigator.share) await navigator.share({ title: song.title, url });
@@ -478,7 +439,6 @@ function wirePlay(song, settings, student) {
 
   player.onTick = paint;
   player.onEnd = () => {
-    practice.finished();        // 끝까지 갔다 — 확실히 한 번이다
     $('#play').textContent = '▶';
     if (state.queue) nextInQueue();
   };
@@ -584,7 +544,6 @@ function openQueueItem(i) {
   state.queue.at = i;
   const q = new URLSearchParams({ song: it.song_id, bpm: it.bpm, style: it.style,
                                   level: it.level, student: it.student });
-  if (it.student_id) q.set('sid', it.student_id);
   location.hash = `#/play?${q}`;
 }
 
@@ -594,47 +553,6 @@ function nextInQueue() {
   state.queue.at += 1;
   toast(`다음: ${p.items[state.queue.at].student}`);
   location.hash = '#/program?i=0';   // 다음 곡은 원장님이 연다 (자동 재생하지 않는다)
-}
-
-/* ---------- 연습 기록 보내기 ----------
- *
- * 기록은 이 기기에만 쌓여 있다. **여기를 누를 때만** 밖으로 나간다 — 집 연습 링크는
- * 로그인이 없어서(⑤-10) 몰래 올릴 방법도 없고, 올릴 생각도 없다.
- *
- * 보내는 방법은 학부모 리포트와 같다: 공유 시트가 있으면 카톡으로 바로, 없으면
- * 파일로 내려받아 원장님께 전달. 보낸 뒤에도 기록을 지우지 않는다 — 전송이 실패해도
- * 다시 보낼 수 있어야 하고, 같은 걸 두 번 넣어도 관리노트에서 안 늘어난다.
- */
-async function sendPractice(rows, b) {
-  const file = buildPractice(rows, {
-    academy: (b && b.academy) || '',
-    device: store.deviceId,
-  });
-  const who = new Set(rows.map((r) => r.student).filter(Boolean));
-  const name = practiceFilename(file.academy, who.size === 1 ? [...who][0] : '');
-  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-
-  const sum = summarize(rows);
-  const text = `${sum.days}일 · ${sum.count}번 · ${humanDuration(sum.seconds)} 연습했습니다.`;
-
-  try {
-    const f = new File([blob], name, { type: 'application/json' });
-    if (navigator.canShare && navigator.canShare({ files: [f] })) {
-      await navigator.share({ files: [f], text });
-      toast('보냈습니다. 같은 걸 다시 보내도 두 번 들어가지 않습니다.');
-      return;
-    }
-  } catch (e) {
-    if (e && e.name === 'AbortError') return;     // 사용자가 공유를 취소했다
-  }
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-  toast(`${name} 을 저장했습니다. 원장님께 전달해 주세요.`);
 }
 
 /* ---------- 오프라인 준비 (⑤-1) ---------- */

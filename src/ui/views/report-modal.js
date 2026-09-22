@@ -5,8 +5,6 @@ import { drawReportCard, shareReport } from '../report.js'
 import * as repo from '../../data/repo.js'
 import { monthRange, toMonth, toYmd } from '../../core/date.js'
 import { summarize } from '../../core/attendance.js'
-import { humanDuration, summarize as summarizePractice }
-  from '../../core/practice-piano.js'
 import { displayPairs } from '../../core/customfields.js'
 import { decorate } from '../../core/fees.js'
 import { currentUser } from '../session.js'
@@ -21,13 +19,10 @@ export function openReportModal(student) {
   async function build() {
     const month = monthInput.value
     const { from, to } = monthRange(month)
-    const [att, pays, practice] = await Promise.all([
+    const [att, pays] = await Promise.all([
       repo.attendanceOfStudentRange(student.id, from, to),
-      repo.paymentsOfStudent(student.id, 36),
-      repo.practiceOf(student.id, month)
+      repo.paymentsOfStudent(student.id, 36)
     ])
-    // 반주를 안 쓰는 학원에는 이 칸 자체가 없어야 한다 (0 이라고 써 두면 안 된다)
-    const prac = summarizePractice(practice, month)
     const payment = pays.find((p) => p.month === month)
     const fields = repo.getSetting('customFields', [])
     const cls = repo.studentClasses(student.id)
@@ -40,7 +35,6 @@ export function openReportModal(student) {
       attendance: summarize(att),
       payment: payment ? decorate(payment) : null,
       customPairs: displayPairs(fields, student.custom || {}, 'report'),
-      practice: prac.count ? { ...prac, human: humanDuration(prac.seconds) } : null,
       comment: comment.value.trim(),
       teacherName: teacher?.name || currentUser()?.name || ''
     })

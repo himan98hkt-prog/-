@@ -9,13 +9,12 @@ import { createClient } from '@supabase/supabase-js'
 import { db } from './db.js'
 import * as repo from './repo.js'
 
-const TABLES = ['users', 'subjects', 'classes', 'students', 'enrollments', 'attendance', 'payments', 'expenses', 'counselLogs', 'notices', 'practice']
+const TABLES = ['users', 'subjects', 'classes', 'students', 'enrollments', 'attendance', 'payments', 'expenses', 'counselLogs', 'notices']
 // Dexie 테이블명 ↔ Postgres 테이블명
 const PG = {
   users: 'users', subjects: 'subjects', classes: 'classes', students: 'students',
   enrollments: 'enrollments', attendance: 'attendance', payments: 'payments',
-  expenses: 'expenses', counselLogs: 'counsel_logs', notices: 'notices',
-  practice: 'practice'
+  expenses: 'expenses', counselLogs: 'counsel_logs', notices: 'notices'
 }
 const DEXIE_OF = Object.fromEntries(Object.entries(PG).map(([k, v]) => [v, k]))
 

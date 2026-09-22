@@ -47,7 +47,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 6) {
  * @param data {
  *   student, month, attendance:{rate,total,present,absent,counts},
  *   payment:{amount,paid,status}, customPairs:[{label,value}],
- *   practice:{days,count,seconds,songs}|null, comment, teacherName
+ *   comment, teacherName
  * }
  * @returns HTMLCanvasElement
  */
@@ -66,7 +66,6 @@ export async function drawReportCard(data) {
     150 + 40 +                                        // 출석 요약 카드
     (30 + entries.length * 42 + 30) +                 // 출결 상세
     (pairs.length ? 30 + pairs.length * 40 + 30 : 0) + // 학습 현황
-    (data.practice ? 16 + 104 + 20 + 40 : 0) +        // 연습 (제목+상자+곡줄+여백)
     (data.payment ? 30 + 72 + 26 : 0) +               // 수납
     (data.comment ? 30 + 150 + 26 : 0) +              // 코멘트
     76                                                // 푸터
@@ -184,49 +183,6 @@ export async function drawReportCard(data) {
       ctx.stroke()
     })
     y += 12 + pairs.length * 40 + 30
-  }
-
-  // 연습 — 반주에서 되받은 기록.
-  //
-  // 이 칸이 이 기능의 전부다. 출석률만 있는 리포트와 "이번 달 집에서 몇 번 쳤습니다"가
-  // 적힌 리포트는 학부모가 받는 느낌이 다르다. 반주를 안 쓰는 학원에는 칸 자체가 없다.
-  if (data.practice) {
-    const pr = data.practice
-    ctx.fillStyle = '#111827'
-    ctx.font = F(700, 24)
-    ctx.fillText('이번 달 연습', PAD, y)
-    y += 16
-    ctx.fillStyle = '#f9fafb'
-    roundRect(ctx, PAD, y, W - PAD * 2, 104, 16)
-    ctx.fill()
-
-    const cells = [
-      [`${pr.days}일`, '친 날'],
-      [`${pr.count}번`, '연습'],
-      [pr.human, '모두'],
-    ]
-    const cw = (W - PAD * 2) / cells.length
-    cells.forEach(([big, small], i) => {
-      const cx = PAD + cw * i + cw / 2
-      ctx.textAlign = 'center'
-      ctx.fillStyle = brand
-      ctx.font = F(700, 28)
-      ctx.fillText(big, cx, y + 46)
-      ctx.fillStyle = '#6b7280'
-      ctx.font = F(400, 18)
-      ctx.fillText(small, cx, y + 74)
-    })
-    ctx.textAlign = 'left'
-
-    // 곡 줄은 있든 없든 같은 높이를 쓴다. 높이 계산과 실제로 그리는 양이 어긋나면
-    // 곡이 많은 학원에서만 아래가 잘린다 — 우리 화면에서는 안 보이는 고장이다.
-    if (pr.songs && pr.songs.length) {
-      ctx.fillStyle = '#6b7280'
-      ctx.font = F(400, 18)
-      const line = pr.songs.slice(0, 3).map((x) => `${x.title} ${x.count}번`).join(' · ')
-      ctx.fillText(line.length > 42 ? line.slice(0, 41) + '…' : line, PAD + 4, y + 124)
-    }
-    y += 104 + 20 + 40
   }
 
   // 수납

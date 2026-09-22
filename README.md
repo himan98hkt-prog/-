@@ -192,7 +192,7 @@ export MR_LICENSE_KEY=ALAB-CDEF-XYEV      # 관리노트와 같은 인증키 한
 
 # 배포 — 원장님께 드릴 정적 꾸러미 (파이썬 없이 돕니다)
 python3 catalog_cli.py package ../dist/반주 --academy "행복피아노"
-python3 tools/player_check.py --static ../dist/반주   # 정적 서버로 13항목 검사
+python3 tools/player_check.py --static ../dist/반주   # 정적 서버로 11항목 검사
 
 python3 -m pytest                         # 테스트 404건
 ```
@@ -218,7 +218,7 @@ OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올�
 자세한 내용은 [mr/README.md](mr/README.md), 작업 보고는
 [docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md) ·
 [docs/MR-PLAYER.md](docs/MR-PLAYER.md) · [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) ·
-[docs/MR-LINK.md](docs/MR-LINK.md) · [docs/MR-PRACTICE.md](docs/MR-PRACTICE.md).
+[docs/MR-LINK.md](docs/MR-LINK.md).
 
 ## 문서
 
@@ -233,4 +233,3 @@ OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올�
 - [docs/MR-PLAYER.md](docs/MR-PLAYER.md) — 플레이어 PWA 3단계 작업 보고
 - [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) — PDF 업로드 4단계 작업 보고
 - [docs/MR-LINK.md](docs/MR-LINK.md) — 관리노트 연동 5단계 작업 보고
-- [docs/MR-PRACTICE.md](docs/MR-PRACTICE.md) — 연습 기록 되돌리기 작업 보고
