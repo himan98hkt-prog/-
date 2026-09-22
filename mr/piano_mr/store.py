@@ -27,7 +27,7 @@ from dataclasses import asdict
 from typing import Dict, List, Optional, Sequence
 
 from . import (arranger, catalog as cat, harmony, omr, orchestration as orch,
-               pdf, render, score_loader, uploads)
+               pdf, render, roster, score_loader, uploads)
 
 SCORE_SUFFIXES = score_loader.SUPPORTED_SUFFIXES
 
@@ -408,8 +408,14 @@ class CatalogStore:
         items = []
         for q in p.sorted_queue():
             song = self.catalog.songs.get(q.song_id)
+            # 이름은 명단에서 찾아 쓴다 — 관리노트에서 개명하면 여기도 따라 바뀐다.
+            # 명단이 없거나 그 학생이 빠졌으면 저장해 둔 이름을 그대로 (화면이 비면 안 된다).
+            who = self.roster.name_of(q.student_id, q.student) if q.student_id \
+                else q.student
             items.append({
-                'order': q.order, 'student': q.student, 'song_id': q.song_id,
+                'order': q.order, 'student': who, 'song_id': q.song_id,
+                'student_id': q.student_id,
+                'linked': bool(q.student_id and self.roster.get(q.student_id)),
                 'title': song.title if song else q.song_id,
                 'composer': song.composer if song else '',
                 'book': song.book if song else '',
@@ -420,7 +426,7 @@ class CatalogStore:
                 'style_label': orch.STYLES[q.style]['label'],
                 'level_label': orch.LEVEL_LABEL[q.level],
                 'count_in': song.count_in if song else 0,
-                'cue': f"{q.order}. {q.student} — {song.title if song else q.song_id} "
+                'cue': f"{q.order}. {who} — {song.title if song else q.song_id} "
                        f"(♩={q.bpm}, {orch.STYLES[q.style]['label']}, "
                        f"{orch.LEVEL_LABEL[q.level]})",
             })
@@ -494,6 +500,16 @@ class CatalogStore:
         d = os.path.join(self.root, 'incoming')
         os.makedirs(d, exist_ok=True)
         return d
+
+    @property
+    def roster(self) -> 'roster.Roster':
+        """관리노트에서 받아 온 학생 명단 (지시서 9장 5단계)."""
+        if getattr(self, '_roster', None) is None:
+            self._roster = roster.Roster(os.path.join(self.root, 'roster.json'))
+        return self._roster
+
+    def import_roster(self, data) -> dict:
+        return self.roster.replace_with(data)
 
     @property
     def ledger(self) -> 'uploads.UploadLedger':

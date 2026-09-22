@@ -84,6 +84,21 @@ drop.addEventListener('submit', async (e) => {
   }
 });
 
+/* ---------- 인증 (지시서 9장 5단계 번들) ---------- */
+// 업로드만 인증을 본다. 왜 막혔는지 모르면 원장님은 같은 파일을 계속 올리신다.
+function showLicense(l) {
+  const el = $('#license');
+  if (l.ok) {
+    el.hidden = true;
+    $('#go').title = '';
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = `<b>PDF 올리기가 잠겨 있습니다.</b> ${esc(l.reason)}<br>
+    <span class="tiny">관리노트와 같은 인증키를 쓰시면 됩니다. 반주만 잠기고
+    발표회 운영·집 연습 링크는 인증 없이 그대로 됩니다.</span>`;
+}
+
 /* ---------- 목록 ---------- */
 function quotaCards(q) {
   // 지시서 8.2 의 단가를 그대로 보여 준다. 남은 몫을 모르면 원장님이 계획을 못 세운다.
@@ -120,8 +135,12 @@ function jobRow(j) {
 }
 
 async function refresh() {
-  const r = await fetch(`/api/uploads?account=${encodeURIComponent(ACCOUNT)}`);
+  const [r, lr] = await Promise.all([
+    fetch(`/api/uploads?account=${encodeURIComponent(ACCOUNT)}`),
+    fetch('/api/license'),
+  ]);
   const d = await r.json();
+  showLicense(await lr.json());
   $('#who').textContent = `${ACCOUNT} · 인식 ${d.provider === 'manual' ? '신청제' : d.provider}`;
   $('#accuracy').textContent = d.accuracy_note;
   quotaCards(d.quota);

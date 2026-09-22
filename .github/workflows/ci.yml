@@ -66,6 +66,13 @@ jobs:
           cache: pip
           cache-dependency-path: mr/requirements.txt
 
+      # 인증키·학생명단 규칙은 관리노트(JS)가 원본이고 반주(파이썬)가 이식본이다.
+      # 둘이 어긋나면 이미 판 키가 죽고 명단이 안 읽히므로, CI 가 **실제로 node 를
+      # 돌려** 양쪽 답을 대조한다. node 가 없으면 그 검사가 조용히 skip 된다.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
       - name: 파이썬 의존성
         run: pip install -r requirements.txt
 
@@ -106,6 +113,15 @@ jobs:
           print('무대 장면은 CSS·SVG 로 자급자족 OK'
                 + (f' (배경 파일 {have} 도 함께 있음)' if have else ' (배경 파일 없음)'))
           "
+
+      - name: 관리노트와 규칙이 어긋나지 않았는지 (5단계 — skip 되면 실패)
+        run: |
+          python3 -m pytest tests/test_license.py tests/test_roster.py \
+              -q -rs --no-header 2>&1 | tee /tmp/cross.txt
+          if grep -q "skipped" /tmp/cross.txt; then
+            echo "::error::교차 시험이 건너뛰어졌습니다 — node 가 없으면 인증키·명단 규칙이 어긋나도 CI 가 초록입니다"
+            exit 1
+          fi
 
       - name: 올린 PDF 를 서버가 들고 있지 않는지 (지시서 7장 · 4단계)
         run: |

@@ -346,6 +346,19 @@ def test_player_bundle_shows_the_key_in_korean(client):
 
 # --- 4단계 PDF 업로드 (지시서 9장 4단계) -----------------------------------------
 
+@pytest.fixture(autouse=True)
+def licensed(monkeypatch):
+    """업로드는 돈이 나가는 경로라 인증을 본다 (지시서 9장 5단계).
+
+    테스트에서는 통합키 한 장을 환경에 넣어 둔다. 인증이 **없을 때** 막히는지는
+    `test_upload_without_a_license_is_refused` 가 따로 본다.
+    """
+    from piano_mr import license as lic
+    key = lic.format_key('ALABCDEF' + lic.checksum_of('ALABCDEF'))
+    monkeypatch.setenv(lic.ENV_KEY, key)
+    return key
+
+
 def upload_pdf(client, name='three_pages.pdf', filename='체르니 100-5.pdf',
                account='행복피아노', title='체르니 100번 5번'):
     import os
@@ -447,3 +460,102 @@ def test_unknown_upload_job_is_404(client):
     assert client.get('/api/uploads/없는작업').status_code == 404
     assert client.delete('/api/uploads/없는작업').status_code == 404
     assert client.post('/api/uploads/없는작업/poll').status_code == 404
+
+
+# --- 5단계 관리노트 연동 (지시서 9장 5단계) ---------------------------------------
+
+def roster_file():
+    import json
+    from piano_mr import roster as R
+    return json.dumps({
+        'format': R.ROSTER_FORMAT, 'version': 1, 'academy': '행복피아노',
+        'students': [
+            {'id': 's1', 'name': '김지우', 'class': '월수금 4시', 'active': True},
+            {'id': 's2', 'name': '박서준', 'class': '', 'active': False},
+        ]}, ensure_ascii=False).encode()
+
+
+def test_roster_starts_empty(client):
+    d = client.get('/api/roster').json()
+    assert d['count'] == 0 and d['students'] == []
+
+
+def test_roster_upload_and_read_back(client):
+    r = client.post('/api/roster',
+                    files={'file': ('명단.json', roster_file(), 'application/json')})
+    assert r.status_code == 200 and r.json()['count'] == 2
+    d = client.get('/api/roster').json()
+    assert d['academy'] == '행복피아노' and d['active'] == 1
+    assert [s['name'] for s in d['students']] == ['김지우', '박서준']
+
+
+def test_roster_rejects_a_backup_file(client):
+    bad = b'{"format":"academy-note-backup","students":[]}'
+    r = client.post('/api/roster',
+                    files={'file': ('backup.json', bad, 'application/json')})
+    assert r.status_code == 400 and '명단 파일이 아닙니다' in r.json()['detail']
+
+
+def test_roster_never_stores_contact_details(client):
+    import json
+    from piano_mr import roster as R
+    leaky = json.dumps({
+        'format': R.ROSTER_FORMAT, 'version': 1,
+        'students': [{'id': 's1', 'name': '김지우', 'phone': '010-1234-5678',
+                      'memo': '왼손이 약함'}]}, ensure_ascii=False).encode()
+    client.post('/api/roster', files={'file': ('r.json', leaky, 'application/json')})
+    blob = json.dumps(client.get('/api/roster').json(), ensure_ascii=False)
+    assert '010-' not in blob and '왼손이' not in blob
+
+
+# --- 번들 인증 (지시서 9장 5단계 "번들 판매") --------------------------------------
+
+def test_license_state_is_reported(client, licensed):
+    d = client.get('/api/license').json()
+    assert d['ok'] is True and d['product'] == 'A'
+    # 집 연습 링크는 인증을 묻지 않는다 (지시서 ⑤-10)
+    assert d['gated'] == ['upload']
+
+
+def test_upload_without_a_license_is_refused(client, monkeypatch):
+    """PDF 업로드는 돈이 나가는 유일한 경로다 (지시서 8.2). 여기만 키를 본다."""
+    from piano_mr import license as lic
+    monkeypatch.delenv(lic.ENV_KEY, raising=False)
+    r = upload_pdf(client)
+    assert r.status_code == 402
+    assert lic.ENV_KEY in r.json()['detail']
+    assert client.get('/api/uploads').json()['jobs'] == []
+
+
+def test_an_academy_only_key_does_not_open_uploads(client, monkeypatch):
+    """학원 관리노트만 사신 분에게 반주 업로드까지 열어 주면 번들을 팔 수 없다."""
+    from piano_mr import license as lic
+    monkeypatch.setenv(lic.ENV_KEY,
+                       lic.format_key('MLABCDEF' + lic.checksum_of('MLABCDEF')))
+    assert upload_pdf(client).status_code == 402
+
+
+def test_everything_else_works_without_a_license(client, monkeypatch):
+    """카탈로그 제작·발표회 운영·플레이어는 인증을 묻지 않는다."""
+    from piano_mr import license as lic
+    monkeypatch.delenv(lic.ENV_KEY, raising=False)
+    assert client.get('/api/songs').status_code == 200
+    assert client.get('/api/player/bundle').status_code == 200
+    assert client.get('/api/player/midi/waltz').status_code == 200
+    assert client.get('/api/roster').status_code == 200
+
+
+def test_the_academy_name_for_a_name_based_key_comes_from_the_roster(client, monkeypatch):
+    """피아노 관리노트의 학원명 방식 키는 학원명이 있어야 열린다 — 명단이 그걸 안다."""
+    import json
+    from piano_mr import license as lic, roster as R
+    monkeypatch.setenv(lic.ENV_KEY, lic.piano_key_for_name('행복피아노학원'))
+    assert client.get('/api/license').json()['ok'] is False    # 아직 명단이 없다
+
+    blob = json.dumps({'format': R.ROSTER_FORMAT, 'version': 1,
+                       'academy': '행복피아노학원',
+                       'students': [{'id': 's1', 'name': '김지우'}]},
+                      ensure_ascii=False).encode()
+    client.post('/api/roster', files={'file': ('r.json', blob, 'application/json')})
+    d = client.get('/api/license').json()
+    assert d['ok'] is True and d['product'] == 'K'

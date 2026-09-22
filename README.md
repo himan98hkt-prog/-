@@ -185,7 +185,12 @@ make player                               # 브라우저에서 실제 재생·�
 python3 catalog_cli.py uploads            # 올라온 악보와 이번 달 몫
 python3 catalog_cli.py limit 6            # 월 업로드 제한 (쪽 단위)
 
-python3 -m pytest                         # 테스트 339건
+# 5단계 — 관리노트 연동
+#   관리노트 설정 → 「피아노 반주(MR) 연동」 → 학생 명단 내보내기
+python3 catalog_cli.py roster 명단.json    # 반주가 명단을 받는다
+export MR_LICENSE_KEY=ALAB-CDEF-XYEV      # 관리노트와 같은 인증키 한 장
+
+python3 -m pytest                         # 테스트 389건
 ```
 
 화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
@@ -198,9 +203,14 @@ PDF 업로드는 인식이 끝나도 「완료」가 아니라 **「화성 확�
 OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올린 PDF 는 서버에
 남지 않습니다(7장): MusicXML 이 나오는 순간 지웁니다.
 
+학생 명단은 **관리노트가 원본**입니다. 반주는 `id·이름·반`만 받고 연락처·메모는
+받지 않습니다. 인증키는 **관리노트와 같은 것 한 장**이고, 키를 보는 곳은 PDF 업로드
+하나뿐입니다 — 집 연습 링크는 설치도 로그인도 묻지 않습니다(⑤-10).
+
 자세한 내용은 [mr/README.md](mr/README.md), 작업 보고는
 [docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md) ·
-[docs/MR-PLAYER.md](docs/MR-PLAYER.md) · [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md).
+[docs/MR-PLAYER.md](docs/MR-PLAYER.md) · [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) ·
+[docs/MR-LINK.md](docs/MR-LINK.md).
 
 ## 문서
 
@@ -214,3 +224,4 @@ OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올�
 - [docs/MR-DASHBOARD.md](docs/MR-DASHBOARD.md) — 발표회 운영 화면(프로그램 대시보드)
 - [docs/MR-PLAYER.md](docs/MR-PLAYER.md) — 플레이어 PWA 3단계 작업 보고
 - [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) — PDF 업로드 4단계 작업 보고
+- [docs/MR-LINK.md](docs/MR-LINK.md) — 관리노트 연동 5단계 작업 보고

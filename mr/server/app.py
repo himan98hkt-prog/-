@@ -20,8 +20,8 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from piano_mr import (catalog as cat, omr, orchestration as orch, pdf,
-                      render, store, uploads)
+from piano_mr import (catalog as cat, license as lic, omr,
+                      orchestration as orch, pdf, render, roster, store, uploads)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(HERE, 'static')
@@ -223,6 +223,14 @@ def create_app(catalog_root: str) -> FastAPI:
     @app.post('/api/uploads')
     async def upload_pdf(file: UploadFile = File(...), account: str = Form(...),
                          title: str = Form('')):
+        # PDF 업로드는 **돈이 나가는 유일한 경로**다 (지시서 8.2 — OMR 이 유일한 변동비).
+        # 인증되지 않은 설치본이 남의 크레딧을 태우면 안 되므로 여기만 키를 본다.
+        # 카탈로그 제작·발표회 운영·집 연습 링크는 묻지 않는다.
+        v = _license()
+        if not v.ok:
+            raise HTTPException(402, f'{v.reason} — PDF 업로드는 인증된 설치본에서만 '
+                                     '됩니다. 관리노트와 같은 인증키를 '
+                                     f'{lic.ENV_KEY} 환경변수에 넣어 주세요.')
         data = await file.read()
         return _guard(st.submit_pdf, data, file.filename or 'score.pdf',
                       account=account, title=title)
@@ -258,6 +266,37 @@ def create_app(catalog_root: str) -> FastAPI:
     def upload_sweep(hours: float = 72.0):
         """올라온 PDF 를 오래 들고 있지 않는다 (지시서 7장)."""
         return st.sweep(older_than_hours=hours)
+
+    # --- 5단계 관리노트 연동 (지시서 9장 5단계) ------------------------------
+    # --- 번들 인증 (지시서 9장 5단계 "번들 판매") ------------------------------
+    def _license() -> lic.Verdict:
+        """환경변수의 키를 본다. 학원명은 명단에서 받은 것을 기본으로 쓴다."""
+        env = dict(os.environ)
+        env.setdefault(lic.ENV_NAME, st.roster.academy or '')
+        return lic.from_env(env)
+
+    @app.get('/api/license')
+    def license_state():
+        v = _license()
+        return {'ok': v.ok, 'plan': v.plan, 'product': v.product,
+                'source': v.source, 'reason': v.reason,
+                'academy': st.roster.academy,
+                # 집 연습 링크는 인증을 묻지 않는다 (지시서 ⑤-10)
+                'gated': ['upload']}
+
+    @app.get('/api/roster')
+    def roster_get():
+        """반주 쪽이 들고 있는 학생 명단."""
+        return st.roster.view()
+
+    @app.post('/api/roster')
+    async def roster_put(file: UploadFile = File(...)):
+        """관리노트가 내보낸 명단을 받는다. **덮어쓰기다** — 관리노트가 원본이다."""
+        data = await file.read()
+        try:
+            return st.import_roster(data)
+        except roster.RosterError as e:
+            raise HTTPException(400, str(e))
 
     app.mount('/static', StaticFiles(directory=STATIC, html=True), name='static')
     return app

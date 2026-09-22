@@ -69,3 +69,5 @@
   .drop__art { grid-row: auto; }
   .drop__fields, .drop__picked { grid-column: 1; }
 }
+
+.tiny { font-size: 12px; opacity: .85; }

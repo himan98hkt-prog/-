@@ -221,8 +221,11 @@ class Assignment:
 @dataclass
 class QueueItem:
     order: int
-    student: str
+    student: str                         # 화면에 뿌릴 이름 (명단이 없을 때의 대비책)
     song_id: str
+    # 관리노트의 학생 id (지시서 9장 5단계). 이게 있으면 이름은 명단에서 찾아 쓴다 —
+    # 관리노트에서 개명하거나 동명이인이 들어와도 연결이 끊기지 않게.
+    student_id: str = ''
     bpm: int = 84
     style: str = orch.DEFAULT_STYLE
     level: str = 'normal'

@@ -306,7 +306,7 @@ PDF** 로도 확인한다 — 10쪽짜리 문서는 `/Count`·`/Type /Page`·`/K
 
 ```bash
 cd mr
-python3 -m pytest              # 339개
+python3 -m pytest              # 389개 (4단계 시점 339개)
 python3 catalog_cli.py uploads # 신청제 운영자 화면
 ```
 

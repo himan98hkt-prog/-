@@ -208,3 +208,51 @@ def test_poll_with_no_running_jobs_says_so(root, capsys):
     store.CatalogStore(root)
     assert run(root, 'poll') == 0
     assert '인식 중인 작업이 없습니다' in capsys.readouterr().out
+
+
+# --- 5단계 관리노트 연동 -----------------------------------------------------------
+
+def roster_path(tmp_path):
+    import json
+    from piano_mr import roster as R
+    p = tmp_path / '명단.json'
+    p.write_text(json.dumps({
+        'format': R.ROSTER_FORMAT, 'version': 1, 'academy': '행복피아노',
+        'students': [{'id': 's1', 'name': '김지우', 'class': '월수금 4시', 'active': True},
+                     {'id': 's2', 'name': '박서준', 'class': '', 'active': False}]},
+        ensure_ascii=False), encoding='utf-8')
+    return str(p)
+
+
+def test_roster_with_no_file_tells_you_where_to_get_one(root, capsys):
+    store.CatalogStore(root)
+    assert run(root, 'roster') == 0
+    out = capsys.readouterr().out
+    assert '아직 명단을 받지 않았습니다' in out
+    assert '관리노트' in out and '설정' in out       # 어디서 내려받는지 알려 준다
+
+
+def test_roster_imports_and_then_lists(root, tmp_path, capsys):
+    store.CatalogStore(root)
+    assert run(root, 'roster', roster_path(tmp_path)) == 0
+    assert '2명을 받았습니다' in capsys.readouterr().out
+
+    assert run(root, 'roster') == 0
+    out = capsys.readouterr().out
+    assert '행복피아노' in out and '재원 1명' in out
+    assert '김지우' in out and '월수금 4시' in out
+
+
+def test_roster_reports_who_left(root, tmp_path, capsys):
+    import json
+    from piano_mr import roster as R
+    store.CatalogStore(root)
+    run(root, 'roster', roster_path(tmp_path))
+    capsys.readouterr()
+    smaller = tmp_path / '작은명단.json'
+    smaller.write_text(json.dumps({
+        'format': R.ROSTER_FORMAT, 'version': 1,
+        'students': [{'id': 's1', 'name': '김지우'}]}, ensure_ascii=False),
+        encoding='utf-8')
+    run(root, 'roster', str(smaller))
+    assert '빠진 학생 1명' in capsys.readouterr().out

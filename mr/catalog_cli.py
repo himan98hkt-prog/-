@@ -256,6 +256,35 @@ def cmd_limit(st: store.CatalogStore, a) -> int:
     return 0
 
 
+# --- 5단계 관리노트 연동 (지시서 9장 5단계) -----------------------------------
+
+def cmd_roster(st: store.CatalogStore, a) -> int:
+    """관리노트 명단을 받거나, 지금 들고 있는 명단을 보여 준다."""
+    if a.file:
+        with open(a.file, 'rb') as f:
+            out = st.import_roster(f.read())
+        print(f"{out['academy'] or '학원'} 명단 {out['count']}명을 받았습니다.")
+        if out['added']:
+            print(f"  새로 들어온 학생 {len(out['added'])}명")
+        if out['removed']:
+            print(f"  명단에서 빠진 학생 {len(out['removed'])}명 "
+                  "(발표회 큐에 남아 있으면 이름이 그대로 보입니다)")
+        return 0
+    v = st.roster.view()
+    if not v['count']:
+        print('아직 명단을 받지 않았습니다.')
+        print('  관리노트 → 설정 → 백업·복원·내보내기 → 「피아노 반주(MR) 연동」')
+        print('  거기서 내려받은 파일을 이 명령에 넘기세요:')
+        print(f'  python3 catalog_cli.py --catalog {a.catalog} roster 명단.json')
+        return 0
+    print(f"{v['academy'] or '학원'} · {v['count']}명 (재원 {v['active']}명) "
+          f"· 받은 날 {v['imported_at'][:10]}")
+    for s_ in v['students']:
+        mark = ' ' if s_['active'] else '·'
+        print(f"{mark} {s_['id']:<14} {s_['name']:<10} {s_['class']}")
+    return 0
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog='catalog_cli.py', description='카탈로그 관리')
     p.add_argument('--catalog', default='catalog', help='카탈로그 디렉터리 (기본: ./catalog)')
@@ -337,6 +366,10 @@ def build_parser():
     sw = sub.add_parser('sweep', help='오래 들고 있던 PDF 삭제 (지시서 7장)')
     sw.add_argument('--hours', type=float, default=72.0)
     sw.set_defaults(fn=cmd_sweep)
+
+    ro = sub.add_parser('roster', help='관리노트 학생 명단 받기/보기 (5단계)')
+    ro.add_argument('file', nargs='?', help='관리노트가 내보낸 명단 JSON')
+    ro.set_defaults(fn=cmd_roster)
 
     lm = sub.add_parser('limit', help='월 업로드 제한 보기/바꾸기')
     lm.add_argument('pages', nargs='?', type=int, help='생략하면 현재 값만 본다')
