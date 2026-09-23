@@ -593,3 +593,28 @@ pre.log {
   .funnel-row { grid-template-columns: 1fr; gap: 4px; }
   .funnel-bar { height: 8px; }
 }
+
+/* --- 자금 배치 — 돈이 어디에 묶여 있는지 ------------------------------------ */
+.alloc-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden;
+             background: var(--surface-3); margin-bottom: 10px; }
+.alloc-bar span { display: block; }
+.alloc-in   { background: var(--series-1); }
+.alloc-idle { background: var(--warning); opacity: .45; }
+.alloc-out  { background: var(--border-strong); }
+.alloc-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px;
+                color: var(--text-2); margin-bottom: 12px; }
+.alloc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+                  margin-right: 5px; vertical-align: -1px; }
+.alloc-codes { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 10px; }
+.alloc-codes-head { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; font-weight: 700; }
+.alloc-code { display: grid; grid-template-columns: 100px 1fr auto; gap: 10px;
+              align-items: center; font-size: 12.5px; margin-bottom: 6px; }
+.alloc-code-bar { background: var(--surface-3); height: 8px; border-radius: 4px; overflow: hidden; }
+.alloc-code-bar i { display: block; height: 100%; background: var(--series-1); }
+/* 한도가 찬 종목은 합의가 나도 되돌려 보내진다 — 눈에 띄어야 한다. */
+.alloc-code.is-full .alloc-code-bar i { background: var(--warning); }
+.alloc-code-num { font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+@media (max-width: 680px) {
+  .alloc-code { grid-template-columns: 1fr; gap: 3px; }
+  .alloc-legend { gap: 10px; flex-direction: column; }
+}

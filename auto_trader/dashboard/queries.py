@@ -605,12 +605,46 @@ def risk_headroom(db_path: Path | str, risk: Any | None,
          "pct": round(max(-daily_pct, 0) / loss_limit * 100, 1) if loss_limit else 0.0,
          "blocked": daily_pct <= -loss_limit},
     ]
+    # 돈이 어디에 묶여 있는지. "1,000만원 중 100만원도 안 쓴다" 는 물음에
+    # 화면이 답하지 못해 사용자가 직접 계산하고 있었다. 셋으로 나뉜다 —
+    # 한도 밖(설정이 아예 손대지 않는 돈), 한도 안 미투자, 투자 중.
+    equity = _rows(db_path, "SELECT end_equity FROM daily_pnl WHERE date = ?", (today,))
+    account = float(equity[0]["end_equity"]) if equity and equity[0]["end_equity"] else 0.0
+    outside_cap = max(account - cap, 0.0) if account else 0.0
+    idle = max(cap - invested, 0.0)
+
+    # 종목별 잔여 한도. 남은 여유가 최소 주문액보다 작으면 그 종목은 사실상
+    # 추가 매수가 불가능하다 — 합의가 나도 리스크 규칙에서 되돌려 보낸다.
+    position_cap = cap * float(getattr(risk, "max_position_pct", 0) or 0) / 100
+    min_order = float(getattr(risk, "min_order_krw", 0) or 0)
+    names = {row["code"]: row["name"] for row in
+             _rows(db_path, "SELECT code, name FROM positions")}
+    per_code = []
+    for position in positions:
+        cost = float(position["avg_price"] or 0) * int(position["qty"] or 0)
+        room = max(position_cap - cost, 0.0)
+        per_code.append({
+            "code": position["code"], "name": names.get(position["code"], position["code"]),
+            "cost": cost, "room": room,
+            "pct": round(cost / position_cap * 100, 1) if position_cap else 0.0,
+            "full": room < min_order,
+        })
+    per_code.sort(key=lambda item: -item["pct"])
+
     return {
         "ready": True,
         "rows": rows,
         "bought_today": [row["code"] for row in bought],
         "can_buy": not any(row["blocked"] for row in rows),
         "last_buy_at": f"{last_buy:%H:%M}" if last_buy else "",
+        "account": account,
+        "cap": cap,
+        "invested": invested,
+        "idle": idle,
+        "outside_cap": outside_cap,
+        "position_cap": position_cap,
+        "per_code": per_code,
+        "free_slots": max(max_positions - held, 0),
     }
 
 

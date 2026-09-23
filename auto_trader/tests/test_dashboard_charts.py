@@ -811,3 +811,78 @@ def test_forced_exits_are_excluded(tmp_path):
     finally:
         conn.close()
     assert buy_funnel(db)["ready"] is False
+
+
+# --- 자금이 어디에 묶여 있는가 -------------------------------------------------- #
+#
+# "1,000만원 중 100만원도 안 쓴다" 를 사용자가 직접 계산하고 있었다. 돈은 셋으로
+# 나뉜다 — 한도 밖, 한도 안 미투자, 투자 중. 어디에 묶였는지 화면이 말해야 한다.
+
+def _headroom(tmp_path, *, cap=5_000_000, equity=10_000_000, positions=()):
+    from types import SimpleNamespace
+
+    from dashboard.queries import risk_headroom
+    from utils.db import connect, init_db
+
+    db = tmp_path / "t.db"
+    init_db(db)
+    conn = connect(db)
+    try:
+        for code, name, qty, avg in positions:
+            conn.execute(
+                """INSERT INTO positions (code,name,qty,avg_price,current_price,eval_amount,
+                                          pnl_amount,pnl_pct,updated_at)
+                   VALUES (?,?,?,?,?,?,0,0,?)""",
+                (code, name, qty, avg, avg, qty * avg, datetime.now(KST).isoformat()))
+        conn.execute(
+            """INSERT INTO daily_pnl (date,start_equity,end_equity,unrealized_pnl,
+                                      total_pnl_pct,updated_at)
+               VALUES (?,?,?,0,0,?)""",
+            (datetime.now(KST).strftime("%Y-%m-%d"), equity, equity,
+             datetime.now(KST).isoformat()))
+        conn.commit()
+    finally:
+        conn.close()
+    risk = SimpleNamespace(total_investment_cap_krw=cap, max_position_pct=20,
+                           max_positions=5, daily_loss_limit_pct=3, min_order_krw=100_000)
+    return risk_headroom(db, risk)
+
+
+def test_money_outside_the_cap_is_shown(tmp_path):
+    """계좌 1,000만인데 한도가 500만이면 절반은 프로그램이 손대지도 않는다."""
+    data = _headroom(tmp_path, cap=5_000_000, equity=10_000_000,
+                     positions=[("005930", "삼성전자", 3, 269_500)])
+
+    assert data["account"] == 10_000_000
+    assert data["outside_cap"] == 5_000_000, "한도 밖 금액이 보여야 한다"
+    assert data["invested"] == 808_500
+    assert data["idle"] == 5_000_000 - 808_500
+
+
+def test_a_position_at_its_cap_is_marked_unbuyable(tmp_path):
+    """종목당 한도가 차면 합의가 나도 리스크 규칙이 되돌려 보낸다."""
+    # 종목당 한도 = 500만 × 20% = 100만. 95만이면 남은 5만 < 최소주문 10만.
+    data = _headroom(tmp_path, positions=[("005930", "삼성전자", 1, 950_000)])
+
+    item = data["per_code"][0]
+    assert item["full"] is True
+    assert item["room"] == 50_000
+
+
+def test_a_position_with_room_is_not_marked(tmp_path):
+    data = _headroom(tmp_path, positions=[("105560", "KB금융", 1, 177_200)])
+    item = data["per_code"][0]
+    assert item["full"] is False
+    assert item["room"] == 1_000_000 - 177_200
+
+
+def test_free_slots_counts_what_can_still_be_added(tmp_path):
+    data = _headroom(tmp_path, positions=[("005930", "삼성전자", 1, 100_000),
+                                          ("105560", "KB금융", 1, 100_000)])
+    assert data["free_slots"] == 3, "max_positions 5 - 보유 2"
+
+
+def test_positions_are_listed_fullest_first(tmp_path):
+    data = _headroom(tmp_path, positions=[("105560", "KB금융", 1, 177_200),
+                                          ("005930", "삼성전자", 3, 269_500)])
+    assert [item["code"] for item in data["per_code"]] == ["005930", "105560"]

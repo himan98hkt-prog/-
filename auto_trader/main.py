@@ -701,6 +701,15 @@ class TradingBot:
             snapshot["position"] = {"holding": True, "qty": position.qty,
                                     "avg_price": position.avg_price, "pnl_pct": position.pnl_pct}
 
+        # **지금 이 종목을 더 살 수 있는지**를 함께 알려 준다.
+        #
+        # 이걸 알려 주지 않으면 AI 는 못 사는 종목을 1등으로 뽑는다. 상대평가는
+        # 순위를 매기는 일이라 좋은 종목이 계속 위로 오는데, 그 종목이 종목당
+        # 한도를 이미 채웠거나 오늘 이미 샀으면 리스크 규칙이 되돌려 보낸다.
+        # 매수 제안 상한(max_buy_picks)이 그렇게 낭비되면, 살 수 있는 종목은
+        # 후보에조차 오르지 못한 채 사이클이 끝난다.
+        snapshot["buyable"] = self._buy_room(code, state)
+
         # 벤치마크용 관측가. 이미 받아 온 값이라 추가 조회가 없다.
         record_benchmark_price(
             self.settings.paths["db"], date=now.strftime("%Y-%m-%d"), code=code,
@@ -708,6 +717,30 @@ class TradingBot:
             price=float(snapshot.get("price", {}).get("current") or 0),
         )
         return snapshot
+
+    def _buy_room(self, code: str, state) -> dict[str, Any]:
+        """이 종목에 지금 더 넣을 수 있는 금액과, 안 되면 그 이유."""
+        risk = self.settings.risk
+        position_cap = risk.total_investment_cap_krw * risk.max_position_pct / 100
+        position = state.get(code)
+        held_cost = position.cost_basis if position else 0.0
+        room = max(position_cap - held_cost, 0.0)
+
+        reason = ""
+        if code in getattr(state, "bought_today", ()):  # 하루 한 번 제한
+            reason = "오늘 이미 매수했습니다 (내일부터 가능)"
+        elif room < risk.min_order_krw:
+            reason = f"종목당 한도({position_cap:,.0f}원)를 거의 채웠습니다"
+        elif position is None and state.position_count >= risk.max_positions:
+            reason = f"보유 종목 수 한도({risk.max_positions}종목)에 도달했습니다"
+        elif state.total_invested + risk.min_order_krw > risk.total_investment_cap_krw:
+            reason = "총 투자 한도를 거의 채웠습니다"
+
+        return {
+            "can_buy": not reason,
+            "room_krw": 0 if reason else int(min(room, state.cash)),
+            "reason": reason,
+        }
 
     def _collect_votes(self, snapshots: list[dict[str, Any]]
                        ) -> dict[str, dict[str, AgentDecision]]:

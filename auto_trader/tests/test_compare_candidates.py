@@ -254,3 +254,19 @@ def test_batching_sends_less_data_than_asking_one_by_one():
     one_by_one = sum(len(SYSTEM_PROMPT) + len(build_batch_user_prompt([s]))
                      for s in snapshots())
     assert batch < one_by_one
+
+
+# --- 못 사는 종목에 매수 제안을 낭비하지 않는가 (2026-09-23) --------------------- #
+#
+# 상대평가는 순위를 매기는 일이라 좋은 종목이 계속 위로 온다. 그런데 그 종목이
+# 종목당 한도를 채웠거나 오늘 이미 샀으면 리스크 규칙이 되돌려 보낸다. 매수 제안
+# 상한(max_buy_picks)이 그렇게 낭비되면, 정작 살 수 있는 종목은 후보에조차 오르지
+# 못한 채 사이클이 끝난다. AI 에게 '이건 못 산다' 를 알려 줘야 한다.
+
+def test_the_batch_prompt_tells_the_model_not_to_waste_picks():
+    from agents.prompts import batch_system_prompt
+
+    text = batch_system_prompt(3)
+    assert "buyable.can_buy" in text
+    assert "BUY 를 내지 않는다" in text
+    assert "buyable.room_krw" in text

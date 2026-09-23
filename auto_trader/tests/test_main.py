@@ -1243,3 +1243,62 @@ def test_why_command_names_the_bottleneck(bot, monkeypatch):
 def test_why_command_is_honest_with_no_data(bot, monkeypatch):
     monkeypatch.setattr("dashboard.queries.buy_funnel", lambda *a, **k: {"ready": False})
     assert bot._cmd_why() == "아직 판단 기록이 없습니다."
+
+
+# --- 못 사는 종목을 AI 후보에서 걸러 주는가 (2026-09-23) ------------------------ #
+
+def _state_with(bot, **kw):
+    """_buy_room 이 보는 값만 갖춘 가벼운 상태."""
+    state = SimpleNamespace(positions={}, position_count=0, cash=5_000_000,
+                            total_invested=0.0, bought_today=set(),
+                            get=lambda code: None)
+    state.__dict__.update(kw)
+    state.get = lambda code: state.positions.get(code)
+    return state
+
+
+def _pos(cost):
+    return SimpleNamespace(cost_basis=cost)
+
+
+def test_buy_room_flags_a_position_at_its_cap(bot):
+    """종목당 한도 = 500만 × 20% = 100만. 95만이면 남은 5만 < 최소주문 10만."""
+    state = _state_with(bot, positions={"005930": _pos(950_000)}, position_count=1)
+
+    room = bot._buy_room("005930", state)
+
+    assert room["can_buy"] is False
+    assert "종목당 한도" in room["reason"]
+    assert room["room_krw"] == 0
+
+
+def test_buy_room_flags_bought_today(bot):
+    state = _state_with(bot, bought_today={"005930"})
+    room = bot._buy_room("005930", state)
+    assert room["can_buy"] is False and "오늘 이미 매수" in room["reason"]
+
+
+def test_buy_room_flags_the_slot_limit(bot):
+    """보유 한도에 닿으면 신규는 못 산다."""
+    state = _state_with(bot, position_count=5)
+    room = bot._buy_room("000660", state)
+    assert room["can_buy"] is False and "보유 종목 수" in room["reason"]
+
+
+def test_buy_room_is_open_for_a_fresh_code(bot):
+    state = _state_with(bot)
+    room = bot._buy_room("000660", state)
+    assert room["can_buy"] is True and room["room_krw"] > 0 and room["reason"] == ""
+
+
+def test_buy_room_never_promises_more_than_the_cash(bot):
+    """현금보다 큰 여유를 알려 주면 AI 가 집행되지 않을 비중을 제안한다."""
+    state = _state_with(bot, cash=120_000)
+    assert bot._buy_room("000660", state)["room_krw"] == 120_000
+
+
+def test_a_holding_with_room_can_still_be_topped_up(bot):
+    state = _state_with(bot, positions={"105560": _pos(177_200)}, position_count=1)
+    room = bot._buy_room("105560", state)
+    assert room["can_buy"] is True
+    assert room["room_krw"] == 1_000_000 - 177_200

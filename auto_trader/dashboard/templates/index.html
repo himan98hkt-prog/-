@@ -249,6 +249,59 @@
   {% endif %}
 </div>
 
+<!-- ── 자금 배치 ─────────────────────────────────────────────── -->
+{#
+  "1,000만원 중 100만원도 안 쓴다" 는 물음에 화면이 답하지 못했다. 돈은 셋으로
+  나뉘는데 — 한도 밖(설정이 아예 손대지 않는 돈), 한도 안 미투자, 투자 중 —
+  그 중 어디에 묶여 있는지를 보여주지 않으면 사용자가 직접 계산해야 한다.
+  접어 두면 볼 이유가 없으므로 고정 영역에 둔다.
+#}
+{% if headroom.ready and headroom.cap %}
+<div class="card">
+  <h2>자금 배치 <span class="sub">돈이 지금 어디에 있는지</span></h2>
+  <div class="alloc-bar">
+    {% set acc = headroom.account or headroom.cap %}
+    <span class="alloc-in"  style="width: {{ (headroom.invested / acc * 100)|round(1) }}%"
+          title="투자 중"></span>
+    <span class="alloc-idle" style="width: {{ (headroom.idle / acc * 100)|round(1) }}%"
+          title="한도 안이지만 아직 안 쓴 돈"></span>
+    <span class="alloc-out" style="width: {{ (headroom.outside_cap / acc * 100)|round(1) }}%"
+          title="운용 한도 밖"></span>
+  </div>
+  <div class="alloc-legend">
+    <span><i class="alloc-in"></i> 투자 중 <b>{{ '{:,.0f}'.format(headroom.invested) }}원</b></span>
+    <span><i class="alloc-idle"></i> 한도 안 미사용 <b>{{ '{:,.0f}'.format(headroom.idle) }}원</b></span>
+    {% if headroom.outside_cap %}
+    <span><i class="alloc-out"></i> 한도 밖 <b>{{ '{:,.0f}'.format(headroom.outside_cap) }}원</b>
+      <span class="dim">— settings.yaml 의 total_investment_cap_krw 가 {{ '{:,.0f}'.format(headroom.cap) }}원입니다</span>
+    </span>
+    {% endif %}
+  </div>
+  {% if headroom.per_code %}
+  <div class="alloc-codes">
+    <div class="alloc-codes-head">종목당 한도 {{ '{:,.0f}'.format(headroom.position_cap) }}원 · 남은 여유</div>
+    {% for item in headroom.per_code %}
+    <div class="alloc-code {{ 'is-full' if item.full }}">
+      <span class="alloc-code-name">{{ item.name }}</span>
+      <span class="alloc-code-bar"><i style="width: {{ [item.pct, 100]|min }}%"></i></span>
+      <span class="alloc-code-num">
+        {{ '{:,.0f}'.format(item.cost) }} / {{ '{:,.0f}'.format(headroom.position_cap) }}
+        {% if item.full %}<b class="down">추가 매수 불가</b>
+        {% else %}<span class="dim">여유 {{ '{:,.0f}'.format(item.room) }}원</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="bench-foot">
+    새로 담을 수 있는 자리 <b>{{ headroom.free_slots }}종목</b>.
+    {% if headroom.bought_today %}
+    오늘 이미 매수한 {{ headroom.bought_today|length }}종목은 내일까지 다시 사지 않습니다.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ── 매수 깔때기 ───────────────────────────────────────────── -->
 {#
   "왜 안 사지" 에 추측으로 답하지 않기 위한 표다. 매수 하나가 나가려면 관문을
