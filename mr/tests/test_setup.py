@@ -112,22 +112,36 @@ def test_the_probe_code_is_valid_python():
 # 두 번 눌러 실행하는 파일들
 # --------------------------------------------------------------------------
 
-def test_both_launchers_exist():
-    for name in ('install-windows.bat', 'install-mac.command'):
+LAUNCHERS = ('install-windows.bat', 'install-mac.command',
+             'install-phone-windows.bat', 'install-phone-mac.command')
+MAC_LAUNCHERS = ('install-mac.command', 'install-phone-mac.command')
+
+
+def test_all_launchers_exist():
+    for name in LAUNCHERS:
         assert os.path.exists(os.path.join(MR, name)), f'{name} 이 없습니다'
 
 
-def test_the_mac_launcher_is_executable():
+def test_the_mac_launchers_are_executable():
     """실행 권한이 없으면 맥에서 두 번 눌러도 아무 일이 안 일어난다."""
-    path = os.path.join(MR, 'install-mac.command')
-    assert os.access(path, os.X_OK), 'chmod +x 가 안 돼 있습니다'
+    for name in MAC_LAUNCHERS:
+        path = os.path.join(MR, name)
+        assert os.access(path, os.X_OK), f'{name} 에 chmod +x 가 안 돼 있습니다'
 
 
 def test_the_launchers_point_at_the_setup_script():
-    for name in ('install-windows.bat', 'install-mac.command'):
+    for name in LAUNCHERS:
         with open(os.path.join(MR, name), encoding='utf-8') as f:
             body = f.read()
         assert 'setup.py' in body, f'{name} 이 setup.py 를 안 부릅니다'
+
+
+def test_only_the_phone_launchers_pass_the_phone_flag():
+    """섞이면 원장님이 PC 에서 쓰려는데 폰 모드가 뜬다 (또는 반대)."""
+    for name in LAUNCHERS:
+        with open(os.path.join(MR, name), encoding='utf-8') as f:
+            body = f.read()
+        assert ('--phone' in body) == ('phone' in name), f'{name} 의 --phone 이 어긋납니다'
 
 
 def test_windows_launcher_prefers_the_py_launcher():
@@ -151,6 +165,14 @@ def test_the_windows_launcher_says_to_tick_add_to_path():
 # --------------------------------------------------------------------------
 # 설치기가 보는 자리
 # --------------------------------------------------------------------------
+
+def test_lan_ip_looks_like_an_address():
+    """폰에 불러 줄 주소다. 못 찾으면 127.0.0.1 로 떨어져야 한다 (죽지 말고)."""
+    import catalog_cli
+    ip = catalog_cli.lan_ip()
+    parts = ip.split('.')
+    assert len(parts) == 4 and all(p.isdigit() for p in parts), ip
+
 
 def test_the_venv_python_path_matches_the_platform():
     p = S.venv_python()

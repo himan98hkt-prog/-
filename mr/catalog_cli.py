@@ -412,6 +412,84 @@ def cmd_roster(st: store.CatalogStore, a) -> int:
     return 0
 
 
+# --- 폰·태블릿에서 열기 -------------------------------------------------------
+
+def lan_ip() -> str:
+    """이 PC 가 같은 와이파이에서 어떤 주소로 보이는지.
+
+    `socket.gethostbyname(hostname)` 은 PC 마다 127.0.0.1 이나 엉뚱한 것을
+    돌려준다. 바깥으로 UDP 소켓을 **열기만** 하고(패킷은 안 나간다) 커널이
+    고른 출발지 주소를 읽는 것이 제일 잘 맞는다.
+    """
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        return s.getsockname()[0]
+    except OSError:
+        return '127.0.0.1'
+    finally:
+        s.close()
+
+
+def cmd_share(st: store.CatalogStore, a) -> int:
+    """폰·태블릿에서 열 수 있게 띄운다 (같은 와이파이).
+
+    **제작 서버(`serve.py`)를 그대로 열지 않는다.** 거기엔 악보 올리기·화성
+    고치기가 달려 있어서, 집 와이파이에 통째로 열어 둘 이유가 없다. 여기서는
+    꾸러미(플레이어 + 반주 MIDI)만 **읽기 전용**으로 내보낸다.
+    """
+    import functools
+    import http.server
+    import socketserver
+    import tempfile
+
+    out = a.out or os.path.join(tempfile.gettempdir(), 'mr-share')
+    styles = [x.strip() for x in (a.styles or '').split(',') if x.strip()]
+    for x in styles:
+        orch.check_style(x)
+    res = st.export_static(out, styles=styles, academy=a.academy,
+                           for_sale=not a.personal)
+
+    ip = a.host if a.host not in ('0.0.0.0', '') else lan_ip()
+    url = f'http://{ip}:{a.port}'
+    bar = '─' * 46
+
+    print()
+    print('  폰·태블릿에서 이 주소를 여세요')
+    print(f'  {bar}')
+    print(f'     {url}')
+    print(f'  {bar}')
+    print()
+    print(f"  곡 {res['songs']}개 · {res['total_bytes'] / 1024:.0f} KB")
+    print('  · 폰이 이 PC 와 **같은 와이파이**에 있어야 합니다.')
+    print('  · 「오프라인 준비」는 이 방식으로 안 켜집니다 — 주소가 https 가')
+    print('    아니라서 브라우저가 막습니다. 재생은 그대로 됩니다.')
+    print('    와이파이 밖에서도 들으시려면 이 폴더를 웹호스팅에 올리세요:')
+    print(f'      {res["out"]}')
+    if res['dropped']:
+        print(f"  · 입력본 출처가 확인 안 된 {len(res['dropped'])}곡은 빠졌습니다 "
+              '(--personal 로 전부)')
+    print()
+    print('  이 창을 닫으면 꺼집니다.')
+    print()
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler,
+                                directory=res['out'])
+    socketserver.TCPServer.allow_reuse_address = True
+    try:
+        with socketserver.ThreadingTCPServer((a.host, a.port), handler) as srv:
+            srv.serve_forever()
+    except KeyboardInterrupt:
+        print('  껐습니다.')
+    except OSError as e:
+        print(f'  주소를 못 열었습니다: {e}', file=sys.stderr)
+        print(f'  다른 프로그램이 {a.port} 번을 쓰고 있으면 --port 로 바꾸세요.',
+              file=sys.stderr)
+        return 1
+    return 0
+
+
 # --- 배포 꾸러미 -----------------------------------------------------------
 
 def cmd_package(st: store.CatalogStore, a) -> int:
@@ -560,6 +638,17 @@ def build_parser():
                     help='파는 게 아니라 이 학원에서만 쓴다 — 입력본 출처가 '
                          '확인 안 된 악보도 전부 담는다')
     pk.set_defaults(fn=cmd_package)
+
+    sh = sub.add_parser('share', help='폰·태블릿에서 열 수 있게 띄우기 (같은 와이파이)')
+    sh.add_argument('--port', type=int, default=8800)
+    sh.add_argument('--host', default='0.0.0.0',
+                    help='기본은 와이파이 전체에 엽니다. 127.0.0.1 이면 이 PC 만')
+    sh.add_argument('--out', help='꾸러미를 만들 폴더 (기본: 임시 폴더)')
+    sh.add_argument('--styles', help='같이 구울 편성 (쉼표로)')
+    sh.add_argument('--academy', default='', help='꾸러미에 적을 학원명')
+    sh.add_argument('--personal', action='store_true',
+                    help='입력본 출처가 확인 안 된 곡도 전부 담는다')
+    sh.set_defaults(fn=cmd_share)
 
     om = sub.add_parser('omr', help='어느 인식기를 쓰는지 · 쓸 수 있는 상태인지')
     om.add_argument('--provider', help=f'확인해 볼 인식기 ({", ".join(sorted(omr.PROVIDERS))})')

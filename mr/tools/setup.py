@@ -182,9 +182,17 @@ def serve():
     run([py, 'serve.py', '--catalog', CATALOG, '--port', str(PORT)])
 
 
-def main() -> int:
+def share():
+    """폰·태블릿에서 열 수 있게 띄운다 (같은 와이파이).
+
+    제작 서버가 아니라 **꾸러미만** 내보낸다 — `catalog_cli.py share` 참고.
+    """
+    run([venv_python(), 'catalog_cli.py', '--catalog', CATALOG, 'share'])
+
+
+def main(phone: bool = False) -> int:
     line('═')
-    say('  피아노 학원 반주 프로그램')
+    say('  피아노 학원 반주 프로그램' + ('  —  폰·태블릿에서 열기' if phone else ''))
     line('═')
     say('')
     if not check_python():
@@ -194,13 +202,16 @@ def main() -> int:
     if not install_deps():
         return 1
     seed()
-    serve()
+    if phone:
+        share()
+    else:
+        serve()
     return 0
 
 
 if __name__ == '__main__':
     try:
-        code = main()
+        code = main(phone='--phone' in sys.argv)
     except KeyboardInterrupt:
         say('')
         say('  껐습니다.')
