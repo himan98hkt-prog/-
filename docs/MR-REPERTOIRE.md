@@ -20,6 +20,10 @@ python3 catalog_cli.py repertoire --scores <폴더>  # 악보가 있는 것을 �
 
 그래서 악보는 원장님이 확보하시고, 프로그램은 **넣어도 되는 곡인지 검사**합니다.
 
+> **어디서 받는지, 그중 무엇으로 만든 반주를 팔 수 있는지**는
+> [`MR-SCORES.md`](MR-SCORES.md) 에 따로 정리했습니다 — 무료로 받을 수 있는 것과
+> 무료로 **쓸 수 있는** 것이 다르고, 그 차이가 판매 시점에 문제가 됩니다.
+
 ## 프로그램이 직접 계산합니다
 
 목록의 곡마다 **작곡가 사망연도**가 적혀 있습니다. 넣을 때 보호기간(사후 70년,
@@ -41,13 +45,21 @@ python3 catalog_cli.py repertoire --scores <폴더>  # 악보가 있는 것을 �
 
 ## 악보를 넣는 법
 
-1. MusicXML(`.musicxml` · `.mxl` · `.xml`)을 **한 폴더**에 모읍니다
+1. 악보(`.musicxml` · `.mxl` · `.xml` · `.krn` · `.mid`)를 **한 폴더**에 모읍니다
 2. 파일 이름을 목록의 **id 로 맞춥니다** — `burgmuller_op100_02.musicxml`
    (이름을 바꾸기 싫으면 목록의 `file` 칸에 실제 이름을 적어도 됩니다)
 3. `python3 catalog_cli.py repertoire --scores <폴더>`
 
 제목·작곡가·교재·난이도·편성·템포는 목록에 적힌 값이 그대로 들어갑니다. 한 곡씩
 `import` 하며 인자를 치지 않아도 됩니다.
+
+폴더째 넣을 때는 출처도 폴더 단위로 적습니다. 안 적으면 `unknown` 이라
+**판매용 꾸러미에서 빠집니다** ([`MR-SCORES.md`](MR-SCORES.md)).
+
+```bash
+python3 catalog_cli.py repertoire --scores ~/악보 \
+    --score-source Mutopia --score-license cc0
+```
 
 ## 목록에 있는 것
 

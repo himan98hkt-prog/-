@@ -5,6 +5,9 @@
 
     ManualProvider   신청제. 원장님이 올리면 사람이 1~2일 안에 MusicXML 을 넣어 준다.
                      지시서 8.3 ③ 이 권하는 방식이고, **오늘 당장 돌아가며 API 비용이 0원**이다.
+    LocalProvider    원장님 PC 에서 Audiveris(오픈소스)를 돌린다. **돈이 안 들고
+                     악보가 밖으로 안 나간다.** 인식 결과물은 인식한 쪽 것이라
+                     남의 입력본 약정이 안 붙는다 (`piano_mr/provenance.py`).
     HttpProvider     REST OMR 서비스. 주소·헤더·필드 이름을 설정으로 받는다.
     FakeProvider     테스트용.
 
@@ -25,6 +28,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import shutil
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -309,7 +315,192 @@ class FakeProvider:
         return self.musicxml
 
 
-PROVIDERS = {'manual': ManualProvider, 'http': HttpProvider, 'fake': FakeProvider}
+# --------------------------------------------------------------------------
+# 원장님 PC 에서 도는 무료 인식기 (Audiveris)
+# --------------------------------------------------------------------------
+
+# Audiveris 배치 실행 규약. **추측이 아니라 소스에서 확인한 값이다**
+# (github.com/Audiveris/audiveris · app/src/main/java/org/audiveris/omr/CLI.java).
+#
+#     audiveris -batch -export -output <폴더> -- <입력.pdf>
+#
+# 결과는 `<폴더>/<이름>/<이름>.mxl` 로 떨어진다. 악장이 여럿인 책이면
+# `<이름>.opus.mxl` 이나 `<폴더>/<이름>/mvt1.mxl` 이 된다 (BookManager 주석).
+LOCAL_CMD_ENV = 'MR_OMR_LOCAL_CMD'
+LOCAL_ARGS_ENV = 'MR_OMR_LOCAL_ARGS'
+LOCAL_TIMEOUT_ENV = 'MR_OMR_LOCAL_TIMEOUT'
+DEFAULT_LOCAL_CMD = 'audiveris'
+DEFAULT_LOCAL_TIMEOUT = 900.0          # 한 권을 통째로 넣는 경우가 있다
+EXPORT_EXT = ('.mxl', '.musicxml', '.xml')
+
+INSTALL_HINT = (
+    'Audiveris 가 안 보입니다. 오픈소스 악보 인식기이고 **무료**입니다.\n'
+    '  1) https://github.com/Audiveris/audiveris/releases 에서 받아 설치\n'
+    '  2) 자바 17 이상이 필요합니다\n'
+    f'  3) 설치한 실행 파일 경로를 {LOCAL_CMD_ENV} 에 넣으세요\n'
+    '     (경로에 이미 잡혀 있으면 안 넣어도 됩니다)')
+
+
+class LocalProvider:
+    """원장님 PC 에서 Audiveris 를 돌려 PDF 를 MusicXML 로 바꾼다.
+
+    **왜 이걸 만드는가.** 콩쿨에서 제일 많이 쓰는 교재(체르니·바이엘·부르크뮐러)
+    는 곡이 만료된 지 백 년이 넘었는데도 **무료 MusicXML 이 거의 없다.** 남이
+    쳐 넣은 파일은 대개 비영리 조건이 붙어 있어 파는 제품에 못 쓴다
+    (`piano_mr/provenance.py`).
+
+    IMSLP 에서 만료된 원판 PDF 를 받아 **직접 인식하면 그 결과물은 인식한 쪽
+    것**이라 남의 약정이 안 붙는다. 이 경로가 라이선스로는 제일 깨끗하고,
+    Audiveris 는 무료라 돈도 안 든다.
+
+    **PDF 를 오래 들고 있지 않는다** (지시서 7장). 임시 폴더에 썼다가 인식이
+    끝나는 즉시 지운다. 결과 MusicXML 만 메모리에 들고 있다가 `fetch()` 에서
+    넘겨주고 그것도 버린다.
+
+    시간이 걸리는 작업이라 `blocking = False` 다. 한 쪽에 10~60초쯤 걸린다.
+    """
+
+    name = 'local'
+    needs_key = False
+    blocking = False
+
+    def __init__(self, cmd: Optional[str] = None, *,
+                 extra_args: Optional[list] = None,
+                 timeout: Optional[float] = None):
+        self.cmd = cmd or os.environ.get(LOCAL_CMD_ENV) or DEFAULT_LOCAL_CMD
+        raw = os.environ.get(LOCAL_ARGS_ENV, '')
+        self.extra_args = list(extra_args if extra_args is not None else raw.split())
+        self.timeout = float(timeout if timeout is not None
+                             else os.environ.get(LOCAL_TIMEOUT_ENV,
+                                                 DEFAULT_LOCAL_TIMEOUT))
+        self._jobs: Dict[str, dict] = {}
+
+    # --- 있는지 확인 ------------------------------------------------------
+    def resolve(self) -> str:
+        """실행 파일 경로. 없으면 **설치법을 말하고** 멈춘다."""
+        found = shutil.which(self.cmd) or (
+            self.cmd if os.path.isfile(self.cmd) and
+            os.access(self.cmd, os.X_OK) else None)
+        if not found:
+            raise OmrUnavailable(INSTALL_HINT)
+        return found
+
+    def available(self) -> bool:
+        try:
+            self.resolve()
+            return True
+        except OmrUnavailable:
+            return False
+
+    # --- 작업 -------------------------------------------------------------
+    def submit(self, pdf_bytes: bytes, filename: str) -> str:
+        exe = self.resolve()
+        ref = f'local-{uuid.uuid4().hex[:12]}'
+        work = tempfile.mkdtemp(prefix='mr-omr-')
+        # 파일 이름이 결과 파일 이름이 된다. 한글·공백이 섞이면 찾기 어려워지고
+        # 윈도에서 깨지기도 하므로 **작업 번호로 바꿔서** 넣는다.
+        pdf = os.path.join(work, f'{ref}.pdf')
+        with open(pdf, 'wb') as f:
+            f.write(pdf_bytes)
+        out = os.path.join(work, 'out')
+        os.makedirs(out, exist_ok=True)
+
+        argv = [exe, '-batch', '-export', '-output', out,
+                *self.extra_args, '--', pdf]
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        self._jobs[ref] = {'proc': proc, 'work': work, 'out': out, 'pdf': pdf,
+                           'started': time.time(), 'name': filename,
+                           'result': None, 'detail': ''}
+        return ref
+
+    def poll(self, job_ref: str) -> OmrResult:
+        job = self._jobs.get(job_ref)
+        if job is None:
+            return OmrResult(FAILED, detail=f'모르는 작업입니다: {job_ref}')
+        if job['result'] is not None:
+            return OmrResult(READY)
+        if job['detail'] and job['proc'] is None:
+            return OmrResult(FAILED, detail=job['detail'])
+
+        proc = job['proc']
+        if proc.poll() is None:
+            if time.time() - job['started'] > self.timeout:
+                proc.kill()
+                return self._fail(job, f'{self.timeout:.0f}초를 넘겨 멈췄습니다. '
+                                       '쪽수가 많으면 나눠서 넣어 보세요.')
+            return OmrResult(PENDING, detail='인식하는 중입니다')
+
+        log = (proc.stdout.read() or b'').decode('utf-8', 'replace') if proc.stdout else ''
+        job['proc'] = None
+        # 인식이 끝났으면 PDF 는 더 필요 없다 — 지시서 7장, 바로 지운다.
+        self._drop(job['pdf'])
+
+        if proc.returncode != 0:
+            return self._fail(job, f'인식에 실패했습니다 (코드 {proc.returncode}).\n'
+                                   + _tail(log))
+        found = _find_export(job['out'])
+        if not found:
+            return self._fail(job, '인식은 끝났는데 MusicXML 이 안 나왔습니다. '
+                                   '악보가 아닌 PDF 이거나 너무 흐릴 수 있습니다.\n'
+                                   + _tail(log))
+        with open(found, 'rb') as f:
+            job['result'] = f.read()
+        shutil.rmtree(job['work'], ignore_errors=True)
+        return OmrResult(READY)
+
+    def fetch(self, job_ref: str) -> bytes:
+        job = self._jobs.get(job_ref)
+        if job is None:
+            raise OmrError(f'모르는 작업입니다: {job_ref}')
+        if job['result'] is None:
+            raise OmrError(job['detail'] or '아직 결과가 없습니다 — poll() 을 먼저 보세요.')
+        data = job['result']
+        # 결과까지 넘겼으면 우리가 들고 있을 이유가 없다.
+        self._jobs.pop(job_ref, None)
+        return data
+
+    # --- 뒷정리 -----------------------------------------------------------
+    def _fail(self, job: dict, detail: str) -> OmrResult:
+        job['detail'] = detail
+        job['proc'] = None
+        shutil.rmtree(job['work'], ignore_errors=True)
+        return OmrResult(FAILED, detail=detail)
+
+    @staticmethod
+    def _drop(path: str) -> None:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _tail(log: str, lines: int = 6) -> str:
+    rows = [r for r in (log or '').splitlines() if r.strip()]
+    return '\n'.join(rows[-lines:])
+
+
+def _find_export(out_dir: str) -> Optional[str]:
+    """Audiveris 가 떨어뜨린 MusicXML 을 찾는다.
+
+    `<out>/<이름>/<이름>.mxl` 이 보통이지만 악장이 여럿이면 `mvt1.mxl` 처럼
+    나뉘고 `.opus.mxl` 로 묶이기도 한다. 그래서 자리를 못 박지 않고 훑는다.
+    여럿이면 **가장 큰 것** — 악장이 다 들어 있는 opus 쪽이다.
+    """
+    hits = []
+    for root, _, files in os.walk(out_dir):
+        for n in files:
+            if n.lower().endswith(EXPORT_EXT):
+                p = os.path.join(root, n)
+                hits.append((os.path.getsize(p), p))
+    if not hits:
+        return None
+    hits.sort(reverse=True)
+    return hits[0][1]
+
+
+PROVIDERS = {'manual': ManualProvider, 'local': LocalProvider,
+             'http': HttpProvider, 'fake': FakeProvider}
 DEFAULT_PROVIDER = 'manual'
 
 

@@ -13,13 +13,14 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import time  # noqa: E402
 
-from piano_mr import (catalog as cat, harmony, orchestration as orch,  # noqa: E402
+from piano_mr import (catalog as cat, harmony, omr, orchestration as orch,  # noqa: E402
                       provenance as prov, render, repertoire as rep, store,
                       uploads)
 
@@ -94,10 +95,18 @@ def cmd_repertoire(st: store.CatalogStore, a) -> int:
             mark = '있음' if w['id'] in have else '없음'
             print(f'  [{mark}] {w["id"]:<26} {w.get("grade",""):<4} {w["title"]}')
         print()
-        print('악보(MusicXML)를 한 폴더에 모으고 파일 이름을 위 id 로 맞춘 뒤')
-        print(f'  python3 catalog_cli.py repertoire --scores <폴더>')
+        print('악보를 한 폴더에 모으고 파일 이름을 위 id 로 맞춘 뒤')
+        print('  python3 catalog_cli.py repertoire --scores <폴더> \\')
+        print('      --score-source Mutopia --score-license cc0')
+        print(f'  (받는 형식: {", ".join(rep.SCORE_EXT)})')
+        print()
+        print('어디서 받나: OpenScore(CC0) · Mutopia(곡마다 표시) · IMSLP(PDF, 인식 필요).')
+        print('IMSLP 원판을 직접 인식하는 무료 경로가 있습니다 — catalog_cli.py omr')
+        print()
         print('판본 주의: 곡이 퍼블릭도메인이어도 **출판사 편집판에는 편집자의 권리가**')
         print('따로 붙을 수 있습니다. 원전판이나 직접 입력한 것을 쓰세요.')
+        print('입력본 주의: 남이 쳐 넣은 파일에는 비영리 조건이 붙어 있을 수 있습니다.')
+        print('자세한 것은 docs/MR-SCORES.md.')
         return 0
 
     added = failed = 0
@@ -253,6 +262,51 @@ def cmd_export(st: store.CatalogStore, a) -> int:
 
 def cmd_cache(st: store.CatalogStore, a) -> int:
     print(f'렌더 캐시 {st.clear_cache()}개 삭제')
+    return 0
+
+
+def cmd_omr(st: store.CatalogStore, a) -> int:
+    """지금 어느 인식기를 쓰고 있고, 그게 실제로 쓸 수 있는 상태인지.
+
+    올리고 나서 「안 되네」 하기 전에 **먼저 확인할 수 있어야** 한다.
+    """
+    try:
+        p = omr.make_provider(a.provider)
+    except omr.OmrUnavailable as e:
+        print(f'오류: {e}', file=sys.stderr)
+        return 1
+
+    print(f'인식기: {p.name}')
+    if p.name == 'local':
+        try:
+            exe = p.resolve()
+        except omr.OmrUnavailable as e:
+            print(f'\n{e}', file=sys.stderr)
+            return 1
+        print(f'  실행 파일 {exe}')
+        try:
+            out = subprocess.run([exe, '-version'], capture_output=True,
+                                 timeout=60)
+            ver = (out.stdout or out.stderr).decode('utf-8', 'replace').strip()
+            print(f'  판   {ver.splitlines()[0] if ver else "(모름)"}')
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f'  ⚠ 판을 못 물어봤습니다: {e}')
+        print(f'  제한 {p.timeout:.0f}초')
+        print('\n  이 PC 에서 직접 인식합니다 — 돈이 안 들고 악보가 밖으로 안 나갑니다.')
+        print('  인식 결과물은 원장님 것이라 판매용 꾸러미에 넣을 수 있습니다')
+        print('  (넣을 때 --score-license omr 로 적어 두세요).')
+    elif p.name == 'manual':
+        print('  신청제입니다 — 올리시면 사람이 처리합니다. 비용 0원.')
+        print('  이 PC 에서 바로 인식하시려면 무료 인식기를 쓸 수 있습니다:')
+        print(f'    MR_OMR_PROVIDER=local  ({omr.LOCAL_CMD_ENV} 에 경로)')
+    elif p.name == 'http':
+        c = p.config
+        print(f'  주소 {c.base or "(안 채워짐)"}')
+        print(f'  키   {"있음" if c.key else "없음"}')
+        if not c.configured:
+            print(f'  ⚠ 설정이 비어 있습니다: {c.missing()}')
+            return 1
+    print(f'\n가능한 인식기: {", ".join(sorted(omr.PROVIDERS))}')
     return 0
 
 
@@ -506,6 +560,10 @@ def build_parser():
                     help='파는 게 아니라 이 학원에서만 쓴다 — 입력본 출처가 '
                          '확인 안 된 악보도 전부 담는다')
     pk.set_defaults(fn=cmd_package)
+
+    om = sub.add_parser('omr', help='어느 인식기를 쓰는지 · 쓸 수 있는 상태인지')
+    om.add_argument('--provider', help=f'확인해 볼 인식기 ({", ".join(sorted(omr.PROVIDERS))})')
+    om.set_defaults(fn=cmd_omr)
 
     ro = sub.add_parser('roster', help='관리노트 학생 명단 받기/보기 (5단계)')
     ro.add_argument('file', nargs='?', help='관리노트가 내보낸 명단 JSON')

@@ -251,12 +251,37 @@ python3 -m piano_mr.cli <악보> --format midi --format practice
 python3 catalog_cli.py repertoire                 # 현황
 python3 catalog_cli.py repertoire --grade 초급
 python3 catalog_cli.py repertoire --scores <폴더>  # 악보가 있는 것을 한 번에
+python3 catalog_cli.py omr                       # 어느 인식기를 쓰는지
 ```
 
 `repertoire/competition.json` 에 지역 콩쿨 과제곡 54곡이 급수별로 있다. **악보는
 없다** — 곡은 퍼블릭도메인이어도 MusicXML 은 누군가 만든 별개의 것이다. 목록에
 작곡가 사망연도를 적어 두고 보호기간(사후 70년)을 **코드가 다시 계산한다.**
 자세한 것은 [docs/MR-REPERTOIRE.md](../docs/MR-REPERTOIRE.md).
+
+### 악보의 출처 — 곡이 만료된 것과 팔 수 있는 것은 다르다
+
+악보 한 장에는 권리가 세 겹이다. ① 곡(작곡가) ② 판본(출판사 편집) ③ **입력본**
+(그 파일을 쳐 넣은 사람). `repertoire.py` 가 보는 것은 ①뿐이라 ③을 보는
+`provenance.py` 를 따로 두었다. 곡이 만료돼도 그 파일에 붙은 약정은 따로 돌아간다.
+
+넣을 때 `--score-license` 로 적고, 안 적으면 `unknown` 이라 **판매용 꾸러미에서
+빠진다.** 학원 자체 사용은 `package --personal` 로 전부 담긴다.
+
+```bash
+# 받는 곳: OpenScore(CC0) · Mutopia(곡마다 표시) · IMSLP(PDF)
+python3 catalog_cli.py import x.musicxml --title … --score-license cc0
+
+# IMSLP 원판 PDF 를 직접 인식하기 — 무료(Audiveris), 악보가 밖으로 안 나간다
+export MR_OMR_PROVIDER=local MR_OMR_LOCAL_CMD=/경로/audiveris
+python3 catalog_cli.py omr                       # 쓸 수 있는 상태인지 먼저 확인
+```
+
+**MIDI 도 받는다.** 다만 박자표를 안 적어 둔 MIDI 는 거절한다 — music21 이
+4/4 를 지어 넣어 3/4 곡의 화성이 통째로 틀리는데 **오류가 안 나기** 때문이다
+(`piano_mr/midifile.py`). 박자를 아시면 `--time 3/4`.
+
+자세한 것은 [docs/MR-SCORES.md](../docs/MR-SCORES.md).
 
 ## 발표회 운영 화면 (프로그램 대시보드)
 
