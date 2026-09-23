@@ -99,6 +99,33 @@ body {
 .vignette { position:absolute; inset:0; pointer-events:none;
   box-shadow:inset 0 0 200px 68px rgba(0,0,0,.92); }
 
+/* ---------- 진짜 무대 사진·영상이 깔린 경우 ----------
+ *
+ * 그려 둔 무대를 그대로 두면 **피아노가 둘, 조명이 둘, 커튼이 둘**이 된다.
+ * 사진이 좋을수록 더 이상해진다. 그래서 사진이 오면 그린 것들은 물러나고,
+ * 남기는 건 두 가지뿐이다 — 아래를 바탕색으로 녹이는 층(프로그램 목록과 잇는다)과
+ * 글자 뒤에 까는 어두운 판(⑤-2 무대에서 이름이 읽혀야 한다).
+ *
+ * 먼지는 남긴다. 사진 위에서도 공기 중의 빛으로 읽히지 겹쳐 보이지 않는다. */
+.stage--media .beam,
+.stage--media .piano,
+.stage--media .floor,
+.stage--media .stage__paint::before,
+.stage--media .stage__paint::after { display: none; }
+.stage--media .stage__paint {
+  background: linear-gradient(180deg, rgba(10,9,14,.34) 0%, transparent 32%,
+                              transparent 58%, var(--bg) 100%);
+}
+/* 그린 무대가 비켰으니 사진을 더 드러낸다. 글자는 아래 ::before 가 지킨다 */
+.stage--media .stage__media.on { opacity: .92; }
+/* 어두운 판만으로는 부족한 줄들 — 사진의 밝은 데를 가로지르면 대비가 무너진다.
+ * 이름(.now-student)은 이미 제 그림자를 갖고 있다. */
+.stage--media .event,
+.stage--media .now-song,
+.stage--media .now-meta,
+.stage--media .next,
+.stage--media .progress { text-shadow: 0 1px 10px rgba(0,0,0,.85); }
+
 /* ---------- 무대 위 글자 ---------- */
 .stage__inner { position:relative; width:100%; max-width:1180px; margin:0 auto;
   padding:0 40px 42px; }

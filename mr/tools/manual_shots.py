@@ -116,10 +116,22 @@ async def shoot(base: str, out: str, pkg_base: str):
         await pg.wait_for_timeout(400)
         await snap(pg, '22-PDF올리기')
 
+        # 무대 배경은 **사진으로** 찍는다. 헤드리스 크로미움에는 H.264 디코더가 없어
+        # `hall.mp4` 가 안 풀리고, 그러면 화면이 CSS 무대로 되돌아간다(그게 맞는 동작이다).
+        # 원장님 브라우저에서는 영상이 뜨므로, 설명서에는 그 모습에 가까운 사진을 싣는다.
+        # 저장소 파일은 건드리지 않고 이 응답에서만 영상을 뺀다.
+        async def no_video(route):
+            r = await route.fetch()
+            data = await r.json()
+            data['video'] = None
+            await route.fulfill(json=data)
+        await pg.route('**/api/stage', no_video)
+
         await pg.goto(f'{base}/static/program.html')
         await pg.wait_for_selector('.stage, .queue, .empty', timeout=30_000)
         await pg.wait_for_timeout(1200)      # 무대 조명 애니메이션이 자리 잡게
         await snap(pg, '23-발표회운영')
+        await pg.unroute('**/api/stage', no_video)
         await desk.close()
 
         # --- 원장님이 쓰는 화면 (정적 꾸러미 그대로) ----------------------

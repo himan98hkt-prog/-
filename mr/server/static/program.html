@@ -10,7 +10,10 @@
 </head>
 <body>
 <section class="stage" id="stage">
-  <video class="stage__media" id="bg" muted playsinline loop preload="none"></video>
+  <!-- preload=auto 여야 한다. none 이면 브라우저가 데이터를 안 받아 loadeddata 가
+     영영 안 오고, 영상이 붙었는데도 투명한 채로 남는다. 파일이 없으면
+     src 를 안 넣으므로 아무것도 안 받는다. -->
+  <video class="stage__media" id="bg" muted playsinline loop preload="auto"></video>
   <div class="stage__paint"></div>
   <div class="beam"></div>
   <div class="floor"></div>

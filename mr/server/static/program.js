@@ -26,18 +26,30 @@ const state = {
   fetch('/api/stage').then((r) => r.json()).then((m) => {
     if (m.video) {
       const v = $('#bg');
-      v.src = m.video;
-      v.addEventListener('loadeddata', () => {
+      // 무대 배경이라 소리는 없어야 하고, muted 여야 자동재생이 허용된다.
+      v.muted = true;
+      // 첫 프레임이 준비되면 드러낸다. `playing` 도 같이 듣는 이유는, 기기에 따라
+      // `loadeddata` 를 건너뛰고 바로 재생으로 가는 경우가 있어서다. 한쪽만 듣다가
+      // 영상이 붙었는데도 투명한 채로 남은 적이 있다.
+      // **첫 프레임이 실제로 뜬 뒤에야** 그린 무대를 치운다. 파일이 있다는 것만 보고
+      // 미리 치우면, 그 기기가 이 영상을 못 읽을 때 빈 무대가 남는다. 코덱이 없거나
+      // 파일이 깨졌을 때 CSS 무대로 되돌아가는 것이 이 화면의 마지막 방어선이다.
+      const show = () => {
         v.classList.add('on');
-        v.play().catch(() => {});
-      });
-      v.load();
+        $('#stage').classList.add('stage--media');
+      };
+      v.addEventListener('loadeddata', show, { once: true });
+      v.addEventListener('playing', show, { once: true });
+      v.src = m.video;
+      // play() 가 데이터를 끌어온다. 막히면(자동재생 정책) load() 로 첫 프레임만이라도.
+      v.play().catch(() => v.load());
     } else if (m.image) {
       const el = document.createElement('div');
       el.className = 'stage__media on';
       el.style.cssText =
         `background:url(${m.image}) center/cover no-repeat;position:absolute;inset:0`;
       $('#stage').insertBefore(el, $('.stage__paint').nextSibling);
+      $('#stage').classList.add('stage--media');
     }
   }).catch(() => {});
 
