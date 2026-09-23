@@ -169,6 +169,9 @@ jobs:
               --academy "CI학원"
           # MR 서버가 아니라 평범한 정적 서버로 띄워 같은 11항목을 본다
           python3 tools/player_check.py --static /tmp/ci-pkg
+          # 웹호스팅의 실제 모습은 `도메인/반주/` 다. 주소에 한글이 들어가고
+          # 서비스워커 범위도 그 폴더로 좁아진다 — 같은 11항목을 거기서 한 번 더.
+          python3 tools/player_check.py --static /tmp/ci-pkg --subfolder
           python3 -c "
           import os
           names = [n for _, _, fs in os.walk('/tmp/ci-pkg') for n in fs]

@@ -32,6 +32,15 @@ def st(tmp_path):
     return s
 
 
+def file_of(url):
+    """주소에서 파일 경로만. 뒤의 `?v=…` 는 **반주 판 표식**이라 파일명이 아니다.
+
+    이게 붙어야 화성을 고쳐 다시 올렸을 때 폰이 새로 받는다
+    (`tests/test_freshness.py`).
+    """
+    return url.split('?')[0]
+
+
 def bundle_of(out):
     with open(os.path.join(out, 'api', 'player', 'bundle'), encoding='utf-8') as f:
         return json.load(f)
@@ -56,7 +65,7 @@ def test_the_midi_sits_at_the_path_the_app_asks_for(st, tmp_path):
     st.export_static(out)
     for song in bundle_of(out)['songs']:
         for v in song['variants']:
-            path = os.path.join(out, *v['url'].split('/'))
+            path = os.path.join(out, *file_of(v['url']).split('/'))
             assert os.path.exists(path), v['url']
             with open(path, 'rb') as f:
                 assert f.read(4) == b'MThd'
@@ -107,9 +116,11 @@ def test_only_the_default_arrangement_by_default(st, tmp_path):
     out = str(tmp_path / 'pkg')
     st.export_static(out)
     waltz = next(s for s in bundle_of(out)['songs'] if s['id'] == 'waltz')
-    assert waltz['variants'] == [
-        {'style': 'fairytale', 'level': 'normal',
-         'url': 'api/player/midi/waltz'}]
+    assert len(waltz['variants']) == 1
+    only = waltz['variants'][0]
+    assert (only['style'], only['level']) == ('fairytale', 'normal')
+    assert file_of(only['url']) == 'api/player/midi/waltz'
+    assert '?v=' in only['url'], '판 표식이 없으면 고쳐도 폰에 안 갑니다'
 
 
 def test_extra_arrangements_get_their_own_files(st, tmp_path):
@@ -117,7 +128,7 @@ def test_extra_arrangements_get_their_own_files(st, tmp_path):
     out = str(tmp_path / 'pkg')
     st.export_static(out, styles=['march'], levels=['rich'])
     waltz = next(s for s in bundle_of(out)['songs'] if s['id'] == 'waltz')
-    urls = {(v['style'], v['level']): v['url'] for v in waltz['variants']}
+    urls = {(v['style'], v['level']): file_of(v['url']) for v in waltz['variants']}
     assert urls[('fairytale', 'normal')] == 'api/player/midi/waltz'
     assert urls[('march', 'rich')] == 'api/player/midi/waltz__march_rich'
     assert len(set(urls.values())) == 2          # 같은 파일을 가리키면 안 된다
@@ -130,7 +141,7 @@ def test_the_default_is_always_included_even_if_not_requested(st, tmp_path):
     out = str(tmp_path / 'pkg')
     st.export_static(out, styles=['march'])
     for song in bundle_of(out)['songs']:
-        assert song['variants'][0]['url'].endswith(song['id'])
+        assert file_of(song['variants'][0]['url']).endswith(song['id'])
 
 
 # --- 곁가지 ------------------------------------------------------------------
@@ -176,3 +187,32 @@ def test_rebuilding_replaces_the_folder(st, tmp_path):
         f.write('x')
     st.export_static(out)
     assert not os.path.exists(stray)
+
+
+# --- 하위 폴더 배포 (도메인/반주/) --------------------------------------------
+
+def check_src():
+    here = os.path.dirname(os.path.abspath(__file__))
+    src = os.path.join(os.path.dirname(here), 'tools', 'player_check.py')
+    with open(src, encoding='utf-8') as f:
+        return f.read()
+
+
+def test_the_browser_check_does_not_hardcode_the_domain_root():
+    """검사기가 `fetch('/api/…')` 로 루트를 박으면 **하위 폴더를 못 본다.**
+
+    실제로 박혀 있었다. 그래서 `도메인/반주/` 에 올린 경우는 한 번도 브라우저로
+    검사된 적이 없었고, 상대경로인지 문자열로만 보고 있었다. 앱은 멀쩡했지만
+    검사기가 구멍이면 다음에 앱이 깨져도 안 잡힌다.
+    """
+    src = check_src()
+    bad = [ln.strip() for ln in src.splitlines()
+           if "fetch('/api/" in ln or 'fetch(`/api/' in ln or 'fetch("/api/' in ln]
+    assert not bad, f'검사기가 도메인 루트를 박아 두었습니다: {bad[:2]}'
+
+
+def test_the_browser_check_can_run_from_a_subfolder():
+    """그 배치를 실제로 돌릴 수단이 있어야 한다 — 없으면 위 검사는 형식일 뿐이다."""
+    src = check_src()
+    assert '--subfolder' in src
+    assert 'add_init_script' in src, '주소 해석기를 페이지에 심지 않습니다'

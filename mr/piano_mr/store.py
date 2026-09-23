@@ -307,6 +307,29 @@ class CatalogStore:
                  'label': harmony.label(h['root'], h['qual'])}
                 for h in song.harmony]
 
+    def song_rev(self, song: cat.Song) -> str:
+        """반주 내용이 바뀌면 같이 바뀌는 짧은 표식. 플레이어 주소에 `?v=` 로 붙는다.
+
+        **이게 없으면 고친 반주가 학부모 폰에 영영 안 갑니다.** 서비스워커가
+        반주 MIDI 를 `cacheFirst` 로 잡는데, 주소가 그대로면 캐시에서 옛것을
+        꺼내 준다. 브라우저로 확인한 실제 고장이다 —
+
+            처음 받은 반주 598바이트 → 곡을 고쳐 다시 올려 718바이트
+            → 폰이 다시 받은 반주 598바이트 (옛것)
+
+        화면에는 고친 화성이 보이는데 소리는 옛것이 나는, 발표회 당일에야
+        드러나는 종류다. 주소가 달라지면 캐시가 안 맞아 새로 받는다.
+
+        무엇을 넣는가 — **반주 소리를 바꾸는 것만** 넣는다. 제목이나 난이도는
+        바뀌어도 소리가 같으므로 넣지 않는다 (넣으면 쓸데없이 다시 받는다).
+        편성·두께·템포는 주소의 다른 칸에 이미 있다.
+        """
+        blob = json.dumps(
+            [[h['m'], h['i'], h['root'], h['qual']] for h in song.harmony],
+            separators=(',', ':'))
+        raw = f'{song.key}|{song.count_in}|{song.default_curve}|{blob}'
+        return hashlib.sha1(raw.encode()).hexdigest()[:8]
+
     def render_key(self, song: cat.Song, style: str, level: str, bpm: int,
                    mix: str) -> str:
         blob = json.dumps([[h['m'], h['i'], h['root'], h['qual']] for h in song.harmony])
@@ -427,10 +450,33 @@ class CatalogStore:
         out = (self.variant_path(song_id, style, level) if variant
                else self.midi_path(song_id))
         arr.save(out)
+        # **어떤 화성으로 구웠는지 남긴다.** 이게 없으면 원장님이 화음을 고쳐도
+        # `accomp_midi_bytes` 가 파일이 있다는 이유로 옛것을 그대로 내준다
+        # (`stamp_path` 설명 참고).
+        with open(self.stamp_path(out), 'w', encoding='utf-8') as f:
+            f.write(self.song_rev(song))
         if not variant:
             song.accomp_midi = os.path.relpath(out, self.root)
             self.save()
         return out
+
+    @staticmethod
+    def stamp_path(midi_path: str) -> str:
+        """그 MIDI 를 **어떤 화성으로 구웠는지** 적어 두는 자리.
+
+        미리 구워 둔 반주(`midi/*.mid`)는 화성을 고쳐도 자동으로 안 바뀐다.
+        그런데 화성 확인 화면의 「듣기」는 `render_key` 에 화성이 들어가서
+        **그 자리에서 다시 굽는다.** 그래서 표식이 없으면
+
+            원장님은 고친 반주를 듣는데, 아이 폰에는 고치기 전 것이 간다
+
+        는 일이 벌어진다. 화면과 소리가 어긋나는데 오류는 하나도 안 난다.
+
+        파일 이름에 넣지 않고 옆에 두는 이유는 `song.accomp_midi` 와 발표회
+        큐가 이미 이 경로를 물고 있어서다. 표식만 옆에 두면 옛 카탈로그도
+        그대로 열리고, 표식이 없으면 한 번 다시 구우면 맞춰진다.
+        """
+        return midi_path + '.rev'
 
     def variant_path(self, song_id: str, style: str, level: str) -> str:
         return os.path.join(self.midi_dir, f'{song_id}__{style}_{level}.mid')
@@ -588,7 +634,10 @@ class CatalogStore:
                 # 플레이어가 받아 가는 주소와, 카탈로그 안의 파일 위치.
                 # 이름 하나가 상황 따라 다른 뜻이 되면 나중에 꼭 틀린다.
                 'midi': f'/api/player/midi/{song.id}',
-                'midi_file': song.accomp_midi or None}
+                'midi_file': song.accomp_midi or None,
+                # 반주가 바뀌면 주소도 바뀌게 하는 표식 (song_rev 설명 참고).
+                # 이게 없으면 고친 반주가 이미 받아 간 기기에 영영 안 간다.
+                'rev': self.song_rev(song)}
         # 지금 울리는 화음을 화면에 띄우려고 싣는다.
         #
         # 이 제품이 파는 것은 **화성을 정확히 읽는 것**이다(99.5%). 그게 화면에
@@ -628,10 +677,19 @@ class CatalogStore:
         variant = (style != song.default_style or level != song.default_level)
         path = (self.variant_path(song_id, style, level) if variant
                 else self.midi_path(song_id))
-        if not os.path.exists(path):
+        if not os.path.exists(path) or self.stamp_of(path) != self.song_rev(song):
+            # 파일이 없거나, **고친 화성으로 구운 것이 아니면** 다시 굽는다.
             self.build_midi(song_id, style=style, level=level, variant=variant)
         with open(path, 'rb') as f:
             return f.read()
+
+    def stamp_of(self, midi_path: str) -> str:
+        """그 MIDI 를 구울 때의 화성 표식. 없으면 빈 문자열 — 다시 구우라는 뜻."""
+        try:
+            with open(self.stamp_path(midi_path), encoding='utf-8') as f:
+                return f.read().strip()
+        except OSError:
+            return ''
 
     def export_player(self, out_path: str) -> str:
         """플레이어 번들을 파일로. 확인된 곡만, 오디오 없이."""
@@ -908,7 +966,10 @@ class CatalogStore:
                 with open(os.path.join(midi_dir, name), 'wb') as f:
                     f.write(data)
                 total += len(data)
-                made.append((st, lv, f'api/player/midi/{name}'))
+                # 구운 바이트를 그대로 해시한다 — 서버 경로의 `rev` 보다 정확하다.
+                # 이 주소가 그대로면 서비스워커가 옛 반주를 영영 꺼내 준다.
+                v = hashlib.sha1(data).hexdigest()[:8]
+                made.append((st, lv, f'api/player/midi/{name}?v={v}'))
             rows.append(self.song_row(song, variants=made))
 
         bundle = {

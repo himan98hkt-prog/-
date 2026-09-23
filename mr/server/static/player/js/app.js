@@ -67,21 +67,29 @@ const songById = (id) => (state.bundle.songs || []).find((s) => s.id === id);
  * 정적 호스트는 쿼리스트링을 무시하므로 없는 편성을 불러도 **같은 파일이 조용히
  * 돌아온다.** 그래서 번들이 알려 준 목록에서 고른다. */
 function midiUrl(song, settings) {
+  // 정적 꾸러미의 주소에는 만들 때 구운 바이트의 해시가 이미 붙어 있다.
   if (song.variants) {
     const hit = song.variants.find(
       (v) => v.style === settings.style && v.level === settings.level);
     return apiUrl((hit || song.variants[0]).url);
   }
   const q = new URLSearchParams({ style: settings.style, level: settings.level });
+  // `rev` 는 반주가 바뀌면 같이 바뀐다. 이게 없으면 화성을 고쳐도 서비스워커가
+  // 옛 반주를 영영 캐시에서 꺼내 준다 — 화면은 고친 화성, 소리는 옛것.
+  if (song.rev) q.set('v', song.rev);
   return apiUrl(`${song.midi}?${q}`);
 }
 
 async function loadSong(song, settings) {
   const r = await fetch(midiUrl(song, settings));
   if (!r.ok) throw new Error('반주를 받지 못했습니다');
-  // 서비스워커가 요청한 편성이 없어 기본 편성으로 대신 준 경우 (오프라인)
-  if (r.headers.get('X-MR-Fallback') === 'default') {
+  // 서비스워커가 캐시의 다른 것을 대신 준 경우 (오프라인). 무엇이 다른지에
+  // 따라 말이 달라야 한다 — 편성이 바뀐 것과 판이 옛것인 것은 전혀 다른 일이다.
+  const fallback = r.headers.get('X-MR-Fallback');
+  if (fallback === 'default') {
     toast('오프라인이라 기본 편성으로 재생합니다.');
+  } else if (fallback === 'stale') {
+    toast('오프라인이라 예전에 받아 둔 반주로 재생합니다.');
   }
   player.load(await r.arrayBuffer(), {
     bpm: settings.bpm,

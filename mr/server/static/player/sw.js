@@ -9,7 +9,9 @@
 // 들어 있어 영영 맞지 않으므로, 버전을 올려 activate 에서 통째로 지운다.
 // v3 — 디자인을 새로 했다. tokens.css 가 늘었고, 목록에 안 넣으면 **오프라인에서
 // 색이 통째로 빠진 화면**이 뜬다. 버전을 올려야 이미 깔린 기기가 새로 받아 간다.
-const VERSION = 'mr-player-v4';
+// v5 — 반주 주소에 `?v=`(반주 판)가 붙었고, 오프라인 대체 때 "편성이 다름"과
+// "판이 옛것"을 구분한다. 옛 워커는 `v` 를 모르므로 캐시를 통째로 갈아야 한다.
+const VERSION = 'mr-player-v5';
 
 // 이 워커가 놓인 폴더. 경로를 박아 두면 안 된다 — 원장님은 도메인 루트에 올릴 수도,
 // `/반주/` 같은 하위 폴더에 올릴 수도 있다. 그때마다 껍데기가 오프라인에서 안 뜨면
@@ -72,18 +74,38 @@ async function cacheFirst(req, cacheName) {
     if (res.ok) c.put(req, res.clone());
     return res;
   } catch (err) {
-    // 정확히 그 편성은 없지만 같은 곡의 다른 편성은 있는 경우. 조용히 바꿔치기하면
+    // 정확히 그것은 없지만 같은 곡의 다른 것이 있는 경우. 조용히 바꿔치기하면
     // 화면과 소리가 어긋나므로, 헤더로 알려 준다 (화면이 안내 문구를 띄운다).
     const loose = await c.match(req, { ignoreSearch: true });
     if (loose) {
       const h = new Headers(loose.headers);
-      h.set('X-MR-Fallback', 'default');
+      // 무엇이 다른지 구분한다. `v` 만 다르면 **편성은 맞고 판만 옛것**이다 —
+      // 그걸 "기본 편성으로 재생합니다" 라고 하면 거짓말이 된다.
+      h.set('X-MR-Fallback', onlyVersionDiffers(req.url, loose.url) ? 'stale' : 'default');
       return new Response(await loose.blob(), {
         status: loose.status, statusText: loose.statusText, headers: h,
       });
     }
     throw err;
   }
+}
+
+/* 두 주소가 `v`(반주 판) 말고는 같은가.
+ *
+ * 오프라인에서 캐시의 다른 항목을 대신 내줄 때, 무엇이 달라서 그런지 화면에
+ * 바르게 알려 주려고 본다. 편성(style·level)이 다른 것과, 편성은 맞는데 판이
+ * 옛것인 것은 원장님께 전혀 다른 이야기다.
+ */
+function onlyVersionDiffers(a, b) {
+  const ua = new URL(a), ub = new URL(b);
+  if (ua.pathname !== ub.pathname) return false;
+  const strip = (u) => {
+    const q = new URLSearchParams(u.search);
+    q.delete('v');
+    q.sort();
+    return q.toString();
+  };
+  return strip(ua) === strip(ub);
 }
 
 async function networkFirst(req, cacheName) {

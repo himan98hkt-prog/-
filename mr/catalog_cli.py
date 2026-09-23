@@ -518,6 +518,21 @@ def cmd_package(st: store.CatalogStore, a) -> int:
         print('    학원에서만 쓰실 거면 --personal 을 붙이면 전부 담깁니다.')
     for c in out['cautions']:
         print(f"\n  ⚠ {c['count']}곡이 {c['label']} 입니다 — {c['caution']}")
+    if a.zip:
+        import zipfile
+        zpath = out['out'].rstrip(os.sep) + '.zip'
+        root = out['out']
+        with zipfile.ZipFile(zpath, 'w', zipfile.ZIP_DEFLATED) as z:
+            for base, _dirs, files in os.walk(root):
+                for n in files:
+                    p = os.path.join(base, n)
+                    # 폴더를 한 겹 더 만들지 않는다 — 웹호스팅 파일관리자에서
+                    # 풀면 그 자리에 그대로 펼쳐져야 주소가 짧아진다.
+                    z.write(p, os.path.relpath(p, root))
+        kb = os.path.getsize(zpath) / 1024
+        print(f'\n  압축 파일: {zpath}  ({kb:.0f} KB)')
+        print('  웹호스팅 파일관리자에 올리고 **그 자리에서 풀면** 됩니다.')
+
     print('\n  이 폴더를 통째로 웹호스팅에 올리면 됩니다. https 여야 오프라인이 켜집니다.')
     print('  악보 원본(scores/)과 렌더 캐시는 들어가지 않습니다.')
     return 0
@@ -634,6 +649,8 @@ def build_parser():
     pk.add_argument('--verified-only', action='store_true',
                     help='화성 확인이 끝난 곡만')
     pk.add_argument('--academy', default='', help='꾸러미에 적을 학원명')
+    pk.add_argument('--zip', action='store_true',
+                    help='올리기 쉽게 압축 파일로도 만든다 (웹호스팅 파일관리자용)')
     pk.add_argument('--personal', action='store_true',
                     help='파는 게 아니라 이 학원에서만 쓴다 — 입력본 출처가 '
                          '확인 안 된 악보도 전부 담는다')

@@ -25,17 +25,27 @@ import re
 import socket
 import subprocess
 import sys
+import tempfile
 import time
+import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROME = os.environ.get('CHROME_PATH', '')
 
 # 진짜 소리가 나는지 재 본다. `play()` 가 AudioContext 를 처음 만들기 때문에
 # 계측기(AnalyserNode)는 재생을 시작한 **뒤에** 물려야 한다.
+# 검사 스크립트들이 쓸 주소 해석기. **앱과 같은 규칙**(`data-api` + `baseURI`)
+# 이다. 여기에 `/api/…` 를 박아 두면 도메인 루트에 올린 경우에만 맞고,
+# `도메인/반주/` 같은 하위 폴더에서는 404 HTML 을 받아 "MIDI 파일이 아닙니다"
+# 로 터진다 — 실제로 그렇게 터졌고, 그때까지 하위 폴더는 검사된 적이 없었다.
+# 페이지가 열리기 전에 심어야 하므로 `add_init_script` 로 넣는다.
+API_INIT = """window.API = (u) => new URL(
+    u, new URL(document.documentElement.dataset.api || '/', document.baseURI)).href;"""
+
 PROBE_JS = """async (id) => {
     const { Player } = await import('./js/engine.js');
     const pl = new Player();
-    const r = await fetch('/api/player/midi/' + id);
+    const r = await fetch(API('api/player/midi/' + id));
     pl.load(await r.arrayBuffer(), { bpm: 96, countInBars: 0 });
     pl.play(0);
     const an = pl.ctx.createAnalyser(); an.fftSize = 2048;
@@ -62,7 +72,7 @@ CUE_JS = """async (id) => {
         .filter((d) => d.kind === 'audiooutput' && d.deviceId && d.deviceId !== 'default');
     if (!outs.length) return { supported: false };
     const pl = new Player();
-    const r = await fetch('/api/player/midi/' + id);
+    const r = await fetch(API('api/player/midi/' + id));
     pl.load(await r.arrayBuffer(), { bpm: 96, countInBars: 2 });
     if (!await pl.setCueOutput(outs[0].deviceId)) return { supported: false };
     pl.play(0);
@@ -89,7 +99,7 @@ CUE_JS = """async (id) => {
 FADE_JS = """async (id) => {
     const { Player, FADE_SECONDS } = await import('./js/engine.js');
     const pl = new Player();
-    const r = await fetch('/api/player/midi/' + id);
+    const r = await fetch(API('api/player/midi/' + id));
     pl.load(await r.arrayBuffer(), { bpm: 96, countInBars: 0 });
     pl.play(0);
     const an = pl.ctx.createAnalyser(); an.fftSize = 2048;
@@ -156,6 +166,7 @@ async def check(base: str, song_id: str, stop_server) -> None:
         b = await p.chromium.launch(**launch)
         ctx = await b.new_context(viewport={'width': 420, 'height': 880},
                                   permissions=['microphone'])
+        await ctx.add_init_script(API_INIT)
         pg = await ctx.new_page()
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -177,7 +188,7 @@ async def check(base: str, song_id: str, stop_server) -> None:
         slow, fast = await pg.evaluate("""async (id) => {
             const { Player } = await import('./js/engine.js');
             const pl = new Player();
-            const r = await fetch('/api/player/midi/' + id);
+            const r = await fetch(API('api/player/midi/' + id));
             pl.load(await r.arrayBuffer(), { bpm: 60, countInBars: 0 });
             const a = pl.totalSeconds;
             pl.setTempo(120);
@@ -223,7 +234,7 @@ async def check(base: str, song_id: str, stop_server) -> None:
         # 어느 쪽이든, 미리 받은 주소와 재생하는 주소가 다르면 오프라인에서 엉뚱한
         # 편성이 조용히 나온다. 모양만 다를 뿐 지켜야 할 성질은 같다.
         info = await pg.evaluate(
-            "async () => { const b = await (await fetch('/api/player/bundle')).json();"
+            "async () => { const b = await (await fetch(API('api/player/bundle'))).json();"
             " return { static: !!b.static, ids: b.songs.map((s) => s.id),"
             " urls: b.songs.flatMap((s) => s.variants ? s.variants.map((v) => v.url) : []) }; }")
         ids, is_static = info['ids'], info['static']
@@ -266,7 +277,7 @@ async def check(base: str, song_id: str, stop_server) -> None:
 
         # 없는 편성을 부르면 조용히 바꿔치기하지 말고 알려 줘야 한다
         told = await pg2.evaluate("""async (id) => {
-            const r = await fetch(`/api/player/midi/${id}?style=march&level=rich`);
+            const r = await fetch(API(`api/player/midi/${id}?style=march&level=rich`));
             return { ok: r.ok, fb: r.headers.get('X-MR-Fallback') };
         }""", song_id)
         assert told['ok'] and told['fb'] == 'default', \
@@ -298,6 +309,11 @@ def main() -> int:
     ap.add_argument('--static', metavar='폴더',
                     help='정적 꾸러미를 **평범한 정적 서버**로 띄워 검사한다 '
                          '(MR 서버 없이 — 원장님 배포 형태 그대로)')
+    ap.add_argument('--subfolder', metavar='이름', nargs='?', const='반주',
+                    help='도메인 루트가 아니라 **하위 폴더**에 올린 것처럼 검사한다 '
+                         '(웹호스팅의 실제 모습: 도메인/반주/). 기본 이름이 한글인 '
+                         '것은 일부러다 — 주소에 한글이 들어가는 쪽이 실제이고 '
+                         '깨질 수 있는 쪽이다')
     args = ap.parse_args()
 
     if importlib.util.find_spec('playwright') is None:
@@ -311,6 +327,7 @@ def main() -> int:
         return 2
 
     port = args.port or free_port()
+    sub = ''
     if args.static:
         # 파이썬 반주 서버가 아니라 **아무 파일이나 내주는 서버**다. 원장님 홈페이지와
         # 같은 조건이다 — 여기서 통과하면 원장님 PC 에 파이썬이 필요 없다는 뜻이다.
@@ -319,6 +336,13 @@ def main() -> int:
             print(f'정적 꾸러미가 아닙니다: {base_dir} '
                   '(catalog_cli.py package 로 먼저 만드세요)', file=sys.stderr)
             return 2
+        if args.subfolder:
+            # 꾸러미를 건드리지 않고 **그 위에 한 겹** 씌운다. 심볼릭 링크라
+            # 파일을 복사하지 않는다 — 원본이 곧 검사 대상이다.
+            holder = tempfile.mkdtemp(prefix='mr-sub-')
+            link = os.path.join(holder, args.subfolder)
+            os.symlink(base_dir, link)
+            base_dir, sub = holder, args.subfolder
         srv = subprocess.Popen(
             [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1'],
             cwd=base_dir, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
@@ -340,8 +364,11 @@ def main() -> int:
     try:
         base = f'http://127.0.0.1:{port}'
         if args.static:
-            wait_for(f'{base}/api/player/bundle')
-            asyncio.run(check(f'{base}/', args.song, stop_server))
+            # 주소에 한글이 들어가면 브라우저가 퍼센트 인코딩해서 보낸다.
+            # 그 상태에서도 상대경로가 제자리를 찾는지가 이 검사의 요점이다.
+            here = f'{base}/{urllib.parse.quote(sub)}/' if sub else f'{base}/'
+            wait_for(here + 'api/player/bundle')
+            asyncio.run(check(here, args.song, stop_server))
         else:
             wait_for(f'{base}/api/stats')
             asyncio.run(check(f'{base}/static/player/', args.song, stop_server))
