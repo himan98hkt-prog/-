@@ -133,52 +133,107 @@ no text --ar 3:2 --style raw --v 6
 
 ---
 
-## 힉스필드로 이미 만들어 두었습니다 (2026-09-23)
+## 힉스필드로 만들어 둔 것 — 받아서 넣기만 하면 됩니다
 
-아래 여섯 장을 힉스필드 계정에 만들어 두었습니다. **제 컨테이너에서는 결과 파일을
-못 받습니다** — 힉스필드 CDN(`cdn.higgsfield.ai`)도, 결과가 실제로 놓이는 CloudFront
-주소(`d8j0ntlcm91z4.cloudfront.net`)도 조직 egress 정책에 **403 으로 막혀** 있습니다.
-**위젯에서 내려받아 아래 자리에 넣어 주시면** 제가 붙이고 검사까지 돌립니다.
+**제 컨테이너에서는 결과 파일을 못 받습니다.** 힉스필드 CDN(`cdn.higgsfield.ai`)도,
+결과가 실제로 놓이는 CloudFront 주소(`d8j0ntlcm91z4.cloudfront.net`)도 조직 egress
+정책에 **403 으로 막혀** 있습니다(프록시가 CONNECT 를 거부). 정책 거부는 우회하지
+않는 것이 원칙이라 받아서 커밋하지 못했습니다. **네트워크가 되는 곳에서 받아 아래
+자리에 넣어 주시면** 제가 붙이고 검사까지 돌립니다.
 
-| # | 무엇 | 모델 | 크기 | 넣을 자리 |
-|---|---|---|---|---|
-| 0 | 무대 — 따뜻하고 아담한 리사이틀홀 | Recraft V4.1 2k | 2688×1536 | `mr/server/static/img/hall.jpg` |
-| 1 | 무대 — 크고 격식 있는 대강당 | Recraft V4.1 2k | 2688×1536 | 〃 (셋 중 하나만) |
-| 2 | 무대 — 현대 미니멀 | Soul Location | 2048×1152 | 〃 |
-| 3 | 앱 아이콘 (**SVG**) | Recraft V4.1 vector | 1024 | `mr/server/static/player/icon.svg` |
-| 4 | 마케팅 히어로 — 연습실 | Recraft V4.1 2k | 2688×1536 | 화면 밖. 상세페이지용 |
-| 5 | 마케팅 — 무대 옆에서 본 발표회 | Recraft V4.1 2k | 2560×1664 | 〃 |
+### 2026-09-23 — 무대 3안 · 영상 2편 · 아이콘 · 마케팅 2장
 
-> **2번은 제 프롬프트가 안 먹었습니다.** Soul Location 은 프롬프트 대신 내장 로케이션
-> (`Hartman Recital Hall`)으로 그립니다. 그림 자체는 쓸 만하지만 「아래쪽 40%를 비워
-> 달라」는 주문이 안 들어갔으니, 글자가 올라가는 자리를 꼭 보고 고르세요.
+| 무엇 | 모델 | 크기 | 넣을 자리 |
+|---|---|---|---|
+| **영상** 무대 — 아담한 리사이틀홀 | Kling v3.0 pro | 1920×1080 · 10초 · 무음 | `mr/server/static/img/hall.mp4` |
+| **영상** 무대 — 격식 있는 대강당 | Kling v3.0 pro | 1920×1080 · 10초 · 무음 | 〃 (둘 중 하나만) |
+| 무대 — 아담한 리사이틀홀 | Recraft V4.1 2k | 2688×1536 | `mr/server/static/img/hall.jpg` |
+| 무대 — 격식 있는 대강당 | Recraft V4.1 2k | 2688×1536 | 〃 (셋 중 하나만) |
+| 무대 — 현대 미니멀 | Soul Location | 2048×1152 | 〃 |
+| 앱 아이콘 (**SVG**) | Recraft V4.1 vector | 1024 | `mr/server/static/player/icon.svg` |
+| 마케팅 히어로 — 연습실 | Recraft V4.1 2k | 2688×1536 | 화면 밖. 상세페이지용 |
+| 마케팅 — 무대 옆에서 본 발표회 | Recraft V4.1 2k | 2560×1664 | 〃 |
+
+```bash
+cd mr/server/static/img
+B=https://d8j0ntlcm91z4.cloudfront.net/user_3GQvWIPUy5cSGTXYMKA9lfLrTXy
+
+# 영상 — 둘 중 하나를 hall.mp4 로
+curl -o hall.mp4  "$B/hf_20260923_011640_7e8a3aed-7f83-49ee-be25-ac4bcee950de.mp4"  # 아담한 홀
+curl -o hall.mp4  "$B/hf_20260923_011640_9c6fbb62-9e93-420c-acc4-f940783e2621.mp4"  # 대강당
+
+# 그림 — 셋 중 하나를 hall.jpg 로 (아래 「줄이는 법」을 거쳐서)
+curl -o hall-warm.png   "$B/hf_20260923_010336_c49f5ac8-f1ad-4bdc-ad94-18447e0566c6.png"
+curl -o hall-grand.png  "$B/hf_20260923_010336_35b61730-378a-42e6-8ac3-8438a7f20bef.png"
+curl -o hall-modern.png "$B/hf_20260923_010336_f6e2074c-74a4-4079-8a12-505ddf69840c.png"
+
+# 앱 아이콘 (SVG — 그대로 덮어쓰면 됩니다)
+curl -o ../player/icon.svg "$B/hf_20260923_010336_bc3c9c96-d48a-4e2a-8d1d-ba1ea5a50159.svg"
+
+# 마케팅용 (저장소에 넣지 않아도 됩니다)
+curl -o ~/mk-hero.png    "$B/hf_20260923_010336_1707dcde-81cb-48a2-a932-da18f4673f40.png"
+curl -o ~/mk-recital.png "$B/hf_20260923_010336_8d4025e7-fd79-4661-95cd-135dcd129c28.png"
+```
+
+**영상 두 편은 시작 프레임과 끝 프레임을 같은 그림으로 잡았습니다.** 무대 화면이
+`loop` 로 돌리므로 이음매가 보이면 안 됩니다. 소리는 껐습니다 — 그 화면에서 울려야
+하는 것은 반주이고, `<video>` 도 `muted` 입니다.
+
+> **「현대 미니멀」은 제 프롬프트가 안 먹었습니다.** Soul Location 은 프롬프트 대신
+> 내장 로케이션(`Hartman Recital Hall`)으로 그립니다. 그림 자체는 쓸 만하지만
+> 「아래쪽 40%를 비워 달라」는 주문이 안 들어갔으니, 아이 이름과 곡명이 올라가는
+> 자리를 꼭 보고 고르세요. 나머지 둘은 그 주문이 들어간 프롬프트로 나왔습니다.
 
 > **아이콘이 SVG 로 나온 것은 운이 좋았습니다.** 벡터라 어느 크기에서도 안 깨지고
 > 몇 KB 밖에 안 됩니다 — 오프라인 꾸러미에 부담 없이 들어갑니다.
 
-### 받으신 파일을 넣는 법
+### 2026-09-22 — 먼저 만들어 둔 것
 
-무대 배경은 **그대로 넣으면 너무 큽니다.** 2400×1350 · JPEG 80 · 400 KB 이하로 줄입니다.
+프롬프트는 [MR-DASHBOARD.md](MR-DASHBOARD.md) 에 그대로 적혀 있습니다.
+
+| 무엇 | 모델 |
+|---|---|
+| 무대 배경 영상 | `kling3_0_turbo` 1080p · 5초 |
+| 무대 전경 | `gpt_image_2_5` 1344×752 |
+| 건반 클로즈업 | 〃 |
+| 벨벳 커튼 텍스처 | 〃 |
 
 ```bash
-# 받은 PNG 를 무대 배경 자리에 맞게 줄이기
+cd mr/server/static/img
+B=https://d8j0ntlcm91z4.cloudfront.net/user_3GQvWIPUy5cSGTXYMKA9lfLrTXy
+
+curl -o hall.mp4    "$B/hf_20260922_032317_136d7d52-d9f4-4335-aa10-f223c779aad0.mp4"
+curl -o hall.png    "$B/hf_20260922_032103_87ca9469-2d3e-4867-96e3-8705d307ef66.png"
+curl -o keys.png    "$B/hf_20260922_032103_a23af0bd-16cf-4413-a5f1-aca5c958b4d1.png"
+curl -o curtain.png "$B/hf_20260922_032103_e0875405-8534-474f-a9bf-6fe0c85f99d6.png"
+```
+
+> CDN 주소가 언제까지 살아 있을지 모릅니다. **오래 쓰실 것이면 받아서 저장소에
+> 커밋해 두세요.**
+
+### 받으신 그림을 줄이는 법
+
+무대 배경 그림은 **그대로 넣으면 너무 큽니다.** 2400×1350 · JPEG 80 · 400 KB 이하로.
+
+```bash
 python3 - <<'EOF'
 from PIL import Image
-im = Image.open('받은파일.png').convert('RGB')
+im = Image.open('hall-warm.png').convert('RGB')          # 고른 파일
 im.resize((2400, 1350), Image.LANCZOS).save(
     'mr/server/static/img/hall.jpg', quality=80, optimize=True)
 EOF
 ls -l mr/server/static/img/hall.jpg      # 400 KB 이하인지
 ```
 
-아이콘은 SVG 라 그냥 덮어쓰면 됩니다 — `mr/server/static/player/icon.svg`.
-**단, 꾸러미 용량이 늘어나니** 넣은 뒤 아래 「넣으신 뒤」를 꼭 돌리세요.
+`keys.png` · `curtain.png` 도 같은 방식으로 `.jpg` 로 줄여 두시면 됩니다.
 
-### 더 만들고 싶으시면
+> **`hall.mp4` 가 있으면 `hall.jpg` 는 안 쓰입니다.** 서버가 영상을 먼저 봅니다.
+> 둘 다 넣어 두시면 영상이 이깁니다 — 그림은 영상을 뺄 때를 위한 보험입니다.
 
-말씀해 주시면 같은 방식으로 더 돌립니다. 아직 안 만든 것:
+### 아직 안 만든 것
 
-- **무대 배경 영상** (`img/hall.mp4`) — 힉스필드가 미드저니보다 나은 쪽입니다
+말씀해 주시면 같은 방식으로 더 돌립니다.
+
 - **편성 일곱 표지** — 일곱 장 합쳐 120 KB 이하라야 해서, 지금은 조성 머리글자를 씁니다
 - **무대 바닥 반사** (`img/floor.png`) — 투명 PNG 가 필요한데 생성 모델이 알파를 잘 못 냅니다
 
