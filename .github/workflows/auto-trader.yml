@@ -1,0 +1,49 @@
+name: auto_trader 테스트
+
+on:
+  push:
+    paths:
+      - 'auto_trader/**'
+      - '.github/workflows/auto-trader.yml'
+  pull_request:
+    paths:
+      - 'auto_trader/**'
+      - '.github/workflows/auto-trader.yml'
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auto_trader
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: auto_trader/requirements.txt
+
+      - name: 의존성 설치
+        # ta 는 레거시 setup.py 라 환경에 따라 wheel 빌드가 실패한다.
+        run: |
+          python -m pip install --upgrade pip
+          pip install --use-pep517 -r requirements.txt
+
+      - name: 설정 로더 검증 (.env 없이 오류 메시지 확인)
+        run: |
+          python -c "
+          from config.loader import ConfigError, load
+          try:
+              load(create_dirs=False)
+          except ConfigError as exc:
+              print('설정 검증 정상 동작:'); print(exc)
+          else:
+              raise SystemExit('키가 없는데 통과했습니다')
+          "
+
+      - name: pytest
+        run: pytest -q
