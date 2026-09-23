@@ -152,26 +152,31 @@ def holding(code="005930", qty=12, avg=70_000, pnl_pct=1.86):
 # --------------------------------------------------------------------------- #
 
 
-def test_full_buy_cycle_in_dry_run(cycle):
+def test_full_buy_cycle_in_dry_run(cycle, settings_obj):
     ctx = cycle(actions=("BUY", "BUY"))
     result = run_cycle(ctx)
 
     assert result["final"].action == "STRONG_BUY"
     assert result["risk_passed"]
     assert result["execution"].ordered and result["execution"].status == "DRY_RUN"
-    assert result["execution"].qty == 13  # floor(1,000,000 / 76,000)
+    # 설정에서 계산한다 — 한도를 바꿔도 이 테스트가 확인하려는 것은 그대로다.
+    risk = settings_obj.risk
+    amount = risk.total_investment_cap_krw * risk.max_position_pct / 100
+    assert result["execution"].qty == int(amount // 76_000)
 
     conn = connect(ctx["portfolio"].db_path)
     order = conn.execute("SELECT * FROM orders").fetchone()
     decision = conn.execute("SELECT * FROM decisions").fetchone()
     conn.close()
-    assert order["dry_run"] == 1 and order["side"] == "BUY" and order["qty"] == 13
+    assert (order["dry_run"] == 1 and order["side"] == "BUY"
+            and order["qty"] == int(amount // 76_000))
     assert decision["final_action"] == "STRONG_BUY" and decision["risk_passed"] == 1
     assert decision["claude_action"] == "BUY" and decision["gemini_action"] == "BUY"
 
     summary = ctx["session"].posts[-1]["text"]
     assert "대상 1종목 / 주문 1건" in summary
-    assert "STRONG_BUY" in summary and "매수 13주" in summary
+    assert "STRONG_BUY" in summary
+    assert f"매수 {int(amount // 76_000)}주" in summary
 
 
 def test_parse_failure_blocks_order(cycle):

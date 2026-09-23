@@ -1261,9 +1261,20 @@ def _pos(cost):
     return SimpleNamespace(cost_basis=cost)
 
 
+def _position_cap(bot) -> float:
+    risk = bot.settings.risk
+    return risk.total_investment_cap_krw * risk.max_position_pct / 100
+
+
 def test_buy_room_flags_a_position_at_its_cap(bot):
-    """종목당 한도 = 500만 × 20% = 100만. 95만이면 남은 5만 < 최소주문 10만."""
-    state = _state_with(bot, positions={"005930": _pos(950_000)}, position_count=1)
+    """남은 여유가 최소 주문액보다 작으면 사실상 추가 매수가 불가능하다.
+
+    금액을 박아 두면 한도를 바꿀 때마다 깨진다. 고치는 사람이 숫자만 맞춰 놓고
+    정작 계산이 맞는지는 안 보게 되므로, 설정에서 끌어온다.
+    """
+    cap = _position_cap(bot)
+    almost_full = cap - bot.settings.risk.min_order_krw / 2
+    state = _state_with(bot, positions={"005930": _pos(almost_full)}, position_count=1)
 
     room = bot._buy_room("005930", state)
 
@@ -1301,4 +1312,4 @@ def test_a_holding_with_room_can_still_be_topped_up(bot):
     state = _state_with(bot, positions={"105560": _pos(177_200)}, position_count=1)
     room = bot._buy_room("105560", state)
     assert room["can_buy"] is True
-    assert room["room_krw"] == 1_000_000 - 177_200
+    assert room["room_krw"] == _position_cap(bot) - 177_200

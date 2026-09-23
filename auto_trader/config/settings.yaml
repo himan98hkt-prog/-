@@ -55,7 +55,10 @@ schedule:
   daily_report: "15:40"
 
 risk:
-  total_investment_cap_krw: 5000000   # 프로그램이 운용할 최대 총액
+  # 프로그램이 운용할 최대 총액. **계좌 잔고가 아니라 여기 적은 금액까지만** 굴린다.
+  # 이 값을 넘는 돈은 프로그램이 쳐다보지도 않는다(대시보드 '자금 배치' 에서
+  # '한도 밖' 으로 표시된다). 계좌 전체를 맡기려면 계좌 잔고와 같게 둔다.
+  total_investment_cap_krw: 10000000
   max_position_pct: 20                # 종목당 최대 비중 (총액 대비 %)
   max_positions: 5                    # 동시 보유 종목 수
   daily_loss_limit_pct: 3             # 당일 실현+평가 손실 -3% 도달 시 신규 매수 중단

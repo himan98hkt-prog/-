@@ -73,6 +73,13 @@ def make_executor(settings_obj, tmp_path, monkeypatch):
     return build
 
 
+def _expected_qty(settings, price: float, weight_pct: int = 20) -> int:
+    """설정대로라면 몇 주가 나가야 하는가. (비중 한도 × 총액) / 현재가"""
+    risk = settings.risk
+    amount = risk.total_investment_cap_krw * min(weight_pct, risk.max_position_pct) / 100
+    return int(amount // price)
+
+
 def state(positions=(), cash=5_000_000):
     return PortfolioState(positions={p.code: p for p in positions}, cash=cash, deposit=cash)
 
@@ -88,7 +95,7 @@ def position(code="005930", qty=10, avg_price=70_000):
 # --------------------------------------------------------------------------- #
 
 
-def test_dry_run_never_calls_order_api(make_executor):
+def test_dry_run_never_calls_order_api(make_executor, settings_obj):
     executor, api, portfolio = make_executor(dry_run=True)
     final = FinalDecision(action="STRONG_BUY", weight_pct=20, reason="합의")
 
@@ -96,7 +103,9 @@ def test_dry_run_never_calls_order_api(make_executor):
 
     assert api.orders == [], "DRY_RUN 에서는 주문 API를 호출하면 안 됩니다"
     assert result.ordered and result.status == "DRY_RUN" and result.dry_run
-    assert result.qty == 14  # floor(1,000,000 / 71,300)
+    # 수량은 설정에서 계산한다. 한도를 바꿀 때마다 테스트가 깨지면,
+    # 고치는 사람이 숫자만 맞춰 놓고 정작 계산이 맞는지는 안 보게 된다.
+    assert result.qty == _expected_qty(settings_obj, 71_300)
 
 
 def test_dry_run_order_is_recorded_in_db(make_executor):
@@ -227,19 +236,20 @@ def test_order_failure_is_not_retried(make_executor):
     assert row["status"] == "REJECTED"
 
 
-def test_filled_order_updates_db(make_executor):
+def test_filled_order_updates_db(make_executor, settings_obj):
     executor, api, portfolio = make_executor(dry_run=False)
     result = executor.execute(FinalDecision(action="STRONG_BUY", weight_pct=20), SNAPSHOT, state(),
                               cycle_id="c1")
 
-    assert result.status == "FILLED" and result.qty == 14
+    assert result.status == "FILLED" and result.qty == _expected_qty(settings_obj, 71_300)
 
     from utils.db import connect
 
     conn = connect(portfolio.db_path)
     row = conn.execute("SELECT filled_qty, filled_price, status, dry_run FROM orders").fetchone()
     conn.close()
-    assert row["filled_qty"] == 14 and row["status"] == "FILLED" and row["dry_run"] == 0
+    assert (row["filled_qty"] == _expected_qty(settings_obj, 71_300)
+            and row["status"] == "FILLED" and row["dry_run"] == 0)
 
 
 def test_unfilled_limit_order_is_canceled(make_executor):

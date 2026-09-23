@@ -79,6 +79,8 @@ SHIPPED_DEFAULTS: dict[str, set[str]] = {
         "d1543e40589410b85c516f0891d97cdfc565eb4af7cfc2983d6b52a94f06d23e",
         "dd259e12339159941723a28cecc39e0c458e2c397c7fa38aa1981396099971bc",
         "f9ee1a8ee6fa4ca478ee47daef7f1a752d42db65f92f43ca1480270c2f9cd59a",
+        # 운용 한도를 계좌 전체(1,000만원)로 올린 버전
+        "36db42df5d81bed2350a2eeba4aa5e6501dbc89a13667b1961cb2bf6d848a6d3",
     },
     # 휴장일 파일도 사용자가 고칠 수 있는 파일이라 같은 보호를 받는다. 목록이
     # 비어 있으면 '손댄 적 없는 기본 파일' 을 알아볼 방법이 없어서, 새 달력이
