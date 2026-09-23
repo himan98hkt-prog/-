@@ -104,15 +104,55 @@ MusicXML 이 제일 없는 쪽**입니다. 국내 출판사 편집판으로 도�
 **Audiveris** 는 오픈소스 악보 인식기이고 무료입니다. 원장님 PC 에서 돌고,
 악보가 밖으로 안 나갑니다.
 
-```bash
-# 1) 설치 — https://github.com/Audiveris/audiveris/releases (자바 17 이상 필요)
-# 2) 프로그램에 알려 주기
-export MR_OMR_PROVIDER=local
-export MR_OMR_LOCAL_CMD=/경로/audiveris     # 경로에 이미 잡혀 있으면 생략
+### ① 설치
 
-# 3) 쓸 수 있는 상태인지 먼저 확인
+[releases 페이지](https://github.com/Audiveris/audiveris/releases)의 **Assets** 에서
+내려받습니다. 파일 이름은 `Audiveris-<판>-<OS>-<아키텍처>` 꼴입니다.
+
+**자바는 따로 안 깔아도 됩니다.** 5.5판부터 설치 파일에 JRE 가 같이 들어 있습니다
+(소스에서 직접 빌드할 때만 JDK 25 가 필요합니다 — `gradle.properties` 의
+`theMinJavaVersion`).
+
+| OS | 파일 | 명령으로 설치하려면 |
+|---|---|---|
+| **윈도** | `.msi` (x86_64) | `winget install Audiveris` · `scoop install audiveris` |
+| **맥** | `.dmg` — `arm64` 와 `x86_64` 가 **따로** 있습니다 | — |
+| **리눅스** | `.deb` — 우분투 22.04 / 24.04 용이 따로 | Flathub 의 flatpak |
+
+> **윈도는 `windowsConsole` 이 든 `.msi` 를 고르세요.** 설치 파일이 두 가지인데,
+> 그냥 `windows` 쪽은 화면만 띄우고 콘솔이 없습니다. 우리는 이걸 **명령줄로 돌려
+> 그 출력을 읽어** 실패 이유를 보여 주므로, 콘솔 없는 쪽을 깔면 안 될 때 이유가
+> 안 보입니다.
+>
+> `.msi` 를 직접 받아 설치하면 윈도가 「알 수 없는 앱」 경고를 냅니다. `winget`
+> 으로 설치하면 그 경고가 안 뜹니다.
+
+**글자 인식(OCR) 언어는 설치 파일에 안 들어 있습니다.** 처음 실행하면 Audiveris
+가 직접 물어보고 받아 옵니다 — 우리가 할 일은 없습니다.
+
+### ② 프로그램에 알려 주기
+
+```bash
+export MR_OMR_PROVIDER=local
+export MR_OMR_LOCAL_CMD="<설치된 실행 파일>"   # 경로에 이미 잡혀 있으면 생략
+```
+
+설치 뒤 실행 파일이 놓이는 자리:
+
+| OS | 경로 |
+|---|---|
+| 윈도 | `C:\Program Files\Audiveris\Audiveris.exe` |
+| 리눅스 | `/opt/audiveris/bin/Audiveris` |
+| 맥 | `/Applications/Audiveris.app` 안의 실행 파일 |
+
+### ③ 쓸 수 있는 상태인지 먼저 확인
+
+```bash
 python3 catalog_cli.py omr
 ```
+
+실행 파일을 찾고 `-version` 을 물어봐서 판까지 알려 줍니다. **여기서 통과해야
+올리기 화면이 이걸 씁니다.** 못 찾으면 어디에 경로를 넣어야 하는지 말해 줍니다.
 
 그 다음부터는 PDF 올리기 화면이 그대로 돌아갑니다. 인식이 끝나면 **PDF 는 바로
 지웁니다** (지시서 7장 — 검사가 못 박습니다).

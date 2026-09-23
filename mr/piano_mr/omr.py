@@ -335,10 +335,14 @@ EXPORT_EXT = ('.mxl', '.musicxml', '.xml')
 
 INSTALL_HINT = (
     'Audiveris 가 안 보입니다. 오픈소스 악보 인식기이고 **무료**입니다.\n'
-    '  1) https://github.com/Audiveris/audiveris/releases 에서 받아 설치\n'
-    '  2) 자바 17 이상이 필요합니다\n'
-    f'  3) 설치한 실행 파일 경로를 {LOCAL_CMD_ENV} 에 넣으세요\n'
-    '     (경로에 이미 잡혀 있으면 안 넣어도 됩니다)')
+    '  1) https://github.com/Audiveris/audiveris/releases 의 Assets 에서 내려받아 설치\n'
+    '     자바는 따로 안 깔아도 됩니다 — 설치 파일에 같이 들어 있습니다.\n'
+    '     윈도는 파일 이름에 **Console** 이 든 .msi 를 고르세요. 우리가 명령줄로\n'
+    '     돌려 그 출력을 읽기 때문에, 콘솔 없는 쪽은 실패해도 이유가 안 보입니다.\n'
+    f'  2) 실행 파일 경로를 {LOCAL_CMD_ENV} 에 넣으세요 (경로에 잡혀 있으면 생략)\n'
+    '       윈도   C:\\Program Files\\Audiveris\\Audiveris.exe\n'
+    '       리눅스 /opt/audiveris/bin/Audiveris\n'
+    '       맥     /Applications/Audiveris.app/Contents/MacOS/Audiveris')
 
 
 class LocalProvider:
