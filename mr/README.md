@@ -221,6 +221,43 @@ catalog/
 그 악보들은 MuseScore.com·IMSLP 에서 **사람이 골라 받아야 하고, 여기서는 못 했다.**
 받아 오면 `catalog_cli.py import` 로 같은 자리에 들어가고 파이프라인은 그대로 돈다.
 
+## 내보내기 — 만든 반주를 가져간다
+
+화성 확인 화면 오른쪽 위 **⤓ 내보내기**. 고른 형식들을 한 번에 굽고, 여럿이면
+zip 으로 묶어 준다. 파일 이름에 곡 제목·편성·두께·템포가 그대로 들어간다.
+
+| 형식 | 무엇 |
+|---|---|
+| `midi` | 악보 편집기·시퀀서에서 열어 고칠 수 있는 원본. **fluidsynth·ffmpeg 없이도 나간다** |
+| `practice` | 연습용 mp3 192k — 카톡으로 보낼 크기 |
+| `stage` | 무대용 mp3 320k |
+| `master` | 영상편집용 wav (무압축) |
+
+```bash
+# CLI 로도 같은 일을
+python3 -m piano_mr.cli <악보> --format midi --format practice
+```
+
+**내보내기는 캐시와 다른 일이다.** `audio()` 는 화면에서 바로 듣는 것이라 결과를
+캐시에 남기지만, 내보내기는 가져가는 것이라 안 남긴다 — 편성·템포 조합마다
+영상편집용 WAV 가 쌓이면 디스크가 먼저 찬다.
+
+**`mix` 가 MIDI 에도 그대로 먹는다.** 「반주만」으로 내보내면 피아노 채널이 빠진
+파일이 나간다. 합쳐 둔 MIDI 를 그냥 주면 아이가 녹음된 피아노 위에 겹쳐 친다.
+
+## 콩쿨 레퍼토리
+
+```bash
+python3 catalog_cli.py repertoire                 # 현황
+python3 catalog_cli.py repertoire --grade 초급
+python3 catalog_cli.py repertoire --scores <폴더>  # 악보가 있는 것을 한 번에
+```
+
+`repertoire/competition.json` 에 지역 콩쿨 과제곡 54곡이 급수별로 있다. **악보는
+없다** — 곡은 퍼블릭도메인이어도 MusicXML 은 누군가 만든 별개의 것이다. 목록에
+작곡가 사망연도를 적어 두고 보호기간(사후 70년)을 **코드가 다시 계산한다.**
+자세한 것은 [docs/MR-REPERTOIRE.md](../docs/MR-REPERTOIRE.md).
+
 ## 발표회 운영 화면 (프로그램 대시보드)
 
 ```bash
@@ -348,7 +385,7 @@ export MR_LICENSE_KEY=ALAB-CDEF-XYEV
 
 ```bash
 python3 catalog_cli.py package ../dist/반주 --academy "행복피아노"
-#   곡 26개 · 파일 39개 · 전체 172 KB (반주 45 KB)
+#   곡 29개 · 파일 42개 · 전체 194 KB (반주 62 KB)
 ```
 
 | | 누가 쓰나 | 고객에게 나가나 |

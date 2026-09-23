@@ -241,6 +241,91 @@ $('#bars').addEventListener('click', (e) => {
   playRange(bar.off, bar.end, bar.bar);
 });
 
+/* ---------- 내보내기 ----------
+ *
+ * 화면에서 듣는 것(캐시)과 가져가는 것은 다른 일이다. 여기서는 **고른 형식들을
+ * 한 번에** 굽고, 여럿이면 서버가 zip 으로 묶어 준다.
+ *
+ * 편성·두께·템포·듣기는 위 연장통 값을 그대로 쓴다. 여기서 또 고르게 하면
+ * 「화면에서 듣던 것과 받은 파일이 다르다」가 생긴다. */
+const FMT_ON = ['midi'];        // 처음 열었을 때 켜져 있는 것
+
+async function fillExport() {
+  if (state.formats) return;
+  const d = await api('/api/export/formats');
+  state.formats = d.formats;
+  $('#exportPicks').innerHTML = d.formats.map((f) => `
+    <label class="pick2">
+      <input type="checkbox" value="${esc(f.key)}"${FMT_ON.includes(f.key) ? ' checked' : ''}>
+      <span><b>${esc(f.label)}</b><i>${esc(f.ext)}</i>
+        <em>${esc(f.desc || '')}</em></span>
+    </label>`).join('');
+}
+
+/** 지금 무엇으로 나갈지 사람 말로. 받기 전에 확인할 수 있어야 한다. */
+function exportNow() {
+  const label = (sel) => {
+    const el = $(sel);
+    return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : el.value;
+  };
+  $('#exportNow').textContent =
+    `${label('#style')} · ${label('#level')} · ♩=${$('#bpm').value} · ${label('#mix')}`;
+
+  // 이 화면은 **일부러** 피아노까지 틀어 준다 — 선율 없이 화음만 들어서는 그 화음이
+  // 이 곡에 맞는지 판단할 수 없다. 그런데 그 상태로 내보내면 아이가 녹음된 피아노
+  // 위에 겹쳐 치게 된다. 고른 값을 몰래 바꾸지는 않고, 말은 해 준다.
+  const warn = $('#exportWarn');
+  const mr = $('#mix').value === 'mr';
+  warn.hidden = mr;
+  if (!mr) {
+    warn.innerHTML = '지금 <b>피아노가 들어간 음원</b>으로 나갑니다. ' +
+      '아이 연습·발표회용이면 위 <b>듣기</b>를 <b>반주만</b>으로 바꾸세요.';
+  }
+}
+
+function chosen() {
+  return [...document.querySelectorAll('#exportPicks input:checked')].map((i) => i.value);
+}
+
+$('#export').addEventListener('click', async () => {
+  const panel = $('#exportPanel');
+  if (!panel.hidden) { panel.hidden = true; return; }
+  try {
+    await fillExport();
+    exportNow();
+    panel.hidden = false;
+  } catch (e) { say(e.message, true); }
+});
+
+['#style', '#level', '#bpm', '#mix'].forEach((sel) =>
+  $(sel).addEventListener('change', () => { if (!$('#exportPanel').hidden) exportNow(); }));
+
+$('#exportGo').addEventListener('click', async () => {
+  const formats = chosen();
+  if (!formats.length) { $('#exportSay').textContent = '형식을 하나는 고르세요.'; return; }
+  try {
+    // **고친 칸을 먼저 저장한다.** 안 하면 기계가 처음 분석한 화성이 나간다 —
+    // 화면에서 고친 시간이 통째로 버려지고, 그걸 파일을 열어 보기 전엔 모른다.
+    if (state.dirty.size) {
+      $('#exportSay').textContent = '고친 칸을 저장하는 중…';
+      await save({ silent: true });
+    }
+    const q = new URLSearchParams({
+      formats: formats.join(','),
+      style: $('#style').value, level: $('#level').value,
+      bpm: $('#bpm').value, mix: $('#mix').value,
+      stems: $('#exportStems').checked ? 'true' : 'false',
+    });
+    $('#exportSay').textContent =
+      formats.length === 1 && formats[0] === 'midi' ? '받는 중…' : '굽는 중… (곡당 몇 초)';
+    // 서버가 `attachment` 로 내려 주므로 화면은 그대로 있고 내려받기만 시작된다.
+    window.location.href = `/api/songs/${encodeURIComponent(songId)}/export?${q}`;
+    setTimeout(() => { $('#exportSay').textContent = ''; }, 4000);
+  } catch (e) {
+    $('#exportSay').textContent = e.message;
+  }
+});
+
 $('#play').addEventListener('click', () => playRange(0, null, null));
 $('#stop').addEventListener('click', stop);
 $('#save').addEventListener('click', () => save().catch((e) => say(e.message, true)));

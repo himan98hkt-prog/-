@@ -111,6 +111,17 @@ async def shoot(base: str, out: str, pkg_base: str):
         await pg.wait_for_timeout(600)
         await snap(pg, '21-화성확인')
 
+        # 내보내기 — 만든 반주를 **가져가는** 화면. 패널을 열어 둔 채로 찍는다,
+        # 닫혀 있으면 설명서에서 단추 하나만 보이고 무엇을 고를 수 있는지 안 보인다.
+        await pg.goto(f'{base}/static/verify.html?id={VERIFY_SHOT_SONG}')
+        await pg.wait_for_selector('.bar', timeout=30_000)
+        await pg.click('#export')
+        await pg.wait_for_selector('#exportPicks input', timeout=15_000)
+        await pg.select_option('#mix', 'mr')      # 파는 것은 반주만이다
+        await pg.check('#exportPicks input[value=practice]')
+        await pg.wait_for_timeout(400)
+        await snap(pg, '24-내보내기')
+
         await pg.goto(f'{base}/static/upload.html')
         await pg.wait_for_selector('.stat', timeout=30_000)
         await pg.wait_for_timeout(400)

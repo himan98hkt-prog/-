@@ -240,6 +240,52 @@ def test_midi_output_needs_no_audio_tools(tmp_path):
     assert res.files['midi'] == out and os.path.exists(out)
 
 
+def test_midi_is_a_format_you_can_ask_for_alongside_audio(tmp_path):
+    """원장님이 「MIDI 로도 하나 주세요」라고 할 수 있어야 한다.
+
+    전에는 `outfile` 에 .mid 를 주는 길밖에 없어서 **음원과 같이** 받지 못했다.
+    """
+    res = render.render(score('p01_block_c'), bpm=96, tag='t',
+                        out_dir=str(tmp_path), formats=('midi',))
+    assert res.files['midi'].endswith('.mid')
+    assert os.path.getsize(res.files['midi']) > 100
+
+
+def test_asking_only_for_midi_calls_no_audio_tool(tmp_path, monkeypatch):
+    """MIDI 는 굽는 게 아니라 이미 만들어 둔 것을 내보내는 것이다.
+
+    fluidsynth·SoundFont·ffmpeg 가 없는 기계에서도 MIDI 는 나가야 한다.
+    여기서 그 둘을 부르면 시험이 깨진다.
+    """
+    def boom(*a, **k):
+        raise AssertionError('MIDI 만 달라고 했는데 소리를 만들려고 했습니다')
+    monkeypatch.setattr(render, 'midi_to_wav', boom)
+    monkeypatch.setattr(render, 'encode', boom)
+    res = render.render(score('p01_block_c'), bpm=96, tag='t',
+                        out_dir=str(tmp_path), formats=('midi',))
+    assert os.path.exists(res.files['midi'])
+
+
+def test_the_midi_we_hand_over_obeys_the_mix(tmp_path):
+    """**MR 은 반주만이다.** 그 규칙이 MIDI 로 내보낼 때도 그대로여야 한다.
+
+    합쳐 둔 MIDI 를 그냥 주면 「반주만 주세요」라고 했는데 피아노가 든 파일이
+    나간다. 아이는 자기 연주와 녹음된 피아노를 겹쳐 치게 된다.
+    """
+    import mido
+
+    def channels(mix):
+        res = render.render(score('p01_block_c'), bpm=96, tag=f't_{mix}',
+                            out_dir=str(tmp_path), formats=('midi',), mix=mix)
+        m = mido.MidiFile(res.files['midi'])
+        return {msg.channel for tr in m.tracks for msg in tr if msg.type == 'note_on'}
+
+    from piano_mr import orchestration as orch
+    piano = orch.PIANO_CHANNEL
+    assert piano not in channels('mr'), '반주만 달라고 했는데 피아노가 들어 있습니다'
+    assert piano in channels('full'), '피아노까지 달라고 했는데 빠져 있습니다'
+
+
 def test_unknown_format(tmp_path):
     with pytest.raises(ValueError, match='출력 형식'):
         render.render(score('p01_block_c'), tag='t', out_dir=str(tmp_path),

@@ -11,6 +11,7 @@
     python3 catalog_cli.py export player.json
 """
 import argparse
+import json
 import os
 import sys
 
@@ -19,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import time  # noqa: E402
 
 from piano_mr import (catalog as cat, harmony, orchestration as orch,  # noqa: E402
-                      render, store, uploads)
+                      render, repertoire as rep, store, uploads)
 
 STATUS_LABEL = {'verified': '확인 완료', 'analyzed': '확인 대기', 'new': '분석 전'}
 
@@ -52,6 +53,73 @@ def cmd_import(st: store.CatalogStore, a) -> int:
     if not cat.looks_whitelisted(song.title, song.composer, song.book):
         print('  ⚠ 화이트리스트 문구가 안 보입니다. 퍼블릭도메인이 맞는지 확인하세요.')
     return 0
+
+
+def cmd_repertoire(st: store.CatalogStore, a) -> int:
+    """콩쿨 레퍼토리 목록을 보거나, 악보가 있는 것을 한 번에 넣는다.
+
+    `--scores` 없이 부르면 **아무것도 안 넣고** 현황만 말한다 — 무엇을 더 구해야
+    하는지가 이 명령의 절반이다.
+    """
+    try:
+        data = rep.load(a.manifest)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f'목록을 못 읽었습니다: {e}', file=sys.stderr)
+        return 1
+
+    works = data['works']
+    if a.grade:
+        works = [w for w in works if w.get('grade') == a.grade]
+    if a.book:
+        works = [w for w in works if a.book in (w.get('book') or '')]
+    if not works:
+        print('조건에 맞는 곡이 없습니다.')
+        return 0
+
+    ready, missing, blocked = rep.survey(works, a.scores or os.devnull)
+    have = {s.id for s in st.catalog.songs.values()}
+
+    print(f'{data["title"]} — {len(works)}곡')
+    print(f'  이미 카탈로그에 있음 {sum(1 for w in works if w["id"] in have)}')
+    print(f'  악보가 있어 넣을 수 있음 {len(ready)}')
+    print(f'  악보를 더 구해야 함 {len(missing)}')
+    if blocked:
+        print(f'  저작권에 걸려 못 넣음 {len(blocked)}')
+
+    if not a.scores:
+        print()
+        for w in missing:
+            mark = '있음' if w['id'] in have else '없음'
+            print(f'  [{mark}] {w["id"]:<26} {w.get("grade",""):<4} {w["title"]}')
+        print()
+        print('악보(MusicXML)를 한 폴더에 모으고 파일 이름을 위 id 로 맞춘 뒤')
+        print(f'  python3 catalog_cli.py repertoire --scores <폴더>')
+        print('판본 주의: 곡이 퍼블릭도메인이어도 **출판사 편집판에는 편집자의 권리가**')
+        print('따로 붙을 수 있습니다. 원전판이나 직접 입력한 것을 쓰세요.')
+        return 0
+
+    added = failed = 0
+    for w in ready:
+        if w['id'] in have:
+            continue
+        try:
+            song = st.import_score(
+                w['path'], w['title'], song_id=w['id'], composer=w.get('composer', ''),
+                book=w.get('book', ''), level=int(w.get('level', 5)),
+                public_domain=True, default_style=w.get('style', orch.DEFAULT_STYLE),
+                default_bpm=int(w.get('bpm', 96)), count_in=1,
+                note=w.get('note', ''))
+        except (cat.CopyrightError, FileNotFoundError, ValueError) as e:
+            print(f'  ✗ {w["id"]:<26} {e}', file=sys.stderr)
+            failed += 1
+            continue
+        added += 1
+        print(f'  ✓ {song.id:<26} {song.key:<10} {song.measures:>3}마디 '
+              f'확인필요 {song.low_confidence_count}')
+    print(f'\n{added}곡 추가' + (f' · {failed}곡 실패' if failed else ''))
+    for w in blocked:
+        print(f'  ✗ {w["id"]}: {w["why"]}', file=sys.stderr)
+    return 1 if failed else 0
 
 
 def cmd_list(st: store.CatalogStore, a) -> int:
@@ -333,6 +401,13 @@ def build_parser():
     i.add_argument('--recommended-bpm', type=int, nargs='*')
     i.add_argument('--note', default='')
     i.set_defaults(fn=cmd_import)
+
+    rp = sub.add_parser('repertoire', help='콩쿨 레퍼토리 목록 보기 / 한 번에 넣기')
+    rp.add_argument('--manifest', help='목록 파일 (기본: repertoire/competition.json)')
+    rp.add_argument('--scores', help='MusicXML 이 모여 있는 폴더. 없으면 현황만 말한다')
+    rp.add_argument('--grade', choices=['초급', '중급', '상급'])
+    rp.add_argument('--book', help='교재 이름으로 거르기 (예: 부르크뮐러)')
+    rp.set_defaults(fn=cmd_repertoire)
 
     l = sub.add_parser('list', help='곡 목록')
     l.add_argument('--status', choices=['new', 'analyzed', 'verified'])

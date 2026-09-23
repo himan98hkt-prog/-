@@ -233,5 +233,6 @@ OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올�
 - [docs/MR-PLAYER.md](docs/MR-PLAYER.md) — 플레이어 PWA 3단계 작업 보고
 - [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) — PDF 업로드 4단계 작업 보고
 - [docs/MR-LINK.md](docs/MR-LINK.md) — 관리노트 연동 5단계 작업 보고
+- [docs/MR-REPERTOIRE.md](docs/MR-REPERTOIRE.md) — 콩쿨 레퍼토리 목록과 저작권 검사
 - [docs/MR-DESIGN.md](docs/MR-DESIGN.md) — 반주 다섯 화면의 옷 (색·토큰·한글 자간·고칠 때 돌릴 것)
 - [docs/MR-IMAGES.md](docs/MR-IMAGES.md) — 화면에 넣을 이미지 자리와 미드저니 프롬프트

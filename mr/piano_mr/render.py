@@ -34,10 +34,18 @@ TAIL_SECONDS = 2.5
 FADE_SECONDS = 1.5
 LOUDNORM = 'loudnorm=I=-16:TP=-1.5'
 
+# `raw: True` 는 **굽지 않고 그대로 내보내는** 형식이다. MIDI 가 그렇다 —
+# 이미 만들어 둔 것을 복사하면 되고, 그래서 fluidsynth·ffmpeg 가 없어도 나간다.
+# MIDI 하나만 달라고 하면 이 함수는 소리를 아예 안 만든다.
 FORMATS = {
-    'practice': {'ext': '.mp3', 'bitrate': '192k', 'label': '연습용'},
-    'stage':    {'ext': '.mp3', 'bitrate': '320k', 'label': '무대용'},
-    'master':   {'ext': '.wav', 'bitrate': None,   'label': '영상편집용'},
+    'midi':     {'ext': '.mid', 'bitrate': None,   'label': 'MIDI', 'raw': True,
+                 'desc': '악보 편집기·시퀀서에서 열어 고칠 수 있는 원본'},
+    'practice': {'ext': '.mp3', 'bitrate': '192k', 'label': '연습용',
+                 'desc': '카톡으로 보낼 수 있는 크기'},
+    'stage':    {'ext': '.mp3', 'bitrate': '320k', 'label': '무대용',
+                 'desc': '발표회장 스피커로 트는 것'},
+    'master':   {'ext': '.wav', 'bitrate': None,   'label': '영상편집용',
+                 'desc': '무압축. 영상에 붙일 때'},
 }
 
 # 무엇을 소리로 낼 것인가.
@@ -305,8 +313,12 @@ def render(src, style: str = 'strings', level: str = arranger.DEFAULT_LEVEL,
             res.info['files'] = dict(res.files)
             return res
 
-        wav = os.path.join(work, f'{tag}.wav')
-        midi_to_wav(play, wav)
+        # 소리를 만들 일이 있을 때만 만든다. MIDI 만 달라고 했으면 fluidsynth 도
+        # ffmpeg 도 안 부른다 — 그 둘이 안 깔린 기계에서도 MIDI 는 나가야 한다.
+        wav = ''
+        if stems or any(not FORMATS[f].get('raw') for f in formats):
+            wav = os.path.join(work, f'{tag}.wav')
+            midi_to_wav(play, wav)
 
         for i, f in enumerate(formats):
             spec = FORMATS[f]
@@ -315,7 +327,12 @@ def render(src, style: str = 'strings', level: str = arranger.DEFAULT_LEVEL,
                 os.makedirs(os.path.dirname(os.path.abspath(path)) or '.', exist_ok=True)
             else:
                 path = os.path.join(out_dir, f'{tag}_{f}{spec["ext"]}')
-            encode(wav, path, seconds, spec['bitrate'])
+            if spec.get('raw'):
+                # 이미 `mix` 가 반영된 MIDI 다. 「반주만」을 달라고 했으면
+                # 피아노가 빠진 그 파일이 그대로 나간다.
+                shutil.copyfile(play, path)
+            else:
+                encode(wav, path, seconds, spec['bitrate'])
             res.files[f] = path
 
         if stems:

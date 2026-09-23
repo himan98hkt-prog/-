@@ -27,8 +27,28 @@
     <label>♩=</label><select id="bpm"></select>
     <label>듣기</label><select id="mix"></select>
     <span class="spacer"></span>
+    <button id="export">⤓ 내보내기</button>
     <button id="reanalyze">다시 분석</button>
   </div>
+
+  <!-- 내보내기. 화면 위쪽의 편성·두께·템포·듣기를 그대로 쓴다 — 여기서 또
+       고르게 하면 「화면에서 듣던 것과 받은 파일이 다르다」가 생긴다. -->
+  <section class="export" id="exportPanel" hidden>
+    <div class="export__head">
+      <b>무엇으로 받으시겠습니까</b>
+      <span class="export__now" id="exportNow"></span>
+    </div>
+    <div class="export__warn" id="exportWarn" hidden></div>
+    <div class="export__picks" id="exportPicks"></div>
+    <label class="export__stems">
+      <input type="checkbox" id="exportStems"> 파트별로 나눠서 받기
+      <span class="tiny">— 영상 편집할 때 악기별로 볼륨을 따로 만지시려면</span>
+    </label>
+    <div class="export__go">
+      <button class="primary big" id="exportGo">받기</button>
+      <span class="export__say" id="exportSay"></span>
+    </div>
+  </section>
   <div class="status" id="status"></div>
   <div class="legend">
     <span><i class="swatch low"></i>확인 필요 — 2위 후보와 점수 차가 작은 구간</span>

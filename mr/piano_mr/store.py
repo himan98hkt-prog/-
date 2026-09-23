@@ -336,6 +336,54 @@ class CatalogStore:
                 'lead_seconds': round(lead_ql * 60.0 / bpm, 4),
                 'ql_per_second': bpm / 60.0}
 
+    # 내보내기는 캐시와 다른 일이다.
+    #
+    # `audio()` 는 **화면에서 바로 듣는** 것이라 결과를 캐시에 남긴다. 내보내기는
+    # **가져가는** 것이라 안 남긴다 — 편성·두께·템포 조합마다 영상편집용 WAV 가
+    # 쌓이면 원장님 디스크가 먼저 찬다. 부르는 쪽이 받아 가면 지운다.
+    EXPORT_MIXES = ('mr', 'full', 'piano')
+
+    def export(self, song_id: str, out_dir: str, *, formats: Sequence[str],
+               style: Optional[str] = None, level: Optional[str] = None,
+               bpm: Optional[int] = None, mix: str = render.DEFAULT_MIX,
+               count_in: Optional[int] = None, stems: bool = False) -> dict:
+        """고른 형식들로 한 번에 굽는다. **사람이 고친 화성이 그대로 들어간다.**
+
+        화성 확인 화면에서 칸을 고쳐 놓고 내보냈는데 기계가 처음 분석한 화성이
+        나가면, 그 화면에서 쓴 시간이 통째로 버려진다.
+        """
+        if not formats:
+            raise ValueError('내보낼 형식을 하나는 고르셔야 합니다.')
+        song = self.catalog.get(song_id)
+        style = orch.check_style(style or song.default_style)
+        level = orch.check_level(level or song.default_level)
+        bpm = int(bpm or song.default_bpm)
+        count_in = song.count_in if count_in is None else int(count_in)
+        if mix not in render.MIXES:
+            raise ValueError(f"모르는 mix 입니다: {mix} (가능: {', '.join(render.MIXES)})")
+
+        res = render.render(self.load_score(song_id), style=style, level=level,
+                            bpm=bpm, curve=song.default_curve, count_in=count_in,
+                            tag=self.export_tag(song, style, level, bpm, mix),
+                            out_dir=out_dir, formats=tuple(formats), stems=stems,
+                            mix=mix, harmony_override=self._segments(song))
+        return {'files': dict(res.files), 'stems': dict(res.stems),
+                'style': style, 'level': level, 'bpm': bpm, 'mix': mix,
+                'count_in': count_in, 'seconds': res.info.get('seconds')}
+
+    @staticmethod
+    def export_tag(song, style: str, level: str, bpm: int, mix: str) -> str:
+        """파일 이름. 원장님이 폴더에서 보고 무엇인지 알 수 있어야 한다.
+
+        `작은 왈츠 (C장조) — 동화풍 보통 96 반주만` 처럼 나간다. 한글을 그대로
+        쓰되 폴더 구분자와 따옴표만 뺀다 — 윈도·맥 양쪽에서 열려야 한다.
+        """
+        mix_label = {'mr': '반주만', 'full': '피아노+반주', 'piano': '피아노만'}
+        raw = (f'{song.title} — {orch.STYLES[style]["label"]} '
+               f'{orch.LEVEL_LABEL.get(level, level)} {bpm} {mix_label.get(mix, mix)}')
+        bad = '/\\:*?"<>|\n\r\t'
+        return ''.join(' ' if c in bad else c for c in raw).strip() or song.id
+
     def bar_length(self, song_id: str) -> float:
         """첫 마디의 길이 (4분음표 단위). 카운트인 길이 계산에 쓴다."""
         ls = self.load_score(song_id)

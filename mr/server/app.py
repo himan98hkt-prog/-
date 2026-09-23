@@ -13,11 +13,16 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
+import urllib.parse
+import zipfile
 from typing import List, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
 
 from piano_mr import (catalog as cat, license as lic, omr,
@@ -25,6 +30,26 @@ from piano_mr import (catalog as cat, license as lic, omr,
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(HERE, 'static')
+
+_MEDIA = {'.mid': 'audio/midi', '.mp3': 'audio/mpeg',
+          '.wav': 'audio/wav', '.zip': 'application/zip'}
+
+
+def _media(ext: str) -> str:
+    return _MEDIA.get(ext.lower(), 'application/octet-stream')
+
+
+def _attach(name: str) -> dict:
+    """내려받을 파일 이름. **한글이 안 깨져야 한다.**
+
+    `filename=` 에는 ASCII 만 들어가므로 한글 제목은 그대로 못 쓴다. RFC 5987 의
+    `filename*=UTF-8''…` 를 같이 보내면 요즘 브라우저는 그쪽을 읽는다. 옛 브라우저를
+    위해 ASCII 쪽도 남기되, 거기엔 못 쓰는 글자를 밑줄로 바꾼 이름을 둔다.
+    """
+    ascii_name = name.encode('ascii', 'replace').decode('ascii').replace('?', '_')
+    quoted = urllib.parse.quote(name, safe='')
+    return {'Content-Disposition':
+            f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quoted}'}
 
 
 class Cell(BaseModel):
@@ -130,6 +155,65 @@ def create_app(catalog_root: str) -> FastAPI:
                 'level': info['level'], 'bpm': info['bpm'], 'mix': info['mix'],
                 'count_in': info['count_in'], 'lead_seconds': info['lead_seconds'],
                 'sec_per_ql': 60.0 / info['bpm']}
+
+    @app.get('/api/export/formats')
+    def export_formats():
+        """무엇으로 내보낼 수 있는지. 화면이 이 목록으로 고르는 자리를 그린다."""
+        return {'formats': [{'key': k, 'label': v['label'], 'ext': v['ext'],
+                             'desc': v.get('desc', '')}
+                            for k, v in render.FORMATS.items()],
+                'mixes': [{'key': k, 'label': v['label'], 'desc': v.get('desc', '')}
+                          for k, v in render.MIXES.items()]}
+
+    @app.get('/api/songs/{song_id}/export')
+    def export(song_id: str, formats: str = 'midi',
+               style: Optional[str] = None, level: Optional[str] = None,
+               bpm: Optional[int] = None, mix: str = 'mr',
+               count_in: Optional[int] = None, stems: bool = False):
+        """고른 형식들로 구워서 내려보낸다.
+
+        하나면 그 파일을, 여럿이거나 스템까지면 zip 으로 묶는다. 캐시에 안 남긴다 —
+        편성·템포 조합마다 영상편집용 WAV 가 쌓이면 원장님 디스크가 먼저 찬다.
+        받아 가면 지운다(`BackgroundTask`).
+        """
+        _song(song_id)
+        want = [f.strip() for f in formats.split(',') if f.strip()]
+        bad = [f for f in want if f not in render.FORMATS]
+        if bad:
+            raise HTTPException(400, f"모르는 형식입니다: {', '.join(bad)} "
+                                     f"(가능: {', '.join(render.FORMATS)})")
+        work = tempfile.mkdtemp(prefix='mr_export_')
+        try:
+            info = st.export(song_id, work, formats=want, style=style, level=level,
+                             bpm=bpm, mix=mix, count_in=count_in, stems=stems)
+        except (render.ToolMissingError, RuntimeError) as e:
+            shutil.rmtree(work, ignore_errors=True)
+            raise HTTPException(503, str(e))
+        except (ValueError, KeyError) as e:
+            shutil.rmtree(work, ignore_errors=True)
+            raise HTTPException(400, str(e))
+
+        base = st.export_tag(st.catalog.get(song_id), info['style'], info['level'],
+                             info['bpm'], info['mix'])
+        cleanup = BackgroundTask(shutil.rmtree, work, ignore_errors=True)
+
+        # 파일 하나면 그대로. 이름에서 `_midi` 같은 꼬리를 떼고 사람이 읽는 이름으로.
+        if len(info['files']) == 1 and not info['stems']:
+            kind, path = next(iter(info['files'].items()))
+            ext = render.FORMATS[kind]['ext']
+            return FileResponse(path, media_type=_media(ext),
+                                background=cleanup,
+                                headers=_attach(f'{base} {render.FORMATS[kind]["label"]}{ext}'))
+
+        zpath = os.path.join(work, '_bundle.zip')
+        with zipfile.ZipFile(zpath, 'w', zipfile.ZIP_DEFLATED) as z:
+            for kind, path in info['files'].items():
+                spec = render.FORMATS[kind]
+                z.write(path, f'{base} {spec["label"]}{spec["ext"]}')
+            for name, path in info['stems'].items():
+                z.write(path, f'파트별/{base} {name}.wav')
+        return FileResponse(zpath, media_type='application/zip', background=cleanup,
+                            headers=_attach(f'{base}.zip'))
 
     @app.get('/api/audio/{name}', include_in_schema=False)
     def audio_file(name: str):

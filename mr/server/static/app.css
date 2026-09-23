@@ -208,6 +208,48 @@ td a:hover { text-decoration: underline; }
 .swatch.low { background: rgba(224,160,95,.35); border-color: rgba(224,160,95,.6); }
 .swatch.changed { background: rgba(126,170,224,.35); border-color: rgba(126,170,224,.6); }
 
+/* ── 내보내기 ── 만든 반주를 **가져갈 수 있어야** 제품이다 ── */
+.export {
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r); padding: 15px 16px; margin-top: 11px;
+  box-shadow: var(--lift);
+}
+.export__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 11px; }
+/* 지금 무엇으로 나가는지 — 받기 전에 확인할 수 있어야 한다 */
+.export__now { color: var(--gold-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+/* 고른 값을 몰래 바꾸지 않되, 잘못 나갈 것 같으면 말은 한다 */
+.export__warn {
+  background: rgba(224,160,95,.13); border: 1px solid rgba(224,160,95,.32);
+  border-left: 3px solid var(--warn); border-radius: var(--r-sm);
+  padding: 9px 13px; margin-bottom: 11px; font-size: 13px; color: var(--dim);
+}
+.export__warn b { color: var(--warn); }
+
+.export__picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px; }
+.pick2 {
+  display: flex; gap: 9px; align-items: flex-start; cursor: pointer;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(0,0,0,.22); border: 1px solid var(--line-2);
+  transition: border-color var(--quick), background var(--quick);
+}
+.pick2:hover { background: var(--surface-2); }
+.pick2:has(input:checked) { border-color: rgba(232,180,92,.5); background: var(--surface-2); }
+.pick2 input { margin: 2px 0 0; accent-color: var(--gold); cursor: pointer; }
+.pick2 span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pick2 b { font-size: 14px; }
+.pick2 i { font-style: normal; color: var(--faint); font-size: 11px;
+  font-variant-numeric: tabular-nums; }
+.pick2 em { font-style: normal; color: var(--dim); font-size: 12px; line-height: 1.35; }
+
+.export__stems { display: flex; gap: 8px; align-items: center; cursor: pointer;
+  margin-top: 11px; font-size: 13.5px; }
+.export__stems input { accent-color: var(--gold); cursor: pointer; }
+.export__stems .tiny { color: var(--faint); font-size: 12px; }
+.export__go { display: flex; gap: 13px; align-items: center; margin-top: 13px; }
+.export__say { color: var(--dim); font-size: 13px; }
+
 /* ── 연장통 ── */
 .toolbar {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;

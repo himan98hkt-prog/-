@@ -50,6 +50,23 @@ CORPUS = [
     dict(corpus='schumann_clara/polonaise_op1n4', id='cschumann_op1n4',
          title='클라라 슈만 폴로네즈 Op.1-4', composer='Clara Schumann',
          book='슈만', level=6, style='chamber', bpm=100),
+
+    # 여기 셋은 코퍼스를 다시 훑어 **피아노 독주곡만** 골라낸 것이다. 코퍼스의
+    # 베토벤·하이든·모차르트는 거의 다 현악 4중주고, 비치·클라라 슈만 Op.17 ·
+    # 슈만 Op.48 은 합창·3중주·가곡이라 뺐다 — 피아노 독주가 아니면 이 제품이
+    # 쓸 자리가 없다.
+    dict(corpus='chopin/mazurka06-2', id='chopin_mazurka_op6n2',
+         title='쇼팽 마주르카 Op.6-2', composer='F. Chopin',
+         book='쇼팽', level=7, style='chamber', bpm=132,
+         note='지역 콩쿨 중급 단골. 마주르카 리듬이라 반주가 박을 끌지 않게 두께는 간단부터'),
+    dict(corpus='cpebach/h186', id='cpebach_h186',
+         title='C.P.E. 바흐 H.186', composer='C.P.E. Bach',
+         book='바흐', level=6, style='strings', bpm=92,
+         note='바로크-고전 사이. 인벤션 대신 쓸 수 있는 몇 안 되는 퍼블릭도메인 건반곡'),
+    dict(corpus='joplin/maple_leaf_rag', id='joplin_maple_leaf',
+         title='조플린 단풍잎 래그', composer='S. Joplin',
+         book='래그타임', level=7, style='pop', bpm=100,
+         note='싱커페이션이 강해 반주가 박을 또박또박 잡아 줘야 한다'),
 ]
 
 

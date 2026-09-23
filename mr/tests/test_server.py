@@ -559,3 +559,87 @@ def test_the_academy_name_for_a_name_based_key_comes_from_the_roster(client, mon
     client.post('/api/roster', files={'file': ('r.json', blob, 'application/json')})
     d = client.get('/api/license').json()
     assert d['ok'] is True and d['product'] == 'K'
+
+
+# --- 내보내기 -------------------------------------------------------------------
+#
+# 원장님이 만든 반주를 **가져갈 수 있어야** 제품이다. 화면에서 듣는 것(캐시)과
+# 내보내는 것은 다른 일이다 — 저건 남기고 이건 안 남긴다.
+
+def test_you_can_ask_what_formats_there_are(client):
+    d = client.get('/api/export/formats').json()
+    keys = {f['key'] for f in d['formats']}
+    assert {'midi', 'practice', 'stage', 'master'} <= keys
+    for f in d['formats']:
+        assert f['label'] and f['ext'].startswith('.')
+    assert {m['key'] for m in d['mixes']} >= {'mr', 'full'}
+
+
+def test_exporting_one_format_hands_back_that_file(client):
+    """MIDI 하나는 fluidsynth·ffmpeg 없이도 나가야 한다 — 그래서 needs_audio 가 없다."""
+    r = client.get('/api/songs/waltz/export', params={'formats': 'midi'})
+    assert r.status_code == 200
+    assert r.headers['content-type'] == 'audio/midi'
+    assert r.content[:4] == b'MThd', 'MIDI 파일이 아닙니다'
+
+
+def test_the_download_name_keeps_the_korean_title(client):
+    """`작은 왈츠 (C장조) — …` 로 내려와야 폴더에서 무엇인지 안다.
+
+    `filename=` 에는 ASCII 만 들어가므로 RFC 5987 의 `filename*` 이 같이 와야 한다.
+    """
+    import urllib.parse
+    r = client.get('/api/songs/waltz/export', params={'formats': 'midi'})
+    cd = r.headers['content-disposition']
+    assert "filename*=UTF-8''" in cd
+    name = urllib.parse.unquote(cd.split("filename*=UTF-8''")[1])
+    assert '작은 왈츠' in name and name.endswith('.mid')
+    # 옛 브라우저용 ASCII 이름도 같이 있어야 한다
+    assert 'filename="' in cd
+
+
+def test_the_exported_midi_obeys_the_mix(client):
+    """**MR 은 반주만이다.** 내보낸 MIDI 에 피아노가 섞여 있으면 안 된다."""
+    import io, tempfile, os
+    import mido
+    from piano_mr import orchestration as orch
+
+    def channels(mix):
+        r = client.get('/api/songs/waltz/export',
+                       params={'formats': 'midi', 'mix': mix})
+        p = os.path.join(tempfile.mkdtemp(), 'x.mid')
+        with open(p, 'wb') as f:
+            f.write(r.content)
+        m = mido.MidiFile(p)
+        return {msg.channel for t in m.tracks for msg in t if msg.type == 'note_on'}
+
+    assert orch.PIANO_CHANNEL not in channels('mr')
+    assert orch.PIANO_CHANNEL in channels('full')
+
+
+def test_an_unknown_format_says_what_is_possible(client):
+    r = client.get('/api/songs/waltz/export', params={'formats': 'flac'})
+    assert r.status_code == 400
+    assert 'flac' in r.json()['detail'] and 'midi' in r.json()['detail']
+
+
+@needs_audio
+def test_asking_for_several_formats_gives_one_zip(client):
+    import io, zipfile
+    r = client.get('/api/songs/waltz/export',
+                   params={'formats': 'midi,practice', 'style': 'march'})
+    assert r.status_code == 200 and r.headers['content-type'] == 'application/zip'
+    names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+    assert any(n.endswith('.mid') for n in names)
+    assert any(n.endswith('.mp3') for n in names)
+    assert all('작은 왈츠' in n for n in names), names
+
+
+def test_export_does_not_leave_files_behind(client, tmp_path):
+    """내보내기는 캐시가 아니다. 편성·템포 조합마다 WAV 가 쌓이면 디스크가 먼저 찬다."""
+    import os
+    cache = tmp_path / 'catalog' / 'cache'
+    before = set(os.listdir(cache)) if cache.exists() else set()
+    client.get('/api/songs/waltz/export', params={'formats': 'midi', 'bpm': 133})
+    after = set(os.listdir(cache)) if cache.exists() else set()
+    assert after == before, '내보낸 파일이 캐시에 남았습니다'
