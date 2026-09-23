@@ -4,18 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>카탈로그 — 화성 확인</title>
+<link rel="stylesheet" href="player/tokens.css">
 <link rel="stylesheet" href="app.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2226%22 font-size=%2226%22%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 <header>
   <h1>카탈로그 제작</h1>
-  <span class="sub" id="root"></span>
-  <span class="sub"><a href="/static/upload.html">PDF 악보 올리기</a></span>
+  <nav class="nav">
+    <a href="index.html" class="on">카탈로그</a>
+    <a href="upload.html">PDF 올리기</a>
+    <a href="program.html">발표회 운영</a>
+    <a href="player/index.html">플레이어</a>
+  </nav>
   <span class="spacer"></span>
-  <span class="sub">목표: 곡당 검수 20분 이내 (지시서 9장 2단계)</span>
+  <span class="sub" id="root"></span>
 </header>
 <main>
+  <section class="hero" id="hero"></section>
   <div class="stats" id="stats"></div>
   <div id="list"><div class="empty">불러오는 중…</div></div>
 </main>

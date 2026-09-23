@@ -3,21 +3,25 @@
  * 무대 장면은 CSS·SVG 로 그린다. 이미지 파일이 없어도, 연주홀 와이파이가 죽어도
  * 화면은 그대로 뜬다 (지시서 모듈 ⑤-1: 오프라인은 타협 불가).
  * `img/hall.jpg` / `img/hall.mp4` 가 있으면 그 위에 얹힌다.
+ *
+ * 색·움직임 값은 player/tokens.css 에서 빌려 쓴다. 여기 :root 에 남은 것은
+ * **이 화면에만 있는 무대 소품**이다 — 커튼의 진한 와인, 글자 뒤에 까는 판.
  */
 :root {
-  --ink:#f3ece1; --dim:#b9ac97; --faint:#7d7264;
-  --gold:#d8a94a; --gold-soft:#f0cd85; --wine:#5b1f2a; --wine-deep:#2a0d13;
-  --night:#0a0a0f; --night-2:#12121b; --panel:rgba(20,18,26,.72);
-  --line:rgba(216,169,74,.22);
+  --gold-soft: var(--gold-2);       /* 무대 조명의 밝은 쪽 */
+  --wine-deep: #2a0d13;             /* 커튼 그늘. 강조색 --wine 과 다른 물건이다 */
+  --curtain:   #4a1822;
+  --night:     var(--bg);
+  --night-2:   var(--bg-2);
+  --panel:     rgba(20,18,26,.72);
+  /* 이 화면의 선은 금빛이다. 흰 실선은 무대 위에서 형광등처럼 보인다 */
+  --line:      rgba(232,180,92,.22);
 }
-* { box-sizing:border-box; }
-html, body { height:100%; }
+html, body { height: 100%; }
 body {
-  margin:0; background:var(--night); color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",
-    "Noto Sans KR",sans-serif;
-  -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  background: var(--night);         /* 무대가 제 배경을 직접 그린다 */
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* ---------- 무대 ---------- */
@@ -31,8 +35,11 @@ body {
 /* 이미지가 없을 때의 연주홀 — 전부 CSS */
 .stage__paint {
   background:
-    radial-gradient(120% 78% at 50% 108%, rgba(216,169,74,.20) 0%, transparent 58%),
-    radial-gradient(52% 44% at 50% 72%, rgba(240,205,133,.16) 0%, transparent 70%),
+    /* 맨 위 한 겹 — 무대 아랫단을 바탕색으로 녹여 아래 프로그램 목록과 이어 붙인다.
+     * 사진/영상을 얹었을 때 글자가 앉는 아랫동네를 어둡게 눌러 주는 일도 겸한다 */
+    linear-gradient(180deg, transparent 62%, var(--bg) 100%),
+    radial-gradient(120% 78% at 50% 108%, rgba(232,180,92,.20) 0%, transparent 58%),
+    radial-gradient(52% 44% at 50% 72%, rgba(246,215,155,.16) 0%, transparent 70%),
     linear-gradient(180deg, var(--night) 0%, #15101a 42%, var(--wine-deep) 88%, #170a0f 100%);
 }
 /* 좌우 벨벳 커튼 */
@@ -40,7 +47,7 @@ body {
   content:""; position:absolute; top:0; bottom:0; width:17%;
   background:
     repeating-linear-gradient(90deg, rgba(0,0,0,.34) 0 22px, rgba(255,255,255,.022) 22px 46px),
-    linear-gradient(180deg, #1c070d 0%, #4a1822 52%, #14060a 100%);
+    linear-gradient(180deg, #1c070d 0%, var(--curtain) 52%, #14060a 100%);
   filter:saturate(.8) blur(.6px);
   -webkit-mask-image:linear-gradient(90deg, #000 58%, transparent 100%);
           mask-image:linear-gradient(90deg, #000 58%, transparent 100%);
@@ -52,8 +59,8 @@ body {
 .beam {
   position:absolute; left:74%; top:-14%; width:42vw; height:104%;
   transform:translateX(-50%);
-  background:linear-gradient(180deg, rgba(240,205,133,.26) 0%,
-    rgba(240,205,133,.10) 42%, transparent 82%);
+  background:linear-gradient(180deg, rgba(246,215,155,.26) 0%,
+    rgba(246,215,155,.10) 42%, transparent 82%);
   clip-path:polygon(43% 0, 57% 0, 86% 100%, 14% 100%);
   filter:blur(7px);
   animation:breathe 9s ease-in-out infinite;
@@ -64,13 +71,13 @@ body {
 /* 무대 바닥 반사 */
 .floor {
   position:absolute; left:0; right:0; bottom:0; height:26%;
-  background:linear-gradient(180deg, rgba(216,169,74,.13), transparent 74%);
+  background:linear-gradient(180deg, rgba(232,180,92,.13), transparent 74%);
   filter:blur(3px);
 }
 
 /* 무대 위 그랜드 피아노 */
 .piano {
-  position:absolute; left:64%; bottom:16%; width:min(38vw, 470px); height:auto;
+  position:absolute; left:60%; bottom:16%; width:min(36vw, 450px); height:auto;
   opacity:.82; pointer-events:none;
   filter:drop-shadow(0 26px 44px rgba(0,0,0,.75));
   animation:pianoIn 1.6s cubic-bezier(.2,.8,.24,1) both;
@@ -141,12 +148,12 @@ body {
   background:linear-gradient(180deg, var(--gold-soft), var(--gold));
   color:#2a1c05; border-color:transparent; font-weight:700;
   font-size:19px; padding:17px 40px; letter-spacing:.01em;
-  box-shadow:0 10px 34px rgba(216,169,74,.3);
+  box-shadow:0 10px 34px rgba(232,180,92,.3);
 }
 /* 지시서 모듈 ⑤-2: 이 버튼 하나가 원장님 마음을 산다 */
 .btn--fade {
   font-size:17px; padding:17px 30px; font-weight:600;
-  border-color:rgba(216,169,74,.5);
+  border-color:rgba(232,180,92,.5);
 }
 .btn--fade.active { background:var(--wine); border-color:var(--wine); color:#fff; }
 
@@ -170,7 +177,7 @@ body {
   cursor:pointer; transition:.16s; border-radius:10px;
 }
 .cue:hover { background:rgba(255,255,255,.04); }
-.cue.current { background:rgba(216,169,74,.09);
+.cue.current { background:rgba(232,180,92,.09);
   box-shadow:inset 3px 0 0 var(--gold); }
 .cue.done { opacity:.42; }
 .cue__no { color:var(--faint); font-size:13px; font-variant-numeric:tabular-nums;

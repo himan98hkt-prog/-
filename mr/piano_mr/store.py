@@ -475,6 +475,30 @@ class CatalogStore:
                 'ready': all(i['verified'] for i in items) if items else False}
 
     # --- 3단계 플레이어 ------------------------------------------------
+    @staticmethod
+    def _chord_track(song: cat.Song) -> list:
+        """[[박, '화음'], …] — 화음이 **바뀌는 지점만**.
+
+        박은 4분음표 기준 절대 위치다. 플레이어 엔진이 `beatsPerBar =
+        분자 × 4/분모` 로 세므로 같은 자로 재야 눈금이 안 어긋난다.
+        """
+        try:
+            num, den = (int(x) for x in (song.time or '4/4').split('/'))
+            per_bar = num * (4 / den)
+        except (ValueError, ZeroDivisionError):
+            per_bar = 4.0
+
+        track, last = [], None
+        for h in song.harmony:
+            name = harmony.label(h.get('root'), h.get('qual'))
+            if name == last:
+                continue
+            bar = h.get('bar', h.get('m', 1)) or 1
+            beat = (bar - 1) * per_bar + float(h.get('off', 0.0))
+            track.append([round(beat, 3), name])
+            last = name
+        return track
+
     def song_row(self, song: cat.Song,
                  variants: Optional[Sequence] = None) -> dict:
         """플레이어가 받아 가는 곡 한 줄.
@@ -498,6 +522,14 @@ class CatalogStore:
                 # 이름 하나가 상황 따라 다른 뜻이 되면 나중에 꼭 틀린다.
                 'midi': f'/api/player/midi/{song.id}',
                 'midi_file': song.accomp_midi or None}
+        # 지금 울리는 화음을 화면에 띄우려고 싣는다.
+        #
+        # 이 제품이 파는 것은 **화성을 정확히 읽는 것**이다(99.5%). 그게 화면에
+        # 안 보이면 원장님에게는 그냥 반주가 나오는 프로그램이다. 무대에서도
+        # 쓸모가 있다 — 아이가 멈췄을 때 몇 마디 몇 화음인지 바로 보인다.
+        #
+        # 바뀌는 지점만 싣는다. 같은 화음이 이어지는 마디가 많아 26곡에 17KB 다.
+        row['chords'] = self._chord_track(song)
         if variants is not None:
             row['variants'] = [{'style': st, 'level': lv, 'url': url}
                                for st, lv, url in variants]

@@ -1,73 +1,108 @@
-/* PDF 업로드 화면 — 화성 확인 화면과 같은 종이톤 (app.css 의 변수를 그대로 쓴다). */
+/* PDF 올리기 화면 — app.css 위에 이 화면만의 것을 얹는다. 값은 tokens.css. */
 
+/* 지시서 3장: 「'PDF 넣으면 바로 완성'을 약속하지 말 것」.
+ * 그래서 이 알림은 화면에서 제일 먼저 눈에 들어와야 한다. 경고색으로 칠하되
+ * 빨강은 안 쓴다 — 고장이 아니라 **순서 안내**다. */
 .notice {
-  background: var(--warn-bg); border: 1px solid var(--warn-line);
-  border-radius: var(--radius); padding: 13px 16px; margin-bottom: 16px;
-  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline;
+  position: relative; overflow: hidden;
+  background: linear-gradient(120deg, rgba(224,160,95,.13), rgba(224,160,95,.05));
+  border: 1px solid rgba(224,160,95,.32);
+  border-radius: var(--r); padding: 14px 18px 14px 20px; margin-bottom: 16px;
+  display: flex; flex-wrap: wrap; gap: 5px 11px; align-items: baseline;
 }
-.notice b { color: #7a5a0c; }
-.notice__why { color: #8a6512; font-size: 13px; flex-basis: 100%; }
+.notice::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--warn);
+}
+.notice b { color: var(--warn); }
+.notice__why { color: var(--dim); font-size: 13px; flex-basis: 100%; }
+.notice__why b { color: var(--ink); }
 
-.h2 { font-size: 15px; margin: 26px 0 10px; }
+.h2 { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint); margin: 30px 0 11px; }
 
-/* --- 끌어다 놓는 곳 ------------------------------------------------------ */
+/* ── 끌어다 놓는 곳 ── 이 화면에서 제일 큰 물건이다. 원장님이 처음 만나는 문 ── */
 .drop {
-  background: var(--card); border: 2px dashed var(--line);
-  border-radius: var(--radius); padding: 22px 20px;
-  display: grid; grid-template-columns: auto 1fr; gap: 6px 18px;
-  align-items: center; cursor: pointer; transition: border-color .15s, background .15s;
+  position: relative; overflow: hidden;
+  background: var(--surface); border: 1.5px dashed rgba(232,180,92,.30);
+  border-radius: var(--r-lg); padding: 32px 26px;
+  display: grid; grid-template-columns: auto 1fr; gap: 8px 22px;
+  align-items: center; cursor: pointer;
+  transition: border-color var(--calm), background var(--calm), box-shadow var(--calm);
 }
-.drop:hover, .drop.over { border-color: var(--accent); background: #fffdf9; }
+.drop::before {                      /* 문 뒤에서 새어 나오는 빛 */
+  content: ''; position: absolute; inset: auto -20% -70% -20%; height: 140%;
+  background: radial-gradient(50% 50% at 50% 100%, var(--glow), transparent 70%);
+  opacity: 0; transition: opacity var(--calm); pointer-events: none;
+}
+.drop:hover, .drop.over {
+  border-color: rgba(232,180,92,.55); background: var(--surface-2);
+  box-shadow: 0 16px 44px rgba(0,0,0,.4);
+}
+.drop:hover::before, .drop.over::before { opacity: 1; }
 .drop.over { border-style: solid; }
-.drop__art { color: var(--accent); grid-row: span 2; display: flex; }
+.drop > * { position: relative; }
+.drop__art { color: var(--gold); grid-row: span 2; display: flex; }
+.drop__art svg path[fill="#fff"] { fill: rgba(255,255,255,.06); }
 .drop__text { display: flex; flex-direction: column; }
-.drop__text .sub { color: var(--muted); font-size: 13px; }
+.drop__text b { font-size: 17px; }
+.drop__text .sub { color: var(--dim); font-size: 13px; }
 .drop__fields {
-  grid-column: 2; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  grid-column: 2; display: flex; gap: 11px; align-items: flex-end; flex-wrap: wrap;
+  margin-top: 6px;
 }
 .drop__fields label {
-  display: flex; flex-direction: column; gap: 3px;
-  font-size: 12px; color: var(--muted); flex: 1; min-width: 220px;
+  display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 220px;
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--faint);
 }
 .drop__fields input {
-  font: inherit; color: inherit; background: var(--paper);
-  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  font: inherit; font-size: 15px; letter-spacing: normal; text-transform: none;
+  color: var(--ink); background: rgba(0,0,0,.28);
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: text;
 }
-.drop__fields input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
-.drop__picked {
-  grid-column: 2; font-size: 13px; color: var(--accent); font-weight: 600;
-}
+.drop__fields input::placeholder { color: var(--faint); }
+.drop__fields input:focus { outline: none; border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(232,180,92,.16); }
+.drop__picked { grid-column: 2; font-size: 13px; color: var(--gold-2); font-weight: 600; }
 
-/* --- 알림 --------------------------------------------------------------- */
+/* ── 알림 ── */
 .msg {
-  margin-top: 14px; padding: 11px 15px; border-radius: var(--radius);
-  border: 1px solid var(--line); background: var(--card); font-size: 14px;
+  margin-top: 14px; padding: 12px 16px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--surface); font-size: 14px;
 }
-.msg.bad { background: #fdecea; border-color: #e9b6ae; color: #8d2f1f; }
-.msg.good { background: var(--ok-bg); border-color: #bcdcc8; color: var(--ok); }
+.msg.bad { background: rgba(224,106,106,.12); border-color: rgba(224,106,106,.34);
+  color: #f0a3a3; }
+.msg.good { background: rgba(99,185,138,.12); border-color: rgba(99,185,138,.34);
+  color: #8fd4ae; }
 
-/* --- 작업 목록 ----------------------------------------------------------- */
+/* ── 올린 악보 ── */
 .job {
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 12px 15px; margin-bottom: 9px;
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: var(--r); padding: 13px 16px; margin-bottom: 9px;
+  display: flex; gap: 13px; align-items: center; flex-wrap: wrap;
+  transition: border-color var(--quick), background var(--quick);
 }
+.job:hover { border-color: var(--line); background: var(--surface-2); }
 .job__main { flex: 1; min-width: 220px; }
 .job__title { font-weight: 600; }
-.job__sub { color: var(--muted); font-size: 13px; }
-.job__sub .detail { color: #8d2f1f; }
-.job .pill.review { background: var(--changed-bg); color: var(--changed); border-color: #b9d4ea; }
-.job .pill.omr, .job .pill.received { background: var(--warn-bg); color: #8a6512;
-  border-color: var(--warn-line); }
-.job .pill.done { background: var(--ok-bg); color: var(--ok); border-color: #bcdcc8; }
-.job .pill.failed { background: #fdecea; color: #8d2f1f; border-color: #e9b6ae; }
-.job .pill.cancelled { background: #f2f0ec; color: var(--muted); }
-.job button { padding: 6px 11px; font-size: 13px; }
+.job__sub { color: var(--dim); font-size: 13px; }
+.job__sub .detail { color: #f0a3a3; }
+.job .pill.review { background: rgba(126,170,224,.14); color: #a9c9ef;
+  border-color: rgba(126,170,224,.36); }
+.job .pill.omr, .job .pill.received { background: rgba(224,160,95,.13); color: var(--warn);
+  border-color: rgba(224,160,95,.34); }
+.job .pill.done { background: rgba(99,185,138,.13); color: var(--ok);
+  border-color: rgba(99,185,138,.34); }
+.job .pill.failed { background: rgba(224,106,106,.13); color: #f0a3a3;
+  border-color: rgba(224,106,106,.34); }
+.job .pill.cancelled { background: rgba(255,255,255,.05); color: var(--faint); }
+.job button { padding: 6px 12px; font-size: 13px; }
+
+.tiny { font-size: 12px; color: var(--faint); }
 
 @media (max-width: 620px) {
   .drop { grid-template-columns: 1fr; }
   .drop__art { grid-row: auto; }
   .drop__fields, .drop__picked { grid-column: 1; }
 }
-
-.tiny { font-size: 12px; opacity: .85; }

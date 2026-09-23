@@ -146,7 +146,8 @@ async function screenHome() {
   }
 
   view.innerHTML = `
-    ${b.programs.length ? `<button class="row" id="toProgram">
+    ${b.programs.length ? `<button class="row feature" id="toProgram">
+      <div class="row__key">🎭</div>
       <div class="row__main">
         <div class="row__title">${esc(b.programs[0].event)}</div>
         <div class="row__sub">${b.programs[0].count}곡 · 약 ${b.programs[0].minutes}분 · 발표회 진행</div>
@@ -167,13 +168,17 @@ async function screenHome() {
     </div>
 
     ${[...byBook.entries()].map(([book, songs]) => `
-      <h2 class="muted" style="margin:18px 0 8px">${esc(book || '기타')}</h2>
+      <div class="book-head">
+        <h2>${esc(book || '기타')}</h2><span class="n">${songs.length}곡</span>
+      </div>
       <div class="rows">
         ${songs.map((s) => `
           <button class="row" data-song="${esc(s.id)}">
+            <div class="row__key">${esc(keyBadge(s))}</div>
             <div class="row__main">
               <div class="row__title">${esc(s.title)}</div>
-              <div class="row__sub">♩=${s.bpm} · ${esc(s.key_label || s.key)} · ${s.measures}마디</div>
+              <div class="row__sub">♩=${s.bpm} · ${esc(s.key_label || s.key)} ·
+                ${esc(s.time || '')} · ${s.measures}마디</div>
             </div>
             ${s.verified ? '' : '<span class="chip warn">확인 전</span>'}
             <div class="row__go">→</div>
@@ -231,22 +236,46 @@ async function screenPlay(q) {
   $('#heading').textContent = student ? `${student} 연습` : '연주';
 
   view.innerHTML = `
-    <div class="now">
+    <div class="stage" id="stage">
+     <div class="now">
       ${student ? `<div class="now__student">${esc(student)}</div>` : ''}
       <h2 class="now__title">${esc(song.title)}</h2>
-      <div class="now__meta">${esc(song.composer || song.book || '')} ·
-        ${esc(song.key_label || song.key)} · ${song.measures}마디</div>
+      <div class="now__meta">
+        ${song.book ? `<span>${esc(song.book)}</span>` : ''}
+        ${song.composer ? `<span>${esc(song.composer)}</span>` : ''}
+        <span><b>${esc(song.key_label || song.key)}</b></span>
+        <span>${esc(song.time || '')}</span>
+        <span><b>${song.measures}</b>마디</span>
+      </div>
     </div>
 
-    <div class="card">
-      <div class="transport">
-        <button class="round" id="rewind" title="처음으로">⏮</button>
-        <button class="big" id="play" aria-label="재생">▶</button>
-        <button class="round" id="loopBtn" title="구간 반복">⟳</button>
+      <!-- 마디 타임라인 — 아이가 멈췄을 때 「몇 마디」가 제일 먼저 보여야 한다.
+           지금 울리는 화음도 같이 띄운다: 이 프로그램이 악보를 읽고 있다는 것이
+           원장님에게 보이는 자리가 여기다 (화성 정확도 99.5%). -->
+      <div class="track">
+        <div class="track__chord">
+          <span class="track__now" id="chordNow">${esc(chordAt(song, 0) || '—')}</span>
+          <span class="track__next" id="chordNext"></span>
+        </div>
+        <div class="bar" id="bar" role="slider" aria-label="재생 위치"
+             aria-valuemin="1" aria-valuemax="${song.measures || 1}" aria-valuenow="1">
+          <div class="bar__ticks" id="ticks"></div>
+          <i id="fill"></i>
+          <div class="bar__head" id="head"></div>
+        </div>
+        <div class="times">
+          <span id="pos">0:00</span>
+          <span class="at"><b id="barno">1</b> / ${song.measures || 1}마디</span>
+          <span id="dur">0:00</span>
+        </div>
       </div>
-      <div class="bar" id="bar"><i id="fill"></i></div>
-      <div class="times"><span id="pos">0:00</span>
-        <span id="barno" class="tiny">1마디</span><span id="dur">0:00</span></div>
+
+      <div class="transport">
+        <button class="round" id="rewind" title="처음으로" aria-label="처음으로">⏮</button>
+        <button class="big" id="play" aria-label="재생">▶</button>
+        <button class="round" id="loopBtn" title="구간 반복" aria-label="구간 반복">⟳</button>
+      </div>
+
       <button class="fade" id="fade" disabled>반주 페이드아웃 (${FADE_SECONDS}초)</button>
     </div>
 
@@ -297,6 +326,40 @@ async function screenPlay(q) {
 }
 
 const fmtTr = (n) => n === 0 ? '원조' : (n > 0 ? `+${n}` : `${n}`);
+
+/** 목록에 붙는 작은 표지 — 조성 머리글자. 글자만 있으면 곡들이 다 같아 보인다. */
+function keyBadge(song) {
+  const k = String(song.key_label || song.key || '').trim();
+  const m = k.match(/^([A-G][#b\u266f\u266d]?)/);
+  return m ? m[1] : (k.slice(0, 2) || '♪');
+}
+
+/**
+ * 그 박에서 울리는 화음.
+ *
+ * 번들의 `chords` 는 **바뀌는 지점만** 담고 있어(26곡 8.9KB), 지금 위치보다
+ * 앞서지 않는 마지막 것을 찾으면 된다. 곡이 짧아 선형 탐색으로 충분하다.
+ */
+function chordAt(song, beat) {
+  const t = song.chords;
+  if (!t || !t.length) return '';
+  let name = t[0][1];
+  for (const [at, n] of t) {
+    if (at > beat + 1e-6) break;
+    name = n;
+  }
+  return name;
+}
+
+/** 다음 화음과 그때까지 남은 마디 — 무대에서 미리 보이면 마음이 놓인다. */
+function chordNext(song, beat) {
+  const t = song.chords;
+  if (!t || !t.length) return null;
+  for (const [at, n] of t) {
+    if (at > beat + 1e-6) return { at, name: n };
+  }
+  return null;
+}
 const STYLE_LABEL = [['strings', '현악 앙상블'], ['chamber', '실내악'],
   ['orchestra', '풀 오케스트라'], ['fairytale', '동화풍'], ['warm', '따뜻한 소편성'],
   ['march', '행진곡풍'], ['pop', '팝·재즈풍']];
@@ -318,6 +381,7 @@ const levelOptions = (cur, song) => options(LEVEL_LABEL, cur,
 function wirePlay(song, settings, student) {
   const persist = () => store.saveSettings(student, song.id, settings);
   const refreshBars = () => {
+    paintTicks();
     const n = player.totalBars || 1;
     ['loopFrom', 'loopTo'].forEach((id) => { $(`#${id}`).max = n; });
     $('#loopTo').value = n;
@@ -448,10 +512,57 @@ function wirePlay(song, settings, student) {
 function paint() {
   const total = player.totalBeats || 1;
   const at = Math.max(0, Math.min(total, player.positionBeat));
-  $('#fill').style.width = `${(at / total) * 100}%`;
+  const pct = (at / total) * 100;
+
+  $('#fill').style.clipPath = `inset(0 ${(100 - pct).toFixed(2)}% 0 0)`;
+  const head = $('#head');
+  if (head) head.style.left = `${pct}%`;
+
   $('#pos').textContent = mmss(at * 60 / player.bpm);
-  $('#barno').textContent = `${player.bar}마디`;
+  // 끝 화음이 한 마디 더 울려도 「9 / 8마디」라고 하지 않는다
+  const lastBar = (state.song && state.song.measures) || player.totalBars || 1;
+  $('#barno').textContent = Math.min(player.bar, lastBar);
+
+  const bar = $('#bar');
+  if (bar) {
+    bar.setAttribute('aria-valuenow', Math.min(player.bar, lastBar));
+    bar.setAttribute('aria-valuemax', lastBar);
+  }
+
+  // 지금 화음. 무대에서 눈이 제일 먼저 가는 글자라 바뀔 때만 건드린다.
+  const song = state.song;
+  const now = $('#chordNow');
+  if (song && now) {
+    const name = chordAt(song, at) || '—';
+    if (now.textContent !== name) now.textContent = name;
+    const nx = $('#chordNext');
+    const next = chordNext(song, at);
+    const bars = next
+      ? Math.max(0, Math.round((next.at - at) / (player.beatsPerBar || 4)))
+      : 0;
+    const text = next ? `다음 <b>${next.name}</b>${bars ? ` · ${bars}마디 뒤` : ''}` : '';
+    if (nx && nx.innerHTML !== text) nx.innerHTML = text;
+  }
+
   $('#fade').disabled = !player.playing;
+  const stage = $('#stage');
+  if (stage) stage.classList.toggle('playing', player.playing);
+}
+
+/** 마디 눈금을 곡의 마디 수에 맞춰 그린다 (반복 그라데이션의 간격 하나만 준다). */
+function paintTicks() {
+  const el = $('#ticks');
+  if (!el) return;
+  // 눈금은 **악보의 마디 수**로 그린다.
+  //
+  // 엔진은 `ceil(전체박 / 마디당박)` 으로 세는데, 마지막 화음이 한 마디를 꽉 채워
+  // 울리면 8마디 곡이 9로 세어진다. 머리말은 악보대로 「8마디」라고 말하고 있으니
+  // 타임라인만 9라고 하면 **화면이 두 말을 하는 것**이다. 원장님께 맞는 답은
+  // 악보 쪽이다. 진행 위치는 박으로 재니 마지막 칸이 꽉 차는 것으로 보일 뿐이다.
+  const bars = (state.song && state.song.measures) || player.totalBars || 1;
+  // 마디가 너무 많으면 눈금이 회색 덩어리가 된다 — 그때는 4마디마다.
+  const step = bars > 48 ? 4 : 1;
+  el.style.setProperty('--bar-w', `${(100 / bars) * step}%`);
 }
 
 /* ---------- 카운트인을 어디로 들을지 (⑤-4) ----------
@@ -522,8 +633,9 @@ async function screenProgram(q) {
       ${p.items.map((it, i) => `
         <button class="row ${i === state.queue.at ? 'current' : ''} ${i < state.queue.at ? 'done' : ''}"
                 data-i="${i}">
+          <div class="row__key">${it.order}</div>
           <div class="row__main">
-            <div class="row__title">${it.order}. ${esc(it.student)}</div>
+            <div class="row__title">${esc(it.student)}</div>
             <div class="row__sub">${esc(it.title)} · ♩=${it.bpm} ·
               ${esc(it.style_label)} · ${esc(it.level_label)}</div>
           </div>
