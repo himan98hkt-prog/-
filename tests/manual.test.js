@@ -77,4 +77,24 @@ describe('설명서 원고', () => {
     expect(PARTS.length).toBeGreaterThanOrEqual(2)
     expect(META.title).toContain('사용설명서')
   })
+
+  // 빌더(scripts/manual.mjs)가 아는 항목. 여기 없는 이름을 원고에 쓰면 그 내용이
+  // **아무 말 없이 사라집니다** — 설명서는 멀쩡하게 만들어지고, 빠진 걸 아무도
+  // 모릅니다. 실제로 `body2` 를 쓰면서 빌더에 넣는 걸 잊어 한 번 겪었습니다.
+  // 항목을 새로 만들려면 빌더에 렌더링을 넣고 이 목록에도 더하세요.
+  const KNOWN = ['id', 'title', 'shot', 'body', 'table', 'body2', 'trap']
+
+  it('빌더가 모르는 항목을 쓰지 않는다 (쓰면 그 내용이 조용히 빠진다)', () => {
+    const strays = sections.flatMap((s) =>
+      Object.keys(s).filter((k) => !KNOWN.includes(k)).map((k) => `${s.id}.${k}`))
+    expect(strays).toEqual([])
+  })
+
+  it('표 뒤에 오는 본문(body2)이 실제로 쓰이고 있다', () => {
+    // 빌더에서 body2 렌더링이 사라지면 이 절의 두 문단이 조용히 빠집니다.
+    // 원고 쪽에서는 그걸 볼 수 없으니, 최소한 쓰이고 있다는 것만 못 박습니다.
+    const withBody2 = sections.filter((s) => s.body2?.length)
+    expect(withBody2.length).toBeGreaterThan(0)
+    for (const s of withBody2) expect(s.table).toBeTruthy()   // 표 없이 쓸 이유가 없다
+  })
 })

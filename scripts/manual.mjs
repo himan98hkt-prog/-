@@ -90,6 +90,9 @@ function sectionHtml(sec, num) {
         `<tr>${r.map((c) => `<td>${rich(c)}</td>`).join('')}</tr>`).join(''),
       '</tbody></table>')
   }
+  // 표 **뒤에** 오는 본문. 표가 목록이고 그 뒤에 「그래서 어떻게 하시라」가
+  // 붙는 절에 쓴다 (13-6 악보 구하기). body 에 넣으면 표 앞으로 올라간다.
+  for (const line of sec.body2 || []) parts.push(`<p>${rich(line)}</p>`)
   if (sec.trap) {
     parts.push(`<div class="trap"><b>자주 하는 실수</b><p>${rich(sec.trap)}</p></div>`)
   }
