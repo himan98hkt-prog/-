@@ -17,6 +17,8 @@ from typing import Dict, List, Optional, Tuple
 from music21 import converter, meter, stream
 from music21 import key as m21key
 
+from . import midifile
+
 SUPPORTED_SUFFIXES = ('.xml', '.musicxml', '.mxl', '.mid', '.midi', '.krn', '.abc')
 
 
@@ -125,12 +127,15 @@ def _expand_repeats(sc: stream.Score) -> Tuple[stream.Score, bool]:
 
 
 def load(path: str, expand_repeats: bool = True, transpose: int = 0,
-         key_name: Optional[str] = None) -> LoadedScore:
+         key_name: Optional[str] = None,
+         time_name: Optional[str] = None) -> LoadedScore:
     """악보 파일 -> LoadedScore.
 
     `key_name` 을 주면 자동 판정 대신 그 조성을 쓴다 ('C', 'a', 'Bb', 'f#').
     짧고 성긴 악보(8마디 이하, 왼손이 근음뿐)에서는 자동 판정이 흔들릴 수 있어
     카탈로그에 확정된 조성이 있으면 그것을 쓰는 편이 안전하다.
+
+    `time_name` ('3/4') 은 **박자표를 안 적어 둔 MIDI** 에만 쓴다. 아래 참고.
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f'악보 파일을 찾을 수 없습니다: {path}')
@@ -139,14 +144,44 @@ def load(path: str, expand_repeats: bool = True, transpose: int = 0,
         raise ValueError(
             f'지원하지 않는 확장자입니다: {suffix} (지원: {", ".join(SUPPORTED_SUFFIXES)})')
 
+    if midifile.is_midi(path) and not time_name:
+        _require_meter(path)
+
     sc = converter.parse(path)
     return from_score(sc, expand_repeats=expand_repeats, transpose=transpose,
-                      path=path, key_name=key_name)
+                      path=path, key_name=key_name, time_name=time_name)
+
+
+def _require_meter(path: str) -> None:
+    """박자표를 안 적은 MIDI 는 **거절한다.**
+
+    music21 은 박자표가 없는 MIDI 에 조용히 4/4 를 넣는다. 그래서 파싱된 결과만
+    봐서는 진짜 4/4 와 지어낸 4/4 를 구분할 수 없다. 3/4 왈츠가 이렇게 들어오면
+
+        박자 4/4 · 8마디 → 6마디,  화성 C G7 C F… → C Bdim C Em F Am…
+
+    이 되는데 **오류가 하나도 안 난다.** 반주는 멀쩡하게 만들어지고 틀린 것은
+    발표회 당일에 드러난다. 그럴 바엔 못 만드는 쪽이 낫다 — `pdf.py` 가 쪽수를
+    "못 세면 추측하지 않고 거절"하는 것과 같다.
+
+    사람이 박자를 알고 있으면 `time_name='3/4'` 로 넘기면 된다. 추측을 우리가
+    하지 않고 **아는 사람이 말해 주는** 구조다.
+    """
+    meta = midifile.inspect(path)          # MIDI 가 아니면 여기서 MidiError
+    if meta.declares_meter:
+        return
+    raise ValueError(
+        f'이 MIDI 에는 박자표가 적혀 있지 않습니다: {os.path.basename(path)}\n'
+        '  박자를 모르면 마디가 어긋나 화성이 통째로 틀립니다 — 그래도 조용히 '
+        '만들어지기 때문에 여기서 막습니다.\n'
+        "  박자를 아시면 --time 3/4 처럼 알려 주세요 "
+        '(MusicXML 로 받을 수 있으면 그쪽이 더 낫습니다).')
 
 
 def from_score(sc: stream.Score, expand_repeats: bool = True,
                transpose: int = 0, path: str = '',
-               key_name: Optional[str] = None) -> LoadedScore:
+               key_name: Optional[str] = None,
+               time_name: Optional[str] = None) -> LoadedScore:
     """이미 파싱된 music21 Score -> LoadedScore (코퍼스·테스트용)."""
     if not isinstance(sc, stream.Score):
         s = stream.Score()
@@ -154,6 +189,8 @@ def from_score(sc: stream.Score, expand_repeats: bool = True,
         sc = s
     if transpose:
         sc = sc.transpose(transpose)
+    if time_name:
+        sc = _remeasure(sc, time_name)
 
     expanded = False
     if expand_repeats:
@@ -191,6 +228,31 @@ def from_score(sc: stream.Score, expand_repeats: bool = True,
     return LoadedScore(score=sc, key=k, time_signature=ts, bars=bars,
                        total_ql=total, path=path, repeats_expanded=expanded,
                        part_count=len(sc.parts), note_count=len(sc.recurse().notes))
+
+
+def _remeasure(sc: stream.Score, time_name: str) -> stream.Score:
+    """사람이 알려 준 박자로 마디를 **다시 긋는다.**
+
+    박자표를 안 적은 MIDI 를 받을 때만 쓴다. music21 이 이미 4/4 로 마디를 그어
+    놓았으므로, 음표만 남기고 평평하게 편 뒤 주어진 박자로 새로 나눈다.
+    """
+    try:
+        forced = meter.TimeSignature(time_name)
+    except Exception as e:
+        raise ValueError(f'박자표를 못 읽었습니다: {time_name!r} '
+                         "(3/4 · 6/8 처럼 적어 주세요)") from e
+    ms = stream.Stream()
+    ms.insert(0, forced)
+
+    out = stream.Score()
+    for p in sc.parts or [sc]:
+        flat = p.flatten().notesAndRests.stream()
+        remade = flat.makeMeasures(meterStream=ms)
+        part = stream.Part()
+        for el in remade:
+            part.insert(el.offset, el)
+        out.insert(0, part)
+    return out if out.parts else sc
 
 
 def _beat_length(m: stream.Measure, fallback_ts: meter.TimeSignature, bar_ql: float) -> float:

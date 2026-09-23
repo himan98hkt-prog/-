@@ -76,7 +76,7 @@ def test_every_precached_file_is_really_in_the_package(tmp_path):
     st = store.CatalogStore(str(tmp_path / 'catalog'))
     st.import_score(score('p05_waltz_c'), '작은 왈츠 (C장조)', song_id='waltz',
                     composer='자사 오리지널', book='오리지널 연습곡', level=2,
-                    public_domain=True)
+                    public_domain=True, score_license='own')
     out = str(tmp_path / 'pkg')
     st.export_static(out)
 

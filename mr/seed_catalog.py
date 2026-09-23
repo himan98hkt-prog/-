@@ -28,7 +28,23 @@ from piano_mr import store  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, 'fixtures')
 
-# music21 코퍼스의 퍼블릭도메인 피아노곡. 전부 지시서 7장 화이트리스트 안이다.
+# music21 코퍼스의 퍼블릭도메인 피아노곡. **곡**은 전부 지시서 7장 화이트리스트
+# 안이다 — 작곡가가 죽은 지 백 년이 넘었다.
+#
+# 그런데 **입력본**(그 악보를 쳐 넣은 파일)은 다른 문제다. 코퍼스의 license.txt 가
+# 스스로 이렇게 적어 두었다.
+#
+#     Some encodings included in the corpus may not be used for commercial uses
+#
+# 그리고 **어느 것인지는 알려 주지 않는다.** 실제로 여기 쇼팽 마주르카는
+# `!!!ENC: Craig Stuart Sapp` 이고, 같은 사람의 GitHub 저장소들은 CC BY-NC-SA 다.
+# 그래서 이 아홉 곡은 전부 `score_license='unknown'` 이고 **판매용 꾸러미에서
+# 빠진다.** 시연·개발·원장님 학원 자체 사용에는 그대로 쓸 수 있다.
+#
+# 상수로 빼 둔 이유: 여기를 'pd' 같은 걸로 슬쩍 바꾸면 아홉 곡이 판매용 꾸러미에
+# 조용히 들어간다. `tests/test_provenance.py` 가 이 값을 물고 있다.
+CORPUS_LICENSE = 'unknown'
+CORPUS_SOURCE = 'music21 코퍼스'
 CORPUS = [
     dict(corpus='bach/bwv846', id='bach_bwv846_prelude',
          title='바흐 평균율 1권 1번 전주곡', composer='J.S. Bach',
@@ -86,7 +102,8 @@ def seed_originals(st: store.CatalogStore, verbose=True) -> int:
             path, rec['title'], song_id=rec['id'], composer='자사 오리지널',
             book='오리지널 연습곡', level=rec.get('level', 3), public_domain=True,
             default_style=rec.get('default_style', 'strings'),
-            default_bpm=96, count_in=1, note='회귀 테스트 세트와 같은 곡')
+            default_bpm=96, count_in=1, note='회귀 테스트 세트와 같은 곡',
+            score_source='자사 제작', score_license='own')
         n += 1
         if verbose:
             print(f'  {song.id:<24} {song.key:<10} {song.measures:>3}마디 '
@@ -113,7 +130,12 @@ def seed_corpus(st: store.CatalogStore, verbose=True) -> int:
                 path, spec['title'], song_id=spec['id'], composer=spec['composer'],
                 book=spec['book'], level=spec['level'], public_domain=True,
                 default_style=spec['style'], default_bpm=spec['bpm'],
-                count_in=1, note=spec.get('note', ''))
+                count_in=1, note=spec.get('note', ''),
+                # 곡은 전부 만료됐다. 그런데 **입력본**은 다른 문제다 —
+                # music21 코퍼스 자신의 license.txt 가 "일부는 상업적으로 쓸 수
+                # 없다"고 적어 두고 **어느 것인지는 알려 주지 않는다.**
+                # 그래서 전부 'unknown' 으로 둔다 (piano_mr/provenance.py).
+                score_source=CORPUS_SOURCE, score_license=CORPUS_LICENSE)
         n += 1
         if verbose:
             print(f'  {song.id:<24} {song.key:<10} {song.measures:>3}마디 '

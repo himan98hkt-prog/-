@@ -142,7 +142,17 @@ class Song:
     # 값이 있으면 = 그 계정이 올린 악보. 카탈로그로 팔 수 없다.
     owner: str = ''
     source: str = ''                     # 'catalog' | 'upload'
+    # 악보 **입력본**의 출처 (piano_mr/provenance.py).
+    # `public_domain` 은 **곡**이 만료됐는가를 보고, 이 둘은 **그 파일을 쳐 넣은
+    # 사람**의 조건을 본다. 곡이 만료돼도 파일에 붙은 약정은 따로 돌아간다.
+    # 빈 값 = 'unknown' = 판매용 꾸러미에 못 들어간다.
+    score_source: str = ''               # 어디서 받았는지 (사람이 읽는 말)
+    score_license: str = ''              # provenance.TERMS 의 키
     key_locked: bool = False             # 조성을 사람이 확정했는가 (자동 판정 무시)
+    # 박자를 사람이 확정했는가. 박자표를 안 적어 둔 MIDI 를 들일 때만 켜진다 —
+    # 그런 파일은 다시 분석할 때마다 또 물어야 하므로 여기 적어 둔다
+    # (piano_mr/score_loader.py `_require_meter`).
+    time_locked: bool = False
     verify_seconds: int = 0              # 화성 확인 화면에서 실제로 쓴 시간
     verified_at: str = ''
     note: str = ''

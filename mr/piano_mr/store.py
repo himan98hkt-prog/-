@@ -27,7 +27,7 @@ from dataclasses import asdict
 from typing import Dict, List, Optional, Sequence
 
 from . import (arranger, catalog as cat, harmony, omr, orchestration as orch,
-               pdf, render, roster, score_loader, uploads)
+               pdf, provenance as prov, render, roster, score_loader, uploads)
 
 SCORE_SUFFIXES = score_loader.SUPPORTED_SUFFIXES
 
@@ -117,8 +117,15 @@ class CatalogStore:
                      key_name: Optional[str] = None, recommended_bpm: Sequence[int] = (),
                      default_curve: str = 'flat', count_in: int = 0,
                      note: str = '', analyze: bool = True,
-                     owner: str = '') -> cat.Song:
-        """악보 파일을 카탈로그로 들인다. 저작권 확인을 통과해야 들어온다."""
+                     owner: str = '', score_source: str = '',
+                     score_license: str = '',
+                     time_name: Optional[str] = None) -> cat.Song:
+        """악보 파일을 카탈로그로 들인다. 저작권 확인을 통과해야 들어온다.
+
+        `public_domain` 은 **곡**이 만료됐는가고, `score_license` 는 **그 파일을
+        쳐 넣은 사람**의 조건이다. 둘은 별개다 — 만료된 곡이어도 남의 입력본에는
+        약정이 붙어 있을 수 있다 (`piano_mr/provenance.py`).
+        """
         if not os.path.exists(path):
             raise FileNotFoundError(f'악보 파일이 없습니다: {path}')
         song_id = song_id or slugify(title)
@@ -136,6 +143,12 @@ class CatalogStore:
         # 파일을 복사하기 전에 저작권부터 본다 (지시서 7장)
         cat.check_copyright(title, composer, book,
                             public_domain=public_domain, owner=owner)
+        # 출처 키의 오타는 **여기서** 잡는다. 안 그러면 모르는 키가 조용히
+        # 'unknown' 으로 떨어져, 팔 수 있는 악보가 이유도 없이 꾸러미에서 빠진다.
+        if score_license and not prov.known(score_license):
+            raise ValueError(
+                f'모르는 입력본 출처입니다: {score_license!r} '
+                f'(가능: {", ".join(sorted(prov.TERMS))})')
 
         suffix = os.path.splitext(path)[1].lower()
         if suffix not in SCORE_SUFFIXES:
@@ -150,7 +163,9 @@ class CatalogStore:
             default_curve=default_curve, default_bpm=default_bpm,
             count_in=int(count_in), recommended_bpm=list(recommended_bpm),
             key_locked=bool(key_name), key=key_name or '', note=note,
-            owner=owner, source='upload' if owner else 'catalog')
+            time_locked=bool(time_name), time=time_name or '',
+            owner=owner, source='upload' if owner else 'catalog',
+            score_source=score_source, score_license=score_license)
         song.validate()
         self.catalog.songs[song_id] = song
         if analyze:
@@ -161,8 +176,10 @@ class CatalogStore:
     # --- 분석 -------------------------------------------------------------
     def load_score(self, song_id: str) -> score_loader.LoadedScore:
         song = self.catalog.get(song_id)
-        return score_loader.load(self.score_path(song_id),
-                                 key_name=song.key if song.key_locked else None)
+        return score_loader.load(
+            self.score_path(song_id),
+            key_name=song.key if song.key_locked else None,
+            time_name=song.time if song.time_locked else None)
 
     def analyze(self, song_id: str, key_name: Optional[str] = None) -> cat.Song:
         """엔진을 돌려 화성 초안을 만든다. 사람이 확인한 값은 덮지 않는다."""
@@ -182,8 +199,10 @@ class CatalogStore:
         if key_name:
             song.key = key_name
             song.key_locked = True
-        ls = score_loader.load(os.path.join(self.scores_dir, song.source_xml),
-                               key_name=song.key if song.key_locked else None)
+        ls = score_loader.load(
+            os.path.join(self.scores_dir, song.source_xml),
+            key_name=song.key if song.key_locked else None,
+            time_name=song.time if song.time_locked else None)
         segs = harmony.analyze_segments(ls)
         song.key = str(ls.key)
         song.time = ls.time_signature.ratioString
@@ -818,7 +837,7 @@ class CatalogStore:
     # --- 배포 꾸러미 (원장님 PC 에는 파이썬이 없다) --------------------------
     def export_static(self, out_dir: str, *, styles: Sequence[str] = (),
                       levels: Sequence[str] = (), only_verified: bool = False,
-                      academy: str = '') -> dict:
+                      academy: str = '', for_sale: bool = True) -> dict:
         """플레이어를 **서버 없이 도는 정적 파일 한 벌**로 내보낸다.
 
         원장님 PC 에 파이썬·fluidsynth·SoundFont 를 깔게 할 수는 없다. 그런데
@@ -830,6 +849,12 @@ class CatalogStore:
         카탈로그 제작 서버(화성 확인·PDF 업로드)는 우리 쪽 도구로 남는다.
         `scores/` 와 `cache/` 는 꾸러미에 들어가지 않는다 — 원장님께 필요 없고,
         악보 원본을 재배포하는 모양이 되어서도 안 된다 (지시서 7장).
+
+        **`for_sale` 이 기본값 True 인 이유.** 이 꾸러미는 파는 물건이다. 입력본
+        출처가 확인 안 된 악보(`unknown`)나 비영리 조건이 붙은 악보로 만든 반주가
+        섞여 들어가면 **파는 순간 문제가 된다.** 그래서 기본은 빼는 쪽이고, 뺀
+        것은 결과에 `dropped` 로 알려 준다. 원장님이 **자기 학원에서만** 쓰실
+        거라면 `for_sale=False` 로 전부 담는다 (`piano_mr/provenance.py`).
         """
         out_dir = os.path.abspath(out_dir)
         player_src = os.path.join(os.path.dirname(os.path.dirname(
@@ -856,6 +881,16 @@ class CatalogStore:
 
         songs = [s for s in self.catalog.songs.values()
                  if s.harmony_verified or not only_verified]
+
+        # 파는 꾸러미면 입력본 출처를 본다. 곡이 만료됐는지(`public_domain`)와는
+        # 다른 질문이다 — 위 설명 참고.
+        dropped: List[dict] = []
+        if for_sale:
+            songs, blocked = prov.split(songs)
+            dropped = [{'id': s.id, 'title': s.title, 'source': s.score_source,
+                        'license': prov.term(s.score_license).label}
+                       for s in sorted(blocked, key=lambda x: x.id)]
+
         songs.sort(key=lambda x: (x.book, x.level, x.id))
 
         rows, total = [], 0
@@ -899,5 +934,9 @@ class CatalogStore:
         return {'out': out_dir, 'songs': len(rows),
                 'files': sum(len(fs) for _, _, fs in os.walk(out_dir)),
                 'midi_bytes': total,
+                'for_sale': for_sale,
+                'dropped': dropped,
+                # 팔 수는 있지만 조건이 붙는 것들 (예: 동일조건변경허락)
+                'cautions': [r for r in prov.summary(songs) if r['caution']],
                 'total_bytes': sum(os.path.getsize(os.path.join(r, n))
                                    for r, _, fs in os.walk(out_dir) for n in fs)}

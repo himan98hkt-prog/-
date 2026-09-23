@@ -19,12 +19,16 @@ PLAYER_FILES = ('index.html', 'player.css', 'sw.js', 'manifest.webmanifest',
 @pytest.fixture
 def st(tmp_path):
     s = store.CatalogStore(str(tmp_path / 'catalog'))
+    # `score_license='own'` 은 장식이 아니다. 꾸러미는 **파는 물건**이라 입력본
+    # 출처가 확인 안 된 악보를 빼고 만든다 (piano_mr/provenance.py). 이 곡들은
+    # 우리가 만든 fixture 악보이므로 'own' 이 사실이다.
     s.import_score(score('p05_waltz_c'), '작은 왈츠 (C장조)', song_id='waltz',
                    composer='자사 오리지널', book='오리지널 연습곡', level=2,
-                   public_domain=True, default_style='fairytale', default_bpm=108)
+                   public_domain=True, default_style='fairytale', default_bpm=108,
+                   score_source='자사 제작', score_license='own')
     s.import_score(score('p01_block_c'), '첫 화음 연습', song_id='block',
                    composer='자사 오리지널', book='오리지널 연습곡',
-                   public_domain=True)
+                   public_domain=True, score_source='자사 제작', score_license='own')
     return s
 
 

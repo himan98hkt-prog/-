@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import time  # noqa: E402
 
 from piano_mr import (catalog as cat, harmony, orchestration as orch,  # noqa: E402
-                      render, repertoire as rep, store, uploads)
+                      provenance as prov, render, repertoire as rep, store,
+                      uploads)
 
 STATUS_LABEL = {'verified': '확인 완료', 'analyzed': '확인 대기', 'new': '분석 전'}
 
@@ -36,7 +37,8 @@ def cmd_import(st: store.CatalogStore, a) -> int:
             level=a.level, public_domain=a.public_domain, default_style=a.style,
             default_level=a.level_name, default_bpm=a.bpm, key_name=a.key,
             recommended_bpm=a.recommended_bpm or [], default_curve=a.curve,
-            count_in=a.count_in, note=a.note)
+            count_in=a.count_in, note=a.note, time_name=a.time,
+            score_source=a.score_source, score_license=a.score_license)
     except cat.CopyrightError as e:
         print(f'저작권 확인 실패: {e}', file=sys.stderr)
         print('  화이트리스트(지시서 7장)에 있는 곡만 넣고, --public-domain 을 붙이세요.',
@@ -108,7 +110,10 @@ def cmd_repertoire(st: store.CatalogStore, a) -> int:
                 book=w.get('book', ''), level=int(w.get('level', 5)),
                 public_domain=True, default_style=w.get('style', orch.DEFAULT_STYLE),
                 default_bpm=int(w.get('bpm', 96)), count_in=1,
-                note=w.get('note', ''))
+                note=w.get('note', ''),
+                # 한 폴더를 통째로 들이므로 출처도 폴더 단위로 받는다. 안 적으면
+                # 'unknown' 이라 판매용 꾸러미에서 빠진다 — 그게 안전한 쪽이다.
+                score_source=a.score_source, score_license=a.score_license)
         except (cat.CopyrightError, FileNotFoundError, ValueError) as e:
             print(f'  ✗ {w["id"]:<26} {e}', file=sys.stderr)
             failed += 1
@@ -364,14 +369,24 @@ def cmd_package(st: store.CatalogStore, a) -> int:
     for x in levels:
         orch.check_level(x)
     out = st.export_static(a.out, styles=styles, levels=levels,
-                           only_verified=a.verified_only, academy=a.academy)
+                           only_verified=a.verified_only, academy=a.academy,
+                           for_sale=not a.personal)
     kb = out['total_bytes'] / 1024
     print(f"{out['out']}")
     print(f"  곡 {out['songs']}개 · 파일 {out['files']}개 · "
           f"전체 {kb:.0f} KB (반주 {out['midi_bytes'] / 1024:.0f} KB)")
     if styles:
         print(f"  편성 변형: {', '.join(styles)} × {', '.join(levels) or '기본 두께'}")
-    print('  이 폴더를 통째로 웹호스팅에 올리면 됩니다. https 여야 오프라인이 켜집니다.')
+    if out['dropped']:
+        print(f"\n  판매용이라 {len(out['dropped'])}곡을 뺐습니다 — "
+              '입력본(악보 파일) 출처 때문입니다. 곡 자체는 만료됐습니다.')
+        for d in out['dropped']:
+            print(f"    · {d['title']} — {d['license']}"
+                  + (f" ({d['source']})" if d['source'] else ''))
+        print('    학원에서만 쓰실 거면 --personal 을 붙이면 전부 담깁니다.')
+    for c in out['cautions']:
+        print(f"\n  ⚠ {c['count']}곡이 {c['label']} 입니다 — {c['caution']}")
+    print('\n  이 폴더를 통째로 웹호스팅에 올리면 됩니다. https 여야 오프라인이 켜집니다.')
     print('  악보 원본(scores/)과 렌더 캐시는 들어가지 않습니다.')
     return 0
 
@@ -390,6 +405,15 @@ def build_parser():
     i.add_argument('--level', type=int, default=1, help='1~10 학원 기준 난이도')
     i.add_argument('--public-domain', action='store_true',
                    help='퍼블릭도메인임을 확인했다 (지시서 7장 — 없으면 거부)')
+    i.add_argument('--time', default=None,
+                   help='박자표를 안 적어 둔 MIDI 의 박자 (예: 3/4). '
+                        'MusicXML 이나 박자표가 있는 MIDI 에는 쓸 일이 없다')
+    i.add_argument('--score-source', default='',
+                   help='악보 파일을 어디서 받았는지 (예: IMSLP · Mutopia)')
+    i.add_argument('--score-license', default='',
+                   help='그 악보 **파일**의 조건. 곡이 만료된 것과 별개다. '
+                        f'가능: {", ".join(sorted(prov.TERMS))} '
+                        '(기본: unknown — 판매용 꾸러미에서 빠진다)')
     i.add_argument('--style', default=orch.DEFAULT_STYLE, choices=sorted(orch.STYLES))
     i.add_argument('--level-name', default='normal', choices=list(orch.LEVELS))
     i.add_argument('--bpm', type=int, default=96)
@@ -407,6 +431,12 @@ def build_parser():
     rp.add_argument('--scores', help='MusicXML 이 모여 있는 폴더. 없으면 현황만 말한다')
     rp.add_argument('--grade', choices=['초급', '중급', '상급'])
     rp.add_argument('--book', help='교재 이름으로 거르기 (예: 부르크뮐러)')
+    rp.add_argument('--score-source', default='',
+                    help='이 폴더의 악보를 어디서 받았는지 (예: IMSLP · Mutopia)')
+    rp.add_argument('--score-license', default='',
+                    help='그 악보 **파일**의 조건. 곡이 만료된 것과 별개다. '
+                         f'가능: {", ".join(sorted(prov.TERMS))} '
+                         '(기본: unknown — 판매용 꾸러미에서 빠진다)')
     rp.set_defaults(fn=cmd_repertoire)
 
     l = sub.add_parser('list', help='곡 목록')
@@ -472,6 +502,9 @@ def build_parser():
     pk.add_argument('--verified-only', action='store_true',
                     help='화성 확인이 끝난 곡만')
     pk.add_argument('--academy', default='', help='꾸러미에 적을 학원명')
+    pk.add_argument('--personal', action='store_true',
+                    help='파는 게 아니라 이 학원에서만 쓴다 — 입력본 출처가 '
+                         '확인 안 된 악보도 전부 담는다')
     pk.set_defaults(fn=cmd_package)
 
     ro = sub.add_parser('roster', help='관리노트 학생 명단 받기/보기 (5단계)')

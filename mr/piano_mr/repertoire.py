@@ -29,7 +29,12 @@ FORMAT = 'piano-mr-repertoire'
 TERM_YEARS = 70
 
 # 악보 파일로 인정하는 확장자. 옛 MusicXML 은 .xml 로도 나온다.
-SCORE_EXT = ('.musicxml', '.mxl', '.xml', '.krn')
+#
+# `.mid` 를 넣은 이유: Mutopia 처럼 **곡마다 라이선스를 밝히는** 자유 악보
+# 사이트가 MusicXML 이 아니라 MIDI 로 주는 경우가 많다. LilyPond 에서 기계적으로
+# 뽑은 MIDI 라 박자가 정확해서 엔진에 잘 맞는다 — 사람이 친 연주 MIDI 와 다르다.
+# 박자표를 안 적은 MIDI 는 `score_loader` 가 거절한다.
+SCORE_EXT = ('.musicxml', '.mxl', '.xml', '.krn', '.mid', '.midi')
 
 
 def load(path: Optional[str] = None) -> dict:
