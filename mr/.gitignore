@@ -8,3 +8,7 @@ out/
 
 # 카탈로그는 작업 산출물이다. `python3 seed_catalog.py` 로 다시 만든다.
 catalog/
+
+# 설치기(`install-windows.bat` · `install-mac.command`)가 만드는 자리.
+# 원장님 PC 안에서만 의미가 있고, 지우면 다시 만들어진다.
+.venv/
