@@ -82,34 +82,46 @@ iOS app icon style, flat vector look --ar 1:1 --v 6
 
 ---
 
-## 4. 편성 일곱 가지 표지 (선택 — 곡 목록을 화려하게)
+## 4. 편성 일곱 가지 표지
 
-지금은 조성 머리글자(`C` `F` `G`)가 표지로 붙습니다. 편성 그림으로 바꾸면 목록이
-훨씬 풍성해지지만, **곡 목록은 오프라인 꾸러미 안**이라 일곱 장을 합쳐 **120 KB 이하**로
-잡아야 합니다. 각 96×96 WebP 로 뽑으면 맞습니다.
+**만들어 두었습니다 — 일곱 장 다 SVG 입니다.** 아래 「만들어 둔 것」에서 받으세요.
 
-**넣는 곳** `mr/server/static/player/img/style-<이름>.webp`
-(`strings` `chamber` `orchestra` `fairy` `warm` `march` `pop`)
+> 전에 여기 「각 96×96 WebP 로 뽑아 일곱 장 합쳐 120 KB 이하」라고 적어 두었는데,
+> **벡터로 나와서 그 걱정이 없어졌습니다.** 몇 KB짜리 SVG 라 오프라인 꾸러미에
+> 부담이 안 됩니다. 어느 크기에서도 안 깨지는 것은 덤입니다.
 
-```
-minimal icon on dark near-black background, warm amber line art,
-{악기}, centered, thick clean strokes, no text, no background detail,
-flat vector look, generous padding --ar 1:1 --v 6
-```
+**넣는 곳** `mr/server/static/player/img/style-<키>.svg`
 
-`{악기}` 자리에 넣을 것:
+| 편성 | **키 (파일 이름)** | 그린 것 |
+|---|---|---|
+| 현악 앙상블 | `strings` | 바이올린과 첼로 |
+| 실내악 | `chamber` | 의자 넷과 보면대 |
+| 풀 오케스트라 | `orchestra` | 부채꼴 좌석과 지휘대 |
+| 동화풍 | **`fairytale`** | 첼레스타와 하프, 작은 별 하나 |
+| 따뜻한 소편성 | `warm` | 통기타와 플루트 |
+| 행진곡풍 | `march` | 작은북과 트럼펫 |
+| 팝·재즈풍 | `pop` | 일렉 피아노 건반과 비브라폰 |
 
-| 편성 | `{악기}` |
+> **키를 한 번 틀리게 적어 두었습니다.** 동화풍은 `fairy` 가 아니라 **`fairytale`**
+> 입니다(`piano_mr/orchestration.py` 의 `STYLES`). 파일 이름이 키와 안 맞으면 조용히
+> 안 뜹니다 — 고장 표시도 없이 그냥 안 보입니다.
+
+### 어디에 쓸지는 정하지 않았습니다
+
+만들어는 뒀지만 **곡 목록의 조성 배지(`C` `E♭`)를 이걸로 바꾸는 것은 권하지
+않습니다.** 편성은 플레이어에서 **재생할 때마다 고르는 값**이라, 목록에 찍히는 것은
+「기본 편성」일 뿐입니다. 조성은 곡의 성질이라 안 바뀌고요 — 아이에게 곡을 고를 때
+쓸모 있는 쪽은 조성입니다.
+
+제값을 하는 자리는 따로 있습니다.
+
+| 자리 | 왜 |
 |---|---|
-| 현악 앙상블 | `violin and cello silhouette` |
-| 실내악 | `string quartet arrangement of four chairs and stands` |
-| 풀 오케스트라 | `orchestra seating fan with conductor podium` |
-| 동화풍 | `celesta and harp with a small star` |
-| 따뜻한 소편성 | `acoustic guitar and soft flute` |
-| 행진곡풍 | `snare drum and trumpet` |
-| 팝·재즈풍 | `electric piano keys with a vibraphone bar` |
+| **플레이어의 편성 고르는 곳** | 지금은 `<select>` 라 그림을 못 넣습니다. 아이콘 단추 일곱 개로 바꾸면 「동화풍」이 무엇인지 눌러 보기 전에 보입니다 |
+| **마케팅 상세페이지** | 일곱 편성이 있다는 것을 글로 설명하는 것보다 빠릅니다 |
+| 곡 목록 배지 | 권하지 않습니다 (위) |
 
----
+어느 쪽으로 할지 말씀해 주시면 붙이겠습니다.
 
 ## 5. 마케팅 상세페이지용 (화면 안이 아니라 판매용)
 
@@ -153,6 +165,7 @@ no text --ar 3:2 --style raw --v 6
 | 앱 아이콘 (**SVG**) | Recraft V4.1 vector | 1024 | `mr/server/static/player/icon.svg` |
 | 마케팅 히어로 — 연습실 | Recraft V4.1 2k | 2688×1536 | 화면 밖. 상세페이지용 |
 | 마케팅 — 무대 옆에서 본 발표회 | Recraft V4.1 2k | 2560×1664 | 〃 |
+| **편성 표지 7종** (**SVG**) | Recraft V4.1 vector | 1024 | `mr/server/static/player/img/style-<키>.svg` |
 
 ```bash
 cd mr/server/static/img
@@ -169,6 +182,16 @@ curl -o hall-modern.png "$B/hf_20260923_010336_f6e2074c-74a4-4079-8a12-505ddf698
 
 # 앱 아이콘 (SVG — 그대로 덮어쓰면 됩니다)
 curl -o ../player/icon.svg "$B/hf_20260923_010336_bc3c9c96-d48a-4e2a-8d1d-ba1ea5a50159.svg"
+
+# 편성 표지 일곱 장 (SVG — 줄일 것 없이 그대로)
+mkdir -p ../player/img
+curl -o ../player/img/style-strings.svg   "$B/hf_20260923_013022_3a967c39-f901-420a-b980-01b0c552fef2.svg"
+curl -o ../player/img/style-chamber.svg   "$B/hf_20260923_013022_da90e7ed-da19-409e-951b-073063e8feac.svg"
+curl -o ../player/img/style-orchestra.svg "$B/hf_20260923_013022_59fdc22d-092a-4f6e-a8db-37a615ee7ad3.svg"
+curl -o ../player/img/style-fairytale.svg "$B/hf_20260923_013022_0609827c-faba-4e4b-9a96-14cfa591159f.svg"
+curl -o ../player/img/style-warm.svg      "$B/hf_20260923_013022_65178481-1c2c-4baa-a664-e7f69124b368.svg"
+curl -o ../player/img/style-march.svg     "$B/hf_20260923_013022_e2d0e90b-92dd-4e78-8fc8-0b969ef1aa4b.svg"
+curl -o ../player/img/style-pop.svg       "$B/hf_20260923_013024_011a6fb2-93cb-4ff3-8538-4603c30fccd1.svg"
 
 # 마케팅용 (저장소에 넣지 않아도 됩니다)
 curl -o ~/mk-hero.png    "$B/hf_20260923_010336_1707dcde-81cb-48a2-a932-da18f4673f40.png"
@@ -230,11 +253,16 @@ ls -l mr/server/static/img/hall.jpg      # 400 KB 이하인지
 > **`hall.mp4` 가 있으면 `hall.jpg` 는 안 쓰입니다.** 서버가 영상을 먼저 봅니다.
 > 둘 다 넣어 두시면 영상이 이깁니다 — 그림은 영상을 뺄 때를 위한 보험입니다.
 
+> **편성 표지를 넣으시면 서비스워커도 같이 고쳐야 합니다.** `player/sw.js` 의
+> `SHELL_FILES` 에 일곱 개를 넣고 `VERSION` 을 올려야 비행기 모드에서도 뜹니다.
+> **목록에 적었는데 파일이 없으면 서비스워커 설치가 통째로 실패합니다**
+> (`cache.addAll` 은 하나라도 404 면 전부 거부합니다) — 그래서 파일이 실제로
+> 들어온 뒤에 제가 한꺼번에 고치겠습니다. 미리 적어 두지 않습니다.
+
 ### 아직 안 만든 것
 
 말씀해 주시면 같은 방식으로 더 돌립니다.
 
-- **편성 일곱 표지** — 일곱 장 합쳐 120 KB 이하라야 해서, 지금은 조성 머리글자를 씁니다
 - **무대 바닥 반사** (`img/floor.png`) — 투명 PNG 가 필요한데 생성 모델이 알파를 잘 못 냅니다
 
 ## 넣으신 뒤
