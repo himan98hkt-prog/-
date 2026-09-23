@@ -295,10 +295,11 @@ async function screenPlay(q) {
         </div></div>
       <div class="ctl"><span class="ctl__label">딸깍 소리</span>
         <button class="pick" id="cueOut">${esc(cueLabel())}</button></div>
-      <div class="ctl"><span class="ctl__label">편성</span>
-        <select id="style">${styleOptions(settings.style, song)}</select></div>
       <div class="ctl"><span class="ctl__label">두께</span>
-        <select id="level">${levelOptions(settings.level, song)}</select></div>
+        <div class="steps" id="level">${levelSteps(settings.level, song)}</div></div>
+      <div class="ctl ctl--stack"><span class="ctl__label">편성</span>
+        <div class="styles" id="style" role="group" aria-label="편성">
+          ${styleButtons(settings.style, song)}</div></div>
     </div>
 
     <div class="card" id="loopCard" hidden>
@@ -365,18 +366,71 @@ const STYLE_LABEL = [['strings', '현악 앙상블'], ['chamber', '실내악'],
   ['march', '행진곡풍'], ['pop', '팝·재즈풍']];
 const LEVEL_LABEL = [['simple', '간단'], ['normal', '보통'], ['rich', '풍성']];
 
+/* 편성 그림 — 일곱 개가 **코드 안에** 있다.
+ *
+ * 파일 일곱 개로 두면 `sw.js` 의 SHELL_FILES 에도 일곱 줄이 붙고, 그중 하나라도
+ * 빠지면 `cache.addAll` 이 전부 거부해 **서비스워커 설치가 통째로 실패한다.**
+ * 온라인에서는 멀쩡하고 비행기 모드에서만 무너지는 고장이다. 통째로 1.6KB 라
+ * 파일로 나눌 이유가 없다.
+ *
+ * `currentColor` 로 그리므로 고른 단추에서는 금빛, 아닌 데서는 흐린 색이 된다 —
+ * 상태별로 그림을 두 벌 두지 않아도 된다. */
+const I = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+  aria-hidden="true">${d}</svg>`;
+const STYLE_ICON = {
+  // 현악 — 몸통 두 덩이와 목. 처음엔 활까지 그렸더니 26px 에서 낙서로 보였다
+  strings: I(`<circle cx="12" cy="16.8" r="4.3"/><circle cx="12" cy="11.3" r="3"/>
+    <path d="M12 8.2V4.2"/><circle cx="12" cy="3" r="1.2"/>`),
+  // 실내악 — 사람 셋. 「몇이서 같이」가 이 편성의 뜻이라 악기가 아니라 사람을 그렸다
+  chamber: I(`<circle cx="5.6" cy="10" r="2.3"/><path d="M2.2 17.4a3.4 3.4 0 0 1 6.8 0"/>
+    <circle cx="12" cy="7.6" r="2.3"/><path d="M8.6 15a3.4 3.4 0 0 1 6.8 0"/>
+    <circle cx="18.4" cy="10" r="2.3"/><path d="M15 17.4a3.4 3.4 0 0 1 6.8 0"/>`),
+  // 풀 오케스트라 — 두 줄 좌석과 지휘자. 줄을 **점선으로 끊어** 의자처럼 보이게 했다.
+  // 이어진 호 두 개에 점 하나면 와이파이 표시와 구별이 안 된다
+  orchestra: I(`<path d="M2.8 14.4a9.2 9.2 0 0 1 18.4 0" stroke-dasharray="2.9 2.5"/>
+    <path d="M6.6 14.4a5.4 5.4 0 0 1 10.8 0" stroke-dasharray="2.6 2.3"/>
+    <circle cx="12" cy="19" r="1.7"/>`),
+  // 동화풍 — 별. 이 편성만 악기가 아니라 분위기의 이름이라 악기를 안 그렸다
+  fairytale: I(`<path d="M11.2 3.4 13 7.2l4.1.6-3 2.9.7 4.1-3.6-1.9-3.7 1.9.7-4.1-3-2.9 4.1-.6z"/>
+    <path d="M18.6 16.2l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>
+    <path d="M5.4 18.4h.01"/>`),
+  // 따뜻한 소편성 — 플루트. 눕혀 두면 알약으로 보여서 비스듬히 세웠다
+  warm: I(`<g transform="rotate(-38 12 12)">
+    <path d="M4.8 9.6h12.9a2.4 2.4 0 0 1 0 4.8H4.8a2.4 2.4 0 0 1 0-4.8z"/>
+    <path d="M7.6 12h.01M10.8 12h.01M14 12h.01M16.8 12h.01"/></g>`),
+  // 행진곡풍 — 작은북
+  march: I(`<path d="M12 6.6c4.4 0 8 1.3 8 2.9s-3.6 2.9-8 2.9-8-1.3-8-2.9 3.6-2.9 8-2.9z"/>
+    <path d="M4 9.5v5.2c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9V9.5"/>
+    <path d="M7.4 11.4 9.8 15M16.6 11.4 14.2 15M12 11.9v3.6"/>`),
+  // 팝·재즈풍 — 건반
+  pop: I(`<path d="M3.6 6.8h16.8v10.4H3.6z"/><path d="M9.2 6.8v10.4M14.8 6.8v10.4"/>
+    <path d="M7.4 6.8h2.2v6H7.4zM13 6.8h2.2v6H13zM17.4 6.8h2.2v6h-2.2z"/>`),
+};
 /* 꾸러미에 없는 편성을 고르게 두지 않는다. 고를 수 있는데 안 바뀌는 것보다
  * 애초에 없는 편이 낫다 — 원장님이 "왜 안 바뀌지" 로 헤매지 않는다. */
-function options(all, cur, allowed) {
+const have = (song, key) => (song && song.variants
+  ? new Set(song.variants.map((v) => v[key])) : null);
+
+/** 고를 수 있는 것만 남긴다. 하나도 안 남으면 전부 보여 준다(필터가 곧 고장이다). */
+const usable = (all, allowed) => {
   const list = allowed ? all.filter(([k]) => allowed.has(k)) : all;
-  return (list.length ? list : all)
-    .map(([k, v]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${v}</option>`)
-    .join('');
-}
-const styleOptions = (cur, song) => options(STYLE_LABEL, cur,
-  song && song.variants ? new Set(song.variants.map((v) => v.style)) : null);
-const levelOptions = (cur, song) => options(LEVEL_LABEL, cur,
-  song && song.variants ? new Set(song.variants.map((v) => v.level)) : null);
+  return list.length ? list : all;
+};
+
+/* 편성을 그림 단추로 — 「동화풍」이 무엇인지 **눌러 보기 전에** 보이게.
+ * select 로는 그림을 못 넣는다. 그래서 단추다. */
+const styleButtons = (cur, song) => usable(STYLE_LABEL, have(song, 'style'))
+  .map(([k, v]) => `<button data-k="${k}" aria-pressed="${k === cur}"${
+    k === cur ? ' class="on"' : ''}>${STYLE_ICON[k] || ''}<span>${v}</span></button>`)
+  .join('');
+
+/* 두께는 셋뿐이라 카운트인과 같은 단계 단추로. 그림 단추 옆에 select 하나만
+ * 남아 있으면 그 줄만 덜 만든 것처럼 보인다. */
+const levelSteps = (cur, song) => usable(LEVEL_LABEL, have(song, 'level'))
+  .map(([k, v]) => `<button data-k="${k}" aria-pressed="${k === cur}"${
+    k === cur ? ' class="on"' : ''}>${v}</button>`)
+  .join('');
 
 function wirePlay(song, settings, student) {
   const persist = () => store.saveSettings(student, song.id, settings);
@@ -461,8 +515,21 @@ function wirePlay(song, settings, student) {
       if (wasPlaying) player.play(0);
     } catch (e) { toast(e.message); }
   };
-  $('#style').onchange = (e) => reload('style', e.target.value);
-  $('#level').onchange = (e) => reload('level', e.target.value);
+  // 고른 것을 또 고르면 소리만 끊기고 달라지는 게 없다. 그때는 아무것도 안 한다.
+  const pickGroup = (sel, key) => view.querySelectorAll(`${sel} button`).forEach((b) => {
+    b.onclick = () => {
+      if (b.classList.contains('on')) return;
+      view.querySelectorAll(`${sel} button`).forEach((x) => {
+        x.classList.remove('on');
+        x.setAttribute('aria-pressed', 'false');
+      });
+      b.classList.add('on');
+      b.setAttribute('aria-pressed', 'true');
+      reload(key, b.dataset.k);
+    };
+  });
+  pickGroup('#style', 'style');
+  pickGroup('#level', 'level');
 
   $('#loopBtn').onclick = () => {
     const card = $('#loopCard');

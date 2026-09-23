@@ -348,7 +348,7 @@ export MR_LICENSE_KEY=ALAB-CDEF-XYEV
 
 ```bash
 python3 catalog_cli.py package ../dist/반주 --academy "행복피아노"
-#   곡 26개 · 파일 39개 · 전체 156 KB (반주 45 KB)
+#   곡 26개 · 파일 39개 · 전체 161 KB (반주 45 KB)
 ```
 
 | | 누가 쓰나 | 고객에게 나가나 |
