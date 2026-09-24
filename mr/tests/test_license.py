@@ -12,10 +12,28 @@ import subprocess
 
 import pytest
 
+import conftest as conf
 from piano_mr import license as lic
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LICENSE_JS = 'src/core/license.js'
 needs_node = pytest.mark.skipif(shutil.which('node') is None, reason='node 가 없습니다')
+needs_js = conf.needs_note_source(LICENSE_JS)
+
+
+def test_the_cross_check_does_not_vanish_in_the_combined_repo():
+    """합본에서 이 대조가 조용히 건너뛰어지면 **이미 판 키가 죽는 것**을 못 잡는다.
+
+    `package.json` 이 옆에 있으면 합본이라는 뜻이고, 그때는 원본이 있어야 한다.
+    파일을 옮기거나 이름을 바꾸면 여기서 걸린다.
+    """
+    if not conf.is_combined():
+        pytest.skip('분리된 제품입니다')
+    src = conf.note_source(LICENSE_JS)
+    assert os.path.exists(src), (
+        f'합본인데 대조 원본이 없습니다: {src}. '
+        '옮기셨다면 LICENSE_JS 도 같이 고치세요 — 안 그러면 교차 시험이 '
+        '통째로 건너뛰어집니다.')
 
 
 def make(body: str) -> str:
@@ -176,6 +194,7 @@ def js(tmp_path_factory):
 
 
 @needs_node
+@needs_js
 def test_checksums_match_javascript(js):
     """체크섬이 한 글자라도 다르면 이미 판 키가 전부 죽는다."""
     for body, expected in js['checksums'].items():
@@ -183,6 +202,7 @@ def test_checksums_match_javascript(js):
 
 
 @needs_node
+@needs_js
 def test_piano_keys_match_javascript(js):
     for name, expected in js['piano'].items():
         if name.startswith('#SV#'):
@@ -192,6 +212,7 @@ def test_piano_keys_match_javascript(js):
 
 
 @needs_node
+@needs_js
 def test_verdicts_match_javascript(js):
     """같은 키를 놓고 JS 와 파이썬이 같은 답(열림/플랜/제품)을 내야 한다."""
     assert len(js['verdicts']) == 12
@@ -204,6 +225,7 @@ def test_verdicts_match_javascript(js):
 
 
 @needs_node
+@needs_js
 def test_javascript_generated_bundle_keys_open_the_accompaniment(js):
     """실제로 발급기가 뽑은 통합키가 반주에서 열려야 번들이 성립한다."""
     opened = [r for r in js['verdicts'] if r['ok'] and r['product'] == 'A']

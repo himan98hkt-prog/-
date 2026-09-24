@@ -27,6 +27,20 @@ const argOf = (name, fallback) => {
 }
 // 파일 이름은 ASCII 로 둔다. 한글 파일명은 FTP·웹호스팅을 거치며 깨지는 일이 있고,
 // 그러면 원장님이 여는 주소 자체가 안 열린다. 화면에 보이는 제목은 한글이다.
+// 반주는 관리노트와 **따로 파는 제품**이다. `--product mr` 은 관리노트 쪽
+// 원고를 빼고 반주만으로 한 권을 만든다 (원고의 `only` 표시를 본다).
+const PRODUCT = argOf('--product', 'all')
+if (!['all', 'mr', 'note'].includes(PRODUCT)) {
+  console.error(`--product 는 all · mr · note 중 하나입니다: ${PRODUCT}`)
+  process.exit(2)
+}
+// 표지 제목도 제품에 맞춰야 한다. 반주만 사신 분이 받는 책에 「학원 관리노트」가
+// 적혀 있으면 잘못 온 물건으로 보인다.
+const TITLE = {
+  all: META.title,
+  mr: '피아노 자동 반주 사용설명서',
+  note: '학원 관리노트 사용설명서',
+}[PRODUCT]
 const OUT = resolve(ROOT, argOf('--out', 'dist/manual.html'))
 const SHOTS = resolve(ROOT, argOf('--shots', 'screenshots'))
 const WIDTH = Number(argOf('--width', '900'))
@@ -100,10 +114,40 @@ function sectionHtml(sec, num) {
   return parts.join('\n')
 }
 
+/** `only` 표시를 보고 이 제품의 원고만 남긴다.
+ *
+ * 절이 전부 빠진 장과, 장이 전부 빠진 부는 같이 사라진다 — 빈 제목만 남으면
+ * 목차에 빈 칸이 생긴다. 부 번호는 남은 순서대로 다시 매긴다.
+ */
+function forProduct(parts, product) {
+  if (product === 'all') return parts
+  const keep = (x) => !x.only || x.only === product
+  const out = []
+  for (const part of parts) {
+    if (!keep(part)) continue
+    const chapters = []
+    for (const ch of part.chapters || []) {
+      if (!keep(ch)) continue
+      const sections = (ch.sections || []).filter(keep)
+      if (sections.length) chapters.push({ ...ch, sections })
+    }
+    if (chapters.length) out.push({ ...part, chapters })
+  }
+  return out.map((part, i) => ({
+    ...part, title: part.title.replace(/^\d+부/, `${i + 1}부`),
+  }))
+}
+
+const CHOSEN = forProduct(PARTS, PRODUCT)
+if (!CHOSEN.length) {
+  console.error(`--product ${PRODUCT} 로 남는 원고가 없습니다`)
+  process.exit(2)
+}
+
 const toc = []
 const bodyParts = []
 
-for (const part of PARTS) {
+for (const part of CHOSEN) {
   toc.push(`<li class="toc-part"><a href="#${esc(part.id)}">${rich(part.title)}</a><ul>`)
   bodyParts.push(`<div class="part" id="${esc(part.id)}">`,
     `<h1>${rich(part.title)}</h1>`)
@@ -214,19 +258,19 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(META.title)}</title>
+<title>${esc(TITLE)}</title>
 <style>${CSS}</style>
 </head>
 <body>
 <div class="wrap">
 <nav>
-  <h2>${esc(META.title)}</h2>
+  <h2>${esc(TITLE)}</h2>
   <div class="sub">${esc(META.version)} · 찾으실 때는 Ctrl+F</div>
   <ul>${toc.join('\n')}</ul>
 </nav>
 <main>
   <header class="cover">
-    <h1>${esc(META.title)}</h1>
+    <h1>${esc(TITLE)}</h1>
     <div class="sub">${esc(META.subtitle)} · ${esc(META.version)}</div>
   </header>
   ${bodyParts.join('\n')}
@@ -242,7 +286,9 @@ const html = `<!doctype html>
 
 let sections = 0
 let figures = 0
-for (const p of PARTS) for (const c of p.chapters) for (const s of c.sections) {
+// **`CHOSEN` 을 센다.** `PARTS` 를 세면 반주만 뽑을 때 그림 수가 안 맞아
+// 린터가 멀쩡한 책을 거부한다 — 실제로 그렇게 걸렸다.
+for (const p of CHOSEN) for (const c of p.chapters) for (const s of c.sections) {
   sections++
   if (s.shot) figures++
 }
@@ -264,4 +310,5 @@ writeFileSync(OUT, html, 'utf8')
 
 const kb = statSync(OUT).size / 1024
 console.log(`${OUT}`)
-console.log(`  ${PARTS.length}부 · ${sections}절 · 그림 ${figures}장 · ${kb.toFixed(0)} KB`)
+console.log(`  ${CHOSEN.length}부 · ${sections}절 · 그림 ${figures}장 · ${kb.toFixed(0)} KB`
+  + (PRODUCT === 'all' ? '' : `  (${PRODUCT} 전용판)`))

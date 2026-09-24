@@ -82,12 +82,44 @@ describe('설명서 원고', () => {
   // **아무 말 없이 사라집니다** — 설명서는 멀쩡하게 만들어지고, 빠진 걸 아무도
   // 모릅니다. 실제로 `body2` 를 쓰면서 빌더에 넣는 걸 잊어 한 번 겪었습니다.
   // 항목을 새로 만들려면 빌더에 렌더링을 넣고 이 목록에도 더하세요.
-  const KNOWN = ['id', 'title', 'shot', 'body', 'table', 'body2', 'trap']
+  // `only` 는 렌더링되는 항목이 아니라 **따로 파는 판**을 위한 표시다
+  // (`--product mr`). 빌더가 아는 것이 맞으므로 여기 들어간다.
+  const KNOWN = ['id', 'title', 'shot', 'body', 'table', 'body2', 'trap', 'only']
 
   it('빌더가 모르는 항목을 쓰지 않는다 (쓰면 그 내용이 조용히 빠진다)', () => {
     const strays = sections.flatMap((s) =>
       Object.keys(s).filter((k) => !KNOWN.includes(k)).map((k) => `${s.id}.${k}`))
     expect(strays).toEqual([])
+  })
+
+  it('only 표시가 빌더가 아는 값이다 (오타면 그 절이 안 빠진다)', () => {
+    // `only: 'note'` 를 `'notes'` 로 쓰면 걸러지지 않고 반주 설명서에 남는다.
+    // 빠지는 쪽이 아니라 **남는 쪽**이라 눈에 안 띈다.
+    const PRODUCTS = ['mr', 'note']
+    const bad = []
+    for (const part of PARTS) {
+      if (part.only && !PRODUCTS.includes(part.only)) bad.push(`${part.id}=${part.only}`)
+      for (const ch of part.chapters || []) {
+        if (ch.only && !PRODUCTS.includes(ch.only)) bad.push(`${ch.id}=${ch.only}`)
+        for (const s of ch.sections || []) {
+          if (s.only && !PRODUCTS.includes(s.only)) bad.push(`${s.id}=${s.only}`)
+        }
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('반주만 파는 판에서 관리노트 원고가 빠진다', () => {
+    // 이게 안 되면 반주만 사신 분이 받는 책에 출석부·수납 이야기가 실린다.
+    const onlyNote = []
+    for (const part of PARTS) {
+      if (part.only === 'note') { onlyNote.push(part.id); continue }
+      for (const ch of part.chapters || []) {
+        for (const s of ch.sections || []) if (s.only === 'note') onlyNote.push(s.id)
+      }
+    }
+    expect(onlyNote).toContain('part1')
+    expect(onlyNote.length).toBeGreaterThan(5)
   })
 
   it('표 뒤에 오는 본문(body2)이 실제로 쓰이고 있다', () => {

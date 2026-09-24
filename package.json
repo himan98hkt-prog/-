@@ -15,6 +15,7 @@
     "demo": "node scripts/singlefile.mjs",
     "shots": "node scripts/shots.mjs",
     "manual": "node scripts/manual.mjs",
+    "manual:mr": "node scripts/manual.mjs --product mr --out dist/manual-mr.html",
     "manual:verify": "node scripts/manual-verify.mjs",
     "manual:shots": "node scripts/shots.mjs piano && cd mr && python3 tools/manual_shots.py"
   },

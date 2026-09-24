@@ -15,6 +15,9 @@ import pytest
 from piano_mr import catalog as cat, roster, store
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROSTER_JS = 'src/core/roster-piano.js'
+
+import conftest as conf  # noqa: E402
 
 
 def roster_blob(students=None, **over):
@@ -177,7 +180,19 @@ def test_find_by_name_returns_everyone_with_that_name(st):
 
 # --- 교차 시험: 관리노트(JS) 가 실제로 내보낸 파일을 읽는다 ---------------------------
 
+def test_the_cross_check_does_not_vanish_in_the_combined_repo():
+    """합본인데 대조 원본이 없으면, 형식이 갈려도 **양쪽 다 초록**인 채로 현장에서
+    깨진다. 건너뛰기가 조용한 통과가 되지 않게 여기서 막는다."""
+    if not conf.is_combined():
+        pytest.skip('분리된 제품입니다')
+    src = conf.note_source(ROSTER_JS)
+    assert os.path.exists(src), (
+        f'합본인데 대조 원본이 없습니다: {src}. 옮기셨다면 ROSTER_JS 도 '
+        '같이 고치세요 — 안 그러면 교차 시험이 통째로 건너뛰어집니다.')
+
+
 @pytest.mark.skipif(shutil.which('node') is None, reason='node 가 없습니다')
+@conf.needs_note_source(ROSTER_JS)
 def test_reads_what_the_academy_note_actually_exports(st, tmp_path):
     """양쪽에 손으로 쓴 fixture 를 두면, 형식이 갈려도 둘 다 초록인 채로 현장에서 깨진다.
 
