@@ -1,0 +1,233 @@
+/* 발표회 운영 화면 — 예술회관 연주홀.
+ *
+ * 무대 장면은 CSS·SVG 로 그린다. 이미지 파일이 없어도, 연주홀 와이파이가 죽어도
+ * 화면은 그대로 뜬다 (지시서 모듈 ⑤-1: 오프라인은 타협 불가).
+ * `img/hall.jpg` / `img/hall.mp4` 가 있으면 그 위에 얹힌다.
+ *
+ * 색·움직임 값은 player/tokens.css 에서 빌려 쓴다. 여기 :root 에 남은 것은
+ * **이 화면에만 있는 무대 소품**이다 — 커튼의 진한 와인, 글자 뒤에 까는 판.
+ */
+:root {
+  --gold-soft: var(--gold-2);       /* 무대 조명의 밝은 쪽 */
+  --wine-deep: #2a0d13;             /* 커튼 그늘. 강조색 --wine 과 다른 물건이다 */
+  --curtain:   #4a1822;
+  --night:     var(--bg);
+  --night-2:   var(--bg-2);
+  --panel:     rgba(20,18,26,.72);
+  /* 이 화면의 선은 금빛이다. 흰 실선은 무대 위에서 형광등처럼 보인다 */
+  --line:      rgba(232,180,92,.22);
+}
+html, body { height: 100%; }
+body {
+  background: var(--night);         /* 무대가 제 배경을 직접 그린다 */
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ---------- 무대 ---------- */
+.stage { position:relative; min-height:72vh; overflow:hidden;
+  display:flex; align-items:flex-end; }
+.stage__media, .stage__paint { position:absolute; inset:0; }
+.stage__media { object-fit:cover; width:100%; height:100%; opacity:0; 
+  transition:opacity 1.4s ease; }
+.stage__media.on { opacity:.62; }
+
+/* 이미지가 없을 때의 연주홀 — 전부 CSS */
+.stage__paint {
+  background:
+    /* 맨 위 한 겹 — 무대 아랫단을 바탕색으로 녹여 아래 프로그램 목록과 이어 붙인다.
+     * 사진/영상을 얹었을 때 글자가 앉는 아랫동네를 어둡게 눌러 주는 일도 겸한다 */
+    linear-gradient(180deg, transparent 62%, var(--bg) 100%),
+    radial-gradient(120% 78% at 50% 108%, rgba(232,180,92,.20) 0%, transparent 58%),
+    radial-gradient(52% 44% at 50% 72%, rgba(246,215,155,.16) 0%, transparent 70%),
+    linear-gradient(180deg, var(--night) 0%, #15101a 42%, var(--wine-deep) 88%, #170a0f 100%);
+}
+/* 좌우 벨벳 커튼 */
+.stage__paint::before, .stage__paint::after {
+  content:""; position:absolute; top:0; bottom:0; width:17%;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.34) 0 22px, rgba(255,255,255,.022) 22px 46px),
+    linear-gradient(180deg, #1c070d 0%, var(--curtain) 52%, #14060a 100%);
+  filter:saturate(.8) blur(.6px);
+  -webkit-mask-image:linear-gradient(90deg, #000 58%, transparent 100%);
+          mask-image:linear-gradient(90deg, #000 58%, transparent 100%);
+}
+.stage__paint::before { left:-3%; transform:skewX(-1.2deg); }
+.stage__paint::after  { right:-3%; transform:skewX(1.2deg) scaleX(-1); }
+
+/* 천장에서 내려오는 조명 기둥 */
+.beam {
+  position:absolute; left:74%; top:-14%; width:42vw; height:104%;
+  transform:translateX(-50%);
+  background:linear-gradient(180deg, rgba(246,215,155,.26) 0%,
+    rgba(246,215,155,.10) 42%, transparent 82%);
+  clip-path:polygon(43% 0, 57% 0, 86% 100%, 14% 100%);
+  filter:blur(7px);
+  animation:breathe 9s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes breathe { 0%,100%{opacity:.62;} 50%{opacity:1;} }
+
+/* 무대 바닥 반사 */
+.floor {
+  position:absolute; left:0; right:0; bottom:0; height:26%;
+  background:linear-gradient(180deg, rgba(232,180,92,.13), transparent 74%);
+  filter:blur(3px);
+}
+
+/* 무대 위 그랜드 피아노 */
+.piano {
+  position:absolute; left:60%; bottom:16%; width:min(36vw, 450px); height:auto;
+  opacity:.82; pointer-events:none;
+  filter:drop-shadow(0 26px 44px rgba(0,0,0,.75));
+  animation:pianoIn 1.6s cubic-bezier(.2,.8,.24,1) both;
+}
+@keyframes pianoIn { from{opacity:0; transform:translateY(16px) scale(.985);} }
+@media (max-width:900px) { .piano { opacity:.4; left:52%; } }
+
+/* 먼지 — 빛기둥 안을 천천히 떠다닌다 */
+.motes { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.mote { position:absolute; width:3px; height:3px; border-radius:50%;
+  background:var(--gold-soft); opacity:0; filter:blur(.4px);
+  animation:drift linear infinite; }
+@keyframes drift {
+  0%   { transform:translate3d(0,14vh,0) scale(.6); opacity:0; }
+  14%  { opacity:.5; }
+  74%  { opacity:.35; }
+  100% { transform:translate3d(var(--dx,14px),-74vh,0) scale(1.25); opacity:0; }
+}
+.vignette { position:absolute; inset:0; pointer-events:none;
+  box-shadow:inset 0 0 200px 68px rgba(0,0,0,.92); }
+
+/* ---------- 진짜 무대 사진·영상이 깔린 경우 ----------
+ *
+ * 그려 둔 무대를 그대로 두면 **피아노가 둘, 조명이 둘, 커튼이 둘**이 된다.
+ * 사진이 좋을수록 더 이상해진다. 그래서 사진이 오면 그린 것들은 물러나고,
+ * 남기는 건 두 가지뿐이다 — 아래를 바탕색으로 녹이는 층(프로그램 목록과 잇는다)과
+ * 글자 뒤에 까는 어두운 판(⑤-2 무대에서 이름이 읽혀야 한다).
+ *
+ * 먼지는 남긴다. 사진 위에서도 공기 중의 빛으로 읽히지 겹쳐 보이지 않는다. */
+.stage--media .beam,
+.stage--media .piano,
+.stage--media .floor,
+.stage--media .stage__paint::before,
+.stage--media .stage__paint::after { display: none; }
+.stage--media .stage__paint {
+  background: linear-gradient(180deg, rgba(10,9,14,.34) 0%, transparent 32%,
+                              transparent 58%, var(--bg) 100%);
+}
+/* 그린 무대가 비켰으니 사진을 더 드러낸다. 글자는 아래 ::before 가 지킨다 */
+.stage--media .stage__media.on { opacity: .92; }
+/* 어두운 판만으로는 부족한 줄들 — 사진의 밝은 데를 가로지르면 대비가 무너진다.
+ * 이름(.now-student)은 이미 제 그림자를 갖고 있다. */
+.stage--media .event,
+.stage--media .now-song,
+.stage--media .now-meta,
+.stage--media .next,
+.stage--media .progress { text-shadow: 0 1px 10px rgba(0,0,0,.85); }
+
+/* ---------- 무대 위 글자 ---------- */
+.stage__inner { position:relative; width:100%; max-width:1180px; margin:0 auto;
+  padding:0 40px 42px; }
+/* 글자가 앉을 자리를 어둡게 깔아 가독성을 확보한다 */
+.stage__inner::before {
+  content:""; position:absolute; left:-50vw; right:-50vw; bottom:0; top:-60%;
+  background:
+    linear-gradient(90deg, rgba(8,6,12,.93) 0%, rgba(8,6,12,.82) 38%,
+                    rgba(8,6,12,.30) 62%, transparent 82%),
+    linear-gradient(180deg, transparent, rgba(8,6,12,.55) 58%, rgba(8,6,12,.88));
+  pointer-events:none; z-index:-1;
+}
+.event {
+  font-size:12.5px; letter-spacing:.24em; color:var(--gold); text-transform:uppercase;
+  margin-bottom:22px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+}
+.event .dot { width:4px; height:4px; border-radius:50%; background:var(--faint); }
+.now-order {
+  font-size:12px; letter-spacing:.2em; color:var(--dim);
+  border:1px solid var(--line); border-radius:99px; padding:4px 13px;
+  display:inline-block; margin-bottom:14px;
+}
+.now-student {
+  font-size:clamp(38px, 6.4vw, 78px); font-weight:700; line-height:1.03;
+  margin:0 0 10px; letter-spacing:-.018em;
+  text-shadow:0 2px 40px rgba(0,0,0,.8);
+}
+.now-song { font-size:clamp(17px,2.1vw,25px); color:var(--gold-soft); margin:0 0 4px;
+  font-weight:500; max-width:52ch; }
+.now-meta { color:var(--dim); font-size:14.5px; margin:0 0 30px;
+  max-width:56ch; }
+.tempo { font-variant-numeric:tabular-nums; }
+.tempo .n { margin-left:.15em; }
+.fade-in-up { animation:riseIn .75s cubic-bezier(.2,.8,.24,1) both; }
+@keyframes riseIn { from{opacity:0; transform:translateY(18px);} to{opacity:1;} }
+
+/* ---------- 조작 ---------- */
+.controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.btn {
+  font:inherit; color:var(--ink); background:rgba(255,255,255,.06);
+  border:1px solid var(--line); border-radius:12px; padding:13px 22px;
+  cursor:pointer; backdrop-filter:blur(8px); transition:.18s;
+}
+.btn:hover:not(:disabled) { background:rgba(255,255,255,.12); border-color:var(--gold); }
+.btn:disabled { opacity:.35; cursor:default; }
+.btn--play {
+  background:linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color:#2a1c05; border-color:transparent; font-weight:700;
+  font-size:19px; padding:17px 40px; letter-spacing:.01em;
+  box-shadow:0 10px 34px rgba(232,180,92,.3);
+}
+/* 지시서 모듈 ⑤-2: 이 버튼 하나가 원장님 마음을 산다 */
+.btn--fade {
+  font-size:17px; padding:17px 30px; font-weight:600;
+  border-color:rgba(232,180,92,.5);
+}
+.btn--fade.active { background:var(--wine); border-color:var(--wine); color:#fff; }
+
+.progress { flex-basis:100%; display:flex; align-items:center; gap:14px;
+  margin-top:20px; color:var(--dim); font-size:13px;
+  font-variant-numeric:tabular-nums; }
+.bar { flex:1; height:3px; background:rgba(255,255,255,.12); border-radius:2px;
+  overflow:hidden; }
+.bar > i { display:block; height:100%; width:0;
+  background:linear-gradient(90deg, var(--gold), var(--gold-soft)); }
+.next { margin-top:24px; color:var(--dim); font-size:14.5px; }
+.next b { color:var(--ink); font-weight:600; }
+
+/* ---------- 프로그램 목록 ---------- */
+.sheet { max-width:1180px; margin:0 auto; padding:40px; }
+.sheet h2 { font-size:12.5px; letter-spacing:.24em; color:var(--gold);
+  text-transform:uppercase; margin:0 0 18px; font-weight:600; }
+.cue {
+  display:grid; grid-template-columns:44px 1fr auto; gap:16px; align-items:center;
+  padding:14px 18px; border-bottom:1px solid rgba(255,255,255,.07);
+  cursor:pointer; transition:.16s; border-radius:10px;
+}
+.cue:hover { background:rgba(255,255,255,.04); }
+.cue.current { background:rgba(232,180,92,.09);
+  box-shadow:inset 3px 0 0 var(--gold); }
+.cue.done { opacity:.42; }
+.cue__no { color:var(--faint); font-size:13px; font-variant-numeric:tabular-nums;
+  text-align:right; }
+.cue.current .cue__no { color:var(--gold); }
+.cue__who { font-size:16px; font-weight:600; }
+.cue__what { color:var(--dim); font-size:13.5px; margin-top:3px; }
+.cue__meta { color:var(--faint); font-size:12.5px; text-align:right;
+  white-space:nowrap; }
+.warn { color:#e0995f; }
+
+.empty { color:var(--faint); padding:48px; text-align:center; }
+.toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+  background:var(--panel); border:1px solid var(--line); color:var(--ink);
+  padding:11px 20px; border-radius:99px; font-size:14px; backdrop-filter:blur(10px);
+  opacity:0; transition:.3s; pointer-events:none; }
+.toast.on { opacity:1; }
+
+@media (max-width:720px) {
+  .stage__inner, .sheet { padding-left:20px; padding-right:20px; }
+  .cue { grid-template-columns:32px 1fr; }
+  .cue__meta { grid-column:2; text-align:left; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .beam, .mote, .fade-in-up { animation:none !important; }
+}

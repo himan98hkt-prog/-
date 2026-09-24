@@ -43,9 +43,156 @@ jobs:
           echo "산출물 크기:"
           du -sh dist
 
+      - name: 사용설명서가 빌드되는지
+        run: |
+          # 원고 검사(절마다 제목·내용이 있는지, 같은 그림을 두 번 쓰지 않는지)와
+          # 산출물 검사(목차 링크·그림·인쇄를 깨는 loading 속성)는 `npm test` 안의
+          # tests/manual.test.js 가 이미 봤다. 여기서는 **진짜로 만들어지는지**만 본다.
+          #
+          # 스크린샷은 저장소에 없다(용량). 그래서 CI 에서는 대개 건너뛴다 —
+          # 검사를 테스트로 옮겨 둔 이유가 이것이다.
+          if [ -d screenshots ]; then
+            npm run manual
+            test -s dist/manual.html
+          else
+            echo '스크린샷이 없어 빌드는 건너뜁니다 (원고·산출물 검사는 npm test 에서 통과)'
+          fi
+
       - name: 빌드 산출물 업로드
         uses: actions/upload-artifact@v5
         with:
           name: dist
           path: dist
           retention-days: 7
+
+  mr:
+    name: 반주 엔진 · 회귀 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mr
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: mr/requirements.txt
+
+      # 인증키·학생명단 규칙은 관리노트(JS)가 원본이고 반주(파이썬)가 이식본이다.
+      # 둘이 어긋나면 이미 판 키가 죽고 명단이 안 읽히므로, CI 가 **실제로 node 를
+      # 돌려** 양쪽 답을 대조한다. node 가 없으면 그 검사가 조용히 skip 된다.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: 파이썬 의존성
+        run: pip install -r requirements.txt
+
+      - name: 렌더링 도구 (지시서 부록 A)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            fluidsynth ffmpeg fluid-soundfont-gm
+
+      - name: 테스트
+        run: python3 -m pytest
+
+      - name: 화성 정확도 게이트 (95% 미만이면 실패)
+        run: python3 bench.py --stages
+
+      - name: 카탈로그 파이프라인 (들이기 → 분석 → 검수 → 내보내기)
+        run: |
+          python3 seed_catalog.py --catalog /tmp/ci-catalog
+          python3 catalog_cli.py --catalog /tmp/ci-catalog status
+          python3 catalog_cli.py --catalog /tmp/ci-catalog build --all \
+              --styles strings,march --levels normal
+          python3 catalog_cli.py --catalog /tmp/ci-catalog export /tmp/player.json
+
+      - name: 무대 장면이 파일 없이도 자급자족하는지 (지시서 ⑤-1 오프라인)
+        run: |
+          python3 -c "
+          import os
+          for f in ('server/static/hall.css', 'server/static/program.html',
+                    'server/static/program.js'):
+              assert os.path.getsize(f) > 500, f
+          html = open('server/static/program.html', encoding='utf-8').read()
+          assert '<svg class=\"piano\"' in html, '무대 피아노 SVG 가 없습니다'
+          css = open('server/static/hall.css', encoding='utf-8').read()
+          for sel in ('.stage__paint', '.beam', '.mote'):
+              assert sel in css, f'무대 장면 {sel} 가 없습니다'
+          have = [n for n in ('hall.jpg', 'hall.mp4')
+                  if os.path.exists(os.path.join('server/static/img', n))]
+          print('무대 장면은 CSS·SVG 로 자급자족 OK'
+                + (f' (배경 파일 {have} 도 함께 있음)' if have else ' (배경 파일 없음)'))
+          "
+
+      - name: 관리노트와 규칙이 어긋나지 않았는지 (5단계 — skip 되면 실패)
+        run: |
+          python3 -m pytest tests/test_license.py tests/test_roster.py \
+              -q -rs --no-header 2>&1 | tee /tmp/cross.txt
+          if grep -q "skipped" /tmp/cross.txt; then
+            echo "::error::교차 시험이 건너뛰어졌습니다 — node 가 없으면 인증키·명단 규칙이 어긋나도 CI 가 초록입니다"
+            exit 1
+          fi
+
+      - name: 올린 PDF 를 서버가 들고 있지 않는지 (지시서 7장 · 4단계)
+        run: |
+          python3 -c "
+          from piano_mr import store, omr
+          import os
+          st = store.CatalogStore('/tmp/ci-uploads')
+          xml = open('fixtures/scores/p05_waltz_c.musicxml','rb').read()
+          prov = omr.FakeProvider(musicxml=xml)
+          blob = open('fixtures/pdf/three_pages.pdf','rb').read()
+          j = st.submit_pdf(blob, 'a.pdf', account='CI학원', title='연습곡', provider=prov)
+          assert os.listdir(st.incoming_dir) == [j['id'] + '.pdf'], '인식 중에는 격리 폴더에 있어야 합니다'
+          j = st.poll_upload(j['id'], provider=prov)
+          left = os.listdir(st.incoming_dir)
+          assert left == [], f'MusicXML 이 왔는데 PDF 가 남아 있습니다: {left}'
+          assert st.catalog.get(j['song_id']).owner == 'CI학원', '업로드본에 계정 표시가 없습니다'
+          assert j['state'] == 'review', f'확인 화면을 건너뛰었습니다: {j[\"state\"]}'
+          print('PDF 업로드 OK — 격리 폴더 비었고, 곡은 계정 전용이고, 확인 대기입니다')
+          "
+
+      - name: 플레이어 PWA — 브라우저에서 실제 재생·오프라인 (지시서 모듈 ⑤)
+        run: |
+          pip install playwright
+          python3 -m playwright install --with-deps chromium
+          python3 tools/player_check.py --catalog /tmp/ci-catalog
+
+      - name: 배포 꾸러미가 파이썬 없이 도는지 (원장님 배포 형태 그대로)
+        run: |
+          python3 catalog_cli.py --catalog /tmp/ci-catalog package /tmp/ci-pkg \
+              --academy "CI학원"
+          # MR 서버가 아니라 평범한 정적 서버로 띄워 같은 11항목을 본다
+          python3 tools/player_check.py --static /tmp/ci-pkg
+          # 웹호스팅의 실제 모습은 `도메인/반주/` 다. 주소에 한글이 들어가고
+          # 서비스워커 범위도 그 폴더로 좁아진다 — 같은 11항목을 거기서 한 번 더.
+          python3 tools/player_check.py --static /tmp/ci-pkg --subfolder
+          python3 -c "
+          import os
+          names = [n for _, _, fs in os.walk('/tmp/ci-pkg') for n in fs]
+          bad = [n for n in names if n.endswith(('.musicxml', '.xml', '.mxl', '.mp3', '.wav'))]
+          assert not bad, f'꾸러미에 악보 원본·오디오가 섞였습니다: {bad[:3]}'
+          html = open('/tmp/ci-pkg/index.html', encoding='utf-8').read()
+          assert 'data-api=\"./\"' in html, '주소가 상대경로가 아닙니다 — 하위 폴더 배포가 깨집니다'
+          kb = sum(os.path.getsize(os.path.join(r, n))
+                   for r, _, fs in os.walk('/tmp/ci-pkg') for n in fs) / 1024
+          print(f'꾸러미 {len(names)}개 파일 · {kb:.0f} KB — 악보 원본 없음 OK')
+          "
+
+      - name: MR 에 원곡 피아노가 섞이지 않았는지 (채널 0 = 피아노)
+        run: |
+          python3 mr.py fixtures/scores/p07_minuet_g.musicxml \
+              --mix mr -o /tmp/mr.mid --quiet
+          python3 -c "
+          from mido import MidiFile
+          ch = {m.channel for t in MidiFile('/tmp/mr.mid').tracks
+                for m in t if m.type == 'note_on'}
+          assert ch, 'MR 이 비어 있습니다'
+          assert 0 not in ch, f'MR 에 피아노(채널 0)가 들어 있습니다: {sorted(ch)}'
+          print('MR 채널', sorted(ch), '— 피아노 없음 OK')
+          "

@@ -151,10 +151,89 @@ RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어
   Actions 탭에서 **수동 실행**합니다. 원생 수·출결 건수를 입력으로 조절할 수 있고,
   `perf-report.json` 을 아티팩트로 남깁니다. 릴리스 전 점검용입니다.
 
+## 피아노 자동 반주(MR) — `mr/`
+
+피아노학원용 **자동 반주 생성 엔진 + 카탈로그 제작 도구**. 악보(MusicXML·MIDI)를
+넣으면 곡의 화성을 자동 분석해 오케스트라 반주를 만든다. 개발지시서 9장의
+**1단계(엔진)·2단계(카탈로그·화성 확인 화면)** 구현분이고, 관리노트 본체(JS/PWA)와는
+별개로 도는 파이썬 패키지다. 연동은 5단계 과제다.
+
+```bash
+cd mr
+pip install -r requirements.txt
+apt-get install fluidsynth ffmpeg fluid-soundfont-gm
+
+# 1단계 — 엔진. 출력은 **반주만**(MR) — 피아노는 아이가 친다
+python3 mr.py score.mxl --style chamber --level normal --bpm 84 -o out.mp3
+python3 mr.py score.mxl --mix full -o 확인용.mp3   # 피아노까지 넣어 확인
+python3 mr.py score.mxl --analyze-only    # 화성만 확인
+python3 bench.py                          # 회귀 테스트 정확도 표
+
+# 2단계 — 카탈로그와 화성 확인 화면
+python3 seed_catalog.py                   # 씨앗 곡 26곡
+python3 serve.py                          # http://127.0.0.1:8765
+python3 catalog_cli.py status             # 제작 현황
+python3 catalog_cli.py build --all --audio  # 반주 미리 만들어 두기
+#   화성 확인 화면   /            발표회 운영 화면 /static/program.html
+
+# 3단계 — 플레이어 PWA (태블릿에 설치, 오프라인 재생)
+#   /static/player/           "홈 화면에 추가"
+make player                               # 브라우저에서 실제 재생·오프라인 검사
+
+# 4단계 — PDF 악보 올리기
+#   /static/upload.html
+python3 catalog_cli.py uploads            # 올라온 악보와 이번 달 몫
+python3 catalog_cli.py limit 6            # 월 업로드 제한 (쪽 단위)
+
+# 5단계 — 관리노트 연동
+#   관리노트 설정 → 「피아노 반주(MR) 연동」 → 학생 명단 내보내기
+python3 catalog_cli.py roster 명단.json    # 반주가 명단을 받는다
+export MR_LICENSE_KEY=ALAB-CDEF-XYEV      # 관리노트와 같은 인증키 한 장
+
+# 배포 — 원장님께 드릴 정적 꾸러미 (파이썬 없이 돕니다)
+python3 catalog_cli.py package ../dist/반주 --academy "행복피아노"
+python3 tools/player_check.py --static ../dist/반주   # 정적 서버로 11항목 검사
+
+python3 -m pytest                         # 테스트 404건
+```
+
+화성 정확도 **99.5%** (오리지널 20곡 회귀 세트), 곡당 **1.8~2.3초**, **API 호출 0회**.
+화성 확인 화면은 음표를 보여주지 않고 화음 이름만 다루며, 판단이 필요한 칸은
+전체의 **10%** 뿐이다. 플레이어는 mp3 가 아니라 반주 MIDI 를 받아 브라우저에서
+합성하므로, **26곡 전체를 오프라인에 넣어도 121 KB** 이고 템포·조옮김이 실시간이다.
+서버를 죽인 상태에서 전곡 재생을 확인한다.
+
+PDF 업로드는 인식이 끝나도 「완료」가 아니라 **「화성 확인 대기」** 로 갑니다 —
+OMR 은 90~95% 라서 32마디에 2~6마디가 틀립니다(지시서 2.2). 올린 PDF 는 서버에
+남지 않습니다(7장): MusicXML 이 나오는 순간 지웁니다.
+
+원장님께 드리는 것은 **정적 파일 꾸러미 하나**입니다 — 26곡 기준 파일 38개, 128 KB.
+원장님 PC 에 파이썬을 깔 필요가 없고, 웹호스팅에 올리면 그대로 돕니다. 악보 원본은
+꾸러미에 들어가지 않습니다(7장).
+
+학생 명단은 **관리노트가 원본**입니다. 반주는 `id·이름·반`만 받고 연락처·메모는
+받지 않습니다. 인증키는 **관리노트와 같은 것 한 장**이고, 키를 보는 곳은 PDF 업로드
+하나뿐입니다 — 집 연습 링크는 설치도 로그인도 묻지 않습니다(⑤-10).
+
+자세한 내용은 [mr/README.md](mr/README.md), 작업 보고는
+[docs/MR-ENGINE.md](docs/MR-ENGINE.md) · [docs/MR-CATALOG.md](docs/MR-CATALOG.md) ·
+[docs/MR-PLAYER.md](docs/MR-PLAYER.md) · [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) ·
+[docs/MR-LINK.md](docs/MR-LINK.md).
+
 ## 문서
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 데이터 모델, 동기화·충돌 정책, 성능 설계
-- [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 목차
+- [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 집필 규칙 (원고는 [scripts/manual-content.js](scripts/manual-content.js), 만드는 법은 [DEPLOY.md 6장](docs/DEPLOY.md))
 - [docs/PERF.md](docs/PERF.md) — 성능 측정 결과와 재현 방법
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 빌드·배포·판매 운영 절차
 - [docs/LICENSE-KEYS.md](docs/LICENSE-KEYS.md) — 인증키 체계와 발급·재발급 운영
+- [docs/MR-ENGINE.md](docs/MR-ENGINE.md) — 피아노 자동 반주 엔진 1단계 작업 보고
+- [docs/MR-CATALOG.md](docs/MR-CATALOG.md) — 카탈로그·화성 확인 화면 2단계 작업 보고
+- [docs/MR-DASHBOARD.md](docs/MR-DASHBOARD.md) — 발표회 운영 화면(프로그램 대시보드)
+- [docs/MR-PLAYER.md](docs/MR-PLAYER.md) — 플레이어 PWA 3단계 작업 보고
+- [docs/MR-UPLOAD.md](docs/MR-UPLOAD.md) — PDF 업로드 4단계 작업 보고
+- [docs/MR-LINK.md](docs/MR-LINK.md) — 관리노트 연동 5단계 작업 보고
+- [docs/MR-REPERTOIRE.md](docs/MR-REPERTOIRE.md) — 콩쿨 레퍼토리 목록과 저작권 검사
+- [docs/MR-SCORES.md](docs/MR-SCORES.md) — 악보를 어디서 구하나, 무엇으로 만든 반주를 팔 수 있나
+- [docs/MR-DESIGN.md](docs/MR-DESIGN.md) — 반주 다섯 화면의 옷 (색·토큰·한글 자간·고칠 때 돌릴 것)
+- [docs/MR-IMAGES.md](docs/MR-IMAGES.md) — 화면에 넣을 이미지 자리와 미드저니 프롬프트

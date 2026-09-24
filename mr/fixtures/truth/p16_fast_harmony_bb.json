@@ -1,0 +1,175 @@
+{
+ "id": "p16_fast_harmony_bb",
+ "title": "박마다 바뀌는 화성 (Bb장조)",
+ "key": "Bb",
+ "time": "4/4",
+ "level": 8,
+ "default_style": "orchestra",
+ "lh": "alberti",
+ "rh": "sixteenth",
+ "pickup": false,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 1,
+   "off": 0.0,
+   "len": 1.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  },
+  {
+   "m": 1,
+   "off": 1.0,
+   "len": 1.0,
+   "root": 7,
+   "qual": "m",
+   "label": "Gm"
+  },
+  {
+   "m": 1,
+   "off": 2.0,
+   "len": 1.0,
+   "root": 3,
+   "qual": "M",
+   "label": "Eb"
+  },
+  {
+   "m": 1,
+   "off": 3.0,
+   "len": 1.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  },
+  {
+   "m": 2,
+   "off": 4.0,
+   "len": 1.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  },
+  {
+   "m": 2,
+   "off": 5.0,
+   "len": 1.0,
+   "root": 2,
+   "qual": "m",
+   "label": "Dm"
+  },
+  {
+   "m": 2,
+   "off": 6.0,
+   "len": 1.0,
+   "root": 0,
+   "qual": "m",
+   "label": "Cm"
+  },
+  {
+   "m": 2,
+   "off": 7.0,
+   "len": 1.0,
+   "root": 5,
+   "qual": "7",
+   "label": "F7"
+  },
+  {
+   "m": 3,
+   "off": 8.0,
+   "len": 2.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  },
+  {
+   "m": 3,
+   "off": 10.0,
+   "len": 2.0,
+   "root": 3,
+   "qual": "M",
+   "label": "Eb"
+  },
+  {
+   "m": 4,
+   "off": 12.0,
+   "len": 2.0,
+   "root": 5,
+   "qual": "7",
+   "label": "F7"
+  },
+  {
+   "m": 4,
+   "off": 14.0,
+   "len": 2.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  },
+  {
+   "m": 5,
+   "off": 16.0,
+   "len": 1.0,
+   "root": 7,
+   "qual": "m",
+   "label": "Gm"
+  },
+  {
+   "m": 5,
+   "off": 17.0,
+   "len": 1.0,
+   "root": 0,
+   "qual": "m",
+   "label": "Cm"
+  },
+  {
+   "m": 5,
+   "off": 18.0,
+   "len": 1.0,
+   "root": 5,
+   "qual": "7",
+   "label": "F7"
+  },
+  {
+   "m": 5,
+   "off": 19.0,
+   "len": 1.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  },
+  {
+   "m": 6,
+   "off": 20.0,
+   "len": 2.0,
+   "root": 3,
+   "qual": "M",
+   "label": "Eb"
+  },
+  {
+   "m": 6,
+   "off": 22.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "m",
+   "label": "Cm"
+  },
+  {
+   "m": 7,
+   "off": 24.0,
+   "len": 4.0,
+   "root": 5,
+   "qual": "7",
+   "label": "F7"
+  },
+  {
+   "m": 8,
+   "off": 28.0,
+   "len": 4.0,
+   "root": 10,
+   "qual": "M",
+   "label": "Bb"
+  }
+ ]
+}

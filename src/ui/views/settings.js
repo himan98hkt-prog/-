@@ -11,6 +11,7 @@ import { ROLES } from '../../core/perm.js'
 import { db } from '../../data/db.js'
 import { restoreFromBackup } from '../../data/restore.js'
 import { downloadCsv } from '../../core/csv.js'
+import { buildRoster, rosterFilename } from '../../core/roster-piano.js'
 import { toYmd, toMonth, addMonths, daysBetween } from '../../core/date.js'
 import { showCoach } from '../coach.js'
 import { openInstallGuide } from '../install.js'
@@ -475,7 +476,30 @@ function backupSection(repo) {
       h('button', { class: 'btn sm', onClick: () => exportStudentsCsv(repo) }, '원생 명단'),
       h('button', { class: 'btn sm', onClick: () => exportPaymentsCsv(repo) }, '수납 내역(12개월)'),
       h('button', { class: 'btn sm', onClick: () => exportAttendanceCsv(repo) }, '출결 기록(3개월)')),
-    h('p', { class: 'small muted' }, '세무·회계 정리나 다른 프로그램으로 옮길 때 사용하세요. 엑셀에서 바로 열립니다.'))
+    h('p', { class: 'small muted' }, '세무·회계 정리나 다른 프로그램으로 옮길 때 사용하세요. 엑셀에서 바로 열립니다.'),
+    h('div', { class: 'card-title', style: { marginTop: '12px' } }, '피아노 반주(MR) 연동'),
+    h('div', { class: 'row wrap' },
+      h('button', { class: 'btn sm', onClick: () => exportPianoRoster(repo) }, '학생 명단 내보내기')),
+    h('p', { class: 'small muted' },
+      '반주 프로그램에서 발표회 순서를 짤 때 이 명단을 읽습니다. ' +
+      '이름·반만 나가고 연락처·메모·수납 정보는 들어가지 않습니다.'))
+}
+
+// 지시서 9장 5단계 "학생 정보 공유".
+// 반주 쪽에 필요한 건 누가 어느 반인지까지다. 연락처·메모를 같이 넘기면 개인정보가
+// 두 시스템에 흩어지기만 하므로, roster-piano.js 가 항목을 좁혀서 내보낸다.
+async function exportPianoRoster(repo) {
+  const roster = buildRoster(
+    repo.cache.students,
+    await db.enrollments.toArray(),
+    repo.cache.classes,
+    { academy: branding().name }
+  )
+  const blob = new Blob([JSON.stringify(roster, null, 2)], { type: 'application/json' })
+  const a = h('a', { href: URL.createObjectURL(blob), download: rosterFilename(branding().name) })
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+  toast(`원생 ${roster.students.length}명을 반주 연동용으로 저장했습니다`, 'ok')
 }
 
 function lastBackupText(repo) {
