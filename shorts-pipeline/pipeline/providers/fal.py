@@ -95,8 +95,9 @@ class FalProvider(VideoProvider):
         payload: dict = {
             "image_url": _data_uri(req.image),
             "prompt": req.prompt,
-            "duration": req.duration,
         }
+        # 모델이 길이를 어떤 이름으로 받는지는 config 가 안다 (duration / num_frames).
+        payload.update(req.duration_params or {"duration": req.duration})
         if req.negative_prompt:
             payload["negative_prompt"] = req.negative_prompt
         if req.end_image is not None:

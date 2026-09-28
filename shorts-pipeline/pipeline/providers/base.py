@@ -44,6 +44,14 @@ class GenerationRequest:
     end_image: Path | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
+    # 길이를 이 모델이 받는 이름으로 표현한 것. 대부분 {"duration": 10} 이지만
+    # LTX 0.9.x 계열은 {"num_frames": 241} 로 받는다. 비어 있으면 provider 가
+    # 예전처럼 duration 을 그대로 보낸다.
+    #
+    # duration 필드를 남겨 둔 이유: 비용 계산과 로그는 사람이 읽는 값인
+    # **초**여야 한다. 241 프레임이 몇 초인지 매번 역산하게 둘 수 없다.
+    duration_params: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class GenerationResult:

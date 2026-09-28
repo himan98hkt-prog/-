@@ -6,6 +6,18 @@ runs/*
 !runs/.gitkeep
 seeds/*
 !seeds/.gitkeep
+
+# 채널을 추가하면 runs-<slug>/ · seeds-<slug>/ 가 생긴다. 폴더만 남긴다.
+runs-*/*
+!runs-*/.gitkeep
+seeds-*/*
+!seeds-*/.gitkeep
+!seeds-*/*.md
+
+# 예약이 만드는 실행 파일과 등록용 임시 XML
+daily.bat
+daily-*.bat
+.task-*.xml
 # 프롬프트 문서는 따라가야 한다. 파일명을 하나씩 적으면 새로 추가할 때
 # 조용히 빠진다 — 실제로 PROMPTS_HD.md 가 그렇게 누락됐다.
 !seeds/*.md
@@ -16,7 +28,7 @@ music/**
 !music/*.md
 !music/**/.gitkeep
 
-tests/_tmp/
+tests/_tmp*/
 __pycache__/
 *.pyc
 .venv/

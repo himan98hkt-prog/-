@@ -68,6 +68,8 @@ def generate_clip(
         duration=cfg.clip_duration,
         negative_prompt=cfg.negative_prompt if model.supports_negative else "",
         end_image=end_image if model.supports_end_image else None,
+        # 길이 표현과 모델 고정 파라미터(해상도 등)를 config 에서 가져온다.
+        duration_params=model.request_extras(cfg.clip_duration),
     )
 
     last: ProviderError | None = None

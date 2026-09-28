@@ -152,6 +152,30 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 모델 ID 와 단가는 전부 `config.yaml` 에 있다. **코드에 하드코딩하지 않았으므로
 공급사가 가격을 바꾸면 yaml 만 고치면 된다.**
 
+### LTX (Lightricks)
+
+`ltx2_fast_1080` · `ltx2_pro_1080` · `ltxv_13b_distilled` 이 fal 아래 등록돼 있다.
+LTX 는 다른 모델과 두 가지가 다르다.
+
+- **길이를 격자로 받는다.** 6초부터 2초 단위다 (`min_duration` · `duration_step`).
+  `clip_duration: 15` 는 설정을 읽는 시점에 막힌다 — 그냥 두면 예약이 새벽에
+  돌다가 fal 이 422 로 거절하고, 그날 영상만 조용히 안 올라간다.
+- **소리를 함께 만든다** (`has_native_audio`). 그래서 `music/` 의 곡을 덧씌우지
+  않고 모델이 만든 소리를 그대로 살린다. 덧씌우면 두 소리가 겹치는데, 만든
+  사람은 헤드폰을 써야 알아챈다.
+
+`ltx2_fast_1080` 은 한 번에 **20초까지** 만들어 준다. 체이닝 없이 1클립으로
+끝나므로 마지막 프레임을 다시 넣으며 화면이 무너질 위험이 없다. 20초 1편이
+$0.80 이다.
+
+`ltxv_13b_distilled` 는 길이를 초가 아니라 `num_frames` 로 받는다.
+`duration_param: num_frames` 와 `frames_per_second: 24` 가 그 환산을 맡는다.
+
+> 이 세 모델의 엔드포인트와 단가는 fal 공식 페이지를 직접 열지 못한 상태에서
+> 정리한 값이다 (개발 환경에서 `fal.ai` 이 egress 정책으로 차단돼 있다).
+> 첫 실행에서 HTTP 422 가 뜨면 `endpoint` 와 `extra_params` 를 모델 페이지와
+> 대조할 것. 422 는 접수 전 거절이라 과금은 없다.
+
 ---
 
 ## 비용
@@ -186,6 +210,21 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 
 `--series "Infinite peace"` 를 주면 제목이 `Infinite peace part 17` 처럼
 자동으로 회차가 붙는다 — 레퍼런스 계정이 쓰는 연재 방식이다.
+
+### 채널이 둘 이상이면
+
+채널마다 설정 파일을 하나씩 둔다. 산출물 폴더·시드 폴더·예약 이름·이번 달
+누적 비용이 전부 갈린다.
+
+```bash
+python main.py schedule on --config config.wonri.yaml   # 원리한입, 매일 09:00
+python main.py schedule status --config config.wonri.yaml
+```
+
+기존 채널(`config.yaml`)은 `channel` 블록이 없으므로 예전 경로와 예약 이름을
+그대로 쓴다 — 아무것도 건드릴 필요가 없다.
+
+자세한 것은 [docs/CHANNELS.md](docs/CHANNELS.md).
 
 ---
 

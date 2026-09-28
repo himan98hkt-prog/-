@@ -42,6 +42,13 @@ from pipeline.stitcher import StitchResult, stitch
 from pipeline.validator import ValidationError, prepare_input
 
 app = typer.Typer(add_completion=False, help=__doc__)
+
+# 채널마다 산출물 폴더가 다르다. 설정을 읽는 순간 이 값이 그 채널 것으로
+# 바뀐다 (_load 참고). 설정을 읽기 전에도 쓸 수 있도록 기본값을 둔다.
+#
+# 왜 전역인가. 이 파일의 명령 12개가 전부 이 경로를 쓰는데, 명령마다
+# 인자로 넘기면 호출부가 전부 바뀐다. CLI 는 한 프로세스가 명령 하나를
+# 처리하고 끝나므로 프로세스 안에서 값이 두 번 바뀔 일이 없다.
 RUNS_DIR = Path(__file__).parent / "runs"
 
 
@@ -51,11 +58,34 @@ def _die(message: str) -> None:
 
 
 def _load(config: str, **overrides) -> Config:
+    global RUNS_DIR
     try:
-        return load_config(config, **overrides)
+        cfg = load_config(config, **overrides)
     except ConfigError as exc:
         _die(str(exc))
         raise  # 도달하지 않음. 타입 체커용.
+    RUNS_DIR = _resolve_under_root(cfg.runs_dir)
+    return cfg
+
+
+def _minus_minutes(hhmm: str, minutes: int) -> tuple[int, int]:
+    """HH:MM 에서 분을 뺀 (시, 분). 자정을 넘어가면 앞날로 돌아간다."""
+    from datetime import datetime, timedelta
+
+    h, m = (int(x) for x in hhmm.split(":"))
+    t = datetime(2000, 1, 2, h, m) - timedelta(minutes=minutes)
+    return t.hour, t.minute
+
+
+def _resolve_under_root(path: str | Path) -> Path:
+    """설정의 상대 경로는 **저장소 폴더 기준**이다.
+
+    현재 작업 폴더 기준으로 잡으면, 예약이 다른 폴더에서 실행될 때
+    runs/ 가 엉뚱한 곳에 생긴다. 실제로 그렇게 새벽 작업이 산출물을
+    바탕화면에 흩뿌린 적이 있다.
+    """
+    p = Path(path)
+    return p if p.is_absolute() else Path(__file__).parent / p
 
 
 def _confirm_cost(cfg: Config, assume_yes: bool) -> None:
@@ -105,6 +135,15 @@ def _resolve_audio(cfg: Config, run: Run, out: dict):
     from pipeline import music
 
     mode = str(out.get("audio", "silent") or "silent").lower()
+
+    # 모델이 소리를 함께 만들어 주는 경우(LTX-2 등) 음악을 덧씌우면 두 소리가
+    # 겹쳐 들린다. 만든 사람은 헤드폰을 쓰고서야 알아챈다. 모델 소리를 남긴다.
+    if mode != "silent" and cfg.model.has_native_audio:
+        typer.secho(
+            f"  ℹ 모델 '{cfg.model.key}' 이 소리를 함께 만듭니다. "
+            "음악을 덧씌우지 않고 그 소리를 씁니다.", fg=typer.colors.CYAN)
+        return "native", None, None
+
     if mode != "auto":
         return mode, out.get("audio_file"), None
 
@@ -187,7 +226,17 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
     # 실패해도 영상 자체는 이미 나와 있다 — 여기서 죽이지 않는다.
     loop_cfg = out.get("seamless_loop") or {}
     looped = False
-    if loop_cfg.get("enabled"):
+    if loop_cfg.get("enabled") and cfg.model.has_native_audio:
+        # 루프는 **영상만** 재배열한다 — 마지막 몇 초를 앞으로 옮겨 겹친다.
+        # 소리는 원본 순서 그대로 붙으므로, 모델이 그림에 맞춰 만든 소리는
+        # 그만큼 어긋난다. 말소리라면 문장이 중간부터 시작한다.
+        # 음악 반주에서는 티가 안 나서 이 조합이 오래 숨어 있을 수 있다.
+        typer.secho(
+            f"  ⚠ 모델 '{cfg.model.key}' 이 만든 소리와 어긋나므로 "
+            "무한 루프 잇기를 건너뜁니다.\n"
+            "    (output.seamless_loop.enabled 를 false 로 두면 이 안내가 사라집니다)",
+            fg=typer.colors.YELLOW)
+    elif loop_cfg.get("enabled"):
         try:
             new_duration = look.make_seamless(
                 run.final, overlap=float(loop_cfg.get("seconds", 0.6) or 0.6),
@@ -199,7 +248,11 @@ def _finalize(cfg: Config, run: Run, clips: list[Path], stats: GenerationStats) 
             typer.secho(f"  ⚠ 무한 루프 처리를 건너뜁니다 ({exc})",
                         fg=typer.colors.YELLOW)
 
-    styled = look.describe(out)
+    # 건너뛴 루프를 '적용됨' 으로 적지 않는다. 설정이 아니라 실제로 한 일을 적는다.
+    described = out
+    if loop_cfg.get("enabled") and not looped:
+        described = {**out, "seamless_loop": {**loop_cfg, "enabled": False}}
+    styled = look.describe(described)
     if styled != "없음":
         typer.echo(f"  꾸밈   : {styled}")
     spent = actual_cost(cfg, stats.clip_calls, stats.upscale_calls)
@@ -970,6 +1023,8 @@ def upload_cmd(
 
 @app.command("stats")
 def stats_cmd(
+    config: str = typer.Option("config.yaml", "--config", "-c",
+                               help="성적을 볼 채널의 설정 파일"),
     refresh: bool = typer.Option(
         False, "--refresh/--no-refresh",
         help="유튜브·인스타에서 최신 조회수를 새로 끌어온다"),
@@ -985,6 +1040,9 @@ def stats_cmd(
     """
     from publish import insights
 
+    # 채널마다 runs/ 가 다르므로 설정을 먼저 읽어야 어느 채널의 성적인지 정해진다.
+    _load(config)
+
     if refresh:
         typer.echo("조회수를 끌어오는 중…")
         report = insights.collect(RUNS_DIR, youtube=youtube, instagram=instagram)
@@ -995,6 +1053,78 @@ def stats_cmd(
 
     summary = insights.summarize(RUNS_DIR, min_videos=min_videos)
     typer.echo(insights.render(summary, min_videos=min_videos))
+
+
+@app.command("schedule")
+def schedule_cmd(
+    action: str = typer.Argument("status", help="on | off | status"),
+    config: str = typer.Option("config.yaml", "--config", "-c"),
+    at: str = typer.Option("", "--at", metavar="HH:MM",
+                           help="게시 시각. 생략하면 설정의 channel.publish_at"),
+    youtube: bool = typer.Option(True, "--youtube/--no-youtube"),
+    instagram: bool = typer.Option(False, "--instagram/--no-instagram"),
+    mode: str = typer.Option("", "--mode", help="chain | montage"),
+):
+    """매일 정해진 시각에 만들어 올리는 예약을 켜고 끈다.
+
+    채널마다 따로 걸린다. 작업실 화면은 기본 채널만 다루므로, 두 번째
+    채널(원리한입 등)은 이 명령으로 건다.
+
+        python main.py schedule on --config config.wonri.yaml
+    """
+    from pipeline import win_schedule as ws
+
+    cfg = _load(config)
+    label = cfg.channel_name or cfg.channel_slug
+
+    if action == "status":
+        st = ws.status(slug=cfg.channel_slug, name=cfg.channel_name)
+        if not ws.supported():
+            typer.echo(f"[{label}] 예약은 윈도우에서만 걸 수 있습니다.")
+            # 생성에 시간이 걸리므로 게시 시각보다 앞서 시작해야 한다.
+            sh, sm = _minus_minutes(cfg.publish_at, ws.LEAD_MINUTES)
+            typer.echo("  리눅스·맥에서는 cron 으로 거세요:")
+            typer.echo(f"    {sm} {sh} * * *  cd {Path(__file__).parent} && "
+                       f"python -m publish.scheduler --config {config} "
+                       f"--at {cfg.publish_at} --youtube")
+            raise typer.Exit(code=0)
+        if not st.enabled:
+            typer.echo(f"[{label}] 예약이 걸려 있지 않습니다.")
+            raise typer.Exit(code=0)
+        typer.echo(f"[{label}] 예약 켜짐")
+        typer.echo(f"  시작   : {st.start_time}")
+        typer.echo(f"  게시   : {st.publish_time}")
+        typer.echo(f"  다음   : {st.next_run}")
+        typer.echo(f"  올릴 곳: {', '.join(st.targets) or '-'}")
+        raise typer.Exit(code=0)
+
+    if action == "off":
+        ok, msg = ws.disable(slug=cfg.channel_slug, name=cfg.channel_name)
+        typer.secho(msg, fg=typer.colors.GREEN if ok else typer.colors.RED)
+        raise typer.Exit(code=0 if ok else 1)
+
+    if action != "on":
+        _die(f"알 수 없는 동작: {action}. on | off | status 중 하나여야 합니다.")
+
+    targets = [t for t, on in (("youtube", youtube), ("instagram", instagram)) if on]
+    if not targets:
+        _die("올릴 곳을 하나 이상 고르세요 (--youtube 또는 --instagram).")
+
+    # 시드가 없으면 예약이 걸려도 매일 실패한다. 지금 알려주는 편이 낫다.
+    seeds = _resolve_under_root(cfg.seeds_dir)
+    if not seeds.is_dir() or not any(
+            p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+            for p in seeds.glob("*") if p.is_file()):
+        typer.secho(f"  ⚠ {seeds} 에 시드 이미지가 없습니다. "
+                    "예약은 걸리지만 이미지를 넣기 전까지 매일 실패합니다.",
+                    fg=typer.colors.YELLOW)
+
+    ok, msg = ws.enable(
+        at or cfg.publish_at, targets, mode or cfg.mode,
+        config=config, seeds=cfg.seeds_dir, slug=cfg.channel_slug,
+        name=cfg.channel_name, runs_dir=cfg.runs_dir)
+    typer.secho(msg, fg=typer.colors.GREEN if ok else typer.colors.RED)
+    raise typer.Exit(code=0 if ok else 1)
 
 
 @app.command("doctor")
