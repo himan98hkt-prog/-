@@ -119,6 +119,11 @@ jobs:
       - name: 내 PC 엔진 (LTX-2.5 · 업스케일)
         run: python tests/test_local_engine.py
 
+      # 채널을 둘 이상 돌릴 때 부딪히던 자리 — 예약 이름 · daily.bat ·
+      # runs/ · 이번 달 누적 비용. 그리고 LTX 의 길이 격자(6초부터 2초 단위).
+      - name: 채널 분리 · LTX 길이 · 모델 소리
+        run: python -m pytest tests/test_channels.py -q
+
       # 클립 길이/개수 연동과 [AI로 제목 뽑기] 는 브라우저에서만 재현된다.
       # OpenRouter 는 부르지 않는다 — 가짜 서버를 띄워 그쪽을 보게 한다.
       - name: 브라우저에서 화면 눌러보기

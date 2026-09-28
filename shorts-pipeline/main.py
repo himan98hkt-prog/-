@@ -70,7 +70,11 @@ def _load(config: str, **overrides) -> Config:
     except ConfigError as exc:
         _die(str(exc))
         raise  # 도달하지 않음. 타입 체커용.
-    RUNS_DIR = _resolve_under_root(cfg.runs_dir)
+    # 채널을 선언한 설정만 산출물 폴더를 옮긴다. 선언이 없으면 예전 그대로
+    # 둔다 — 여기서 무조건 덮어쓰면 RUNS_DIR 을 미리 지정해 둔 호출자(검사
+    # 코드가 그렇게 쓴다)의 지정이 말없이 사라진다.
+    if cfg.channel_slug != "default" or cfg.runs_dir != "runs":
+        RUNS_DIR = _resolve_under_root(cfg.runs_dir)
     return cfg
 
 
