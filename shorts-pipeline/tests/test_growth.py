@@ -110,12 +110,19 @@ def hook_tests() -> None:
     check("한 줄에 안 들어가면 줄을 나눈다", len(tight) >= 2,
           f"폭 {narrow}px -> {tight}")
 
+    # 실제 화면 폭(1080)과 실제 기본 글자 크기(1920 x 0.042 = 81px)로 본다.
+    # 폭만 1/4 로 줄이고 최소 크기(14px)는 그대로 두면, 폰트에 따라서는
+    # 어떤 크기로도 두 줄에 못 담는 상황이 생긴다 — 실제로는 없는 일이다.
     long_text = "비 내리는 네온 골목을 끝없이 달리다 그리고 조금 더 멀리까지 계속"
-    inside2, kept2, size2, lines2 = fits(long_text, round(270 * 0.86))
+    inside2, kept2, size2, lines2 = fits(long_text, round(1080 * 0.86), base=81)
     check("더 길어도 폭 안에 들어온다", inside2, f"{size2}px {lines2}")
     check("두 줄을 넘기지 않는다", len(lines2) <= 2, str(len(lines2)))
-    check("두 줄로 안 되면 글자를 줄인다", size2 <= size, f"{size} -> {size2}px")
+    check("두 줄로 안 되면 글자를 줄인다", size2 <= 81, f"81 -> {size2}px")
     check("긴 문구도 글자를 잃지 않는다", kept2, str(lines2))
+
+    # 어떤 크기로도 두 줄에 못 담을 만큼 좁으면 줄이 늘어날지언정 글자는 남는다
+    _, kept3, _, lines3 = fits(long_text, round(270 * 0.86))
+    check("못 담아도 낱말을 버리지 않는다", kept3, str(lines3))
 
     # 아주 좁아도 죽지 않고 최소 크기에서 멈춘다
     _, _, tiny, _ = fits(long_text, 20)

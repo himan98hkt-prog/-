@@ -82,7 +82,7 @@ def check_core(root: Path) -> Section:
     return Section("기본 환경", checks, "필수")
 
 
-def check_provider(root: Path, provider: str) -> Section:
+def check_provider(root: Path, provider: str, settings: dict | None = None) -> Section:
     checks = []
     if provider == "fal":
         key = _env("FAL_API_KEY")
@@ -101,7 +101,45 @@ def check_provider(root: Path, provider: str) -> Section:
                 "이미지 공개 URL", FAIL, "없음",
                 "higgsfield 는 입력 이미지를 공개 URL 로 받습니다. "
                 "S3 를 설정하거나 provider 를 fal 로 바꾸세요"))
+    elif provider == "local":
+        checks.extend(check_local(settings))
     return Section(f"영상 생성 ({provider})", checks, "필수")
+
+
+def check_local(settings: dict | None = None) -> list[Check]:
+    """내 PC 엔진(LTX-2.5). 설치 · 모델 파일 · 그래픽카드."""
+    from .providers.ltx_local import FILE_LABEL, FILES, status
+
+    st = status(settings)
+    fix_setup = "tools\\ltx_setup.bat 을 더블클릭하세요 (한 번만, 약 70GB 받습니다)"
+    out = [
+        Check("LTX-2 폴더", OK if st["ltx_dir_ok"] else FAIL, st["ltx_dir"], fix_setup),
+        Check("LTX 용 파이썬", OK if st["python_ok"] else FAIL,
+              st["python"] if st["python_ok"] else "없음", fix_setup),
+    ]
+    missing = set(st["missing"])
+    for key, candidates in FILES.items():
+        gone = candidates[0] in missing
+        out.append(Check(FILE_LABEL[key], FAIL if gone else OK,
+                         "없음" if gone else "있음", fix_setup))
+
+    vram = st["vram_mb"]
+    plan = st["plan"]
+    if vram is None:
+        out.append(Check("그래픽카드", WARN, "NVIDIA 그래픽카드를 찾지 못했습니다",
+                         "LTX-2.5 는 NVIDIA 그래픽카드(CUDA)가 필요합니다"))
+    else:
+        gb = vram / 1024
+        out.append(Check(
+            "그래픽카드 메모리", OK if gb >= 30 else WARN if gb >= 15 else FAIL,
+            plan["note"],
+            "15GB 미만이면 내 PC 로는 못 만듭니다(Lightricks 의 LTX Desktop 과 같은 기준). "
+            "15~24GB 는 모델을 시스템 메모리에 나눠 돌려 느리고, 32GB 이상이면 빠릅니다"))
+    out.append(Check(
+        "Real-ESRGAN (선택)", OK if st["realesrgan"] else WARN,
+        st["realesrgan"] or "없음 — LTX 업스케일(2배)까지만 합니다",
+        "tools\\realesrgan 폴더에 realesrgan-ncnn-vulkan 을 풀어 두면 한 번 더 키웁니다"))
+    return out
 
 
 def check_seeds(root: Path, seeds_dir: str = "seeds") -> Section:
@@ -242,7 +280,8 @@ def run_all(root: Path, cfg) -> tuple[list[Section], bool]:
     pub = cfg.publish_cfg
     sections = [
         check_core(root),
-        check_provider(root, cfg.provider),
+        check_provider(root, cfg.provider,
+                       cfg.provider_cfg if cfg.provider == "local" else None),
         check_seeds(root, getattr(cfg, "seeds_dir", "seeds")),
         check_youtube(root, pub.get("youtube", {})),
         check_instagram(root),

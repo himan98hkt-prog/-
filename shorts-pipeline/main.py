@@ -18,6 +18,12 @@ from typing import Optional
 
 import typer
 
+from pipeline.console import make_safe
+
+# 예약 실행처럼 출력이 cp949 파일로 가는 곳에서도 ✓ ✗ — 한 글자 때문에
+# 영상을 만들다 말고 죽지 않게 한다. (돈을 쓴 뒤에 죽으면 더 아프다.)
+make_safe()
+
 # SHORTS_MOCK=1 로 실행하면 가짜 provider 를 붙여 API 비용 없이 화면을 둘러볼 수 있다.
 if os.getenv("SHORTS_MOCK"):
     import tests.mock_provider  # noqa: F401
@@ -596,9 +602,14 @@ def preview_cmd(
     """
     base = _load(config)
     pv = base.preview_cfg
+    # 시험용 모델(wan 등)은 클라우드 목록에만 있다. 엔진이 내 PC 면 그 모델이
+    # 없어서 설정 오류로 죽는다. 내 PC 는 어차피 공짜라 같은 모델로 짧게 뽑는다.
+    pv_model = pv.get("model")
+    if pv_model and pv_model not in base.provider_cfg.get("models", {}):
+        pv_model = None
     cfg = _load(
         config,
-        model=model or pv.get("model") or base.model_key,
+        model=model or pv_model or base.model_key,
         clip_duration=duration or int(pv.get("clip_duration") or 5),
         num_clips=1,
         mode="chain",
@@ -1082,7 +1093,7 @@ def schedule_cmd(
         if not ws.supported():
             typer.echo(f"[{label}] 예약은 윈도우에서만 걸 수 있습니다.")
             # 생성에 시간이 걸리므로 게시 시각보다 앞서 시작해야 한다.
-            sh, sm = _minus_minutes(cfg.publish_at, ws.LEAD_MINUTES)
+            sh, sm = _minus_minutes(cfg.publish_at, ws.lead_minutes_for(cfg.provider))
             typer.echo("  리눅스·맥에서는 cron 으로 거세요:")
             typer.echo(f"    {sm} {sh} * * *  cd {Path(__file__).parent} && "
                        f"python -m publish.scheduler --config {config} "
@@ -1119,8 +1130,10 @@ def schedule_cmd(
                     "예약은 걸리지만 이미지를 넣기 전까지 매일 실패합니다.",
                     fg=typer.colors.YELLOW)
 
+    # 내 PC 엔진(LTX)은 한 편에 한 시간을 넘길 수 있어 더 일찍 시작해야 한다.
     ok, msg = ws.enable(
         at or cfg.publish_at, targets, mode or cfg.mode,
+        lead_minutes=ws.lead_minutes_for(cfg.provider),
         config=config, seeds=cfg.seeds_dir, slug=cfg.channel_slug,
         name=cfg.channel_name, runs_dir=cfg.runs_dir)
     typer.secho(msg, fg=typer.colors.GREEN if ok else typer.colors.RED)

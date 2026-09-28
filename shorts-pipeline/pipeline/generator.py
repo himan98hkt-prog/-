@@ -29,6 +29,7 @@ def make_provider(cfg: Config, run: Run) -> VideoProvider:
         base_url=cfg.provider_cfg.get("endpoint_base"),
         timeout=cfg.poll_timeout_seconds,
         on_log=lambda event, payload: run.log(event, **payload),
+        settings=cfg.provider_cfg,
     )
 
 

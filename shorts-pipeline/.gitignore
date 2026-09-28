@@ -33,3 +33,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# 내 PC 업스케일러 실행 파일. 설치 스크립트가 받아 온다
+tools/realesrgan/

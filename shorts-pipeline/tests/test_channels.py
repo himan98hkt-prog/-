@@ -239,34 +239,44 @@ def test_runner_is_ascii_and_carries_channel():
                           config="config.wonri.yaml", seeds="seeds-wonri",
                           slug="wonri", runs_dir="runs-wonri")
     try:
-        raw = bat.read_bytes()
-        raw.decode("ascii")          # 깨지면 여기서 죽는다
-        text = raw.decode("ascii")
+        text = bat.read_bytes().decode("ascii")   # 깨지면 여기서 죽는다
         assert "--at 09:00" in text
         assert '--config "config.wonri.yaml"' in text
         assert '--seeds "seeds-wonri"' in text
         assert "--youtube" in text
         # 로그도 채널 폴더로 가야 서로 섞이지 않는다
-        assert "runs-wonri\\cron.log" in text
+        assert "--log runs-wonri/cron.log" in text
+        # 첫 로그 줄에서 죽던 원인(cp949). 이게 빠지면 예약이 매일 조용히 실패한다.
+        assert "set PYTHONUTF8=1" in text
         assert "\r\n" in text        # cmd 는 CRLF 를 기대한다
+        # 기본 채널 파일을 덮어쓰면 기존 예약이 망가진다
+        assert bat.name == "daily-wonri.bat"
     finally:
         bat.unlink(missing_ok=True)
 
 
-def test_task_xml_catches_up_missed_runs():
-    """아침 예약의 핵심 — 절전으로 놓친 실행을 깨어난 뒤 따라잡아야 한다."""
+def test_schedule_catches_up_missed_runs():
+    """아침 예약의 핵심 — 절전으로 놓친 실행을 깨어난 뒤 따라잡아야 한다.
+
+    08:30 에 PC 가 자고 있으면 그냥 건너뛰고 오류도 안 남는다. 그날 영상만
+    안 올라간다.
+    """
     from pipeline import win_schedule as ws
 
-    xml = ws.build_task_xml(Path(r"C:\shorts\daily-wonri.bat"), "08:30",
-                            description="원리한입")
-    assert "<StartWhenAvailable>true</StartWhenAvailable>" in xml
-    assert "<WakeToRun>true</WakeToRun>" in xml
-    # 배터리로 돌 때도 실행해야 한다. 막아 두면 전원 안 꽂은 날 건너뛴다.
-    assert "<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>" in xml
-    # 앞 작업이 아직 돌면 새로 시작하지 않는다 (값이 두 번 나간다)
-    assert "IgnoreNew" in xml
-    assert "T08:30:00" in xml
-    assert "<DaysInterval>1</DaysInterval>" in xml
+    script = ws.register_script(
+        "08:30", "09:00", ["youtube"], "chain",
+        pythonw=r"C:\py\pythonw.exe", workdir=r"C:\shorts",
+        task="쇼츠 자동업로드 - 원리한입", config="config.wonri.yaml",
+        seeds="seeds-wonri", runs_dir="runs-wonri")
+
+    assert "-StartWhenAvailable" in script     # 깨어난 뒤 따라잡기
+    assert "-WakeToRun" in script              # 절전에서 깨우기
+    assert "-AllowStartIfOnBatteries" in script
+    assert "-MultipleInstances IgnoreNew" in script   # 겹쳐 돌면 값이 두 번 나간다
+    assert "08:30" in script
+    # 채널 설정이 실제 명령줄까지 닿아야 한다
+    assert '--config \\"config.wonri.yaml\\"' in script or "config.wonri.yaml" in script
+    assert "원리한입" in script                 # 기본 채널 작업을 덮어쓰지 않는다
 
 
 # ── 5. 방금 만든 것만 올린다 ─────────────────────────────────────────
@@ -278,7 +288,7 @@ def test_latest_run_only_sees_this_run():
     import os
     import time
 
-    from publish.scheduler import latest_run
+    from publish import scheduler
 
     runs = TMP / "runs-x"
     old = runs / "20200101_000000"
@@ -287,21 +297,27 @@ def test_latest_run_only_sees_this_run():
     long_ago = time.time() - 86400
     os.utime(old / "final.mp4", (long_ago, long_ago))
 
-    started = time.time() - 1
-    # 이번 실행에서 아무것도 안 만들어졌다면 → 없다고 해야 한다
-    assert latest_run(runs, newer_than=started) is None
-    # 시각 제한이 없으면 예전 것을 집는다 (예전 동작 — 이게 문제였다)
-    assert latest_run(runs) == "20200101_000000"
+    keep = scheduler.RUNS_DIR
+    try:
+        scheduler.RUNS_DIR = runs
+        started = time.time() - 1
+        # 이번 실행에서 아무것도 안 만들어졌다면 → 없다고 해야 한다
+        assert scheduler.latest_run(newer_than=started) is None
+        # 시각 제한이 없으면 예전 것을 집는다 (예전 동작 — 이게 문제였다)
+        assert scheduler.latest_run() == "20200101_000000"
 
-    fresh = runs / "20260101_090000"
-    fresh.mkdir(parents=True, exist_ok=True)
-    (fresh / "final.mp4").write_bytes(b"new")
-    assert latest_run(runs, newer_than=started) == "20260101_090000"
+        fresh = runs / "20260101_090000"
+        fresh.mkdir(parents=True, exist_ok=True)
+        (fresh / "final.mp4").write_bytes(b"new")
+        assert scheduler.latest_run(newer_than=started) == "20260101_090000"
 
-    # 다른 채널 폴더는 아예 보이지 않는다
-    other = TMP / "runs-y"
-    other.mkdir(parents=True, exist_ok=True)
-    assert latest_run(other, newer_than=started) is None
+        # 다른 채널 폴더는 아예 보이지 않는다
+        other = TMP / "runs-y"
+        other.mkdir(parents=True, exist_ok=True)
+        scheduler.RUNS_DIR = other
+        assert scheduler.latest_run(newer_than=started) is None
+    finally:
+        scheduler.RUNS_DIR = keep
 
 
 # ── 6. 모델이 만든 소리를 지우지 않는다 ──────────────────────────────

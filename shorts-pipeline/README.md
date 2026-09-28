@@ -154,6 +154,10 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 
 ### LTX (Lightricks)
 
+내 PC 에서 돌리는 LTX-2.5 는 `provider: local` 이다 (편당 $0, 설치 필요 —
+[docs/LOCAL_LTX.md](docs/LOCAL_LTX.md)). 아래는 **fal 을 통해 쓰는 LTX** 로,
+그래픽카드가 없거나 설치 없이 바로 쓰고 싶을 때의 경로다.
+
 `ltx2_fast_1080` · `ltx2_pro_1080` · `ltxv_13b_distilled` 이 fal 아래 등록돼 있다.
 LTX 는 다른 모델과 두 가지가 다르다.
 

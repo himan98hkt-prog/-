@@ -306,6 +306,15 @@
   .checks label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
   .checks input{accent-color:var(--cyan);width:17px;height:17px;cursor:pointer}
 
+  .diag{margin-top:16px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);
+        font-size:13.5px;line-height:1.55}
+  .diag ul{margin:6px 0 0 18px;padding:0}
+  .diag .fix{margin-top:8px;font-weight:700;font-size:12.5px;color:var(--ink2)}
+  .diag.ok{border-color:var(--good)} .diag.ok b{color:var(--good)}
+  .diag.info b{color:var(--ink)}
+  .diag.warn{border-color:var(--warn)} .diag.warn b{color:var(--warn)}
+  .diag.bad{border-color:var(--bad)} .diag.bad b{color:var(--bad)}
+
   .hist{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
         background:#050912;border:1px solid var(--line);border-radius:9px;
         padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap}
@@ -401,8 +410,8 @@
           <li><b>[오늘 영상 만들기] 를 누른다</b> — 남은 이미지 중 하나를 골라
               30초짜리 이어지는 영상을 만듭니다. 5분쯤 걸립니다.</li>
           <li><b>확인하고 올린다</b> — 완성된 영상을 보고 유튜브·인스타에 올립니다.</li>
-          <li><b>예약을 켜두면 끝</b> — [자동 업로드] 탭에서 켜두면 매일 저녁 9시에
-              알아서 만들고 올립니다. 컴퓨터가 켜져 있어야 합니다.</li>
+          <li><b>예약을 켜두면 끝</b> — [자동 업로드] 탭에서 켜두면 매일 아침 9시에
+              알아서 만들고 올립니다. 컴퓨터는 끄지 말고 절전으로 두세요.</li>
         </ol>
       </div>
     </div>
@@ -507,6 +516,16 @@
 
     <div id="p-auto" hidden>
       <div class="card" style="margin-bottom:14px">
+        <h2>영상 엔진</h2>
+        <p class="sub">어디서 영상을 만들지 고릅니다. 예약 실행도 여기서 고른 엔진을 씁니다.</p>
+        <div class="checks" id="engPick">
+          <label><input type="radio" name="eng" value="fal"> 클라우드 (fal · 편당 약 $1)</label>
+          <label><input type="radio" name="eng" value="local"> 내 PC (LTX-2.5 · 무료)</label>
+        </div>
+        <div class="diag" id="engInfo">불러오는 중…</div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
         <h2>매일 자동 업로드</h2>
         <p class="sub" id="autoNote">불러오는 중…</p>
 
@@ -516,10 +535,12 @@
           <div class="row">
             <label class="fld"><span>게시 시각</span>
               <select id="autoTime">
-                <option value="09:00">오전 9시</option>
+                <option value="07:00">오전 7시</option>
+                <option value="08:00">오전 8시</option>
+                <option value="09:00" selected>오전 9시</option>
                 <option value="12:00">낮 12시</option>
                 <option value="18:00">저녁 6시</option>
-                <option value="21:00" selected>저녁 9시</option>
+                <option value="21:00">저녁 9시</option>
                 <option value="22:00">밤 10시</option>
               </select>
             </label>
@@ -535,7 +556,9 @@
             <label><input type="checkbox" id="autoIg"> 인스타그램</label>
           </div>
           <button class="go" id="autoSave">예약 저장</button>
+          <button class="big alt" id="autoRun" style="margin-top:8px">지금 한 번 돌려보기</button>
         </div>
+        <div class="diag" id="autoDiag" hidden></div>
       </div>
 
       <div class="card">
@@ -708,7 +731,9 @@ function failReason(job) {
 async function api(path, opts) {
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || `요청 실패 (${r.status})`);
+  // 예약·엔진 쪽은 이유를 message 에 담아 보낸다. 그걸 버리면 "요청 실패 (400)"
+  // 만 보여서 무엇을 해야 할지 모른다.
+  if (!r.ok) throw new Error(data.error || data.message || `요청 실패 (${r.status})`);
   return data;
 }
 
@@ -1549,7 +1574,7 @@ function switchTab(which) {
   });
   if (which === "easy") loadEasy();
   if (which === "home") { loadOverview(); loadDoctor(); loadStats(); }
-  if (which === "auto") { loadSchedule(); loadHistory(); }
+  if (which === "auto") { loadEngine(); loadSchedule(); loadHistory(); }
   if (which === "set") loadSettings();
   if (which === "music") loadMusic();
   applyAside();
@@ -2007,12 +2032,14 @@ async function loadSchedule() {
       if (s.publish_time) $("autoTime").value = s.publish_time;
       $("autoYt").checked = s.targets.includes("youtube");
       $("autoIg").checked = s.targets.includes("instagram");
+      if (s.mode) $("autoMode").value = s.mode;
       note.innerHTML = `켜져 있습니다 — 매일 <b>${s.start_time || "?"}</b> 에 시작해
         <b>${s.publish_time || "?"}</b> 에 게시합니다.` +
-        (s.next_run ? `<br>다음 실행: ${s.next_run}` : "");
+        (s.next_run ? `<br>다음 실행: ${s.next_run.replace("T", " ").slice(0, 16)}` : "");
     } else {
       note.textContent = `꺼져 있습니다. 켜면 매일 정해진 시각에 자동으로 만들어 올립니다.`;
     }
+    renderDiag(s.enabled ? s.diagnosis : null);
   } catch (e) { $("autoNote").textContent = "상태를 읽지 못했습니다."; }
 }
 
@@ -2041,6 +2068,77 @@ $("autoSave").onclick = async () => {
     });
     toast(r.message || "예약을 저장했습니다."); loadSchedule();
   } catch (e) { toast(e.message, true); }
+};
+
+// ── 영상 엔진 ─────────────────────────────────────────────────────
+function renderEngine(e) {
+  const box = $("engInfo");
+  document.querySelectorAll('input[name="eng"]').forEach((r) => {
+    r.checked = r.value === (e.provider === "local" ? "local" : "fal");
+  });
+  const rows = [];
+  if (e.provider === "local") {
+    rows.push(`<b>${e.ready ? "✓" : "✗"} 내 PC 에서 만듭니다 (${esc(e.size)})</b>`);
+  } else {
+    rows.push(`<b>· 지금은 클라우드에서 만듭니다</b>`);
+  }
+  const li = [];
+  li.push(e.python_ok ? `LTX 설치됨 — ${esc(e.ltx_dir)}`
+                      : `LTX 가 아직 없습니다 — tools 폴더의 <b>ltx_setup.bat</b> 을 한 번 실행하세요`);
+  if (e.missing && e.missing.length) li.push(`모델 파일 ${e.missing.length}개 없음`);
+  if (e.vram_mb != null) {
+    li.push(`그래픽카드 ${Math.round(e.vram_mb / 1024)}GB — ${esc(e.plan.note)}`);
+  } else if ("vram_mb" in e) {
+    li.push("NVIDIA 그래픽카드를 찾지 못했습니다 (LTX-2.5 는 NVIDIA 가 필요합니다)");
+  }
+  if ("realesrgan" in e) {
+    li.push(e.realesrgan ? "Real-ESRGAN 으로 한 번 더 업스케일합니다"
+                         : "업스케일: LTX 2배까지 (Real-ESRGAN 을 넣으면 한 번 더)");
+  }
+  box.className = `diag ${e.provider === "local" ? (e.ready ? "ok" : "bad") : "info"}`;
+  box.innerHTML = rows.join("") + `<ul>${li.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+}
+
+async function loadEngine() {
+  try { renderEngine(await api("/api/engine")); }
+  catch (e) { $("engInfo").textContent = "엔진 상태를 읽지 못했습니다."; }
+}
+
+document.querySelectorAll('input[name="eng"]').forEach((r) => {
+  r.onchange = async () => {
+    try {
+      const res = await api("/api/engine", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: r.value }) });
+      toast(res.message);
+      loadEngine(); loadSchedule();
+    } catch (e) { toast(e.message, true); loadEngine(); }
+  };
+});
+
+// 예약이 왜 안 돌았는지를 사람 말로. 로그 파일을 뒤지지 않아도 되게.
+function renderDiag(d) {
+  const box = $("autoDiag");
+  if (!d) { box.hidden = true; return; }
+  const icon = { ok: "✓", warn: "!", bad: "✗", info: "·" }[d.level] || "·";
+  const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
+  box.className = `diag ${d.level}`;
+  box.innerHTML = `<b>${icon} ${esc(d.headline)}</b>` +
+    (d.details.length ? `<ul>${li(d.details)}</ul>` : "") +
+    (d.fixes.length ? `<div class="fix">이렇게 하세요</div><ul>${li(d.fixes)}</ul>` : "");
+  box.hidden = false;
+}
+
+$("autoRun").onclick = async () => {
+  const b = $("autoRun");
+  b.disabled = true;
+  try {
+    const r = await api("/api/schedule-run", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: "{}" });
+    toast(r.message || "돌렸습니다.");
+    setTimeout(loadSchedule, 4000);
+  } catch (e) { toast(e.message, true); }
+  finally { setTimeout(() => { b.disabled = false; }, 4000); }
 };
 
 async function loadHistory() {

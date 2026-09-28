@@ -35,6 +35,10 @@ FIELDS: tuple[Field, ...] = (
     Field("FAL_API_KEY", SECRET, "fal.ai 키", "video",
           "fal.ai → Dashboard → API Keys 에서 만든 키를 붙여넣으세요.",
           "aaaaaaaa-bbbb-...:0123456789abcdef"),
+    Field("LTX_DIR", PLAIN, "내 PC 엔진(LTX-2) 폴더 (선택)", "video",
+          "내 PC 에서 LTX-2.5 로 만들 때만 씁니다. tools\\ltx_setup.bat 이 설치한 "
+          "폴더입니다. 비워두면 C:\\LTX-2 를 봅니다.",
+          "C:\\LTX-2"),
 
     Field("YOUTUBE_CLIENT_SECRET_FILE", PLAIN, "client_secret.json 경로", "youtube",
           "아래 [파일 올리기] 를 쓰면 자동으로 채워집니다.",

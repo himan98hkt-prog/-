@@ -66,7 +66,7 @@ def main() -> int:
 
     desc = c.youtube_description(yt["description_template"])
     check("설명에 훅이 첫 줄", desc.splitlines()[0] == c.hook, desc.splitlines()[0])
-    check("설명에 업로드 시각", "저녁 9시" in desc)
+    check("설명에 업로드 시각", "아침 9시" in desc)
     check("설명에 인스타 핸들", "@ai.deokhu" in desc)
     check("설명에 #Shorts", "#Shorts" in desc)
     check("설명 5000자 이내", len(desc) <= 5000, f"{len(desc)}자")
