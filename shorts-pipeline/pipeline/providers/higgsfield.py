@@ -51,10 +51,11 @@ class HiggsfieldProvider(VideoProvider):
         params: dict = {
             "model": self.endpoint,
             "prompt": req.prompt,
-            "duration": req.duration,
             "aspect_ratio": "9:16",
             "input_images": [{"type": "image_url", "image_url": _upload(req.image)}],
         }
+        # 길이 표현과 모델 고정 파라미터는 config 가 정한다 (fal 쪽과 같은 규칙).
+        params.update(req.duration_params or {"duration": req.duration})
         if req.negative_prompt:
             params["negative_prompt"] = req.negative_prompt
         if req.end_image is not None:

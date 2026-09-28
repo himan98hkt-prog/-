@@ -142,7 +142,7 @@ def stitch(
 
     audio_args, audio_map, audio_graph = _audio_args(
         audio, audio_file, len(clips) + (1 if logo_args else 0),
-        _total_seconds(clips, crossfade, transition))
+        _total_seconds(clips, crossfade, transition), clips)
     args += audio_args
 
     # 로고는 영상 입력 다음, 소리 입력 앞이다. 번호를 그렇게 잡아야 한다.
@@ -229,7 +229,8 @@ FADE_OUT = 1.6
 
 
 def _audio_args(
-    audio: str, audio_file: str | None, n_clips: int, total: float = 0.0
+    audio: str, audio_file: str | None, n_clips: int, total: float = 0.0,
+    clips: list[Path] | None = None
 ) -> tuple[list[str], list[str], str]:
     """오디오 입력·매핑·필터그래프를 만든다.
 
@@ -239,7 +240,21 @@ def _audio_args(
     음원을 쓸 때는 그냥 붙이지 않는다. 수노에서 받은 곡은 저마다 음량이
     달라서 어떤 편은 크고 어떤 편은 안 들린다. 라우드니스를 맞추고
     앞뒤로 페이드를 넣는다. 끊기듯 끝나는 소리는 이탈로 이어진다.
+
+    native 는 **클립이 이미 들고 있는 소리**를 그대로 쓴다. LTX-2 처럼
+    영상과 소리를 함께 만드는 모델용이다. 이때 무음 트랙을 얹으면 모델이
+    만든 소리가 통째로 버려진다 — 만든 사람은 헤드폰을 써야 알아챈다.
     """
+    if audio == "native":
+        pool = clips or []
+        # 한 클립이라도 소리가 없으면 concat 이 실패한다. 조용히 죽는 대신
+        # 무음으로 물러선다 — 하루치 영상이 통째로 날아가는 것보다 낫다.
+        if pool and all(has_audio(c) for c in pool):
+            labels = "".join(f"[{i}:a]" for i in range(len(pool)))
+            graph = f"{labels}concat=n={len(pool)}:v=0:a=1[aout]"
+            # 입력을 더하지 않는다. 소리는 이미 들어온 영상 입력에 있다.
+            return ([], ["-map", "[aout]"], graph)
+
     if audio == "file":
         if not audio_file:
             raise FFmpegError("output.audio 가 file 인데 output.audio_file 이 비었습니다.")

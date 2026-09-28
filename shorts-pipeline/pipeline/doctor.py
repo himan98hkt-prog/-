@@ -142,14 +142,17 @@ def check_local(settings: dict | None = None) -> list[Check]:
     return out
 
 
-def check_seeds(root: Path) -> Section:
+def check_seeds(root: Path, seeds_dir: str = "seeds") -> Section:
     from .content import find_sidecar
 
-    seeds = root / "seeds"
+    # 채널마다 시드 폴더가 다르다. 고정으로 seeds/ 를 보면 원리한입 채널을
+    # 점검해도 기본 채널 폴더를 본다 — 준비됐다고 나오고 새벽에 실패한다.
+    seeds = root / seeds_dir
     checks = []
     if not seeds.is_dir():
         return Section("시드 이미지", [Check(
-            "seeds/ 폴더", FAIL, "없음", "mkdir seeds 후 세로 이미지를 넣으세요")], "필수")
+            f"{seeds_dir}/ 폴더", FAIL, "없음",
+            f"mkdir {seeds_dir} 후 세로 이미지를 넣으세요")], "필수")
 
     exts = {".png", ".jpg", ".jpeg", ".webp"}
     images = [p for p in sorted(seeds.iterdir())
@@ -158,7 +161,7 @@ def check_seeds(root: Path) -> Section:
         checks.append(Check("시드 이미지", OK, f"{len(images)}장 대기 중"))
     else:
         checks.append(Check("시드 이미지", FAIL, "0장",
-                            "seeds/ 에 9:16 세로 이미지를 넣으세요"))
+                            f"{seeds_dir}/ 에 9:16 세로 이미지를 넣으세요"))
 
     with_meta = sum(1 for p in images if find_sidecar(p))
     if images:
@@ -279,7 +282,7 @@ def run_all(root: Path, cfg) -> tuple[list[Section], bool]:
         check_core(root),
         check_provider(root, cfg.provider,
                        cfg.provider_cfg if cfg.provider == "local" else None),
-        check_seeds(root),
+        check_seeds(root, getattr(cfg, "seeds_dir", "seeds")),
         check_youtube(root, pub.get("youtube", {})),
         check_instagram(root),
     ]

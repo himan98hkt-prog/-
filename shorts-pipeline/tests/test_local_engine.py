@@ -27,6 +27,9 @@ sys.path.insert(0, str(ROOT))
 
 PASSED, FAILED = [], []
 TMP = ROOT / "tests" / "_tmp_local"
+# main() 으로 돌 때는 아래에서 만들지만, pytest 는 검사 함수를 직접 부르므로
+# 여기서 만들어 두어야 한다. 없으면 임시 파일을 쓰는 검사가 그대로 죽는다.
+TMP.mkdir(parents=True, exist_ok=True)
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:

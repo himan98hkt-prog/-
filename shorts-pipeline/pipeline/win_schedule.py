@@ -46,6 +46,27 @@ TIME_LIMIT_HOURS = 6
 DEFAULT_PUBLISH_TIME = "09:00"
 LOG_REL = "runs/cron.log"
 
+
+def task_name(slug: str = "default", name: str = "") -> str:
+    """이 채널의 작업 스케줄러 이름.
+
+    기본 채널은 예전 이름을 그대로 쓴다. 이름을 바꾸면 이미 걸려 있는 예약이
+    고아가 되어, 끄지도 못하는 작업이 매일 남는다.
+    """
+    if slug == "default":
+        return TASK_NAME
+    return f"쇼츠 자동업로드 - {name or slug}"
+
+
+def runner_path(slug: str = "default") -> Path:
+    """이 채널의 예약이 실행할 배치 파일."""
+    return ROOT / ("daily.bat" if slug == "default" else f"daily-{slug}.bat")
+
+
+def log_rel(runs_dir: str = "runs") -> str:
+    """채널별 예약 로그. 한 파일에 섞이면 어느 채널이 실패했는지 못 읽는다."""
+    return f"{runs_dir}/cron.log"
+
 # 작업 스케줄러 결과 코드 -> 사람이 읽을 말
 RESULT_TEXT = {
     0: "정상 종료",
@@ -126,12 +147,20 @@ def python_exe(*, windowless: bool = False) -> Path:
     return exe
 
 
-def scheduler_args(publish_time: str, targets: list[str], mode: str) -> str:
+def scheduler_args(publish_time: str, targets: list[str], mode: str, *,
+                   config: str = "config.yaml", seeds: str = "",
+                   runs_dir: str = "runs") -> str:
     flags = " ".join(f"--{t}" for t in targets) or "--youtube"
-    return f"-m publish.scheduler --at {publish_time} --mode {mode} {flags} --log {LOG_REL}"
+    extra = f' --config "{config}"'
+    if seeds:
+        extra += f' --seeds "{seeds}"'
+    return (f"-m publish.scheduler --at {publish_time} --mode {mode} {flags}"
+            f"{extra} --log {log_rel(runs_dir)}")
 
 
-def write_runner(publish_time: str, targets: list[str], mode: str = "chain") -> Path:
+def write_runner(publish_time: str, targets: list[str], mode: str = "chain", *,
+                 slug: str = "default", config: str = "config.yaml",
+                 seeds: str = "", runs_dir: str = "runs") -> Path:
     """손으로 눌러 시험하거나, PowerShell 이 막혔을 때 쓰는 배치 파일.
 
     cmd 는 배치 파일을 OEM 코드페이지(한국어 윈도우는 949)로 읽는다.
@@ -139,17 +168,19 @@ def write_runner(publish_time: str, targets: list[str], mode: str = "chain") -> 
     그래서 가능하면 ASCII 로만 쓰고, 파이썬 경로에 한글이 있을 때만(사용자
     이름이 한글이면 그렇다) OEM 으로 쓴다.
     """
-    bat = ROOT / "daily.bat"
+    bat = runner_path(slug)
     py = str(python_exe())
     body = (
         "@echo off\r\n"
-        "REM AI DEOKHU daily auto-upload. Run by Windows Task Scheduler.\r\n"
+        f"REM Daily auto-upload for channel: {slug}\r\n"
+        "REM Run by Windows Task Scheduler.\r\n"
         "REM Generated automatically when you turn the schedule on. Do not edit.\r\n"
         'cd /d "%~dp0"\r\n'
         # 1번 원인. 이게 없으면 첫 로그 줄에서 죽는다.
         "set PYTHONUTF8=1\r\n"
         "set PYTHONIOENCODING=utf-8\r\n"
-        f'"{py}" {scheduler_args(publish_time, targets, mode)}\r\n'
+        f'if not exist "%~dp0{runs_dir}" mkdir "%~dp0{runs_dir}"\r\n'
+        f'"{py}" {scheduler_args(publish_time, targets, mode, config=config, seeds=seeds, runs_dir=runs_dir)}\r\n'
     )
     try:
         data = body.encode("ascii")
@@ -165,12 +196,14 @@ def write_runner(publish_time: str, targets: list[str], mode: str = "chain") -> 
 
 # ── 등록 ──────────────────────────────────────────────────────────────
 def register_script(start: str, publish_time: str, targets: list[str], mode: str,
-                    *, pythonw: str, workdir: str) -> str:
+                    *, pythonw: str, workdir: str, task: str = TASK_NAME,
+                    config: str = "config.yaml", seeds: str = "",
+                    runs_dir: str = "runs") -> str:
     """Register-ScheduledTask 스크립트. 설정 하나하나가 예전 실패 원인 하나씩이다."""
     return "\n".join([
         "$ErrorActionPreference = 'Stop'",
         f"$a = New-ScheduledTaskAction -Execute {_q(pythonw)} "
-        f"-Argument {_q(scheduler_args(publish_time, targets, mode))} "
+        f"-Argument {_q(scheduler_args(publish_time, targets, mode, config=config, seeds=seeds, runs_dir=runs_dir))} "
         f"-WorkingDirectory {_q(workdir)}",
         f"$t = New-ScheduledTaskTrigger -Daily -At {_q(start)}",
         # 켜지면 바로 · 절전에서 깨우기 · 배터리여도 시작하고 안 멈추기
@@ -181,7 +214,7 @@ def register_script(start: str, publish_time: str, targets: list[str], mode: str
         "-RestartCount 2 -RestartInterval (New-TimeSpan -Minutes 10)",
         "$u = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name",
         "$p = New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Limited",
-        f"Register-ScheduledTask -TaskName {_q(TASK_NAME)} -Action $a -Trigger $t "
+        f"Register-ScheduledTask -TaskName {_q(task)} -Action $a -Trigger $t "
         "-Settings $s -Principal $p -Force | Out-Null",
         "'OK'",
     ])
@@ -203,7 +236,9 @@ def allow_wake_timers() -> str:
 
 
 def enable(publish_time: str = DEFAULT_PUBLISH_TIME, targets: list[str] | None = None,
-           mode: str = "chain", *, lead_minutes: int = LEAD_MINUTES) -> tuple[bool, str]:
+           mode: str = "chain", *, lead_minutes: int = LEAD_MINUTES,
+           config: str = "config.yaml", seeds: str = "", slug: str = "default",
+           name: str = "", runs_dir: str = "runs") -> tuple[bool, str]:
     """매일 실행 예약을 만든다. 이미 있으면 덮어쓴다."""
     if not supported():
         return False, "윈도우에서만 예약을 만들 수 있습니다."
@@ -217,12 +252,15 @@ def enable(publish_time: str = DEFAULT_PUBLISH_TIME, targets: list[str] | None =
     if mode not in ("chain", "montage"):
         mode = "chain"
 
-    bat = write_runner(publish_time, targets, mode)
+    bat = write_runner(publish_time, targets, mode, slug=slug, config=config,
+                       seeds=seeds, runs_dir=runs_dir)
     start = _minus(publish_time, lead_minutes)
+    tname = task_name(slug, name)
 
     code, out = _powershell(register_script(
         start, publish_time, targets, mode,
-        pythonw=str(python_exe(windowless=True)), workdir=str(ROOT)))
+        pythonw=str(python_exe(windowless=True)), workdir=str(ROOT),
+        task=tname, config=config, seeds=seeds, runs_dir=runs_dir))
     if code == 0 and "OK" in out:
         wake = allow_wake_timers()
         return True, (f"매일 {start} 에 시작해 {publish_time} 에 게시합니다 "
@@ -231,7 +269,7 @@ def enable(publish_time: str = DEFAULT_PUBLISH_TIME, targets: list[str] | None =
                       f"창은 뜨지 않습니다.\n{wake}")
 
     # PowerShell 이 막힌 PC 를 위한 예전 방식. 깨우기·놓친 회차 보충은 안 된다.
-    code2, out2 = _run(["schtasks", "/Create", "/TN", TASK_NAME,
+    code2, out2 = _run(["schtasks", "/Create", "/TN", tname,
                         "/TR", f'"{bat}"', "/SC", "DAILY", "/ST", start, "/F"])
     if code2 != 0:
         return False, (f"예약 등록 실패:\n{out.strip()[:300]}\n{out2.strip()[:300]}")
@@ -240,16 +278,16 @@ def enable(publish_time: str = DEFAULT_PUBLISH_TIME, targets: list[str] | None =
                   "로그인돼 있어야 돕니다.")
 
 
-def disable() -> tuple[bool, str]:
+def disable(*, slug: str = "default", name: str = "") -> tuple[bool, str]:
     if not supported():
         return False, "윈도우에서만 예약을 지울 수 있습니다."
-    code, out = _run(["schtasks", "/Delete", "/TN", TASK_NAME, "/F"])
+    code, out = _run(["schtasks", "/Delete", "/TN", task_name(slug, name), "/F"])
     if code != 0 and "ERROR" in out.upper() and "cannot find" not in out.lower():
         return False, f"예약 해제 실패:\n{out.strip()[:300]}"
     return True, "예약을 껐습니다."
 
 
-def run_now() -> tuple[bool, str]:
+def run_now(*, slug: str = "default", name: str = "") -> tuple[bool, str]:
     """예약을 지금 한 번 돌린다. 아침 9시에 도는 것과 **똑같은 경로**로 돈다.
 
     작업실에서 누르는 [만들기] 는 작업실 안에서 돈다. 예약은 작업 스케줄러가
@@ -258,7 +296,7 @@ def run_now() -> tuple[bool, str]:
     """
     if not supported():
         return False, "윈도우에서만 됩니다."
-    code, out = _run(["schtasks", "/Run", "/TN", TASK_NAME])
+    code, out = _run(["schtasks", "/Run", "/TN", task_name(slug, name)])
     if code != 0:
         return False, f"실행하지 못했습니다:\n{out.strip()[:300]}"
     return True, ("예약을 지금 한 번 돌렸습니다. 창은 뜨지 않습니다. "
@@ -266,24 +304,25 @@ def run_now() -> tuple[bool, str]:
 
 
 # ── 상태 읽기 ─────────────────────────────────────────────────────────
-QUERY_SCRIPT = "\n".join([
-    "$ErrorActionPreference = 'Stop'",
-    f"$t = Get-ScheduledTask -TaskName {_q(TASK_NAME)}",
-    "$i = $t | Get-ScheduledTaskInfo",
-    "$last = if ($i.LastRunTime) { $i.LastRunTime.ToString('s') } else { '' }",
-    "$next = if ($i.NextRunTime) { $i.NextRunTime.ToString('s') } else { '' }",
-    "$act = $t.Actions | Select-Object -First 1",
-    "$trg = $t.Triggers | Select-Object -First 1",
-    "[pscustomobject]@{",
-    "  last_run = $last; result = [int64]$i.LastTaskResult; next_run = $next;",
-    "  missed = [int]$i.NumberOfMissedRuns;",
-    "  wake = [bool]$t.Settings.WakeToRun;",
-    "  when_available = [bool]$t.Settings.StartWhenAvailable;",
-    "  no_battery = [bool]$t.Settings.DisallowStartIfOnBatteries;",
-    "  execute = [string]$act.Execute; arguments = [string]$act.Arguments;",
-    "  start = [string]$trg.StartBoundary",
-    "} | ConvertTo-Json -Compress",
-])
+def query_script(task: str = TASK_NAME) -> str:
+    return "\n".join([
+        "$ErrorActionPreference = 'Stop'",
+        f"$t = Get-ScheduledTask -TaskName {_q(task)}",
+        "$i = $t | Get-ScheduledTaskInfo",
+        "$last = if ($i.LastRunTime) { $i.LastRunTime.ToString('s') } else { '' }",
+        "$next = if ($i.NextRunTime) { $i.NextRunTime.ToString('s') } else { '' }",
+        "$act = $t.Actions | Select-Object -First 1",
+        "$trg = $t.Triggers | Select-Object -First 1",
+        "[pscustomobject]@{",
+        "  last_run = $last; result = [int64]$i.LastTaskResult; next_run = $next;",
+        "  missed = [int]$i.NumberOfMissedRuns;",
+        "  wake = [bool]$t.Settings.WakeToRun;",
+        "  when_available = [bool]$t.Settings.StartWhenAvailable;",
+        "  no_battery = [bool]$t.Settings.DisallowStartIfOnBatteries;",
+        "  execute = [string]$act.Execute; arguments = [string]$act.Arguments;",
+        "  start = [string]$trg.StartBoundary",
+        "} | ConvertTo-Json -Compress",
+    ])
 
 
 def parse_info(text: str) -> dict:
@@ -312,17 +351,17 @@ def read_args(text: str) -> tuple[str, list[str], str]:
     return publish, targets, mm.group(1) if mm else "chain"
 
 
-def status() -> Schedule:
+def status(*, slug: str = "default", name: str = "") -> Schedule:
     """현재 예약 상태. 없으면 enabled=False."""
     if not supported():
         return Schedule(enabled=False, raw="윈도우가 아닙니다.")
 
-    code, out = _powershell(QUERY_SCRIPT)
+    code, out = _powershell(query_script(task_name(slug, name)))
     info = parse_info(out) if code == 0 else {}
     if info:
         text = info.get("arguments", "")
         if not text:                               # 예전 방식: 배치 파일을 부른다
-            bat = ROOT / "daily.bat"
+            bat = runner_path(slug)
             text = bat.read_text(encoding="utf-8", errors="replace") if bat.exists() else ""
         publish, targets, mode = read_args(text)
         return Schedule(enabled=True, start_time=_hhmm(info.get("start", "")),
@@ -330,7 +369,8 @@ def status() -> Schedule:
                         targets=targets, mode=mode, info=info)
 
     # PowerShell 이 막혔으면 schtasks 로 있는지만 본다
-    code, out = _run(["schtasks", "/Query", "/TN", TASK_NAME, "/FO", "LIST", "/V"])
+    code, out = _run(["schtasks", "/Query", "/TN", task_name(slug, name),
+                      "/FO", "LIST", "/V"])
     if code != 0:
         return Schedule(enabled=False, raw=out.strip()[:200])
 
@@ -341,7 +381,7 @@ def status() -> Schedule:
                     return line.split(":", 1)[1].strip() if ":" in line else ""
         return ""
 
-    bat = ROOT / "daily.bat"
+    bat = runner_path(slug)
     text = bat.read_text(encoding="utf-8", errors="replace") if bat.exists() else ""
     publish, targets, mode = read_args(text)
     return Schedule(enabled=True, start_time=pick("Start Time", "시작 시간"),
