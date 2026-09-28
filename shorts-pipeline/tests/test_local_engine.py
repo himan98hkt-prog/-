@@ -127,7 +127,14 @@ def test_memory_plan():
           memory_plan(24 * gb, 64)[:2] == ("fp8-cast", "cpu"))
     check("16GB + RAM 32GB -> 디스크까지", memory_plan(16 * gb, 32)[:2] == ("fp8-cast", "disk"))
     check("RAM 부족이면 64GB 권장이라고 말한다", "64GB" in memory_plan(16 * gb, 32)[2])
-    check("6GB -> 너무 작다고 말한다", "너무 작" in memory_plan(6 * gb, 64)[2])
+    check("8GB -> 15GB 이상 필요하다고 말한다", "15GB 이상" in memory_plan(8 * gb, 32)[2])
+
+    # LTX Desktop(Lightricks)과 같은 경계. 8GB·12GB 카드는 그 앱도 클라우드로 돌린다.
+    from pipeline.providers.ltx_local import vram_ok
+    check("8GB 는 내 PC 생성 불가", not vram_ok(8 * gb))
+    check("12GB 도 불가", not vram_ok(12 * gb))
+    check("16GB 는 가능", vram_ok(16 * gb))
+    check("못 읽으면 막지 않는다 (점검에서 따로 알림)", vram_ok(None))
     check("못 읽으면 안전하게 cpu", memory_plan(None)[:2] == ("fp8-cast", "cpu"))
 
 
@@ -342,6 +349,19 @@ def test_engine_switch_and_doctor():
         fails = [c.name for c in checks if c.status == FAIL]
         check("점검: 설치·모델 파일은 통과", not any("LTX" in n or "VAE" in n for n in fails),
               str(fails))
+
+        # 8GB 카드: 설치돼 있어도 바꾸지 않는다. 바꾸면 매일 아침 예약이 매일 실패한다.
+        from pipeline.providers import ltx_local as L
+        real_gpu = L.gpu_memory_mb
+        L.gpu_memory_mb = lambda: 8 * 1024
+        try:
+            srv.switch_engine("fal")
+            ok8, msg8 = srv.switch_engine("local")
+        finally:
+            L.gpu_memory_mb = real_gpu
+        check("8GB 카드면 내 PC 로 안 바꾼다", not ok8 and "15GB" in msg8, msg8.splitlines()[0])
+        check("그때 이유(LTX Desktop 도 클라우드)를 말한다", "클라우드" in msg8)
+        check("config 는 클라우드 그대로", "\nprovider: fal" in cfg_copy.read_text("utf-8"))
 
         ok, _ = srv.switch_engine("fal")
         check("클라우드로 되돌린다", ok and "\nprovider: fal" in cfg_copy.read_text("utf-8"))

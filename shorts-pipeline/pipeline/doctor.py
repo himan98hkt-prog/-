@@ -131,10 +131,10 @@ def check_local(settings: dict | None = None) -> list[Check]:
     else:
         gb = vram / 1024
         out.append(Check(
-            "그래픽카드 메모리", OK if gb >= 30 else WARN if gb >= 8 else FAIL,
+            "그래픽카드 메모리", OK if gb >= 30 else WARN if gb >= 15 else FAIL,
             plan["note"],
-            "32GB 이상이면 빠릅니다. 그 아래는 모델을 시스템 메모리에 두고 나눠 "
-            "돌려서 느립니다 — 예약 시작을 두 시간 앞당겨 둔 이유입니다"))
+            "15GB 미만이면 내 PC 로는 못 만듭니다(Lightricks 의 LTX Desktop 과 같은 기준). "
+            "15~24GB 는 모델을 시스템 메모리에 나눠 돌려 느리고, 32GB 이상이면 빠릅니다"))
     out.append(Check(
         "Real-ESRGAN (선택)", OK if st["realesrgan"] else WARN,
         st["realesrgan"] or "없음 — LTX 업스케일(2배)까지만 합니다",

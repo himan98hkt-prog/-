@@ -31,10 +31,12 @@ $gb = [math]::Round($gpuMem / 1024)
 Info "그래픽카드: $gpuName (${gb}GB)"
 $ramGb = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
 Info "시스템 메모리: ${ramGb}GB"
-if ($gb -lt 8) {
-    Warn "${gb}GB 는 너무 작습니다. 매우 느리거나 실패할 수 있습니다."
-    $ans = Read-Host "  그래도 설치할까요? (y/N)"
-    if ($ans -ne "y") { Write-Host "설치하지 않았습니다. 클라우드(fal) 엔진은 그대로 쓸 수 있습니다."; exit 0 }
+if ($gb -lt 15) {
+    # Lightricks 의 LTX Desktop 도 15GB 미만에서는 내 PC 생성을 막고 클라우드로 돌린다.
+    # 여기서 70GB 를 받아 봐야 매일 아침 예약이 매일 실패한다.
+    Die ("${gb}GB 그래픽카드로는 LTX-2.5 를 내 PC 에서 돌릴 수 없습니다 (15GB 이상 필요).`n" +
+         "  Lightricks 의 LTX Desktop 도 이 크기에서는 클라우드(LTX API, 유료)로 만듭니다.`n" +
+         "  70GB 를 받지 않도록 여기서 멈춥니다. 클라우드(fal) 엔진은 그대로 쓸 수 있습니다.")
 } elseif ($gb -lt 30) {
     Warn "${gb}GB 는 모델을 시스템 메모리에 두고 나눠 돌립니다. 느리지만 돕니다."
     if ($ramGb -lt 40) { Warn "시스템 메모리가 ${ramGb}GB 라 디스크까지 써서 더 느립니다. 64GB 를 권장합니다." }

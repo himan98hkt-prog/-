@@ -299,6 +299,13 @@ def switch_engine(target: str) -> tuple[bool, str]:
     from pipeline import configdiff
 
     if target == "local":
+        from pipeline.providers import ltx_local as L
+        vram = L.gpu_memory_mb()
+        if not L.vram_ok(vram):
+            return False, (
+                f"이 PC 의 그래픽카드({vram / 1024:.0f}GB)로는 LTX-2.5 를 돌릴 수 없습니다.\n"
+                f"{L.MIN_VRAM_GB}GB 이상이 필요합니다. Lightricks 의 LTX Desktop 도 이 크기에서는 "
+                "내 PC 가 아니라 클라우드(LTX API, 유료)로 만듭니다.")
         st = engine_state(quick=True)
         if not st["ready"]:
             what = ("LTX 가 설치돼 있지 않습니다" if not st["python_ok"]

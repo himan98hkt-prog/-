@@ -205,6 +205,15 @@ def system_ram_gb() -> float | None:
 #   disk : 디스크에서 그때그때 읽음    (~5GB RAM + ~5GB VRAM, 매우 느림)
 RAM_FOR_CPU_OFFLOAD_GB = 40
 
+# 이보다 작은 그래픽카드에서는 내 PC 생성을 막는다.
+#
+# Lightricks 가 직접 만든 LTX Desktop 이 쓰는 경계와 같다(runtime_policy.py:
+# `if vram_gb < 15: return "unsupported"`, README: 16GB 미만은 API 전용).
+# 그 앱은 조각조각 흘려보내는 최적화까지 들어 있는데도 이 아래에서는
+# 클라우드로 돌린다. 여기서 억지로 돌리면 디스크까지 써서 한 클립에 몇 시간이
+# 걸리거나 도중에 죽는다 — 매일 아침 예약이 매일 실패한다.
+MIN_VRAM_GB = 15
+
 
 def memory_plan(vram_mb: int | None, ram_gb: float | None = None) -> tuple[str, str, str]:
     """그래픽카드·시스템 메모리 -> (quantization, offload, 설명)."""
@@ -216,13 +225,20 @@ def memory_plan(vram_mb: int | None, ram_gb: float | None = None) -> tuple[str, 
     if gb >= 30:
         return "fp8-cast", "none", f"{gb:.0f}GB — fp8 로 돕니다"
     ram_note = f", 시스템 메모리 {ram_gb:.0f}GB" if ram_gb else ""
-    if gb >= 8 and (ram_gb is None or ram_gb >= RAM_FOR_CPU_OFFLOAD_GB):
+    if gb < MIN_VRAM_GB:
+        return "fp8-cast", "disk", (
+            f"{gb:.0f}GB — 내 PC 생성에는 {MIN_VRAM_GB}GB 이상이 필요합니다. "
+            "Lightricks 의 LTX Desktop 도 이 크기에서는 클라우드로 만듭니다")
+    if ram_gb is None or ram_gb >= RAM_FOR_CPU_OFFLOAD_GB:
         return "fp8-cast", "cpu", (f"{gb:.0f}GB{ram_note} — 모델을 시스템 메모리에 두고 "
                                    "나눠 돕니다 (느림)")
-    if gb >= 8:
-        return "fp8-cast", "disk", (f"{gb:.0f}GB{ram_note} — 시스템 메모리가 모자라 디스크까지 "
-                                    "씁니다 (매우 느림). 메모리 64GB 를 권장합니다")
-    return "fp8-cast", "disk", (f"{gb:.0f}GB — 너무 작습니다. 매우 느리고 실패할 수 있습니다")
+    return "fp8-cast", "disk", (f"{gb:.0f}GB{ram_note} — 시스템 메모리가 모자라 디스크까지 "
+                                "씁니다 (매우 느림). 메모리 64GB 를 권장합니다")
+
+
+def vram_ok(vram_mb: int | None) -> bool:
+    """내 PC 생성이 되는 그래픽카드인가. 못 읽으면 막지 않는다(점검에서 따로 알린다)."""
+    return vram_mb is None or vram_mb / 1024 >= MIN_VRAM_GB
 
 
 def num_frames(seconds: float, fps: float) -> int:
@@ -446,5 +462,7 @@ def status(settings: dict | None = None) -> dict:
         "realesrgan": str(esr) if esr else "",
         "size": f"{s['width']}x{s['height']}",
         "ready": root.is_dir() and py.exists() and not missing,
+        "vram_ok": vram_ok(vram),
+        "min_vram_gb": MIN_VRAM_GB,
         "sys_python": sys.executable,
     }
