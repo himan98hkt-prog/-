@@ -80,6 +80,21 @@ foreach ($keep in @(".env", "seeds", "runs", "music", "config.yaml")) {
     if (Test-Path $p) { Ok "$keep 유지됨" }
 }
 
+# 매일 자동 업로드가 예전 방식으로 걸려 있으면 새 방식으로 다시 건다.
+# 예전 방식은 한국어 윈도우에서 매번 첫 줄에서 죽었다. 작업실을 켤 때도
+# 고치지만, 켜기 전에 아침이 오면 또 빠지므로 여기서 한 번 더 한다.
+$py = $null
+foreach ($cand in @("python", "py")) {
+    try { $v = & $cand --version 2>&1; if ($LASTEXITCODE -eq 0 -and "$v" -match "Python 3") { $py = $cand; break } } catch { }
+}
+if ($py) {
+    Push-Location $Target
+    $env:PYTHONUTF8 = "1"
+    $msg = & $py -c "from pipeline import win_schedule as w; ok, m = w.repair(None); print(m.splitlines()[0] if ok else '')" 2>$null
+    Pop-Location
+    if ("$msg".Trim()) { Ok "자동 업로드 예약을 새 방식으로 다시 걸었습니다" }
+}
+
 Write-Host "`n업데이트가 끝났습니다." -ForegroundColor Green
 Write-Host "  바탕화면의 [AI DEOKHU 작업실] 을 더블클릭하세요.`n" -ForegroundColor White
 Read-Host "엔터를 누르면 닫힙니다"

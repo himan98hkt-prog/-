@@ -18,6 +18,12 @@ from typing import Optional
 
 import typer
 
+from pipeline.console import make_safe
+
+# 예약 실행처럼 출력이 cp949 파일로 가는 곳에서도 ✓ ✗ — 한 글자 때문에
+# 영상을 만들다 말고 죽지 않게 한다. (돈을 쓴 뒤에 죽으면 더 아프다.)
+make_safe()
+
 # SHORTS_MOCK=1 로 실행하면 가짜 provider 를 붙여 API 비용 없이 화면을 둘러볼 수 있다.
 if os.getenv("SHORTS_MOCK"):
     import tests.mock_provider  # noqa: F401
@@ -543,9 +549,14 @@ def preview_cmd(
     """
     base = _load(config)
     pv = base.preview_cfg
+    # 시험용 모델(wan 등)은 클라우드 목록에만 있다. 엔진이 내 PC 면 그 모델이
+    # 없어서 설정 오류로 죽는다. 내 PC 는 어차피 공짜라 같은 모델로 짧게 뽑는다.
+    pv_model = pv.get("model")
+    if pv_model and pv_model not in base.provider_cfg.get("models", {}):
+        pv_model = None
     cfg = _load(
         config,
-        model=model or pv.get("model") or base.model_key,
+        model=model or pv_model or base.model_key,
         clip_duration=duration or int(pv.get("clip_duration") or 5),
         num_clips=1,
         mode="chain",

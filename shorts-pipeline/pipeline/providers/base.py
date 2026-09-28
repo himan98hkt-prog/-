@@ -82,12 +82,15 @@ class VideoProvider(ABC):
         poll_interval: float = 5.0,
         timeout: float = DEFAULT_TIMEOUT,
         on_log: Callable[[str, dict], None] | None = None,
+        settings: dict | None = None,
     ):
         self.endpoint = endpoint
         self.base_url = (base_url or "").rstrip("/")
         self.poll_interval = poll_interval
         self.timeout = timeout
         self._on_log = on_log or (lambda event, payload: None)
+        # providers.<이름> 설정 전체. 내 PC 엔진처럼 모델 주소만으로 안 되는 곳이 쓴다.
+        self.settings = settings or {}
 
     def log(self, event: str, **payload: Any) -> None:
         self._on_log(event, payload)

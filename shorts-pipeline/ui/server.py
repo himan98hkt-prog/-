@@ -254,6 +254,85 @@ def _paid_runs() -> int:
     return sum(1 for r in list_runs(limit=500) if (r.get("cost") or 0) > 0)
 
 
+def current_provider() -> str:
+    try:
+        from pipeline.config import load_config
+        return load_config(ROOT / "config.yaml").provider
+    except Exception:                                   # noqa: BLE001
+        return ""
+
+
+CLOUD_MODEL = "hailuo_23_pro"     # 내 PC 에서 클라우드로 돌아갈 때의 모델
+
+
+def engine_state(quick: bool = False) -> dict:
+    """영상 엔진: 클라우드(fal) 인가, 내 PC(LTX-2.5) 인가. 내 PC 준비는 됐나.
+
+    quick 이면 그래픽카드 조회(nvidia-smi, 몇 초 걸림)를 건너뛴다.
+    """
+    from pipeline.providers import ltx_local
+
+    provider, model, local_cfg = "", "", None
+    try:
+        from pipeline.config import load_config
+        cfg = load_config(CONFIG)
+        provider, model = cfg.provider, cfg.model_key
+        local_cfg = cfg.raw.get("providers", {}).get("local")
+    except Exception:                                   # noqa: BLE001
+        pass
+    s = ltx_local.settings_with_defaults(local_cfg)
+    _, missing = ltx_local.find_files(s)
+    py_ok = ltx_local.python_path(s).exists()
+    out = {"provider": provider, "model": model,
+           "ready": py_ok and not missing,
+           "ltx_dir": str(ltx_local.ltx_dir(s)), "python_ok": py_ok,
+           "missing": missing, "size": f"{s['width']}x{s['height']}"}
+    if not quick:
+        full = ltx_local.status(local_cfg)
+        out.update(vram_mb=full["vram_mb"], plan=full["plan"],
+                   realesrgan=full["realesrgan"])
+    return out
+
+
+def switch_engine(target: str) -> tuple[bool, str]:
+    """config.yaml 의 provider/model 을 바꾼다. 주석과 나머지는 그대로 둔다."""
+    from pipeline import configdiff
+
+    if target == "local":
+        st = engine_state(quick=True)
+        if not st["ready"]:
+            what = ("LTX 가 설치돼 있지 않습니다" if not st["python_ok"]
+                    else f"모델 파일 {len(st['missing'])}개가 없습니다")
+            return False, (f"아직 내 PC 로 못 바꿉니다 — {what}.\n"
+                           "tools 폴더의 ltx_setup.bat 을 먼저 실행하세요.")
+        updates = {"provider": "local", "model": ltx_local_default_model()}
+    elif target == "fal":
+        updates = {"provider": "fal", "model": CLOUD_MODEL}
+    else:
+        return False, f"알 수 없는 엔진: {target}"
+    configdiff.apply(CONFIG, updates)
+    label = "내 PC (LTX-2.5, 무료)" if target == "local" else "클라우드 (fal)"
+    msg = f"영상 엔진을 {label} 로 바꿨습니다."
+
+    # 예약이 걸려 있으면 시작 시각을 엔진에 맞춰 다시 건다. 내 PC 는 오래
+    # 걸리니 두 시간 먼저, 클라우드는 30분 먼저.
+    from pipeline import win_schedule as ws
+    if ws.supported():
+        st = ws.status()
+        if st.enabled and st.publish_time:
+            ok, _ = ws.enable(st.publish_time, st.targets or ["youtube"], st.mode,
+                              lead_minutes=ws.lead_minutes_for(target))
+            if ok:
+                start = ws._minus(st.publish_time, ws.lead_minutes_for(target))
+                msg += f" 자동 업로드는 {start} 에 시작하도록 맞췄습니다."
+    return True, msg
+
+
+def ltx_local_default_model() -> str:
+    from pipeline.providers.ltx_local import DEFAULT_MODEL
+    return DEFAULT_MODEL
+
+
 def schedule_state() -> dict:
     from pipeline import win_schedule as ws
 
@@ -265,8 +344,11 @@ def schedule_state() -> dict:
         "publish_time": st.publish_time,
         "next_run": st.next_run,
         "targets": st.targets,
-        "lead_minutes": ws.LEAD_MINUTES,
+        "mode": st.mode,
+        "lead_minutes": ws.lead_minutes_for(current_provider()),
         "note": st.raw,
+        # 왜 안 됐는지. 사람이 로그를 뒤지지 않아도 되게 한다.
+        "diagnosis": ws.diagnose(ROOT) if ws.supported() else None,
     }
 
 
@@ -567,10 +649,14 @@ def connection_state() -> dict:
         except (OSError, json.JSONDecodeError):
             pass
 
+    engine = engine_state(quick=True)
     return {
         "video": {
-            "ready": bool(val("FAL_API_KEY") or val("HIGGSFIELD_API_KEY")),
+            # 내 PC 엔진이면 키가 없어도 된다. 대신 LTX 가 깔려 있어야 한다.
+            "ready": engine["ready"] if engine["provider"] == "local"
+                     else bool(val("FAL_API_KEY") or val("HIGGSFIELD_API_KEY")),
             "label": "영상 만들기",
+            "engine": engine["provider"],
         },
         "youtube": {
             "ready": token_file.exists(),
@@ -802,6 +888,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(overview())
             return
 
+        if p == "/api/engine":
+            self._json(engine_state(quick=False))
+            return
         if p == "/api/schedule":
             self._json(schedule_state())
             return
@@ -963,6 +1052,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         if u.path == "/api/schedule":
             self._schedule(body)
+            return
+        if u.path == "/api/engine":
+            ok, msg = switch_engine(str(body.get("provider", "")))
+            self._json({"ok": ok, "message": msg, "engine": engine_state(quick=True)},
+                       200 if ok else 400)
+            return
+        if u.path == "/api/schedule-run":
+            from pipeline import win_schedule as ws
+            ok, msg = ws.run_now()
+            self._json({"ok": ok, "message": msg}, 200 if ok else 400)
             return
         if u.path == "/api/settings":
             self._save_settings(body)
@@ -1321,8 +1420,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "업로드할 곳을 하나 이상 고르세요."}, 400)
                 return
             mode = body.get("mode", "chain")
-            ok, msg = ws.enable(str(body.get("time", "21:00")), targets,
-                                mode if mode in ("chain", "montage") else "chain")
+            ok, msg = ws.enable(str(body.get("time", ws.DEFAULT_PUBLISH_TIME)), targets,
+                                mode if mode in ("chain", "montage") else "chain",
+                                lead_minutes=ws.lead_minutes_for(current_provider()))
         else:
             ok, msg = ws.disable()
         self._json({"ok": ok, "message": msg}, 200 if ok else 400)
@@ -1784,12 +1884,30 @@ def _bind(port: int) -> ThreadingHTTPServer:
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
+def _repair_schedule() -> None:
+    """예전 방식으로 걸린 예약을 새 방식으로 다시 건다.
+
+    업데이트만 하고 [예약 저장] 을 다시 안 누르면, 예전 예약이 남아 매일
+    똑같이 첫 줄에서 죽는다. 사용자가 알 방법이 없으니 켤 때 알아서 고친다.
+    """
+    from pipeline import win_schedule as ws
+
+    try:
+        ok, msg = ws.repair(None)
+    except Exception as exc:                            # noqa: BLE001
+        print(f"  ! 예약 점검 실패: {exc}")
+        return
+    if ok:
+        print("  예약을 새 방식으로 다시 걸었습니다. " + msg.splitlines()[0])
+
+
 def serve(port: int = 8765, open_browser: bool = True) -> None:
     httpd = _bind(port)
     url = f"http://127.0.0.1:{port}"
     print(f"\n  AI DEOKHU 작업실이 열렸습니다\n  {url}\n")
     print("  창을 닫으려면 이 터미널에서 Ctrl+C 를 누르세요.\n")
     threading.Thread(target=_queue_worker, daemon=True).start()
+    threading.Thread(target=_repair_schedule, daemon=True).start()
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

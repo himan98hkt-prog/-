@@ -34,9 +34,11 @@ def available() -> list[str]:
 # 등록은 import 시점에 이뤄진다.
 from .fal import FalProvider          # noqa: E402
 from .higgsfield import HiggsfieldProvider  # noqa: E402
+from .ltx_local import LocalLTXProvider  # noqa: E402
 
 register("fal", FalProvider)
 register("higgsfield", HiggsfieldProvider)
+register("local", LocalLTXProvider)
 
 __all__ = [
     "GenerationRequest",

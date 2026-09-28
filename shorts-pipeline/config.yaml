@@ -11,7 +11,7 @@
 mode: chain
 
 # ── provider ─────────────────────────────────────────────────────────
-provider: fal              # fal | higgsfield
+provider: fal              # fal | higgsfield | local (내 PC 의 LTX-2.5, 무료)
 # hailuo 는 **초당이 아니라 건당** 과금이라 10초 클립이 초당 단가로는 절반이다.
 # kling 6x5초 = $2.10 / hailuo 3x10초 = $1.47 — 같은 30초인데 30% 싸다.
 model: hailuo_23_pro       # providers 섹션의 키
@@ -229,6 +229,50 @@ providers:
         endpoint: upscale_image
         credits_per_image: 2
 
+  # ── 내 PC 에서 LTX-2.5 로 만들기 (무료) ──────────────────────────────
+  # 작업실 [자동 업로드] 탭의 '영상 엔진' 에서 고르면 provider/model 이 바뀐다.
+  # 이 블록은 없어도 된다 — 없으면 아래와 같은 기본값을 쓴다.
+  #
+  # 필요한 것: NVIDIA 그래픽카드. VRAM 32GB 이상이면 빠르다.
+  #   그 아래(8~24GB)는 모델을 시스템 메모리에 두고 나눠 돌린다 — 돌지만 느리다.
+  #   이때 시스템 메모리가 40GB 이상이어야 하고(64GB 권장), 모자라면 디스크까지
+  #   써서 더 느려진다. (Lightricks 문서: cpu 오프로드 ~36GB RAM + ~5GB VRAM)
+  #   설치는 tools/ltx_setup.bat (약 70GB 받음).
+  local:
+    ltx_dir: ""                # 비우면 .env 의 LTX_DIR, 그것도 없으면 C:\LTX-2
+    models_dir: models/ltx-2.5 # ltx_dir 기준
+    # 최종 크기. 64 의 배수. 절반 크기로 움직임을 잡고 LTX 가 2배로 키운다.
+    # 576x1024 가 가장 가볍다. 32GB 이상이면 704x1280 / 1088x1920 도 된다.
+    # 어느 쪽이든 합성할 때 1080x1920 으로 맞춘다.
+    width: 576
+    height: 1024
+    fps: 24
+    quantization: auto         # auto = 그래픽카드 메모리를 보고 고른다
+    offload: auto
+    seed: 0                    # 0 이면 매번 다르게
+    clip_timeout_minutes: 90
+    # 클립마다 Real-ESRGAN 으로 한 번 더 키운다. tools/realesrgan 에 넣어 두면 쓴다.
+    upscale_clips: auto        # auto | realesrgan | off
+    realesrgan_model: realesr-animevideov3
+    realesrgan_scale: 2
+    models:
+      ltx_25_distilled:        # 빠른 기본. 8단계 + 업스케일 4단계
+        endpoint: distilled
+        price_per_clip: 0
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: false
+      ltx_25_dfr:              # 최고 화질. 훨씬 느리고 메모리를 더 쓴다
+        endpoint: dfr_pipeline
+        price_per_clip: 0
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: false
+    upscalers:
+      local:
+        endpoint: realesrgan
+        price_per_image: 0
+
 # ══════════════════════════════════════════════════════════════════════
 #  업로드
 # ══════════════════════════════════════════════════════════════════════
@@ -245,7 +289,7 @@ publish:
       AI로 만든 시네마틱 루프입니다.
       끊기지 않고 계속 앞으로 나아가는 30초.
 
-      ▶ 매일 저녁 9시 업로드
+      ▶ 매일 아침 9시 업로드
       ▶ 인스타그램 @ai.deokhu
 
       #Shorts #AIart #AIanimation #cinematic #shortsfeed

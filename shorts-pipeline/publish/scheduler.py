@@ -11,21 +11,76 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import random
 import shutil
 import subprocess
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from pipeline.console import child_env, make_safe  # noqa: E402
 _IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 _MAX_WAIT = timedelta(hours=3)   # --at 대기 상한. 이보다 길면 그냥 올린다.
 
 
 def log(msg: str) -> None:
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
+
+
+# 예약 실행이 창 없이(pythonw) 돌 때 출력을 받을 파일. --log 로 연다.
+_LOG_FH = None
+
+# 윈도우에서 자식 프로세스가 검은 창을 띄우지 않게 한다. 아침에 뜬 빈 창을
+# 누가 닫아버리면 그대로 작업이 죽는다.
+_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
+
+STATE_NAME = "schedule_state.json"
+
+
+def child_python() -> str:
+    """자식에게 쓸 파이썬. 예약은 창 없는 pythonw 로 도는데, 자식까지 pythonw 면
+    출력 핸들을 못 잡는 경우가 있다. 같은 폴더의 python.exe 를 창 없이 띄운다."""
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe" and exe.with_name("python.exe").exists():
+        return str(exe.with_name("python.exe"))
+    return sys.executable
+
+
+def write_state(**fields) -> None:
+    """마지막 예약 실행이 어디까지 갔는지. 작업실의 '왜 안 됐나' 가 읽는다."""
+    path = ROOT / "runs" / STATE_NAME
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        old = {}
+        if path.exists():
+            try:
+                old = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                old = {}
+        old.update(fields)
+        path.write_text(json.dumps(old, ensure_ascii=False, indent=1),
+                        encoding="utf-8")
+    except OSError:
+        pass
+
+
+def open_log(path: str) -> None:
+    """출력을 파일로 돌린다. pythonw 는 stdout 이 없어서 이게 없으면 다 사라진다."""
+    global _LOG_FH
+    target = Path(path)
+    if not target.is_absolute():
+        target = ROOT / target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _LOG_FH = target.open("a", encoding="utf-8", errors="replace", buffering=1)
+    sys.stdout = sys.stderr = _LOG_FH
 
 
 def append_history(line: str) -> None:
@@ -93,8 +148,12 @@ def wait_until(clock: str) -> None:
 
 
 def run(args: list[str]) -> int:
+    """자식 파이썬을 돌린다. UTF-8 을 넘기고, 창을 띄우지 않고, 같은 로그에 쓴다."""
     log(f"  $ {' '.join(args[1:])}")
-    return subprocess.call(args, cwd=ROOT)
+    out = _LOG_FH
+    return subprocess.call(args, cwd=ROOT, env=child_env(),
+                           stdout=out, stderr=subprocess.STDOUT if out else None,
+                           creationflags=_NO_WINDOW)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -111,10 +170,43 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--instagram", action="store_true")
     ap.add_argument("--generate-only", action="store_true", help="만들기만 하고 끝낸다")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--log", default=None, metavar="PATH",
+                    help="출력을 이 파일에 덧붙인다 (창 없이 돌 때)")
     args = ap.parse_args(argv)
 
-    sys.path.insert(0, str(ROOT))
+    if args.log:
+        open_log(args.log)
+    make_safe()
 
+    started = datetime.now().isoformat(timespec="seconds")
+    write_state(started=started, finished="", result="running", message="",
+                pid=os.getpid())
+    try:
+        code = _main(args)
+    except Exception as exc:                           # noqa: BLE001
+        # 무엇으로 죽었는지 남기지 않으면 사람은 "그냥 안 됐다" 밖에 모른다.
+        traceback.print_exc()
+        msg = f"{type(exc).__name__}: {exc}"[:300]
+        append_history(f"FAIL\t예상 못 한 오류\t{msg}")
+        write_state(finished=datetime.now().isoformat(timespec="seconds"),
+                    result="crash", message=msg)
+        return 1
+    last = _last_history()
+    write_state(finished=datetime.now().isoformat(timespec="seconds"),
+                result="ok" if code == 0 else "fail", message=last)
+    return code
+
+
+def _last_history() -> str:
+    path = ROOT / "runs" / "schedule.log"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    return lines[-1][:300] if lines else ""
+
+
+def _main(args) -> int:
     seeds_dir = Path(args.seeds)
     if not seeds_dir.is_absolute():
         seeds_dir = ROOT / seeds_dir
@@ -135,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     log(f"▶ 시드 {seed.name} — 「{content.title}」")
 
     # ── 생성 ─────────────────────────────────────────────────────────
-    gen = [sys.executable, "main.py", "generate", "--image", str(seed),
+    gen = [child_python(), "main.py", "generate", "--image", str(seed),
            "--config", args.config, "--yes"]
     if args.clips:
         gen += ["--clips", str(args.clips)]
@@ -170,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     for flag, label in (("--youtube", "유튜브"), ("--instagram", "인스타그램")):
         if not getattr(args, flag.lstrip("-")):
             continue
-        cmd = [sys.executable, "main.py", "publish", "--run", run_id,
+        cmd = [child_python(), "main.py", "publish", "--run", run_id,
                "--config", args.config, "--title", title, flag]
         if args.dry_run:
             cmd.append("--dry-run")

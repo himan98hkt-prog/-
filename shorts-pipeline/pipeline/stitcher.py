@@ -108,8 +108,10 @@ def stitch(
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     fps = resolve_fps(clips, fps)
+    # lanczos: 내 PC 엔진(576x1024)처럼 작은 클립을 1080x1920 으로 키울 때
+    # 기본값(bicubic)보다 윤곽이 덜 뭉개진다. 줄일 때도 손해가 없다.
     scale_chain = (
-        f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+        f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
         f"crop={width}:{height},fps={fps},setsar=1,format=yuv420p"
     )
 

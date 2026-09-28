@@ -142,7 +142,10 @@ def wrap(text: str, *, font: str, size: int, max_width: int,
         if size <= 14:
             break
         size = max(14, round(size * 0.88))
-    return lines[:max_lines], size
+    # 최소 크기로도 두 줄에 못 담으면 **줄을 더 쓴다.** 예전에는 앞의 두 줄만
+    # 돌려줘서 뒤쪽 낱말이 소리 없이 사라졌다. 훅이 반쯤 잘린 채 화면에
+    # 나가는 것보다 한 줄 더 나오는 편이 낫다.
+    return lines, size
 
 
 def hook_filter(text: str, *, seconds: float, height: int,
