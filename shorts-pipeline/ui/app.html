@@ -520,7 +520,8 @@
         <p class="sub">어디서 영상을 만들지 고릅니다. 예약 실행도 여기서 고른 엔진을 씁니다.</p>
         <div class="checks" id="engPick">
           <label><input type="radio" name="eng" value="fal"> 클라우드 (fal · 편당 약 $1)</label>
-          <label><input type="radio" name="eng" value="local"> 내 PC (LTX-2.5 · 무료)</label>
+          <label><input type="radio" name="eng" value="ltx"> LTX 클라우드 (LTX Desktop 과 같은 방식 · 20초 약 $2.6)</label>
+          <label><input type="radio" name="eng" value="local"> 내 PC (LTX-2.5 · 무료 · VRAM 15GB 이상)</label>
         </div>
         <div class="diag" id="engInfo">불러오는 중…</div>
       </div>
@@ -971,6 +972,13 @@ function applyDefaults(d) {
   if (!d) return;
   DEFAULTS = d;
   const dur = $("duration");
+  // 20초 한 번에는 LTX 클라우드만 된다. 그 엔진일 때만 보여준다.
+  const has20 = dur && [...dur.options].some((o) => o.value === "20");
+  if (dur && (d.max_duration || 10) >= 20 && !has20) {
+    dur.add(new Option("20초 — 한 번에 끝까지, 이음매 없음", "20"));
+  } else if (dur && (d.max_duration || 10) < 20 && has20) {
+    [...dur.options].filter((o) => o.value === "20").forEach((o) => o.remove());
+  }
   if (dur && [...dur.options].some((o) => Number(o.value) === d.duration)) {
     dur.value = String(d.duration);
   }
@@ -2073,29 +2081,37 @@ $("autoSave").onclick = async () => {
 // ── 영상 엔진 ─────────────────────────────────────────────────────
 function renderEngine(e) {
   const box = $("engInfo");
-  document.querySelectorAll('input[name="eng"]').forEach((r) => {
-    r.checked = r.value === (e.provider === "local" ? "local" : "fal");
-  });
+  const cur = ["local", "ltx"].includes(e.provider) ? e.provider : "fal";
+  document.querySelectorAll('input[name="eng"]').forEach((r) => { r.checked = r.value === cur; });
   const rows = [];
   if (e.provider === "local") {
     rows.push(`<b>${e.ready ? "✓" : "✗"} 내 PC 에서 만듭니다 (${esc(e.size)})</b>`);
+  } else if (e.provider === "ltx") {
+    rows.push(`<b>✓ LTX 클라우드에서 만듭니다 — LTX Desktop 이 이 PC 에서 쓰던 것과 같은 방식</b>`);
   } else {
-    rows.push(`<b>· 지금은 클라우드에서 만듭니다</b>`);
+    rows.push(`<b>· 지금은 fal 클라우드에서 만듭니다</b>`);
   }
   const li = [];
-  li.push(e.python_ok ? `LTX 설치됨 — ${esc(e.ltx_dir)}`
-                      : `LTX 가 아직 없습니다 — tools 폴더의 <b>ltx_setup.bat</b> 을 한 번 실행하세요`);
-  if (e.missing && e.missing.length) li.push(`모델 파일 ${e.missing.length}개 없음`);
-  if (e.vram_mb != null) {
-    li.push(`그래픽카드 ${Math.round(e.vram_mb / 1024)}GB — ${esc(e.plan.note)}`);
-  } else if ("vram_mb" in e) {
-    li.push("NVIDIA 그래픽카드를 찾지 못했습니다 (LTX-2.5 는 NVIDIA 가 필요합니다)");
+  if (e.vram_ok === false) {
+    // 작은 그래픽카드: 설치 안내를 보여주면 안 된다. 70GB 를 받아도 못 돌린다.
+    li.push(`이 그래픽카드(${Math.round(e.vram_mb / 1024)}GB)로는 내 PC 생성이 안 됩니다 ` +
+            `(${e.min_vram_gb}GB 이상 필요). LTX Desktop 도 이 경우 LTX 클라우드로 만듭니다` +
+            (e.provider === "ltx" ? "." : ` — 위의 <b>LTX 클라우드</b> 를 고르세요`));
+  } else {
+    li.push(e.python_ok ? `LTX 설치됨 — ${esc(e.ltx_dir)}`
+                        : `내 PC 로 만들려면 tools 폴더의 <b>ltx_setup.bat</b> 을 한 번 실행하세요`);
+    if (e.missing && e.missing.length) li.push(`모델 파일 ${e.missing.length}개 없음`);
+    if (e.vram_mb != null) {
+      li.push(`그래픽카드: ${esc(e.plan.note)}`);
+    } else if ("vram_mb" in e) {
+      li.push("NVIDIA 그래픽카드를 찾지 못했습니다 (LTX-2.5 는 NVIDIA 가 필요합니다)");
+    }
   }
   if ("realesrgan" in e) {
     li.push(e.realesrgan ? "Real-ESRGAN 으로 한 번 더 업스케일합니다"
-                         : "업스케일: LTX 2배까지 (Real-ESRGAN 을 넣으면 한 번 더)");
+                         : "업스케일: 합성할 때 1080x1920 으로 (Real-ESRGAN 을 넣으면 한 번 더)");
   }
-  box.className = `diag ${e.provider === "local" ? (e.ready ? "ok" : "bad") : "info"}`;
+  box.className = `diag ${e.provider === "local" ? (e.ready ? "ok" : "bad") : e.provider === "ltx" ? "ok" : "info"}`;
   box.innerHTML = rows.join("") + `<ul>${li.map((x) => `<li>${x}</li>`).join("")}</ul>`;
 }
 
@@ -2112,6 +2128,11 @@ document.querySelectorAll('input[name="eng"]').forEach((r) => {
         body: JSON.stringify({ provider: r.value }) });
       toast(res.message);
       loadEngine(); loadSchedule();
+      // 엔진마다 되는 길이가 다르다(LTX 클라우드 20초 / 나머지 10초). 다시 맞춘다.
+      try {
+        const st = await api("/api/state");
+        if (st.defaults) { applyDefaults(st.defaults); syncClips(); updateCost(); }
+      } catch (_) { /* 화면은 다음 새로고침 때 맞춰진다 */ }
     } catch (e) { toast(e.message, true); loadEngine(); }
   };
 });

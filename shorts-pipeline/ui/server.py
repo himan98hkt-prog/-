@@ -290,7 +290,8 @@ def engine_state(quick: bool = False) -> dict:
     if not quick:
         full = ltx_local.status(local_cfg)
         out.update(vram_mb=full["vram_mb"], plan=full["plan"],
-                   realesrgan=full["realesrgan"])
+                   realesrgan=full["realesrgan"], vram_ok=full["vram_ok"],
+                   min_vram_gb=full["min_vram_gb"])
     return out
 
 
@@ -312,13 +313,27 @@ def switch_engine(target: str) -> tuple[bool, str]:
                     else f"모델 파일 {len(st['missing'])}개가 없습니다")
             return False, (f"아직 내 PC 로 못 바꿉니다 — {what}.\n"
                            "tools 폴더의 ltx_setup.bat 을 먼저 실행하세요.")
-        updates = {"provider": "local", "model": ltx_local_default_model()}
+        updates = {"provider": "local", "model": ltx_local_default_model(),
+                   "num_clips": "2", "clip_duration": "10"}
+    elif target == "ltx":
+        from pipeline import envfile
+        from pipeline.providers.ltx_api import DEFAULT_MODEL
+        if not (envfile.read_raw().get("LTX_API_KEY") or os.getenv("LTX_API_KEY")):
+            return False, ("LTX API 키가 없습니다. [설정] 탭 → 영상 만들기 → 'LTX API 키' 에 "
+                           "LTX Desktop 설정의 키를 붙여넣으세요.")
+        # LTX Fast 는 한 번에 20초가 된다. 두 클립을 잇는 것보다 이음매가 없고
+        # 값은 같다(초당 과금). 그래서 1개 x 20초로 둔다.
+        updates = {"provider": "ltx", "model": DEFAULT_MODEL,
+                   "num_clips": "1", "clip_duration": "20"}
     elif target == "fal":
-        updates = {"provider": "fal", "model": CLOUD_MODEL}
+        # hailuo 는 한 클립 10초가 상한이다. 20초로 남아 있으면 설정 오류로 막힌다.
+        updates = {"provider": "fal", "model": CLOUD_MODEL,
+                   "num_clips": "2", "clip_duration": "10"}
     else:
         return False, f"알 수 없는 엔진: {target}"
     configdiff.apply(CONFIG, updates)
-    label = "내 PC (LTX-2.5, 무료)" if target == "local" else "클라우드 (fal)"
+    label = {"local": "내 PC (LTX-2.5, 무료)", "ltx": "LTX 클라우드 (LTX Desktop 과 같은 방식)",
+             "fal": "클라우드 (fal)"}[target]
     msg = f"영상 엔진을 {label} 로 바꿨습니다."
 
     # 예약이 걸려 있으면 시작 시각을 엔진에 맞춰 다시 건다. 내 PC 는 오래
@@ -454,7 +469,9 @@ def config_defaults() -> dict:
         return {"mode": "chain", "clips": 3, "duration": 10, "seconds": 30}
     return {"mode": cfg.mode, "clips": cfg.num_clips,
             "duration": cfg.clip_duration,
-            "seconds": cfg.num_clips * cfg.clip_duration}
+            "seconds": cfg.num_clips * cfg.clip_duration,
+            # LTX 클라우드는 한 번에 20초까지 된다. 화면이 그때만 20초를 보여준다.
+            "max_duration": cfg.model.max_duration}
 
 
 def monthly_budget() -> dict:
@@ -661,6 +678,7 @@ def connection_state() -> dict:
         "video": {
             # 내 PC 엔진이면 키가 없어도 된다. 대신 LTX 가 깔려 있어야 한다.
             "ready": engine["ready"] if engine["provider"] == "local"
+                     else bool(val("LTX_API_KEY")) if engine["provider"] == "ltx"
                      else bool(val("FAL_API_KEY") or val("HIGGSFIELD_API_KEY")),
             "label": "영상 만들기",
             "engine": engine["provider"],

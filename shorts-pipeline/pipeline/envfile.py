@@ -35,6 +35,10 @@ FIELDS: tuple[Field, ...] = (
     Field("FAL_API_KEY", SECRET, "fal.ai 키", "video",
           "fal.ai → Dashboard → API Keys 에서 만든 키를 붙여넣으세요.",
           "aaaaaaaa-bbbb-...:0123456789abcdef"),
+    Field("LTX_API_KEY", SECRET, "LTX API 키 (LTX 클라우드로 만들 때)", "video",
+          "LTX Desktop 에 넣어 둔 그 키입니다. 앱의 설정(Settings)에서 복사하거나 "
+          "console.ltx.video → API Keys 에서 만드세요. 쓴 만큼 LTX 에서 과금됩니다.",
+          "ltxv_..."),
     Field("LTX_DIR", PLAIN, "내 PC 엔진(LTX-2) 폴더 (선택)", "video",
           "내 PC 에서 LTX-2.5 로 만들 때만 씁니다. tools\\ltx_setup.bat 이 설치한 "
           "폴더입니다. 비워두면 C:\\LTX-2 를 봅니다.",

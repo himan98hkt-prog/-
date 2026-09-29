@@ -103,6 +103,12 @@ def check_provider(root: Path, provider: str, settings: dict | None = None) -> S
                 "S3 를 설정하거나 provider 를 fal 로 바꾸세요"))
     elif provider == "local":
         checks.extend(check_local(settings))
+    elif provider == "ltx":
+        key = _env("LTX_API_KEY")
+        checks.append(Check(
+            "LTX_API_KEY", OK if key else FAIL, _mask(key) if key else "없음",
+            "LTX Desktop 설정(Settings)의 LTX API 키를 복사하거나 "
+            "https://console.ltx.video 에서 만들어 작업실 [설정] 탭에 붙여넣기"))
     return Section(f"영상 생성 ({provider})", checks, "필수")
 
 

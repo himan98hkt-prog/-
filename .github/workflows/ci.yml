@@ -119,6 +119,10 @@ jobs:
       - name: 내 PC 엔진 (LTX-2.5 · 업스케일)
         run: python tests/test_local_engine.py
 
+      # LTX Desktop 이 8GB 카드에서 쓰는 LTX 클라우드. 가짜 LTX 서버로 돌린다.
+      - name: LTX 클라우드 엔진
+        run: python tests/test_ltx_api.py
+
       # 클립 길이/개수 연동과 [AI로 제목 뽑기] 는 브라우저에서만 재현된다.
       # OpenRouter 는 부르지 않는다 — 가짜 서버를 띄워 그쪽을 보게 한다.
       - name: 브라우저에서 화면 눌러보기
