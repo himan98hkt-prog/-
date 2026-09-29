@@ -1,0 +1,152 @@
+mode: chain
+provider: mock
+model: mock_model
+clip_duration: 5
+num_clips: 4
+motion_prompt: smooth drone camera following subject from behind, constant forward
+  motion, steady speed, no camera shake, no scene cut, cinematic, consistent lighting
+negative_prompt: scene change, camera cut, zoom out, reverse motion, blur, text, watermark,
+  distorted geometry, morphing architecture
+scene_prompts: []
+upscale_between_clips: true
+upscaler: esrgan
+crossfade_seconds: 0.3
+montage_transition: cut
+montage_transition_seconds: 0.25
+loop_back: false
+output:
+  width: 1080
+  height: 1920
+  fps: 30
+  crf: 18
+  audio: silent
+  audio_file: ''
+cost:
+  retry_multiplier: 1.8
+  hard_cap_usd: 25.0
+providers:
+  fal:
+    endpoint_base: https://queue.fal.run
+    models:
+      wan_25_480p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.05
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      wan_25_720p:
+        endpoint: fal-ai/wan-25-preview/image-to-video
+        price_per_second: 0.1
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_25_turbo_pro:
+        endpoint: fal-ai/kling-video/v2.5-turbo/pro/image-to-video
+        price_per_second: 0.07
+        max_duration: 10
+        supports_end_image: false
+        supports_negative: true
+      kling_30_pro:
+        endpoint: fal-ai/kling-video/v3/pro/image-to-video
+        price_per_second: 0.112
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: true
+      hailuo_23_pro:
+        endpoint: fal-ai/minimax/hailuo-02/pro/image-to-video
+        price_per_clip: 0.49
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: false
+      veo_31_fast:
+        endpoint: fal-ai/veo3.1/fast/image-to-video
+        price_per_second: 0.1
+        max_duration: 8
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      esrgan:
+        endpoint: fal-ai/esrgan
+        price_per_image: 0.01
+      topaz:
+        endpoint: fal-ai/topaz/upscale/image
+        price_per_image: 0.1
+  higgsfield:
+    endpoint_base: https://platform.higgsfield.ai/v1
+    plan: ultra_annual
+    plans:
+      plus_monthly:
+        usd_per_month: 49
+        credits_per_month: 1000
+      plus_annual:
+        usd_per_month: 39
+        credits_per_month: 1000
+      ultra_monthly:
+        usd_per_month: 129
+        credits_per_month: 3000
+      ultra_annual:
+        usd_per_month: 99
+        credits_per_month: 3000
+    models:
+      kling3_0_turbo:
+        endpoint: kling3_0_turbo
+        credits_per_clip: 6
+        max_duration: 15
+        supports_end_image: false
+        supports_negative: true
+      minimax_h3:
+        endpoint: minimax_h3
+        credits_per_clip: 12
+        max_duration: 15
+        supports_end_image: true
+        supports_negative: true
+      flux_3_video:
+        endpoint: flux_3_video
+        credits_per_clip: 15
+        max_duration: 20
+        supports_end_image: true
+        supports_negative: false
+    upscalers:
+      topaz:
+        endpoint: upscale_image
+        credits_per_image: 2
+  mock:
+    endpoint_base: http://localhost
+    models:
+      mock_model:
+        endpoint: mock
+        price_per_second: 0.07
+        max_duration: 10
+        supports_end_image: true
+        supports_negative: true
+    upscalers:
+      esrgan:
+        endpoint: mock-up
+        price_per_image: 0.01
+publish:
+  youtube:
+    enabled: false
+    privacy: private
+    category_id: '24'
+    title_template: '{title} #Shorts'
+    description_template: '{description}
+
+
+      #Shorts #AIart #AIanimation #cinematic
+
+      '
+    tags:
+    - shorts
+    - ai art
+    - ai animation
+    - cinematic
+    - loop
+    daily_upload_cap: 90
+  instagram:
+    enabled: false
+    caption_template: '{description}
+
+
+      #reels #aiart #aianimation #cinematic'
+    share_to_feed: true
+    daily_upload_cap: 45
