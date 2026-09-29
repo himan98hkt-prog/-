@@ -35,10 +35,12 @@ def available() -> list[str]:
 from .fal import FalProvider          # noqa: E402
 from .higgsfield import HiggsfieldProvider  # noqa: E402
 from .ltx_local import LocalLTXProvider  # noqa: E402
+from .ltx09 import LTX09Provider      # noqa: E402
 
 register("fal", FalProvider)
 register("higgsfield", HiggsfieldProvider)
 register("local", LocalLTXProvider)
+register("ltx09", LTX09Provider)
 
 __all__ = [
     "GenerationRequest",

@@ -16,6 +16,7 @@ API 호출은 0회, 비용은 $0 이다.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -358,94 +359,168 @@ def test_native_audio_survives_stitching():
 
 # ── 7. 실제 원리한입 설정 ────────────────────────────────────────────
 def test_wonri_config_is_usable():
-    """저장소에 든 config.wonri.yaml 이 그대로 돌아야 한다."""
+    """저장소에 든 config.wonri.yaml 이 8GB 카드에서 그대로 돌 수 있어야 한다."""
     from pipeline.config import load_config
+    from pipeline.providers import ltx09
 
     cfg = load_config(ROOT / "config.wonri.yaml")
     assert cfg.channel_slug == "wonri"
-    assert cfg.publish_at == "09:00"          # 아침 9시
-    assert cfg.model_key.startswith("ltx")    # LTX 로 만든다
-    assert cfg.model.accepts_duration(cfg.clip_duration)
-    assert cfg.model.has_native_audio
+    assert cfg.publish_at == "09:00"              # 아침 9시
+    assert cfg.provider == "ltx09"                # 집 PC 엔진
+    assert cfg.model.cost_per_clip(cfg.clip_duration, 0.0) == 0   # 편당 $0
+
+    s = cfg.provider_cfg
+    w, h = int(s["width"]), int(s["height"])
+    # 어기면 실행 시점에 깨지는 것들
+    ltx09.check_size(w, h)                        # 32 의 배수
+    assert w <= ltx09.SOFT_MAX_W and h <= ltx09.SOFT_MAX_H, \
+        f"{w}x{h} 는 권장 범위(720x1280)를 넘는다 — 8GB 에서 위험하다"
+
+    from pipeline.providers.ltx_local import num_frames
+    frames = num_frames(cfg.clip_duration, float(s["fps"]))
+    assert frames % 8 == 1, f"프레임 수는 8k+1 이어야 한다 ({frames})"
+    assert frames < ltx09.SOFT_MAX_FRAMES, \
+        f"{frames}프레임은 권장 상한(257)을 넘는다 — 8GB 에서 메모리가 모자란다"
+
+    # 0.9.x 는 소리를 만들지 않는다. 음악을 깔아야 무음으로 나가지 않는다.
+    assert not cfg.model.has_native_audio
+    assert cfg.output.get("audio") != "silent"
 
     # 기본 채널과 폴더가 겹치면 서로의 영상을 집어 올린다
     base = load_config(ROOT / "config.yaml")
     assert cfg.runs_dir != base.runs_dir
     assert cfg.seeds_dir != base.seeds_dir
 
-    # 하루 한 편 × 30일이 한 달 상한 안에 들어와야 예약이 도중에 멈추지 않는다
-    monthly = cfg.model.cost_per_clip(cfg.clip_duration, 0.0) * cfg.num_clips * 30
-    cap = cfg.cost_cfg["monthly_cap_usd"]
-    assert monthly <= cap, f"매일 1편이면 월 ${monthly:.2f} 인데 상한이 ${cap} 다"
-
 
 def test_wonri_end_to_end():
     """원리한입 설정 그대로 생성 → 합성까지 실제로 돌린다.
 
-    provider 만 가짜로 바꾼다. 길이·해상도 파라미터 전달, 소리 유지,
-    산출물이 이 채널 폴더에 떨어지는 것까지 한 번에 확인한다.
-    API 호출 0회, 비용 $0.
+    그래픽카드가 없으므로 LTX 실행 파일만 가짜로 바꾼다. 명령을 만드는 코드와
+    결과를 찾는 코드는 진짜가 돈다 — 그 둘이 이 엔진에서 틀리기 쉬운 자리다.
     """
-    import tests.mock_provider as mock
+    import os
+    import shutil
+
     from pipeline.config import load_config
+    from pipeline.ffmpeg_util import dimensions_of
     from pipeline.modes import orchestrate
-    from pipeline.ffmpeg_util import dimensions_of, has_audio
     from pipeline.runlog import Run
     from pipeline.stitcher import stitch
     from pipeline.validator import prepare_input
 
     real = yaml.safe_load((ROOT / "config.wonri.yaml").read_text(encoding="utf-8"))
-    # 모델의 능력치(길이 격자·native audio)는 그대로 두고 provider 만 바꾼다.
-    spec = real["providers"]["fal"]["models"][real["model"]]
-    real["provider"] = "mock"
-    real["providers"]["mock"] = {
-        "endpoint_base": "mock://",
-        "models": {real["model"]: spec},
-        "upscalers": {"esrgan": {"endpoint": "mock", "price_per_image": 0.0}},
-    }
-    TMP.mkdir(parents=True, exist_ok=True)
-    path = TMP / "wonri_mock.yaml"
+
+    # 가짜 LTX 설치본: inference.py · .venv 파이썬 · configs/
+    home = TMP / "ltxhome"
+    (home / "configs").mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / "tests" / "fake_ltx09.py", home / "inference.py")
+    (home / "configs" / "ltxv-2b-0.9.8-distilled-fp8.yaml").write_text("{}\n",
+                                                                      encoding="utf-8")
+    venv = home / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+    venv.mkdir(parents=True, exist_ok=True)
+    py = venv / ("python.exe" if os.name == "nt" else "python")
+    if not py.exists():
+        py.symlink_to(sys.executable)
+
+    real["providers"]["ltx09"]["ltx_dir"] = str(home)
+    real["providers"]["ltx09"]["python"] = str(py)
+    real["providers"]["ltx09"]["upscale_clips"] = "off"   # Real-ESRGAN 은 없다
+    path = TMP / "wonri_fake.yaml"
     path.write_text(yaml.safe_dump(real, allow_unicode=True), encoding="utf-8")
 
     cfg = load_config(path)
-    mock.MockProvider.counter = 0
-    mock.MockProvider.fail_on = set()
-    mock.MockProvider._attempts = {}
-    mock.MockProvider.requests = []
-    mock.MockProvider.with_audio = True      # LTX-2 는 소리를 함께 만든다
+    log = TMP / "ltx09_calls.log"
+    log.unlink(missing_ok=True)
+    os.environ["FAKE_LTX09_LOG"] = str(log)
     try:
-        run = Run.create(TMP / "runs-wonri", "e2e")
-        seed = make_clip(TMP / "unused.mp4", audio=False)  # ffmpeg 존재 확인용
-        assert seed.exists()
+        run = Run.create(TMP / "runs-wonri", "e2e09")
         subprocess.run(
             ["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
              "-i", "testsrc=size=1080x1920:rate=1:duration=1",
-             "-frames:v", "1", str(TMP / "seed.png")],
+             "-frames:v", "1", str(TMP / "seed09.png")],
             check=True, capture_output=True)
-        prepare_input(TMP / "seed.png", run.input_image)
+        prepare_input(TMP / "seed09.png", run.input_image)
 
         clips, stats = orchestrate(cfg, run, interactive=False, resume=False)
-        assert len(clips) == cfg.num_clips == 1
-        assert stats.clip_calls == 1
+        assert len(clips) == cfg.num_clips == 2
+        assert stats.clip_calls == 2
 
-        # 모델에 실제로 전달된 값 — 길이와 고정 해상도가 닿아야 한다
-        sent = mock.MockProvider.requests[0]
-        assert sent.duration_params["duration"] == 20
-        assert sent.duration_params["resolution"] == "1080p"
+        # 가짜가 받은 명령 — 계약을 어기면 가짜가 먼저 거절한다
+        sent = log.read_text(encoding="utf-8").splitlines()
+        assert len(sent) == 2
+        first = sent[0]
+        assert "--num_frames 193" in first          # 8초 x 24fps = 8*24+1
+        assert "--width 544" in first and "--height 960" in first
+        assert "--output_path" in first
+        assert "--num-frames" not in first          # 하이픈이면 진짜가 거절한다
 
-        # 소리를 살리는 경로로 합성한다
         stitch(clips, run.final, width=cfg.output["width"],
                height=cfg.output["height"], fps=24, crf=30,
-               crossfade=0, transition="cut", audio="native")
+               crossfade=0.3, transition="fade", audio="silent")
         assert run.final.exists() and run.final.stat().st_size > 0
         assert dimensions_of(run.final) == (1080, 1920)
-        assert has_audio(run.final), "모델이 만든 소리가 최종 파일에서 사라졌다"
-
-        # 산출물은 이 채널 폴더 안에 있어야 한다
-        assert (TMP / "runs-wonri" / "e2e" / "final.mp4").exists()
+        assert (TMP / "runs-wonri" / "e2e09" / "final.mp4").exists()
     finally:
-        mock.MockProvider.with_audio = False
-        mock.MockProvider.requests = []
+        os.environ.pop("FAKE_LTX09_LOG", None)
+
+
+def test_ltx09_command_contract():
+    """명령이 0.9.x 의 실제 계약과 어긋나면 안 된다."""
+    from pipeline.providers import ltx09
+    from pipeline.providers.base import GenerationRequest
+
+    home = TMP / "ltxhome2"
+    (home / "configs").mkdir(parents=True, exist_ok=True)
+    (home / "inference.py").write_text("", encoding="utf-8")
+    (home / "configs" / "c.yaml").write_text("{}\n", encoding="utf-8")
+    venv = home / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+    venv.mkdir(parents=True, exist_ok=True)
+    py = venv / ("python.exe" if os.name == "nt" else "python")
+    py.write_text("", encoding="utf-8")
+    img = make_clip(TMP / "c.mp4", audio=False)   # 존재하기만 하면 된다
+
+    p = ltx09.LTX09Provider("configs/c.yaml", settings={
+        "ltx_dir": str(home), "python": str(py),
+        "width": 544, "height": 960, "fps": 24, "offload_to_cpu": "true"})
+    cmd = p.command(GenerationRequest(image=img, prompt="p", duration=8,
+                                      negative_prompt="blurry"),
+                    TMP / "outdir")
+
+    assert "--num_frames" in cmd and cmd[cmd.index("--num_frames") + 1] == "193"
+    assert "--conditioning_media_paths" in cmd
+    assert cmd[cmd.index("--conditioning_start_frames") + 1] == "0"
+    assert cmd[cmd.index("--negative_prompt") + 1] == "blurry"
+    assert "--offload_to_cpu" in cmd
+    # 2.5 판의 인자는 하나도 섞이면 안 된다
+    for wrong in ("--num-frames", "--output-path", "--image", "--quantization"):
+        assert wrong not in cmd, f"{wrong} 가 섞였다 (2.5 판 인자)"
+
+    # 32 의 배수가 아니면 설정 단계에서 막는다
+    bad = ltx09.LTX09Provider("configs/c.yaml", settings={
+        "ltx_dir": str(home), "python": str(py), "width": 540, "height": 960})
+    try:
+        bad.command(GenerationRequest(image=img, prompt="p", duration=8),
+                    TMP / "outdir2")
+    except Exception as exc:
+        assert "32" in str(exc)
+    else:
+        raise AssertionError("540 폭이 통과했다")
+
+
+def test_ltx09_offload_defaults_on_for_small_cards():
+    """8GB 에서 오프로드가 꺼진 채 돌면 첫 클립에서 OOM 이다."""
+    from pipeline.providers import ltx09
+
+    assert ltx09.offload_wanted({"offload_to_cpu": "true"}) is True
+    assert ltx09.offload_wanted({"offload_to_cpu": "false"}) is False
+    # auto 는 그래픽카드를 못 읽으면(이 환경이 그렇다) 켠다 — 켜서 느린 편이
+    # 꺼서 죽는 것보다 낫다. 예약이 죽으면 그날 영상이 없다.
+    assert ltx09.offload_wanted({"offload_to_cpu": "auto"}) is True
+
+    # 8GB 는 되고, 그보다 작으면 클라우드를 권한다
+    assert ltx09.vram_ok(8 * 1024)
+    assert not ltx09.vram_ok(4 * 1024)
+    assert "8GB" in ltx09.memory_note(8 * 1024)
 
 
 def test_seamless_loop_does_not_desync_model_audio():
@@ -454,18 +529,20 @@ def test_seamless_loop_does_not_desync_model_audio():
     make_seamless 는 마지막 L 초를 앞으로 옮겨 겹치면서 소리는 `-map 0:a` 로
     원본 순서 그대로 붙인다. 음악 반주에서는 티가 안 나지만, 그림에 맞춰
     만들어진 소리라면 그만큼 밀린다. 그래서 두 기능을 같이 켜지 않는다.
+
+    (원리한입은 지금 소리를 만들지 않는 엔진을 쓰므로 루프를 켜 둔다. 그래도
+    가드 자체는 남아 있어야 한다 — 엔진을 되돌리는 순간 다시 필요해진다.)
     """
     from pipeline.config import load_config
 
-    cfg = load_config(ROOT / "config.wonri.yaml")
-    assert cfg.model.has_native_audio
-    assert not (cfg.output.get("seamless_loop") or {}).get("enabled"), \
-        "모델이 소리를 만드는 채널에서 seamless_loop 가 켜져 있다"
-
-    # 켜 두더라도 파이프라인이 실제로 건너뛰는지 — main.py 의 가드를 재현한다
     src = (ROOT / "main.py").read_text(encoding="utf-8")
     assert 'loop_cfg.get("enabled") and cfg.model.has_native_audio' in src, \
         "native audio 일 때 루프를 건너뛰는 가드가 사라졌다"
+
+    cfg = load_config(ROOT / "config.wonri.yaml")
+    if cfg.model.has_native_audio:
+        assert not (cfg.output.get("seamless_loop") or {}).get("enabled"), \
+            "모델이 소리를 만드는데 seamless_loop 가 켜져 있다"
 
 
 def test_base_config_still_loads():

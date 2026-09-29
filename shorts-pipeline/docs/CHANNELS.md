@@ -68,7 +68,7 @@ python main.py schedule off --config config.wonri.yaml
 생성에 5~10분이 걸리므로 예약은 게시 시각 **30분 전**에 시작한다
 (`win_schedule.LEAD_MINUTES`). 만들어 두고 09:00 까지 기다렸다 올린다.
 
-내 PC 엔진(LTX-2.5)으로 만들면 그래픽카드에 따라 한 시간을 넘길 수 있어
+내 PC 엔진으로 만들면 그래픽카드에 따라 한 시간을 넘길 수 있어
 **두 시간 전**에 시작한다 (`LEAD_MINUTES_LOCAL`). `schedule on` 이 설정의
 provider 를 보고 알아서 고른다.
 

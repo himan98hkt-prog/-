@@ -103,7 +103,50 @@ def check_provider(root: Path, provider: str, settings: dict | None = None) -> S
                 "S3 를 설정하거나 provider 를 fal 로 바꾸세요"))
     elif provider == "local":
         checks.extend(check_local(settings))
+    elif provider == "ltx09":
+        checks.extend(check_ltx09(settings))
     return Section(f"영상 생성 ({provider})", checks, "필수")
+
+
+def check_ltx09(settings: dict | None = None) -> list[Check]:
+    """8GB 카드용 엔진(LTX-Video 0.9.x). 설치 · 설정 파일 · 그래픽카드."""
+    from .providers.ltx09 import COMFORTABLE_VRAM_GB, MIN_VRAM_GB, status
+
+    st = status(settings)
+    fix = "docs/LOCAL_LTX_8GB.md 의 설치 순서를 밟으세요"
+    out = [
+        Check("LTX-Video 폴더", OK if st["ltx_dir_ok"] else FAIL,
+              st["ltx_dir"] if st["ltx_dir_ok"] else f"{st['ltx_dir']} (inference.py 없음)",
+              fix),
+        Check("LTX 용 파이썬", OK if st["python_ok"] else FAIL,
+              st["python"] if st["python_ok"] else "없음", fix),
+        Check("모델 설정 파일", OK if st["config_ok"] else FAIL,
+              st["config"] if st["config_ok"] else "없음",
+              "받은 저장소의 configs/ 안에 있는 이름인지 확인하세요"),
+    ]
+
+    vram = st["vram_mb"]
+    if vram is None:
+        out.append(Check("그래픽카드", WARN, "NVIDIA 그래픽카드를 찾지 못했습니다",
+                         "이 엔진은 NVIDIA 그래픽카드(CUDA)가 필요합니다"))
+    else:
+        gb = vram / 1024
+        out.append(Check(
+            "그래픽카드 메모리",
+            OK if gb >= COMFORTABLE_VRAM_GB else WARN if gb >= MIN_VRAM_GB else FAIL,
+            st["note"],
+            f"{MIN_VRAM_GB}GB 미만이면 클라우드(provider: fal)를 쓰세요"))
+
+    # 이 둘을 어기면 실행 시점에 깨진다. 미리 잡아 준다.
+    w, h, fps = st["width"], st["height"], st["fps"]
+    out.append(Check(
+        "해상도", OK if (w % 32 == 0 and h % 32 == 0) else FAIL, f"{w}x{h}",
+        "32 의 배수여야 합니다. 세로 영상이면 480x864 · 544x960 중에서 고르세요"))
+    out.append(Check(
+        "CPU 오프로드", OK if st["offload"] else WARN,
+        "켬" if st["offload"] else "끔",
+        "8GB 카드에서 꺼 두면 첫 클립에서 메모리 부족으로 죽습니다"))
+    return out
 
 
 def check_local(settings: dict | None = None) -> list[Check]:

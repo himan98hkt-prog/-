@@ -24,15 +24,23 @@ channel:
 mode: chain
 
 # ── provider ─────────────────────────────────────────────────────────
-provider: fal
-model: ltx2_fast_1080
-
-# 20초 한 클립 = $0.80. 매일 한 편이면 한 달 약 $24.
+# 집 PC 의 NVIDIA 8GB 카드에서 돈다. 한 편에 $0.
 #
-# LTX 계열은 6초부터 **2초 단위**로만 받는다. 19 나 15 로 적으면 실행되지
-# 않고, 설정을 읽는 시점에 막힌다 (fal 에 접수되기 전이라 과금은 없다).
-clip_duration: 20
-num_clips: 1
+# 왜 `local`(LTX-2.5)이 아닌가. 그쪽은 그래픽카드 메모리가 15GB 이상이어야
+# 하고(전체 적재는 28GB), Lightricks 의 LTX Desktop 도 그 아래는 '지원 안 함'
+# 으로 보고 클라우드로 보낸다. 8GB 에서는 어떤 설정으로도 돌지 않는다.
+# 그래서 한 세대 앞의 경량 모델(LTX-Video 0.9.8 2B distilled fp8)을 쓴다.
+provider: ltx09
+model: ltx09_2b_distilled
+
+# 8초 × 2클립 = 16초. 참고한 릴스들의 실측 길이(16·23·28초) 중 짧은 쪽이다.
+#
+# 왜 한 클립에 몰지 않나. 0.9.x 는 프레임 수가 **8k+1** 이고 257 미만이
+# 권장이라 24fps 로 약 10.6초가 상한이다. 게다가 메모리는 프레임 수에
+# 그대로 붙어서, 8GB 에서는 클립을 짧게 끊고 이어 붙이는 쪽이 안전하다.
+# 8초 = 193프레임(8×24+1).
+clip_duration: 8
+num_clips: 2
 
 # ── 프롬프트 ─────────────────────────────────────────────────────────
 # 시드마다 사이드카(seeds-wonri/<이름>.yaml)에 prompt 를 적으면 그것이
@@ -46,15 +54,16 @@ negative_prompt: >-
 
 scene_prompts: []
 
-# 클립이 하나라 클립 사이 보정이 필요 없다. 호출 한 번을 아낀다.
-upscale_between_clips: false
-upscaler: esrgan
+# 클립을 이어 붙이므로 사이 프레임을 한 번 다듬는다. 내 PC 에서 도는
+# Real-ESRGAN 이라 값이 들지 않는다 (없으면 그냥 넘어간다).
+upscale_between_clips: true
+upscaler: local
 
 # ── 합성 ─────────────────────────────────────────────────────────────
 crossfade_seconds: 0.3
 montage_transition: cut
 montage_transition_seconds: 0.25
-loop_back: false            # LTX-2 는 끝 이미지를 받지 않는다
+loop_back: false            # 0.9.x 는 끝 이미지를 받지 않는다
 
 output:
   width: 1080
@@ -62,8 +71,9 @@ output:
   fps: auto
   crf: 18
 
-  # LTX-2 는 소리를 함께 만든다. 그래서 여기서 음악을 고르지 않는다 —
-  # 덧씌우면 두 소리가 겹친다. 파이프라인이 모델 소리를 그대로 살린다.
+  # 0.9.x 는 **소리를 만들지 않는다** (LTX-2 와 다른 점이다). 그래서
+  # music/ 에서 테마에 맞는 곡을 골라 깐다. 곡이 하나도 없으면 무음으로 가되
+  # 그 사실을 알려준다 — 소리가 없으면 끝까지 보지 않는다.
   audio: auto
   audio_file: ""
   music_dir: music
@@ -76,12 +86,11 @@ output:
     font: ""
     font_size: 0
 
-  # LTX-2 는 그림에 맞춰 소리를 만든다. 무한 루프 잇기는 **영상만** 재배열해
-  # (마지막 몇 초를 앞으로 옮겨 겹친다) 소리가 그만큼 어긋난다 — 말소리면
-  # 문장이 중간부터 시작한다. 그래서 이 채널에서는 끈다.
-  # 켜 두어도 파이프라인이 건너뛰고 이유를 알려준다.
+  # 끝을 첫 장면으로 이어 붙여 반복 재생이 튀지 않게 한다. ffmpeg 으로
+  # 끝나므로 값이 0 이다. (모델이 소리를 만드는 엔진에서는 소리가 어긋나
+  # 파이프라인이 건너뛰지만, 0.9.x 는 소리를 만들지 않으므로 켜도 된다.)
   seamless_loop:
-    enabled: false
+    enabled: true
     seconds: 0.6
 
   look:
@@ -91,29 +100,71 @@ output:
     logo_margin: 40
     logo_opacity: 0.55
 
-# 본편 전에 싸게 시험할 때. 6초는 LTX-2 의 하한이다.
+# 본편 전에 빠르게 시험할 때. 4초면 움직임이 제대로 나오는지 보기에 충분하고,
+# 8GB 에서 금방 끝난다. 값은 어차피 $0 이라 '싸게' 가 아니라 '빨리' 가 목적이다.
 preview:
-  model: ltx2_fast_1080
-  clip_duration: 6
+  model: ltx09_2b_distilled
+  clip_duration: 4
   upscale: false
 
 poll_timeout_seconds: 1800
 
 # ── 비용 가드레일 ────────────────────────────────────────────────────
 # 채널마다 따로 센다 (누계가 runs-wonri/ 에 쌓인다).
+# 내 PC 에서 도니 편당 $0 이다. 그래도 상한을 남겨 둔다 — provider 를 실수로
+# 클라우드로 되돌렸을 때 조용히 돈이 나가지 않게 막는 안전장치다.
 cost:
   retry_multiplier: 1.8
-  hard_cap_usd: 5.0         # 편당 $0.80 이므로 1회 실행이 이걸 넘을 일이 없다
-  monthly_cap_usd: 35.0     # 매일 1편 = 약 $24. 재시도 여유를 둔 값.
+  hard_cap_usd: 2.0
+  monthly_cap_usd: 10.0
 
 # 단가·엔드포인트는 config.yaml 의 providers 블록과 같은 것을 쓴다.
 # (이 파일에도 있어야 로드되므로 필요한 것만 다시 적는다)
 providers:
+  # ── 집 PC 엔진 (NVIDIA 8GB) ────────────────────────────────────────
+  # 설치 순서는 docs/LOCAL_LTX_8GB.md.
+  #
+  # 8GB 에서 메모리가 모자라면 이 순서로 줄인다 (효과가 큰 것부터):
+  #   1) clip_duration 을 8 -> 6 (193 -> 145 프레임)
+  #   2) width/height 를 544x960 -> 480x864   ※ 32 의 배수여야 한다
+  #   3) 그래도 안 되면 provider 를 fal 로 되돌린다 (유료)
+  ltx09:
+    ltx_dir: ""                 # 비우면 .env 의 LTX09_DIR, 그것도 없으면 C:\LTX-Video
+    python: ""                  # 비우면 ltx_dir\.venv 의 파이썬
+    # 2B distilled 의 fp8 판. Lightricks 가 "light VRAM usage" 로 적은 경량판이다.
+    pipeline_config: configs/ltxv-2b-0.9.8-distilled-fp8.yaml
+    # 32 의 배수 · 720x1280 이하 권장. 544x960 이 9:16 에 가장 가깝다.
+    # 어느 쪽이든 합성할 때 1080x1920 으로 맞춘다.
+    width: 544
+    height: 960
+    fps: 24
+    # 8GB 에서는 켜야 한다. auto 면 그래픽카드 메모리를 보고 스스로 정한다.
+    offload_to_cpu: auto
+    seed: 0                     # 0 이면 매번 다르게
+    # 8GB + 오프로드면 한 클립에 수십 분이 걸릴 수 있다. 넉넉히 둔다.
+    clip_timeout_minutes: 120
+    # 클립이 나온 뒤 Real-ESRGAN 으로 한 번 더 키운다. 없으면 그냥 넘어간다.
+    upscale_clips: auto
+    realesrgan_model: realesr-animevideov3
+    realesrgan_scale: 2
+    models:
+      ltx09_2b_distilled:
+        endpoint: configs/ltxv-2b-0.9.8-distilled-fp8.yaml
+        price_per_clip: 0
+        max_duration: 10        # 8k+1 · 257프레임 미만 권장 -> 24fps 로 약 10.6초
+        supports_end_image: false
+        supports_negative: true # 2.5 와 달리 네거티브 프롬프트를 받는다
+    upscalers:
+      local:
+        endpoint: realesrgan
+        price_per_image: 0
+
+  # 클라우드로 되돌릴 때 쓸 자리. provider 를 fal 로 바꾸면 이쪽이 쓰인다.
+  # [확인 필요] 엔드포인트·단가는 fal 공식 페이지를 직접 열지 못한 채 정리한
+  # 값이다. 첫 실행에서 HTTP 422 가 뜨면 대조할 것 (접수 전 거절이라 과금 없음).
   fal:
     endpoint_base: https://queue.fal.run
     models:
-      # [확인 필요] fal.ai 공식 페이지를 직접 열지 못한 상태에서 정리한 값이다.
-      # 첫 실행에서 HTTP 422 가 뜨면 endpoint 와 extra_params 를 대조할 것.
       ltx2_fast_1080:
         endpoint: fal-ai/ltx-2/image-to-video/fast
         price_per_second: 0.04
@@ -125,27 +176,6 @@ providers:
         has_native_audio: true
         extra_params:
           resolution: "1080p"
-      ltx2_pro_1080:
-        endpoint: fal-ai/ltx-2/image-to-video
-        price_per_second: 0.06
-        min_duration: 6
-        max_duration: 10
-        duration_step: 2
-        supports_end_image: false
-        supports_negative: true
-        has_native_audio: true
-        extra_params:
-          resolution: "1080p"
-      ltxv_13b_distilled:
-        endpoint: fal-ai/ltxv-13b-098-distilled/image-to-video
-        price_per_second: 0.02
-        min_duration: 2
-        max_duration: 10
-        duration_step: 1
-        duration_param: num_frames
-        frames_per_second: 24
-        supports_end_image: false
-        supports_negative: true
     upscalers:
       esrgan:
         endpoint: fal-ai/esrgan

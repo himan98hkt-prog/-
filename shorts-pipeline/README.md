@@ -154,9 +154,20 @@ Higgsfield 를 넣은 이유: 레퍼런스 @cyborg.digitalart 의 프로필 bio 
 
 ### LTX (Lightricks)
 
-내 PC 에서 돌리는 LTX-2.5 는 `provider: local` 이다 (편당 $0, 설치 필요 —
-[docs/LOCAL_LTX.md](docs/LOCAL_LTX.md)). 아래는 **fal 을 통해 쓰는 LTX** 로,
-그래픽카드가 없거나 설치 없이 바로 쓰고 싶을 때의 경로다.
+집 PC 에서 돌리는 길이 둘, 클라우드가 하나다.
+
+| provider | 모델 | 그래픽카드 | 편당 |
+|---|---|---|---|
+| `local` | LTX-2.5 (22B) | **15GB 이상** | $0 — [docs/LOCAL_LTX.md](docs/LOCAL_LTX.md) |
+| `ltx09` | LTX-Video 0.9.8 (2B distilled) | **8GB** | $0 — [docs/LOCAL_LTX_8GB.md](docs/LOCAL_LTX_8GB.md) |
+| `fal` | 아래 모델들 | 필요 없음 | 유료 |
+
+`local` 은 8GB 에서 **어떤 설정으로도 돌지 않는다.** Lightricks 의 LTX Desktop
+도 15~16GB 미만은 지원 안 함으로 보고 클라우드로 보낸다. 작은 카드라면
+`ltx09` 를 쓴다 — 한 세대 앞이지만 8GB 에서 실제로 돈다.
+
+아래는 **fal 을 통해 쓰는 LTX** 로, 그래픽카드가 없거나 설치 없이 바로 쓰고
+싶을 때의 경로다.
 
 `ltx2_fast_1080` · `ltx2_pro_1080` · `ltxv_13b_distilled` 이 fal 아래 등록돼 있다.
 LTX 는 다른 모델과 두 가지가 다르다.

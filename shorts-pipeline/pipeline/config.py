@@ -227,7 +227,7 @@ class Config:
         ups = self.provider_cfg.get("upscalers", {})
         # 엔진을 내 PC 로 바꿔도 upscaler: esrgan 은 그대로 남아 있다.
         # 그걸로 막히면 안 된다 — 내 PC 쪽 업스케일러로 대신한다.
-        if self.provider == "local" and self.upscaler_key not in ups and ups:
+        if self.provider in ("local", "ltx09") and self.upscaler_key not in ups and ups:
             self.upscaler_key = next(iter(ups))
         if self.upscaler_key not in ups:
             known = ", ".join(ups) or "(없음)"
@@ -273,10 +273,13 @@ def load_config(path: str | Path = "config.yaml", **overrides: Any) -> Config:
 
     # 내 PC 엔진(LTX) 설정은 없어도 된다. 업데이트가 config.yaml 을 덮어쓰지
     # 않으니 이 블록이 없는 사람이 대부분이다. 있으면 그 위에 얹는다.
+    from .providers.ltx09 import settings_with_defaults as ltx09_defaults
     from .providers.ltx_local import settings_with_defaults
 
     providers = raw.setdefault("providers", {})
     providers["local"] = settings_with_defaults(providers.get("local"))
+    # 8GB 카드용 엔진(LTX-Video 0.9.x)도 같은 방식으로 기본값을 깐다.
+    providers["ltx09"] = ltx09_defaults(providers.get("ltx09"))
 
     cfg = Config(
         raw=raw,
