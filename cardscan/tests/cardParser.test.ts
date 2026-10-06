@@ -145,3 +145,73 @@ describe('parseCardText — 전형적인 국내 명함', () => {
     expect(r.fields).toMatchObject({ company: '(주)테스트', name: '홍길동', title: '부장', phone: '02-111-2222', email: 'hong@test.com' });
   });
 });
+
+describe('parseCardText — 아이콘(☎📱📠)만 있고 표기가 없는 번호', () => {
+  const phones = (...rows: string[]) => parseCardText(ocr(['(주)한빛상사', 40], ['홍길동 팀장', 60], ...rows.map((r) => [r] as [string])));
+
+  it('아이콘이 C·O·D 같은 글자로 읽혀도 번호로 판단', () => {
+    const r = phones('C 010-1234-5678', 'O 02-123-4567', 'D 02-123-4568');
+    expect(r.fields).toMatchObject({ mobile: '010-1234-5678', phone: '02-123-4567', fax: '02-123-4568' });
+    expect(r.fields.company).toBe('(주)한빛상사');
+    expect(r.extra).toEqual([]);
+  });
+
+  it('아이콘이 기호로 읽힌 경우', () => {
+    const r = phones('📱 010-1234-5678', '☎ 02-123-4567', '📠 02-123-4568', '© 1588-0000');
+    expect(r.fields).toMatchObject({ mobile: '010-1234-5678', phone: '02-123-4567', fax: '02-123-4568' });
+    expect(r.extra).toEqual(['전화 1588-0000']);
+  });
+
+  it('아이콘이 0 으로 읽혀 번호 앞에 붙어도 올바른 번호만', () => {
+    const r = phones('0010-1234-5678', '002-123-4567');
+    expect(r.fields.mobile).toBe('010-1234-5678');
+    expect(r.fields.phone).toBe('02-123-4567');
+  });
+
+  it('한 줄에 아이콘과 번호가 붙어 이어진 경우', () => {
+    const r = phones('📱010-1234-5678 ☎031-765-4321 📠031-765-4322');
+    expect(r.fields).toMatchObject({ mobile: '010-1234-5678', phone: '031-765-4321', fax: '031-765-4322' });
+  });
+
+  it('잘못 읽힌 표기(T)보다 010 번호가 우선 — 휴대폰으로', () => {
+    const r = phones('T 010-1234-5678', 'F 02-123-4568');
+    expect(r.fields.mobile).toBe('010-1234-5678');
+    expect(r.fields.phone).toBe('');
+    expect(r.fields.fax).toBe('02-123-4568');
+  });
+
+  it('표기가 윗줄에 따로 있거나 번호 뒤에 붙은 경우', () => {
+    const r = phones('Fax', '02-123-4599', '02-123-4500 (대표)');
+    expect(r.fields.fax).toBe('02-123-4599');
+    expect(r.fields.phone).toBe('02-123-4500');
+    const r2 = phones('02-777-1000', '02-777-1001 (팩스)');
+    expect(r2.fields).toMatchObject({ phone: '02-777-1000', fax: '02-777-1001' });
+  });
+
+  it('050 평생번호는 순서와 상관없이 팩스로', () => {
+    const r = phones('0505-123-4567', '02-555-1234');
+    expect(r.fields).toMatchObject({ phone: '02-555-1234', fax: '0505-123-4567' });
+  });
+
+  it('표기 없는 번호가 셋 이상이면 같은 국번만 팩스, 나머지는 기타로 보존', () => {
+    const r = phones('02-111-2222', '031-333-4444', '02-111-2223');
+    expect(r.fields).toMatchObject({ phone: '02-111-2222', fax: '02-111-2223' });
+    expect(r.extra).toEqual(['전화 031-333-4444']);
+  });
+
+  it('아이콘만 따로 한 줄로 읽힌 찌꺼기는 회사·기타로 쓰지 않는다', () => {
+    const r = parseCardText(ocr(['홍길동', 60], ['C', 40], ['010-1234-5678'], ['口 02-123-4567']));
+    expect(r.fields.company).toBe('');
+    expect(r.fields.mobile).toBe('010-1234-5678');
+    expect(r.fields.phone).toBe('02-123-4567');
+    expect(r.extra).toEqual([]);
+  });
+
+  it('사업자번호·계좌·날짜는 전화번호로 잡지 않는다', () => {
+    const r = phones('사업자등록번호 123-45-67890', '국민 110-123-456789', '2026-10-06', '010-1234-5678');
+    expect(r.fields.mobile).toBe('010-1234-5678');
+    expect(r.fields.phone).toBe('');
+    expect(r.fields.fax).toBe('');
+  });
+});
+

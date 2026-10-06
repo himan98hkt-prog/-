@@ -1,6 +1,6 @@
 // 온디바이스 OCR(ML Kit)이 읽은 줄들을 명함 필드로 나눈다 — 규칙 기반, 무료·오프라인.
 // 한국 명함의 관례(M/T/F 표기, (주)·주식회사, 팀·본부, 직급, 시·구·로 주소)를 기준으로 한다.
-import { formatKoreanPhone, normalizeEmail, normalizeWebsite } from './normalize';
+import { formatKoreanPhone, normalizeEmail, normalizeWebsite, phoneDigits } from './normalize';
 import { CardFields, EMPTY_FIELDS } from './types';
 
 export interface OcrLineInput {
@@ -39,11 +39,27 @@ const COMPANY_MARK = /(\(주\)|㈜|\(유\)|\(사\)|\(재\)|주식회사|유한�
 const COMPANY_WORD = /(그룹|은행|증권|보험|캐피탈|카드|병원|의원|치과|한의원|약국|법률사무소|법무법인|특허법인|회계법인|세무법인|노무법인|협회|재단|공사|공단|학교|대학교|대학원|연구원|연구소|컴퍼니|코리아|테크|솔루션즈?|산업|건설|전자|전기|상사|물산|무역|컨설팅|엔지니어링|디자인|미디어|엔터테인먼트|푸드|제약|바이오|화학|물류|통운|에너지|모터스|시스템즈?|네트웍스|소프트|랩스?|스튜디오|파트너스|인베스트먼트|자산운용|홀딩스|아카데미|학원|센터)$/;
 const DEPT = /(본부|사업부|사업본부|부문|실|팀|부|센터|연구소|연구실|그룹|파트|셀|과|국|처|담당|지점|지사|영업소|사무소|Division|Dept\.?|Department|Team|Office|Lab|Center|Group)$/i;
 
-const LABEL = {
-  mobile: /(?:^|[\s|/·,:])(?:M|Mobile|Mob|H\.?P|C\.?P|H|C|Cell|Cellular|휴대폰|휴대전화|핸드폰|모바일|手机)\s*[.:)]?\s*$/i,
-  phone: /(?:^|[\s|/·,:])(?:T|Tel|Phone|P|Ph|O|Office|D|Direct|DID|전화|대표|직통|사무실|대표전화|TEL)\s*[.:)]?\s*$/i,
-  fax: /(?:^|[\s|/·,:])(?:F|Fax|FAX|팩스|전송)\s*[.:)]?\s*$/i,
+// 번호 앞 표기. 전화 아이콘(☎📱📠)이 OCR 에서 C·O·D·P·H 같은 한 글자로 읽히는 일이 많아
+// 한 글자 표기는 M/T/F 만 인정하고, 나머지는 단어(Tel, 휴대폰 …)일 때만 인정한다.
+const LABEL_WORDS = {
+  mobile: 'M|Mobile|Mob|H\\.?P|C\\.?P|Cell|Cellular|Cellphone|휴대폰|휴대전화|핸드폰|모바일|手机',
+  phone: 'T|Tel|Telephone|Phone|Ph|Office|Direct|DID|전화|전화번호|대표|대표전화|대표번호|직통|직통전화|사무실',
+  fax: 'F|Fax|Facsimile|팩스|전송',
 };
+const labelAtEnd = (w: string) => new RegExp(`(?:^|[\\s/·,:])(?:${w})\\s*[.:)]?\\s*$`, 'i');
+const labelOnly = (w: string) => new RegExp(`^\\(?\\s*(?:${w})\\s*[.:)]?\\s*$`, 'i');
+const LABEL = { mobile: labelAtEnd(LABEL_WORDS.mobile), phone: labelAtEnd(LABEL_WORDS.phone), fax: labelAtEnd(LABEL_WORDS.fax) };
+const LABEL_ONLY = { mobile: labelOnly(LABEL_WORDS.mobile), phone: labelOnly(LABEL_WORDS.phone), fax: labelOnly(LABEL_WORDS.fax) };
+// 번호 뒤에 붙는 표기 — "02-123-4567 (팩스)", "1588-1234 대표"
+const LABEL_AFTER = { fax: /^\s*\(?\s*(?:팩스|fax)\s*\)?/i, phone: /^\s*\(?\s*(?:대표|직통|전화|tel)\s*\)?/i };
+type PhoneKind = 'mobile' | 'phone' | 'fax';
+
+function labelOf(text: string, set: Record<PhoneKind, RegExp>): PhoneKind | '' {
+  return set.mobile.test(text) ? 'mobile' : set.fax.test(text) ? 'fax' : set.phone.test(text) ? 'phone' : '';
+}
+
+/** 아이콘이 남긴 기호·잡문자를 지운다 (글자·숫자·공백·구두점만 남김) */
+const stripIcons = (s: string) => s.replace(/[^0-9A-Za-z가-힣\s.:()/,+-]/g, ' ');
 
 // 흔한 한국 성씨 (두 글자 성 포함)
 const SURNAMES_2 = ['남궁', '선우', '제갈', '황보', '독고', '사공', '서문', '동방'];
@@ -66,7 +82,15 @@ const ADDRESS_LABEL = /^(주소|본사|지사|공장|연구소|Add(ress)?|A)\s*[
 const EMAIL = /[A-Za-z0-9._%+-]+\s?@\s?[A-Za-z0-9.-]+\s?\.\s?[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?/;
 const WEB = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\bhttps?:\/\/[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\b[A-Za-z0-9-]{2,}\.(?:co\.kr|or\.kr|go\.kr|ac\.kr|re\.kr|ne\.kr|kr|com|net|org|io|co|biz|info|ai)\b(?:\/[^\s]*)?/i;
 // 국내 전화번호 (+82, 괄호 지역번호, 점/공백/하이픈 구분, 15xx 대표번호)
-const PHONE = /(?:\+\s?82[\s.-]*(?:\(0\)|0)?[\s.-]*\d{1,2}[\s.)-]*\d{3,4}[\s.-]*\d{4}|\(?0\d{1,2}\)?[\s.)-]*\d{3,4}[\s.-]*\d{4}|1[5-9]\d{2}[\s.-]*\d{4})/g;
+// 국내 전화번호. 지역번호를 실제 체계(02, 031~064, 010~019, 070, 080, 050x)로 제한해
+// 아이콘이 '0' 으로 읽혀 앞에 붙은 경우("002-…")에도 올바른 번호만 잡는다.
+const AREA = '(?:02|0[3-6][1-5]|01[016789]|070|080|050[2-8])';
+const PHONE = new RegExp(
+  `(?:\\+\\s?82[\\s.-]*(?:\\(0\\)|0)?[\\s.-]*(?:2|[3-6][1-5]|1[016789]|70|80)[\\s.)-]*\\d{3,4}[\\s.-]*\\d{4}` +
+    `|\\(?${AREA}\\)?[\\s.)-]*\\d{3,4}[\\s.-]*\\d{4}` +
+    `|1[5-9]\\d{2}[\\s.-]*\\d{4})`,
+  'g',
+);
 
 // ── 유틸 ────────────────────────────────────────────────────────────────────
 
@@ -129,39 +153,76 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     }
   }
 
-  // 3) 전화·휴대폰·팩스 — 번호 바로 앞의 표기(M/T/F)로 종류를 정한다
-  const unlabeled: string[] = [];
-  for (const l of lines) {
-    const text = fixDigits(l.text);
+  // 3) 전화·휴대폰·팩스
+  //  - 010·011… 은 표기와 상관없이 휴대폰 (아이콘 오인식 표기보다 번호 자체가 확실하다)
+  //  - 일반 전화는 번호 앞(또는 윗줄·뒤)의 표기로 전화/팩스를 가르고,
+  //    표기가 없으면 첫 번호=전화, 다음 번호는 팩스처럼 보일 때(같은 국번·050x)만 팩스
+  type Found = { value: string; digits: string; label: PhoneKind | ''; order: number };
+  const found: Found[] = [];
+  lines.forEach((l, li) => {
+    const text = fixDigits(stripIcons(l.text));
     const matches = [...text.matchAll(PHONE)];
-    if (!matches.length) continue;
+    if (!matches.length) return;
     let cursor = 0;
     let rest = '';
-    for (const m of matches) {
+    matches.forEach((m, mi) => {
       const num = m[0].trim();
-      const digits = num.replace(/\D/g, '');
-      if (digits.length < 8) continue;
+      const digits = phoneDigits(num);
+      if (digits.length < 8) return;
       const before = text.slice(cursor, m.index);
-      const label = LABEL.mobile.test(before) ? 'mobile' : LABEL.fax.test(before) ? 'fax' : LABEL.phone.test(before) ? 'phone' : '';
-      // 내선 번호가 바로 뒤에 붙어 있으면 함께 가져간다
       const after = text.slice((m.index ?? 0) + m[0].length);
+      let label = labelOf(before, LABEL);
+      if (!label) label = LABEL_AFTER.fax.test(after) ? 'fax' : LABEL_AFTER.phone.test(after) ? 'phone' : '';
+      // 표기가 윗줄에 따로 있는 배치 ("Fax" / "02-123-4568")
+      if (!label && mi === 0 && !before.trim() && li > 0 && !lines[li - 1].used) {
+        const prevLabel = labelOf(clean(stripIcons(lines[li - 1].text)), LABEL_ONLY);
+        if (prevLabel) {
+          label = prevLabel;
+          lines[li - 1].used = true;
+        }
+      }
+      // 내선 번호가 바로 뒤에 붙어 있으면 함께 가져간다
       const ext = after.match(/^\s*(?:\(?\s*(?:내선|ext\.?|#)\s*(\d{1,5})\s*\)?)/i);
       const value = formatKoreanPhone(ext ? `${num} ext ${ext[1]}` : num);
-      const isMobile = /^(\+?82[\s.-]*)?0?1[016789]/.test(num.replace(/[()\s.-]/g, '').replace(/^\+?82/, '0'));
-      const kind = label || (isMobile ? 'mobile' : '');
-      if (kind === 'mobile' && !f.mobile) f.mobile = value;
-      else if (kind === 'phone' && !f.phone) f.phone = value;
-      else if (kind === 'fax' && !f.fax) f.fax = value;
-      else if (!kind) unlabeled.push(value);
-      rest += before.replace(LABEL.mobile, '').replace(LABEL.fax, '').replace(LABEL.phone, '');
+      found.push({ value, digits, label, order: found.length });
+      rest += before.replace(LABEL.mobile, '').replace(LABEL.fax, '').replace(LABEL.phone, '') + ' ';
       cursor = (m.index ?? 0) + m[0].length + (ext ? ext[0].length : 0);
+    });
+    rest += text.slice(cursor).replace(LABEL_AFTER.fax, '').replace(LABEL_AFTER.phone, '');
+    l.text = clean(rest.replace(/^[\s:./,()+-]+|[\s:./,()+-]+$/g, ''));
+    // 번호를 빼고 남은 것이 아이콘 찌꺼기(한두 글자)뿐이면 버린다
+    if (!/[가-힣]{2,}|[A-Za-z]{3,}/.test(l.text)) l.used = true;
+  });
+
+  const isMobileNo = (d: string) => /^01[016789]/.test(d);
+  const looksLikeFaxOf = (phone: string, cand: string) => {
+    const p = phoneDigits(phone);
+    if (/^050[2-8]/.test(cand)) return true; // 050 평생번호는 팩스로 많이 쓴다
+    // 같은 지역번호·국번이면 팩스 (02-123-4567 / 02-123-4568)
+    return p.length === cand.length && p.slice(0, p.length - 4) === cand.slice(0, cand.length - 4);
+  };
+  const others: string[] = [];
+  for (const n of found) {
+    if (isMobileNo(n.digits)) {
+      if (!f.mobile) f.mobile = n.value;
+      else if (phoneDigits(f.mobile) !== n.digits) others.push(`휴대폰 ${n.value}`);
+    } else if (n.label === 'fax') {
+      if (!f.fax) f.fax = n.value;
+      else others.push(`팩스 ${n.value}`);
+    } else if (n.label === 'phone' || n.label === 'mobile') {
+      if (!f.phone) f.phone = n.value;
+      else others.push(`전화 ${n.value}`);
     }
-    rest += text.slice(cursor);
-    l.text = clean(rest.replace(/^[\s:./-]+|[\s:./-]+$/g, ''));
   }
-  for (const v of unlabeled) {
-    if (!f.phone) f.phone = v;
-    else if (!f.fax) f.fax = v;
+  // 표기 없는 일반 전화: 050x 는 팩스 쪽으로 미루고, 첫 번호=전화, 다음 번호는
+  // 같은 국번이거나 번호가 두 개뿐일 때(명함은 대개 전화→팩스 순) 팩스, 그 밖은 기타로 보존
+  const unlabeledLand = found.filter((n) => !isMobileNo(n.digits) && !n.label);
+  const fax050 = unlabeledLand.find((n) => /^050[2-8]/.test(n.digits));
+  const ordered = fax050 && unlabeledLand.length > 1 ? [...unlabeledLand.filter((n) => n !== fax050), fax050] : unlabeledLand;
+  for (const n of ordered) {
+    if (!f.phone) f.phone = n.value;
+    else if (!f.fax && (looksLikeFaxOf(f.phone, n.digits) || unlabeledLand.length <= 2)) f.fax = n.value;
+    else others.push(`전화 ${n.value}`);
   }
 
   // 4) 주소 — 지역명+행정단위 또는 영문 주소, 다음 줄이 층/호/빌딩이면 이어 붙인다
@@ -278,9 +339,9 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     }
   }
 
-  const extra = lines
-    .filter((l) => !l.used && l.text.length >= 2 && !/^[\W_]+$/.test(l.text))
-    .map((l) => l.text)
-    .slice(0, 10);
+  const extra = [
+    ...others,
+    ...lines.filter((l) => !l.used && l.text.length >= 2 && !/^[\W_]+$/.test(l.text)).map((l) => l.text),
+  ].slice(0, 10);
   return { fields: f, extra };
 }
