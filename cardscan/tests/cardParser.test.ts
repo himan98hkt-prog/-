@@ -215,3 +215,36 @@ describe('parseCardText — 아이콘(☎📱📠)만 있고 표기가 없는 �
   });
 });
 
+describe("parseCardText — '+' 없이 82 로 시작하는 국제 표기", () => {
+  const read = (...rows: string[]) => parseCardText(ocr(['홍길동', 60], ...rows.map((r) => [r] as [string]))).fields;
+
+  it.each([
+    ['82 10-1234-5678'],
+    ['82-10-1234-5678'],
+    ['82 10 1234 5678'],
+    ['(82)10-1234-5678'],
+    ['82)10-1234-5678'],
+    ['M. 82-10-1234-5678'],
+    ['+82 10-1234-5678'],
+    ['+82(0)10-1234-5678'],
+    ['82 010-1234-5678'],
+  ])('%s → 휴대폰 010-1234-5678', (row) => {
+    expect(read(row).mobile).toBe('010-1234-5678');
+  });
+
+  it('82 로 시작하는 일반 전화·팩스', () => {
+    const f = read('T 82-2-123-4567', 'F 82-2-123-4568', '82(0)31-765-4321');
+    expect(f.phone).toBe('02-123-4567');
+    expect(f.fax).toBe('02-123-4568');
+    const g = read('82 31 765 4321');
+    expect(g.phone).toBe('031-765-4321');
+  });
+
+  it('주소의 82 나 긴 숫자열 속 82 는 번호로 잡지 않는다', () => {
+    const f = read('82, Teheran-ro, Gangnam-gu, Seoul', '계좌 110821012345678', '010-9999-8888');
+    expect(f.mobile).toBe('010-9999-8888');
+    expect(f.phone).toBe('');
+    expect(f.address).toBe('82, Teheran-ro, Gangnam-gu, Seoul');
+  });
+});
+

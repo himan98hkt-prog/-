@@ -5,7 +5,8 @@ import { CardFields, EMPTY_FIELDS } from './types';
 export function phoneDigits(raw: string): string {
   let d = (raw || '').replace(/[^\d+]/g, '');
   if (d.startsWith('+82')) d = '0' + d.slice(3).replace(/^0/, '');
-  else if (d.startsWith('82') && d.length >= 11) d = '0' + d.slice(2).replace(/^0/, '');
+  // '+' 없이 82 로 시작 — 국내 번호는 0·1 로 시작하므로 뒤가 올바른 국내 번호일 때만 국가번호로 본다
+  else if (/^82(0?(2|[3-6][1-5]|1[016789]|70|80|50[2-8])\d{7,8})$/.test(d)) d = '0' + d.slice(2).replace(/^0/, '');
   return d.replace(/\+/g, '');
 }
 

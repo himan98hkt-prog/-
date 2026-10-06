@@ -86,7 +86,7 @@ const WEB = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^
 // 아이콘이 '0' 으로 읽혀 앞에 붙은 경우("002-…")에도 올바른 번호만 잡는다.
 const AREA = '(?:02|0[3-6][1-5]|01[016789]|070|080|050[2-8])';
 const PHONE = new RegExp(
-  `(?:\\+\\s?82[\\s.-]*(?:\\(0\\)|0)?[\\s.-]*(?:2|[3-6][1-5]|1[016789]|70|80)[\\s.)-]*\\d{3,4}[\\s.-]*\\d{4}` +
+  `(?:\\(?\\+?\\s?82\\)?[\\s.-]*(?:\\(0\\)|0)?[\\s.-]*(?:2|[3-6][1-5]|1[016789]|70|80)[\\s.)-]*\\d{3,4}[\\s.-]*\\d{4}` +
     `|\\(?${AREA}\\)?[\\s.)-]*\\d{3,4}[\\s.-]*\\d{4}` +
     `|1[5-9]\\d{2}[\\s.-]*\\d{4})`,
   'g',
@@ -167,6 +167,8 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     let rest = '';
     matches.forEach((m, mi) => {
       const num = m[0].trim();
+      // '+' 없는 82 는 앞이 숫자가 아닐 때만 국가번호 (긴 숫자열 중간의 82 는 제외)
+      if (/^\(?82/.test(num) && (m.index ?? 0) > 0 && /\d/.test(text[(m.index ?? 0) - 1])) return;
       const digits = phoneDigits(num);
       if (digits.length < 8) return;
       const before = text.slice(cursor, m.index);
