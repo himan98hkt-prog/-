@@ -1,0 +1,105 @@
+# 명함스캔 안드로이드 설치 파일(APK) 빌드
+# - cardscan/ 이 바뀌어 push 되면 자동으로 빌드하고, 휴대폰에서 바로 받을 수 있게
+#   GitHub Release "cardscan-android" 에 최신 APK 를 올린다.
+# - Actions 탭에서 수동 실행(workflow_dispatch)도 가능.
+name: 명함스캔 APK
+
+on:
+  push:
+    paths: ['cardscan/**', '.github/workflows/cardscan-apk.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: cardscan-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # Release 에 APK 업로드
+
+jobs:
+  apk:
+    name: APK 빌드
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: cardscan
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cardscan/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 버전 번호 올리기 (설치된 앱 위에 업데이트 설치가 되도록)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const app = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            app.expo.android.versionCode = Number(process.env.GITHUB_RUN_NUMBER);
+            fs.writeFileSync("app.json", JSON.stringify(app, null, 2));
+            console.log("versionName", app.expo.version, "versionCode", app.expo.android.versionCode);
+          '
+
+      - name: 안드로이드 프로젝트 생성 (expo prebuild)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: APK 빌드 (release)
+        working-directory: cardscan/android
+        # 대부분의 휴대폰(64비트 arm64)과 구형 32비트 기기만 포함해 빌드 시간을 줄인다 (에뮬레이터용 x86 제외)
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: 파일 이름 정리
+        id: apk
+        run: |
+          VERSION=$(node -p 'require("./app.json").expo.version')
+          NAME="cardscan-v${VERSION}-build${GITHUB_RUN_NUMBER}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "../$NAME"
+          ls -la "../$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: 빌드 결과 보관 (Actions 아티팩트)
+        uses: actions/upload-artifact@v5
+        with:
+          name: cardscan-apk
+          path: ${{ steps.apk.outputs.name }}
+          retention-days: 30
+
+      - name: 휴대폰 다운로드용 Release 갱신
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.apk.outputs.name }}
+        run: |
+          TAG=cardscan-android
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          cat > notes.md <<EOF
+          ## 명함스캔 안드로이드 설치 파일
+
+          빌드 #${GITHUB_RUN_NUMBER} · 브랜치 \`${GITHUB_REF_NAME}\` · 커밋 ${GITHUB_SHA::7}
+
+          ### 설치 방법
+          1. 휴대폰에서 아래 **Assets** 의 \`${APK}\` 를 눌러 내려받습니다.
+          2. 다운로드 알림을 눌러 설치합니다. "출처를 알 수 없는 앱" 경고가 나오면 **설정 → 이 출처 허용** 을 켜고 다시 설치합니다.
+          3. Play 프로텍트 경고가 나오면 **무시하고 설치** (직접 만든 앱이라 스토어 심사 기록이 없어서 나오는 안내입니다).
+          4. 앱을 열고 **설정·연동 → 명함 인식** 에 Anthropic API 키(sk-ant-…)를 넣고 **연결 확인** 을 누릅니다.
+
+          새 빌드는 기존 앱 위에 그대로 설치하면 업데이트됩니다(저장된 명함 유지).
+          EOF
+          gh release create "$TAG" "$APK" \
+            --title "명함스캔 안드로이드 (최신)" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA" \
+            --prerelease

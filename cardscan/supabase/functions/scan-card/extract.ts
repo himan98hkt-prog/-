@@ -56,34 +56,47 @@ export class ExtractError extends Error {
   }
 }
 
-export async function extractCard(client: Anthropic, imageBase64: string, mediaType: ImageMediaType = 'image/jpeg'): Promise<ExtractResult> {
-  const response = await client.beta.messages.create({
+export const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+
+/**
+ * Messages API 요청 본문. 서버(SDK)와 앱의 간편 모드(REST 직접 호출 — SDK 가 React Native 를 지원하지 않음)가
+ * 같은 프롬프트·스키마를 쓰도록 한곳에서 만든다. 베타 헤더(FALLBACK_BETA)는 호출하는 쪽에서 붙인다.
+ */
+export function buildCardRequest(imageBase64: string, mediaType: ImageMediaType = 'image/jpeg') {
+  return {
     model: MODEL,
     max_tokens: 4000,
     // 정해진 칸에 옮겨 적는 일이라 깊은 추론이 필요 없다 — 응답 속도를 우선
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: CARD_SCHEMA as unknown as Record<string, unknown> } },
+    output_config: { effort: 'low' as const, format: { type: 'json_schema' as const, schema: CARD_SCHEMA as unknown as Record<string, unknown> } },
     // 안전 분류기가 드물게 거절하면 서버 측에서 권장 모델로 자동 재시도
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
+    fallbacks: 'default' as const,
     system: SYSTEM_PROMPT,
     messages: [
       {
-        role: 'user',
+        role: 'user' as const,
         content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-          { type: 'text', text: '이 명함의 정보를 스키마에 맞춰 옮겨 주세요.' },
+          { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType, data: imageBase64 } },
+          { type: 'text' as const, text: '이 명함의 정보를 스키마에 맞춰 옮겨 주세요.' },
         ],
       },
     ],
-  });
+  };
+}
 
+/** Messages API 응답 → 결과. SDK 응답 객체와 REST JSON 모두 받는다. */
+export function parseCardResponse(response: { stop_reason?: string | null; content?: Array<{ type: string; text?: string }> }): ExtractResult {
   if (response.stop_reason === 'refusal') throw new ExtractError('이미지를 처리할 수 없습니다', 422);
   if (response.stop_reason === 'max_tokens') throw new ExtractError('인식 결과가 너무 깁니다');
 
-  const text = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('');
+  const text = (response.content ?? []).flatMap((b) => (b.type === 'text' && typeof b.text === 'string' ? [b.text] : [])).join('');
   try {
     return JSON.parse(text) as ExtractResult;
   } catch {
     throw new ExtractError('인식 결과를 해석하지 못했습니다');
   }
+}
+
+export async function extractCard(client: Anthropic, imageBase64: string, mediaType: ImageMediaType = 'image/jpeg'): Promise<ExtractResult> {
+  const response = await client.beta.messages.create({ ...buildCardRequest(imageBase64, mediaType), betas: [FALLBACK_BETA] });
+  return parseCardResponse(response);
 }

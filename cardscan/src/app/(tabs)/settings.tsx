@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { CONNECTOR_LABEL, CONNECTOR_ORDER, connectorReady, Settings } from '../../core/settings';
 import { BusinessCard, CardKind, ConnectorId, KIND_LABEL } from '../../core/types';
+import { checkOcr } from '../../integrations/ocr';
 import { HTTP_CONNECTORS } from '../../integrations/sync';
 import { Button, C, Field, KindPicker, Section } from '../../ui/components';
 import { useStore } from '../../ui/store';
@@ -71,16 +72,8 @@ export default function SettingsScreen() {
   async function testOcr() {
     setTesting('ocr');
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (draft.ocr.anonKey) {
-        headers.Authorization = `Bearer ${draft.ocr.anonKey}`;
-        headers.apikey = draft.ocr.anonKey;
-      }
-      if (draft.ocr.appSecret) headers['x-app-secret'] = draft.ocr.appSecret;
-      const res = await fetch(draft.ocr.endpoint, { method: 'POST', headers, body: JSON.stringify({ ping: true }) });
-      const text = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${text.slice(0, 200)}`);
-      Alert.alert('연결 성공', '명함 인식 서버가 응답했습니다.');
+      await checkOcr(draft);
+      Alert.alert('연결 성공', draft.ocr.mode === 'direct' ? 'API 키가 확인되었습니다. 이제 명함을 찍어 보세요.' : '명함 인식 서버가 응답했습니다.');
     } catch (e) {
       Alert.alert('연결 실패', (e as Error).message);
     } finally {
@@ -88,15 +81,35 @@ export default function SettingsScreen() {
     }
   }
 
+  const ocr = (patch: Partial<Settings['ocr']>) => setDraft((d) => ({ ...d, ocr: { ...d.ocr, ...patch } }));
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Section title="명함 인식 서버">
-          <Text style={st.help}>명함 글자 인식은 서버(supabase/functions/scan-card)에서 처리합니다. 설치 방법은 cardscan/README.md 를 참고하세요.</Text>
-          <Field label="서버 주소" value={draft.ocr.endpoint} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, endpoint: t.trim() } })} placeholder="https://xxxx.supabase.co/functions/v1/scan-card" autoCapitalize="none" keyboardType="url" />
-          <Field label="Supabase anon/publishable key (선택)" value={draft.ocr.anonKey} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, anonKey: t.trim() } })} autoCapitalize="none" secureTextEntry />
-          <Field label="앱 비밀키 (서버의 APP_SHARED_SECRET)" value={draft.ocr.appSecret} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, appSecret: t.trim() } })} autoCapitalize="none" secureTextEntry />
-          <Button title="서버 연결 확인" variant="secondary" onPress={testOcr} loading={testing === 'ocr'} disabled={!draft.ocr.endpoint} />
+        <Section title="명함 인식">
+          <View style={[st.segment, { marginBottom: 10 }]}>
+            {(['direct', 'server'] as const).map((m) => (
+              <Pressable key={m} onPress={() => ocr({ mode: m })} style={[st.segItem, draft.ocr.mode === m && st.segOn]}>
+                <Text style={[st.segText, draft.ocr.mode === m && { color: '#fff' }]}>{m === 'direct' ? 'API 키 (간편)' : '내 서버'}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {draft.ocr.mode === 'direct' ? (
+            <>
+              <Text style={st.help}>
+                console.anthropic.com 에서 발급한 API 키(sk-ant-…)를 넣으면 바로 쓸 수 있습니다. 키는 이 휴대폰의 보안 저장소에만 보관되고, 명함 사진은 인식을 위해 Anthropic 으로 전송됩니다.
+              </Text>
+              <Field label="Anthropic API 키" value={draft.ocr.apiKey} onChangeText={(t) => ocr({ apiKey: t.trim() })} placeholder="sk-ant-..." autoCapitalize="none" autoCorrect={false} secureTextEntry />
+            </>
+          ) : (
+            <>
+              <Text style={st.help}>여러 명이 쓰거나 키를 휴대폰에 두고 싶지 않을 때 — supabase/functions/scan-card 를 배포한 주소를 넣으세요 (cardscan/README.md).</Text>
+              <Field label="서버 주소" value={draft.ocr.endpoint} onChangeText={(t) => ocr({ endpoint: t.trim() })} placeholder="https://xxxx.supabase.co/functions/v1/scan-card" autoCapitalize="none" keyboardType="url" />
+              <Field label="앱 비밀키 (서버의 APP_SHARED_SECRET)" value={draft.ocr.appSecret} onChangeText={(t) => ocr({ appSecret: t.trim() })} autoCapitalize="none" secureTextEntry />
+              <Field label="Supabase anon/publishable key (선택)" value={draft.ocr.anonKey} onChangeText={(t) => ocr({ anonKey: t.trim() })} autoCapitalize="none" secureTextEntry />
+            </>
+          )}
+          <Button title="연결 확인" variant="secondary" onPress={testOcr} loading={testing === 'ocr'} disabled={draft.ocr.mode === 'direct' ? !draft.ocr.apiKey : !draft.ocr.endpoint} />
         </Section>
 
         <Section title="촬영">
@@ -168,6 +181,10 @@ export default function SettingsScreen() {
 }
 
 const st = StyleSheet.create({
+  segment: { flexDirection: 'row', backgroundColor: '#EEF0F3', borderRadius: 12, padding: 4, gap: 4 },
+  segItem: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
+  segOn: { backgroundColor: C.primary },
+  segText: { fontSize: 15, fontWeight: '600', color: C.text },
   help: { fontSize: 13, color: C.sub, lineHeight: 19, marginBottom: 8 },
   label: { fontSize: 15, fontWeight: '600', color: C.text },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

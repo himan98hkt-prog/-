@@ -9,6 +9,13 @@ export interface ConnectorBase {
 
 export interface Settings {
   ocr: {
+    /**
+     * direct: 앱이 Anthropic API 를 직접 호출 (API 키만 넣으면 끝 — 개인 사용에 간편)
+     * server: 내 서버(Supabase Edge Function) 경유 — 키를 휴대폰에 두지 않음, 여러 명이 쓸 때
+     */
+    mode: 'direct' | 'server';
+    /** direct 모드의 Anthropic API 키 (기기 보안 저장소에 보관) */
+    apiKey: string;
     /** Supabase Edge Function 주소 — https://<project>.supabase.co/functions/v1/scan-card */
     endpoint: string;
     /** Supabase anon/publishable key (선택 — 게이트웨이가 요구할 때만) */
@@ -32,7 +39,7 @@ export interface Settings {
 const ALL_KINDS: CardKind[] = ['customer', 'partner', 'other'];
 
 export const DEFAULT_SETTINGS: Settings = {
-  ocr: { endpoint: '', anonKey: '', appSecret: '' },
+  ocr: { mode: 'direct', apiKey: '', endpoint: '', anonKey: '', appSecret: '' },
   autoSave: true,
   defaultKind: 'customer',
   connectors: {
@@ -56,6 +63,7 @@ export const CONNECTOR_ORDER: ConnectorId[] = ['contacts', 'sheets', 'hubspot', 
 
 /** SecureStore 로 따로 보관할 비밀값 경로 */
 export const SECRET_PATHS = [
+  'ocr.apiKey',
   'ocr.anonKey',
   'ocr.appSecret',
   'connectors.webhook.secret',
@@ -95,7 +103,12 @@ export function mergeSettings(saved: unknown): Settings {
   return {
     ...base,
     ...s,
-    ocr: { ...base.ocr, ...(s.ocr ?? {}) },
+    ocr: {
+      ...base.ocr,
+      // 간편 모드가 생기기 전 버전에서 서버 주소를 넣어 둔 사용자는 서버 모드를 유지
+      ...(s.ocr && !('mode' in s.ocr) && (s.ocr as { endpoint?: string }).endpoint ? { mode: 'server' as const } : {}),
+      ...(s.ocr ?? {}),
+    },
     connectors,
   };
 }
@@ -119,4 +132,10 @@ export function connectorReady(settings: Settings, id: ConnectorId): boolean {
 
 export function connectorTargets(settings: Settings, kind: CardKind): ConnectorId[] {
   return CONNECTOR_ORDER.filter((id) => connectorReady(settings, id) && settings.connectors[id].kinds.includes(kind));
+}
+
+/** 명함 인식을 쓸 준비가 됐는지 */
+export function ocrReady(settings: Settings): boolean {
+  const o = settings.ocr;
+  return o.mode === 'direct' ? o.apiKey.startsWith('sk-ant-') : /^https:\/\//.test(o.endpoint) && !!o.appSecret;
 }

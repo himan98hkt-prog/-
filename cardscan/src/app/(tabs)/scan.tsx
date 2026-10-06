@@ -45,7 +45,7 @@ export default function ScanScreen() {
         setDraft({ fields: { ...EMPTY_FIELDS }, kind, extra: [], imageUri: img.uri, error: (e as Error).message });
         setPhase('idle');
         if (e instanceof OcrNotConfiguredError) {
-          Alert.alert('명함 인식 서버 미설정', e.message + '\n지금은 직접 입력 화면으로 이동합니다.');
+          Alert.alert('명함 인식 설정 필요', e.message + '\n지금은 직접 입력 화면으로 이동합니다.');
         }
         return router.push('/review');
       }

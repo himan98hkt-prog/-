@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { connectorTargets, DEFAULT_SETTINGS, mergeSettings, Settings, setPath } from '../src/core/settings';
 import { hubspotConnector, sheetsConnector, slackConnector, webhookConnector } from '../src/integrations/http';
-import { scanCardImage, OcrNotConfiguredError } from '../src/integrations/ocr';
+import { checkOcr, scanCardImage, OcrNotConfiguredError } from '../src/integrations/ocr';
 import { ConnectorMap, pendingTargets, syncCard } from '../src/integrations/sync';
 import { makeCard } from './fixtures';
 
@@ -149,13 +149,13 @@ describe('HTTP 연동', () => {
   });
 });
 
-describe('OCR 클라이언트', () => {
+describe('OCR 클라이언트 — 서버 모드', () => {
   const ocrSettings = settingsWith((s) => {
-    s.ocr = { endpoint: 'https://p.supabase.co/functions/v1/scan-card', anonKey: 'anon', appSecret: 'app' };
+    s.ocr = { mode: 'server', apiKey: '', endpoint: 'https://p.supabase.co/functions/v1/scan-card', anonKey: 'anon', appSecret: 'app' };
     return s;
   });
 
-  it('서버 주소가 없으면 미설정 오류', async () => {
+  it('설정이 없으면 미설정 오류', async () => {
     await expect(scanCardImage('b64', DEFAULT_SETTINGS)).rejects.toBeInstanceOf(OcrNotConfiguredError);
   });
 
@@ -176,5 +176,66 @@ describe('OCR 클라이언트', () => {
   it('서버 오류 메시지를 그대로 보여준다', async () => {
     const f = vi.fn(async () => res(422, { error: '명함이 아닌 사진으로 보입니다' }));
     await expect(scanCardImage('b64', ocrSettings, f as typeof fetch)).rejects.toThrow('명함이 아닌');
+  });
+});
+
+describe('OCR 클라이언트 — 간편(API 키) 모드', () => {
+  const direct = settingsWith((s) => {
+    s.ocr.apiKey = 'sk-ant-api03-test';
+    return s;
+  });
+  const apiReply = (payload: object, stop = 'end_turn') => res(200, { stop_reason: stop, content: [{ type: 'text', text: JSON.stringify(payload) }] });
+  const fields = { name: '김철수', nameEn: '', company: '테스트', department: '', title: '', mobile: '+82 10 2222 3333', phone: '', fax: '', email: 'K@T.CO', website: '', address: '' };
+
+  it('기본값이 간편 모드이고 키가 없으면 미설정', async () => {
+    expect(DEFAULT_SETTINGS.ocr.mode).toBe('direct');
+    await expect(scanCardImage('b64', DEFAULT_SETTINGS)).rejects.toBeInstanceOf(OcrNotConfiguredError);
+  });
+
+  it('Messages API 를 서버와 같은 요청 모양으로 호출한다', async () => {
+    const f = vi.fn(async () => apiReply({ fields, extra: [], isBusinessCard: true, note: '' }));
+    const r = await scanCardImage('IMG', direct, f as typeof fetch);
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.anthropic.com/v1/messages');
+    const h = init.headers as Record<string, string>;
+    expect(h['x-api-key']).toBe('sk-ant-api03-test');
+    expect(h['anthropic-version']).toBe('2023-06-01');
+    expect(h['anthropic-beta']).toBe('server-side-fallback-2026-07-01');
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe('claude-opus-5-5');
+    expect(body.fallbacks).toBe('default');
+    expect(body.output_config.format.type).toBe('json_schema');
+    expect(body.messages[0].content[0].source).toEqual({ type: 'base64', media_type: 'image/jpeg', data: 'IMG' });
+    expect(r.fields.mobile).toBe('010-2222-3333');
+    expect(r.fields.email).toBe('k@t.co');
+  });
+
+  it('명함이 아니면 안내', async () => {
+    const f = vi.fn(async () => apiReply({ fields, extra: [], isBusinessCard: false, note: '' }));
+    await expect(scanCardImage('IMG', direct, f as typeof fetch)).rejects.toThrow('명함이 아닌');
+  });
+
+  it('거절·오류 상태를 사람이 읽을 수 있게 바꾼다', async () => {
+    const refusal = vi.fn(async () => res(200, { stop_reason: 'refusal', content: [] }));
+    await expect(scanCardImage('IMG', direct, refusal as typeof fetch)).rejects.toThrow('처리할 수 없습니다');
+    const unauthorized = vi.fn(async () => res(401, { error: { message: 'invalid x-api-key' } }));
+    await expect(scanCardImage('IMG', direct, unauthorized as typeof fetch)).rejects.toThrow('API 키가 올바르지 않습니다');
+    const credit = vi.fn(async () => res(400, { error: { message: 'Your credit balance is too low' } }));
+    await expect(scanCardImage('IMG', direct, credit as typeof fetch)).rejects.toThrow('크레딧');
+  });
+
+  it('연결 확인은 과금 없는 모델 조회로 한다', async () => {
+    const f = vi.fn(async () => res(200, { id: 'claude-opus-5-5' }));
+    await checkOcr(direct, f as typeof fetch);
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.anthropic.com/v1/models/claude-opus-5-5');
+    expect(init.method).toBeUndefined();
+    await expect(checkOcr(setPath(direct, 'ocr.apiKey', 'abc'), f as typeof fetch)).rejects.toThrow('sk-ant-');
+  });
+
+  it('예전 버전에서 서버 주소를 넣어 둔 설정은 서버 모드로 이어간다', () => {
+    expect(mergeSettings({ ocr: { endpoint: 'https://x.supabase.co/functions/v1/scan-card', appSecret: 's' } }).ocr.mode).toBe('server');
+    expect(mergeSettings({}).ocr.mode).toBe('direct');
+    expect(mergeSettings({ ocr: { mode: 'direct', endpoint: 'https://x' } }).ocr.mode).toBe('direct');
   });
 });
