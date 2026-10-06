@@ -1,5 +1,6 @@
 // 명함 → 각 시스템 형식 변환. 네트워크/네이티브 호출 없이 순수 함수로만 구성해 테스트한다.
 import { formatKoreanPhone, phoneDigits, splitName, toE164Korea } from './normalize';
+import { filterCards as filterBy, matchesQuery } from './organize';
 import { BusinessCard, CardKind, KIND_LABEL } from './types';
 
 /** 휴대폰 연락처(expo-contacts CreateContactRecord 와 같은 모양) */
@@ -16,8 +17,25 @@ export interface DeviceContactRecord {
   addresses?: { label?: string; street?: string }[];
 }
 
-export function toDeviceContact(card: BusinessCard): DeviceContactRecord {
-  const { family, given } = splitName(card.name || card.nameEn);
+export type ContactNameStyle = 'name' | 'company' | 'companyTitle';
+
+/** 연락처 이름 뒤에 붙일 소속 — 전화 수신 화면에 "홍길동 (한빛상사 팀장)" 으로 보이게 */
+export function contactNameSuffix(card: Pick<BusinessCard, 'company' | 'title'>, style: ContactNameStyle): string {
+  if (style === 'name') return '';
+  const org = companyShort(card.company);
+  const inner = style === 'companyTitle' ? [org, card.title].filter(Boolean).join(' ') : org;
+  return inner ? ` (${inner})` : '';
+}
+
+/** 표시용 회사명 — (주)·주식회사 같은 법인 표기를 뺀다 */
+export function companyShort(company: string): string {
+  return company.replace(/\(주\)|㈜|주식회사|\(유\)|유한회사/g, '').replace(/\s+/g, ' ').trim();
+}
+
+export function toDeviceContact(card: BusinessCard, style: ContactNameStyle = 'name'): DeviceContactRecord {
+  const split = splitName(card.name || card.nameEn);
+  const family = split.family;
+  const given = (split.given + contactNameSuffix(card, style)).trim();
   const phones: { label: string; number: string }[] = [];
   if (card.mobile) phones.push({ label: 'mobile', number: card.mobile });
   if (card.phone) phones.push({ label: 'work', number: card.phone });
@@ -143,25 +161,10 @@ export function findDuplicate(cards: BusinessCard[], card: BusinessCard): Busine
   return cards.find((c) => c.id !== card.id && isSamePerson(c, card));
 }
 
-/** 명함첩 검색 — 이름·회사·부서·직책·번호(숫자만)·이메일·메모 */
-export function matchesQuery(card: BusinessCard, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const digits = q.replace(/\D/g, '');
-  if (digits.length >= 3 && /^[\d\s-]+$/.test(q)) {
-    return [card.mobile, card.phone, card.fax].some((p) => phoneDigits(p).includes(digits));
-  }
-  const hay = [card.name, card.nameEn, card.company, card.department, card.title, card.email, card.memo, card.address]
-    .join(' ')
-    .toLowerCase();
-  return q.split(/\s+/).every((t) => hay.includes(t));
-}
-
+/** 검색·필터는 organize.ts 로 옮겼다 — 예전 호출 모양을 유지하는 얇은 래퍼 */
+export { matchesQuery };
 export function filterCards(cards: BusinessCard[], query: string, kind: CardKind | 'all'): BusinessCard[] {
-  return cards
-    .filter((c) => (kind === 'all' ? true : c.kind === kind))
-    .filter((c) => matchesQuery(c, query))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return filterBy(cards, { query, kind });
 }
 
 export { formatKoreanPhone };

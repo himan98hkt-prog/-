@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { CONNECTOR_LABEL, CONNECTOR_ORDER, connectorReady, Settings } from '../../core/settings';
@@ -7,6 +8,7 @@ import { HTTP_CONNECTORS } from '../../integrations/sync';
 import { Button, C, Field, KindPicker, Section } from '../../ui/components';
 import { IS_WEB, WEB_LIMITS } from '../../ui/platform';
 import { CAN_OPEN_VCARD, exportAllVCards } from '../../ui/saveContact';
+import { pickBackup, shareBackup, shareCsv } from '../../ui/dataFiles';
 import { useStore } from '../../ui/store';
 
 const SAMPLE: BusinessCard = {
@@ -39,7 +41,7 @@ const HELP: Record<ConnectorId, string> = {
 };
 
 export default function SettingsScreen() {
-  const { settings, setSettings, cards } = useStore();
+  const { settings, setSettings, cards, restoreCards } = useStore();
   const [draft, setDraft] = useState<Settings>(settings);
   const [testing, setTesting] = useState<string | null>(null);
   useEffect(() => setDraft(settings), [settings]);
@@ -51,6 +53,33 @@ export default function SettingsScreen() {
   function toggleKind(id: ConnectorId, k: CardKind) {
     const kinds = draft.connectors[id].kinds;
     conn(id, { kinds: kinds.includes(k) ? kinds.filter((x) => x !== k) : [...kinds, k] });
+  }
+
+  async function run(task: () => Promise<void>) {
+    try {
+      await task();
+    } catch (e) {
+      Alert.alert('실패', (e as Error).message);
+    }
+  }
+
+  async function restore() {
+    try {
+      const incoming = await pickBackup();
+      if (!incoming) return;
+      Alert.alert('백업 복원', `백업의 명함 ${incoming.length}장을 지금 명함첩과 합칩니다.`, [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '복원',
+          onPress: () => {
+            const { added, updated } = restoreCards(incoming);
+            Alert.alert('복원 완료', `새로 추가 ${added}장 · 최신으로 갱신 ${updated}장`);
+          },
+        },
+      ]);
+    } catch (e) {
+      Alert.alert('복원 실패', (e as Error).message);
+    }
   }
 
   async function save() {
@@ -123,6 +152,11 @@ export default function SettingsScreen() {
           ) : null}
         </Section>
 
+        <Section title="내 명함">
+          <Text style={st.help}>내 명함을 QR 로 보여 주면 상대가 카메라로 찍어 바로 연락처에 저장합니다.</Text>
+          <Button title={settings.myCard.name ? `📇 내 명함 (${settings.myCard.name})` : '📇 내 명함 만들기'} variant="secondary" onPress={() => router.push('/mycard')} />
+        </Section>
+
         <Section title="촬영">
           <View style={st.switchRow}>
             <View style={{ flex: 1 }}>
@@ -133,6 +167,37 @@ export default function SettingsScreen() {
           </View>
           <Text style={[st.label, { marginTop: 12, marginBottom: 6 }]}>기본 구분</Text>
           <KindPicker value={draft.defaultKind} onChange={(k) => setDraft({ ...draft, defaultKind: k })} />
+        </Section>
+
+        {!IS_WEB ? (
+          <Section title="전화 올 때 회사명 보기">
+            <Text style={st.help}>
+              휴대폰 연락처에 저장할 이름 모양입니다. 회사·직책을 붙여 두면 전화가 올 때 기본 전화 앱에 "홍길동 (한빛상사 팀장)" 처럼 보입니다. (이 앱이 새로 만들거나 갱신하는 연락처에 적용)
+            </Text>
+            <View style={st.segment}>
+              {(
+                [
+                  ['name', '이름만'],
+                  ['company', '이름+회사'],
+                  ['companyTitle', '이름+회사+직책'],
+                ] as const
+              ).map(([v, label]) => (
+                <Pressable key={v} onPress={() => setDraft({ ...draft, contactName: v })} style={[st.segItem, draft.contactName === v && st.segOn]}>
+                  <Text style={[st.segText, { fontSize: 13 }, draft.contactName === v && { color: '#fff' }]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Section>
+        ) : null}
+
+        <Section title="팔로업 알림">
+          <View style={st.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={st.label}>연락할 날 아침 9시에 알림</Text>
+              <Text style={st.help}>명함 상세에서 "3일 뒤·1주 뒤" 처럼 다시 연락할 날을 정하면 알려 드립니다.</Text>
+            </View>
+            <Switch value={draft.followUpNotify} onValueChange={(v) => setDraft({ ...draft, followUpNotify: v })} />
+          </View>
         </Section>
 
         {CONNECTOR_ORDER.map((id) => {
@@ -183,6 +248,18 @@ export default function SettingsScreen() {
             </Section>
           );
         })}
+
+        {!IS_WEB ? (
+          <Section title="데이터 내보내기·백업">
+            <Text style={st.help}>엑셀 파일과 백업은 무료이며, 카톡·메일·드라이브 등 원하는 곳으로 바로 보낼 수 있습니다.</Text>
+            <View style={{ gap: 8 }}>
+              <Button title={`📊 엑셀(CSV)로 내보내기 (${cards.length}명)`} variant="secondary" disabled={!cards.length} onPress={() => run(() => shareCsv(cards))} />
+              <Button title="💾 백업 파일 만들기" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareBackup(cards))} />
+              <Button title="📂 백업에서 복원" variant="secondary" onPress={restore} />
+            </View>
+            <Text style={[st.help, { marginTop: 8 }]}>백업에는 명함 정보·그룹·메모·팔로업·경력 이력이 들어가고 사진은 빠집니다. 같은 명함은 더 최근 것으로 합쳐집니다.</Text>
+          </Section>
+        ) : null}
 
         {CAN_OPEN_VCARD && cards.length ? (
           <Section title="아이폰 연락처로 한꺼번에 옮기기">

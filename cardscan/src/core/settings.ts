@@ -1,5 +1,5 @@
 // 앱 설정 모델 — 저장 방식(AsyncStorage/SecureStore)과 분리해 기본값·검증만 둔다.
-import { CardKind, ConnectorId } from './types';
+import { CardFields, CardKind, ConnectorId, EMPTY_FIELDS } from './types';
 
 export interface ConnectorBase {
   enabled: boolean;
@@ -28,6 +28,15 @@ export interface Settings {
   autoSave: boolean;
   /** 촬영 화면의 기본 구분 */
   defaultKind: CardKind;
+  /**
+   * 휴대폰 연락처에 저장할 이름 모양 — 전화가 오면 기본 전화 앱에 회사·직책이 함께 뜬다.
+   * name: 홍길동 / company: 홍길동 (한빛상사) / companyTitle: 홍길동 (한빛상사 팀장)
+   */
+  contactName: 'name' | 'company' | 'companyTitle';
+  /** 팔로업 날짜 아침 9시에 알림 */
+  followUpNotify: boolean;
+  /** 내 명함 — QR·공유용 */
+  myCard: CardFields;
   connectors: {
     contacts: ConnectorBase;
     webhook: ConnectorBase & { url: string; secret: string };
@@ -43,6 +52,9 @@ export const DEFAULT_SETTINGS: Settings = {
   ocr: { mode: 'device', apiKey: '', endpoint: '', anonKey: '', appSecret: '' },
   autoSave: true,
   defaultKind: 'customer',
+  contactName: 'company',
+  followUpNotify: true,
+  myCard: { ...EMPTY_FIELDS },
   connectors: {
     contacts: { enabled: true, kinds: [...ALL_KINDS] },
     webhook: { enabled: false, kinds: [...ALL_KINDS], url: '', secret: '' },
@@ -111,6 +123,7 @@ export function mergeSettings(saved: unknown): Settings {
       ...(s.ocr ?? {}),
     },
     connectors,
+    myCard: { ...base.myCard, ...((s.myCard as object | undefined) ?? {}) },
   };
 }
 

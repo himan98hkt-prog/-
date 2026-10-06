@@ -21,7 +21,7 @@ export default function ReviewScreen() {
     if (!clean.name && !clean.company) return Alert.alert('이름이나 회사 중 하나는 입력해 주세요');
     setSaving(true);
     try {
-      const { card, merged } = await addCard({ fields: clean, kind, extra: draft?.extra ?? [], tempImageUri: draft?.imageUri });
+      const { card, merged } = await addCard({ fields: clean, kind, extra: draft?.extra ?? [], tempImageUri: draft?.imageUri, tempBackUri: draft?.backImageUri });
       clearDraft();
       if (merged) Alert.alert('기존 명함 갱신', '휴대폰 번호나 이메일이 같은 명함이 있어 최신 정보로 갱신했습니다.');
       router.replace({ pathname: '/card/[id]', params: { id: card.id } });

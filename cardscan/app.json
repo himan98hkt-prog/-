@@ -54,6 +54,14 @@
           "photosPermission": "앨범의 명함 사진을 불러오기 위해 사진 접근이 필요합니다.",
           "microphonePermission": false
         }
+      ],
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#1F6FEB"
+        }
       ]
     ],
     "scheme": "cardscan",

@@ -22,9 +22,9 @@ async function findExisting(card: BusinessCard): Promise<Contact | undefined> {
   return undefined;
 }
 
-export const deviceContactsConnector: Connector = async (card, { previous }) => {
+export const deviceContactsConnector: Connector = async (card, { previous, settings }) => {
   await ensurePermission();
-  const record = toDeviceContact(card);
+  const record = toDeviceContact(card, settings.contactName);
 
   if (previous?.remoteId) {
     try {

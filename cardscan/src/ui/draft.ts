@@ -6,6 +6,7 @@ export interface Draft {
   kind: CardKind;
   extra: string[];
   imageUri?: string;
+  backImageUri?: string;
   note?: string;
   error?: string;
 }

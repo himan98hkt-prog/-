@@ -37,6 +37,22 @@ export interface SyncStatus {
   remoteId?: string;
 }
 
+/** 메모·미팅 기록 한 줄 */
+export interface CardNote {
+  id: string;
+  at: string;
+  text: string;
+}
+
+/** 같은 사람의 이전 소속 — 명함을 다시 찍었을 때 회사·직책이 바뀌면 남긴다 */
+export interface CareerEntry {
+  company: string;
+  department: string;
+  title: string;
+  /** 이 소속이 확인된 마지막 시점 */
+  until: string;
+}
+
 export interface BusinessCard extends CardFields {
   id: string;
   kind: CardKind;
@@ -44,9 +60,21 @@ export interface BusinessCard extends CardFields {
   updatedAt: string;
   /** 앱 문서 폴더에 복사해 둔 명함 사진 경로 */
   imageUri?: string;
+  /** 명함 뒷면(영문면 등) 사진 */
+  backImageUri?: string;
   /** OCR 이 읽은 기타 문구(슬로건, SNS 등) */
   extra: string[];
   sync: Partial<Record<ConnectorId, SyncStatus>>;
+  // ↓ 이후 버전에서 추가된 칸 — 예전에 저장된 명함에는 없을 수 있다
+  favorite?: boolean;
+  /** 사용자 그룹 (예: '2026 전시회', 'VIP', '협력사') */
+  tags?: string[];
+  /** 메모·미팅 기록 (최신이 앞) */
+  notes?: CardNote[];
+  /** 팔로업(다시 연락할) 날짜 YYYY-MM-DD */
+  followUp?: string;
+  /** 이전 소속 이력 (최신이 앞) */
+  history?: CareerEntry[];
 }
 
 export const EMPTY_FIELDS: CardFields = {

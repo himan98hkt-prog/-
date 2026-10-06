@@ -1,12 +1,13 @@
 # 명함스캔 아이폰용 웹앱 배포 (GitHub Pages)
-# - cardscan/ 이 바뀌어 push 되면 웹 빌드를 만들어 gh-pages 브랜치에 올린다.
+# - 지금은 안드로이드를 먼저 다듬는 중이라 자동 배포를 끄고 수동 실행만 둔다
+#   (Actions → 명함스캔 아이폰 웹앱 → Run workflow). 아이폰 진행 시 아래 push 트리거를 다시 켠다.
 # - 아이폰 Safari 에서 https://<사용자>.github.io/<저장소>/ 를 열고 "홈 화면에 추가" 하면 앱처럼 쓴다.
 # - 처음 한 번은 저장소 Settings → Pages → Branch 를 gh-pages / (root) 로 지정해야 사이트가 열린다.
 name: 명함스캔 아이폰 웹앱
 
 on:
-  push:
-    paths: ['cardscan/**', '.github/workflows/cardscan-web.yml']
+  # push:
+  #   paths: ['cardscan/**', '.github/workflows/cardscan-web.yml']
   workflow_dispatch:
 
 concurrency:

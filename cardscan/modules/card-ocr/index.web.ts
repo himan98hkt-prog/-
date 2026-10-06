@@ -109,3 +109,9 @@ export async function recognizeText(uri: string): Promise<OcrResult> {
   const maxY = Math.max(0, ...lines.map((l) => l.top + l.height));
   return { text: data.text, lines: lines.map(({ confidence: _c, ...l }) => l), width: maxX, height: maxY };
 }
+
+// 웹에는 문서 스캐너가 없다 — 일반 사진 선택으로 대체
+export const isDocumentScannerAvailable = false;
+export function scanDocument(_pageLimit: 1 | 2): Promise<string[]> {
+  return Promise.reject(new Error('문서 스캐너를 쓸 수 없습니다'));
+}

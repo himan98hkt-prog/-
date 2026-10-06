@@ -20,6 +20,7 @@ export interface OcrResult {
 
 interface CardOcrNative {
   recognizeAsync(uri: string): Promise<OcrResult>;
+  scanDocumentAsync(pageLimit: number): Promise<string[]>;
 }
 
 const native = requireOptionalNativeModule<CardOcrNative>('CardOcr');
@@ -35,3 +36,14 @@ export function recognizeText(uri: string): Promise<OcrResult> {
 
 /** 웹에서는 인식 엔진을 미리 받는다 — 앱(ML Kit)은 모델이 내장돼 있어 할 일 없음 */
 export function warmUpOcr(): void {}
+
+export const isDocumentScannerAvailable = native != null;
+
+/**
+ * Google 문서 스캐너로 명함 촬영 (테두리 자동 인식·원근 보정). pageLimit=2 면 앞·뒷면.
+ * 취소하면 빈 배열. Play 서비스가 없는 기기 등에서는 오류 — 호출하는 쪽이 일반 카메라로 대체한다.
+ */
+export function scanDocument(pageLimit: 1 | 2): Promise<string[]> {
+  if (!native) return Promise.reject(new Error('문서 스캐너를 쓸 수 없습니다'));
+  return native.scanDocumentAsync(pageLimit);
+}
