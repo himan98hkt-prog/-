@@ -18,6 +18,8 @@ export function phoneDigits(raw: string): string {
 export function formatKoreanPhone(raw: string): string {
   const src = (raw || '').trim();
   if (!src) return '';
+  // 외국 번호(+1, +44 …)는 국제 표기 그대로
+  if (/^\+\s*(?!82)\d/.test(src)) return src;
   // 내선(ext, 내선, #)은 떼어 두었다가 뒤에 다시 붙인다
   const extMatch = src.match(/\s*(?:ext\.?|내선|#|\(내\))\s*(\d+)\s*\)?$/i);
   const ext = extMatch ? ` (내선 ${extMatch[1]})` : '';

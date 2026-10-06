@@ -2,6 +2,7 @@
 // 한국 명함의 관례(M/T/F 표기, (주)·주식회사, 팀·본부, 직급, 시·구·로 주소)를 기준으로 한다.
 import { formatKoreanPhone, normalizeEmail, normalizeWebsite, phoneDigits } from './normalize';
 import { CardFields, EMPTY_FIELDS } from './types';
+import { findIntlNumbers, otherPhone, parseLatinRest, removeNumbers } from './cardParserLatin';
 
 export interface OcrLineInput {
   text: string;
@@ -10,6 +11,11 @@ export interface OcrLineInput {
   top?: number;
   width?: number;
   height?: number;
+}
+
+export interface ParseOptions {
+  /** 휴대폰 지역 (US, GB, SG …) — 국가번호 없이 쓴 번호를 그 나라 번호로 해석한다 */
+  region?: string;
 }
 
 export interface ParsedCard {
@@ -80,7 +86,7 @@ const ADDRESS_EN = /\b(Seoul|Busan|Incheon|Daegu|Daejeon|Gwangju|Ulsan|Sejong|Gy
 const ADDRESS_LABEL = /^(주소|본사|지사|공장|연구소|Add(ress)?|A)\s*[.:)]?\s*/i;
 
 const EMAIL = /[A-Za-z0-9._%+-]+\s?@\s?[A-Za-z0-9.-]+\s?\.\s?[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?/;
-const WEB = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\bhttps?:\/\/[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\b[A-Za-z0-9-]{2,}\.(?:co\.kr|or\.kr|go\.kr|ac\.kr|re\.kr|ne\.kr|kr|com|net|org|io|co|biz|info|ai)\b(?:\/[^\s]*)?/i;
+const WEB = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\bhttps?:\/\/[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^\s]*)?|\b[A-Za-z0-9-]{2,}\.(?:co\.kr|or\.kr|go\.kr|ac\.kr|re\.kr|ne\.kr|co\.uk|org\.uk|com\.au|com\.sg|com\.my|com\.hk|com\.ph|co\.nz|co\.za|co\.in|kr|com|net|org|io|co|biz|info|ai|app|dev|tech|uk|au|sg|ca|de|in|us|eu|ie|nz|hk|ph|my|za|fr|jp|me)\b(?:\/[^\s]*)?/i;
 // 국내 전화번호 (+82, 괄호 지역번호, 점/공백/하이픈 구분, 15xx 대표번호)
 // 국내 전화번호. 지역번호를 실제 체계(02, 031~064, 010~019, 070, 080, 050x)로 제한해
 // 아이콘이 '0' 으로 읽혀 앞에 붙은 경우("002-…")에도 올바른 번호만 잡는다.
@@ -170,10 +176,12 @@ function splitNameTitle(token: string): { name: string; title: string } | null {
 
 // ── 본체 ────────────────────────────────────────────────────────────────────
 
-export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
+export function parseCardText(input: OcrLineInput[] | string, options: ParseOptions = {}): ParsedCard {
   const rawLines: OcrLineInput[] = typeof input === 'string' ? input.split(/\r?\n/).map((text) => ({ text })) : input;
+  // 영어권 명함은 "Kevin Nguyen | Software Engineer" 의 | 가 구분 정보라 남긴다
+  const latin = !rawLines.some((l) => /[가-힣]/.test(l.text));
   const lines = rawLines
-    .map((l, i) => ({ ...l, text: clean(l.text), idx: i, used: false }))
+    .map((l, i) => ({ ...l, text: latin ? l.text.replace(/\s+/g, ' ').trim() : clean(l.text), idx: i, used: false }))
     .filter((l) => l.text.length > 0);
   const f: CardFields = { ...EMPTY_FIELDS };
   const maxH = Math.max(1, ...lines.map((l) => l.height ?? 0));
@@ -196,14 +204,21 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     }
   }
 
+  // 한글이 하나도 없으면 영어권 명함 — 국제 전화번호 규칙과 영어 이름·직함·회사 판별로
+  if (latin) return parseLatinCard(lines, f, options.region);
+
   // 3) 전화·휴대폰·팩스
   //  - 010·011… 은 표기와 상관없이 휴대폰 (아이콘 오인식 표기보다 번호 자체가 확실하다)
   //  - 일반 전화는 번호 앞(또는 윗줄·뒤)의 표기로 전화/팩스를 가르고,
   //    표기가 없으면 첫 번호=전화, 다음 번호는 팩스처럼 보일 때(같은 국번·050x)만 팩스
-  type Found = { value: string; digits: string; label: PhoneKind | ''; order: number };
+  type Found = { value: string; digits: string; label: PhoneKind | ''; order: number; mobileType?: boolean };
   const found: Found[] = [];
   lines.forEach((l, li) => {
-    const text = fixDigits(stripIcons(l.text));
+    let text = fixDigits(stripIcons(l.text));
+    // '+44 …' 처럼 국가번호를 붙인 외국 번호는 국제 규칙으로 먼저 (국내 번호는 아래 규칙)
+    const foreign = /\+\s*(?!82)\d/.test(text) ? findIntlNumbers(text, 'KR', true) : [];
+    for (const n of foreign) found.push({ value: n.value, digits: n.digits, label: n.label, order: found.length, mobileType: n.mobileType });
+    if (foreign.length) text = removeNumbers(text, foreign);
     const matches = [...text.matchAll(PHONE)];
     if (!matches.length) return;
     let cursor = 0;
@@ -240,6 +255,7 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
   });
 
   const isMobileNo = (d: string) => /^01[016789]/.test(d);
+  const isMobile = (n: Found) => isMobileNo(n.digits) || (!n.label && !!n.mobileType);
   const looksLikeFaxOf = (phone: string, cand: string) => {
     const p = phoneDigits(phone);
     if (/^050[2-8]/.test(cand)) return true; // 050 평생번호는 팩스로 많이 쓴다
@@ -248,7 +264,7 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
   };
   const others: string[] = [];
   for (const n of found) {
-    if (isMobileNo(n.digits)) {
+    if (isMobile(n)) {
       if (!f.mobile) f.mobile = n.value;
       else if (phoneDigits(f.mobile) !== n.digits) others.push(`휴대폰 ${n.value}`);
     } else if (n.label === 'fax') {
@@ -261,7 +277,7 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
   }
   // 표기 없는 일반 전화: 050x 는 팩스 쪽으로 미루고, 첫 번호=전화, 다음 번호는
   // 같은 국번이거나 번호가 두 개뿐일 때(명함은 대개 전화→팩스 순) 팩스, 그 밖은 기타로 보존
-  const unlabeledLand = found.filter((n) => !isMobileNo(n.digits) && !n.label);
+  const unlabeledLand = found.filter((n) => !isMobile(n) && !n.label);
   const fax050 = unlabeledLand.find((n) => /^050[2-8]/.test(n.digits));
   const ordered = fax050 && unlabeledLand.length > 1 ? [...unlabeledLand.filter((n) => n !== fax050), fax050] : unlabeledLand;
   for (const n of ordered) {
@@ -415,5 +431,52 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     ...others,
     ...lines.filter((l) => !l.used && l.text.length >= 2 && !/^[\W_]+$/.test(l.text)).map((l) => l.text),
   ].slice(0, 10);
+  return { fields: f, extra };
+}
+
+/** 영어권 명함 — 국제 전화번호(지역 기준) + 줄 점수로 이름·직함·회사·부서 */
+function parseLatinCard(lines: { text: string; height?: number; used: boolean }[], f: CardFields, region?: string): ParsedCard {
+  type N = ReturnType<typeof findIntlNumbers>[number];
+  const nums: N[] = [];
+  for (const l of lines) {
+    if (l.used) continue;
+    const text = fixDigits(l.text.replace(/[^0-9A-Za-z\s.:()/,+#|&'®-]/g, ' '));
+    // 국가번호 없이 쓴 번호: 휴대폰 지역 기준, 안 맞으면 미국 기준으로 (한국 사용자가 미국 명함을 찍는 경우)
+    let intl = findIntlNumbers(text, region);
+    if (!intl.length && region !== 'US') intl = findIntlNumbers(text, 'US');
+    let rest = intl.length ? removeNumbers(text, intl) : text;
+    // 국가번호 없는 한국 번호(010-…, 02-…)가 영문 명함에 있는 경우
+    const kr = region === 'KR' ? [] : findIntlNumbers(rest, 'KR').filter((n) => n.country === 'KR');
+    if (kr.length) rest = removeNumbers(rest, kr);
+    // 표기는 있는데 번호 체계에 맞지 않는 번호(오인식·신규 대역)는 버리지 않고 적힌 그대로 둔다
+    if (!intl.length && !kr.length) {
+      const raw = text.match(/^\s*(Mobile|Mob|Mobil|Cell|M|H\/P|HP|Tel|Phone|Ph|T|P|Office|Direct|D|Fax|F)\s*[.:]?\s*(\+?[\d(][\d\s().-]{6,}\d)\s*$/i);
+      if (raw) {
+        const kind = /^(Fax|F)$/i.test(raw[1]) ? 'fax' : /^(Mobile|Mob|Mobil|Cell|M|H\/P|HP)$/i.test(raw[1]) ? 'mobile' : 'phone';
+        nums.push({ value: raw[2].trim(), digits: raw[2].replace(/\D/g, ''), label: kind, mobileType: false, country: '', start: 0, end: 0 });
+        l.used = true;
+      }
+      continue;
+    }
+    nums.push(...intl, ...kr);
+    l.text = rest;
+    if (!/[A-Za-z]{3,}/.test(rest) || /^(?:call|text|or|and|\W)+$/i.test(rest)) l.used = true;
+  }
+  const others: string[] = [];
+  const put = (kind: 'mobile' | 'phone' | 'fax', value: string) => {
+    if (!f[kind]) f[kind] = value;
+    else if (f[kind] !== value) others.push(otherPhone(kind, value));
+  };
+  for (const n of nums.filter((x) => x.label)) put(n.label as 'mobile' | 'phone' | 'fax', n.value);
+  for (const n of nums.filter((x) => !x.label)) {
+    if (n.mobileType && !f.mobile) f.mobile = n.value;
+    else if (!f.phone) f.phone = n.value;
+    else if (!f.mobile && n.mobileType) f.mobile = n.value;
+    else others.push(otherPhone(n.mobileType ? 'mobile' : 'phone', n.value));
+  }
+  parseLatinRest(lines, f, others);
+  // 한국 회사의 영문 명함(+82 번호·한국 영문 주소)은 예전처럼 영문 이름 칸에도 둔다
+  if (f.name && (nums.some((n) => n.country === 'KR') || /\b(Korea|Seoul|Busan|Incheon|Gyeonggi)\b|-gu\b|-ro\b|-daero\b/i.test(f.address))) f.nameEn = f.name;
+  const extra = [...others, ...lines.filter((l) => !l.used && l.text.length >= 2 && !/^[\W_]+$/.test(l.text)).map((l) => l.text)].slice(0, 10);
   return { fields: f, extra };
 }

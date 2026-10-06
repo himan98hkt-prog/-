@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { t } from '../../i18n';
+import { deviceRegion, t } from '../../i18n';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -77,12 +77,14 @@ export default function ScanScreen() {
   async function readCard(shot: CapturedCard) {
     const front = await scanCardImage(shot.front, settings, {
       recognize: recognizeText,
+      region: deviceRegion(),
     });
     if (!shot.back) return front;
     // 뒷면(영문면 등)은 앞면에서 못 읽은 칸만 채운다
     try {
       const back = await scanCardImage(shot.back, settings, {
         recognize: recognizeText,
+        region: deviceRegion(),
       });
       const fields = { ...front.fields };
       for (const k of Object.keys(fields) as (keyof typeof fields)[]) if (!fields[k] && back.fields[k]) fields[k] = back.fields[k];
@@ -152,7 +154,9 @@ export default function ScanScreen() {
         const { card, merged, careerChanged } = saved;
         tap('success');
         setLastId(card.id);
-        setLastNote(careerChanged ? t('소속이 바뀌어 이전 회사·직책을 경력 이력에 남겼습니다') : merged ? t('같은 사람의 명함을 최신 정보로 갱신했습니다') : '');
+        setLastNote(
+          careerChanged ? t('소속이 바뀌어 이전 회사·직책을 경력 이력에 남겼습니다') : merged ? t('같은 사람의 명함을 최신 정보로 갱신했습니다') : '',
+        );
         setPhase('idle');
         // 연속 촬영: 행사장에서 받은 명함 더미를 손 안 대고 차례로
         if (sendable.continuousScan && source === 'camera') {
@@ -195,6 +199,7 @@ export default function ScanScreen() {
         const img = await prepareImage(uri);
         const r = await scanCardImage(img, settings, {
           recognize: recognizeText,
+          region: deviceRegion(),
         });
         if (!r.fields.name && !r.fields.company && !r.fields.mobile && !r.fields.email) throw new Error(t('글자 없음'));
         const confident = isConfidentEnough(r.fields);
@@ -232,7 +237,9 @@ export default function ScanScreen() {
           <Text style={st.brand}>SCAN</Text>
           <Text style={st.headTitle}>{t('명함 촬영')}</Text>
           <Text style={st.headSub}>
-            {targets.length ? t('저장 → {1}', { 1: targets.map((ct) => t(CONNECTOR_LABEL[ct]).split(' (')[0]).join(' · ') }) : t('{1} 명함은 앱에만 저장됩니다', { 1: t(KIND_LABEL[kind]) })}
+            {targets.length
+              ? t('저장 → {1}', { 1: targets.map((ct) => t(CONNECTOR_LABEL[ct]).split(' (')[0]).join(' · ') })
+              : t('{1} 명함은 앱에만 저장됩니다', { 1: t(KIND_LABEL[kind]) })}
           </Text>
         </View>
 
@@ -332,7 +339,9 @@ export default function ScanScreen() {
 
         {batch ? (
           <View style={st.panel}>
-            <Text style={st.panelTitle}>{batch.running ? t('여러 장 등록 중 {1}/{2}', { 1: batch.done, 2: batch.total }) : t('{1}장 등록 완료', { 1: batch.total })}</Text>
+            <Text style={st.panelTitle}>
+              {batch.running ? t('여러 장 등록 중 {1}/{2}', { 1: batch.done, 2: batch.total }) : t('{1}장 등록 완료', { 1: batch.total })}
+            </Text>
             <View style={st.progressTrack}>
               <LinearGradient
                 colors={['#E9CB8C', T.gold]}
@@ -356,7 +365,7 @@ export default function ScanScreen() {
               <Button title={t('그만하기')} variant="dark" onPress={() => (stopRef.current = true)} style={{ marginTop: 12 }} />
             ) : batch.needsReview ? (
               <Button
-                title={t('\'{1}\' {2}장 확인하기', { 1: reviewTag(), 2: batch.needsReview })}
+                title={t("'{1}' {2}장 확인하기", { 1: reviewTag(), 2: batch.needsReview })}
                 variant="gold"
                 icon="checkmark-done"
                 style={{ marginTop: 12 }}
@@ -539,7 +548,14 @@ const st = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   ghostText: { ...type(14, '700', '#fff') },
-  tagBox: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.md, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(212,175,106,0.35)' },
+  tagBox: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,106,0.35)',
+  },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
   tagRowText: { ...type(13, '600', 'rgba(255,255,255,0.65)'), flex: 1 },
   tagInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },

@@ -13,6 +13,15 @@ export function deviceLanguageCode(): string | null {
   }
 }
 
+/** 휴대폰 지역 (US, GB, KR …) — 명함 전화번호 해석에 쓴다 */
+export function deviceRegion(): string | undefined {
+  try {
+    return getLocales()[0]?.regionCode ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** 설정·휴대폰 언어로 앱 언어를 정해 적용하고 돌려준다 */
 export function applyLanguage(setting: LangSetting | undefined) {
   const lang = resolveLang(setting, deviceLanguageCode());

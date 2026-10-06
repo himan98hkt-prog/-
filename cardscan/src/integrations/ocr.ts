@@ -29,6 +29,8 @@ export interface OcrDeps {
   fetch?: Fetch;
   /** 온디바이스 OCR (modules/card-ocr) — 테스트에서는 가짜를 넣는다 */
   recognize?: (uri: string) => Promise<{ lines: OcrLineInput[] }>;
+  /** 휴대폰 지역(US, GB …) — 국가번호 없이 쓴 번호를 그 나라 번호로 해석 */
+  region?: string;
 }
 
 const API = 'https://api.anthropic.com/v1';
@@ -107,7 +109,7 @@ export async function scanCardImage(img: CapturedForOcr, settings: Settings, dep
   if (!deps.recognize) throw new Error(t('이 기기에서는 무료 인식을 쓸 수 없습니다 (안드로이드 설치 앱에서만 동작).'));
   const { lines } = await deps.recognize(img.uri);
   if (!lines.length) throw new Error(t('글자를 찾지 못했습니다. 명함이 화면에 꽉 차고 초점이 맞게 다시 찍어 주세요.'));
-  const parsed = parseCardText(lines);
+  const parsed = parseCardText(lines, { region: deps.region });
   // 규칙 분석 결과도 같은 정리 규칙(번호 하이픈·이메일 소문자)을 거친다
   return toResult(parsed.fields, parsed.extra, undefined);
 }

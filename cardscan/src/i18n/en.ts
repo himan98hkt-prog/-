@@ -191,6 +191,7 @@ export const EN: Record<string, string> = {
   "전화 {1}": "Phone {1}",
   "이메일 {1}": "Email {1}",
   "주소 {1}": "Address {1}",
+  "팩스 {1}": "Fax {1}",
   "삭제되었거나 없는 명함입니다": "This card was deleted or does not exist",
   "명함 삭제": "Delete card",
   "앱에서 이 명함을 지웁니다.\n휴대폰 연락처·연동 시스템에 이미 저장된 정보는 그대로 남습니다.": "This removes the card from the app.\nAnything already saved to your contacts or integrations stays there.",
