@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { t } from '../../i18n';
 import { Tabs } from 'expo-router/tabs';
 import { ColorValue, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,16 +27,16 @@ export default function TabsLayout() {
       }}
       screenListeners={{ tabPress: () => tap('select') }}
     >
-      <Tabs.Screen name="index" options={{ title: '명함첩', headerShown: false, tabBarIcon: icon('albums', 'albums-outline') }} />
+      <Tabs.Screen name="index" options={{ title: t('명함첩'), headerShown: false, tabBarIcon: icon('albums', 'albums-outline') }} />
       <Tabs.Screen
         name="scan"
         options={{
-          title: '촬영',
+          title: t('촬영'),
           headerShown: false,
           tabBarLabel: () => null,
           // 가운데 금테 원형 촬영 버튼 — 이 앱의 핵심 동작을 늘 한가운데에
           tabBarButton: ({ onPress, accessibilityState }) => (
-            <Pressable onPress={onPress} style={st.centerWrap} accessibilityRole="button" accessibilityLabel="명함 촬영">
+            <Pressable onPress={onPress} style={st.centerWrap} accessibilityRole="button" accessibilityLabel={t('명함 촬영')}>
               <View style={[st.centerRing, accessibilityState?.selected && { borderColor: T.gold }]}>
                 <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.center}>
                   <Icon name="scan" size={28} color={T.gold} />
@@ -45,7 +46,7 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="settings" options={{ title: '설정·연동', tabBarIcon: icon('options', 'options-outline') }} />
+      <Tabs.Screen name="settings" options={{ title: t('설정·연동'), tabBarIcon: icon('options', 'options-outline') }} />
     </Tabs>
   );
 }

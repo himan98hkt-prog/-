@@ -15,7 +15,7 @@ export async function loadProduct(): Promise<ProProduct | null> {
   return null;
 }
 export async function buyPro(): Promise<void> {
-  throw new Error('이 환경에서는 결제를 쓸 수 없습니다');
+  throw new Error('Billing is not available here');
 }
 export function watchPurchases(): () => void {
   return () => {};

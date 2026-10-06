@@ -1,5 +1,6 @@
 // 내 명함 — QR 로 보여 주면 상대가 카메라로 찍어 바로 연락처에 저장, 문자·카톡으로도 보낸다.
 import { useEffect, useState } from 'react';
+import { t } from '../i18n';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { toVCard } from '../core/mapping';
 import { sanitizeFields } from '../core/normalize';
@@ -26,7 +27,7 @@ export default function MyCardScreen() {
 
   async function save() {
     const clean = sanitizeFields(form);
-    if (!clean.name) return Alert.alert('이름을 입력해 주세요');
+    if (!clean.name) return Alert.alert(t('이름을 입력해 주세요'));
     await setSettings({ ...settings, myCard: clean });
     setEditing(false);
   }
@@ -35,12 +36,12 @@ export default function MyCardScreen() {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
-          <Section title="내 명함 정보">
-            <Text style={[st.sub, { textAlign: 'left' }]}>상대에게 보여 줄 내 정보를 입력하세요. 이 휴대폰에만 저장됩니다.</Text>
+          <Section title={t('내 명함 정보')}>
+            <Text style={[st.sub, { textAlign: 'left' }]}>{t('상대에게 보여 줄 내 정보를 입력하세요. 이 휴대폰에만 저장됩니다.')}</Text>
             <View style={{ height: 10 }} />
             <CardForm value={form} onChange={setForm} />
           </Section>
-          <Button title="저장" icon="checkmark" variant="gold" onPress={save} />
+          <Button title={t('저장')} icon="checkmark" variant="gold" onPress={save} />
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -50,9 +51,9 @@ export default function MyCardScreen() {
   const shareMessage = [
     [me.name, me.title].filter(Boolean).join(' '),
     [me.company, me.department].filter(Boolean).join(' '),
-    me.mobile && `휴대폰 ${me.mobile}`,
-    me.phone && `전화 ${me.phone}`,
-    me.email && `이메일 ${me.email}`,
+    me.mobile && t('휴대폰 {1}', { 1: me.mobile }),
+    me.phone && t('전화 {1}', { 1: me.phone }),
+    me.email && t('이메일 {1}', { 1: me.email }),
     me.website,
     me.address,
   ]
@@ -66,13 +67,13 @@ export default function MyCardScreen() {
         <View style={st.qrFrame}>
           <QrCode value={vcard} size={220} />
         </View>
-        <Text style={st.sub}>상대방 휴대폰 카메라로 이 QR 을 찍으면{'\n'}내 연락처가 바로 저장됩니다</Text>
+        <Text style={st.sub}>{t('상대방 휴대폰 카메라로 이 QR 을 찍으면\n내 연락처가 바로 저장됩니다')}</Text>
       </View>
       <View style={{ gap: 10, marginTop: 14 }}>
-        <Button title="문자·카톡으로 내 명함 보내기" icon="paper-plane" variant="gold" onPress={() => Share.share({ message: shareMessage })} />
+        <Button title={t('문자·카톡으로 내 명함 보내기')} icon="paper-plane" variant="gold" onPress={() => Share.share({ message: shareMessage })} />
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Button title="vCard" icon="document-attach-outline" variant="secondary" style={{ flex: 1 }} onPress={() => Share.share({ message: vcard, title: me.name })} />
-          <Button title="수정" icon="create-outline" variant="dark" style={{ flex: 1 }} onPress={() => setEditing(true)} />
+          <Button title={t('수정')} icon="create-outline" variant="dark" style={{ flex: 1 }} onPress={() => setEditing(true)} />
         </View>
       </View>
     </ScrollView>

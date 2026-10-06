@@ -7,8 +7,9 @@ import { Settings } from './settings';
 export const PRO_SKU = 'pro_lifetime';
 /** 무료로 저장할 수 있는 명함 수 */
 export const FREE_CARD_LIMIT = 50;
-/** 정가 (원) — 스토어 가격이 이보다 낮으면 "출시 기념가" 로 보여 준다 */
-export const PRO_REGULAR_PRICE_KRW = 3900;
+/** 통화별 정가 — 스토어 가격이 이보다 낮으면 "출시 기념가" 로 보여 준다 (콘솔 가격과 맞출 것) */
+export const PRO_REGULAR_PRICE: Record<string, number> = { KRW: 3900, USD: 2.99 };
+export const PRO_REGULAR_PRICE_KRW = PRO_REGULAR_PRICE.KRW;
 
 export type ProFeature = 'cards' | 'connectors' | 'csv' | 'batch' | 'continuous';
 
@@ -50,7 +51,19 @@ export function effectiveSettings(settings: Settings, isPro: boolean): Settings 
   return { ...settings, connectors, continuousScan: false };
 }
 
-/** 스토어 가격(원)이 정가보다 낮으면 출시 기념가 */
+/** 스토어 가격이 그 통화의 정가보다 낮으면 출시 기념가 */
 export function isLaunchSale(price: number | null | undefined, currency: string | undefined): boolean {
-  return currency === 'KRW' && typeof price === 'number' && price > 0 && price < PRO_REGULAR_PRICE_KRW;
+  const regular = currency ? PRO_REGULAR_PRICE[currency] : undefined;
+  return !!regular && typeof price === 'number' && price > 0 && price < regular;
+}
+
+/** 정가 표시 (₩3,900 / $2.99) — Intl 이 없거나 실패하면 숫자 + 통화 */
+export function regularPriceLabel(currency: string | undefined, locale = 'ko-KR'): string {
+  const regular = currency ? PRO_REGULAR_PRICE[currency] : undefined;
+  if (!regular || !currency) return '';
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: currency === 'KRW' ? 0 : 2 }).format(regular);
+  } catch {
+    return `${regular} ${currency}`;
+  }
 }

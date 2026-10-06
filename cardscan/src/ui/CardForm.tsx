@@ -1,5 +1,6 @@
 import { CardFields, FIELD_LABEL } from '../core/types';
 import { Field } from './components';
+import { t } from '../i18n';
 
 const ORDER: (keyof CardFields)[] = [
   'name', 'company', 'department', 'title', 'mobile', 'phone', 'fax', 'email', 'website', 'address', 'nameEn', 'memo',
@@ -19,9 +20,9 @@ export function CardForm({ value, onChange }: { value: CardFields; onChange: (v:
       {ORDER.map((k) => (
         <Field
           key={k}
-          label={FIELD_LABEL[k]}
+          label={t(FIELD_LABEL[k])}
           value={value[k]}
-          onChangeText={(t) => onChange({ ...value, [k]: t })}
+          onChangeText={(ct) => onChange({ ...value, [k]: ct })}
           keyboardType={KEYBOARD[k] ?? 'default'}
           autoCapitalize={k === 'email' || k === 'website' ? 'none' : 'sentences'}
           autoCorrect={false}

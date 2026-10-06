@@ -1,5 +1,6 @@
 // 엑셀(CSV) 내보내기와 백업/복원 — 리멤버는 엑셀 내보내기가 유료지만 여기서는 무료·오프라인.
 import { KIND_LABEL, BusinessCard, CardKind } from './types';
+import { t } from '../i18n/core';
 
 export const CSV_HEADERS = [
   '구분', '즐겨찾기', '이름', '영문이름', '회사', '부서', '직책', '휴대폰', '전화', '팩스', '이메일', '웹사이트', '주소',
@@ -20,7 +21,7 @@ const phoneCell = (p: string) => (p ? `"=""${p.replace(/"/g, '')}"""` : '');
 export function toCsv(cards: BusinessCard[]): string {
   const rows = cards.map((c) =>
     [
-      cell(KIND_LABEL[c.kind]),
+      cell(t(KIND_LABEL[c.kind])),
       cell(c.favorite ? '★' : ''),
       cell(c.name), cell(c.nameEn), cell(c.company), cell(c.department), cell(c.title),
       phoneCell(c.mobile), phoneCell(c.phone), phoneCell(c.fax),
@@ -34,7 +35,7 @@ export function toCsv(cards: BusinessCard[]): string {
       cell(c.updatedAt.slice(0, 10)),
     ].join(','),
   );
-  return '\ufeff' + [CSV_HEADERS.join(','), ...rows].join('\r\n');
+  return '\ufeff' + [CSV_HEADERS.map((h) => cell(t(h))).join(','), ...rows].join('\r\n');
 }
 
 // ── 백업 ────────────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ export function parseBackup(text: string): BusinessCard[] {
   } catch {
     throw new Error('백업 파일을 읽을 수 없습니다 (JSON 아님)');
   }
-  if (data?.app !== BACKUP_APP || !Array.isArray(data.cards)) throw new Error('명함스캔 백업 파일이 아닙니다');
+  if (data?.app !== BACKUP_APP || !Array.isArray(data.cards)) throw new Error(t('명함스캔 백업 파일이 아닙니다'));
   return data.cards
     .filter((c): c is BusinessCard => !!c && typeof c === 'object' && typeof (c as BusinessCard).id === 'string')
     .map((c) => ({

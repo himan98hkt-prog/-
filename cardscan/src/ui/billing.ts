@@ -12,6 +12,7 @@ import {
   purchaseUpdatedListener,
   requestPurchase,
 } from 'expo-iap';
+import { t } from '../i18n';
 import { PRO_SKU } from '../core/pro';
 
 export const BILLING_ENABLED = process.env.EXPO_PUBLIC_STORE === 'play';
@@ -74,7 +75,7 @@ export async function loadProduct(): Promise<ProProduct | null> {
 
 /** 결제 창 열기 — 결과는 watchPurchases 로 온다 */
 export async function buyPro(): Promise<void> {
-  if (!(await connect())) throw new Error('구글 플레이에 연결하지 못했습니다. 인터넷 연결과 플레이스토어 로그인을 확인해 주세요.');
+  if (!(await connect())) throw new Error(t('구글 플레이에 연결하지 못했습니다. 인터넷 연결과 플레이스토어 로그인을 확인해 주세요.'));
   await requestPurchase({ request: { google: { skus: [PRO_SKU] } }, type: 'in-app' });
 }
 
@@ -91,7 +92,7 @@ export function watchPurchases(onState: (s: OwnedState) => void, onError: (messa
   });
   const b = purchaseErrorListener((e) => {
     if (isUserCancelledError(e as never)) return;
-    onError(e.message || '결제를 완료하지 못했습니다');
+    onError(e.message || t('결제를 완료하지 못했습니다'));
   });
   return () => {
     a.remove();

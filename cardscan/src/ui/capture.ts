@@ -1,5 +1,6 @@
 // 명함 사진 받기 — 문서 스캐너(테두리 자동·원근 보정) → 안 되면 일반 카메라, 앨범 한 장/여러 장.
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { t } from '../i18n';
 import * as ImagePicker from 'expo-image-picker';
 import { isDocumentScannerAvailable, scanDocument } from '../../modules/card-ocr';
 
@@ -38,7 +39,7 @@ export async function captureCard(source: 'camera' | 'library', withBack = false
   }
   if (source === 'camera') {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) throw new Error('카메라 권한이 필요합니다. 설정에서 카메라 접근을 허용하세요.');
+    if (!perm.granted) throw new Error(t('카메라 권한이 필요합니다. 설정에서 카메라 접근을 허용하세요.'));
   }
   const result =
     source === 'camera' ? await ImagePicker.launchCameraAsync(PICK_OPTIONS) : await ImagePicker.launchImageLibraryAsync(PICK_OPTIONS);
@@ -65,6 +66,6 @@ export async function prepareImage(uri: string, width?: number): Promise<Capture
   if (!width || width > 1600) ctx.resize({ width: 1600 });
   const ref = await ctx.renderAsync();
   const saved = await ref.saveAsync({ base64: true, compress: 0.8, format: SaveFormat.JPEG });
-  if (!saved.base64) throw new Error('이미지 변환에 실패했습니다');
+  if (!saved.base64) throw new Error(t('이미지 변환에 실패했습니다'));
   return { uri: saved.uri, base64: saved.base64 };
 }

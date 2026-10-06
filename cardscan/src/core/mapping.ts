@@ -1,5 +1,6 @@
 // 명함 → 각 시스템 형식 변환. 네트워크/네이티브 호출 없이 순수 함수로만 구성해 테스트한다.
 import { formatKoreanPhone, phoneDigits, splitName, toE164Korea } from './normalize';
+import { t } from '../i18n/core';
 import { filterCards as filterBy, matchesQuery } from './organize';
 import { BusinessCard, CardKind, KIND_LABEL } from './types';
 
@@ -40,7 +41,7 @@ export function toDeviceContact(card: BusinessCard, style: ContactNameStyle = 'n
   if (card.mobile) phones.push({ label: 'mobile', number: card.mobile });
   if (card.phone) phones.push({ label: 'work', number: card.phone });
   if (card.fax) phones.push({ label: 'workFax', number: card.fax });
-  const noteLines = [`[${KIND_LABEL[card.kind]}] 명함 스캔 ${card.createdAt.slice(0, 10)}`];
+  const noteLines = [`[${t(KIND_LABEL[card.kind])}] ${t('명함 스캔 {1}', { 1: card.createdAt.slice(0, 10) })}`];
   if (card.nameEn && card.name) noteLines.push(card.nameEn);
   if (card.memo) noteLines.push(card.memo);
   const rec: DeviceContactRecord = {
@@ -124,7 +125,8 @@ export function toSlackMessage(card: BusinessCard): { text: string } {
   const who = [card.name, card.title].filter(Boolean).join(' ');
   const org = [card.company, card.department].filter(Boolean).join(' ');
   const reach = [card.mobile, card.email].filter(Boolean).join(' · ');
-  return { text: `:card_index: 새 ${KIND_LABEL[card.kind]} 명함 — *${who || '이름 미상'}*${org ? ` (${org})` : ''}${reach ? `\n${reach}` : ''}` };
+  const head = t('새 {1} 명함', { 1: t(KIND_LABEL[card.kind]) });
+  return { text: `:card_index: ${head} — *${who || t('이름 미상')}*${org ? ` (${org})` : ''}${reach ? `\n${reach}` : ''}` };
 }
 
 function vEscape(s: string): string {

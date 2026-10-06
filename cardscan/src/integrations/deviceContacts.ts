@@ -1,5 +1,6 @@
 // 휴대폰 주소록 연동 (expo-contacts, Expo SDK 57 의 Contact 클래스 API)
 import { Contact, requestPermissionsAsync } from 'expo-contacts';
+import { t } from '../i18n/core';
 import { toDeviceContact } from '../core/mapping';
 import { phoneDigits } from '../core/normalize';
 import { BusinessCard } from '../core/types';
@@ -7,7 +8,7 @@ import { Connector } from './http';
 
 async function ensurePermission() {
   const { granted } = await requestPermissionsAsync();
-  if (!granted) throw new Error('연락처 접근 권한이 없습니다. 설정 > 앱 > 권한에서 연락처를 허용하세요.');
+  if (!granted) throw new Error(t('연락처 접근 권한이 없습니다. 설정 > 앱 > 권한에서 연락처를 허용하세요.'));
 }
 
 /** 이름이 같은 연락처 중 휴대폰 번호가 같은 사람을 찾는다 — 같은 명함을 두 번 찍어도 중복 연락처가 생기지 않게 */
@@ -29,7 +30,7 @@ export const deviceContactsConnector: Connector = async (card, { previous, setti
   if (previous?.remoteId) {
     try {
       await new Contact(previous.remoteId).update(record);
-      return { remoteId: previous.remoteId, message: '연락처 갱신' };
+      return { remoteId: previous.remoteId, message: t('연락처 갱신') };
     } catch {
       // 사용자가 주소록에서 지운 경우 — 아래에서 다시 찾거나 새로 만든다
     }
@@ -43,8 +44,8 @@ export const deviceContactsConnector: Connector = async (card, { previous, setti
     for (const p of record.phones ?? []) if (!known.has(phoneDigits(p.number ?? ''))) await existing.addPhone(p);
     const emails = new Set((await existing.getEmails()).map((e) => (e.address ?? '').toLowerCase()));
     for (const e of record.emails ?? []) if (!emails.has((e.address ?? '').toLowerCase())) await existing.addEmail(e);
-    return { remoteId: existing.id, message: '기존 연락처에 합침' };
+    return { remoteId: existing.id, message: t('기존 연락처에 합침') };
   }
   const created = await Contact.create(record);
-  return { remoteId: created.id, message: '새 연락처 저장' };
+  return { remoteId: created.id, message: t('새 연락처 저장') };
 };

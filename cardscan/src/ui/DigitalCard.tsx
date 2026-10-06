@@ -1,5 +1,6 @@
 // 디지털 명함 — 회사 색 그라데이션의 프리미엄 카드. 누르면 3D 로 뒤집혀 원본 명함 사진을 보여 준다.
 import { LinearGradient } from 'expo-linear-gradient';
+import { t } from '../i18n';
 import { useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { companyShort } from '../core/mapping';
@@ -39,7 +40,7 @@ export function DigitalCard({ card, imageUri, backImageUri, favorite, caption }:
 
   return (
     <View>
-      <Pressable onPress={turn} accessibilityLabel={photos.length ? '눌러서 명함 사진 보기' : undefined}>
+      <Pressable onPress={turn} accessibilityLabel={photos.length ? t('눌러서 명함 사진 보기') : undefined}>
         <Animated.View style={[st.wrap, shadow(3), { transform: [{ perspective: 1000 }, { rotateY }] }]}>
           {side === 0 ? (
             <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.card}>
@@ -62,7 +63,7 @@ export function DigitalCard({ card, imageUri, backImageUri, favorite, caption }:
               </View>
               <View>
                 <Text style={st.name} numberOfLines={1}>
-                  {card.name || card.nameEn || '이름 없음'}
+                  {card.name || card.nameEn || t('이름 없음')}
                 </Text>
                 <Text style={st.title} numberOfLines={1}>
                   {[card.department, card.title].filter(Boolean).join(' · ') || card.nameEn || ' '}
@@ -78,7 +79,7 @@ export function DigitalCard({ card, imageUri, backImageUri, favorite, caption }:
               {photos.length ? (
                 <View style={st.flipHint}>
                   <Icon name="sync" size={12} color="rgba(255,255,255,0.75)" />
-                  <Text style={st.flipText}>명함 사진</Text>
+                  <Text style={st.flipText}>{t('명함 사진')}</Text>
                 </View>
               ) : null}
             </LinearGradient>
@@ -86,7 +87,7 @@ export function DigitalCard({ card, imageUri, backImageUri, favorite, caption }:
             <View style={[st.card, { padding: 0, backgroundColor: '#000' }]}>
               <CardImage uri={photos[side - 1]} style={StyleSheet.absoluteFill as object} contain />
               <View style={[st.flipHint, { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 10, paddingHorizontal: 8 }]}>
-                <Text style={st.flipText}>{side === 1 ? '앞면' : '뒷면'} · 눌러서 넘기기</Text>
+                <Text style={st.flipText}>{side === 1 ? t('앞면 · 눌러서 넘기기') : t('뒷면 · 눌러서 넘기기')}</Text>
               </View>
             </View>
           )}
@@ -154,7 +155,7 @@ function PhotoCard({ imageUri, backImageUri, caption }: Props) {
 
   return (
     <View>
-      <Pressable onPress={turn} onLongPress={() => setZoom(true)} accessibilityLabel={photos.length > 1 ? '눌러서 앞·뒷면 넘기기' : '눌러서 크게 보기'}>
+      <Pressable onPress={turn} onLongPress={() => setZoom(true)} accessibilityLabel={photos.length > 1 ? t('눌러서 앞·뒷면 넘기기') : t('눌러서 크게 보기')}>
         <Animated.View style={[st.photoWrap, shadow(2), { transform: [{ perspective: 1000 }, { rotateY }] }]}>
           <CardImage uri={photos[side]} style={StyleSheet.absoluteFill as object} contain />
         </Animated.View>
@@ -162,18 +163,18 @@ function PhotoCard({ imageUri, backImageUri, caption }: Props) {
       {/* 안내는 사진 밖에 — 명함 글자를 가리지 않게 */}
       <View style={st.photoBar}>
         <Text style={st.photoHint}>
-          {photos.length > 1 ? `원본 ${side === 0 ? '앞면' : '뒷면'} · 눌러서 ${side === 0 ? '뒷면' : '앞면'}` : '원본 명함'}
+          {photos.length > 1 ? side === 0 ? t('원본 앞면 · 눌러서 뒷면') : t('원본 뒷면 · 눌러서 앞면') : t('원본 명함')}
         </Text>
-        <Pressable hitSlop={10} onPress={() => setZoom(true)} style={st.zoomBtn} accessibilityLabel="크게 보기">
+        <Pressable hitSlop={10} onPress={() => setZoom(true)} style={st.zoomBtn} accessibilityLabel={t('크게 보기')}>
           <Icon name="expand" size={12} color={T.sub} />
-          <Text style={st.photoHint}>크게 보기</Text>
+          <Text style={st.photoHint}>{t('크게 보기')}</Text>
         </Pressable>
       </View>
       {caption ? <Text style={st.caption}>{caption}</Text> : null}
       <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)} statusBarTranslucent>
         <Pressable style={st.zoomBg} onPress={() => setZoom(false)}>
           <CardImage uri={photos[side]} style={st.zoomImg} contain />
-          <Text style={st.zoomHint}>{photos.length > 1 ? '아무 곳이나 누르면 닫힙니다 · 카드를 누르면 앞·뒷면' : '아무 곳이나 누르면 닫힙니다'}</Text>
+          <Text style={st.zoomHint}>{photos.length > 1 ? t('아무 곳이나 누르면 닫힙니다 · 카드를 누르면 앞·뒷면') : t('아무 곳이나 누르면 닫힙니다')}</Text>
         </Pressable>
       </Modal>
     </View>
@@ -185,11 +186,11 @@ export function PinnedPhoto({ imageUri, backImageUri }: { imageUri?: string; bac
   const [back, setBack] = useState(false);
   if (!imageUri) return null;
   return (
-    <Pressable onPress={() => backImageUri && setBack((v) => !v)} style={st.pinned} accessibilityLabel="원본 명함">
+    <Pressable onPress={() => backImageUri && setBack((v) => !v)} style={st.pinned} accessibilityLabel={t('원본 명함')}>
       <CardImage uri={back && backImageUri ? backImageUri : imageUri} style={{ width: '100%', height: '100%' }} contain />
       <View style={[st.photoPill, { position: 'absolute', right: 10, bottom: 8 }]}>
         <Icon name="image" size={11} color="#fff" />
-        <Text style={st.photoPillText}>원본{backImageUri ? (back ? ' · 뒷면' : ' · 앞면 (눌러서 뒷면)') : ''}</Text>
+        <Text style={st.photoPillText}>{backImageUri ? (back ? t('원본 · 뒷면') : t('원본 · 앞면 (눌러서 뒷면)')) : t('원본')}</Text>
       </View>
     </Pressable>
   );

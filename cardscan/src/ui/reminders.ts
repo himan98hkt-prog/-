@@ -1,5 +1,6 @@
 // 팔로업 알림 — 정한 날 아침 9시에 "○○○님께 연락할 날" 로컬 알림 (서버·요금 없음).
 import * as Notifications from 'expo-notifications';
+import { t } from '../i18n';
 import { Platform } from 'react-native';
 import { BusinessCard } from '../core/types';
 
@@ -16,7 +17,7 @@ function prepare(): Promise<boolean> {
     });
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, {
-        name: '팔로업 알림',
+        name: t('팔로업 알림'),
         importance: Notifications.AndroidImportance.HIGH,
       });
     }
@@ -41,8 +42,8 @@ export async function scheduleFollowUp(card: BusinessCard): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     identifier: idFor(card.id),
     content: {
-      title: `📞 ${who || '명함'}님께 연락할 날`,
-      body: [card.company, card.notes?.[0]?.text].filter(Boolean).join(' · ') || '명함을 열어 연락해 보세요',
+      title: t('📞 {1}님께 연락할 날', { 1: who || t('명함') }),
+      body: [card.company, card.notes?.[0]?.text].filter(Boolean).join(' · ') || t('명함을 열어 연락해 보세요'),
       data: { cardId: card.id },
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },

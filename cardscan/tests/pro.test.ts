@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAddCard, effectiveSettings, FREE_CARD_LIMIT, isLaunchSale, isProConnector } from '../src/core/pro';
+import { canAddCard, effectiveSettings, FREE_CARD_LIMIT, isLaunchSale, isProConnector, regularPriceLabel } from '../src/core/pro';
 import { connectorTargets, DEFAULT_SETTINGS, setPath } from '../src/core/settings';
 
 describe('Pro 규칙', () => {
@@ -27,10 +27,18 @@ describe('Pro 규칙', () => {
     expect(effectiveSettings(s, true)).toBe(s);
   });
 
-  it('정가보다 낮은 원화 가격만 출시 기념가', () => {
+  it('정가 표시', () => {
+    expect(regularPriceLabel('KRW', 'ko-KR')).toContain('3,900');
+    expect(regularPriceLabel('USD', 'en-US')).toBe('$2.99');
+    expect(regularPriceLabel('EUR')).toBe('');
+  });
+
+  it('통화별 정가보다 낮으면 출시 기념가', () => {
     expect(isLaunchSale(1900, 'KRW')).toBe(true);
     expect(isLaunchSale(3900, 'KRW')).toBe(false);
-    expect(isLaunchSale(1.99, 'USD')).toBe(false);
+    expect(isLaunchSale(1.99, 'USD')).toBe(true);
+    expect(isLaunchSale(2.99, 'USD')).toBe(false);
+    expect(isLaunchSale(1.5, 'EUR')).toBe(false); // 정가를 정하지 않은 통화는 표시 안 함
     expect(isLaunchSale(null, 'KRW')).toBe(false);
   });
 });

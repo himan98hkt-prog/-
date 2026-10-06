@@ -4,6 +4,7 @@
 //   지원하지 않아 REST 로 부르되, 요청 본문·응답 해석은 서버 함수와 같은 코드(buildCardRequest/parseCardResponse)를 쓴다.
 // - 서버 모드(server): supabase/functions/scan-card 경유 — API 키를 휴대폰에 두지 않는다.
 import { sanitizeFields } from '../core/normalize';
+import { t } from '../i18n/core';
 import { parseCardText, OcrLineInput } from '../core/cardParser';
 import { effectiveOcrMode, Settings } from '../core/settings';
 import { CardFields } from '../core/types';
@@ -40,12 +41,12 @@ const API_HEADERS = (apiKey: string) => ({
 });
 
 function apiErrorMessage(status: number, detail?: string): string {
-  if (status === 401) return 'API 키가 올바르지 않습니다. 설정에서 키를 다시 확인하세요.';
-  if (status === 403) return 'API 키에 이 모델 사용 권한이 없습니다.';
-  if (status === 429) return '요청이 많습니다. 잠시 후 다시 시도하세요.';
-  if (status === 400 && detail && /credit|balance/i.test(detail)) return 'Anthropic 계정의 크레딧이 부족합니다. console.anthropic.com 에서 충전하세요.';
-  if (status >= 500) return '인식 서비스가 일시적으로 바쁩니다. 잠시 후 다시 시도하세요.';
-  return `인식 서비스 오류 (HTTP ${status})${detail ? ` — ${detail}` : ''}`;
+  if (status === 401) return t('API 키가 올바르지 않습니다. 설정에서 키를 다시 확인하세요.');
+  if (status === 403) return t('API 키에 이 모델 사용 권한이 없습니다.');
+  if (status === 429) return t('요청이 많습니다. 잠시 후 다시 시도하세요.');
+  if (status === 400 && detail && /credit|balance/i.test(detail)) return t('Anthropic 계정의 크레딧이 부족합니다. console.anthropic.com 에서 충전하세요.');
+  if (status >= 500) return t('인식 서비스가 일시적으로 바쁩니다. 잠시 후 다시 시도하세요.');
+  return t('인식 서비스 오류 (HTTP {1})', { 1: status }) + (detail ? ` — ${detail}` : '');
 }
 
 const toResult = (fields: unknown, extra: unknown, note: unknown): ScanResult => ({
@@ -66,9 +67,9 @@ async function scanDirect(base64Jpeg: string, apiKey: string, fetchImpl: Fetch):
   try {
     r = parseCardResponse(data ?? {});
   } catch (e) {
-    throw new Error(e instanceof ExtractError ? e.message : '인식 결과를 해석하지 못했습니다');
+    throw new Error(e instanceof ExtractError ? e.message : t('인식 결과를 해석하지 못했습니다'));
   }
-  if (!r.isBusinessCard) throw new Error('명함이 아닌 사진으로 보입니다. 명함이 화면에 꽉 차게 다시 찍어 주세요.');
+  if (!r.isBusinessCard) throw new Error(t('명함이 아닌 사진으로 보입니다. 명함이 화면에 꽉 차게 다시 찍어 주세요.'));
   return toResult(r.fields, r.extra, r.note);
 }
 
@@ -91,9 +92,9 @@ async function scanViaServer(base64Jpeg: string, settings: Settings, fetchImpl: 
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`인식 서버 응답 오류 (HTTP ${res.status})`);
+    throw new Error(t('인식 서버 응답 오류 (HTTP {1})', { 1: res.status }));
   }
-  if (!res.ok || data.error) throw new Error(data.error || `인식 서버 오류 (HTTP ${res.status})`);
+  if (!res.ok || data.error) throw new Error(data.error || t('인식 서버 오류 (HTTP {1})', { 1: res.status }));
   return toResult(data.fields, data.extra, data.note);
 }
 
@@ -103,9 +104,9 @@ export async function scanCardImage(img: CapturedForOcr, settings: Settings, dep
   if (mode === 'direct') return scanDirect(img.base64, settings.ocr.apiKey, fetchImpl);
   if (mode === 'server') return scanViaServer(img.base64, settings, fetchImpl);
 
-  if (!deps.recognize) throw new Error('이 기기에서는 무료 인식을 쓸 수 없습니다 (안드로이드 설치 앱에서만 동작).');
+  if (!deps.recognize) throw new Error(t('이 기기에서는 무료 인식을 쓸 수 없습니다 (안드로이드 설치 앱에서만 동작).'));
   const { lines } = await deps.recognize(img.uri);
-  if (!lines.length) throw new Error('글자를 찾지 못했습니다. 명함이 화면에 꽉 차고 초점이 맞게 다시 찍어 주세요.');
+  if (!lines.length) throw new Error(t('글자를 찾지 못했습니다. 명함이 화면에 꽉 차고 초점이 맞게 다시 찍어 주세요.'));
   const parsed = parseCardText(lines);
   // 규칙 분석 결과도 같은 정리 규칙(번호 하이픈·이메일 소문자)을 거친다
   return toResult(parsed.fields, parsed.extra, undefined);
@@ -116,7 +117,7 @@ export async function checkOcr(settings: Settings, fetchImpl: Fetch = fetch): Pr
   const o = settings.ocr;
   if (o.mode === 'device') return;
   if (o.mode === 'direct') {
-    if (!o.apiKey.startsWith('sk-ant-')) throw new Error('Anthropic API 키는 sk-ant- 로 시작합니다.');
+    if (!o.apiKey.startsWith('sk-ant-')) throw new Error(t('Anthropic API 키는 sk-ant- 로 시작합니다.'));
     // 모델 정보 조회는 과금되지 않는다
     const res = await fetchImpl(`${API}/models/${MODEL}`, { headers: API_HEADERS(o.apiKey) });
     if (!res.ok) {
@@ -125,7 +126,7 @@ export async function checkOcr(settings: Settings, fetchImpl: Fetch = fetch): Pr
     }
     return;
   }
-  if (!/^https:\/\//.test(o.endpoint)) throw new Error('서버 주소는 https:// 로 시작해야 합니다.');
+  if (!/^https:\/\//.test(o.endpoint)) throw new Error(t('서버 주소는 https:// 로 시작해야 합니다.'));
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (o.anonKey) {
     headers.Authorization = `Bearer ${o.anonKey}`;

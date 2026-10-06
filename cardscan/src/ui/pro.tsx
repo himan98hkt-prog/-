@@ -1,10 +1,11 @@
 // Pro 평생 이용권 상태 + 결제 화면. 앱 어디서든 requirePro('csv') 처럼 물어보면 된다.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLang, t } from '../i18n';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FREE_CARD_LIMIT, isLaunchSale, PRO_BENEFITS, PRO_REASON, PRO_REGULAR_PRICE_KRW, ProFeature } from '../core/pro';
+import { FREE_CARD_LIMIT, isLaunchSale, PRO_BENEFITS, PRO_REASON, ProFeature, regularPriceLabel } from '../core/pro';
 import { BILLING_ENABLED, buyPro, checkOwned, loadProduct, ProProduct, watchPurchases } from './billing';
 import { Icon, tap } from './components';
 import { FONT, RADIUS, T, type } from './theme';
@@ -52,7 +53,7 @@ export function ProProvider({ children }: { children: ReactNode }) {
       // 결제 화면에서 막 산 경우에만 축하 (앱 시작 때 확인은 조용히)
       if (paywallOpen.current) {
         tap('success');
-        Alert.alert('명함스캔 Pro', '평생 이용권이 적용되었습니다. 감사합니다!');
+        Alert.alert(t('명함스캔 Pro'), t('평생 이용권이 적용되었습니다. 감사합니다!'));
       }
       setPaywall(null);
     }
@@ -66,7 +67,7 @@ export function ProProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
     const stop = watchPurchases(apply, (message) => {
       setBusy(false);
-      Alert.alert('결제 실패', message);
+      Alert.alert(t('결제 실패'), message);
     });
     checkOwned().then((s) => s && apply(s));
     loadProduct().then(setProduct);
@@ -89,7 +90,7 @@ export function ProProvider({ children }: { children: ReactNode }) {
     setBusy(false);
     if (s) apply(s);
     if (s === 'owned') return;
-    Alert.alert('구매 복원', s === 'pending' ? '결제가 아직 처리 중입니다. 완료되면 자동으로 적용됩니다.' : s === 'none' ? '이 구글 계정으로 구매한 Pro 이용권을 찾지 못했습니다.' : '구글 플레이에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.');
+    Alert.alert(t('구매 복원'), s === 'pending' ? t('결제가 아직 처리 중입니다. 완료되면 자동으로 적용됩니다.') : s === 'none' ? t('이 구글 계정으로 구매한 Pro 이용권을 찾지 못했습니다.') : t('구글 플레이에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'));
   }, [apply]);
 
   const value = useMemo<ProState>(
@@ -102,7 +103,7 @@ export function ProProvider({ children }: { children: ReactNode }) {
     try {
       await buyPro();
     } catch (e) {
-      Alert.alert('결제', (e as Error).message);
+      Alert.alert(t('결제'), (e as Error).message);
     } finally {
       // 결제 창이 열리면 결과는 리스너로 온다 — 버튼만 다시 살린다
       setTimeout(() => setBusy(false), 1500);
@@ -115,7 +116,7 @@ export function ProProvider({ children }: { children: ReactNode }) {
       {BILLING_ENABLED ? (
         <Paywall
           visible={!!paywall && !owned}
-          reason={paywall && paywall !== 'upgrade' ? PRO_REASON[paywall] : undefined}
+          reason={paywall && paywall !== 'upgrade' ? t(PRO_REASON[paywall]) : undefined}
           product={product}
           pending={pending}
           busy={busy}
@@ -147,12 +148,12 @@ function Paywall(props: {
       <View style={st.backdrop}>
         <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <ScrollView bounces={false} contentContainerStyle={{ padding: 24 }}>
-            <Pressable onPress={onClose} hitSlop={14} style={st.close} accessibilityLabel="닫기">
+            <Pressable onPress={onClose} hitSlop={14} style={st.close} accessibilityLabel={t('닫기')}>
               <Icon name="close" size={22} color="rgba(255,255,255,0.6)" />
             </Pressable>
             <Text style={st.brand}>CARDSCAN PRO</Text>
-            <Text style={st.title}>평생 이용권</Text>
-            <Text style={st.sub}>구독 없이 한 번만 결제하면 계속 씁니다</Text>
+            <Text style={st.title}>{t('평생 이용권')}</Text>
+            <Text style={st.sub}>{t('구독 없이 한 번만 결제하면 계속 씁니다')}</Text>
             {reason ? (
               <View style={st.reason}>
                 <Icon name="information-circle" size={16} color={T.gold} />
@@ -165,16 +166,16 @@ function Paywall(props: {
                   <View style={st.check}>
                     <Icon name="checkmark" size={14} color={T.ink} />
                   </View>
-                  <Text style={st.benefitText}>{b}</Text>
+                  <Text style={st.benefitText}>{t(b)}</Text>
                 </View>
               ))}
             </View>
-            <Text style={st.keep}>무료로도 명함 {FREE_CARD_LIMIT}장 저장·연락처 자동 저장·검색·메모·팔로업을 쓸 수 있고, 이미 저장한 명함은 언제나 보고·고치고·백업할 수 있습니다.</Text>
+            <Text style={st.keep}>{t('무료로도 명함 {1}장 저장·연락처 자동 저장·검색·메모·팔로업을 쓸 수 있고, 이미 저장한 명함은 언제나 보고·고치고·백업할 수 있습니다.', { 1: FREE_CARD_LIMIT })}</Text>
 
             {pending ? (
               <View style={st.pending}>
                 <ActivityIndicator color={T.gold} />
-                <Text style={st.pendingText}>결제가 처리 중입니다. 완료되면 자동으로 적용됩니다.</Text>
+                <Text style={st.pendingText}>{t('결제가 처리 중입니다. 완료되면 자동으로 적용됩니다.')}</Text>
               </View>
             ) : (
               <Pressable onPress={onBuy} disabled={busy || !price} style={({ pressed }) => [{ marginTop: 22, opacity: pressed || busy || !price ? 0.7 : 1 }]}>
@@ -183,17 +184,17 @@ function Paywall(props: {
                     <ActivityIndicator color={T.ink} />
                   ) : (
                     <>
-                      {sale ? <Text style={st.saleTag}>출시 기념가 · 정가 {PRO_REGULAR_PRICE_KRW.toLocaleString('ko-KR')}원</Text> : null}
-                      <Text style={st.buyText}>{price ? `${price} · 평생 이용` : '가격 불러오는 중…'}</Text>
+                      {sale ? <Text style={st.saleTag}>{t('출시 기념가 · 정가 {1}', { 1: regularPriceLabel(product?.currency, getLang() === 'ko' ? 'ko-KR' : 'en-US') })}</Text> : null}
+                      <Text style={st.buyText}>{price ? t('{1} · 평생 이용', { 1: price }) : t('가격 불러오는 중…')}</Text>
                     </>
                   )}
                 </LinearGradient>
               </Pressable>
             )}
             <Pressable onPress={onRestore} hitSlop={8} style={{ alignSelf: 'center', marginTop: 16 }}>
-              <Text style={st.restore}>이미 구매했어요 · 구매 복원</Text>
+              <Text style={st.restore}>{t('이미 구매했어요 · 구매 복원')}</Text>
             </Pressable>
-            <Text style={st.fine}>결제는 구글 플레이로 처리되며 이 구글 계정의 다른 안드로이드 기기에서도 복원할 수 있습니다. 환불은 구글 플레이 정책을 따릅니다.</Text>
+            <Text style={st.fine}>{t('결제는 구글 플레이로 처리되며 이 구글 계정의 다른 안드로이드 기기에서도 복원할 수 있습니다. 환불은 구글 플레이 정책을 따릅니다.')}</Text>
           </ScrollView>
         </LinearGradient>
       </View>

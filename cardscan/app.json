@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "명함스캔",
+    "name": "CardScan",
     "slug": "cardscan",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -114,13 +114,18 @@
         }
       ],
       "expo-iap",
-      "./plugins/withUploadSigning"
+      "./plugins/withUploadSigning",
+      "expo-localization"
     ],
     "scheme": "cardscan",
     "experiments": {
       "typedRoutes": true
     },
     "backgroundColor": "#F3F4F8",
-    "primaryColor": "#0B1530"
+    "primaryColor": "#0B1530",
+    "locales": {
+      "ko": "./locales/ko.json",
+      "en": "./locales/en.json"
+    }
   }
 }

@@ -1,5 +1,6 @@
 // 한 장의 명함을 설정된 모든 시스템에 보낸다. 하나가 실패해도 나머지는 계속 진행한다.
 import { connectorTargets, Settings } from '../core/settings';
+import { t } from '../i18n/core';
 import { BusinessCard, ConnectorId, SyncStatus } from '../core/types';
 import { Connector, Fetch, hubspotConnector, sheetsConnector, slackConnector, webhookConnector } from './http';
 
@@ -47,7 +48,7 @@ export async function syncCard(card: BusinessCard, opts: SyncOptions): Promise<B
 
 function errorText(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  if (/Network request failed|Failed to fetch/i.test(msg)) return '네트워크 연결 실패 — 나중에 자동으로 다시 보냅니다';
+  if (/Network request failed|Failed to fetch/i.test(msg)) return t('네트워크 연결 실패 — 나중에 자동으로 다시 보냅니다');
   return msg;
 }
 

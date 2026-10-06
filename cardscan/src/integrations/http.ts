@@ -1,5 +1,6 @@
 // HTTP 기반 연동 — fetch 를 주입받아 단위 테스트에서 가짜 응답으로 검증한다.
 import { toHubSpotProperties, toSheetRow, toSlackMessage, toWebhookPayload, SHEET_HEADERS } from '../core/mapping';
+import { t } from '../i18n/core';
 import { Settings } from '../core/settings';
 import { BusinessCard, SyncStatus } from '../core/types';
 
@@ -54,10 +55,10 @@ export const sheetsConnector: Connector = async (card, { settings, fetch }) => {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('구글 시트 응답을 읽을 수 없습니다. 웹 앱 배포 시 "액세스 권한: 모든 사용자"인지 확인하세요.');
+    throw new Error(t('구글 시트 응답을 읽을 수 없습니다. 웹 앱 배포 시 "액세스 권한: 모든 사용자"인지 확인하세요.'));
   }
-  if (!data.ok) throw new Error(data.error || '구글 시트 저장 실패');
-  return { remoteId: card.id, message: data.row ? `${data.row}행` : undefined };
+  if (!data.ok) throw new Error(data.error || t('구글 시트 저장 실패'));
+  return { remoteId: card.id, message: data.row ? t('{1}행', { 1: data.row }) : undefined };
 };
 
 const HUBSPOT = 'https://api.hubapi.com/crm/v3/objects/contacts';
@@ -69,7 +70,7 @@ export const hubspotConnector: Connector = async (card, { settings, fetch, previ
   const patch = async (id: string): Promise<ConnectorResult> => {
     const res = await fetch(`${HUBSPOT}/${encodeURIComponent(id)}`, { method: 'PATCH', headers, body });
     if (!res.ok) throw new Error(await readError(res));
-    return { remoteId: id, message: '기존 연락처 갱신' };
+    return { remoteId: id, message: t('기존 연락처 갱신') };
   };
 
   if (previous?.remoteId) {
@@ -96,7 +97,7 @@ export const hubspotConnector: Connector = async (card, { settings, fetch, previ
 
 /** 슬랙은 알림용 — 처음 등록될 때만 보낸다 */
 export const slackConnector: Connector = async (card, { settings, fetch, previous }) => {
-  if (previous?.state === 'ok') return { remoteId: previous.remoteId, message: '이미 알림 보냄' };
+  if (previous?.state === 'ok') return { remoteId: previous.remoteId, message: t('이미 알림 보냄') };
   const res = await fetch(settings.connectors.slack.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

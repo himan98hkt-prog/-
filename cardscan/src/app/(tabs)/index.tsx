@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { t } from '../../i18n';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, FlatList, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -61,16 +62,16 @@ export default function CardListScreen() {
         <View style={st.emptyMark}>
           <Icon name="scan" size={44} color={T.gold} />
         </View>
-        <Text style={st.emptyTitle}>첫 명함을 찍어 보세요</Text>
-        <Text style={st.emptySub}>찍는 순간 이름·회사·연락처를 읽어{'\n'}연락처와 업무 시스템에 자동으로 저장합니다.</Text>
-        <Button title="명함 촬영 시작" icon="scan" variant="gold" onPress={() => router.navigate('/scan')} style={{ alignSelf: 'stretch', marginTop: 28 }} />
+        <Text style={st.emptyTitle}>{t('첫 명함을 찍어 보세요')}</Text>
+        <Text style={st.emptySub}>{t('찍는 순간 이름·회사·연락처를 읽어\n연락처와 업무 시스템에 자동으로 저장합니다.')}</Text>
+        <Button title={t('명함 촬영 시작')} icon="scan" variant="gold" onPress={() => router.navigate('/scan')} style={{ alignSelf: 'stretch', marginTop: 28 }} />
       </LinearGradient>
     );
   }
 
   const renderCard = ({ item, index }: { item: BusinessCard; index: number }) => {
     const targets = connectorTargets(settings, item.kind);
-    const failed = targets.some((t) => item.sync[t]?.state === 'error');
+    const failed = targets.some((ct) => item.sync[ct]?.state === 'error');
     const overdue = item.followUp && item.followUp <= today;
     return (
       <Rise index={index}>
@@ -79,7 +80,7 @@ export default function CardListScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
               <Text style={st.name} numberOfLines={1}>
-                {item.name || item.nameEn || '(이름 없음)'}
+                {item.name || item.nameEn || t('(이름 없음)')}
               </Text>
               <Text style={st.title} numberOfLines={1}>
                 {item.title}
@@ -90,9 +91,9 @@ export default function CardListScreen() {
             </Text>
             <View style={st.metaRow}>
               <KindBadge kind={item.kind} />
-              {(item.tags ?? []).slice(0, 1).map((t) => (
-                <Text key={t} style={st.tagMini} numberOfLines={1}>
-                  #{t}
+              {(item.tags ?? []).slice(0, 1).map((ct) => (
+                <Text key={ct} style={st.tagMini} numberOfLines={1}>
+                  #{ct}
                 </Text>
               ))}
               {item.followUp ? (
@@ -102,9 +103,9 @@ export default function CardListScreen() {
                 </View>
               ) : null}
               <View style={{ flex: 1 }} />
-              {syncingIds.has(item.id) ? <Text style={st.meta}>연동 중</Text> : failed ? <Icon name="alert-circle" size={14} color={T.err} /> : null}
-              {targets.map((t) => (
-                <SyncDot key={t} status={item.sync[t]} />
+              {syncingIds.has(item.id) ? <Text style={st.meta}>{t('연동 중')}</Text> : failed ? <Icon name="alert-circle" size={14} color={T.err} /> : null}
+              {targets.map((ct) => (
+                <SyncDot key={ct} status={item.sync[ct]} />
               ))}
             </View>
           </View>
@@ -114,7 +115,7 @@ export default function CardListScreen() {
               tap('select');
               setMeta(item.id, { favorite: !item.favorite });
             }}
-            accessibilityLabel="즐겨찾기"
+            accessibilityLabel={t('즐겨찾기')}
           >
             <Icon name={item.favorite ? 'star' : 'star-outline'} size={22} color={item.favorite ? T.gold : '#CBD2DE'} />
           </Pressable>
@@ -129,19 +130,19 @@ export default function CardListScreen() {
       <View style={st.heroTop}>
         <View>
           <Text style={st.brand}>CARDSCAN</Text>
-          <Text style={st.heroTitle}>명함첩</Text>
+          <Text style={st.heroTitle}>{t('명함첩')}</Text>
         </View>
-        <Pressable onPress={() => router.push('/mycard')} style={st.myCardBtn} accessibilityLabel="내 명함">
+        <Pressable onPress={() => router.push('/mycard')} style={st.myCardBtn} accessibilityLabel={t('내 명함')}>
           <Icon name="qr-code" size={18} color={T.gold} />
-          <Text style={st.myCardText}>내 명함</Text>
+          <Text style={st.myCardText}>{t('내 명함')}</Text>
         </Pressable>
       </View>
       <View style={st.statRow}>
-        <Stat value={summary.total} label="전체" />
+        <Stat value={summary.total} label={t('전체')} />
         <View style={st.statDiv} />
-        <Stat value={`+${summary.thisMonth}`} label="이번 달" gold />
+        <Stat value={`+${summary.thisMonth}`} label={t('이번 달')} gold />
         <View style={st.statDiv} />
-        <Stat value={summary.companies} label="회사" />
+        <Stat value={summary.companies} label={t('회사')} />
         <View style={st.statDiv} />
         <Stat value={summary.favorites} label="VIP" />
       </View>
@@ -150,7 +151,7 @@ export default function CardListScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="이름·회사·번호·메모 (초성 ㅎㄱㄷ)"
+          placeholder={t('이름·회사·번호·메모 (초성 ㅎㄱㄷ)')}
           placeholderTextColor="rgba(255,255,255,0.45)"
           style={st.search}
         />
@@ -174,7 +175,7 @@ export default function CardListScreen() {
             return (
               <Pressable key={f} onPress={() => { tap('select'); setKind(f); }} style={[st.chip, on && st.chipOn]}>
                 <Text style={[st.chipText, on && { color: '#fff' }]}>
-                  {f === 'all' ? '전체' : KIND_LABEL[f]} <Text style={[st.chipCount, on && { color: T.gold }]}>{count}</Text>
+                  {f === 'all' ? t('전체') : t(KIND_LABEL[f])} <Text style={[st.chipCount, on && { color: T.gold }]}>{count}</Text>
                 </Text>
               </Pressable>
             );
@@ -204,9 +205,9 @@ export default function CardListScreen() {
                 <Icon name="call" size={20} color={T.gold} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={st.dueTitle}>오늘 연락할 사람 {due.length}명</Text>
+                <Text style={st.dueTitle}>{t('오늘 연락할 사람 {1}명', { 1: due.length })}</Text>
                 <Text style={st.dueSub} numberOfLines={1}>
-                  {due.slice(0, 4).map((c) => `${c.name || c.company}${c.followUp! < today ? '(지남)' : ''}`).join(' · ')}
+                  {due.slice(0, 4).map((c) => `${c.name || c.company}${c.followUp! < today ? t('(지남)') : ''}`).join(' · ')}
                 </Text>
               </View>
               <Icon name="chevron-forward" size={18} color={T.ink} />
@@ -221,8 +222,8 @@ export default function CardListScreen() {
                 <Icon name="ribbon" size={20} color={T.ink} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[st.dueTitle, { color: '#fff' }]}>{freeLeft > 0 ? `무료로 ${freeLeft}장 더 저장할 수 있어요` : `무료 ${FREE_CARD_LIMIT}장을 모두 썼어요`}</Text>
-                <Text style={[st.dueSub, { color: 'rgba(255,255,255,0.7)' }]}>Pro 평생 이용권으로 무제한 저장</Text>
+                <Text style={[st.dueTitle, { color: '#fff' }]}>{freeLeft > 0 ? t('무료로 {1}장 더 저장할 수 있어요', { 1: freeLeft }) : t('무료 {1}장을 모두 썼어요', { 1: FREE_CARD_LIMIT })}</Text>
+                <Text style={[st.dueSub, { color: 'rgba(255,255,255,0.7)' }]}>{t('Pro 평생 이용권으로 무제한 저장')}</Text>
               </View>
               <Icon name="chevron-forward" size={18} color={T.gold} />
             </LinearGradient>
@@ -232,12 +233,12 @@ export default function CardListScreen() {
         <View style={st.toolRow}>
           <Pressable onPress={() => { tap('select'); setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length]); }} style={st.tool}>
             <Icon name="swap-vertical" size={15} color={T.sub} />
-            <Text style={st.toolText}>{SORT_LABEL[sort]}</Text>
+            <Text style={st.toolText}>{t(SORT_LABEL[sort])}</Text>
           </Pressable>
-          <Text style={st.resultCount}>{billing && !isPro && list.length === cards.length ? `${cards.length}/${FREE_CARD_LIMIT}명` : `${list.length}명`}</Text>
+          <Text style={st.resultCount}>{billing && !isPro && list.length === cards.length ? t('{1}/{2}명', { 1: cards.length, 2: FREE_CARD_LIMIT }) : t('{1}명', { 1: list.length })}</Text>
           <Pressable onPress={() => { tap('select'); setByCompany((v) => !v); }} style={st.tool}>
             <Icon name={byCompany ? 'people-outline' : 'business-outline'} size={15} color={T.sub} />
-            <Text style={st.toolText}>{byCompany ? '사람별' : '회사별'}</Text>
+            <Text style={st.toolText}>{byCompany ? t('사람별') : t('회사별')}</Text>
           </Pressable>
         </View>
       </View>
@@ -261,7 +262,7 @@ export default function CardListScreen() {
             <View style={st.sectionHeader}>
               <View style={[st.sectionDot, { backgroundColor: gradientFor(section.title)[1] }]} />
               <Text style={st.sectionTitle}>{section.title}</Text>
-              <Text style={st.meta}>{section.data.length}명</Text>
+              <Text style={st.meta}>{t('{1}명', { 1: section.data.length })}</Text>
             </View>
           )}
           renderItem={({ item, index }) => <View style={{ paddingHorizontal: 16 }}>{renderCard({ item, index })}</View>}
@@ -271,7 +272,7 @@ export default function CardListScreen() {
         <FlatList
           {...common}
           data={list}
-          ListEmptyComponent={<Text style={[st.emptyList]}>찾는 명함이 없습니다</Text>}
+          ListEmptyComponent={<Text style={[st.emptyList]}>{t('찾는 명함이 없습니다')}</Text>}
           renderItem={({ item, index }) => <View style={{ paddingHorizontal: 16 }}>{renderCard({ item, index })}</View>}
         />
       )}

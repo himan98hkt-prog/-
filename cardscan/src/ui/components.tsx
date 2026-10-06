@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { CardKind, KIND_LABEL, SyncStatus } from '../core/types';
 import { FONT, gradientFor, monogram, RADIUS, shadow, T, type } from './theme';
+import { t } from '../i18n';
 
 /** 예전 화면 코드와의 호환용 색 이름 */
 export const C = {
@@ -151,7 +152,7 @@ export function KindPicker({ value, onChange, dark }: { value: CardKind; onChang
             }}
             style={[s.segItem, on && { backgroundColor: dark ? T.gold : T.kind[k] }]}
           >
-            <Text style={[s.segText, dark && { color: 'rgba(255,255,255,0.75)' }, on && { color: dark ? T.ink : '#fff' }]}>{KIND_LABEL[k]}</Text>
+            <Text style={[s.segText, dark && { color: 'rgba(255,255,255,0.75)' }, on && { color: dark ? T.ink : '#fff' }]}>{t(KIND_LABEL[k])}</Text>
           </Pressable>
         );
       })}
@@ -162,7 +163,7 @@ export function KindPicker({ value, onChange, dark }: { value: CardKind; onChang
 export function KindBadge({ kind }: { kind: CardKind }) {
   return (
     <View style={[s.badge, { backgroundColor: T.kind[kind] + '18' }]}>
-      <Text style={[s.badgeText, { color: T.kind[kind] }]}>{KIND_LABEL[kind]}</Text>
+      <Text style={[s.badgeText, { color: T.kind[kind] }]}>{t(KIND_LABEL[kind])}</Text>
     </View>
   );
 }

@@ -39,6 +39,8 @@ export interface Settings {
   scanTag: string;
   /** 연속 촬영 — 저장하자마자 다음 명함 촬영 화면을 바로 연다 */
   continuousScan: boolean;
+  /** 앱 언어 — auto 는 휴대폰 언어 (한국어가 아니면 영어) */
+  language: 'auto' | 'ko' | 'en';
   /** 내 명함 — QR·공유용 */
   myCard: CardFields;
   connectors: {
@@ -60,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   followUpNotify: true,
   scanTag: '',
   continuousScan: false,
+  language: 'auto',
   myCard: { ...EMPTY_FIELDS },
   connectors: {
     contacts: { enabled: true, kinds: [...ALL_KINDS] },

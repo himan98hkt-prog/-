@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { t } from '../i18n';
 import { View } from 'react-native';
 import { darkRuns, qrMatrix } from '../core/qr';
 
@@ -9,7 +10,7 @@ export function QrCode({ value, size = 240 }: { value: string; size?: number }) 
   const n = matrix.length + quiet * 2;
   const cell = size / n;
   return (
-    <View style={{ width: size, height: size, backgroundColor: '#fff' }} accessibilityLabel="명함 QR 코드">
+    <View style={{ width: size, height: size, backgroundColor: '#fff' }} accessibilityLabel={t('명함 QR 코드')}>
       {matrix.map((row, r) =>
         darkRuns(row).map(([c, len]) => (
           <View

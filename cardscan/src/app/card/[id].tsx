@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { t } from '../../i18n';
 import { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { toVCard } from '../../core/mapping';
@@ -50,10 +51,10 @@ function shareText(c: BusinessCard): string {
   return [
     [c.name, c.title].filter(Boolean).join(' '),
     [c.company, c.department].filter(Boolean).join(' '),
-    c.mobile && `휴대폰 ${c.mobile}`,
-    c.phone && `전화 ${c.phone}`,
-    c.email && `이메일 ${c.email}`,
-    c.address && `주소 ${c.address}`,
+    c.mobile && t('휴대폰 {1}', { 1: c.mobile }),
+    c.phone && t('전화 {1}', { 1: c.phone }),
+    c.email && t('이메일 {1}', { 1: c.email }),
+    c.address && t('주소 {1}', { 1: c.address }),
   ]
     .filter(Boolean)
     .join('\n');
@@ -72,12 +73,12 @@ export default function CardDetailScreen() {
   const [customDate, setCustomDate] = useState('');
   const [qrOpen, setQrOpen] = useState(false);
   const colleagues = useMemo(() => (card ? colleaguesOf(card, cards) : []), [card, cards]);
-  const knownTags = useMemo(() => allTags(cards).map((t) => t.tag), [cards]);
+  const knownTags = useMemo(() => allTags(cards).map((ct) => ct.tag), [cards]);
 
   if (!card) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={st.sub}>삭제되었거나 없는 명함입니다</Text>
+        <Text style={st.sub}>{t('삭제되었거나 없는 명함입니다')}</Text>
       </View>
     );
   }
@@ -101,10 +102,10 @@ export default function CardDetailScreen() {
   }
 
   function confirmDelete() {
-    Alert.alert('명함 삭제', '앱에서 이 명함을 지웁니다.\n휴대폰 연락처·연동 시스템에 이미 저장된 정보는 그대로 남습니다.', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('명함 삭제'), t('앱에서 이 명함을 지웁니다.\n휴대폰 연락처·연동 시스템에 이미 저장된 정보는 그대로 남습니다.'), [
+      { text: t('취소'), style: 'cancel' },
       {
-        text: '삭제',
+        text: t('삭제'),
         style: 'destructive',
         onPress: async () => {
           await deleteCard(card!.id);
@@ -126,10 +127,10 @@ export default function CardDetailScreen() {
   function shareCard() {
     const text = () => Share.share({ message: shareText(card!), title: card!.name });
     if (!card!.imageUri || IS_WEB) return text();
-    Alert.alert('명함 보내기', undefined, [
-      { text: '취소', style: 'cancel' },
-      { text: '글자로', onPress: text },
-      { text: '명함 사진', onPress: () => shareCardPhoto(card!).catch((e) => Alert.alert('공유 실패', (e as Error).message)) },
+    Alert.alert(t('명함 보내기'), undefined, [
+      { text: t('취소'), style: 'cancel' },
+      { text: t('글자로'), onPress: text },
+      { text: t('명함 사진'), onPress: () => shareCardPhoto(card!).catch((e) => Alert.alert(t('공유 실패'), (e as Error).message)) },
     ]);
   }
 
@@ -142,24 +143,24 @@ export default function CardDetailScreen() {
 
   function setFollow(date: string | undefined) {
     setMeta(card!.id, { followUp: date });
-    if (date) addNote(card!.id, `팔로업 예정: ${date}`);
+    if (date) addNote(card!.id, t('팔로업 예정: {1}', { 1: date }));
   }
 
   if (editing && form) {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Stack.Screen options={{ title: '명함 수정' }} />
+        <Stack.Screen options={{ title: t('명함 수정') }} />
         <PinnedPhoto imageUri={card.imageUri} backImageUri={card.backImageUri} />
         <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
-          <Section title="구분">
+          <Section title={t('구분')}>
             <KindPicker value={kind} onChange={setKind} />
           </Section>
-          <Section title="명함 정보">
+          <Section title={t('명함 정보')}>
             <CardForm value={form} onChange={setForm} />
           </Section>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button title="취소" variant="secondary" style={{ flex: 1 }} onPress={() => setEditing(false)} />
-            <Button title="저장 후 다시 연동" style={{ flex: 2 }} onPress={saveEdit} />
+            <Button title={t('취소')} variant="secondary" style={{ flex: 1 }} onPress={() => setEditing(false)} />
+            <Button title={t('저장 후 다시 연동')} style={{ flex: 2 }} onPress={saveEdit} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -171,7 +172,7 @@ export default function CardDetailScreen() {
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
         <Stack.Screen
           options={{
-            title: card.name || '명함 상세',
+            title: card.name || t('명함 상세'),
             headerRight: () => (
               <Pressable
                 hitSlop={12}
@@ -179,7 +180,7 @@ export default function CardDetailScreen() {
                   tap('select');
                   setMeta(card.id, { favorite: !card.favorite });
                 }}
-                accessibilityLabel="VIP 즐겨찾기"
+                accessibilityLabel={t('VIP 즐겨찾기')}
               >
                 <Icon name={card.favorite ? 'star' : 'star-outline'} size={24} color={card.favorite ? T.gold : T.faint} />
               </Pressable>
@@ -189,28 +190,28 @@ export default function CardDetailScreen() {
         <CardHero card={card} imageUri={card.imageUri} backImageUri={card.backImageUri} favorite={card.favorite} />
         <View style={st.metaRow}>
           <KindBadge kind={card.kind} />
-          {tags.slice(0, 3).map((t) => (
-            <Text key={t} style={st.metaTag}>#{t}</Text>
+          {tags.slice(0, 3).map((ct) => (
+            <Text key={ct} style={st.metaTag}>#{ct}</Text>
           ))}
           <View style={{ flex: 1 }} />
-          <Text style={st.metaDate}>{card.createdAt.slice(0, 10)} 등록</Text>
+          <Text style={st.metaDate}>{t('{1} 등록', { 1: card.createdAt.slice(0, 10) })}</Text>
         </View>
         <View style={st.actions}>
-          {card.mobile || card.phone ? <ActionButton icon="call" label="전화" tone={T.ok} onPress={() => action(card.mobile ? 'mobile' : 'phone')} /> : null}
-          {card.mobile ? <ActionButton icon="chatbubble-ellipses" label="문자" onPress={() => Linking.openURL(`sms:${phoneDigits(card.mobile)}`)} /> : null}
-          {card.email ? <ActionButton icon="mail" label="메일" tone={T.kind.partner} onPress={() => action('email')} /> : null}
-          {card.address ? <ActionButton icon="navigate" label="지도" tone={T.warn} onPress={() => action('address')} /> : null}
+          {card.mobile || card.phone ? <ActionButton icon="call" label={t('전화')} tone={T.ok} onPress={() => action(card.mobile ? 'mobile' : 'phone')} /> : null}
+          {card.mobile ? <ActionButton icon="chatbubble-ellipses" label={t('문자')} onPress={() => Linking.openURL(`sms:${phoneDigits(card.mobile)}`)} /> : null}
+          {card.email ? <ActionButton icon="mail" label={t('메일')} tone={T.kind.partner} onPress={() => action('email')} /> : null}
+          {card.address ? <ActionButton icon="navigate" label={t('지도')} tone={T.warn} onPress={() => action('address')} /> : null}
           <ActionButton icon="qr-code" label="QR" tone={T.ink} onPress={() => setQrOpen(true)} />
-          <ActionButton icon="share-social" label="공유" tone={T.goldDeep} onPress={shareCard} />
+          <ActionButton icon="share-social" label={t('공유')} tone={T.goldDeep} onPress={shareCard} />
         </View>
 
-        <Section title="연락처 정보" icon="id-card-outline">
+        <Section title={t('연락처 정보')} icon="id-card-outline">
           {SHOW.filter((k) => card[k]).map((k) => (
             <Pressable key={k} onPress={() => action(k)} style={st.row}>
               <View style={st.rowIcon}>
                 <Icon name={FIELD_ICON[k] ?? 'ellipse-outline'} size={16} color={T.goldDeep} />
               </View>
-              <Text style={st.label}>{FIELD_LABEL[k]}</Text>
+              <Text style={st.label}>{t(FIELD_LABEL[k])}</Text>
               <Text style={st.value} selectable>
                 {card[k]}
               </Text>
@@ -218,36 +219,36 @@ export default function CardDetailScreen() {
           ))}
           {card.extra.length ? (
             <View style={st.row}>
-              <Text style={st.label}>기타</Text>
+              <Text style={st.label}>{t('기타')}</Text>
               <Text style={st.value}>{card.extra.join('\n')}</Text>
             </View>
           ) : null}
         </Section>
 
-        <Section title="그룹" icon="pricetags-outline">
+        <Section title={t('그룹')} icon="pricetags-outline">
           <View style={st.tagWrap}>
-            {tags.map((t) => (
-              <Pressable key={t} style={st.tag} onPress={() => setMeta(card.id, { tags: tags.filter((x) => x !== t) })}>
-                <Text style={st.tagText}>#{t}</Text>
+            {tags.map((ct) => (
+              <Pressable key={ct} style={st.tag} onPress={() => setMeta(card.id, { tags: tags.filter((x) => x !== ct) })}>
+                <Text style={st.tagText}>#{ct}</Text>
                 <Icon name="close" size={13} color={T.primary} />
               </Pressable>
             ))}
-            {!tags.length ? <Text style={st.sub}>그룹을 붙이면 명함첩에서 모아 볼 수 있습니다 (예: 2026 전시회, VIP)</Text> : null}
+            {!tags.length ? <Text style={st.sub}>{t('그룹을 붙이면 명함첩에서 모아 볼 수 있습니다 (예: 2026 전시회, VIP)')}</Text> : null}
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
             <View style={{ flex: 1 }}>
-              <Field label="" value={tagText} onChangeText={setTagText} placeholder="새 그룹 이름" onSubmitEditing={() => addTag(tagText)} returnKeyType="done" />
+              <Field label="" value={tagText} onChangeText={setTagText} placeholder={t('새 그룹 이름')} onSubmitEditing={() => addTag(tagText)} returnKeyType="done" />
             </View>
-            <Button title="추가" variant="secondary" onPress={() => addTag(tagText)} style={{ marginTop: 4, minHeight: 44 }} />
+            <Button title={t('추가')} variant="secondary" onPress={() => addTag(tagText)} style={{ marginTop: 4, minHeight: 44 }} />
           </View>
-          {knownTags.filter((t) => !tags.includes(t)).length ? (
+          {knownTags.filter((ct) => !tags.includes(ct)).length ? (
             <View style={st.tagWrap}>
               {knownTags
-                .filter((t) => !tags.includes(t))
+                .filter((ct) => !tags.includes(ct))
                 .slice(0, 8)
-                .map((t) => (
-                  <Pressable key={t} style={st.tagGhost} onPress={() => addTag(t)}>
-                    <Text style={st.tagGhostText}>+ {t}</Text>
+                .map((ct) => (
+                  <Pressable key={ct} style={st.tagGhost} onPress={() => addTag(ct)}>
+                    <Text style={st.tagGhostText}>+ {ct}</Text>
                   </Pressable>
                 ))}
             </View>
@@ -255,36 +256,36 @@ export default function CardDetailScreen() {
         </Section>
 
         <Section
-          title="팔로업 (다시 연락하기)"
+          title={t('팔로업 (다시 연락하기)')}
           icon="alarm-outline"
-          right={card.followUp ? <Pressable onPress={() => setFollow(undefined)}><Text style={{ ...type(14, '700', C.err) }}>해제</Text></Pressable> : undefined}
+          right={card.followUp ? <Pressable onPress={() => setFollow(undefined)}><Text style={{ ...type(14, '700', C.err) }}>{t('해제')}</Text></Pressable> : undefined}
         >
           {card.followUp ? (
             <Text style={[st.followNow, card.followUp <= today && { color: C.err }]}>
               {card.followUp}
-              {card.followUp < today ? ' (지남)' : card.followUp === today ? ' (오늘)' : ''}
-              {settings.followUpNotify ? '  · 그날 아침 9시 알림' : ''}
+              {card.followUp < today ? t(' (지남)') : card.followUp === today ? t(' (오늘)') : ''}
+              {settings.followUpNotify ? t('  · 그날 아침 9시 알림') : ''}
             </Text>
           ) : (
-            <Text style={st.sub}>언제 다시 연락할지 정해 두면 그날 알림을 보내고 명함첩 맨 위에 보여 줍니다.</Text>
+            <Text style={st.sub}>{t('언제 다시 연락할지 정해 두면 그날 알림을 보내고 명함첩 맨 위에 보여 줍니다.')}</Text>
           )}
           <View style={st.tagWrap}>
             {FOLLOW_PRESETS.map(([label, days]) => (
               <Pressable key={label} style={st.tagGhost} onPress={() => setFollow(addDays(today, days))}>
-                <Text style={st.tagGhostText}>{label}</Text>
+                <Text style={st.tagGhostText}>{t(label)}</Text>
               </Pressable>
             ))}
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             <View style={{ flex: 1 }}>
-              <Field label="" value={customDate} onChangeText={setCustomDate} placeholder="날짜 직접 (예: 2026-11-20)" keyboardType="numbers-and-punctuation" />
+              <Field label="" value={customDate} onChangeText={setCustomDate} placeholder={t('날짜 직접 (예: 2026-11-20)')} keyboardType="numbers-and-punctuation" />
             </View>
             <Button
-              title="지정"
+              title={t('지정')}
               variant="secondary"
               style={{ marginTop: 4, minHeight: 44 }}
               onPress={() => {
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(customDate.trim())) return Alert.alert('날짜 형식', '2026-11-20 처럼 입력해 주세요');
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(customDate.trim())) return Alert.alert(t('날짜 형식'), t('2026-11-20 처럼 입력해 주세요'));
                 setFollow(customDate.trim());
                 setCustomDate('');
               }}
@@ -292,17 +293,17 @@ export default function CardDetailScreen() {
           </View>
         </Section>
 
-        <Section title="메모·미팅 기록" icon="chatbox-ellipses-outline">
+        <Section title={t('메모·미팅 기록')} icon="chatbox-ellipses-outline">
           <TextInput
             value={noteText}
             onChangeText={setNoteText}
-            placeholder="예: 견적 요청 받음, 다음 주 미팅 / 골프 좋아함"
+            placeholder={t('예: 견적 요청 받음, 다음 주 미팅 / 골프 좋아함')}
             placeholderTextColor={T.faint}
             multiline
             style={st.noteInput}
           />
           <Button
-            title="기록 추가"
+            title={t('기록 추가')}
             variant="secondary"
             disabled={!noteText.trim()}
             style={{ marginTop: 8 }}
@@ -316,9 +317,9 @@ export default function CardDetailScreen() {
               key={n.id}
               style={st.noteRow}
               onLongPress={() =>
-                Alert.alert('기록 삭제', n.text, [
-                  { text: '취소', style: 'cancel' },
-                  { text: '삭제', style: 'destructive', onPress: () => deleteNote(card.id, n.id) },
+                Alert.alert(t('기록 삭제'), n.text, [
+                  { text: t('취소'), style: 'cancel' },
+                  { text: t('삭제'), style: 'destructive', onPress: () => deleteNote(card.id, n.id) },
                 ])
               }
             >
@@ -326,15 +327,15 @@ export default function CardDetailScreen() {
               <Text style={st.value}>{n.text}</Text>
             </Pressable>
           ))}
-          {(card.notes ?? []).length ? <Text style={[st.sub, { marginTop: 6 }]}>기록을 길게 누르면 지울 수 있습니다</Text> : null}
+          {(card.notes ?? []).length ? <Text style={[st.sub, { marginTop: 6 }]}>{t('기록을 길게 누르면 지울 수 있습니다')}</Text> : null}
         </Section>
 
         {(card.history ?? []).length ? (
-          <Section title="경력 이력" icon="trending-up-outline">
+          <Section title={t('경력 이력')} icon="trending-up-outline">
             <View style={st.careerRow}>
               <Text style={st.careerDot}>●</Text>
               <Text style={st.value}>
-                {[card.company, card.department, card.title].filter(Boolean).join(' · ')} <Text style={st.sub}>(현재)</Text>
+                {[card.company, card.department, card.title].filter(Boolean).join(' · ')} <Text style={st.sub}>{t('(현재)')}</Text>
               </Text>
             </View>
             {card.history!.map((h, i) => (
@@ -349,7 +350,7 @@ export default function CardDetailScreen() {
         ) : null}
 
         {colleagues.length ? (
-          <Section title={`같은 회사 사람 ${colleagues.length}명`} icon="people-outline">
+          <Section title={t('같은 회사 사람 {1}명', { 1: colleagues.length })} icon="people-outline">
             {colleagues.slice(0, 10).map((c) => (
               <Pressable key={c.id} style={[st.row, { alignItems: 'center', gap: 12 }]} onPress={() => router.push({ pathname: '/card/[id]', params: { id: c.id } })}>
                 <CardThumb card={c} width={56} />
@@ -362,29 +363,29 @@ export default function CardDetailScreen() {
         ) : null}
 
         <Section
-          title="연동 상태"
+          title={t('연동 상태')}
           icon="git-network-outline"
           right={
             <Pressable onPress={() => resync(card.id)} disabled={syncing}>
-              <Text style={{ ...type(14, '700', C.primary) }}>{syncing ? '전송 중…' : '전체 다시 보내기'}</Text>
+              <Text style={{ ...type(14, '700', C.primary) }}>{syncing ? t('전송 중…') : t('전체 다시 보내기')}</Text>
             </Pressable>
           }
         >
-          {targets.length === 0 ? <Text style={st.sub}>켜진 연동이 없습니다. 설정·연동 탭에서 켤 수 있습니다.</Text> : null}
-          {targets.map((t) => {
-            const sync = card.sync[t];
+          {targets.length === 0 ? <Text style={st.sub}>{t('켜진 연동이 없습니다. 설정·연동 탭에서 켤 수 있습니다.')}</Text> : null}
+          {targets.map((ct) => {
+            const sync = card.sync[ct];
             return (
-              <View key={t} style={st.syncRow}>
+              <View key={ct} style={st.syncRow}>
                 <SyncDot status={sync} />
                 <View style={{ flex: 1 }}>
-                  <Text style={st.value}>{CONNECTOR_LABEL[t].split(' (')[0]}</Text>
+                  <Text style={st.value}>{t(CONNECTOR_LABEL[ct]).split(' (')[0]}</Text>
                   <Text style={[st.sub, sync?.state === 'error' && { color: C.err }]}>
-                    {sync ? `${sync.state === 'ok' ? '완료' : '실패'}${sync.message ? ` · ${sync.message}` : ''} · ${localTime(sync.at)}` : '아직 보내지 않음'}
+                    {sync ? `${sync.state === 'ok' ? t('완료') : t('실패')}${sync.message ? ` · ${sync.message}` : ''} · ${localTime(sync.at)}` : t('아직 보내지 않음')}
                   </Text>
                 </View>
                 {sync?.state !== 'ok' ? (
-                  <Pressable onPress={() => resync(card.id, [t])} disabled={syncing}>
-                    <Text style={{ ...type(14, '700', C.primary) }}>재시도</Text>
+                  <Pressable onPress={() => resync(card.id, [ct])} disabled={syncing}>
+                    <Text style={{ ...type(14, '700', C.primary) }}>{t('재시도')}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -393,22 +394,22 @@ export default function CardDetailScreen() {
         </Section>
 
         <View style={{ gap: 8 }}>
-          <Button title="정보 수정" icon="create-outline" variant="dark" onPress={startEdit} />
-          {CAN_OPEN_VCARD ? <Button title="아이폰 연락처에 저장" icon="person-add" onPress={() => openVCard(card)} /> : null}
-          <Button title="vCard 파일로 공유" icon="document-attach-outline" variant="secondary" onPress={() => Share.share({ message: toVCard(card), title: card.name })} />
-          <Button title="삭제" icon="trash-outline" variant="danger" onPress={confirmDelete} />
+          <Button title={t('정보 수정')} icon="create-outline" variant="dark" onPress={startEdit} />
+          {CAN_OPEN_VCARD ? <Button title={t('아이폰 연락처에 저장')} icon="person-add" onPress={() => openVCard(card)} /> : null}
+          <Button title={t('vCard 파일로 공유')} icon="document-attach-outline" variant="secondary" onPress={() => Share.share({ message: toVCard(card), title: card.name })} />
+          <Button title={t('삭제')} icon="trash-outline" variant="danger" onPress={confirmDelete} />
         </View>
         <Text style={[st.sub, { textAlign: 'center', marginTop: 12 }]}>
-          등록 {card.createdAt.slice(0, 10)} · 수정 {card.updatedAt.slice(0, 10)}
+          {t('등록 {1} · 수정 {2}', { 1: card.createdAt.slice(0, 10), 2: card.updatedAt.slice(0, 10) })}
         </Text>
 
         <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
           <Pressable style={st.modalBg} onPress={() => setQrOpen(false)}>
             <View style={st.modalBox}>
               <Text style={st.modalBrand}>CARDSCAN</Text>
-              <Text style={st.modalTitle}>{card.name} 명함</Text>
+              <Text style={st.modalTitle}>{t('{1} 명함', { 1: card.name })}</Text>
               <QrCode value={toVCard(card)} size={260} />
-              <Text style={[st.sub, { textAlign: 'center', marginTop: 12 }]}>상대방 휴대폰 카메라로 찍으면{'\n'}연락처에 바로 저장할 수 있습니다</Text>
+              <Text style={[st.sub, { textAlign: 'center', marginTop: 12 }]}>{t('상대방 휴대폰 카메라로 찍으면\n연락처에 바로 저장할 수 있습니다')}</Text>
             </View>
           </Pressable>
         </Modal>

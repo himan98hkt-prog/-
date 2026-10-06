@@ -7,6 +7,7 @@ import { findDuplicate } from '../core/mapping';
 import { mergeRescan, normalizeTag } from '../core/organize';
 import { Settings, DEFAULT_SETTINGS } from '../core/settings';
 import { canAddCard, effectiveSettings, FREE_CARD_LIMIT } from '../core/pro';
+import { t } from '../i18n';
 import { usePro } from './pro';
 import { BusinessCard, CardFields, CardKind, ConnectorId } from '../core/types';
 import { deviceContactsConnector } from '../integrations/deviceContacts';
@@ -21,7 +22,7 @@ const CONNECTORS: ConnectorMap = { contacts: deviceContactsConnector, ...HTTP_CO
 /** 무료 한도(새 명함)를 넘었을 때 — 화면에서 Pro 안내를 띄운다 */
 export class ProLimitError extends Error {
   constructor() {
-    super(`무료로는 명함 ${FREE_CARD_LIMIT}장까지 저장할 수 있어요`);
+    super(t('무료로는 명함 {1}장까지 저장할 수 있어요', { 1: FREE_CARD_LIMIT }));
   }
 }
 

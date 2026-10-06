@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { t } from '../i18n';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { sanitizeFields } from '../core/normalize';
@@ -24,17 +25,17 @@ export default function ReviewScreen() {
   async function save() {
     // 손으로 고친 값도 같은 규칙(전화번호 하이픈, 이메일 소문자 등)으로 정리
     const clean = sanitizeFields(fields);
-    if (!clean.name && !clean.company) return Alert.alert('이름이나 회사 중 하나는 입력해 주세요');
+    if (!clean.name && !clean.company) return Alert.alert(t('이름이나 회사 중 하나는 입력해 주세요'));
     setSaving(true);
     try {
       const { card, merged } = await addCard({ fields: clean, kind, extra: draft?.extra ?? [], tempImageUri: draft?.imageUri, tempBackUri: draft?.backImageUri, tags: settings.scanTag ? [settings.scanTag] : [] });
       clearDraft();
-      if (merged) Alert.alert('기존 명함 갱신', '휴대폰 번호나 이메일이 같은 명함이 있어 최신 정보로 갱신했습니다.');
+      if (merged) Alert.alert(t('기존 명함 갱신'), t('휴대폰 번호나 이메일이 같은 명함이 있어 최신 정보로 갱신했습니다.'));
       router.replace({ pathname: '/card/[id]', params: { id: card.id } });
     } catch (e) {
       // 무료 한도: 입력한 내용은 이 화면에 그대로 — Pro 를 사면 다시 "저장" 만 누르면 된다
       if (e instanceof ProLimitError) requirePro('cards');
-      else Alert.alert('저장 실패', (e as Error).message);
+      else Alert.alert(t('저장 실패'), (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -44,20 +45,20 @@ export default function ReviewScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <PinnedPhoto imageUri={draft?.imageUri} backImageUri={draft?.backImageUri} />
       <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
-        {draft?.error ? <Text style={st.error}>자동 인식 실패: {draft.error}{'\n'}직접 입력해 주세요.</Text> : null}
+        {draft?.error ? <Text style={st.error}>{t('자동 인식 실패: {1}\n직접 입력해 주세요.', { 1: draft.error })}</Text> : null}
         {draft?.note ? <Text style={st.note}>{draft.note}</Text> : null}
-        <Section title="구분" icon="pricetag-outline">
+        <Section title={t('구분')} icon="pricetag-outline">
           <KindPicker value={kind} onChange={setKind} />
         </Section>
-        <Section title="명함 정보" icon="id-card-outline">
+        <Section title={t('명함 정보')} icon="id-card-outline">
           <CardForm value={fields} onChange={setFields} />
         </Section>
         {draft?.extra?.length ? (
-          <Section title="기타 문구">
+          <Section title={t('기타 문구')}>
             <Text style={st.note}>{draft.extra.join('\n')}</Text>
           </Section>
         ) : null}
-        <Button title="저장하고 연동하기" icon="checkmark-circle" variant="gold" onPress={save} loading={saving} />
+        <Button title={t('저장하고 연동하기')} icon="checkmark-circle" variant="gold" onPress={save} loading={saving} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
