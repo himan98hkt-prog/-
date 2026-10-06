@@ -6,10 +6,12 @@ import { CardFields, CardKind, EMPTY_FIELDS } from '../core/types';
 import { CardForm } from '../ui/CardForm';
 import { Button, C, KindPicker, Section } from '../ui/components';
 import { clearDraft, takeDraft } from '../ui/draft';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../ui/store';
 import { RADIUS, T, type } from '../ui/theme';
 
 export default function ReviewScreen() {
+  const bottom = useSafeAreaInsets().bottom;
   const { addCard } = useStore();
   const [draft] = useState(() => takeDraft());
   const [fields, setFields] = useState<CardFields>(draft?.fields ?? { ...EMPTY_FIELDS });
@@ -35,7 +37,7 @@ export default function ReviewScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
         {draft?.imageUri ? <Image source={{ uri: draft.imageUri }} style={st.image} resizeMode="contain" /> : null}
         {draft?.error ? <Text style={st.error}>자동 인식 실패: {draft.error}{'\n'}직접 입력해 주세요.</Text> : null}
         {draft?.note ? <Text style={st.note}>{draft.note}</Text> : null}

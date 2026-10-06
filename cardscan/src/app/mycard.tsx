@@ -8,12 +8,14 @@ import { CardForm } from '../ui/CardForm';
 import { Button, Section } from '../ui/components';
 import { DigitalCard } from '../ui/DigitalCard';
 import { QrCode } from '../ui/QrCode';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../ui/store';
 import { FONT, RADIUS, shadow, T, type } from '../ui/theme';
 
 const asCard = (f: CardFields): BusinessCard => ({ ...f, id: 'me', kind: 'other', createdAt: '', updatedAt: '', extra: [], sync: {} });
 
 export default function MyCardScreen() {
+  const bottom = useSafeAreaInsets().bottom;
   const { settings, setSettings } = useStore();
   const [form, setForm] = useState<CardFields>(settings.myCard);
   // 설정은 비동기로 불러오므로 "이름이 없으면 입력 화면" 은 렌더할 때마다 판단한다
@@ -32,7 +34,7 @@ export default function MyCardScreen() {
   if (editing) {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
           <Section title="내 명함 정보">
             <Text style={[st.sub, { textAlign: 'left' }]}>상대에게 보여 줄 내 정보를 입력하세요. 이 휴대폰에만 저장됩니다.</Text>
             <View style={{ height: 10 }} />
@@ -57,7 +59,7 @@ export default function MyCardScreen() {
     .filter(Boolean)
     .join('\n');
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }}>
       <DigitalCard card={me} favorite />
       <View style={st.qrBox}>
         <Text style={st.brand}>MY CARD · QR</Text>

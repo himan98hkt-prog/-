@@ -11,6 +11,7 @@ import { ActionButton, Avatar, Button, C, Field, Icon, IconName, KindBadge, Kind
 import { DigitalCard } from '../../ui/DigitalCard';
 import { QrCode } from '../../ui/QrCode';
 import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../ui/store';
 import { FONT, RADIUS, T, type } from '../../ui/theme';
 
@@ -56,6 +57,7 @@ function shareText(c: BusinessCard): string {
 }
 
 export default function CardDetailScreen() {
+  const bottom = useSafeAreaInsets().bottom;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cards, settings, updateCard, deleteCard, resync, syncingIds, setMeta, addNote, deleteNote } = useStore();
   const card = cards.find((c) => c.id === id);
@@ -133,7 +135,7 @@ export default function CardDetailScreen() {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Stack.Screen options={{ title: '명함 수정' }} />
-        <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
           <Section title="구분">
             <KindPicker value={kind} onChange={setKind} />
           </Section>
@@ -151,7 +153,7 @@ export default function CardDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
         <Stack.Screen
           options={{
             title: card.name || '명함 상세',

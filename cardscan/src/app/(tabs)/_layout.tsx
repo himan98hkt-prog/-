@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router/tabs';
 import { ColorValue, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName, tap } from '../../ui/components';
 import { FONT, shadow, T } from '../../ui/theme';
 
@@ -10,12 +11,14 @@ const icon = (on: IconName, off: IconName) =>
   };
 
 export default function TabsLayout() {
+  // 안드로이드 화면 하단 3버튼·제스처 바 높이만큼 탭바를 올린다
+  const bottom = useSafeAreaInsets().bottom;
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: T.ink,
         tabBarInactiveTintColor: T.faint,
-        tabBarStyle: st.bar,
+        tabBarStyle: [st.bar, { height: 66 + bottom, paddingBottom: 8 + bottom }],
         tabBarLabelStyle: st.label,
         headerTitleStyle: { fontFamily: FONT, fontWeight: '800', fontSize: 19, color: T.text },
         headerShadowVisible: false,
