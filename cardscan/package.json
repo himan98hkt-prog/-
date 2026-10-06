@@ -1,0 +1,41 @@
+{
+  "name": "cardscan",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo/metro-runtime": "~57.0.16",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.26",
+    "expo-constants": "~57.0.20",
+    "expo-contacts": "~57.0.6",
+    "expo-crypto": "~57.0.3",
+    "expo-file-system": "~57.0.7",
+    "expo-image-manipulator": "~57.0.20",
+    "expo-image-picker": "~57.0.20",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.24",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.7"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "private": true
+}

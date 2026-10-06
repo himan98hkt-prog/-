@@ -1,0 +1,176 @@
+import { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { CONNECTOR_LABEL, CONNECTOR_ORDER, connectorReady, Settings } from '../../core/settings';
+import { BusinessCard, CardKind, ConnectorId, KIND_LABEL } from '../../core/types';
+import { HTTP_CONNECTORS } from '../../integrations/sync';
+import { Button, C, Field, KindPicker, Section } from '../../ui/components';
+import { useStore } from '../../ui/store';
+
+const SAMPLE: BusinessCard = {
+  id: 'test-0000',
+  kind: 'customer',
+  name: '홍길동',
+  nameEn: 'Gildong Hong',
+  company: '명함스캔 테스트',
+  department: '영업팀',
+  title: '팀장',
+  mobile: '010-0000-0000',
+  phone: '02-000-0000',
+  fax: '',
+  email: 'test@example.com',
+  website: 'https://example.com',
+  address: '서울특별시 중구 세종대로 110',
+  memo: '연동 테스트 데이터입니다 — 확인 후 삭제하세요',
+  extra: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  sync: {},
+};
+
+const HELP: Record<ConnectorId, string> = {
+  contacts: '찍은 명함을 휴대폰 기본 연락처 앱에 저장합니다. 같은 이름·휴대폰 번호가 있으면 새로 만들지 않고 합칩니다.',
+  sheets: '구글 시트에 한 줄씩 기록합니다. 시트에 docs/google-sheets.gs 를 붙여 웹 앱으로 배포하고 그 주소를 넣으세요.',
+  hubspot: 'HubSpot 비공개 앱(Private App) 토큰 — crm.objects.contacts.write 권한 필요. 같은 이메일이면 기존 연락처를 갱신합니다.',
+  webhook: '사내 ERP·그룹웨어·Zapier·Make·n8n 등 JSON 을 받을 수 있는 주소로 명함을 보냅니다 (형식: docs/INTEGRATIONS.md).',
+  slack: '새 명함이 등록되면 슬랙 채널에 알립니다 (Incoming Webhook 주소).',
+};
+
+export default function SettingsScreen() {
+  const { settings, setSettings } = useStore();
+  const [draft, setDraft] = useState<Settings>(settings);
+  const [testing, setTesting] = useState<string | null>(null);
+  useEffect(() => setDraft(settings), [settings]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(settings);
+
+  const conn = <K extends ConnectorId>(id: K, patch: Partial<Settings['connectors'][K]>) =>
+    setDraft((d) => ({ ...d, connectors: { ...d.connectors, [id]: { ...d.connectors[id], ...patch } } }));
+
+  function toggleKind(id: ConnectorId, k: CardKind) {
+    const kinds = draft.connectors[id].kinds;
+    conn(id, { kinds: kinds.includes(k) ? kinds.filter((x) => x !== k) : [...kinds, k] });
+  }
+
+  async function save() {
+    await setSettings(draft);
+    Alert.alert('저장됨', '설정을 저장했습니다. 실패했던 연동은 앱을 다시 열 때 자동으로 재전송됩니다.');
+  }
+
+  async function testConnector(id: Exclude<ConnectorId, 'contacts'>) {
+    if (!connectorReady(draft, id)) return Alert.alert('설정 확인', '주소/토큰을 올바르게 입력하고 사용을 켜 주세요.');
+    setTesting(id);
+    try {
+      const r = await HTTP_CONNECTORS[id](SAMPLE, { settings: draft, fetch });
+      Alert.alert('연결 성공', `${CONNECTOR_LABEL[id]}에 테스트 명함(홍길동)을 보냈습니다.${r.message ? `\n${r.message}` : ''}`);
+    } catch (e) {
+      Alert.alert('연결 실패', (e as Error).message);
+    } finally {
+      setTesting(null);
+    }
+  }
+
+  async function testOcr() {
+    setTesting('ocr');
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (draft.ocr.anonKey) {
+        headers.Authorization = `Bearer ${draft.ocr.anonKey}`;
+        headers.apikey = draft.ocr.anonKey;
+      }
+      if (draft.ocr.appSecret) headers['x-app-secret'] = draft.ocr.appSecret;
+      const res = await fetch(draft.ocr.endpoint, { method: 'POST', headers, body: JSON.stringify({ ping: true }) });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${text.slice(0, 200)}`);
+      Alert.alert('연결 성공', '명함 인식 서버가 응답했습니다.');
+    } catch (e) {
+      Alert.alert('연결 실패', (e as Error).message);
+    } finally {
+      setTesting(null);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        <Section title="명함 인식 서버">
+          <Text style={st.help}>명함 글자 인식은 서버(supabase/functions/scan-card)에서 처리합니다. 설치 방법은 cardscan/README.md 를 참고하세요.</Text>
+          <Field label="서버 주소" value={draft.ocr.endpoint} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, endpoint: t.trim() } })} placeholder="https://xxxx.supabase.co/functions/v1/scan-card" autoCapitalize="none" keyboardType="url" />
+          <Field label="Supabase anon/publishable key (선택)" value={draft.ocr.anonKey} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, anonKey: t.trim() } })} autoCapitalize="none" secureTextEntry />
+          <Field label="앱 비밀키 (서버의 APP_SHARED_SECRET)" value={draft.ocr.appSecret} onChangeText={(t) => setDraft({ ...draft, ocr: { ...draft.ocr, appSecret: t.trim() } })} autoCapitalize="none" secureTextEntry />
+          <Button title="서버 연결 확인" variant="secondary" onPress={testOcr} loading={testing === 'ocr'} disabled={!draft.ocr.endpoint} />
+        </Section>
+
+        <Section title="촬영">
+          <View style={st.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={st.label}>자동 저장</Text>
+              <Text style={st.help}>이름과 연락처가 읽히면 확인 화면 없이 바로 저장·연동</Text>
+            </View>
+            <Switch value={draft.autoSave} onValueChange={(v) => setDraft({ ...draft, autoSave: v })} />
+          </View>
+          <Text style={[st.label, { marginTop: 12, marginBottom: 6 }]}>기본 구분</Text>
+          <KindPicker value={draft.defaultKind} onChange={(k) => setDraft({ ...draft, defaultKind: k })} />
+        </Section>
+
+        {CONNECTOR_ORDER.map((id) => {
+          const c = draft.connectors[id];
+          return (
+            <Section
+              key={id}
+              title={CONNECTOR_LABEL[id]}
+              right={<Switch value={c.enabled} onValueChange={(v) => conn(id, { enabled: v })} />}
+            >
+              <Text style={st.help}>{HELP[id]}</Text>
+              {c.enabled ? (
+                <>
+                  <Text style={[st.label, { marginTop: 10, marginBottom: 6 }]}>보낼 명함</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                    {(Object.keys(KIND_LABEL) as CardKind[]).map((k) => {
+                      const on = c.kinds.includes(k);
+                      return (
+                        <Pressable key={k} onPress={() => toggleKind(id, k)} style={[st.chip, on && { backgroundColor: C.kind[k], borderColor: C.kind[k] }]}>
+                          <Text style={[st.chipText, on && { color: '#fff' }]}>{on ? '✓ ' : ''}{KIND_LABEL[k]}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {id === 'webhook' ? (
+                    <>
+                      <Field label="웹훅 주소 (https)" value={draft.connectors.webhook.url} onChangeText={(t) => conn('webhook', { url: t.trim() })} autoCapitalize="none" keyboardType="url" />
+                      <Field label="X-CardScan-Secret 헤더 값 (선택)" value={draft.connectors.webhook.secret} onChangeText={(t) => conn('webhook', { secret: t.trim() })} autoCapitalize="none" secureTextEntry />
+                    </>
+                  ) : null}
+                  {id === 'sheets' ? (
+                    <>
+                      <Field label="Apps Script 웹 앱 주소" value={draft.connectors.sheets.url} onChangeText={(t) => conn('sheets', { url: t.trim() })} placeholder="https://script.google.com/macros/s/…/exec" autoCapitalize="none" keyboardType="url" />
+                      <Field label="공유 비밀키 (스크립트의 SECRET 과 같게)" value={draft.connectors.sheets.secret} onChangeText={(t) => conn('sheets', { secret: t.trim() })} autoCapitalize="none" secureTextEntry />
+                    </>
+                  ) : null}
+                  {id === 'hubspot' ? (
+                    <Field label="Private App 액세스 토큰" value={draft.connectors.hubspot.token} onChangeText={(t) => conn('hubspot', { token: t.trim() })} placeholder="pat-na1-…" autoCapitalize="none" secureTextEntry />
+                  ) : null}
+                  {id === 'slack' ? (
+                    <Field label="Incoming Webhook 주소" value={draft.connectors.slack.url} onChangeText={(t) => conn('slack', { url: t.trim() })} placeholder="https://hooks.slack.com/services/…" autoCapitalize="none" secureTextEntry />
+                  ) : null}
+                  {id !== 'contacts' ? (
+                    <Button title="테스트 전송" variant="secondary" onPress={() => testConnector(id)} loading={testing === id} />
+                  ) : null}
+                </>
+              ) : null}
+            </Section>
+          );
+        })}
+
+        <Button title={dirty ? '설정 저장' : '저장됨'} onPress={save} disabled={!dirty} />
+        <Text style={[st.help, { textAlign: 'center', marginTop: 10 }]}>토큰·비밀키는 기기의 보안 저장소(Keychain/Keystore)에 보관됩니다.</Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const st = StyleSheet.create({
+  help: { fontSize: 13, color: C.sub, lineHeight: 19, marginBottom: 8 },
+  label: { fontSize: 15, fontWeight: '600', color: C.text },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: '#fff' },
+  chipText: { fontSize: 13, fontWeight: '600', color: C.text },
+});

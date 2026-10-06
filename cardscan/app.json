@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "명함스캔",
+    "slug": "cardscan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cardscan.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.cardscan.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "명함에서 읽은 고객·거래처 정보를 연락처에 저장하기 위해 연락처 접근이 필요합니다."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "명함을 촬영하기 위해 카메라 접근이 필요합니다.",
+          "photosPermission": "앨범의 명함 사진을 불러오기 위해 사진 접근이 필요합니다.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "scheme": "cardscan",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
