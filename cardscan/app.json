@@ -1,0 +1,131 @@
+{
+  "expo": {
+    "name": "CardScan",
+    "slug": "cardscan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cardscan.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1530",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.cardscan.app",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "명함스캔",
+      "shortName": "명함스캔",
+      "lang": "ko",
+      "display": "standalone",
+      "themeColor": "#0B1530",
+      "backgroundColor": "#F3F4F8",
+      "description": "명함을 찍으면 자동으로 읽어 연락처·업무 시스템에 저장"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "명함에서 읽은 고객·거래처 정보를 연락처에 저장하기 위해 연락처 접근이 필요합니다."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "명함을 촬영하기 위해 카메라 접근이 필요합니다.",
+          "photosPermission": "앨범의 명함 사진을 불러오기 위해 사진 접근이 필요합니다.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#D4AF6A"
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Pretendard",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/Pretendard-Regular.otf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-SemiBold.otf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-Bold.otf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-ExtraBold.otf",
+                    "weight": 800
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#0B1530"
+        }
+      ],
+      "expo-iap",
+      "./plugins/withUploadSigning",
+      "expo-localization"
+    ],
+    "scheme": "cardscan",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "backgroundColor": "#F3F4F8",
+    "primaryColor": "#0B1530",
+    "locales": {
+      "ko": "./locales/ko.json",
+      "en": "./locales/en.json"
+    }
+  }
+}

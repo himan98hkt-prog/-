@@ -1,0 +1,56 @@
+name: 명함스캔 앱
+
+on:
+  push:
+    branches: [main]
+    paths: ['cardscan/**', '.github/workflows/cardscan.yml']
+  pull_request:
+    paths: ['cardscan/**', '.github/workflows/cardscan.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: cardscan-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: cardscan
+
+jobs:
+  test:
+    name: 타입검사 · 테스트 · 번들
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cardscan/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 단위 테스트
+        run: npm test
+
+      - name: 안드로이드 번들 생성 확인
+        run: npx expo export --platform android --output-dir /tmp/cardscan-export
+
+      - name: 아이폰 웹앱 번들 생성 확인
+        run: |
+          npx expo export --platform web --output-dir /tmp/cardscan-web
+          node scripts/pwa.mjs /tmp/cardscan-web /-
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: 인식 서버 함수 타입 검사 (Deno)
+        working-directory: cardscan/supabase/functions/scan-card
+        run: deno check index.ts

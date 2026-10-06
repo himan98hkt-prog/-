@@ -1,0 +1,49 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Tesseract(Node) 실행 시 생기는 언어 데이터 캐시
+*.traineddata
+
+# 서명 키는 절대 커밋하지 않는다 (GitHub Secrets 로만 전달)
+*.jks
+*.keystore
+!android/app/debug.keystore
