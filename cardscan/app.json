@@ -34,8 +34,8 @@
       "shortName": "명함스캔",
       "lang": "ko",
       "display": "standalone",
-      "themeColor": "#1F6FEB",
-      "backgroundColor": "#F5F6F8",
+      "themeColor": "#0B1530",
+      "backgroundColor": "#F3F4F8",
       "description": "명함을 찍으면 자동으로 읽어 연락처·업무 시스템에 저장"
     },
     "plugins": [

@@ -25,7 +25,12 @@ export const T = {
 };
 
 /** Pretendard (앱에 내장, Android 에서는 weight 로 굵기 선택) */
-export const FONT = Platform.select({ android: 'Pretendard', default: undefined });
+export const FONT = Platform.select({
+  android: 'Pretendard',
+  // 아이폰 웹앱: scripts/pwa.mjs 가 같은 사이트에 올린 Pretendard, 받기 전에는 iOS 기본 한글 글꼴
+  web: 'Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif',
+  default: undefined,
+});
 
 export const type = (size: number, weight: TextStyle['fontWeight'] = '400', color: string = T.text): TextStyle => ({
   fontFamily: FONT,
