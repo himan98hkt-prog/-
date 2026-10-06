@@ -62,7 +62,7 @@ export default function MyCardScreen() {
     <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }}>
       <DigitalCard card={me} favorite />
       <View style={st.qrBox}>
-        <Text style={st.brand}>MY CARD · QR</Text>
+        <Text style={st.brand}>CARDSCAN · MY CARD</Text>
         <View style={st.qrFrame}>
           <QrCode value={vcard} size={220} />
         </View>

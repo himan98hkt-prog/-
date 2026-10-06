@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { sanitizeFields } from '../core/normalize';
 import { CardFields, CardKind, EMPTY_FIELDS } from '../core/types';
 import { CardForm } from '../ui/CardForm';
 import { Button, C, KindPicker, Section } from '../ui/components';
+import { PinnedPhoto } from '../ui/DigitalCard';
 import { clearDraft, takeDraft } from '../ui/draft';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../ui/store';
@@ -12,7 +13,7 @@ import { RADIUS, T, type } from '../ui/theme';
 
 export default function ReviewScreen() {
   const bottom = useSafeAreaInsets().bottom;
-  const { addCard } = useStore();
+  const { addCard, settings } = useStore();
   const [draft] = useState(() => takeDraft());
   const [fields, setFields] = useState<CardFields>(draft?.fields ?? { ...EMPTY_FIELDS });
   const [kind, setKind] = useState<CardKind>(draft?.kind ?? 'customer');
@@ -24,7 +25,7 @@ export default function ReviewScreen() {
     if (!clean.name && !clean.company) return Alert.alert('이름이나 회사 중 하나는 입력해 주세요');
     setSaving(true);
     try {
-      const { card, merged } = await addCard({ fields: clean, kind, extra: draft?.extra ?? [], tempImageUri: draft?.imageUri, tempBackUri: draft?.backImageUri });
+      const { card, merged } = await addCard({ fields: clean, kind, extra: draft?.extra ?? [], tempImageUri: draft?.imageUri, tempBackUri: draft?.backImageUri, tags: settings.scanTag ? [settings.scanTag] : [] });
       clearDraft();
       if (merged) Alert.alert('기존 명함 갱신', '휴대폰 번호나 이메일이 같은 명함이 있어 최신 정보로 갱신했습니다.');
       router.replace({ pathname: '/card/[id]', params: { id: card.id } });
@@ -37,8 +38,8 @@ export default function ReviewScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <PinnedPhoto imageUri={draft?.imageUri} backImageUri={draft?.backImageUri} />
       <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
-        {draft?.imageUri ? <Image source={{ uri: draft.imageUri }} style={st.image} resizeMode="contain" /> : null}
         {draft?.error ? <Text style={st.error}>자동 인식 실패: {draft.error}{'\n'}직접 입력해 주세요.</Text> : null}
         {draft?.note ? <Text style={st.note}>{draft.note}</Text> : null}
         <Section title="구분" icon="pricetag-outline">
@@ -59,7 +60,6 @@ export default function ReviewScreen() {
 }
 
 const st = StyleSheet.create({
-  image: { width: '100%', height: 200, borderRadius: RADIUS.lg, backgroundColor: T.ink, marginBottom: 12 },
   error: { ...type(14, '600', T.err), marginBottom: 12, backgroundColor: T.errSoft, padding: 12, borderRadius: RADIUS.md },
   note: { ...type(14, '500', T.sub), marginBottom: 8 },
 });

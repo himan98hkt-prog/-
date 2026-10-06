@@ -23,6 +23,8 @@ export interface NewCardInput {
   tempImageUri?: string;
   /** 뒷면 사진 (앞·뒷면 촬영) */
   tempBackUri?: string;
+  /** 함께 붙일 그룹 (행사 태그·확인필요 등) — 같은 사람이면 기존 그룹에 더한다 */
+  tags?: string[];
 }
 
 /** 연동 대상과 무관한 정리용 칸 — 바꿔도 다시 보내지 않는다 */
@@ -108,7 +110,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [retryPending]);
 
   const addCard = useCallback<Store['addCard']>(
-    async ({ fields, kind, extra, tempImageUri, tempBackUri }) => {
+    async ({ fields, kind, extra, tempImageUri, tempBackUri, tags }) => {
       const now = new Date().toISOString();
       const draft: BusinessCard = { ...fields, id: randomUUID(), kind, extra, createdAt: now, updatedAt: now, sync: {} };
       const dup = findDuplicate(cardsRef.current, draft);
@@ -119,22 +121,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       let card: BusinessCard;
       let careerChanged = false;
+      const withTags = (c: BusinessCard): BusinessCard => {
+        const merged = [...new Set([...(c.tags ?? []), ...(tags ?? []).map(normalizeTag)].filter(Boolean))];
+        return merged.length ? { ...c, tags: merged } : c;
+      };
       if (dup) {
         // 같은 사람 — 이번에 읽힌 칸만 새 값으로, 회사·직책이 바뀌었으면 이전 소속을 경력 이력에 남긴다
         const { card: merged, changed } = mergeRescan(dup, fields, now, randomUUID);
         careerChanged = !!changed;
-        card = {
+        card = withTags({
           ...merged,
           kind,
           extra: extra.length ? extra : dup.extra,
           imageUri: imageUri ?? dup.imageUri,
           backImageUri: backImageUri ?? (imageUri ? undefined : dup.backImageUri),
-        };
+        });
         if (imageUri && dup.imageUri) deleteImage(dup.imageUri);
         if ((imageUri || backImageUri) && dup.backImageUri && dup.backImageUri !== card.backImageUri) deleteImage(dup.backImageUri);
         commit((prev) => prev.map((c) => (c.id === dup.id ? card : c)));
       } else {
-        card = { ...draft, imageUri, backImageUri };
+        card = withTags({ ...draft, imageUri, backImageUri });
         commit((prev) => [card, ...prev]);
       }
       runSync(card.id);

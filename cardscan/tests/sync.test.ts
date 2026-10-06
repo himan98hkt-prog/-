@@ -40,6 +40,9 @@ describe('설정', () => {
     expect(m.connectors.webhook.kinds).toEqual(['customer', 'partner', 'other']);
     expect(m.connectors.slack).toEqual(DEFAULT_SETTINGS.connectors.slack);
     expect(m.ocr.endpoint).toBe('');
+    // 행사 태그·연속 촬영이 생기기 전 설정 → 꺼진 상태로
+    expect(m.scanTag).toBe('');
+    expect(m.continuousScan).toBe(false);
   });
 });
 

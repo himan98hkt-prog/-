@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { allTags, dueFollowUps, filterCards, groupByCompany, SORT_LABEL, SortKey, stats, todayStr } from '../../core/organize';
 import { connectorTargets } from '../../core/settings';
 import { BusinessCard, CardKind, KIND_LABEL } from '../../core/types';
-import { Avatar, Button, Icon, KindBadge, PressableScale, SyncDot, tap } from '../../ui/components';
+import { CardThumb } from '../../ui/CardImage';
+import { Button, Icon, KindBadge, PressableScale, SyncDot, tap } from '../../ui/components';
 import { useLightStatusBar } from '../../ui/statusBar';
 import { useStore } from '../../ui/store';
 import { FONT, gradientFor, RADIUS, shadow, T, type } from '../../ui/theme';
@@ -65,12 +66,10 @@ export default function CardListScreen() {
     const targets = connectorTargets(settings, item.kind);
     const failed = targets.some((t) => item.sync[t]?.state === 'error');
     const overdue = item.followUp && item.followUp <= today;
-    const [accent] = gradientFor(item.company || item.name);
     return (
       <Rise index={index}>
         <PressableScale style={st.row} onPress={() => router.push({ pathname: '/card/[id]', params: { id: item.id } })}>
-          <View style={[st.rowAccent, { backgroundColor: accent }]} />
-          <Avatar name={item.name || item.nameEn} company={item.company} size={50} favorite={item.favorite} />
+          <CardThumb card={item} width={76} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
               <Text style={st.name} numberOfLines={1}>
@@ -85,8 +84,10 @@ export default function CardListScreen() {
             </Text>
             <View style={st.metaRow}>
               <KindBadge kind={item.kind} />
-              {(item.tags ?? []).slice(0, 2).map((t) => (
-                <Text key={t} style={st.tagMini}>#{t}</Text>
+              {(item.tags ?? []).slice(0, 1).map((t) => (
+                <Text key={t} style={st.tagMini} numberOfLines={1}>
+                  #{t}
+                </Text>
               ))}
               {item.followUp ? (
                 <View style={[st.follow, overdue && { backgroundColor: T.errSoft }]}>
@@ -298,13 +299,12 @@ const st = StyleSheet.create({
   toolText: { ...type(13, '700', T.sub) },
   resultCount: { ...type(12, '600', T.faint) },
   row: { flexDirection: 'row', gap: 14, backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 14, paddingLeft: 16, alignItems: 'center', overflow: 'hidden', ...shadow(1) },
-  rowAccent: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 3, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
   name: { ...type(17, '800'), flexShrink: 1 },
   title: { ...type(13, '600', T.sub) },
   company: { ...type(14, '500', '#3A4256'), marginTop: 1 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   meta: { ...type(12, '600', T.faint) },
-  tagMini: { ...type(11, '700', T.ink3) },
+  tagMini: { ...type(11, '700', T.ink3), flexShrink: 1 },
   follow: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: T.goldSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
   followText: { ...type(11, '800', T.goldDeep), lineHeight: 15 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, marginTop: 14, marginBottom: 8 },

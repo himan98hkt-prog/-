@@ -35,6 +35,10 @@ export interface Settings {
   contactName: 'name' | 'company' | 'companyTitle';
   /** 팔로업 날짜 아침 9시에 알림 */
   followUpNotify: boolean;
+  /** 행사·모임 태그 — 켜 두면 이후 찍는 명함마다 자동으로 붙는다 (예: 2026 코엑스 전시회) */
+  scanTag: string;
+  /** 연속 촬영 — 저장하자마자 다음 명함 촬영 화면을 바로 연다 */
+  continuousScan: boolean;
   /** 내 명함 — QR·공유용 */
   myCard: CardFields;
   connectors: {
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultKind: 'customer',
   contactName: 'company',
   followUpNotify: true,
+  scanTag: '',
+  continuousScan: false,
   myCard: { ...EMPTY_FIELDS },
   connectors: {
     contacts: { enabled: true, kinds: [...ALL_KINDS] },

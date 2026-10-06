@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isConfidentEnough } from '../../core/normalize';
+import { allTags, normalizeTag } from '../../core/organize';
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { BusinessCard, CardKind, EMPTY_FIELDS, KIND_LABEL } from '../../core/types';
 import { scanCardImage } from '../../integrations/ocr';
 import { isDocumentScannerAvailable, recognizeText } from '../../../modules/card-ocr';
 import { CapturedCard, captureCard, pickManyCards, prepareImage } from '../../ui/capture';
 import { Button, Icon, KindPicker, PressableScale, SyncDot, tap } from '../../ui/components';
-import { DigitalCard } from '../../ui/DigitalCard';
+import { CardHero } from '../../ui/DigitalCard';
 import { setDraft } from '../../ui/draft';
 import { REVIEW_TAG } from '../../ui/constants';
 import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
@@ -39,7 +40,21 @@ interface Batch {
 }
 
 export default function ScanScreen() {
-  const { settings, addCard, setMeta, cards, syncingIds } = useStore();
+  const { settings, setSettings, addCard, cards, syncingIds } = useStore();
+  const [tagEditing, setTagEditing] = useState(false);
+  const [tagText, setTagText] = useState('');
+  const [streak, setStreak] = useState(0);
+  const eventTags = settings.scanTag ? [settings.scanTag] : [];
+  const recentTags = allTags(cards)
+    .map((t) => t.tag)
+    .filter((t) => t !== REVIEW_TAG && t !== settings.scanTag)
+    .slice(0, 4);
+
+  function setScanTag(tag: string) {
+    setTagEditing(false);
+    setTagText('');
+    setSettings({ ...settings, scanTag: normalizeTag(tag) });
+  }
   const [kind, setKind] = useState<CardKind>(settings.defaultKind);
   const [withBack, setWithBack] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -81,7 +96,10 @@ export default function ScanScreen() {
     try {
       setPhase('capturing');
       const shot = await captureCard(source, withBack);
-      if (!shot) return setPhase('idle');
+      if (!shot) {
+        setStreak(0);
+        return setPhase('idle');
+      }
 
       setPhase('reading');
       let result;
@@ -109,11 +127,17 @@ export default function ScanScreen() {
           extra: result.extra,
           tempImageUri: shot.front.uri,
           tempBackUri: shot.back?.uri,
+          tags: eventTags,
         });
         tap('success');
         setLastId(card.id);
         setLastNote(careerChanged ? '소속이 바뀌어 이전 회사·직책을 경력 이력에 남겼습니다' : merged ? '같은 사람의 명함을 최신 정보로 갱신했습니다' : '');
         setPhase('idle');
+        // 연속 촬영: 행사장에서 받은 명함 더미를 손 안 대고 차례로
+        if (settings.continuousScan && source === 'camera') {
+          setStreak((n) => n + 1);
+          setTimeout(() => run('camera'), 700);
+        }
         return;
       }
       setDraft({
@@ -166,8 +190,8 @@ export default function ScanScreen() {
           kind,
           extra: r.extra,
           tempImageUri: img.uri,
+          tags: confident ? eventTags : [...eventTags, REVIEW_TAG],
         });
-        if (!confident) setMeta(card.id, { tags: [...(card.tags ?? []), REVIEW_TAG] });
         b.saved++;
         if (merged) b.merged++;
         if (!confident) b.needsReview++;
@@ -203,6 +227,50 @@ export default function ScanScreen() {
           <KindPicker value={kind} onChange={setKind} dark />
         </View>
 
+        {/* 행사·모임 태그 — 켜 두면 이후 찍는 명함마다 자동으로 붙는다 */}
+        {tagEditing ? (
+          <View style={st.tagBox}>
+            <View style={st.tagInputRow}>
+              <Icon name="pricetag" size={16} color={T.gold} />
+              <TextInput
+                value={tagText}
+                onChangeText={setTagText}
+                autoFocus
+                placeholder="예: 2026 코엑스 전시회, 3월 협력사 모임"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                style={st.tagInput}
+                returnKeyType="done"
+                onSubmitEditing={() => setScanTag(tagText)}
+              />
+              <Pressable hitSlop={10} onPress={() => setScanTag(tagText)}>
+                <Text style={st.tagOk}>확인</Text>
+              </Pressable>
+            </View>
+            {recentTags.length ? (
+              <View style={st.tagSuggest}>
+                {recentTags.map((t) => (
+                  <Pressable key={t} onPress={() => setScanTag(t)} style={st.tagChip}>
+                    <Text style={st.tagChipText}>#{t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <Pressable style={[st.tagBox, st.tagRow]} onPress={() => setTagEditing(true)}>
+            <Icon name={settings.scanTag ? 'pricetag' : 'pricetag-outline'} size={16} color={T.gold} />
+            <Text style={[st.tagRowText, settings.scanTag && { color: '#fff' }]} numberOfLines={1}>
+              {settings.scanTag ? `#${settings.scanTag}` : '행사·모임 태그 붙이기 (전시회·세미나에서 편해요)'}
+            </Text>
+            {settings.scanTag ? <Text style={st.tagAuto}>자동 태그 중</Text> : null}
+            {settings.scanTag ? (
+              <Pressable hitSlop={12} onPress={() => setScanTag('')} accessibilityLabel="행사 태그 끄기">
+                <Icon name="close-circle" size={18} color="rgba(255,255,255,0.5)" />
+              </Pressable>
+            ) : null}
+          </Pressable>
+        )}
+
         <ScanOrb
           busy={busy}
           label={phase !== 'idle' ? PHASE_TEXT[phase] : isDocumentScannerAvailable ? '눌러서 촬영 · 테두리 자동 인식' : '눌러서 촬영'}
@@ -234,6 +302,19 @@ export default function ScanScreen() {
             />
           </View>
         ) : null}
+        <View style={st.switchRow}>
+          <Icon name="repeat" size={16} color={T.gold} />
+          <Text style={st.switchText}>연속 촬영 (저장하면 바로 다음 명함)</Text>
+          <Switch
+            value={settings.continuousScan}
+            onValueChange={(v) => {
+              tap('select');
+              setSettings({ ...settings, continuousScan: v });
+            }}
+            trackColor={{ true: T.gold, false: 'rgba(255,255,255,0.2)' }}
+            thumbColor="#fff"
+          />
+        </View>
 
         {batch ? (
           <View style={st.panel}>
@@ -280,10 +361,11 @@ export default function ScanScreen() {
           <View style={st.result}>
             <View style={st.resultHead}>
               <Icon name="checkmark-circle" size={20} color={T.gold} />
+              {streak > 1 ? <Text style={st.streak}>연속 {streak}장째</Text> : null}
               <Text style={st.resultTitle}>{lastNote ? '기존 명함을 갱신했어요' : '저장했어요'}</Text>
             </View>
             {lastNote ? <Text style={st.resultNote}>{lastNote}</Text> : null}
-            <DigitalCard card={last} imageUri={last.imageUri} backImageUri={last.backImageUri} favorite={last.favorite} />
+            <CardHero card={last} imageUri={last.imageUri} backImageUri={last.backImageUri} favorite={last.favorite} />
             <View style={st.syncList}>
               {connectorTargets(settings, last.kind).map((t) => (
                 <View key={t} style={st.syncItem}>
@@ -383,7 +465,7 @@ function ScanOrb({ onPress, busy, label }: { onPress: () => void; busy: boolean;
         >
           <LinearGradient colors={['#F1D9A3', T.gold, T.goldDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.orbOuter}>
             <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.orb}>
-              {busy ? <ActivityIndicator color={T.gold} size="large" /> : <Icon name="scan" size={54} color={T.gold} />}
+              {busy ? <ActivityIndicator color={T.gold} size="large" /> : <Icon name="scan" size={46} color={T.gold} />}
             </LinearGradient>
           </LinearGradient>
         </Pressable>
@@ -420,29 +502,10 @@ const st = StyleSheet.create({
     marginTop: 2,
   },
   headSub: { ...type(13, '500', 'rgba(255,255,255,0.55)'), marginTop: 4 },
-  orbArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 300,
-    height: 290,
-  },
-  orbRing: {
-    position: 'absolute',
-    top: 55,
-    left: 60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 2,
-    borderColor: T.gold,
-  },
-  orbOuter: { width: 180, height: 180, borderRadius: 90, padding: 4 },
-  orb: {
-    flex: 1,
-    borderRadius: 88,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  orbArea: { alignItems: 'center', justifyContent: 'center', width: 300, height: 240 },
+  orbRing: { position: 'absolute', top: 45, left: 75, width: 150, height: 150, borderRadius: 75, borderWidth: 2, borderColor: T.gold },
+  orbOuter: { width: 150, height: 150, borderRadius: 75, padding: 4 },
+  orb: { flex: 1, borderRadius: 73, alignItems: 'center', justifyContent: 'center' },
   orbLabel: {
     ...type(13, '600', 'rgba(255,255,255,0.7)'),
     marginTop: -4,
@@ -462,6 +525,17 @@ const st = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   ghostText: { ...type(14, '700', '#fff') },
+  tagBox: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.md, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(212,175,106,0.35)' },
+  tagRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
+  tagRowText: { ...type(13, '600', 'rgba(255,255,255,0.65)'), flex: 1 },
+  tagInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
+  tagInput: { flex: 1, fontFamily: FONT, fontSize: 15, color: '#fff', paddingVertical: 12 },
+  tagAuto: { ...type(11, '800', T.ink), backgroundColor: T.gold, borderRadius: 8, paddingHorizontal: 7, overflow: 'hidden' },
+  tagOk: { ...type(14, '800', T.gold) },
+  tagSuggest: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
+  tagChip: { borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(255,255,255,0.08)' },
+  tagChipText: { ...type(12, '700', 'rgba(255,255,255,0.8)') },
+  streak: { ...type(12, '800', T.ink), backgroundColor: T.gold, borderRadius: 10, paddingHorizontal: 8, overflow: 'hidden', marginLeft: 2 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',

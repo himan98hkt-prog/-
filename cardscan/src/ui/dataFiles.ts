@@ -33,3 +33,10 @@ export async function pickBackup(): Promise<BusinessCard[] | null> {
   const text = await new File(res.assets[0].uri).text();
   return parseBackup(text);
 }
+
+/** 원본 명함 사진 그대로 보내기 (카톡·메일 등) */
+export async function shareCardPhoto(card: BusinessCard) {
+  if (!card.imageUri) throw new Error('저장된 명함 사진이 없습니다');
+  if (!(await Sharing.isAvailableAsync())) throw new Error('이 기기에서는 사진 공유를 쓸 수 없습니다');
+  await Sharing.shareAsync(card.imageUri, { mimeType: 'image/jpeg', dialogTitle: `${card.name || '명함'} 명함 사진` });
+}

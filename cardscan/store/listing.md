@@ -43,9 +43,18 @@
 • 슬랙: 새 명함 등록을 팀 채널에 알림
 • 고객·거래처·기타로 나눠 보낼 곳을 따로 정할 수 있습니다.
 
+■ 전시회·세미나 모드
+• 행사 태그를 한 번 정해 두면 찍는 명함마다 자동으로 붙습니다 (예: 2026 코엑스 전시회)
+• 연속 촬영: 저장되면 바로 다음 명함 촬영 화면이 열려 수십 장도 손쉽게
+• 쌓여 있던 명함 사진은 앨범에서 최대 50장까지 한 번에 등록
+
+■ 받은 명함 그대로
+• 명함 원본 사진(앞·뒷면)을 그대로 보관하고 목록에도 실제 명함이 보여 회사를 한눈에 알아봅니다
+• 수정할 때는 원본 명함이 화면 위에 고정되어 보면서 고칠 수 있습니다
+• 명함 사진 그대로 카톡·메일로 보내기
+
 ■ 명함첩 관리
 • 초성 검색(ㅎㄱㄷ), 회사별 보기, 정렬, 즐겨찾기(VIP), 그룹 태그
-• 회사마다 고유한 색의 디지털 명함, 누르면 원본 명함 사진으로 뒤집기
 • 같은 회사 사람 모아 보기, 이직·승진하면 경력 이력 자동 기록
 • 미팅 메모 타임라인
 
@@ -57,9 +66,7 @@
 • 내 명함을 QR 로 보여 주면 상대가 카메라로 찍어 바로 연락처에 저장
 • 문자·카카오톡으로 내 명함 보내기
 
-■ 여러 장 한 번에
-• 쌓여 있던 명함 사진을 앨범에서 최대 50장까지 한 번에 등록
-• 인식이 애매한 명함은 '확인필요' 그룹으로 모아 빠르게 검토
+• 여러 장 등록 중 인식이 애매한 명함은 '확인필요' 그룹으로 모아 빠르게 검토
 
 ■ 내 데이터는 내 휴대폰에
 • 회원가입이 없고, 명함 정보는 휴대폰 안에만 저장됩니다.
@@ -78,6 +85,7 @@
 • 폰 안에서 읽는 명함 인식 (오프라인)
 • 연락처 자동 저장·중복 합치기
 • 구글 시트·HubSpot·웹훅·슬랙 자동 입력
+• 전시회 모드: 행사 태그 자동 + 연속 촬영
 • 팔로업 알림, 메모, 경력 이력, 내 명함 QR
 ```
 
@@ -117,9 +125,17 @@ AUTO-FILL YOUR WORK TOOLS (turn on only what you need)
 • Slack: post new cards to your team channel
 • Choose destinations separately for customers, partners and others.
 
+EVENT MODE
+• Set an event tag once and every card you scan gets it automatically.
+• Continuous scanning: the camera reopens right after each save.
+• Import up to 50 card photos from your gallery at once.
+
+THE ORIGINAL CARD, AS IS
+• Front and back photos are kept untouched and shown in your list, so you recognize companies at a glance.
+• Edit fields with the original card pinned above them. Share the card photo in one tap.
+
 ORGANIZE
 • Search, group by company, sort, VIP favorites and tags
-• A digital card in each company's own color that flips to the original photo
 • Colleagues at the same company, automatic career history, meeting notes
 
 NEVER MISS A FOLLOW-UP

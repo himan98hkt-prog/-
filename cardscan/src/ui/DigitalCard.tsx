@@ -1,7 +1,7 @@
 // 디지털 명함 — 회사 색 그라데이션의 프리미엄 카드. 누르면 3D 로 뒤집혀 원본 명함 사진을 보여 준다.
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { companyShort } from '../core/mapping';
 import { CardFields } from '../core/types';
 import { CardImage } from './CardImage';
@@ -114,4 +114,83 @@ const st = StyleSheet.create({
   flipHint: { position: 'absolute', right: 16, bottom: 14, flexDirection: 'row', alignItems: 'center', gap: 4 },
   flipText: { fontFamily: FONT, fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
   caption: { fontFamily: FONT, fontSize: 12, color: T.sub, textAlign: 'center', marginTop: 10 },
+  photoWrap: { aspectRatio: 1.62, borderRadius: RADIUS.lg, backgroundColor: '#E9EBF1', overflow: 'hidden' },
+  photoBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingHorizontal: 4 },
+  photoHint: { fontFamily: FONT, fontSize: 12, fontWeight: '600', color: T.sub },
+  zoomBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  photoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
+  photoPillText: { fontFamily: FONT, fontSize: 11, fontWeight: '700', color: '#fff' },
+  pinned: { height: 150, backgroundColor: '#1A1F2E', padding: 8 },
+  zoomBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center', padding: 12 },
+  zoomImg: { width: '100%', height: '80%' },
+  zoomHint: { fontFamily: FONT, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 12 },
 });
+
+/**
+ * 명함 보기 — 실제 명함 사진이 있으면 원본을 그대로 보여 준다 (명함 디자인만 봐도 어느 회사인지 알 수 있으므로 꾸미지 않는다).
+ * 사진이 없을 때(직접 입력·내 명함)만 디지털 명함으로 대신한다.
+ */
+export function CardHero(props: Props) {
+  if (!props.imageUri) return <DigitalCard {...props} />;
+  return <PhotoCard {...props} />;
+}
+
+function PhotoCard({ imageUri, backImageUri, caption }: Props) {
+  const photos = [imageUri, backImageUri].filter(Boolean) as string[];
+  const [side, setSide] = useState(0);
+  const [zoom, setZoom] = useState(false);
+  const flip = useRef(new Animated.Value(0)).current;
+  const rotateY = flip.interpolate({ inputRange: [-0.5, 0, 0.5], outputRange: ['-90deg', '0deg', '90deg'] });
+
+  function turn() {
+    if (photos.length < 2) return setZoom(true);
+    tap();
+    Animated.timing(flip, { toValue: 0.5, duration: 150, useNativeDriver: true }).start(() => {
+      setSide((v) => (v + 1) % photos.length);
+      flip.setValue(-0.5);
+      Animated.timing(flip, { toValue: 0, duration: 170, useNativeDriver: true }).start();
+    });
+  }
+
+  return (
+    <View>
+      <Pressable onPress={turn} onLongPress={() => setZoom(true)} accessibilityLabel={photos.length > 1 ? '눌러서 앞·뒷면 넘기기' : '눌러서 크게 보기'}>
+        <Animated.View style={[st.photoWrap, shadow(2), { transform: [{ perspective: 1000 }, { rotateY }] }]}>
+          <CardImage uri={photos[side]} style={StyleSheet.absoluteFill as object} contain />
+        </Animated.View>
+      </Pressable>
+      {/* 안내는 사진 밖에 — 명함 글자를 가리지 않게 */}
+      <View style={st.photoBar}>
+        <Text style={st.photoHint}>
+          {photos.length > 1 ? `원본 ${side === 0 ? '앞면' : '뒷면'} · 눌러서 ${side === 0 ? '뒷면' : '앞면'}` : '원본 명함'}
+        </Text>
+        <Pressable hitSlop={10} onPress={() => setZoom(true)} style={st.zoomBtn} accessibilityLabel="크게 보기">
+          <Icon name="expand" size={12} color={T.sub} />
+          <Text style={st.photoHint}>크게 보기</Text>
+        </Pressable>
+      </View>
+      {caption ? <Text style={st.caption}>{caption}</Text> : null}
+      <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)} statusBarTranslucent>
+        <Pressable style={st.zoomBg} onPress={() => setZoom(false)}>
+          <CardImage uri={photos[side]} style={st.zoomImg} contain />
+          <Text style={st.zoomHint}>{photos.length > 1 ? '아무 곳이나 누르면 닫힙니다 · 카드를 누르면 앞·뒷면' : '아무 곳이나 누르면 닫힙니다'}</Text>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+/** 수정·확인 화면 위에 고정되는 원본 명함 — 보면서 고칠 수 있게. 누르면 앞·뒷면 */
+export function PinnedPhoto({ imageUri, backImageUri }: { imageUri?: string; backImageUri?: string }) {
+  const [back, setBack] = useState(false);
+  if (!imageUri) return null;
+  return (
+    <Pressable onPress={() => backImageUri && setBack((v) => !v)} style={st.pinned} accessibilityLabel="원본 명함">
+      <CardImage uri={back && backImageUri ? backImageUri : imageUri} style={{ width: '100%', height: '100%' }} contain />
+      <View style={[st.photoPill, { position: 'absolute', right: 10, bottom: 8 }]}>
+        <Icon name="image" size={11} color="#fff" />
+        <Text style={st.photoPillText}>원본{backImageUri ? (back ? ' · 뒷면' : ' · 앞면 (눌러서 뒷면)') : ''}</Text>
+      </View>
+    </Pressable>
+  );
+}

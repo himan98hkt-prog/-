@@ -7,11 +7,14 @@ import { addDays, allTags, colleaguesOf, normalizeTag, todayStr } from '../../co
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { BusinessCard, CardFields, CardKind, FIELD_LABEL } from '../../core/types';
 import { CardForm } from '../../ui/CardForm';
-import { ActionButton, Avatar, Button, C, Field, Icon, IconName, KindBadge, KindPicker, Section, SyncDot, tap } from '../../ui/components';
-import { DigitalCard } from '../../ui/DigitalCard';
+import { ActionButton, Button, C, Field, Icon, IconName, KindBadge, KindPicker, Section, SyncDot, tap } from '../../ui/components';
+import { CardThumb } from '../../ui/CardImage';
+import { CardHero, PinnedPhoto } from '../../ui/DigitalCard';
 import { QrCode } from '../../ui/QrCode';
 import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { shareCardPhoto } from '../../ui/dataFiles';
+import { IS_WEB } from '../../ui/platform';
 import { useStore } from '../../ui/store';
 import { FONT, RADIUS, T, type } from '../../ui/theme';
 
@@ -119,6 +122,17 @@ export default function CardDetailScreen() {
     if (k === 'address') return Linking.openURL(`https://map.naver.com/p/search/${encodeURIComponent(v)}`);
   }
 
+  /** 공유: 글자 요약 또는 원본 명함 사진 (사진은 앱에서만) */
+  function shareCard() {
+    const text = () => Share.share({ message: shareText(card!), title: card!.name });
+    if (!card!.imageUri || IS_WEB) return text();
+    Alert.alert('명함 보내기', undefined, [
+      { text: '취소', style: 'cancel' },
+      { text: '글자로', onPress: text },
+      { text: '명함 사진', onPress: () => shareCardPhoto(card!).catch((e) => Alert.alert('공유 실패', (e as Error).message)) },
+    ]);
+  }
+
   function addTag(t: string) {
     const tag = normalizeTag(t);
     if (!tag || tags.includes(tag)) return;
@@ -135,6 +149,7 @@ export default function CardDetailScreen() {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Stack.Screen options={{ title: '명함 수정' }} />
+        <PinnedPhoto imageUri={card.imageUri} backImageUri={card.backImageUri} />
         <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 + bottom }} keyboardShouldPersistTaps="handled">
           <Section title="구분">
             <KindPicker value={kind} onChange={setKind} />
@@ -171,13 +186,7 @@ export default function CardDetailScreen() {
             ),
           }}
         />
-        <DigitalCard
-          card={card}
-          imageUri={card.imageUri}
-          backImageUri={card.backImageUri}
-          favorite={card.favorite}
-          caption={card.imageUri ? '카드를 누르면 원본 명함 사진으로 뒤집힙니다' : undefined}
-        />
+        <CardHero card={card} imageUri={card.imageUri} backImageUri={card.backImageUri} favorite={card.favorite} />
         <View style={st.metaRow}>
           <KindBadge kind={card.kind} />
           {tags.slice(0, 3).map((t) => (
@@ -192,7 +201,7 @@ export default function CardDetailScreen() {
           {card.email ? <ActionButton icon="mail" label="메일" tone={T.kind.partner} onPress={() => action('email')} /> : null}
           {card.address ? <ActionButton icon="navigate" label="지도" tone={T.warn} onPress={() => action('address')} /> : null}
           <ActionButton icon="qr-code" label="QR" tone={T.ink} onPress={() => setQrOpen(true)} />
-          <ActionButton icon="share-social" label="공유" tone={T.goldDeep} onPress={() => Share.share({ message: shareText(card), title: card.name })} />
+          <ActionButton icon="share-social" label="공유" tone={T.goldDeep} onPress={shareCard} />
         </View>
 
         <Section title="연락처 정보" icon="id-card-outline">
@@ -343,7 +352,7 @@ export default function CardDetailScreen() {
           <Section title={`같은 회사 사람 ${colleagues.length}명`} icon="people-outline">
             {colleagues.slice(0, 10).map((c) => (
               <Pressable key={c.id} style={[st.row, { alignItems: 'center', gap: 12 }]} onPress={() => router.push({ pathname: '/card/[id]', params: { id: c.id } })}>
-                <Avatar name={c.name} company={c.company} size={36} favorite={c.favorite} />
+                <CardThumb card={c} width={56} />
                 <Text style={st.value}>
                   {c.name} <Text style={st.sub}>{[c.department, c.title].filter(Boolean).join(' ')}</Text>
                 </Text>
