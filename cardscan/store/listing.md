@@ -169,6 +169,8 @@ Permissions: camera (scanning), contacts (saving and de-duplicating; your contac
 | 그래픽 이미지(피처 그래픽) | `feature-graphic.jpg` | 1024×500 JPG |
 | 휴대전화 스크린샷 (순서대로) | `phone-01-home.png` ~ `phone-06-sync.png` | 1080×1920 PNG, 6장 |
 
+**영어 등록정보용** (번역 추가 → English): `graphics/en/` 의 `feature-graphic.jpg`, `phone-01-home.png` ~ `phone-06-sync.png` — 앱 화면이 영어이고 견본 명함도 영어권 회사입니다. 아이콘은 같은 `icon-512.png`.
+
 태블릿 스크린샷은 선택입니다(비워 두면 휴대폰 전용으로 표시).
 스크린샷 속 인물·회사는 모두 가상의 예시입니다.
 
