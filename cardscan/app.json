@@ -113,6 +113,7 @@
           "backgroundColor": "#0B1530"
         }
       ],
+      "expo-iap",
       "./plugins/withUploadSigning"
     ],
     "scheme": "cardscan",
