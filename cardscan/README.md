@@ -44,6 +44,11 @@
 > 사이트 주소는 `cardscan/` 이 바뀌어 올라갈 때마다 GitHub Actions(`cardscan-web.yml`)가 자동으로 새로 배포합니다.
 > 처음 한 번만 저장소 **Settings → Pages → Build and deployment → Branch: `gh-pages` / `(root)` → Save** 가 필요합니다.
 
+## 구글 플레이스토어 출시·판매
+
+등록정보·스크린샷·개인정보처리방침·심사 답변표·업로드용 AAB 빌드까지 [`store/`](store/README.md) 에 준비되어 있습니다.
+순서·일정·테스트(12명 × 14일)·수익화 방법은 **[store/README.md](store/README.md)** 를 따라 하세요.
+
 ## 주요 기능 (안드로이드)
 
 | | 기능 | 리멤버와 비교 |

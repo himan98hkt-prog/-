@@ -1,6 +1,7 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { CONNECTOR_LABEL, CONNECTOR_ORDER, connectorReady, Settings } from '../../core/settings';
 import { BusinessCard, CardKind, ConnectorId, KIND_LABEL } from '../../core/types';
 import { checkOcr } from '../../integrations/ocr';
@@ -9,6 +10,7 @@ import { Button, C, Field, KindPicker, Section } from '../../ui/components';
 import { IS_WEB, WEB_LIMITS } from '../../ui/platform';
 import { CAN_OPEN_VCARD, exportAllVCards } from '../../ui/saveContact';
 import { pickBackup, shareBackup, shareCsv } from '../../ui/dataFiles';
+import { PRIVACY_URL, SUPPORT_URL } from '../../ui/constants';
 import { useStore } from '../../ui/store';
 import { RADIUS, T, type } from '../../ui/theme';
 
@@ -270,6 +272,17 @@ export default function SettingsScreen() {
         ) : null}
         <Button title={dirty ? '설정 저장' : '저장됨'} icon={dirty ? 'save' : 'checkmark'} variant="dark" onPress={save} disabled={!dirty} />
         <Text style={[st.help, { textAlign: 'center', marginTop: 10 }]}>토큰·비밀키는 기기의 보안 저장소(Keychain/Keystore)에 보관됩니다.</Text>
+
+        <Section title="앱 정보" icon="information-circle-outline">
+          <Text style={st.help}>
+            명함 사진과 정보는 이 휴대폰 안에만 저장됩니다. 직접 켠 연동(구글 시트·HubSpot·웹훅·슬랙)과 선택 기능인 Claude 인식만 해당 서비스로 보냅니다.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title="개인정보처리방침" icon="shield-checkmark-outline" variant="secondary" style={{ flex: 1 }} onPress={() => Linking.openURL(PRIVACY_URL)} />
+            <Button title="문의하기" icon="chatbubbles-outline" variant="secondary" style={{ flex: 1 }} onPress={() => Linking.openURL(SUPPORT_URL)} />
+          </View>
+          <Text style={[st.help, { textAlign: 'center', marginTop: 10, marginBottom: 0 }]}>명함스캔 v{Constants.expoConfig?.version ?? ''}</Text>
+        </Section>
       </ScrollView>
     </KeyboardAvoidingView>
   );

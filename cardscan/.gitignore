@@ -42,3 +42,8 @@ yarn-error.*
 
 # Tesseract(Node) 실행 시 생기는 언어 데이터 캐시
 *.traineddata
+
+# 서명 키는 절대 커밋하지 않는다 (GitHub Secrets 로만 전달)
+*.jks
+*.keystore
+!android/app/debug.keystore

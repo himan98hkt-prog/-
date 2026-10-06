@@ -4,6 +4,7 @@
 // - 404.html: GitHub Pages 에서 /card/xxx 같은 주소로 바로 들어와도 앱이 열리게
 // - .nojekyll: GitHub Pages 가 _expo 폴더를 숨기지 않게
 // - tesseract/: 무료 문자 인식 엔진·언어 데이터 (같은 사이트에서 제공)
+// - privacy.html: 개인정보처리방침 (구글 플레이 등록용)
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -84,4 +85,6 @@ html = html
 fs.writeFileSync(indexPath, html);
 fs.copyFileSync(indexPath, path.join(dist, '404.html'));
 fs.writeFileSync(path.join(dist, '.nojekyll'), '');
+// 구글 플레이 등록에 쓰는 개인정보처리방침 주소: https://<사용자>.github.io/<저장소>/privacy.html
+fs.copyFileSync('store/privacy-policy.html', path.join(dist, 'privacy.html'));
 console.log(`PWA 마무리 완료: ${dist} (기본 경로 "${root || '/'}")`);
