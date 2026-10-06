@@ -90,7 +90,8 @@
 
 ## 4단계 — 업로드용 AAB 만들기
 
-1. https://github.com/himan98hkt-prog/-/actions → 왼쪽 **"명함스캔 플레이스토어 AAB"** → **Run workflow** → 브랜치 고르고 **Run workflow**
+1. 앱 코드가 바뀌어 올라갈 때마다 **자동으로 빌드**됩니다. 3단계(Secrets) 를 한 뒤 새로 빌드하려면: https://github.com/himan98hkt-prog/-/actions → 왼쪽 **"명함스캔 플레이스토어 AAB"** → 가장 최근 실행 → 오른쪽 위 **Re-run all jobs**
+   (작업 브랜치가 기본 브랜치에 합쳐진 뒤에는 같은 화면의 **Run workflow** 버튼으로도 실행할 수 있습니다)
 2. 20분쯤 뒤 초록 체크 → 실행 화면 맨 아래 **Artifacts → cardscan-play-aab** 다운로드 → 압축을 풀면 `cardscan-play-v1.0.0-XXXXXX.aab`
    - 파일 이름이 `TEST-ONLY-업로드금지-...` 로 나오면 3단계 Secrets 가 빠진 것입니다. 이 파일은 올리지 마세요.
 3. 플레이용 패키지 이름은 **`io.github.himan98hktprog.cardscan`** 입니다 (영구, 바꿀 수 없음).
@@ -161,6 +162,6 @@
 
 ## 업데이트 올리는 법 (출시 후)
 
-1. 코드를 고쳐 push → Actions 에서 "명함스캔 플레이스토어 AAB" 실행 (버전 코드는 자동으로 커집니다)
+1. 코드를 고쳐 push → "명함스캔 플레이스토어 AAB" 가 자동 빌드 (버전 코드는 자동으로 커집니다)
 2. 버전 이름을 올리려면 `cardscan/app.json` 의 `"version"` (예: 1.0.1)
 3. 콘솔 → 프로덕션 → 새 버전 만들기 → 새 `.aab` 업로드 → 출시 노트 → 검토 (업데이트 심사는 보통 하루 안팎)

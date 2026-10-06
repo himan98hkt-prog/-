@@ -1,5 +1,5 @@
 # 명함스캔 구글 플레이 업로드용 AAB 빌드 (수동 실행)
-# - Actions → "명함스캔 플레이스토어 AAB" → Run workflow 를 누르면 빌드한다.
+# - cardscan/ 이 바뀌어 push 되면 자동으로 빌드한다. (기본 브랜치에 합쳐진 뒤에는 Actions → Run workflow 로 수동 실행도 가능)
 # - 저장소 Settings → Secrets and variables → Actions 에 업로드 키 4개가 있어야 스토어에 올릴 수 있는 파일이 나온다:
 #     CARDSCAN_UPLOAD_KEYSTORE_BASE64, CARDSCAN_UPLOAD_STORE_PASSWORD, CARDSCAN_UPLOAD_KEY_ALIAS, CARDSCAN_UPLOAD_KEY_PASSWORD
 #   (만드는 법: cardscan/store/README.md). 키가 없으면 임시 키로 "빌드 확인용" 파일만 만든다 — 업로드 불가.
@@ -7,10 +7,12 @@
 name: 명함스캔 플레이스토어 AAB
 
 on:
+  push:
+    paths: ['cardscan/**', '.github/workflows/cardscan-play.yml']
   workflow_dispatch:
 
 concurrency:
-  group: cardscan-play
+  group: cardscan-play-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
