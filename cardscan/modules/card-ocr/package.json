@@ -1,0 +1,7 @@
+{
+  "name": "card-ocr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "명함스캔 — Google ML Kit 한국어 온디바이스 문자 인식 (무료·오프라인)",
+  "main": "index.ts"
+}

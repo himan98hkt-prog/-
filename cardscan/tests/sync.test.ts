@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { connectorTargets, DEFAULT_SETTINGS, mergeSettings, Settings, setPath } from '../src/core/settings';
 import { hubspotConnector, sheetsConnector, slackConnector, webhookConnector } from '../src/integrations/http';
-import { checkOcr, scanCardImage, OcrNotConfiguredError } from '../src/integrations/ocr';
+import { checkOcr, scanCardImage } from '../src/integrations/ocr';
+import { effectiveOcrMode } from '../src/core/settings';
 import { ConnectorMap, pendingTargets, syncCard } from '../src/integrations/sync';
 import { makeCard } from './fixtures';
 
@@ -149,19 +150,18 @@ describe('HTTP 연동', () => {
   });
 });
 
+const img = (base64: string) => ({ uri: 'file:///card.jpg', base64 });
+
 describe('OCR 클라이언트 — 서버 모드', () => {
   const ocrSettings = settingsWith((s) => {
     s.ocr = { mode: 'server', apiKey: '', endpoint: 'https://p.supabase.co/functions/v1/scan-card', anonKey: 'anon', appSecret: 'app' };
     return s;
   });
 
-  it('설정이 없으면 미설정 오류', async () => {
-    await expect(scanCardImage('b64', DEFAULT_SETTINGS)).rejects.toBeInstanceOf(OcrNotConfiguredError);
-  });
 
   it('헤더를 붙여 보내고 응답을 정리한다', async () => {
     const f = vi.fn(async () => res(200, { fields: { name: '홍길동', mobile: '01012345678', email: 'A@B.CO' }, extra: ['@insta', 3], note: '' }));
-    const r = await scanCardImage('b64', ocrSettings, f as typeof fetch);
+    const r = await scanCardImage(img('b64'), ocrSettings, { fetch: f as typeof fetch });
     const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     const h = init.headers as Record<string, string>;
     expect(h.Authorization).toBe('Bearer anon');
@@ -175,26 +175,27 @@ describe('OCR 클라이언트 — 서버 모드', () => {
 
   it('서버 오류 메시지를 그대로 보여준다', async () => {
     const f = vi.fn(async () => res(422, { error: '명함이 아닌 사진으로 보입니다' }));
-    await expect(scanCardImage('b64', ocrSettings, f as typeof fetch)).rejects.toThrow('명함이 아닌');
+    await expect(scanCardImage(img('b64'), ocrSettings, { fetch: f as typeof fetch })).rejects.toThrow('명함이 아닌');
   });
 });
 
-describe('OCR 클라이언트 — 간편(API 키) 모드', () => {
+describe('OCR 클라이언트 — 유료(Claude API 키) 모드', () => {
   const direct = settingsWith((s) => {
+    s.ocr.mode = 'direct';
     s.ocr.apiKey = 'sk-ant-api03-test';
     return s;
   });
   const apiReply = (payload: object, stop = 'end_turn') => res(200, { stop_reason: stop, content: [{ type: 'text', text: JSON.stringify(payload) }] });
   const fields = { name: '김철수', nameEn: '', company: '테스트', department: '', title: '', mobile: '+82 10 2222 3333', phone: '', fax: '', email: 'K@T.CO', website: '', address: '' };
 
-  it('기본값이 간편 모드이고 키가 없으면 미설정', async () => {
-    expect(DEFAULT_SETTINGS.ocr.mode).toBe('direct');
-    await expect(scanCardImage('b64', DEFAULT_SETTINGS)).rejects.toBeInstanceOf(OcrNotConfiguredError);
+  it('키가 없으면 유료 모드를 골라도 무료(기기) 인식으로 동작', () => {
+    expect(effectiveOcrMode(setPath(DEFAULT_SETTINGS, 'ocr.mode', 'direct'))).toBe('device');
+    expect(effectiveOcrMode(direct)).toBe('direct');
   });
 
   it('Messages API 를 서버와 같은 요청 모양으로 호출한다', async () => {
     const f = vi.fn(async () => apiReply({ fields, extra: [], isBusinessCard: true, note: '' }));
-    const r = await scanCardImage('IMG', direct, f as typeof fetch);
+    const r = await scanCardImage(img('IMG'), direct, { fetch: f as typeof fetch });
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.anthropic.com/v1/messages');
     const h = init.headers as Record<string, string>;
@@ -212,16 +213,16 @@ describe('OCR 클라이언트 — 간편(API 키) 모드', () => {
 
   it('명함이 아니면 안내', async () => {
     const f = vi.fn(async () => apiReply({ fields, extra: [], isBusinessCard: false, note: '' }));
-    await expect(scanCardImage('IMG', direct, f as typeof fetch)).rejects.toThrow('명함이 아닌');
+    await expect(scanCardImage(img('IMG'), direct, { fetch: f as typeof fetch })).rejects.toThrow('명함이 아닌');
   });
 
   it('거절·오류 상태를 사람이 읽을 수 있게 바꾼다', async () => {
     const refusal = vi.fn(async () => res(200, { stop_reason: 'refusal', content: [] }));
-    await expect(scanCardImage('IMG', direct, refusal as typeof fetch)).rejects.toThrow('처리할 수 없습니다');
+    await expect(scanCardImage(img('IMG'), direct, { fetch: refusal as typeof fetch })).rejects.toThrow('처리할 수 없습니다');
     const unauthorized = vi.fn(async () => res(401, { error: { message: 'invalid x-api-key' } }));
-    await expect(scanCardImage('IMG', direct, unauthorized as typeof fetch)).rejects.toThrow('API 키가 올바르지 않습니다');
+    await expect(scanCardImage(img('IMG'), direct, { fetch: unauthorized as typeof fetch })).rejects.toThrow('API 키가 올바르지 않습니다');
     const credit = vi.fn(async () => res(400, { error: { message: 'Your credit balance is too low' } }));
-    await expect(scanCardImage('IMG', direct, credit as typeof fetch)).rejects.toThrow('크레딧');
+    await expect(scanCardImage(img('IMG'), direct, { fetch: credit as typeof fetch })).rejects.toThrow('크레딧');
   });
 
   it('연결 확인은 과금 없는 모델 조회로 한다', async () => {
@@ -235,7 +236,40 @@ describe('OCR 클라이언트 — 간편(API 키) 모드', () => {
 
   it('예전 버전에서 서버 주소를 넣어 둔 설정은 서버 모드로 이어간다', () => {
     expect(mergeSettings({ ocr: { endpoint: 'https://x.supabase.co/functions/v1/scan-card', appSecret: 's' } }).ocr.mode).toBe('server');
-    expect(mergeSettings({}).ocr.mode).toBe('direct');
+    expect(mergeSettings({}).ocr.mode).toBe('device');
     expect(mergeSettings({ ocr: { mode: 'direct', endpoint: 'https://x' } }).ocr.mode).toBe('direct');
+  });
+});
+
+describe('OCR 클라이언트 — 무료(기기) 모드', () => {
+  it('기본값이 무료 모드이고 네트워크를 쓰지 않는다', async () => {
+    expect(DEFAULT_SETTINGS.ocr.mode).toBe('device');
+    const f = vi.fn();
+    const recognize = vi.fn(async () => ({
+      lines: [
+        { text: '(주)한빛상사', height: 40 },
+        { text: '홍길동 팀장', height: 60 },
+        { text: 'M 010 1234 5678', height: 24 },
+        { text: 'GD.Hong@Hanbit.co.kr', height: 24 },
+      ],
+    }));
+    const r = await scanCardImage(img('unused'), DEFAULT_SETTINGS, { fetch: f as unknown as typeof fetch, recognize });
+    expect(recognize).toHaveBeenCalledWith('file:///card.jpg');
+    expect(f).not.toHaveBeenCalled();
+    expect(r.fields).toMatchObject({ name: '홍길동', title: '팀장', company: '(주)한빛상사', mobile: '010-1234-5678', email: 'gd.hong@hanbit.co.kr' });
+  });
+
+  it('글자를 못 찾으면 다시 찍으라고 안내', async () => {
+    await expect(scanCardImage(img('x'), DEFAULT_SETTINGS, { recognize: async () => ({ lines: [] }) })).rejects.toThrow('다시 찍어');
+  });
+
+  it('네이티브 모듈이 없는 환경(웹)에서는 안내 메시지', async () => {
+    await expect(scanCardImage(img('x'), DEFAULT_SETTINGS, {})).rejects.toThrow('안드로이드 설치 앱');
+  });
+
+  it('연결 확인은 무료 모드에서 아무 요청도 하지 않는다', async () => {
+    const f = vi.fn();
+    await checkOcr(DEFAULT_SETTINGS, f as unknown as typeof fetch);
+    expect(f).not.toHaveBeenCalled();
   });
 });

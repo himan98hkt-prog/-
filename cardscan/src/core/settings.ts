@@ -10,10 +10,11 @@ export interface ConnectorBase {
 export interface Settings {
   ocr: {
     /**
-     * direct: 앱이 Anthropic API 를 직접 호출 (API 키만 넣으면 끝 — 개인 사용에 간편)
-     * server: 내 서버(Supabase Edge Function) 경유 — 키를 휴대폰에 두지 않음, 여러 명이 쓸 때
+     * device: 휴대폰 안에서 인식 (Google ML Kit + 규칙 분석) — 무료·오프라인, 기본값
+     * direct: Claude API 직접 호출 — 유료(장당 소액), 흐리거나 디자인이 복잡한 명함에 더 정확
+     * server: 내 서버(Supabase Edge Function) 경유 Claude — 유료, 키를 휴대폰에 두지 않음
      */
-    mode: 'direct' | 'server';
+    mode: 'device' | 'direct' | 'server';
     /** direct 모드의 Anthropic API 키 (기기 보안 저장소에 보관) */
     apiKey: string;
     /** Supabase Edge Function 주소 — https://<project>.supabase.co/functions/v1/scan-card */
@@ -39,7 +40,7 @@ export interface Settings {
 const ALL_KINDS: CardKind[] = ['customer', 'partner', 'other'];
 
 export const DEFAULT_SETTINGS: Settings = {
-  ocr: { mode: 'direct', apiKey: '', endpoint: '', anonKey: '', appSecret: '' },
+  ocr: { mode: 'device', apiKey: '', endpoint: '', anonKey: '', appSecret: '' },
   autoSave: true,
   defaultKind: 'customer',
   connectors: {
@@ -134,8 +135,10 @@ export function connectorTargets(settings: Settings, kind: CardKind): ConnectorI
   return CONNECTOR_ORDER.filter((id) => connectorReady(settings, id) && settings.connectors[id].kinds.includes(kind));
 }
 
-/** 명함 인식을 쓸 준비가 됐는지 */
-export function ocrReady(settings: Settings): boolean {
+/** 실제로 쓸 인식 방식 — 유료 모드를 골랐어도 키가 없으면 무료(기기) 인식으로 동작 */
+export function effectiveOcrMode(settings: Settings): Settings['ocr']['mode'] {
   const o = settings.ocr;
-  return o.mode === 'direct' ? o.apiKey.startsWith('sk-ant-') : /^https:\/\//.test(o.endpoint) && !!o.appSecret;
+  if (o.mode === 'direct' && !o.apiKey.startsWith('sk-ant-')) return 'device';
+  if (o.mode === 'server' && !(/^https:\/\//.test(o.endpoint) && o.appSecret)) return 'device';
+  return o.mode;
 }

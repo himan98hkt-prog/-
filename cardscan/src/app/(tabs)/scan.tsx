@@ -4,7 +4,8 @@ import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isConfidentEnough } from '../../core/normalize';
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { BusinessCard, CardKind, EMPTY_FIELDS, KIND_LABEL } from '../../core/types';
-import { OcrNotConfiguredError, scanCardImage } from '../../integrations/ocr';
+import { scanCardImage } from '../../integrations/ocr';
+import { recognizeText } from '../../../modules/card-ocr';
 import { captureCard } from '../../ui/capture';
 import { Button, C, KindPicker, Section, SyncDot } from '../../ui/components';
 import { setDraft } from '../../ui/draft';
@@ -15,7 +16,7 @@ type Phase = 'idle' | 'capturing' | 'reading' | 'saving';
 const PHASE_TEXT: Record<Phase, string> = {
   idle: '',
   capturing: '사진 준비 중…',
-  reading: '명함을 읽는 중… (보통 3~8초)',
+  reading: '명함을 읽는 중…',
   saving: '저장하고 연동하는 중…',
 };
 
@@ -39,14 +40,11 @@ export default function ScanScreen() {
       setPhase('reading');
       let result;
       try {
-        result = await scanCardImage(img.base64, settings);
+        result = await scanCardImage(img, settings, { recognize: recognizeText });
       } catch (e) {
         // 인식 실패해도 사진은 살려서 직접 입력할 수 있게 한다
         setDraft({ fields: { ...EMPTY_FIELDS }, kind, extra: [], imageUri: img.uri, error: (e as Error).message });
         setPhase('idle');
-        if (e instanceof OcrNotConfiguredError) {
-          Alert.alert('명함 인식 설정 필요', e.message + '\n지금은 직접 입력 화면으로 이동합니다.');
-        }
         return router.push('/review');
       }
 

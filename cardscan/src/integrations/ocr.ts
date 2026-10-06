@@ -1,9 +1,11 @@
-// 명함 사진 → 필드. Claude 비전으로 읽는다.
-// - 간편 모드(direct): 앱이 Anthropic Messages API 를 직접 호출. 공식 TypeScript SDK 는 React Native 를
+// 명함 사진 → 필드.
+// - 무료 모드(device, 기본): 휴대폰 안의 Google ML Kit 한국어 OCR → 규칙 분석(core/cardParser). 인터넷·요금 없음.
+// - 유료 모드(direct): 앱이 Anthropic Messages API 를 직접 호출. 공식 TypeScript SDK 는 React Native 를
 //   지원하지 않아 REST 로 부르되, 요청 본문·응답 해석은 서버 함수와 같은 코드(buildCardRequest/parseCardResponse)를 쓴다.
 // - 서버 모드(server): supabase/functions/scan-card 경유 — API 키를 휴대폰에 두지 않는다.
 import { sanitizeFields } from '../core/normalize';
-import { ocrReady, Settings } from '../core/settings';
+import { parseCardText, OcrLineInput } from '../core/cardParser';
+import { effectiveOcrMode, Settings } from '../core/settings';
 import { CardFields } from '../core/types';
 import { buildCardRequest, ExtractError, FALLBACK_BETA, MODEL, parseCardResponse } from '../../supabase/functions/scan-card/extract';
 import { Fetch } from './http';
@@ -15,10 +17,17 @@ export interface ScanResult {
   note?: string;
 }
 
-export class OcrNotConfiguredError extends Error {
-  constructor() {
-    super('명함 인식이 설정되지 않았습니다. 설정·연동 > 명함 인식에 Anthropic API 키를 넣어 주세요.');
-  }
+export interface CapturedForOcr {
+  /** 휴대폰 안의 JPEG 파일 경로 (무료 인식) */
+  uri: string;
+  /** 같은 사진의 base64 (유료 인식 전송용) */
+  base64: string;
+}
+
+export interface OcrDeps {
+  fetch?: Fetch;
+  /** 온디바이스 OCR (modules/card-ocr) — 테스트에서는 가짜를 넣는다 */
+  recognize?: (uri: string) => Promise<{ lines: OcrLineInput[] }>;
 }
 
 const API = 'https://api.anthropic.com/v1';
@@ -86,16 +95,24 @@ async function scanViaServer(base64Jpeg: string, settings: Settings, fetchImpl: 
   return toResult(data.fields, data.extra, data.note);
 }
 
-export async function scanCardImage(base64Jpeg: string, settings: Settings, fetchImpl: Fetch = fetch): Promise<ScanResult> {
-  if (!ocrReady(settings)) throw new OcrNotConfiguredError();
-  return settings.ocr.mode === 'direct'
-    ? scanDirect(base64Jpeg, settings.ocr.apiKey, fetchImpl)
-    : scanViaServer(base64Jpeg, settings, fetchImpl);
+export async function scanCardImage(img: CapturedForOcr, settings: Settings, deps: OcrDeps = {}): Promise<ScanResult> {
+  const fetchImpl = deps.fetch ?? fetch;
+  const mode = effectiveOcrMode(settings);
+  if (mode === 'direct') return scanDirect(img.base64, settings.ocr.apiKey, fetchImpl);
+  if (mode === 'server') return scanViaServer(img.base64, settings, fetchImpl);
+
+  if (!deps.recognize) throw new Error('이 기기에서는 무료 인식을 쓸 수 없습니다 (안드로이드 설치 앱에서만 동작).');
+  const { lines } = await deps.recognize(img.uri);
+  if (!lines.length) throw new Error('글자를 찾지 못했습니다. 명함이 화면에 꽉 차고 초점이 맞게 다시 찍어 주세요.');
+  const parsed = parseCardText(lines);
+  // 규칙 분석 결과도 같은 정리 규칙(번호 하이픈·이메일 소문자)을 거친다
+  return toResult(parsed.fields, parsed.extra, undefined);
 }
 
 /** 설정 화면의 "연결 확인" — 토큰을 쓰지 않는 요청으로 키·서버를 점검한다. */
 export async function checkOcr(settings: Settings, fetchImpl: Fetch = fetch): Promise<void> {
   const o = settings.ocr;
+  if (o.mode === 'device') return;
   if (o.mode === 'direct') {
     if (!o.apiKey.startsWith('sk-ant-')) throw new Error('Anthropic API 키는 sk-ant- 로 시작합니다.');
     // 모델 정보 조회는 과금되지 않는다

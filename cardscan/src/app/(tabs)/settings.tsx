@@ -88,28 +88,35 @@ export default function SettingsScreen() {
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Section title="명함 인식">
           <View style={[st.segment, { marginBottom: 10 }]}>
-            {(['direct', 'server'] as const).map((m) => (
+            {(['device', 'direct', 'server'] as const).map((m) => (
               <Pressable key={m} onPress={() => ocr({ mode: m })} style={[st.segItem, draft.ocr.mode === m && st.segOn]}>
-                <Text style={[st.segText, draft.ocr.mode === m && { color: '#fff' }]}>{m === 'direct' ? 'API 키 (간편)' : '내 서버'}</Text>
+                <Text style={[st.segText, draft.ocr.mode === m && { color: '#fff' }]}>{m === 'device' ? '무료' : m === 'direct' ? 'Claude' : '내 서버'}</Text>
               </Pressable>
             ))}
           </View>
-          {draft.ocr.mode === 'direct' ? (
+          {draft.ocr.mode === 'device' ? (
+            <Text style={st.help}>
+              휴대폰 안에서 글자를 읽어 이름·회사·연락처를 나눕니다 (Google ML Kit). 요금이 들지 않고 인터넷 없이도 동작하며, 사진이 밖으로 나가지 않습니다.
+              인식이 틀린 칸은 저장 후 상세 화면의 "수정"으로 고치면 연락처·연동에도 다시 반영됩니다.
+            </Text>
+          ) : draft.ocr.mode === 'direct' ? (
             <>
               <Text style={st.help}>
-                console.anthropic.com 에서 발급한 API 키(sk-ant-…)를 넣으면 바로 쓸 수 있습니다. 키는 이 휴대폰의 보안 저장소에만 보관되고, 명함 사진은 인식을 위해 Anthropic 으로 전송됩니다.
+                (선택·유료) 흐리거나 디자인이 복잡한 명함을 더 정확히 읽습니다. 장당 약 30~50원의 Anthropic API 요금이 들고, 사진이 Anthropic 으로 전송됩니다. 키가 없으면 무료 인식으로 동작합니다.
               </Text>
               <Field label="Anthropic API 키" value={draft.ocr.apiKey} onChangeText={(t) => ocr({ apiKey: t.trim() })} placeholder="sk-ant-..." autoCapitalize="none" autoCorrect={false} secureTextEntry />
             </>
           ) : (
             <>
-              <Text style={st.help}>여러 명이 쓰거나 키를 휴대폰에 두고 싶지 않을 때 — supabase/functions/scan-card 를 배포한 주소를 넣으세요 (cardscan/README.md).</Text>
+              <Text style={st.help}>(선택·유료) Claude 인식을 내 서버(supabase/functions/scan-card) 경유로 씁니다 — 직원 여럿이 키 공유 없이 쓸 때. 설정이 비어 있으면 무료 인식으로 동작합니다.</Text>
               <Field label="서버 주소" value={draft.ocr.endpoint} onChangeText={(t) => ocr({ endpoint: t.trim() })} placeholder="https://xxxx.supabase.co/functions/v1/scan-card" autoCapitalize="none" keyboardType="url" />
               <Field label="앱 비밀키 (서버의 APP_SHARED_SECRET)" value={draft.ocr.appSecret} onChangeText={(t) => ocr({ appSecret: t.trim() })} autoCapitalize="none" secureTextEntry />
               <Field label="Supabase anon/publishable key (선택)" value={draft.ocr.anonKey} onChangeText={(t) => ocr({ anonKey: t.trim() })} autoCapitalize="none" secureTextEntry />
             </>
           )}
-          <Button title="연결 확인" variant="secondary" onPress={testOcr} loading={testing === 'ocr'} disabled={draft.ocr.mode === 'direct' ? !draft.ocr.apiKey : !draft.ocr.endpoint} />
+          {draft.ocr.mode !== 'device' ? (
+            <Button title="연결 확인" variant="secondary" onPress={testOcr} loading={testing === 'ocr'} disabled={draft.ocr.mode === 'direct' ? !draft.ocr.apiKey : !draft.ocr.endpoint} />
+          ) : null}
         </Section>
 
         <Section title="촬영">
