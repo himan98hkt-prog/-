@@ -8,12 +8,14 @@ import { Button, C, KindPicker, Section } from '../ui/components';
 import { PinnedPhoto } from '../ui/DigitalCard';
 import { clearDraft, takeDraft } from '../ui/draft';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStore } from '../ui/store';
+import { usePro } from '../ui/pro';
+import { ProLimitError, useStore } from '../ui/store';
 import { RADIUS, T, type } from '../ui/theme';
 
 export default function ReviewScreen() {
   const bottom = useSafeAreaInsets().bottom;
   const { addCard, settings } = useStore();
+  const { requirePro } = usePro();
   const [draft] = useState(() => takeDraft());
   const [fields, setFields] = useState<CardFields>(draft?.fields ?? { ...EMPTY_FIELDS });
   const [kind, setKind] = useState<CardKind>(draft?.kind ?? 'customer');
@@ -30,7 +32,9 @@ export default function ReviewScreen() {
       if (merged) Alert.alert('기존 명함 갱신', '휴대폰 번호나 이메일이 같은 명함이 있어 최신 정보로 갱신했습니다.');
       router.replace({ pathname: '/card/[id]', params: { id: card.id } });
     } catch (e) {
-      Alert.alert('저장 실패', (e as Error).message);
+      // 무료 한도: 입력한 내용은 이 화면에 그대로 — Pro 를 사면 다시 "저장" 만 누르면 된다
+      if (e instanceof ProLimitError) requirePro('cards');
+      else Alert.alert('저장 실패', (e as Error).message);
     } finally {
       setSaving(false);
     }

@@ -16,7 +16,9 @@ import { setDraft } from '../../ui/draft';
 import { REVIEW_TAG } from '../../ui/constants';
 import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
 import { useLightStatusBar } from '../../ui/statusBar';
-import { useStore } from '../../ui/store';
+import { usePro } from '../../ui/pro';
+import { ProLimitError, useStore } from '../../ui/store';
+import { effectiveSettings } from '../../core/pro';
 import { FONT, RADIUS, T, type } from '../../ui/theme';
 
 type Phase = 'idle' | 'capturing' | 'reading' | 'saving';
@@ -41,6 +43,8 @@ interface Batch {
 
 export default function ScanScreen() {
   const { settings, setSettings, addCard, cards, syncingIds } = useStore();
+  const { isPro, requirePro } = usePro();
+  const sendable = effectiveSettings(settings, isPro);
   const [tagEditing, setTagEditing] = useState(false);
   const [tagText, setTagText] = useState('');
   const [streak, setStreak] = useState(0);
@@ -65,7 +69,7 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   useLightStatusBar();
   const last: BusinessCard | undefined = cards.find((c) => c.id === lastId);
-  const targets = connectorTargets(settings, kind);
+  const targets = connectorTargets(sendable, kind);
   // 설정은 비동기로 불러오므로 기본 구분이 늦게 도착하면 맞춰 준다
   useEffect(() => setKind(settings.defaultKind), [settings.defaultKind]);
 
@@ -119,37 +123,44 @@ export default function ScanScreen() {
         return router.push('/review');
       }
 
+      const toReview = () => {
+        setDraft({ fields: result.fields, kind, extra: result.extra, imageUri: shot.front.uri, backImageUri: shot.back?.uri, note: result.note });
+        setPhase('idle');
+        router.push('/review');
+      };
       if (settings.autoSave && isConfidentEnough(result.fields)) {
         setPhase('saving');
-        const { card, merged, careerChanged } = await addCard({
-          fields: result.fields,
-          kind,
-          extra: result.extra,
-          tempImageUri: shot.front.uri,
-          tempBackUri: shot.back?.uri,
-          tags: eventTags,
-        });
+        let saved;
+        try {
+          saved = await addCard({
+            fields: result.fields,
+            kind,
+            extra: result.extra,
+            tempImageUri: shot.front.uri,
+            tempBackUri: shot.back?.uri,
+            tags: eventTags,
+          });
+        } catch (e) {
+          if (!(e instanceof ProLimitError)) throw e;
+          // 무료 한도 — 읽은 결과는 확인 화면에 살려 두고 Pro 안내. 구매하면 그 화면에서 바로 저장
+          setStreak(0);
+          toReview();
+          requirePro('cards');
+          return;
+        }
+        const { card, merged, careerChanged } = saved;
         tap('success');
         setLastId(card.id);
         setLastNote(careerChanged ? '소속이 바뀌어 이전 회사·직책을 경력 이력에 남겼습니다' : merged ? '같은 사람의 명함을 최신 정보로 갱신했습니다' : '');
         setPhase('idle');
         // 연속 촬영: 행사장에서 받은 명함 더미를 손 안 대고 차례로
-        if (settings.continuousScan && source === 'camera') {
+        if (sendable.continuousScan && source === 'camera') {
           setStreak((n) => n + 1);
           setTimeout(() => run('camera'), 700);
         }
         return;
       }
-      setDraft({
-        fields: result.fields,
-        kind,
-        extra: result.extra,
-        imageUri: shot.front.uri,
-        backImageUri: shot.back?.uri,
-        note: result.note,
-      });
-      setPhase('idle');
-      router.push('/review');
+      toReview();
     } catch (e) {
       setPhase('idle');
       Alert.alert('오류', (e as Error).message);
@@ -158,6 +169,7 @@ export default function ScanScreen() {
 
   /** 앨범에서 여러 장을 골라 차례로 인식·저장 — 애매한 명함은 '확인필요' 그룹으로 */
   async function runBatch() {
+    if (!requirePro('batch')) return;
     let uris: string[];
     try {
       uris = await pickManyCards();
@@ -306,8 +318,9 @@ export default function ScanScreen() {
           <Icon name="repeat" size={16} color={T.gold} />
           <Text style={st.switchText}>연속 촬영 (저장하면 바로 다음 명함)</Text>
           <Switch
-            value={settings.continuousScan}
+            value={sendable.continuousScan}
             onValueChange={(v) => {
+              if (v && !requirePro('continuous')) return;
               tap('select');
               setSettings({ ...settings, continuousScan: v });
             }}
@@ -367,7 +380,7 @@ export default function ScanScreen() {
             {lastNote ? <Text style={st.resultNote}>{lastNote}</Text> : null}
             <CardHero card={last} imageUri={last.imageUri} backImageUri={last.backImageUri} favorite={last.favorite} />
             <View style={st.syncList}>
-              {connectorTargets(settings, last.kind).map((t) => (
+              {connectorTargets(sendable, last.kind).map((t) => (
                 <View key={t} style={st.syncItem}>
                   <SyncDot status={last.sync[t]} />
                   <Text style={st.syncText} numberOfLines={1}>

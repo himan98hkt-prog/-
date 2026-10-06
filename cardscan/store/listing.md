@@ -73,6 +73,11 @@
 • 광고와 행동 추적이 없습니다.
 • 엑셀(CSV) 내보내기, 백업 파일 만들기·복원
 
+요금
+• 무료: 명함 50장까지 저장, 연락처 자동 저장, 검색·그룹·메모·팔로업 알림, 내 명함 QR, 백업
+• Pro 평생 이용권(인앱 구매, 한 번 결제): 명함 무제한, 구글 시트·HubSpot·웹훅·슬랙 자동 입력, 엑셀 내보내기, 여러 장 한 번에·연속 촬영
+• 무료 한도를 넘어도 이미 저장한 명함은 언제나 보고·고치고·백업할 수 있습니다
+
 필요한 권한
 • 카메라: 명함 촬영
 • 연락처: 명함을 연락처에 저장하고 중복을 합치기 위해 사용 (연락처 목록을 외부로 보내지 않습니다)
@@ -146,6 +151,10 @@ MY CARD
 
 YOUR DATA STAYS ON YOUR PHONE
 • No sign-up, no ads, no tracking. CSV export and backup/restore included.
+
+PRICING
+• Free: up to 50 cards, auto-save to contacts, search, notes, follow-ups, My Card QR, backup.
+• Pro lifetime (one-time in-app purchase): unlimited cards, Sheets/HubSpot/webhook/Slack, CSV export, batch import and continuous scanning. Cards you've saved always stay viewable and exportable as backup.
 
 Permissions: camera (scanning), contacts (saving and de-duplicating; your contact list is never uploaded), notifications (follow-up reminders).
 ```

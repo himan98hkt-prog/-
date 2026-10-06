@@ -20,6 +20,9 @@ permissions:
 
 env:
   PLAY_PACKAGE: io.github.himan98hktprog.cardscan
+  # 플레이스토어 빌드에서만 Pro 결제(구글 플레이 결제)를 켠다 — 앱 코드에 그대로 박힌다
+  EXPO_PUBLIC_STORE: play
+  ORG_GRADLE_PROJECT_openiapStore: play
 
 jobs:
   aab:

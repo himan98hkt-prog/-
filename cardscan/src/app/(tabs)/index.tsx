@@ -7,6 +7,8 @@ import { allTags, dueFollowUps, filterCards, groupByCompany, SORT_LABEL, SortKey
 import { connectorTargets } from '../../core/settings';
 import { BusinessCard, CardKind, KIND_LABEL } from '../../core/types';
 import { CardThumb } from '../../ui/CardImage';
+import { usePro } from '../../ui/pro';
+import { FREE_CARD_LIMIT } from '../../core/pro';
 import { Button, Icon, KindBadge, PressableScale, SyncDot, tap } from '../../ui/components';
 import { useLightStatusBar } from '../../ui/statusBar';
 import { useStore } from '../../ui/store';
@@ -28,6 +30,10 @@ function Rise({ index, children }: { index: number; children: React.ReactNode })
 
 export default function CardListScreen() {
   const { cards, settings, ready, syncingIds, setMeta } = useStore();
+  const { isPro, billing, openPaywall } = usePro();
+  // 무료 한도에 가까워지면(80% 이상) 부드럽게 안내 — 막기 전에 미리 알려 준다
+  const freeLeft = FREE_CARD_LIMIT - cards.length;
+  const nearLimit = billing && !isPro && cards.length >= FREE_CARD_LIMIT * 0.8;
   const insets = useSafeAreaInsets();
   useLightStatusBar();
   const params = useLocalSearchParams<{ tag?: string }>();
@@ -208,12 +214,27 @@ export default function CardListScreen() {
           </PressableScale>
         ) : null}
 
+        {nearLimit ? (
+          <PressableScale onPress={openPaywall} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+            <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.dueBox, st.proBox]}>
+              <View style={st.proIcon}>
+                <Icon name="ribbon" size={20} color={T.ink} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[st.dueTitle, { color: '#fff' }]}>{freeLeft > 0 ? `무료로 ${freeLeft}장 더 저장할 수 있어요` : `무료 ${FREE_CARD_LIMIT}장을 모두 썼어요`}</Text>
+                <Text style={[st.dueSub, { color: 'rgba(255,255,255,0.7)' }]}>Pro 평생 이용권으로 무제한 저장</Text>
+              </View>
+              <Icon name="chevron-forward" size={18} color={T.gold} />
+            </LinearGradient>
+          </PressableScale>
+        ) : null}
+
         <View style={st.toolRow}>
           <Pressable onPress={() => { tap('select'); setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length]); }} style={st.tool}>
             <Icon name="swap-vertical" size={15} color={T.sub} />
             <Text style={st.toolText}>{SORT_LABEL[sort]}</Text>
           </Pressable>
-          <Text style={st.resultCount}>{list.length}명</Text>
+          <Text style={st.resultCount}>{billing && !isPro && list.length === cards.length ? `${cards.length}/${FREE_CARD_LIMIT}명` : `${list.length}명`}</Text>
           <Pressable onPress={() => { tap('select'); setByCompany((v) => !v); }} style={st.tool}>
             <Icon name={byCompany ? 'people-outline' : 'business-outline'} size={15} color={T.sub} />
             <Text style={st.toolText}>{byCompany ? '사람별' : '회사별'}</Text>
@@ -298,6 +319,8 @@ const st = StyleSheet.create({
   tool: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
   toolText: { ...type(13, '700', T.sub) },
   resultCount: { ...type(12, '600', T.faint) },
+  proBox: { borderWidth: 1, borderColor: 'rgba(212,175,106,0.5)' },
+  proIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.gold, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', gap: 14, backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 14, paddingLeft: 16, alignItems: 'center', overflow: 'hidden', ...shadow(1) },
   name: { ...type(17, '800'), flexShrink: 1 },
   title: { ...type(13, '600', T.sub) },

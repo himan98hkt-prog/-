@@ -58,6 +58,9 @@ jobs:
 
       - name: APK 빌드 (release)
         working-directory: cardscan/android
+        # 직접 설치용 개인 빌드: 플레이 결제를 쓸 수 없어 Pro 기능을 모두 연다 (EXPO_PUBLIC_STORE 없음)
+        env:
+          ORG_GRADLE_PROJECT_openiapStore: play
         # 대부분의 휴대폰(64비트 arm64)과 구형 32비트 기기만 포함해 빌드 시간을 줄인다 (에뮬레이터용 x86 제외)
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 

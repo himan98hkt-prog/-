@@ -6,6 +6,8 @@ import { mergeBackup } from '../core/exportData';
 import { findDuplicate } from '../core/mapping';
 import { mergeRescan, normalizeTag } from '../core/organize';
 import { Settings, DEFAULT_SETTINGS } from '../core/settings';
+import { canAddCard, effectiveSettings, FREE_CARD_LIMIT } from '../core/pro';
+import { usePro } from './pro';
 import { BusinessCard, CardFields, CardKind, ConnectorId } from '../core/types';
 import { deviceContactsConnector } from '../integrations/deviceContacts';
 import { HTTP_CONNECTORS, pendingTargets, syncCard, ConnectorMap } from '../integrations/sync';
@@ -15,6 +17,13 @@ import { loadSettings, saveSettings } from '../storage/settings';
 import { cancelFollowUp, scheduleFollowUp } from './reminders';
 
 const CONNECTORS: ConnectorMap = { contacts: deviceContactsConnector, ...HTTP_CONNECTORS };
+
+/** 무료 한도(새 명함)를 넘었을 때 — 화면에서 Pro 안내를 띄운다 */
+export class ProLimitError extends Error {
+  constructor() {
+    super(`무료로는 명함 ${FREE_CARD_LIMIT}장까지 저장할 수 있어요`);
+  }
+}
 
 export interface NewCardInput {
   fields: CardFields;
@@ -58,6 +67,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const cardsRef = useRef<BusinessCard[]>([]);
   const settingsRef = useRef<Settings>(DEFAULT_SETTINGS);
+  // 외부 연동은 Pro 기능 — Pro 가 아니면(환불 포함) 보내지 않는다. 원래 설정은 그대로 둬서 다시 Pro 가 되면 바로 동작
+  const { isPro } = usePro();
+  const isProRef = useRef(isPro);
+  isProRef.current = isPro;
+  const sendSettings = () => effectiveSettings(settingsRef.current, isProRef.current);
 
   const commit = useCallback((updater: (prev: BusinessCard[]) => BusinessCard[]) => {
     const next = updater(cardsRef.current);
@@ -72,7 +86,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!card) return;
       setSyncingIds((s) => new Set(s).add(id));
       try {
-        const sync = await syncCard(card, { settings: settingsRef.current, connectors: CONNECTORS, fetch, only });
+        const sync = await syncCard(card, { settings: sendSettings(), connectors: CONNECTORS, fetch, only });
         commit((prev) => prev.map((c) => (c.id === id ? { ...c, sync } : c)));
       } finally {
         setSyncingIds((s) => {
@@ -88,7 +102,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /** 실패·미전송 연동을 다시 보낸다 (앱 시작/복귀 시) */
   const retryPending = useCallback(async () => {
     for (const card of cardsRef.current) {
-      const targets = pendingTargets(card, settingsRef.current);
+      const targets = pendingTargets(card, sendSettings());
       if (targets.length) await runSync(card.id, targets);
     }
   }, [runSync]);
@@ -114,6 +128,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       const draft: BusinessCard = { ...fields, id: randomUUID(), kind, extra, createdAt: now, updatedAt: now, sync: {} };
       const dup = findDuplicate(cardsRef.current, draft);
+      // 같은 사람 갱신은 늘 가능, 새 사람만 무료 한도 확인
+      if (!dup && !canAddCard(cardsRef.current.length, isProRef.current)) throw new ProLimitError();
       const id = dup ? dup.id : draft.id;
       const stamp = Date.now();
       const imageUri = tempImageUri ? await persistImage(tempImageUri, `${id}-${stamp}`) : undefined;

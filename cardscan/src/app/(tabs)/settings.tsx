@@ -6,11 +6,14 @@ import { CONNECTOR_LABEL, CONNECTOR_ORDER, connectorReady, Settings } from '../.
 import { BusinessCard, CardKind, ConnectorId, KIND_LABEL } from '../../core/types';
 import { checkOcr } from '../../integrations/ocr';
 import { HTTP_CONNECTORS } from '../../integrations/sync';
-import { Button, C, Field, KindPicker, Section } from '../../ui/components';
+import { Button, C, Field, Icon, KindPicker, Section } from '../../ui/components';
 import { IS_WEB, WEB_LIMITS } from '../../ui/platform';
 import { CAN_OPEN_VCARD, exportAllVCards } from '../../ui/saveContact';
 import { pickBackup, shareBackup, shareCsv } from '../../ui/dataFiles';
 import { PRIVACY_URL, SUPPORT_URL } from '../../ui/constants';
+import { usePro } from '../../ui/pro';
+import { FREE_CARD_LIMIT, isLaunchSale, isProConnector, PRO_REGULAR_PRICE_KRW } from '../../core/pro';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../../ui/store';
 import { RADIUS, T, type } from '../../ui/theme';
 
@@ -45,6 +48,7 @@ const HELP: Record<ConnectorId, string> = {
 
 export default function SettingsScreen() {
   const { settings, setSettings, cards, restoreCards } = useStore();
+  const { isPro, billing, product, requirePro, openPaywall, restore: restorePurchase } = usePro();
   const [draft, setDraft] = useState<Settings>(settings);
   const [testing, setTesting] = useState<string | null>(null);
   useEffect(() => setDraft(settings), [settings]);
@@ -120,6 +124,40 @@ export default function SettingsScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        {billing ? (
+          isPro ? (
+            <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.proCard}>
+              <Icon name="ribbon" size={22} color={T.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={st.proTitle}>Pro 평생 이용권 사용 중</Text>
+                <Text style={st.proSub}>모든 기능이 열려 있습니다. 감사합니다!</Text>
+              </View>
+            </LinearGradient>
+          ) : (
+            <Pressable onPress={openPaywall}>
+              <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.proCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.proBrand}>CARDSCAN PRO</Text>
+                  <Text style={st.proTitle}>평생 이용권{product ? ` ${product.displayPrice}` : ''}</Text>
+                  <Text style={st.proSub}>
+                    {isLaunchSale(product?.price, product?.currency) ? `출시 기념가 (정가 ${PRO_REGULAR_PRICE_KRW.toLocaleString('ko-KR')}원) · ` : ''}명함 무제한 · 시트·CRM 연동 · 엑셀
+                  </Text>
+                  <View style={st.meter}>
+                    <View style={[st.meterFill, { width: `${Math.min(100, Math.round((cards.length / FREE_CARD_LIMIT) * 100))}%` }]} />
+                  </View>
+                  <Text style={st.proSub}>무료 사용량 {Math.min(cards.length, FREE_CARD_LIMIT)}/{FREE_CARD_LIMIT}장</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={T.gold} />
+              </LinearGradient>
+            </Pressable>
+          )
+        ) : null}
+        {billing && !isPro ? (
+          <Pressable onPress={restorePurchase} hitSlop={8} style={{ alignSelf: 'flex-end', marginTop: -6, marginBottom: 12 }}>
+            <Text style={st.restoreLink}>구매 복원</Text>
+          </Pressable>
+        ) : null}
+
         <Section title="명함 인식" icon="scan-outline">
           <View style={[st.segment, { marginBottom: 10 }]}>
             {(['device', 'direct', 'server'] as const).map((m) => (
@@ -209,7 +247,20 @@ export default function SettingsScreen() {
             <Section
               key={id}
               title={CONNECTOR_LABEL[id]}
-              right={WEB_LIMITS[id] ? undefined : <Switch value={c.enabled} onValueChange={(v) => conn(id, { enabled: v })} />}
+              right={
+                WEB_LIMITS[id] ? undefined : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {billing && !isPro && isProConnector(id) ? <Text style={st.proBadge}>PRO</Text> : null}
+                    <Switch
+                      value={c.enabled}
+                      onValueChange={(v) => {
+                        if (v && isProConnector(id) && !requirePro('connectors')) return;
+                        conn(id, { enabled: v });
+                      }}
+                    />
+                  </View>
+                )
+              }
             >
               <Text style={st.help}>{WEB_LIMITS[id] ?? HELP[id]}</Text>
               {c.enabled && !WEB_LIMITS[id] ? (
@@ -254,9 +305,9 @@ export default function SettingsScreen() {
 
         {!IS_WEB ? (
           <Section title="데이터 내보내기·백업" icon="cloud-download-outline">
-            <Text style={st.help}>엑셀 파일과 백업은 무료이며, 카톡·메일·드라이브 등 원하는 곳으로 바로 보낼 수 있습니다.</Text>
+            <Text style={st.help}>{billing && !isPro ? '백업 파일은 언제나 무료입니다. 엑셀(CSV) 내보내기는 Pro 기능입니다.' : '카톡·메일·드라이브 등 원하는 곳으로 바로 보낼 수 있습니다.'}</Text>
             <View style={{ gap: 8 }}>
-              <Button title={`엑셀(CSV)로 내보내기 (${cards.length}명)`} icon="grid-outline" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareCsv(cards))} />
+              <Button title={`엑셀(CSV)로 내보내기 (${cards.length}명)`} icon="grid-outline" variant="secondary" disabled={!cards.length} onPress={() => requirePro('csv') && run(() => shareCsv(cards))} />
               <Button title="백업 파일 만들기" icon="save-outline" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareBackup(cards))} />
               <Button title="백업에서 복원" icon="folder-open-outline" variant="secondary" onPress={restore} />
             </View>
@@ -297,5 +348,13 @@ const st = StyleSheet.create({
   label: { ...type(15, '700'), lineHeight: 21 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: T.line, backgroundColor: '#fff' },
+  proCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS.lg, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(212,175,106,0.45)' },
+  proBrand: { ...type(10, '800', T.gold), letterSpacing: 3 },
+  proTitle: { ...type(17, '800', '#fff'), marginTop: 2 },
+  proSub: { ...type(12, '600', 'rgba(255,255,255,0.65)'), marginTop: 3 },
+  meter: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 10, overflow: 'hidden' },
+  meterFill: { height: 6, borderRadius: 3, backgroundColor: T.gold },
+  restoreLink: { ...type(12, '700', T.sub), textDecorationLine: 'underline' },
+  proBadge: { ...type(10, '800', T.ink), backgroundColor: T.gold, borderRadius: 6, paddingHorizontal: 6, overflow: 'hidden', letterSpacing: 1 },
   chipText: { ...type(13, '600'), lineHeight: 17 },
 });
