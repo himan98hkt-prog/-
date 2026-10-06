@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1F6FEB",
+        "backgroundColor": "#0B1530",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -60,13 +60,54 @@
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#1F6FEB"
+          "color": "#D4AF6A"
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Pretendard",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/Pretendard-Regular.otf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-SemiBold.otf",
+                    "weight": 600
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-Bold.otf",
+                    "weight": 700
+                  },
+                  {
+                    "path": "./assets/fonts/Pretendard-ExtraBold.otf",
+                    "weight": 800
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#0B1530"
         }
       ]
     ],
     "scheme": "cardscan",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "backgroundColor": "#F3F4F8",
+    "primaryColor": "#0B1530"
   }
 }

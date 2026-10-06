@@ -1,18 +1,56 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router/tabs';
-import { ColorValue, Text } from 'react-native';
-import { C } from '../../ui/components';
+import { ColorValue, Pressable, StyleSheet, View } from 'react-native';
+import { Icon, IconName, tap } from '../../ui/components';
+import { FONT, shadow, T } from '../../ui/theme';
 
-const icon = (glyph: string) =>
-  function TabIcon({ color }: { color: ColorValue }) {
-    return <Text style={{ fontSize: 20, color }}>{glyph}</Text>;
+const icon = (on: IconName, off: IconName) =>
+  function TabIcon({ focused, color }: { focused: boolean; color: ColorValue }) {
+    return <Icon name={focused ? on : off} size={23} color={String(color)} />;
   };
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: C.primary, headerTitleStyle: { fontWeight: '700' } }}>
-      <Tabs.Screen name="index" options={{ title: '명함첩', tabBarIcon: icon('▤') }} />
-      <Tabs.Screen name="scan" options={{ title: '명함 촬영', tabBarIcon: icon('◉') }} />
-      <Tabs.Screen name="settings" options={{ title: '설정·연동', tabBarIcon: icon('⚙') }} />
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: T.ink,
+        tabBarInactiveTintColor: T.faint,
+        tabBarStyle: st.bar,
+        tabBarLabelStyle: st.label,
+        headerTitleStyle: { fontFamily: FONT, fontWeight: '800', fontSize: 19, color: T.text },
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: T.bg },
+      }}
+      screenListeners={{ tabPress: () => tap('select') }}
+    >
+      <Tabs.Screen name="index" options={{ title: '명함첩', headerShown: false, tabBarIcon: icon('albums', 'albums-outline') }} />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: '촬영',
+          headerShown: false,
+          tabBarLabel: () => null,
+          // 가운데 금테 원형 촬영 버튼 — 이 앱의 핵심 동작을 늘 한가운데에
+          tabBarButton: ({ onPress, accessibilityState }) => (
+            <Pressable onPress={onPress} style={st.centerWrap} accessibilityRole="button" accessibilityLabel="명함 촬영">
+              <View style={[st.centerRing, accessibilityState?.selected && { borderColor: T.gold }]}>
+                <LinearGradient colors={[T.ink3, T.ink]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.center}>
+                  <Icon name="scan" size={28} color={T.gold} />
+                </LinearGradient>
+              </View>
+            </Pressable>
+          ),
+        }}
+      />
+      <Tabs.Screen name="settings" options={{ title: '설정·연동', tabBarIcon: icon('options', 'options-outline') }} />
     </Tabs>
   );
 }
+
+const st = StyleSheet.create({
+  bar: { height: 66, paddingTop: 6, paddingBottom: 8, borderTopWidth: 0, backgroundColor: '#fff', ...shadow(2) },
+  label: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
+  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-start' },
+  centerRing: { marginTop: -26, padding: 4, borderRadius: 40, backgroundColor: '#fff', borderWidth: 2, borderColor: 'rgba(212,175,106,0.55)', ...shadow(2) },
+  center: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+});

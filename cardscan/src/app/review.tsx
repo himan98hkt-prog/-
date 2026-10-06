@@ -7,6 +7,7 @@ import { CardForm } from '../ui/CardForm';
 import { Button, C, KindPicker, Section } from '../ui/components';
 import { clearDraft, takeDraft } from '../ui/draft';
 import { useStore } from '../ui/store';
+import { RADIUS, T, type } from '../ui/theme';
 
 export default function ReviewScreen() {
   const { addCard } = useStore();
@@ -34,14 +35,14 @@ export default function ReviewScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
         {draft?.imageUri ? <Image source={{ uri: draft.imageUri }} style={st.image} resizeMode="contain" /> : null}
         {draft?.error ? <Text style={st.error}>자동 인식 실패: {draft.error}{'\n'}직접 입력해 주세요.</Text> : null}
         {draft?.note ? <Text style={st.note}>{draft.note}</Text> : null}
-        <Section title="구분">
+        <Section title="구분" icon="pricetag-outline">
           <KindPicker value={kind} onChange={setKind} />
         </Section>
-        <Section title="명함 정보">
+        <Section title="명함 정보" icon="id-card-outline">
           <CardForm value={fields} onChange={setFields} />
         </Section>
         {draft?.extra?.length ? (
@@ -49,14 +50,14 @@ export default function ReviewScreen() {
             <Text style={st.note}>{draft.extra.join('\n')}</Text>
           </Section>
         ) : null}
-        <Button title="저장하고 연동하기" onPress={save} loading={saving} />
+        <Button title="저장하고 연동하기" icon="checkmark-circle" variant="gold" onPress={save} loading={saving} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const st = StyleSheet.create({
-  image: { width: '100%', height: 200, borderRadius: 12, backgroundColor: '#000', marginBottom: 12 },
-  error: { color: C.err, marginBottom: 12, fontSize: 14, lineHeight: 20 },
-  note: { color: C.sub, fontSize: 14, lineHeight: 20, marginBottom: 8 },
+  image: { width: '100%', height: 200, borderRadius: RADIUS.lg, backgroundColor: T.ink, marginBottom: 12 },
+  error: { ...type(14, '600', T.err), marginBottom: 12, backgroundColor: T.errSoft, padding: 12, borderRadius: RADIUS.md },
+  note: { ...type(14, '500', T.sub), marginBottom: 8 },
 });

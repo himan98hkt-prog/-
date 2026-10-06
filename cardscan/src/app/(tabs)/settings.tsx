@@ -10,6 +10,7 @@ import { IS_WEB, WEB_LIMITS } from '../../ui/platform';
 import { CAN_OPEN_VCARD, exportAllVCards } from '../../ui/saveContact';
 import { pickBackup, shareBackup, shareCsv } from '../../ui/dataFiles';
 import { useStore } from '../../ui/store';
+import { RADIUS, T, type } from '../../ui/theme';
 
 const SAMPLE: BusinessCard = {
   id: 'test-0000',
@@ -116,8 +117,8 @@ export default function SettingsScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Section title="명함 인식">
+      <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        <Section title="명함 인식" icon="scan-outline">
           <View style={[st.segment, { marginBottom: 10 }]}>
             {(['device', 'direct', 'server'] as const).map((m) => (
               <Pressable key={m} onPress={() => ocr({ mode: m })} style={[st.segItem, draft.ocr.mode === m && st.segOn]}>
@@ -152,12 +153,12 @@ export default function SettingsScreen() {
           ) : null}
         </Section>
 
-        <Section title="내 명함">
+        <Section title="내 명함" icon="id-card-outline">
           <Text style={st.help}>내 명함을 QR 로 보여 주면 상대가 카메라로 찍어 바로 연락처에 저장합니다.</Text>
-          <Button title={settings.myCard.name ? `📇 내 명함 (${settings.myCard.name})` : '📇 내 명함 만들기'} variant="secondary" onPress={() => router.push('/mycard')} />
+          <Button title={settings.myCard.name ? `내 명함 (${settings.myCard.name})` : '내 명함 만들기'} icon="qr-code" variant="gold" onPress={() => router.push('/mycard')} />
         </Section>
 
-        <Section title="촬영">
+        <Section title="촬영" icon="camera-outline">
           <View style={st.switchRow}>
             <View style={{ flex: 1 }}>
               <Text style={st.label}>자동 저장</Text>
@@ -170,7 +171,7 @@ export default function SettingsScreen() {
         </Section>
 
         {!IS_WEB ? (
-          <Section title="전화 올 때 회사명 보기">
+          <Section title="전화 올 때 회사명 보기" icon="call-outline">
             <Text style={st.help}>
               휴대폰 연락처에 저장할 이름 모양입니다. 회사·직책을 붙여 두면 전화가 올 때 기본 전화 앱에 "홍길동 (한빛상사 팀장)" 처럼 보입니다. (이 앱이 새로 만들거나 갱신하는 연락처에 적용)
             </Text>
@@ -190,7 +191,7 @@ export default function SettingsScreen() {
           </Section>
         ) : null}
 
-        <Section title="팔로업 알림">
+        <Section title="팔로업 알림" icon="alarm-outline">
           <View style={st.switchRow}>
             <View style={{ flex: 1 }}>
               <Text style={st.label}>연락할 날 아침 9시에 알림</Text>
@@ -250,24 +251,24 @@ export default function SettingsScreen() {
         })}
 
         {!IS_WEB ? (
-          <Section title="데이터 내보내기·백업">
+          <Section title="데이터 내보내기·백업" icon="cloud-download-outline">
             <Text style={st.help}>엑셀 파일과 백업은 무료이며, 카톡·메일·드라이브 등 원하는 곳으로 바로 보낼 수 있습니다.</Text>
             <View style={{ gap: 8 }}>
-              <Button title={`📊 엑셀(CSV)로 내보내기 (${cards.length}명)`} variant="secondary" disabled={!cards.length} onPress={() => run(() => shareCsv(cards))} />
-              <Button title="💾 백업 파일 만들기" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareBackup(cards))} />
-              <Button title="📂 백업에서 복원" variant="secondary" onPress={restore} />
+              <Button title={`엑셀(CSV)로 내보내기 (${cards.length}명)`} icon="grid-outline" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareCsv(cards))} />
+              <Button title="백업 파일 만들기" icon="save-outline" variant="secondary" disabled={!cards.length} onPress={() => run(() => shareBackup(cards))} />
+              <Button title="백업에서 복원" icon="folder-open-outline" variant="secondary" onPress={restore} />
             </View>
             <Text style={[st.help, { marginTop: 8 }]}>백업에는 명함 정보·그룹·메모·팔로업·경력 이력이 들어가고 사진은 빠집니다. 같은 명함은 더 최근 것으로 합쳐집니다.</Text>
           </Section>
         ) : null}
 
         {CAN_OPEN_VCARD && cards.length ? (
-          <Section title="아이폰 연락처로 한꺼번에 옮기기">
+          <Section title="아이폰 연락처로 한꺼번에 옮기기" icon="phone-portrait-outline">
             <Text style={st.help}>저장된 명함 {cards.length}장을 연락처 파일 하나로 엽니다 → "연락처 {cards.length}개 모두 추가".</Text>
-            <Button title="📇 전체 명함을 연락처로" variant="secondary" onPress={() => exportAllVCards(cards)} />
+            <Button title="전체 명함을 연락처로" icon="people-outline" variant="secondary" onPress={() => exportAllVCards(cards)} />
           </Section>
         ) : null}
-        <Button title={dirty ? '설정 저장' : '저장됨'} onPress={save} disabled={!dirty} />
+        <Button title={dirty ? '설정 저장' : '저장됨'} icon={dirty ? 'save' : 'checkmark'} variant="dark" onPress={save} disabled={!dirty} />
         <Text style={[st.help, { textAlign: 'center', marginTop: 10 }]}>토큰·비밀키는 기기의 보안 저장소(Keychain/Keystore)에 보관됩니다.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -275,13 +276,13 @@ export default function SettingsScreen() {
 }
 
 const st = StyleSheet.create({
-  segment: { flexDirection: 'row', backgroundColor: '#EEF0F3', borderRadius: 12, padding: 4, gap: 4 },
-  segItem: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
-  segOn: { backgroundColor: C.primary },
-  segText: { fontSize: 15, fontWeight: '600', color: C.text },
-  help: { fontSize: 13, color: C.sub, lineHeight: 19, marginBottom: 8 },
-  label: { fontSize: 15, fontWeight: '600', color: C.text },
+  segment: { flexDirection: 'row', backgroundColor: '#ECEEF4', borderRadius: RADIUS.md, padding: 4, gap: 4 },
+  segItem: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
+  segOn: { backgroundColor: T.ink },
+  segText: { ...type(15, '700'), lineHeight: 20 },
+  help: { ...type(13, '400', T.sub), marginBottom: 8 },
+  label: { ...type(15, '700'), lineHeight: 21 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: '#fff' },
-  chipText: { fontSize: 13, fontWeight: '600', color: C.text },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: T.line, backgroundColor: '#fff' },
+  chipText: { ...type(13, '600'), lineHeight: 17 },
 });

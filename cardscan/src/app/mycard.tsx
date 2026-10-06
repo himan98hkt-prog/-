@@ -5,9 +5,11 @@ import { toVCard } from '../core/mapping';
 import { sanitizeFields } from '../core/normalize';
 import { BusinessCard, CardFields } from '../core/types';
 import { CardForm } from '../ui/CardForm';
-import { Button, C, Section } from '../ui/components';
+import { Button, Section } from '../ui/components';
+import { DigitalCard } from '../ui/DigitalCard';
 import { QrCode } from '../ui/QrCode';
 import { useStore } from '../ui/store';
+import { FONT, RADIUS, shadow, T, type } from '../ui/theme';
 
 const asCard = (f: CardFields): BusinessCard => ({ ...f, id: 'me', kind: 'other', createdAt: '', updatedAt: '', extra: [], sync: {} });
 
@@ -30,67 +32,54 @@ export default function MyCardScreen() {
   if (editing) {
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
           <Section title="내 명함 정보">
-            <Text style={st.sub}>상대에게 보여 줄 내 정보를 입력하세요. 이 휴대폰에만 저장됩니다.</Text>
+            <Text style={[st.sub, { textAlign: 'left' }]}>상대에게 보여 줄 내 정보를 입력하세요. 이 휴대폰에만 저장됩니다.</Text>
             <View style={{ height: 10 }} />
             <CardForm value={form} onChange={setForm} />
           </Section>
-          <Button title="저장" onPress={save} />
+          <Button title="저장" icon="checkmark" variant="gold" onPress={save} />
         </ScrollView>
       </KeyboardAvoidingView>
     );
   }
 
   const vcard = toVCard(asCard(me));
+  const shareMessage = [
+    [me.name, me.title].filter(Boolean).join(' '),
+    [me.company, me.department].filter(Boolean).join(' '),
+    me.mobile && `휴대폰 ${me.mobile}`,
+    me.phone && `전화 ${me.phone}`,
+    me.email && `이메일 ${me.email}`,
+    me.website,
+    me.address,
+  ]
+    .filter(Boolean)
+    .join('\n');
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, alignItems: 'stretch' }}>
-      <View style={st.card}>
-        <Text style={st.name}>
-          {me.name} <Text style={st.title}>{me.title}</Text>
-        </Text>
-        <Text style={st.company}>{[me.company, me.department].filter(Boolean).join(' · ')}</Text>
-        <View style={{ alignItems: 'center', marginVertical: 18 }}>
-          <QrCode value={vcard} size={240} />
+    <ScrollView style={{ flex: 1, backgroundColor: T.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <DigitalCard card={me} favorite />
+      <View style={st.qrBox}>
+        <Text style={st.brand}>MY CARD · QR</Text>
+        <View style={st.qrFrame}>
+          <QrCode value={vcard} size={220} />
         </View>
-        <Text style={[st.sub, { textAlign: 'center' }]}>상대방 휴대폰 카메라로 이 QR 을 찍으면{'\n'}내 연락처가 바로 저장됩니다</Text>
-        <View style={{ marginTop: 14, gap: 4 }}>
-          {[me.mobile, me.phone, me.email, me.address].filter(Boolean).map((v) => (
-            <Text key={v} style={st.line}>{v}</Text>
-          ))}
-        </View>
+        <Text style={st.sub}>상대방 휴대폰 카메라로 이 QR 을 찍으면{'\n'}내 연락처가 바로 저장됩니다</Text>
       </View>
-      <View style={{ gap: 8, marginTop: 14 }}>
-        <Button
-          title="문자·카톡으로 내 명함 보내기"
-          onPress={() =>
-            Share.share({
-              message: [
-                [me.name, me.title].filter(Boolean).join(' '),
-                [me.company, me.department].filter(Boolean).join(' '),
-                me.mobile && `휴대폰 ${me.mobile}`,
-                me.phone && `전화 ${me.phone}`,
-                me.email && `이메일 ${me.email}`,
-                me.website,
-                me.address,
-              ]
-                .filter(Boolean)
-                .join('\n'),
-            })
-          }
-        />
-        <Button title="vCard 로 보내기" variant="secondary" onPress={() => Share.share({ message: vcard, title: me.name })} />
-        <Button title="내 정보 수정" variant="secondary" onPress={() => setEditing(true)} />
+      <View style={{ gap: 10, marginTop: 14 }}>
+        <Button title="문자·카톡으로 내 명함 보내기" icon="paper-plane" variant="gold" onPress={() => Share.share({ message: shareMessage })} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Button title="vCard" icon="document-attach-outline" variant="secondary" style={{ flex: 1 }} onPress={() => Share.share({ message: vcard, title: me.name })} />
+          <Button title="수정" icon="create-outline" variant="dark" style={{ flex: 1 }} onPress={() => setEditing(true)} />
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 20 },
-  name: { fontSize: 24, fontWeight: '800', color: C.text },
-  title: { fontSize: 15, fontWeight: '400', color: C.sub },
-  company: { fontSize: 16, color: C.text, marginTop: 4 },
-  sub: { fontSize: 13, color: C.sub, lineHeight: 19 },
-  line: { fontSize: 15, color: C.text, textAlign: 'center' },
+  sub: { ...type(13, '500', T.sub), textAlign: 'center' },
+  brand: { fontFamily: FONT, fontSize: 10, fontWeight: '800', letterSpacing: 3, color: T.goldDeep },
+  qrBox: { marginTop: 18, backgroundColor: T.surface, borderRadius: RADIUS.xl, padding: 22, alignItems: 'center', ...shadow(1) },
+  qrFrame: { marginVertical: 16, padding: 12, borderRadius: RADIUS.lg, borderWidth: 2, borderColor: T.goldSoft },
 });

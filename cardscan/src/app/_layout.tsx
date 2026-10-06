@@ -5,6 +5,7 @@ import { warmUpOcr } from '../../modules/card-ocr';
 import { StatusBar } from 'expo-status-bar';
 import { onFollowUpTapped } from '../ui/reminders';
 import { StoreProvider } from '../ui/store';
+import { FONT, T } from '../ui/theme';
 
 export default function RootLayout() {
   // 웹(아이폰)은 문자 인식 엔진을 미리 받아 둔다 — 앱은 내장이라 아무 일 없음
@@ -14,7 +15,17 @@ export default function RootLayout() {
   return (
     <StoreProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerBackTitle: '뒤로' }}>
+      <Stack
+        screenOptions={{
+          headerBackTitle: '뒤로',
+          headerTintColor: T.ink,
+          headerTitleStyle: { fontFamily: FONT, fontWeight: '800', fontSize: 18, color: T.text },
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: T.bg },
+          contentStyle: { backgroundColor: T.bg },
+          animation: 'slide_from_right',
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="review" options={{ title: '인식 결과 확인' }} />
         <Stack.Screen name="card/[id]" options={{ title: '명함 상세' }} />

@@ -7,17 +7,29 @@ import { addDays, allTags, colleaguesOf, normalizeTag, todayStr } from '../../co
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { BusinessCard, CardFields, CardKind, FIELD_LABEL } from '../../core/types';
 import { CardForm } from '../../ui/CardForm';
-import { CardImage } from '../../ui/CardImage';
-import { Button, C, Field, KindBadge, KindPicker, Section, SyncDot } from '../../ui/components';
+import { ActionButton, Avatar, Button, C, Field, Icon, IconName, KindBadge, KindPicker, Section, SyncDot, tap } from '../../ui/components';
+import { DigitalCard } from '../../ui/DigitalCard';
 import { QrCode } from '../../ui/QrCode';
 import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
 import { useStore } from '../../ui/store';
+import { FONT, RADIUS, T, type } from '../../ui/theme';
 
 function localTime(iso: string): string {
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+const FIELD_ICON: Partial<Record<keyof CardFields, IconName>> = {
+  mobile: 'phone-portrait-outline',
+  phone: 'call-outline',
+  fax: 'print-outline',
+  email: 'mail-outline',
+  website: 'globe-outline',
+  address: 'location-outline',
+  nameEn: 'text-outline',
+  memo: 'document-text-outline',
+};
 
 const SHOW: (keyof CardFields)[] = ['mobile', 'phone', 'fax', 'email', 'website', 'address', 'nameEn', 'memo'];
 
@@ -50,7 +62,6 @@ export default function CardDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<CardFields | null>(null);
   const [kind, setKind] = useState<CardKind>(card?.kind ?? 'customer');
-  const [showBack, setShowBack] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [tagText, setTagText] = useState('');
   const [customDate, setCustomDate] = useState('');
@@ -145,35 +156,49 @@ export default function CardDetailScreen() {
           options={{
             title: card.name || '명함 상세',
             headerRight: () => (
-              <Pressable hitSlop={12} onPress={() => setMeta(card.id, { favorite: !card.favorite })} accessibilityLabel="즐겨찾기">
-                <Text style={{ fontSize: 26, color: card.favorite ? '#F5A524' : '#CBD5E1' }}>{card.favorite ? '★' : '☆'}</Text>
+              <Pressable
+                hitSlop={12}
+                onPress={() => {
+                  tap('select');
+                  setMeta(card.id, { favorite: !card.favorite });
+                }}
+                accessibilityLabel="VIP 즐겨찾기"
+              >
+                <Icon name={card.favorite ? 'star' : 'star-outline'} size={24} color={card.favorite ? T.gold : T.faint} />
               </Pressable>
             ),
           }}
         />
-        {card.imageUri ? (
-          <Pressable onPress={() => card.backImageUri && setShowBack((v) => !v)}>
-            <CardImage uri={showBack && card.backImageUri ? card.backImageUri : card.imageUri} style={st.image} contain />
-            {card.backImageUri ? <Text style={st.flipHint}>{showBack ? '뒷면 · 눌러서 앞면 보기' : '앞면 · 눌러서 뒷면 보기'}</Text> : null}
-          </Pressable>
-        ) : null}
+        <DigitalCard
+          card={card}
+          imageUri={card.imageUri}
+          backImageUri={card.backImageUri}
+          favorite={card.favorite}
+          caption={card.imageUri ? '카드를 누르면 원본 명함 사진으로 뒤집힙니다' : undefined}
+        />
+        <View style={st.metaRow}>
+          <KindBadge kind={card.kind} />
+          {tags.slice(0, 3).map((t) => (
+            <Text key={t} style={st.metaTag}>#{t}</Text>
+          ))}
+          <View style={{ flex: 1 }} />
+          <Text style={st.metaDate}>{card.createdAt.slice(0, 10)} 등록</Text>
+        </View>
+        <View style={st.actions}>
+          {card.mobile || card.phone ? <ActionButton icon="call" label="전화" tone={T.ok} onPress={() => action(card.mobile ? 'mobile' : 'phone')} /> : null}
+          {card.mobile ? <ActionButton icon="chatbubble-ellipses" label="문자" onPress={() => Linking.openURL(`sms:${phoneDigits(card.mobile)}`)} /> : null}
+          {card.email ? <ActionButton icon="mail" label="메일" tone={T.kind.partner} onPress={() => action('email')} /> : null}
+          {card.address ? <ActionButton icon="navigate" label="지도" tone={T.warn} onPress={() => action('address')} /> : null}
+          <ActionButton icon="qr-code" label="QR" tone={T.ink} onPress={() => setQrOpen(true)} />
+          <ActionButton icon="share-social" label="공유" tone={T.goldDeep} onPress={() => Share.share({ message: shareText(card), title: card.name })} />
+        </View>
 
-        <Section title="" right={<KindBadge kind={card.kind} />}>
-          <Text style={st.name}>
-            {card.name || card.nameEn} <Text style={st.sub}>{card.title}</Text>
-          </Text>
-          <Text style={st.company}>{[card.company, card.department].filter(Boolean).join(' · ')}</Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-            {card.mobile || card.phone ? <Button title="전화" style={{ flex: 1 }} onPress={() => action(card.mobile ? 'mobile' : 'phone')} /> : null}
-            {card.mobile ? <Button title="문자" variant="secondary" style={{ flex: 1 }} onPress={() => Linking.openURL(`sms:${phoneDigits(card.mobile)}`)} /> : null}
-            {card.email ? <Button title="메일" variant="secondary" style={{ flex: 1 }} onPress={() => action('email')} /> : null}
-            {card.address ? <Button title="지도" variant="secondary" style={{ flex: 1 }} onPress={() => action('address')} /> : null}
-          </View>
-        </Section>
-
-        <Section title="연락처 정보">
+        <Section title="연락처 정보" icon="id-card-outline">
           {SHOW.filter((k) => card[k]).map((k) => (
             <Pressable key={k} onPress={() => action(k)} style={st.row}>
+              <View style={st.rowIcon}>
+                <Icon name={FIELD_ICON[k] ?? 'ellipse-outline'} size={16} color={T.goldDeep} />
+              </View>
               <Text style={st.label}>{FIELD_LABEL[k]}</Text>
               <Text style={st.value} selectable>
                 {card[k]}
@@ -188,11 +213,12 @@ export default function CardDetailScreen() {
           ) : null}
         </Section>
 
-        <Section title="그룹">
+        <Section title="그룹" icon="pricetags-outline">
           <View style={st.tagWrap}>
             {tags.map((t) => (
               <Pressable key={t} style={st.tag} onPress={() => setMeta(card.id, { tags: tags.filter((x) => x !== t) })}>
-                <Text style={st.tagText}>#{t} ✕</Text>
+                <Text style={st.tagText}>#{t}</Text>
+                <Icon name="close" size={13} color={T.primary} />
               </Pressable>
             ))}
             {!tags.length ? <Text style={st.sub}>그룹을 붙이면 명함첩에서 모아 볼 수 있습니다 (예: 2026 전시회, VIP)</Text> : null}
@@ -219,11 +245,12 @@ export default function CardDetailScreen() {
 
         <Section
           title="팔로업 (다시 연락하기)"
-          right={card.followUp ? <Pressable onPress={() => setFollow(undefined)}><Text style={{ color: C.err, fontWeight: '600' }}>해제</Text></Pressable> : undefined}
+          icon="alarm-outline"
+          right={card.followUp ? <Pressable onPress={() => setFollow(undefined)}><Text style={{ ...type(14, '700', C.err) }}>해제</Text></Pressable> : undefined}
         >
           {card.followUp ? (
             <Text style={[st.followNow, card.followUp <= today && { color: C.err }]}>
-              📞 {card.followUp}
+              {card.followUp}
               {card.followUp < today ? ' (지남)' : card.followUp === today ? ' (오늘)' : ''}
               {settings.followUpNotify ? '  · 그날 아침 9시 알림' : ''}
             </Text>
@@ -254,12 +281,12 @@ export default function CardDetailScreen() {
           </View>
         </Section>
 
-        <Section title="메모·미팅 기록">
+        <Section title="메모·미팅 기록" icon="chatbox-ellipses-outline">
           <TextInput
             value={noteText}
             onChangeText={setNoteText}
             placeholder="예: 견적 요청 받음, 다음 주 미팅 / 골프 좋아함"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={T.faint}
             multiline
             style={st.noteInput}
           />
@@ -292,7 +319,7 @@ export default function CardDetailScreen() {
         </Section>
 
         {(card.history ?? []).length ? (
-          <Section title="경력 이력">
+          <Section title="경력 이력" icon="trending-up-outline">
             <View style={st.careerRow}>
               <Text style={st.careerDot}>●</Text>
               <Text style={st.value}>
@@ -311,9 +338,10 @@ export default function CardDetailScreen() {
         ) : null}
 
         {colleagues.length ? (
-          <Section title={`같은 회사 사람 ${colleagues.length}명`}>
+          <Section title={`같은 회사 사람 ${colleagues.length}명`} icon="people-outline">
             {colleagues.slice(0, 10).map((c) => (
-              <Pressable key={c.id} style={st.row} onPress={() => router.push({ pathname: '/card/[id]', params: { id: c.id } })}>
+              <Pressable key={c.id} style={[st.row, { alignItems: 'center', gap: 12 }]} onPress={() => router.push({ pathname: '/card/[id]', params: { id: c.id } })}>
+                <Avatar name={c.name} company={c.company} size={36} favorite={c.favorite} />
                 <Text style={st.value}>
                   {c.name} <Text style={st.sub}>{[c.department, c.title].filter(Boolean).join(' ')}</Text>
                 </Text>
@@ -324,9 +352,10 @@ export default function CardDetailScreen() {
 
         <Section
           title="연동 상태"
+          icon="git-network-outline"
           right={
             <Pressable onPress={() => resync(card.id)} disabled={syncing}>
-              <Text style={{ color: C.primary, fontWeight: '600' }}>{syncing ? '전송 중…' : '전체 다시 보내기'}</Text>
+              <Text style={{ ...type(14, '700', C.primary) }}>{syncing ? '전송 중…' : '전체 다시 보내기'}</Text>
             </Pressable>
           }
         >
@@ -344,7 +373,7 @@ export default function CardDetailScreen() {
                 </View>
                 {sync?.state !== 'ok' ? (
                   <Pressable onPress={() => resync(card.id, [t])} disabled={syncing}>
-                    <Text style={{ color: C.primary, fontWeight: '600' }}>재시도</Text>
+                    <Text style={{ ...type(14, '700', C.primary) }}>재시도</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -353,14 +382,10 @@ export default function CardDetailScreen() {
         </Section>
 
         <View style={{ gap: 8 }}>
-          <Button title="수정" variant="secondary" onPress={startEdit} />
-          {CAN_OPEN_VCARD ? <Button title="📇 아이폰 연락처에 저장" onPress={() => openVCard(card)} /> : null}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button title="QR 로 전달" variant="secondary" style={{ flex: 1 }} onPress={() => setQrOpen(true)} />
-            <Button title="문자·카톡 공유" variant="secondary" style={{ flex: 1 }} onPress={() => Share.share({ message: shareText(card), title: card.name })} />
-          </View>
-          <Button title="vCard 공유" variant="secondary" onPress={() => Share.share({ message: toVCard(card), title: card.name })} />
-          <Button title="삭제" variant="danger" onPress={confirmDelete} />
+          <Button title="정보 수정" icon="create-outline" variant="dark" onPress={startEdit} />
+          {CAN_OPEN_VCARD ? <Button title="아이폰 연락처에 저장" icon="person-add" onPress={() => openVCard(card)} /> : null}
+          <Button title="vCard 파일로 공유" icon="document-attach-outline" variant="secondary" onPress={() => Share.share({ message: toVCard(card), title: card.name })} />
+          <Button title="삭제" icon="trash-outline" variant="danger" onPress={confirmDelete} />
         </View>
         <Text style={[st.sub, { textAlign: 'center', marginTop: 12 }]}>
           등록 {card.createdAt.slice(0, 10)} · 수정 {card.updatedAt.slice(0, 10)}
@@ -369,6 +394,7 @@ export default function CardDetailScreen() {
         <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
           <Pressable style={st.modalBg} onPress={() => setQrOpen(false)}>
             <View style={st.modalBox}>
+              <Text style={st.modalBrand}>CARDSCAN</Text>
               <Text style={st.modalTitle}>{card.name} 명함</Text>
               <QrCode value={toVCard(card)} size={260} />
               <Text style={[st.sub, { textAlign: 'center', marginTop: 12 }]}>상대방 휴대폰 카메라로 찍으면{'\n'}연락처에 바로 저장할 수 있습니다</Text>
@@ -381,27 +407,31 @@ export default function CardDetailScreen() {
 }
 
 const st = StyleSheet.create({
-  image: { width: '100%', height: 210, borderRadius: 12, backgroundColor: '#000', marginBottom: 4 },
-  flipHint: { textAlign: 'center', fontSize: 12, color: C.sub, marginBottom: 10 },
-  name: { fontSize: 24, fontWeight: '800', color: C.text },
-  company: { fontSize: 16, color: C.text, marginTop: 4 },
-  sub: { fontSize: 13, color: C.sub, lineHeight: 19 },
-  row: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
-  label: { width: 76, fontSize: 14, color: C.sub },
-  value: { flex: 1, fontSize: 15, color: C.text },
+  name: { ...type(24, '800') },
+  company: { ...type(16, '500'), marginTop: 4 },
+  sub: { ...type(13, '400', T.sub) },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  metaTag: { ...type(12, '700', T.primary) },
+  metaDate: { ...type(12, '500', T.faint) },
+  actions: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: T.surface, borderRadius: RADIUS.lg, paddingVertical: 16, paddingHorizontal: 10, marginTop: 14, marginBottom: 14 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.line },
+  rowIcon: { width: 28, paddingTop: 2 },
+  label: { width: 64, ...type(13, '600', T.sub), lineHeight: 21 },
+  value: { flex: 1, ...type(15, '500'), lineHeight: 21 },
   syncRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  tag: { backgroundColor: '#EEF2FF', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
-  tagText: { color: '#4338CA', fontWeight: '600', fontSize: 13 },
-  tagGhost: { borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#fff' },
-  tagGhostText: { color: C.text, fontSize: 13 },
-  followNow: { fontSize: 17, fontWeight: '700', color: C.primary, marginBottom: 4 },
-  noteInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 12, minHeight: 64, fontSize: 15, color: C.text, textAlignVertical: 'top' },
-  noteRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
-  noteAt: { fontSize: 12, color: C.sub, marginBottom: 2 },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: T.primarySoft, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6 },
+  tagText: { ...type(13, '700', T.primary), lineHeight: 17 },
+  tagGhost: { borderWidth: 1, borderColor: T.line, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: '#fff' },
+  tagGhostText: { ...type(13, '600'), lineHeight: 17 },
+  followNow: { ...type(18, '800', T.goldDeep), marginBottom: 4 },
+  noteInput: { fontFamily: FONT, backgroundColor: '#F8F9FC', borderWidth: 1, borderColor: T.line, borderRadius: 12, padding: 12, minHeight: 64, fontSize: 15, color: T.text, textAlignVertical: 'top' },
+  noteRow: { paddingVertical: 10, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: T.gold, marginTop: 10 },
+  noteAt: { ...type(12, '600', T.faint), marginBottom: 2 },
   careerRow: { flexDirection: 'row', gap: 8, paddingVertical: 6 },
-  careerDot: { color: C.primary, fontSize: 12, marginTop: 3 },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  modalBox: { backgroundColor: '#fff', borderRadius: 18, padding: 22, alignItems: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: C.text, marginBottom: 14 },
+  careerDot: { color: T.gold, fontSize: 12, marginTop: 4 },
+  modalBg: { flex: 1, backgroundColor: 'rgba(11,21,48,0.82)', alignItems: 'center', justifyContent: 'center' },
+  modalBox: { backgroundColor: '#fff', borderRadius: RADIUS.xl, padding: 26, alignItems: 'center', borderWidth: 2, borderColor: T.gold },
+  modalBrand: { fontFamily: FONT, fontSize: 10, fontWeight: '800', letterSpacing: 3, color: T.goldDeep },
+  modalTitle: { ...type(19, '800'), marginBottom: 16, marginTop: 2 },
 });
