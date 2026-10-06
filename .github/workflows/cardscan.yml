@@ -42,6 +42,11 @@ jobs:
       - name: 안드로이드 번들 생성 확인
         run: npx expo export --platform android --output-dir /tmp/cardscan-export
 
+      - name: 아이폰 웹앱 번들 생성 확인
+        run: |
+          npx expo export --platform web --output-dir /tmp/cardscan-web
+          node scripts/pwa.mjs /tmp/cardscan-web /-
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x

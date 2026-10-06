@@ -125,6 +125,49 @@ function looksLikeName(token: string): boolean {
   return SURNAMES_1.has(token[0]) || SURNAMES_2.some((s) => token.startsWith(s));
 }
 
+/**
+ * 한글을 한 글자씩 띄어 읽은 줄("홍 길 동 팀 장")을 되붙인다 — 웹 OCR(Tesseract)에서 흔하다.
+ * 한 글자 한글 토큰이 대부분인 줄에서만, 이어진 한 글자 토큰끼리 합친다.
+ * 합쳐진 "홍길동팀장" 은 아래 이름 찾기에서 이름+직함으로 다시 나눈다.
+ */
+export function joinSpacedHangul(text: string): string {
+  const tokens = text.split(' ').filter(Boolean);
+  const isSingle = (t: string) => /^[가-힣]$/.test(t);
+  if (tokens.length < 3 || tokens.filter(isSingle).length / tokens.length < 0.6) return text;
+  const out: string[] = [];
+  let prevSingle = false;
+  for (const t of tokens) {
+    if (isSingle(t) && prevSingle) out[out.length - 1] += t;
+    else out.push(t);
+    prevSingle = isSingle(t);
+  }
+  return out.join(' ');
+}
+
+/** "영업팀장" → 영업팀 + 팀장, "기획실장" → 기획실 + 실장 처럼 부서와 직함이 붙은 토큰을 나눈다 */
+const DEPT_TITLE: [string, string][] = [
+  ['본부장', '본부'], ['센터장', '센터'], ['연구소장', '연구소'], ['사업부장', '사업부'], ['지점장', '지점'],
+  ['팀장', '팀'], ['파트장', '파트'], ['실장', '실'], ['부장', '부'], ['소장', '소'], ['그룹장', '그룹'],
+];
+export function splitDeptTitle(token: string): { department: string; title: string } | null {
+  if (!isHangul(token)) return null;
+  for (const [title, unit] of DEPT_TITLE) {
+    const prefix = token.slice(0, token.length - title.length);
+    // 앞부분이 두 글자 이상이어야 (예: '영업'+'팀장') — '팀장' 자체나 '부부장' 같은 직급과 구분
+    if (token.endsWith(title) && prefix.length >= 2 && !TITLES_KO.includes(token)) return { department: prefix + unit, title };
+  }
+  return null;
+}
+
+/** "홍길동팀장" 처럼 붙은 이름+직함을 나눈다 */
+function splitNameTitle(token: string): { name: string; title: string } | null {
+  if (!isHangul(token) || token.length < 4) return null;
+  const title = [...TITLES_KO].sort((a, b) => b.length - a.length).find((w) => token.endsWith(w) && token.length - w.length >= 2);
+  if (!title) return null;
+  const name = token.slice(0, token.length - title.length);
+  return looksLikeName(name) ? { name, title } : null;
+}
+
 // ── 본체 ────────────────────────────────────────────────────────────────────
 
 export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
@@ -256,7 +299,7 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
   }
 
   // 6) 이름 — 한글 2~4자 + 성씨, 글자가 클수록·직함과 같은 줄일수록 가산점
-  type Cand = { line: (typeof lines)[number]; token: string; score: number };
+  type Cand = { line: (typeof lines)[number]; token: string; score: number; glued?: { name: string; title: string }; raw: string };
   const cands: Cand[] = [];
   for (const l of lines) {
     if (l.used) continue;
@@ -265,7 +308,21 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
     const spaced = /^([가-힣]\s){1,3}[가-힣]$/.test(t) ? t.replace(/\s/g, '') : null;
     const tokens = spaced ? [spaced] : t.split(/[\s/·,()]+/).filter(Boolean);
     const hasTitle = !!titleIn(t);
-    tokens.forEach((tok) => {
+    // "홍 길동" / "남궁 민수" 처럼 성과 이름이 떨어져 읽힌 경우 — 붙인 것도 후보로
+    tokens.forEach((t, i) => {
+      const next = tokens[i + 1];
+      if (!next || !isHangul(t) || !isHangul(next) || t.length > 2 || next.length > 2) return;
+      const joined = t + next;
+      const surnameOk = (t.length === 1 && SURNAMES_1.has(t)) || SURNAMES_2.includes(t);
+      if (surnameOk && joined.length >= 3 && looksLikeName(joined)) {
+        let score = 1.8 + (l.height ? (l.height / maxH) * 3 : 0) + (hasTitle ? 1.5 : 0);
+        if (joined.length === 3) score += 0.7;
+        cands.push({ line: l, token: joined, score, raw: `${t} ${next}` });
+      }
+    });
+    tokens.forEach((raw) => {
+      const glued = looksLikeName(raw) ? null : splitNameTitle(raw);
+      const tok = glued ? glued.name : raw;
       if (!looksLikeName(tok)) return;
       let score = 1;
       if (l.height) score += (l.height / maxH) * 3;
@@ -273,17 +330,28 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
       if (tokens.length <= 3) score += 0.5;
       if (tok.length === 3) score += 0.7;
       if (tokens.length === 1) score += 0.5;
-      cands.push({ line: l, token: tok, score });
+      if (glued) score += 1.5;
+      cands.push({ line: l, token: tok, score, glued: glued ?? undefined, raw });
     });
   }
   cands.sort((a, b) => b.score - a.score);
   const best = cands[0];
   if (best) {
     f.name = best.token;
+    if (best.raw.includes(' ')) best.line.text = clean(best.line.text.replace(best.raw, best.token));
+    if (best.glued) {
+      f.title = best.glued.title;
+      best.line.text = clean(best.line.text.replace(best.raw, best.token));
+    }
     const remainder = clean(best.line.text.replace(/\s/g, '') === best.token ? '' : best.line.text.replace(best.token, ''));
     best.line.used = true;
     if (remainder) {
-      const title = titleIn(remainder);
+      let title = titleIn(remainder);
+      const dt = title ? splitDeptTitle(title) : null;
+      if (dt) {
+        title = dt.title;
+        if (!f.department) f.department = dt.department;
+      }
       if (title) f.title = title;
       const deptTok = remainder.split(' ').find((w) => DEPT.test(w) && !TITLES_KO.includes(w) && w !== title);
       if (deptTok) f.department = deptTok;
@@ -318,7 +386,9 @@ export function parseCardText(input: OcrLineInput[] | string): ParsedCard {
         dept = words.slice(start, end + 1).join(' ');
       }
     }
-    if (title) f.title = title;
+    const dt = title ? splitDeptTitle(title) : null;
+    if (title) f.title = dt ? dt.title : title;
+    if (dt && !f.department && !dept) f.department = dt.department;
     if (dept) f.department = dept;
     if (title || dept) {
       const left = clean(l.text.replace(title, '').replace(dept, ''));

@@ -22,10 +22,13 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-web": "~0.21.0"
+    "react-native-web": "~0.21.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/kor": "^1.0.0",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3",
     "vitest": "^3.2.7"

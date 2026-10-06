@@ -131,8 +131,20 @@ export function connectorReady(settings: Settings, id: ConnectorId): boolean {
   }
 }
 
+/**
+ * 이 기기에서 자동 전송이 안 되는 연동. 웹(아이폰 홈 화면 웹앱)은 연락처에 직접 쓸 수 없고,
+ * HubSpot·슬랙은 브라우저 보안(CORS) 때문에 직접 호출이 막혀 있다 — 앱 시작 시 ui/platform 이 설정.
+ */
+let unavailable = new Set<ConnectorId>();
+export function setUnavailableConnectors(ids: ConnectorId[]) {
+  unavailable = new Set(ids);
+}
+export function connectorAvailable(id: ConnectorId): boolean {
+  return !unavailable.has(id);
+}
+
 export function connectorTargets(settings: Settings, kind: CardKind): ConnectorId[] {
-  return CONNECTOR_ORDER.filter((id) => connectorReady(settings, id) && settings.connectors[id].kinds.includes(kind));
+  return CONNECTOR_ORDER.filter((id) => connectorAvailable(id) && connectorReady(settings, id) && settings.connectors[id].kinds.includes(kind));
 }
 
 /** 실제로 쓸 인식 방식 — 유료 모드를 골랐어도 키가 없으면 무료(기기) 인식으로 동작 */

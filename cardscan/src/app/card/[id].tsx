@@ -1,12 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { toVCard } from '../../core/mapping';
 import { phoneDigits, sanitizeFields } from '../../core/normalize';
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { CardFields, CardKind, FIELD_LABEL } from '../../core/types';
 import { CardForm } from '../../ui/CardForm';
 import { Button, C, KindBadge, KindPicker, Section, SyncDot } from '../../ui/components';
+import { CardImage } from '../../ui/CardImage';
+import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
 import { useStore } from '../../ui/store';
 
 function localTime(iso: string): string {
@@ -94,7 +96,7 @@ export default function CardDetailScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16 }}>
       <Stack.Screen options={{ title: card.name || '명함 상세' }} />
-      {card.imageUri ? <Image source={{ uri: card.imageUri }} style={st.image} resizeMode="contain" /> : null}
+      {card.imageUri ? <CardImage uri={card.imageUri} style={st.image} contain /> : null}
 
       <Section title="" right={<KindBadge kind={card.kind} />}>
         <Text style={st.name}>
@@ -157,6 +159,7 @@ export default function CardDetailScreen() {
 
       <View style={{ gap: 8 }}>
         <Button title="수정" variant="secondary" onPress={startEdit} />
+        {CAN_OPEN_VCARD ? <Button title="📇 아이폰 연락처에 저장" onPress={() => openVCard(card)} /> : null}
         <Button title="명함 공유 (vCard)" variant="secondary" onPress={() => Share.share({ message: toVCard(card), title: card.name })} />
         <Button title="삭제" variant="danger" onPress={confirmDelete} />
       </View>

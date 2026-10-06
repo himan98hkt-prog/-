@@ -1,8 +1,13 @@
+import '../ui/platform';
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { warmUpOcr } from '../../modules/card-ocr';
 import { StatusBar } from 'expo-status-bar';
 import { StoreProvider } from '../ui/store';
 
 export default function RootLayout() {
+  // 웹(아이폰)은 문자 인식 엔진을 미리 받아 둔다 — 앱은 내장이라 아무 일 없음
+  useEffect(() => warmUpOcr(), []);
   return (
     <StoreProvider>
       <StatusBar style="dark" />

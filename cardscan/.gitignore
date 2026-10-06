@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Tesseract(Node) 실행 시 생기는 언어 데이터 캐시
+*.traineddata

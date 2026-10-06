@@ -35,6 +35,8 @@ const API_HEADERS = (apiKey: string) => ({
   'x-api-key': apiKey,
   'anthropic-version': '2023-06-01',
   'content-type': 'application/json',
+  // 아이폰 웹앱(브라우저)에서 호출할 때 필요한 표시 — 키는 사용자 본인 기기에만 있다
+  'anthropic-dangerous-direct-browser-access': 'true',
 });
 
 function apiErrorMessage(status: number, detail?: string): string {

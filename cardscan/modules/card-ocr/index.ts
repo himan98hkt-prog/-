@@ -32,3 +32,6 @@ export function recognizeText(uri: string): Promise<OcrResult> {
   }
   return native.recognizeAsync(uri);
 }
+
+/** 웹에서는 인식 엔진을 미리 받는다 — 앱(ML Kit)은 모델이 내장돼 있어 할 일 없음 */
+export function warmUpOcr(): void {}

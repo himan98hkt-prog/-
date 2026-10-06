@@ -5,6 +5,8 @@ import { BusinessCard, CardKind, ConnectorId, KIND_LABEL } from '../../core/type
 import { checkOcr } from '../../integrations/ocr';
 import { HTTP_CONNECTORS } from '../../integrations/sync';
 import { Button, C, Field, KindPicker, Section } from '../../ui/components';
+import { IS_WEB, WEB_LIMITS } from '../../ui/platform';
+import { CAN_OPEN_VCARD, exportAllVCards } from '../../ui/saveContact';
 import { useStore } from '../../ui/store';
 
 const SAMPLE: BusinessCard = {
@@ -37,7 +39,7 @@ const HELP: Record<ConnectorId, string> = {
 };
 
 export default function SettingsScreen() {
-  const { settings, setSettings } = useStore();
+  const { settings, setSettings, cards } = useStore();
   const [draft, setDraft] = useState<Settings>(settings);
   const [testing, setTesting] = useState<string | null>(null);
   useEffect(() => setDraft(settings), [settings]);
@@ -96,7 +98,9 @@ export default function SettingsScreen() {
           </View>
           {draft.ocr.mode === 'device' ? (
             <Text style={st.help}>
-              휴대폰 안에서 글자를 읽어 이름·회사·연락처를 나눕니다 (Google ML Kit). 요금이 들지 않고 인터넷 없이도 동작하며, 사진이 밖으로 나가지 않습니다.
+              {IS_WEB
+                ? '이 아이폰 안에서 글자를 읽어 이름·회사·연락처를 나눕니다 (Tesseract). 요금이 들지 않고 사진이 밖으로 나가지 않습니다. 처음 한 번 인식 엔진(약 10MB)을 내려받습니다.'
+                : '휴대폰 안에서 글자를 읽어 이름·회사·연락처를 나눕니다 (Google ML Kit). 요금이 들지 않고 인터넷 없이도 동작하며, 사진이 밖으로 나가지 않습니다.'}
               인식이 틀린 칸은 저장 후 상세 화면의 "수정"으로 고치면 연락처·연동에도 다시 반영됩니다.
             </Text>
           ) : draft.ocr.mode === 'direct' ? (
@@ -137,10 +141,10 @@ export default function SettingsScreen() {
             <Section
               key={id}
               title={CONNECTOR_LABEL[id]}
-              right={<Switch value={c.enabled} onValueChange={(v) => conn(id, { enabled: v })} />}
+              right={WEB_LIMITS[id] ? undefined : <Switch value={c.enabled} onValueChange={(v) => conn(id, { enabled: v })} />}
             >
-              <Text style={st.help}>{HELP[id]}</Text>
-              {c.enabled ? (
+              <Text style={st.help}>{WEB_LIMITS[id] ?? HELP[id]}</Text>
+              {c.enabled && !WEB_LIMITS[id] ? (
                 <>
                   <Text style={[st.label, { marginTop: 10, marginBottom: 6 }]}>보낼 명함</Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
@@ -180,6 +184,12 @@ export default function SettingsScreen() {
           );
         })}
 
+        {CAN_OPEN_VCARD && cards.length ? (
+          <Section title="아이폰 연락처로 한꺼번에 옮기기">
+            <Text style={st.help}>저장된 명함 {cards.length}장을 연락처 파일 하나로 엽니다 → "연락처 {cards.length}개 모두 추가".</Text>
+            <Button title="📇 전체 명함을 연락처로" variant="secondary" onPress={() => exportAllVCards(cards)} />
+          </Section>
+        ) : null}
         <Button title={dirty ? '설정 저장' : '저장됨'} onPress={save} disabled={!dirty} />
         <Text style={[st.help, { textAlign: 'center', marginTop: 10 }]}>토큰·비밀키는 기기의 보안 저장소(Keychain/Keystore)에 보관됩니다.</Text>
       </ScrollView>

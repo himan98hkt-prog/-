@@ -1,6 +1,6 @@
 // 온디바이스 OCR 결과(줄 목록) → 명함 필드. 실제 한국 명함에서 흔한 배치를 재현한 샘플로 검증한다.
 import { describe, expect, it } from 'vitest';
-import { OcrLineInput, parseCardText } from '../src/core/cardParser';
+import { joinSpacedHangul, OcrLineInput, parseCardText, splitDeptTitle } from '../src/core/cardParser';
 
 /** [텍스트, 글자 높이] 목록을 OCR 줄로 */
 const ocr = (...rows: [string, number?][]): OcrLineInput[] =>
@@ -245,6 +245,63 @@ describe("parseCardText — '+' 없이 82 로 시작하는 국제 표기", () =>
     expect(f.mobile).toBe('010-9999-8888');
     expect(f.phone).toBe('');
     expect(f.address).toBe('82, Teheran-ro, Gangnam-gu, Seoul');
+  });
+});
+
+describe('웹(아이폰) OCR 특유의 띄어 읽기', () => {
+  it('joinSpacedHangul — 한 글자씩 띄어 읽은 줄만 붙인다', () => {
+    expect(joinSpacedHangul('홍 길 동 팀 장')).toBe('홍길동팀장');
+    expect(joinSpacedHangul('( 주 ) 한 빛 상 사')).toBe('( 주 ) 한빛상사');
+    expect(joinSpacedHangul('홍길동 팀장')).toBe('홍길동 팀장');
+    expect(joinSpacedHangul('서울특별시 중구 세종대로 110')).toBe('서울특별시 중구 세종대로 110');
+  });
+
+  it('붙어 버린 이름+직함을 나눈다', () => {
+    const r = parseCardText(ocr(['(주)한빛상사', 40], [joinSpacedHangul('홍 길 동 팀 장'), 60], ['010-1234-5678']));
+    expect(r.fields.name).toBe('홍길동');
+    expect(r.fields.title).toBe('팀장');
+    const r2 = parseCardText(ocr(['김철수대표이사', 60], ['010-2222-3333']));
+    expect(r2.fields).toMatchObject({ name: '김철수', title: '대표이사' });
+  });
+});
+
+describe('실제 웹 OCR(Tesseract) 출력 — 아이콘 명함 견본', () => {
+  // 견본 명함(📱/☎/📠/✉ 아이콘, "82 10-" 표기)을 Tesseract 한국어+영어로 읽은 결과 그대로
+  const TESSERACT_OUTPUT = [
+    '(주)한빛상사',
+    '홍 길동 영업팀장',
+    '텔 8210-2345-6789',
+    '& 02-555-1234 gw 02-555-1235',
+    '= gd.hong@hanbit.co.kr',
+    '서울특별시 중구 세종대로 110 한빛빌딩 55',
+  ].join('\n');
+
+  it('아이콘이 엉뚱한 글자로 읽혀도 칸을 바르게 나눈다', () => {
+    const r = parseCardText(TESSERACT_OUTPUT);
+    expect(r.fields).toMatchObject({
+      company: '(주)한빛상사',
+      name: '홍길동',
+      department: '영업팀',
+      title: '팀장',
+      mobile: '010-2345-6789',
+      phone: '02-555-1234',
+      fax: '02-555-1235',
+      email: 'gd.hong@hanbit.co.kr',
+      address: '서울특별시 중구 세종대로 110 한빛빌딩 55',
+    });
+  });
+
+  it('splitDeptTitle — 부서+직함이 붙은 경우만 나눈다', () => {
+    expect(splitDeptTitle('영업팀장')).toEqual({ department: '영업팀', title: '팀장' });
+    expect(splitDeptTitle('경영지원본부장')).toEqual({ department: '경영지원본부', title: '본부장' });
+    expect(splitDeptTitle('기획실장')).toEqual({ department: '기획실', title: '실장' });
+    expect(splitDeptTitle('팀장')).toBeNull();
+    expect(splitDeptTitle('부부장')).toBeNull();
+  });
+
+  it('성과 이름이 떨어져 읽힌 경우 (홍 길동, 남궁 민수)', () => {
+    expect(parseCardText(ocr(['홍 길동', 60], ['010-1234-5678'])).fields.name).toBe('홍길동');
+    expect(parseCardText(ocr(['남궁 민수 과장', 60], ['010-1234-5678'])).fields).toMatchObject({ name: '남궁민수', title: '과장' });
   });
 });
 

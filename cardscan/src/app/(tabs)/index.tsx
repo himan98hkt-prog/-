@@ -1,10 +1,11 @@
 import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { filterCards } from '../../core/mapping';
 import { connectorTargets } from '../../core/settings';
 import { CardKind, KIND_LABEL } from '../../core/types';
 import { Button, C, KindBadge, SyncDot } from '../../ui/components';
+import { CardImage } from '../../ui/CardImage';
 import { useStore } from '../../ui/store';
 
 const FILTERS: (CardKind | 'all')[] = ['all', 'customer', 'partner', 'other'];
@@ -62,7 +63,7 @@ export default function CardListScreen() {
           return (
             <Link href={{ pathname: '/card/[id]', params: { id: item.id } }} asChild>
               <Pressable style={st.row}>
-                {item.imageUri ? <Image source={{ uri: item.imageUri }} style={st.thumb} /> : <View style={[st.thumb, { backgroundColor: C.line }]} />}
+                <CardImage uri={item.imageUri} style={st.thumb} />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={st.name} numberOfLines={1}>

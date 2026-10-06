@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { isConfidentEnough } from '../../core/normalize';
 import { connectorTargets, CONNECTOR_LABEL } from '../../core/settings';
 import { BusinessCard, CardKind, EMPTY_FIELDS, KIND_LABEL } from '../../core/types';
@@ -9,6 +9,8 @@ import { recognizeText } from '../../../modules/card-ocr';
 import { captureCard } from '../../ui/capture';
 import { Button, C, KindPicker, Section, SyncDot } from '../../ui/components';
 import { setDraft } from '../../ui/draft';
+import { CardImage } from '../../ui/CardImage';
+import { CAN_OPEN_VCARD, openVCard } from '../../ui/saveContact';
 import { useStore } from '../../ui/store';
 
 type Phase = 'idle' | 'capturing' | 'reading' | 'saving';
@@ -86,7 +88,7 @@ export default function ScanScreen() {
       {last ? (
         <Section title={lastMerged ? '기존 명함을 최신 정보로 갱신했습니다' : '저장 완료'}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            {last.imageUri ? <Image source={{ uri: last.imageUri }} style={st.thumb} /> : null}
+            {last.imageUri ? <CardImage uri={last.imageUri} style={st.thumb} /> : null}
             <View style={{ flex: 1 }}>
               <Text style={st.name}>
                 {last.name} <Text style={st.hint}>{last.title}</Text>
@@ -112,6 +114,7 @@ export default function ScanScreen() {
               </View>
             ))}
           </View>
+          {CAN_OPEN_VCARD ? <Button title="📇 아이폰 연락처에 저장" onPress={() => openVCard(last)} style={{ marginTop: 14 }} /> : null}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
             <Button title="내용 확인·수정" variant="secondary" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/card/[id]', params: { id: last.id } })} />
             <Button title="다음 명함 촬영" style={{ flex: 1 }} onPress={() => run('camera')} disabled={busy} />

@@ -17,10 +17,18 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// 아이폰 웹앱(브라우저)에서도 부를 수 있게 CORS 허용 — 인증은 x-app-secret 으로 한다
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type, authorization, apikey, x-app-secret',
+};
+
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8' } });
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST 만 지원합니다' }, 405);
   // 비밀키 없이 열어 두면 누구나 API 크레딧을 쓸 수 있으므로 설정을 강제한다
   if (!SHARED_SECRET) return json({ error: '서버에 APP_SHARED_SECRET 이 설정되지 않았습니다' }, 500);

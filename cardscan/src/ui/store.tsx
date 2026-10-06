@@ -7,7 +7,8 @@ import { Settings, DEFAULT_SETTINGS } from '../core/settings';
 import { BusinessCard, CardFields, CardKind, ConnectorId } from '../core/types';
 import { deviceContactsConnector } from '../integrations/deviceContacts';
 import { HTTP_CONNECTORS, pendingTargets, syncCard, ConnectorMap } from '../integrations/sync';
-import { deleteImage, loadCards, persistImage, saveCards } from '../storage/cards';
+import { loadCards, saveCards } from '../storage/cards';
+import { deleteImage, persistImage } from '../storage/images';
 import { loadSettings, saveSettings } from '../storage/settings';
 
 const CONNECTORS: ConnectorMap = { contacts: deviceContactsConnector, ...HTTP_CONNECTORS };

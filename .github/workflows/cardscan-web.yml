@@ -1,0 +1,70 @@
+# 명함스캔 아이폰용 웹앱 배포 (GitHub Pages)
+# - cardscan/ 이 바뀌어 push 되면 웹 빌드를 만들어 gh-pages 브랜치에 올린다.
+# - 아이폰 Safari 에서 https://<사용자>.github.io/<저장소>/ 를 열고 "홈 화면에 추가" 하면 앱처럼 쓴다.
+# - 처음 한 번은 저장소 Settings → Pages → Branch 를 gh-pages / (root) 로 지정해야 사이트가 열린다.
+name: 명함스캔 아이폰 웹앱
+
+on:
+  push:
+    paths: ['cardscan/**', '.github/workflows/cardscan-web.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: cardscan-web
+  cancel-in-progress: true
+
+permissions:
+  contents: write # gh-pages 브랜치에 빌드 결과 올리기
+
+jobs:
+  web:
+    name: 웹앱 빌드·배포
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: cardscan
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cardscan/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 웹 경로 설정 (https://<사용자>.github.io/<저장소>/)
+        env:
+          BASE: /${{ github.event.repository.name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const app = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            app.expo.experiments = { ...app.expo.experiments, baseUrl: process.env.BASE };
+            fs.writeFileSync("app.json", JSON.stringify(app, null, 2));
+          '
+
+      - name: 웹 빌드
+        run: npx expo export --platform web --output-dir dist
+
+      - name: 아이폰 홈 화면 앱으로 마무리 (아이콘·manifest·문자 인식 엔진)
+        run: node scripts/pwa.mjs dist "/${{ github.event.repository.name }}"
+
+      - name: gh-pages 브랜치에 배포
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: cardscan/dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: '명함스캔 웹앱 배포'
+
+      - name: 주소 안내
+        run: |
+          URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${{ github.event.repository.name }}/"
+          echo "### 아이폰 웹앱: $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "처음 한 번은 Settings → Pages → Branch: gh-pages / (root) 저장이 필요합니다." >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL"
