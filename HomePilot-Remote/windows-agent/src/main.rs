@@ -20,6 +20,7 @@ mod audit;
 mod config;
 mod console;
 mod encode;
+mod home_relay;
 mod input;
 mod keystore;
 mod metrics;
@@ -68,7 +69,21 @@ enum Cmd {
         /// 원격 제어 표시줄 on/off
         #[arg(long)]
         overlay: Option<bool>,
+        /// 중계 서버를 에이전트 안에서 실행 (집 PC 단독 구성)
+        #[arg(long)]
+        local_relay: Option<bool>,
+        /// 외부 공개 방식: off | quick (Cloudflare 빠른 터널)
+        #[arg(long, value_parser = ["off", "quick"])]
+        tunnel: Option<String>,
+        /// cloudflared.exe 경로 (보통 자동으로 찾음)
+        #[arg(long)]
+        cloudflared: Option<String>,
+        /// 내장 중계 서버 포트 (기본 8443)
+        #[arg(long)]
+        local_relay_port: Option<u16>,
     },
+    /// 집 PC 단독 구성 한 번에 설정: 내장 중계 + Cloudflare 빠른 터널
+    SetupHome,
     /// 등록된 휴대폰 목록
     Clients,
     /// 이 PC 에서 직접 휴대폰 공개키를 등록 (PC 앞에 있는 사용자만 가능한 로컬 작업)
@@ -133,14 +148,38 @@ fn real_main(cli: Cli) -> Result<()> {
             println!("PC 이름     : {}", cfg.display_name());
             println!("장치 ID     : {}", homepilot_protocol::secure::device_id_from_public(&kp.public));
             println!("PC 지문     : {}", homepilot_protocol::secure::fingerprint(&kp.public));
-            println!("중계 서버   : {}", cfg.relay_url);
+            if cfg.local_relay {
+                println!("중계 서버   : 내장 (127.0.0.1:{}), 터널: {}", cfg.local_relay_port, cfg.tunnel);
+                match std::fs::read_to_string(paths.public_url_file()) {
+                    Ok(u) => println!("휴대폰 주소 : {}  (실행 중인 에이전트 기준, 다시 시작하면 바뀜)", u.trim()),
+                    Err(_) => println!("휴대폰 주소 : (에이전트 실행 후 표시)"),
+                }
+            } else {
+                println!("중계 서버   : {}", cfg.relay_url);
+            }
             println!("긴급 차단   : {}", if cfg.remote_blocked { "켜짐 (원격 접속 거부)" } else { "꺼짐" });
             println!("자동 실행   : {}", if platform::autostart_get().unwrap_or(false) { "켜짐" } else { "꺼짐" });
             println!("데이터 폴더 : {}", paths.data_dir.display());
             println!("로그 폴더   : {}", paths.log_dir.display());
             Ok(())
         }
-        Cmd::Config { relay, name, overlay } => {
+        Cmd::SetupHome => {
+            let mut cfg = Config::load(&paths.config_file())?;
+            cfg.local_relay = true;
+            cfg.tunnel = "quick".into();
+            cfg.save(&paths.config_file())?;
+            let cf = home_relay::find_cloudflared(&cfg.cloudflared_path);
+            println!("집 PC 단독 구성으로 설정했습니다 (내장 중계 + Cloudflare 빠른 터널).");
+            if cf.is_file() {
+                println!("cloudflared: {}", cf.display());
+            } else {
+                println!("주의: cloudflared 를 찾지 못했습니다. PowerShell 에서 다음 명령으로 설치하세요:");
+                println!("  winget install --id Cloudflare.cloudflared");
+            }
+            println!("HomePilot 을 (다시) 실행하면 트레이 메뉴 'PC 정보' 에 휴대폰용 주소가 표시됩니다.");
+            Ok(())
+        }
+        Cmd::Config { relay, name, overlay, local_relay, tunnel, cloudflared, local_relay_port } => {
             let mut cfg = Config::load(&paths.config_file())?;
             if let Some(r) = relay {
                 let u = url::Url::parse(&r).context("주소 형식 오류")?;
@@ -157,6 +196,18 @@ fn real_main(cli: Cli) -> Result<()> {
             }
             if let Some(o) = overlay {
                 cfg.show_overlay = o;
+            }
+            if let Some(v) = local_relay {
+                cfg.local_relay = v;
+            }
+            if let Some(v) = tunnel {
+                cfg.tunnel = v;
+            }
+            if let Some(v) = cloudflared {
+                cfg.cloudflared_path = v;
+            }
+            if let Some(v) = local_relay_port {
+                cfg.local_relay_port = v;
             }
             cfg.save(&paths.config_file())?;
             println!("저장했습니다. 실행 중인 에이전트는 다시 시작해야 적용됩니다.");
@@ -270,6 +321,17 @@ fn run(paths: Paths, headless: bool, console: bool, pairing_secs: Option<u64>) -
     metrics::spawn_collector(shared.status.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().worker_threads(2).build()?;
+    let _ = std::fs::remove_file(shared.paths.public_url_file());
+    let (local_relay, port, tunnel) = {
+        let c = shared.config.lock().unwrap();
+        (c.local_relay, c.local_relay_port, c.tunnel.clone())
+    };
+    if local_relay {
+        rt.block_on(home_relay::start_local_relay(&shared, port))?;
+        if tunnel == "quick" {
+            rt.spawn(home_relay::run_quick_tunnel(shared.clone(), port));
+        }
+    }
     rt.spawn(net::run_forever(shared.clone()));
     if headless {
         rt.block_on(async {

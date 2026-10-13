@@ -10,6 +10,15 @@
 | `tests/test-client` | `hp-cli` — 휴대폰 앱 대신 쓰는 시험 클라이언트 | Rust | 완료 |
 | `android-app` | Flutter Android 앱 | Dart | Phase 2 예정 |
 
+## 배포 구성 (현재: 집 PC 단독)
+
+```
+휴대폰 ──wss──> Cloudflare(빠른 터널) ──> cloudflared(집 PC) ──> 내장 중계 127.0.0.1:8443 <── 에이전트
+```
+- `homepilot-agent setup-home` 으로 설정. 에이전트가 중계 서버(`server` 크레이트를 라이브러리로 포함)와 cloudflared 를 직접 실행·감시
+- 내장 중계는 127.0.0.1 에만 열리고, 에이전트 등록에는 실행마다 새로 만드는 비밀 토큰(`x-homepilot-agent-token`)이 필요
+- 터널 주소는 재시작마다 바뀜 → 트레이 알림·PC 정보·`info` 에 표시
+
 ## 연결 흐름
 
 ```

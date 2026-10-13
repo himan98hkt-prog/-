@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# 집 PC 단독 구성 테스트: 내장 중계 + (가짜) Cloudflare 터널 + 에이전트 등록 토큰.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BIN="${1:-$ROOT/target/debug}"
+WORK="$(mktemp -d)"; PORT=$((20000 + RANDOM % 20000))
+export HOMEPILOT_AGENT_HOME="$WORK/agent" HOMEPILOT_LOG="info,homepilot_agent=debug"
+PASS=0; FAIL=0; PIDS=()
+check(){ if eval "$2"; then echo "  [성공] $1"; PASS=$((PASS+1)); else echo "  [실패] $1"; FAIL=$((FAIL+1)); fi; }
+trap 'exec 3>&- 2>/dev/null; for p in "${PIDS[@]}"; do kill $p 2>/dev/null; done; pkill -f "$WORK/fake-cloudflared" 2>/dev/null; wait 2>/dev/null' EXIT
+
+# cloudflared 대신: 실제와 같은 형식으로 주소를 출력하고 대기하는 가짜 프로그램
+cat >"$WORK/fake-cloudflared" <<'FAKE'
+#!/usr/bin/env bash
+echo "INF Requesting new quick Tunnel on trycloudflare.com..." >&2
+echo "INF |  https://sample-$RANDOM-words.trycloudflare.com                                  |" >&2
+exec sleep 3600
+FAKE
+chmod +x "$WORK/fake-cloudflared"
+
+A="$BIN/homepilot-agent"
+"$A" setup-home >"$WORK/setup.out"
+"$A" config --cloudflared "$WORK/fake-cloudflared" --local-relay-port "$PORT" >/dev/null
+DEV=$("$A" info | sed -n 's/^장치 ID *: //p')
+coproc AG { exec "$A" run --headless --console >"$WORK/agent.out" 2>"$WORK/agent.log"; }
+PIDS+=($AG_PID); exec 3>&"${AG[1]}"
+for i in $(seq 1 50); do grep -q "휴대폰용 중계 주소" "$WORK/agent.log" && grep -q "중계 서버 연결됨" "$WORK/agent.log" && break; sleep 0.2; done
+
+check "내장 중계 서버 시작" 'grep -q "내장 중계 서버 시작: 127.0.0.1:$PORT" "$WORK/agent.log"'
+check "에이전트가 내장 중계에 등록" 'grep -q "중계 서버 연결됨" "$WORK/agent.log"'
+check "터널 주소 인식" 'grep -q "휴대폰용 중계 주소: https://sample-[0-9]*-words.trycloudflare.com" "$WORK/agent.log"'
+check "info 에 휴대폰 주소 표시" '"$A" info | grep -q "휴대폰 주소 : https://sample-"'
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" "http://127.0.0.1:$PORT/v1/agent/$DEV")
+check "토큰 없는 가짜 에이전트 등록 거부 (HTTP $CODE)" '[ "$CODE" = "401" ]'
+
+"$BIN/hp-cli" --relay "ws://127.0.0.1:$PORT" --device "$DEV" --key "$WORK/p.key" connect >"$WORK/pair.out" 2>&1 & CP=$!
+for i in $(seq 1 50); do grep -q "등록 요청" "$WORK/agent.out" && break; sleep 0.2; done
+echo y >&3; wait $CP
+check "휴대폰 등록 + 접속 (내장 중계 경유)" 'grep -q "접속 성공" "$WORK/pair.out"'
+"$BIN/hp-cli" --relay "ws://127.0.0.1:$PORT" --device "$DEV" --key "$WORK/p.key" shot --out "$WORK/s.jpg" >/dev/null 2>&1
+check "화면 수신" '[ -s "$WORK/s.jpg" ]'
+
+pkill -f "^sleep 3600" 2>/dev/null || pkill -f "$WORK/fake-cloudflared"
+for i in $(seq 1 60); do [ "$(grep -c '휴대폰용 중계 주소' "$WORK/agent.log")" -ge 2 ] && break; sleep 0.25; done
+check "터널이 끊기면 자동 재시작 + 새 주소" '[ "$(grep -c "휴대폰용 중계 주소" "$WORK/agent.log")" -ge 2 ]'
+
+echo "결과: 성공 $PASS / 실패 $FAIL"
+[ $FAIL -eq 0 ] || { tail -30 "$WORK/agent.log"; exit 1; }

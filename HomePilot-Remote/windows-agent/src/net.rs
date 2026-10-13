@@ -11,6 +11,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 
 pub enum Outgoing {
@@ -42,14 +43,25 @@ pub async fn run_forever(shared: Arc<Shared>) {
 }
 
 async fn connect_once(shared: &Arc<Shared>) -> Result<()> {
-    let relay = shared.config.lock().unwrap().relay_url.clone();
+    let relay = {
+        let c = shared.config.lock().unwrap();
+        if c.local_relay {
+            format!("ws://127.0.0.1:{}", c.local_relay_port)
+        } else {
+            c.relay_url.clone()
+        }
+    };
     let base = url::Url::parse(relay.trim_end_matches('/')).context("중계 서버 주소 형식 오류")?;
     if !matches!(base.scheme(), "ws" | "wss") {
         bail!("중계 서버 주소는 ws:// 또는 wss:// 로 시작해야 합니다");
     }
     let url = format!("{}/v1/agent/{}", relay.trim_end_matches('/'), shared.device_id);
     tracing::info!("중계 서버 연결 시도: {url}");
-    let (ws, _) = tokio::time::timeout(Duration::from_secs(15), tokio_tungstenite::connect_async(url.as_str()))
+    let mut req = url.as_str().into_client_request()?;
+    if let Some(t) = shared.agent_token.lock().unwrap().clone() {
+        req.headers_mut().insert(homepilot_relay::AGENT_TOKEN_HEADER, t.parse()?);
+    }
+    let (ws, _) = tokio::time::timeout(Duration::from_secs(15), tokio_tungstenite::connect_async(req))
         .await
         .context("연결 시간 초과")?
         .context("연결 실패")?;

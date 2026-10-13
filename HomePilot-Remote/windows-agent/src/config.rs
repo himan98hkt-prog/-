@@ -39,6 +39,10 @@ impl Paths {
     pub fn trust_file(&self) -> PathBuf {
         self.data_dir.join("trusted_clients.json")
     }
+    /// 현재 터널 주소 (명령줄 `info` 에서 보여 주기 위해 기록).
+    pub fn public_url_file(&self) -> PathBuf {
+        self.data_dir.join("public_url.txt")
+    }
     pub fn audit_file(&self) -> PathBuf {
         self.log_dir.join("connections.jsonl")
     }
@@ -57,6 +61,13 @@ pub struct Config {
     pub show_overlay: bool,
     /// 동시에 허용할 원격 세션 수.
     pub max_sessions: u32,
+    /// 집 PC 단독 구성: 중계 서버를 에이전트 안에서 실행 (relay_url 대신 127.0.0.1 사용).
+    pub local_relay: bool,
+    pub local_relay_port: u16,
+    /// 외부 공개 방식: "off" | "quick" (Cloudflare 빠른 터널, 무료·주소 변동)
+    pub tunnel: String,
+    /// cloudflared 경로 (비우면 자동으로 찾음)
+    pub cloudflared_path: String,
 }
 
 impl Default for Config {
@@ -67,6 +78,10 @@ impl Default for Config {
             remote_blocked: false,
             show_overlay: true,
             max_sessions: 2,
+            local_relay: false,
+            local_relay_port: 8443,
+            tunnel: "off".into(),
+            cloudflared_path: String::new(),
         }
     }
 }

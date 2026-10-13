@@ -11,11 +11,11 @@
 | `windows-agent/` | Windows PC 에이전트 (Rust) + 설치 프로그램 스크립트 |
 | `server/` | 중계 서버 |
 | `shared/protocol/` | 공용 통신 프로토콜 · 암호화 |
-| `android-app/` | Flutter Android 앱 (Phase 2) |
+| `android-app/` | Flutter Android 앱 |
 | `tests/` | 종단간 테스트, 시험 클라이언트 `hp-cli` |
 | `docs/` | 기술 검토, 설계, 진행 상황, 테스트 결과, 설치 가이드 |
 | `releases/` | 빌드 결과물 (저장소에는 올리지 않음, CI 아티팩트로 제공) |
 
-시작하기: [`docs/설치-및-시험-가이드.md`](docs/설치-및-시험-가이드.md) · 현재 상태: [`docs/PROGRESS.md`](docs/PROGRESS.md)
+**휴대폰으로 쓰기: [`docs/휴대폰-연결-가이드.md`](docs/휴대폰-연결-가이드.md)** · PC 단독 시험: [`docs/설치-및-시험-가이드.md`](docs/설치-및-시험-가이드.md) · 현재 상태: [`docs/PROGRESS.md`](docs/PROGRESS.md)
 
 이 소프트웨어는 일부 Independent JPEG Group 의 작업에 기반합니다 (jpeg-encoder, IJG 라이선스).

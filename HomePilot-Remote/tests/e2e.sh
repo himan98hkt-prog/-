@@ -27,7 +27,8 @@ start_agent(){
   for i in $(seq 1 50); do grep -q "중계 서버 연결됨" "$WORK/agent.log" 2>/dev/null && return 0; sleep 0.2; done
   return 1
 }
-cli(){ "$CLI" --relay "$URL" --device "$DEV" --key "$(P "$WORK/${KEY:-phone}.key")" --name "${NAME:-테스트폰}" "$@"; }
+# 어떤 경우에도 테스트가 멈추지 않도록 명령마다 시간 제한
+cli(){ timeout 60 "$CLI" --relay "$URL" --device "$DEV" --key "$(P "$WORK/${KEY:-phone}.key")" --name "${NAME:-테스트폰}" "$@"; }
 wait_online(){ for i in $(seq 1 ${1:-40}); do cli connect >/dev/null 2>&1 && return 0; sleep 0.5; done; return 1; }
 
 echo "== 준비 (작업 폴더 $WORK)"
@@ -49,7 +50,7 @@ check "휴대폰/PC 확인 코드 일치 ($SAS_PC)" 'grep -q "확인 코드 \[$S
 echo "== 2. 무단 접근 차단"
 KEY=stranger NAME=모르는폰 cli connect >"$WORK/stranger.out" 2>&1
 check "등록 안 된 기기 거부 (등록 대기 종료 후)" 'grep -q "등록되지 않은 기기" "$WORK/stranger.out"'
-"$CLI" --relay "$URL" --device "0000000000000000aaaa" --key "$(P "$WORK/phone.key")" connect >"$WORK/wrongid.out" 2>&1
+timeout 30 "$CLI" --relay "$URL" --device "0000000000000000aaaa" --key "$(P "$WORK/phone.key")" connect >"$WORK/wrongid.out" 2>&1
 check "없는 장치 ID → 오프라인" 'grep -q "오프라인" "$WORK/wrongid.out"'
 echo pair >&3; sleep 0.3
 KEY=stranger NAME=모르는폰 cli connect >"$WORK/stranger2.out" 2>&1 & SP=$!

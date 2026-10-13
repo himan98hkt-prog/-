@@ -44,6 +44,7 @@ static OVERLAY_HWND: AtomicIsize = AtomicIsize::new(0);
 static TASKBAR_CREATED: AtomicUsize = AtomicUsize::new(0);
 static LAST_SESSION_COUNT: AtomicUsize = AtomicUsize::new(0);
 static HOTKEY_OK: AtomicUsize = AtomicUsize::new(0);
+static LAST_PUBLIC_URL: Mutex<Option<String>> = Mutex::new(None);
 
 fn hwnd_from(v: isize) -> HWND {
     HWND(v as *mut core::ffi::c_void)
@@ -216,6 +217,19 @@ unsafe fn refresh(hwnd: HWND) {
     } else if sessions.len() < prev && sessions.is_empty() {
         balloon(hwnd, "원격 접속 종료", "모든 원격 연결이 끝났습니다.");
     }
+    // 터널 주소가 새로 생기거나 바뀌면 알려 준다 (빠른 터널은 재시작마다 주소가 바뀜)
+    let url = s.public_url.lock().unwrap().0.clone();
+    {
+        let mut last = LAST_PUBLIC_URL.lock().unwrap();
+        if url.is_some() && *last != url {
+            balloon(
+                hwnd,
+                "휴대폰 연결 주소",
+                &format!("{}\n휴대폰 앱의 PC 주소가 다르면 이 주소로 수정하세요. (트레이 → PC 정보)", url.as_deref().unwrap_or("")),
+            );
+        }
+        *last = url;
+    }
     let ov = hwnd_from(OVERLAY_HWND.load(Ordering::SeqCst));
     let show = !sessions.is_empty() && s.config.lock().unwrap().show_overlay;
     if show {
@@ -308,15 +322,14 @@ unsafe fn handle_command(hwnd: HWND, cmd: usize) {
                     .collect::<Vec<_>>()
                     .join("\n")
             };
-            let relay = s.config.lock().unwrap().relay_url.clone();
             show_message(
                 "HomePilot - PC 정보",
                 &format!(
-                    "PC 이름: {}\n장치 ID: {}\nPC 지문: {}\n중계 서버: {}\n\n등록된 휴대폰:\n{}\n\n휴대폰 앱에서 PC 를 추가할 때 장치 ID 를 입력하고,\nPC 지문이 같은지 확인하세요.",
-                    s.display_name(),
+                    "【휴대폰 앱에 입력할 정보】\n중계 서버 주소: {}\n장치 ID: {}\n\nPC 이름: {}\nPC 지문: {}\n\n등록된 휴대폰:\n{}\n\n이 창에서 Ctrl+C 를 누르면 내용이 복사됩니다.",
+                    s.phone_relay_text(),
                     s.device_id,
+                    s.display_name(),
                     s.fingerprint(),
-                    relay,
                     list
                 ),
             );

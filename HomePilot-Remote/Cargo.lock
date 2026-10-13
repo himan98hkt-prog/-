@@ -566,6 +566,7 @@ dependencies = [
  "dirs",
  "futures-util",
  "homepilot-protocol",
+ "homepilot-relay",
  "jpeg-encoder",
  "rand",
  "rustls",

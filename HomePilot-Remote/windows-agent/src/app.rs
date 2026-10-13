@@ -47,6 +47,10 @@ pub struct Shared {
     /// 등록 확인창은 한 번에 하나만 띄운다 (요청 폭주로 사용자가 실수로 승인하는 것을 방지).
     pub pairing_busy: AtomicBool,
     pub approver: Approver,
+    /// 휴대폰이 접속할 외부 주소 (터널 사용 시)와 상태 설명.
+    pub public_url: Mutex<(Option<String>, Option<String>)>,
+    /// 내장 중계 서버에 에이전트로 등록할 때 쓰는 비밀 토큰.
+    pub agent_token: Mutex<Option<String>>,
     /// UI 갱신 요청 (Windows 에서는 트레이/표시줄 다시 그리기).
     pub ui_refresh: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
 }
@@ -69,6 +73,8 @@ impl Shared {
             pairing_until: Mutex::new(None),
             pairing_busy: AtomicBool::new(false),
             approver,
+            public_url: Mutex::new((None, None)),
+            agent_token: Mutex::new(None),
             ui_refresh: Mutex::new(None),
         });
         if first_run {
@@ -92,6 +98,33 @@ impl Shared {
             Ok(t) => *self.trust.lock().unwrap() = t,
             Err(e) => tracing::error!("등록 목록 읽기 실패 (이전 목록 유지): {e:#}"),
         }
+    }
+
+    pub fn set_public_url(&self, url: Option<String>, note: Option<String>) {
+        let file = self.paths.public_url_file();
+        match &url {
+            Some(u) => {
+                let _ = std::fs::write(&file, u);
+            }
+            None => {
+                let _ = std::fs::remove_file(&file);
+            }
+        }
+        *self.public_url.lock().unwrap() = (url, note);
+        self.refresh_ui();
+    }
+
+    /// 휴대폰 앱에 입력할 중계 주소 설명 (UI 용).
+    pub fn phone_relay_text(&self) -> String {
+        let cfg = self.config.lock().unwrap();
+        if cfg.local_relay && cfg.tunnel == "quick" {
+            let (url, note) = self.public_url.lock().unwrap().clone();
+            return url.unwrap_or_else(|| note.unwrap_or_else(|| "준비 중…".into()));
+        }
+        if cfg.local_relay {
+            return format!("ws://<이 PC 의 IP>:{} (같은 Wi-Fi 전용, 터널 꺼짐)", cfg.local_relay_port);
+        }
+        cfg.relay_url.replace("ws://", "http://").replace("wss://", "https://")
     }
 
     pub fn refresh_ui(&self) {

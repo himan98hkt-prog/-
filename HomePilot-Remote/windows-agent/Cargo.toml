@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 homepilot-protocol = { path = "../shared/protocol" }
+homepilot-relay = { path = "../server" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -34,7 +34,69 @@ jobs:
       - name: 단위 테스트
         run: cargo test --workspace
       - name: 종단간 테스트 (테스트 화면 모드)
-        run: cargo build --workspace && bash tests/e2e.sh
+        timeout-minutes: 8
+        run: cargo build --workspace && bash tests/e2e.sh && bash tests/home-mode.sh
+
+  android:
+    name: Android 앱 · 테스트 + APK/AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: HomePilot-Remote
+      - name: 의존성
+        working-directory: HomePilot-Remote/android-app
+        run: flutter pub get
+      - name: 정적 분석 + 단위·화면 테스트
+        working-directory: HomePilot-Remote/android-app
+        run: flutter analyze && flutter test
+      - name: 앱 프로토콜 ↔ PC 에이전트 상호 운용 테스트
+        timeout-minutes: 8
+        run: cargo build --workspace && bash tests/app-interop.sh
+      - name: 디버그 서명 키 유지 (빌드마다 키가 바뀌면 앱 업데이트 설치가 막힘)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: homepilot-android-debug-keystore
+      - name: 서명 키 준비 (저장소 Secrets 가 있을 때만)
+        working-directory: HomePilot-Remote/android-app/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > upload.jks
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=upload\nkeyPassword=%s\n' "$PWD/upload.jks" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > key.properties
+            echo "릴리스 키로 서명합니다"
+          else
+            echo "서명 키 Secrets 없음 → 디버그 키로 서명 (개인 설치용)"
+          fi
+      - name: APK · AAB 빌드
+        working-directory: HomePilot-Remote/android-app
+        run: |
+          flutter build apk --release
+          flutter build appbundle --release
+          mkdir -p ../releases
+          cp build/app/outputs/flutter-apk/app-release.apk ../releases/HomePilot.apk
+          cp build/app/outputs/bundle/release/app-release.aab ../releases/HomePilot.aab
+      - name: 결과물 업로드
+        uses: actions/upload-artifact@v5
+        with:
+          name: homepilot-android
+          path: |
+            HomePilot-Remote/releases/HomePilot.apk
+            HomePilot-Remote/releases/HomePilot.aab
 
   windows:
     name: Windows · 실제 화면 캡처/입력 + 설치 파일
@@ -52,11 +114,13 @@ jobs:
       - name: 릴리스 빌드
         run: cargo build --release --workspace
       - name: 종단간 테스트 (실제 Windows 화면)
+        timeout-minutes: 8
         shell: bash
         env:
           E2E_ARTIFACTS: ${{ github.workspace }}/HomePilot-Remote/releases/e2e-windows
         run: bash tests/e2e.sh target/release
       - name: 설치 프로그램 빌드 (Inno Setup)
+        if: ${{ !cancelled() }}
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
