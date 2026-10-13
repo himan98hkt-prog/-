@@ -15,7 +15,18 @@ PASS=0; FAIL=0; PIDS=()
 ok()   { echo "  [성공] $1"; PASS=$((PASS+1)); }
 bad()  { echo "  [실패] $1"; FAIL=$((FAIL+1)); }
 check(){ if eval "$2"; then ok "$1"; else bad "$1"; fi; }
-cleanup(){ exec 3>&- 2>/dev/null; for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; wait 2>/dev/null; }
+[ -n "$EXE" ] && echo "Windows 모드: $(uname -s)"
+# 프로세스 종료. Git Bash 의 kill 은 Windows 프로그램을 확실히 끄지 못할 수 있어 taskkill 을 함께 쓰고,
+# 무한정 기다리지 않는다 (Windows CI 에서 테스트가 30분 멈춘 적이 있음).
+stop(){
+  local p=$1
+  if [ -n "$EXE" ] && [ -r "/proc/$p/winpid" ]; then taskkill //F //T //PID "$(cat /proc/$p/winpid)" >/dev/null 2>&1; fi
+  kill "$p" 2>/dev/null
+  for _ in $(seq 1 50); do kill -0 "$p" 2>/dev/null || return 0; sleep 0.1; done
+  kill -9 "$p" 2>/dev/null; return 0
+}
+cleanup(){ exec 3>&- 2>/dev/null; for p in "${PIDS[@]}"; do stop "$p"; done
+  [ -n "$EXE" ] && taskkill //F //IM homepilot-agent.exe //IM homepilot-relay.exe //IM hp-cli.exe >/dev/null 2>&1; true; }
 trap cleanup EXIT
 
 start_relay(){ "$RELAY" --listen "127.0.0.1:$PORT" >>"$WORK/relay.log" 2>&1 & RELAY_PID=$!; PIDS+=($RELAY_PID); sleep 0.5; }
@@ -98,12 +109,12 @@ echo unblock >&3; sleep 0.3
 check "차단 해제 후 다시 접속" 'cli connect >/dev/null 2>&1'
 
 echo "== 6. 네트워크 끊김 후 복구"
-kill $RELAY_PID; wait $RELAY_PID 2>/dev/null; sleep 1
+stop $RELAY_PID; sleep 1
 start_relay
 check "중계 서버 재시작 후 자동 재연결" 'wait_online 60'
 
 echo "== 7. 에이전트 재시작(재부팅 가정)"
-exec 3>&-; kill $AGENT_PID 2>/dev/null; wait $AGENT_PID 2>/dev/null; sleep 0.5
+exec 3>&-; stop $AGENT_PID; sleep 0.5
 DEV2=$("$AGENT" info | sed -n 's/^장치 ID *: //p')
 check "재시작 후 장치 ID 유지" '[ "$DEV" = "$DEV2" ]'
 start_agent >/dev/null
