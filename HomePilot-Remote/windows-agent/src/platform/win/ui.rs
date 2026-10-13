@@ -217,6 +217,9 @@ unsafe fn refresh(hwnd: HWND) {
     } else if sessions.len() < prev && sessions.is_empty() {
         balloon(hwnd, "원격 접속 종료", "모든 원격 연결이 끝났습니다.");
     }
+    if let Some((title, text)) = s.notice.lock().unwrap().take() {
+        balloon(hwnd, &title, &text);
+    }
     // 터널 주소가 새로 생기거나 바뀌면 알려 준다 (빠른 터널은 재시작마다 주소가 바뀜)
     let url = s.public_url.lock().unwrap().0.clone();
     {
@@ -243,7 +246,10 @@ unsafe fn refresh(hwnd: HWND) {
         let _ = InvalidateRect(ov, None, TRUE);
         let _ = SetWindowPos(ov, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     } else {
-        let _ = ShowWindow(ov, SW_HIDE);
+        // ShowWindow 는 프로세스의 첫 호출에서 실행 방식(STARTUPINFO, 예: 최소화 실행)으로 바뀌어
+        // 숨김 대신 표시줄이 작업 표시줄 위에 최소화된 채로 보였다 (사용자 PC 에서 실제 발생).
+        // SetWindowPos 는 그 영향을 받지 않는다.
+        let _ = SetWindowPos(ov, None, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_HIDEWINDOW);
     }
 }
 

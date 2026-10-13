@@ -53,6 +53,8 @@ pub struct Shared {
     pub agent_token: Mutex<Option<String>>,
     /// UI 갱신 요청 (Windows 에서는 트레이/표시줄 다시 그리기).
     pub ui_refresh: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
+    /// 트레이 알림으로 보여 줄 안내 (제목, 내용). UI 가 꺼내 간다.
+    pub notice: Mutex<Option<(String, String)>>,
 }
 
 impl Shared {
@@ -76,6 +78,7 @@ impl Shared {
             public_url: Mutex::new((None, None)),
             agent_token: Mutex::new(None),
             ui_refresh: Mutex::new(None),
+            notice: Mutex::new(None),
         });
         if first_run {
             s.open_pairing(FIRST_RUN_PAIRING);
@@ -135,6 +138,27 @@ impl Shared {
 
     pub fn is_blocked(&self) -> bool {
         self.config.lock().unwrap().remote_blocked
+    }
+
+    /// PC 화면에 트레이 알림을 띄운다.
+    pub fn notify(&self, title: &str, text: &str) {
+        *self.notice.lock().unwrap() = Some((title.into(), text.into()));
+        self.refresh_ui();
+    }
+
+    /// 명령줄(`homepilot-cli unblock`)로 바꾼 차단 상태를 실행 중인 에이전트에도 반영한다.
+    /// 인증 직전에 호출 (등록 목록 `reload_trust` 와 같은 이유).
+    pub fn reload_block_state(&self) {
+        let Ok(disk) = Config::load(&self.paths.config_file()) else { return };
+        let changed = {
+            let mut c = self.config.lock().unwrap();
+            let changed = c.remote_blocked != disk.remote_blocked;
+            c.remote_blocked = disk.remote_blocked;
+            changed
+        };
+        if changed {
+            self.refresh_ui();
+        }
     }
 
     pub fn open_pairing(&self, dur: Duration) {

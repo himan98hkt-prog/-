@@ -28,7 +28,10 @@ class Quality {
   final String label;
   final int quality, scalePct, maxFps;
   const Quality(this.label, this.quality, this.scalePct, this.maxFps);
-  static const presets = [Quality('절약 (모바일 데이터)', 45, 40, 8), Quality('보통', 60, 60, 12), Quality('선명 (Wi-Fi)', 75, 100, 15)];
+  // 실기 측정(Cloudflare 터널 경유): 50% 크기 15fps ≈ 6 Mbps, 100% 크기 27fps ≈ 39 Mbps.
+  // 예전 기본값(45%·40%·8fps)은 PC 글씨를 읽을 수 없어 기본을 '보통'으로 올렸다.
+  static const presets = [Quality('절약 (모바일 데이터)', 50, 50, 10), Quality('보통', 65, 70, 20), Quality('선명 (Wi-Fi)', 80, 100, 30)];
+  static const defaultIndex = 1;
 }
 
 class AppStore {
@@ -65,7 +68,7 @@ class AppStore {
   String get clientName => _prefs.getString(_nameKey) ?? '내 휴대폰';
   Future<void> setClientName(String v) => _prefs.setString(_nameKey, v.trim().isEmpty ? '내 휴대폰' : v.trim());
 
-  int get qualityIndex => (_prefs.getInt(_qualityKey) ?? 0).clamp(0, Quality.presets.length - 1);
+  int get qualityIndex => (_prefs.getInt(_qualityKey) ?? Quality.defaultIndex).clamp(0, Quality.presets.length - 1);
   Future<void> setQualityIndex(int i) => _prefs.setInt(_qualityKey, i);
 
   /// 휴대폰 고유 키. Android Keystore 로 보호되는 보안 저장소에 둔다.

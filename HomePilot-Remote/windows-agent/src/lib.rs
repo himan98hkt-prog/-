@@ -279,7 +279,7 @@ fn real_main(cli: Cli) -> Result<()> {
             let mut cfg = Config::load(&paths.config_file())?;
             cfg.remote_blocked = false;
             cfg.save(&paths.config_file())?;
-            println!("긴급 차단을 해제했습니다. 실행 중인 에이전트는 다시 시작해야 적용됩니다.");
+            println!("긴급 차단을 해제했습니다. 실행 중인 에이전트에도 다음 접속부터 바로 적용됩니다.");
             Ok(())
         }
         Cmd::Log { lines } => {

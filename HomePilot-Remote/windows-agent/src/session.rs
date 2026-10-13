@@ -104,6 +104,7 @@ async fn run_inner(
     }
 
     // 3) 인증: 긴급 차단 → 등록 기기 → (등록 대기 중일 때만) PC 사용자 승인
+    shared.reload_block_state();
     if shared.is_blocked() {
         shared.audit.record("denied_blocked", &client_name, &fp, "긴급 차단 상태");
         deny(&mut wire, "PC 에서 원격 제어가 차단되어 있습니다. PC 의 HomePilot 메뉴에서 다시 허용하세요.").await;
@@ -163,6 +164,11 @@ async fn pair_new_device(
 ) -> Result<Permissions> {
     if shared.pairing_remaining().is_none() {
         shared.audit.record("denied_unknown", client_name, fp, "등록되지 않은 기기");
+        // 처음 10분이 지나 등록 대기가 닫힌 뒤 휴대폰을 추가하면 PC 쪽에는 아무 표시가 없어 헷갈렸다.
+        shared.notify(
+            "등록되지 않은 휴대폰의 접속 시도",
+            &format!("\"{client_name}\" 을(를) 등록하려면 트레이 아이콘 → '새 휴대폰 등록' 을 누른 뒤 휴대폰에서 다시 연결하세요."),
+        );
         deny(wire, "등록되지 않은 기기입니다. PC 의 HomePilot 메뉴에서 '새 휴대폰 등록'을 누른 뒤 다시 시도하세요.").await;
         bail!("미등록 기기");
     }
