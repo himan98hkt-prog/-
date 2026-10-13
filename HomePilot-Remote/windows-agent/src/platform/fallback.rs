@@ -131,6 +131,23 @@ pub fn single_instance() -> Option<InstanceGuard> {
     Some(InstanceGuard)
 }
 
+/// 개발·CI 용: 메모리 안의 가짜 클립보드
+static CLIP: Mutex<String> = Mutex::new(String::new());
+
+pub fn clipboard_get() -> Result<String> {
+    Ok(CLIP.lock().unwrap().clone())
+}
+
+pub fn clipboard_set(text: &str) -> Result<()> {
+    *CLIP.lock().unwrap() = text.to_string();
+    Ok(())
+}
+
+/// 화면이 없는 환경에서는 승인할 사람이 없으므로 거부
+pub fn ask_files_permission(_client_name: &str) -> bool {
+    false
+}
+
 /// H.264 압축은 Windows Media Foundation 전용. 다른 OS(개발·CI)에서는 JPEG 로 대체된다.
 pub struct H264Encoder;
 

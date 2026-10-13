@@ -100,5 +100,14 @@ class Msg {
   static Map<String, Object?> keyText(String text) => {'type': 'key_text', 'text': text};
   static Map<String, Object?> keyCombo(List<String> keys) => {'type': 'key_combo', 'keys': keys};
   static Map<String, Object?> ping(int t) => {'type': 'ping', 't': t};
+  static Map<String, Object?> clipboardSet(String text, {bool paste = false}) => {'type': 'clipboard_set', 'text': text, 'paste': paste};
+  static const clipboardGet = {'type': 'clipboard_get'};
+  static Map<String, Object?> fsList(String path) => {'type': 'fs_list', 'path': path};
+  static Map<String, Object?> fileDownload(int id, String path) => {'type': 'file_download', 'id': id, 'path': path};
+  static Map<String, Object?> fileAck(int id, int offset) => {'type': 'file_ack', 'id': id, 'offset': offset};
+  static Map<String, Object?> fileUploadStart(int id, String name, int size) => {'type': 'file_upload_start', 'id': id, 'name': name, 'size': size};
+  static Map<String, Object?> fileUploadChunk(int id, int offset, String data) => {'type': 'file_upload_chunk', 'id': id, 'offset': offset, 'data': data};
+  static Map<String, Object?> fileUploadEnd(int id) => {'type': 'file_upload_end', 'id': id};
+  static Map<String, Object?> fileCancel(int id) => {'type': 'file_cancel', 'id': id};
   static const bye = {'type': 'bye'};
 }

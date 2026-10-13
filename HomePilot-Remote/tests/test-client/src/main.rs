@@ -98,6 +98,27 @@ enum Cmd {
         #[arg(long, default_value_t = 5)]
         count: u32,
     },
+    /// PC 클립보드 읽기
+    ClipGet,
+    /// PC 클립보드에 넣기
+    ClipSet {
+        text: String,
+    },
+    /// PC 폴더 목록 (경로 생략 = 처음 목록)
+    Ls {
+        #[arg(default_value = "")]
+        path: String,
+    },
+    /// PC 파일 받기
+    Get {
+        path: String,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// PC 로 파일 보내기 (다운로드\HomePilot 에 저장됨)
+    Put {
+        file: PathBuf,
+    },
 }
 
 fn load_or_create_key(path: &PathBuf) -> Result<StaticKeypair> {
@@ -338,6 +359,94 @@ async fn main() -> Result<()> {
                     }
                 }
                 println!("왕복 지연 {} ms", t.elapsed().as_millis());
+            }
+        }
+        Cmd::ClipGet => {
+            c.send(&ClientMsg::ClipboardGet).await?;
+            loop {
+                match c.expect_msg().await? {
+                    AgentMsg::Clipboard { text } => {
+                        println!("{text}");
+                        break;
+                    }
+                    AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
+            }
+        }
+        Cmd::ClipSet { text } => c.send(&ClientMsg::ClipboardSet { text: text.clone(), paste: false }).await?,
+        Cmd::Ls { path } => {
+            c.send(&ClientMsg::FsList { path: path.clone() }).await?;
+            loop {
+                match c.expect_msg().await? {
+                    AgentMsg::FsListing { path, parent, entries } => {
+                        println!("[{path}] (상위: {parent})");
+                        for e in entries.iter().take(40) {
+                            println!(
+                                "  {} {}  {}",
+                                if e.is_dir { "📁" } else { "  " },
+                                e.name,
+                                if e.is_dir { String::new() } else { format!("{} B", e.size) }
+                            );
+                        }
+                        break;
+                    }
+                    AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
+            }
+        }
+        Cmd::Get { path, out } => {
+            let t0 = Instant::now();
+            c.send(&ClientMsg::FileDownload { id: 1, path: path.clone() }).await?;
+            let mut f = std::fs::File::create(out)?;
+            let mut got = 0u64;
+            loop {
+                match c.expect_msg().await? {
+                    AgentMsg::FileChunk { id, offset, total, data, eof } => {
+                        use base64::Engine;
+                        use std::io::Write;
+                        let b = base64::engine::general_purpose::STANDARD.decode(data)?;
+                        f.write_all(&b)?;
+                        got += b.len() as u64;
+                        c.send(&ClientMsg::FileAck { id, offset }).await?;
+                        if eof {
+                            let s = t0.elapsed().as_secs_f64();
+                            println!("받음 {got}/{total} 바이트, {s:.1}초, {:.0} KB/s", got as f64 / 1024.0 / s);
+                            break;
+                        }
+                    }
+                    AgentMsg::FileError { message, .. } | AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
+            }
+        }
+        Cmd::Put { file } => {
+            use base64::Engine;
+            let data = std::fs::read(file)?;
+            let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            c.send(&ClientMsg::FileUploadStart { id: 2, name, size: data.len() as u64 }).await?;
+            let mut off = 0usize;
+            loop {
+                match c.expect_msg().await? {
+                    AgentMsg::FileAck { .. } if off < data.len() => {
+                        let end = (off + 192 * 1024).min(data.len());
+                        c.send(&ClientMsg::FileUploadChunk {
+                            id: 2,
+                            offset: off as u64,
+                            data: base64::engine::general_purpose::STANDARD.encode(&data[off..end]),
+                        })
+                        .await?;
+                        off = end;
+                    }
+                    AgentMsg::FileAck { .. } => c.send(&ClientMsg::FileUploadEnd { id: 2 }).await?,
+                    AgentMsg::FileSaved { path, .. } => {
+                        println!("PC 에 저장됨: {path}");
+                        break;
+                    }
+                    AgentMsg::FileError { message, .. } | AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
             }
         }
     }

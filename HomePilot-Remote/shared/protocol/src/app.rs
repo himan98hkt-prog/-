@@ -112,6 +112,62 @@ pub enum ClientMsg {
     },
     /// 세션 종료.
     Bye,
+
+    // ---------- 클립보드 (조작 권한 필요) ----------
+    /// 휴대폰 → PC 클립보드. paste 면 이어서 Ctrl+V 를 누른다.
+    ClipboardSet {
+        text: String,
+        #[serde(default)]
+        paste: bool,
+    },
+    /// PC 클립보드 내용 요청 → Clipboard
+    ClipboardGet,
+
+    // ---------- 파일 (파일 권한 필요, 처음 한 번 PC 에서 승인) ----------
+    /// 폴더 목록. path 가 비어 있으면 자주 쓰는 폴더 + 드라이브 목록 → FsListing
+    FsList {
+        path: String,
+    },
+    /// PC → 휴대폰 파일 받기 → FileChunk 들 (휴대폰은 FileAck 로 확인)
+    FileDownload {
+        id: u32,
+        path: String,
+    },
+    /// 휴대폰 → PC 파일 보내기 시작 (PC 의 다운로드\HomePilot 에 저장)
+    FileUploadStart {
+        id: u32,
+        name: String,
+        size: u64,
+    },
+    FileUploadChunk {
+        id: u32,
+        offset: u64,
+        /// base64
+        data: String,
+    },
+    FileUploadEnd {
+        id: u32,
+    },
+    /// 받은 파일 조각 확인 (다음 조각을 보내도 된다)
+    FileAck {
+        id: u32,
+        offset: u64,
+    },
+    /// 진행 중인 파일 전송 취소
+    FileCancel {
+        id: u32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FsEntry {
+    pub name: String,
+    /// 전체 경로
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+    /// 수정 시각 (유닉스 초)
+    pub modified: u64,
 }
 
 /// PC 에이전트 → 클라이언트.
@@ -161,6 +217,39 @@ pub enum AgentMsg {
     /// PC 쪽에서 세션 종료 (긴급 차단 등).
     SessionEnded {
         reason: String,
+    },
+    Clipboard {
+        text: String,
+    },
+    FsListing {
+        path: String,
+        /// 상위 폴더 (없으면 빈 문자열 = 처음 목록)
+        parent: String,
+        entries: Vec<FsEntry>,
+    },
+    /// PC → 휴대폰 파일 조각
+    FileChunk {
+        id: u32,
+        offset: u64,
+        total: u64,
+        /// base64
+        data: String,
+        eof: bool,
+    },
+    /// 휴대폰이 보낸 조각을 받아 저장함
+    FileAck {
+        id: u32,
+        offset: u64,
+    },
+    /// 휴대폰이 보낸 파일 저장 완료 (PC 의 저장 경로)
+    FileSaved {
+        id: u32,
+        path: String,
+    },
+    /// 파일 전송 실패
+    FileError {
+        id: u32,
+        message: String,
     },
 }
 

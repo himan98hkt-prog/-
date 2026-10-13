@@ -435,6 +435,51 @@ class _RemoteScreenState extends State<RemoteScreen> {
     );
   }
 
+  /// 클립보드 주고받기: 휴대폰에서 복사한 글을 PC 에 붙여넣거나, PC 에서 복사한 글을 휴대폰으로.
+  Future<void> _clipboardMenu() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.content_paste_go),
+              title: const Text('휴대폰 → PC 에 붙여넣기'),
+              subtitle: const Text('휴대폰에서 복사한 글을 PC 의 커서 위치에 붙여넣습니다'),
+              onTap: () => Navigator.pop(ctx, 'push'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_copy),
+              title: const Text('PC → 휴대폰으로 가져오기'),
+              subtitle: const Text('PC 에서 복사(Ctrl+C)한 글을 휴대폰 클립보드로'),
+              onTap: () => Navigator.pop(ctx, 'pull'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == 'push') {
+      final d = await Clipboard.getData(Clipboard.kTextPlain);
+      final t = d?.text ?? '';
+      if (t.isEmpty) {
+        _toast('휴대폰 클립보드가 비어 있습니다');
+        return;
+      }
+      c.send(Msg.clipboardSet(t, paste: true));
+      _toast('PC 에 붙여넣었습니다 (${t.length}자)');
+    } else if (choice == 'pull') {
+      try {
+        final m = await request(c, Msg.clipboardGet, 'clipboard');
+        final t = m['text'] as String? ?? '';
+        await Clipboard.setData(ClipboardData(text: t));
+        _toast(t.isEmpty ? 'PC 클립보드가 비어 있습니다' : '휴대폰에 복사했습니다 (${t.length}자)');
+      } catch (e) {
+        _toast('$e');
+      }
+    }
+  }
+
   Widget _toolbar(ColorScheme cs, bool canControl) {
     final status = '${_codec == 'h264' ? 'HD 동영상 · ' : ''}$_fps fps${_rttMs == null ? '' : ' · ${_rttMs}ms'}';
     final slow = (_rttMs ?? 0) > 300;
@@ -468,6 +513,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
             btn(Icons.pan_tool_alt_outlined, '드래그 (다음 이동 동안 왼쪽 버튼 누름)', () => setState(() => _dragLock = !_dragLock), on: _dragLock),
             btn(Icons.swap_vert, '스크롤 모드', () => setState(() => _scrollMode = !_scrollMode), on: _scrollMode),
             btn(Icons.keyboard_outlined, '키보드', () => _showKeys ? setState(() => _showKeys = false) : _openKeyboard(), on: _showKeys),
+            btn(Icons.content_paste, '클립보드', _clipboardMenu),
           ],
           btn(Icons.zoom_out_map, '화면 맞춤', () => setState(view.reset)),
           btn(Icons.tune, '화질·모니터', _settings),

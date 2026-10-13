@@ -1,6 +1,7 @@
 //! 휴대폰 한 대와의 세션: 핸드셰이크 → 기기 인증/등록 → 명령 처리.
 
 use crate::app::{SessionView, Shared};
+use crate::files;
 use crate::input;
 use crate::net::{OutTx, Outgoing};
 use crate::platform::{self, Input};
@@ -10,6 +11,7 @@ use homepilot_protocol::app::{self as proto, AgentMsg, ClientMsg, Decoded, Monit
 use homepilot_protocol::relay::{encode_agent_frame, AgentToRelay};
 use homepilot_protocol::secure::{fingerprint, Handshake, Opener, Sealer};
 use homepilot_protocol::PROTOCOL_VERSION;
+use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -49,6 +51,40 @@ impl Wire {
 
 async fn recv_timeout(inbox: &mut mpsc::Receiver<Vec<u8>>, d: Duration) -> Result<Vec<u8>> {
     tokio::time::timeout(d, inbox.recv()).await.context("응답 시간 초과")?.ok_or_else(|| anyhow!("상대가 연결을 끊음"))
+}
+
+/// 지금 접속한 휴대폰
+pub struct Who {
+    pub name: String,
+    pub fp: String,
+    pub public: [u8; 32],
+}
+
+fn no_permission(msg: &str) -> AgentMsg {
+    AgentMsg::Error { code: "no_permission".into(), message: msg.into() }
+}
+
+/// 파일 권한이 없으면 PC 화면에서 한 번 묻고, 허용하면 이 휴대폰에 기억한다.
+async fn ensure_files_permission(shared: &Arc<Shared>, perms: &mut Permissions, who: &Who) -> bool {
+    if perms.files {
+        return true;
+    }
+    if shared.files_asking.swap(true, Ordering::SeqCst) {
+        return false; // 이미 확인창이 떠 있음
+    }
+    let name = who.name.clone();
+    let ok = tokio::task::spawn_blocking(move || platform::ask_files_permission(&name)).await.unwrap_or(false);
+    shared.files_asking.store(false, Ordering::SeqCst);
+    shared.audit.record(if ok { "files_allowed" } else { "files_denied" }, &who.name, &who.fp, "파일 접근 권한");
+    if ok {
+        perms.files = true;
+        let mut t = shared.trust.lock().unwrap();
+        t.add(&who.name, &who.public, *perms);
+        if let Err(e) = t.save() {
+            tracing::warn!("권한 저장 실패: {e:#}");
+        }
+    }
+    ok
 }
 
 fn decode_client(opener: &mut Opener, ct: &[u8]) -> Result<ClientMsg> {
@@ -143,7 +179,8 @@ async fn run_inner(
 
     // 4) 명령 처리
     let started = Instant::now();
-    let r = serve(shared, &mut wire, &mut opener, &mut inbox, &mut cancel, perms).await;
+    let who = Who { name: client_name.clone(), fp: fp.clone(), public: remote };
+    let r = serve(shared, &mut wire, &mut opener, &mut inbox, &mut cancel, perms, &who).await;
     let reason = match &r {
         Ok(s) => s.clone(),
         Err(e) => format!("{e:#}"),
@@ -223,9 +260,14 @@ async fn serve(
     opener: &mut Opener,
     inbox: &mut mpsc::Receiver<Vec<u8>>,
     cancel: &mut watch::Receiver<Option<String>>,
-    perms: Permissions,
+    mut perms: Permissions,
+    who: &Who,
 ) -> Result<String> {
     let monitors = platform::list_monitors().unwrap_or_default();
+    // 파일 전송: 받는 중인 파일, 보내는 중인 파일(확인 창구), PC → 휴대폰 조각 통로
+    let mut uploads: HashMap<u32, files::Upload> = HashMap::new();
+    let mut downloads: HashMap<u32, (Arc<tokio::sync::Semaphore>, tokio::task::AbortHandle)> = HashMap::new();
+    let (file_tx, mut file_rx) = mpsc::channel::<AgentMsg>(8);
     let mut current: MonitorInfo =
         monitors.iter().find(|m| m.primary).or(monitors.first()).cloned().ok_or_else(|| anyhow!("모니터를 찾을 수 없음"))?;
     let mut input = Input::new();
@@ -264,6 +306,12 @@ async fn serve(
                 } else {
                     pending = Some(frame); // 최신 프레임만 보관
                 }
+            }
+            Some(m) = file_rx.recv() => {
+                if let AgentMsg::FileChunk { id, eof: true, .. } | AgentMsg::FileError { id, .. } = &m {
+                    downloads.remove(id);
+                }
+                wire.send(&m).await?;
             }
             _ = tick.tick() => {
                 if last_rx.elapsed() > IDLE_TIMEOUT {
@@ -319,6 +367,104 @@ async fn serve(
                         in_flight = 0;
                         wire.send(&AgentMsg::StreamStopped).await?;
                     }
+                    // ---------- 클립보드 ----------
+                    ClientMsg::ClipboardSet { text, paste } => {
+                        if !perms.control {
+                            wire.send(&no_permission("이 기기에는 조작 권한이 없습니다")).await?;
+                            continue;
+                        }
+                        let t: String = text.chars().take(1_000_000).collect();
+                        match tokio::task::spawn_blocking(move || platform::clipboard_set(&t)).await? {
+                            Ok(()) if paste => {
+                                for a in input::translate(&ClientMsg::KeyCombo { keys: vec!["ctrl".into(), "v".into()] }, &current).unwrap_or_default() {
+                                    let _ = input.apply(a);
+                                }
+                            }
+                            Ok(()) => {}
+                            Err(e) => wire.send(&AgentMsg::Error { code: "clipboard".into(), message: format!("{e:#}") }).await?,
+                        }
+                    }
+                    ClientMsg::ClipboardGet => {
+                        if !perms.control {
+                            wire.send(&no_permission("이 기기에는 조작 권한이 없습니다")).await?;
+                            continue;
+                        }
+                        match tokio::task::spawn_blocking(platform::clipboard_get).await? {
+                            Ok(text) => wire.send(&AgentMsg::Clipboard { text }).await?,
+                            Err(e) => wire.send(&AgentMsg::Error { code: "clipboard".into(), message: format!("{e:#}") }).await?,
+                        }
+                    }
+
+                    // ---------- 파일 ----------
+                    ClientMsg::FsList { .. } | ClientMsg::FileDownload { .. } | ClientMsg::FileUploadStart { .. }
+                        if !ensure_files_permission(shared, &mut perms, who).await =>
+                    {
+                        wire.send(&no_permission("PC 에서 파일 접근을 허용하지 않았습니다")).await?;
+                    }
+                    ClientMsg::FsList { path } => {
+                        let msg = if path.is_empty() {
+                            AgentMsg::FsListing { path, parent: String::new(), entries: files::roots() }
+                        } else {
+                            let p = path.clone();
+                            match tokio::task::spawn_blocking(move || files::list(&p)).await? {
+                                Ok((parent, entries)) => AgentMsg::FsListing { path, parent, entries },
+                                Err(e) => AgentMsg::Error { code: "fs".into(), message: format!("{e:#}") },
+                            }
+                        };
+                        wire.send(&msg).await?;
+                    }
+                    ClientMsg::FileDownload { id, path } => {
+                        shared.audit.record("file_download", &who.name, &who.fp, &path);
+                        downloads.insert(id, files::spawn_download(id, path, file_tx.clone()));
+                    }
+                    ClientMsg::FileAck { id, .. } => {
+                        if let Some((w, _)) = downloads.get(&id) {
+                            w.add_permits(1);
+                        }
+                    }
+                    ClientMsg::FileUploadStart { id, name, size } => match files::Upload::start(&name, size) {
+                        Ok(u) => {
+                            shared.audit.record("file_upload", &who.name, &who.fp, &u.path.display().to_string());
+                            uploads.insert(id, u);
+                            wire.send(&AgentMsg::FileAck { id, offset: 0 }).await?;
+                        }
+                        Err(e) => wire.send(&AgentMsg::FileError { id, message: format!("{e:#}") }).await?,
+                    },
+                    ClientMsg::FileUploadChunk { id, offset, data } => {
+                        let r = match uploads.get_mut(&id) {
+                            Some(u) => u.write(offset, &data),
+                            None => Err(anyhow!("시작하지 않은 전송")),
+                        };
+                        match r {
+                            Ok(done) => wire.send(&AgentMsg::FileAck { id, offset: done }).await?,
+                            Err(e) => {
+                                if let Some(u) = uploads.remove(&id) {
+                                    u.abort();
+                                }
+                                wire.send(&AgentMsg::FileError { id, message: format!("{e:#}") }).await?;
+                            }
+                        }
+                    }
+                    ClientMsg::FileUploadEnd { id } => {
+                        let msg = match uploads.remove(&id).map(|u| u.finish()) {
+                            Some(Ok(path)) => {
+                                shared.notify("휴대폰에서 파일을 받았습니다", &path.display().to_string());
+                                AgentMsg::FileSaved { id, path: path.display().to_string() }
+                            }
+                            Some(Err(e)) => AgentMsg::FileError { id, message: format!("{e:#}") },
+                            None => AgentMsg::FileError { id, message: "시작하지 않은 전송".into() },
+                        };
+                        wire.send(&msg).await?;
+                    }
+                    ClientMsg::FileCancel { id } => {
+                        if let Some((_, h)) = downloads.remove(&id) {
+                            h.abort();
+                        }
+                        if let Some(u) = uploads.remove(&id) {
+                            u.abort();
+                        }
+                    }
+
                     ClientMsg::RequestKeyframe => {
                         if let Some(s) = &stream {
                             s.want_key.store(true, Ordering::Relaxed);

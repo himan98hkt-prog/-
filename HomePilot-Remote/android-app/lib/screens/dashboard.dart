@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../file_transfer.dart';
 import '../protocol/connection.dart';
 import '../protocol/messages.dart';
 import '../store.dart';
 import 'common.dart';
+import 'files.dart';
 import 'remote.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -48,7 +50,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   // 백그라운드로 가면 연결을 닫고(배터리·보안), 돌아오면 다시 연결한다.
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (s == AppLifecycleState.paused) {
+    // 파일 선택 화면이 열리거나 전송 중일 때는 연결을 유지한다
+    if (s == AppLifecycleState.paused && transfersInProgress == 0) {
       _poll?.cancel();
       _conn?.close();
     } else if (s == AppLifecycleState.resumed && (_conn == null || _conn!.isClosed) && ModalRoute.of(context)?.isCurrent == true) {
@@ -188,20 +191,22 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               ),
             ],
             const SizedBox(height: 8),
-            const Card(
+            Card(
               child: Column(
                 children: [
-                  ListTile(
+                  const ListTile(
                     enabled: false,
                     leading: Icon(Icons.smart_toy_outlined),
                     title: Text('AI 프로그램 관리'),
                     subtitle: Text('다음 단계(Phase 4)에서 제공 예정'),
                   ),
                   ListTile(
-                    enabled: false,
-                    leading: Icon(Icons.folder_outlined),
-                    title: Text('파일 관리'),
-                    subtitle: Text('다음 단계에서 제공 예정 (PC 에서 파일 권한을 따로 허용해야 함)'),
+                    enabled: online,
+                    leading: const Icon(Icons.folder_outlined),
+                    title: const Text('파일'),
+                    subtitle: const Text('PC 파일 보기·받기·보내기 (처음 한 번 PC 에서 허용)'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FilesScreen(conn: _conn!, pcName: widget.pc.name))),
                   ),
                 ],
               ),

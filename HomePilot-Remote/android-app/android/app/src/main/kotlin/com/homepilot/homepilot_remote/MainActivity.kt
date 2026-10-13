@@ -1,5 +1,6 @@
 package com.homepilot.homepilot_remote
 
+import android.content.Intent
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import io.flutter.embedding.android.FlutterActivity
@@ -8,9 +9,19 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val decoders = HashMap<Long, VideoDecoder>()
+    private val files by lazy { FileBridge(this) }
+
+    @Deprecated("startActivityForResult 결과 (파일 고르기)")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!files.onActivityResult(requestCode, resultCode, data)) {
+            @Suppress("DEPRECATION")
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "homepilot/files").setMethodCallHandler(files::handle)
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "homepilot/video")
         ch.setMethodCallHandler { call, result ->
             when (call.method) {

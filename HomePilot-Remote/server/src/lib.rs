@@ -52,6 +52,9 @@ fn token_ok(expected: &Option<String>, headers: &HeaderMap) -> bool {
 const MAX_CLIENTS_PER_DEVICE: usize = 4;
 /// 메시지 최대 크기 (화면 프레임 포함).
 const MAX_MESSAGE: usize = 16 * 1024 * 1024;
+/// 휴대폰 → PC 메시지 최대 크기. 입력·제어는 작지만, 파일 보내기 조각(192KB, base64 로 약 256KB)을
+/// 담을 수 있어야 한다. 남용을 막기 위해 PC 쪽(16MB)보다 훨씬 작게 둔다.
+const MAX_CLIENT_MESSAGE: usize = 1024 * 1024;
 
 struct AgentConn {
     generation: u64,
@@ -95,7 +98,7 @@ async fn client_ws(
     if !is_valid_device_id(&id) {
         return (StatusCode::BAD_REQUEST, "invalid device id").into_response();
     }
-    ws.max_message_size(64 * 1024).on_upgrade(move |s| handle_client(s, id, addr, st))
+    ws.max_message_size(MAX_CLIENT_MESSAGE).on_upgrade(move |s| handle_client(s, id, addr, st))
 }
 
 fn text<T: serde::Serialize>(v: &T) -> Message {

@@ -52,6 +52,85 @@ pub fn single_instance() -> Option<InstanceGuard> {
     }
 }
 
+// ---------- 클립보드 (텍스트) ----------
+
+const CF_UNICODETEXT: u32 = 13;
+
+/// 다른 프로그램이 클립보드를 잠깐 쥐고 있을 수 있으므로 몇 번 다시 시도한다.
+fn open_clipboard() -> Result<()> {
+    use windows::Win32::System::DataExchange::OpenClipboard;
+    for _ in 0..10 {
+        if unsafe { OpenClipboard(None) }.is_ok() {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(30));
+    }
+    bail!("클립보드를 열 수 없습니다 (다른 프로그램이 사용 중)")
+}
+
+pub fn clipboard_get() -> Result<String> {
+    use windows::Win32::Foundation::HGLOBAL;
+    use windows::Win32::System::DataExchange::{CloseClipboard, GetClipboardData};
+    use windows::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    open_clipboard()?;
+    let text = unsafe {
+        let r = (|| {
+            let Ok(h) = GetClipboardData(CF_UNICODETEXT) else { return String::new() };
+            let g = HGLOBAL(h.0);
+            let p = GlobalLock(g) as *const u16;
+            if p.is_null() {
+                return String::new();
+            }
+            let mut n = 0;
+            while *p.add(n) != 0 && n < 1 << 22 {
+                n += 1;
+            }
+            let s = String::from_utf16_lossy(std::slice::from_raw_parts(p, n));
+            let _ = GlobalUnlock(g);
+            s
+        })();
+        let _ = CloseClipboard();
+        r
+    };
+    Ok(text)
+}
+
+pub fn clipboard_set(text: &str) -> Result<()> {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::DataExchange::{CloseClipboard, EmptyClipboard, SetClipboardData};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    let w: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+    open_clipboard()?;
+    let r = unsafe {
+        (|| -> Result<()> {
+            EmptyClipboard()?;
+            let g = GlobalAlloc(GMEM_MOVEABLE, w.len() * 2)?;
+            let p = GlobalLock(g) as *mut u16;
+            std::ptr::copy_nonoverlapping(w.as_ptr(), p, w.len());
+            let _ = GlobalUnlock(g);
+            // 성공하면 메모리는 클립보드 소유가 된다
+            SetClipboardData(CF_UNICODETEXT, HANDLE(g.0))?;
+            Ok(())
+        })()
+    };
+    unsafe {
+        let _ = CloseClipboard();
+    }
+    r
+}
+
+/// 파일 전송 권한 요청 창 (기본 "아니요")
+pub fn ask_files_permission(client_name: &str) -> bool {
+    confirm(
+        "HomePilot - 파일 접근 요청",
+        &format!(
+            "휴대폰 \"{client_name}\" 이(가) 이 PC 의 파일 보기·주고받기 권한을 요청합니다.\n\n\
+             허용하면 이 휴대폰에서 PC 의 폴더를 보고 파일을 받거나 보낼 수 있습니다.\n\
+             (보낸 파일은 다운로드\\HomePilot 폴더에 저장)\n\n본인이 요청한 경우에만 [예] 를 누르세요."
+        ),
+    )
+}
+
 // ---------- 하위 프로세스 수명 ----------
 
 /// cloudflared 같은 하위 프로세스를 에이전트와 같은 작업 개체에 넣는다.

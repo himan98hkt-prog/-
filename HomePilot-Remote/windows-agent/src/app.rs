@@ -55,6 +55,8 @@ pub struct Shared {
     pub ui_refresh: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
     /// 트레이 알림으로 보여 줄 안내 (제목, 내용). UI 가 꺼내 간다.
     pub notice: Mutex<Option<(String, String)>>,
+    /// 파일 권한 확인창이 떠 있는 동안 중복 요청을 막는다.
+    pub files_asking: AtomicBool,
 }
 
 impl Shared {
@@ -79,6 +81,7 @@ impl Shared {
             agent_token: Mutex::new(None),
             ui_refresh: Mutex::new(None),
             notice: Mutex::new(None),
+            files_asking: AtomicBool::new(false),
         });
         if first_run {
             s.open_pairing(FIRST_RUN_PAIRING);

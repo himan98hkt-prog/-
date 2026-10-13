@@ -21,6 +21,7 @@ mod config;
 mod console;
 mod discovery;
 mod encode;
+mod files;
 mod home_relay;
 mod input;
 mod keystore;
@@ -97,6 +98,9 @@ enum Cmd {
         /// 조작 권한 없이 보기만 허용
         #[arg(long)]
         view_only: bool,
+        /// 파일 보기·주고받기도 허용
+        #[arg(long)]
+        files: bool,
     },
     /// 등록 해제
     Revoke { who: String },
@@ -243,11 +247,12 @@ fn real_main(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Cmd::TrustClient { name, public_key, view_only } => {
+        Cmd::TrustClient { name, public_key, view_only, files } => {
             let pk = trust::parse_public_key(&public_key)?;
             let mut t = TrustStore::load(&paths)?;
             let mut perms = homepilot_protocol::app::Permissions::default_for_new_device();
             perms.control = !view_only;
+            perms.files = files;
             let c = t.add(&name, &pk, perms);
             t.save()?;
             audit::Audit::new(paths.audit_file()).record("trust_local", &c.name, &c.fingerprint, "PC 에서 직접 등록");
