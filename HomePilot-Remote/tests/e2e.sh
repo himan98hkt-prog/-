@@ -92,7 +92,8 @@ check "마우스 우클릭 전달" 'grep -q "button: Right, down: true" "$WORK/a
 check "한글 문자열 전달" 'grep -q "안녕하세요 HomePilot" "$WORK/agent.log"'
 check "조합키 전달" 'grep -qF "Key { key: \"ctrl\", down: false }" "$WORK/agent.log"'
 NAME=보기전용 KEY=viewer cli keygen >/dev/null 2>&1
-timeout 30 "$AGENT" trust-client --name 보기전용 --public-key "$(KEY=viewer cli keygen)" --view-only >/dev/null
+# 키(base64)가 "/" 로 시작하면 Git Bash 가 경로로 오인해 C:\... 로 바꾸므로 변환을 끈다
+MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" timeout 30 "$AGENT" trust-client --name 보기전용 --public-key "$(KEY=viewer cli keygen)" --view-only >/dev/null
 KEY=viewer NAME=보기전용 cli click 0.1 0.1 >"$WORK/viewer.out" 2>&1
 check "보기 전용 기기의 조작 거부 (권한 분리)" 'grep -q "조작 권한이 없습니다" "$WORK/viewer.out"'
 timeout 30 "$AGENT" revoke 보기전용 >/dev/null
