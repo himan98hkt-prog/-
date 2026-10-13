@@ -123,3 +123,8 @@ pub fn run_ui(_shared: Arc<Shared>, rt: &tokio::runtime::Runtime) -> Result<()> 
 }
 
 pub fn attach_parent_console() {}
+
+/// 중복 실행 방지 (개발 환경에서는 검사하지 않음).
+pub fn single_instance() -> Option<()> {
+    Some(())
+}

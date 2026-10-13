@@ -301,6 +301,19 @@ fn yn(b: bool) -> &'static str {
 
 fn run(paths: Paths, headless: bool, console: bool, pairing_secs: Option<u64>) -> Result<()> {
     let _guard = init_logging(&paths, headless || cfg!(debug_assertions));
+    // 창 없는 프로그램은 비정상 종료 이유가 보이지 않으므로 로그 폴더의 crash.log 에 즉시 기록한다.
+    let crash_file = paths.log_dir.join("crash.log");
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = format!("[{}] 비정상 종료: {info}\n", trust::now_unix());
+        tracing::error!("{msg}");
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&crash_file) {
+            let _ = f.write_all(msg.as_bytes());
+        }
+    }));
+    // 같은 사용자 세션에서 두 번 실행되면 포트·트레이가 충돌하므로 막는다.
+    let _instance = platform::single_instance()
+        .ok_or_else(|| anyhow::anyhow!("HomePilot 이 이미 실행 중입니다. 작업 표시줄 오른쪽 아래 ^ 안의 HomePilot 아이콘을 확인하세요."))?;
     let _ = rustls::crypto::ring::default_provider().install_default();
     platform::init_process();
     tracing::info!("HomePilot 에이전트 {} 시작", env!("CARGO_PKG_VERSION"));

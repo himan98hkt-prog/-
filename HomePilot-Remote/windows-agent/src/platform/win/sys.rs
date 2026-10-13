@@ -26,6 +26,32 @@ pub fn attach_parent_console() {
     }
 }
 
+// ---------- 중복 실행 방지 ----------
+
+/// 이 사용자 세션에서 처음 실행된 경우에만 Some. 반환값을 들고 있는 동안 잠금 유지.
+pub struct InstanceGuard(windows::Win32::Foundation::HANDLE);
+
+impl Drop for InstanceGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = windows::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+pub fn single_instance() -> Option<InstanceGuard> {
+    use windows::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
+    use windows::Win32::System::Threading::CreateMutexW;
+    unsafe {
+        let h = CreateMutexW(None, true, windows::core::w!("Local\\HomePilotRemoteAgent")).ok()?;
+        if GetLastError() == ERROR_ALREADY_EXISTS {
+            let _ = windows::Win32::Foundation::CloseHandle(h);
+            return None;
+        }
+        Some(InstanceGuard(h))
+    }
+}
+
 // ---------- DPAPI ----------
 
 fn blob(data: &[u8]) -> CRYPT_INTEGER_BLOB {
