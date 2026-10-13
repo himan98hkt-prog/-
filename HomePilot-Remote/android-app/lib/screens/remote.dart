@@ -332,7 +332,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
                           else
                             Positioned.fromRect(
                               rect: img,
-                              child: Image.memory(_jpeg!, gaplessPlayback: true, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+                              child: Image.memory(_jpeg!, gaplessPlayback: true, fit: BoxFit.fill, filterQuality: FilterQuality.high),
                             ),
                           if (_mode == _Mode.touchpad && canControl && _jpeg != null)
                             Positioned(
