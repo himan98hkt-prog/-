@@ -5,9 +5,17 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+name = "homepilot_agent"
+path = "src/lib.rs"
+
 [[bin]]
 name = "homepilot-agent"
 path = "src/main.rs"
+
+[[bin]]
+name = "homepilot-cli"
+path = "src/bin/homepilot-cli.rs"
 
 [dependencies]
 homepilot-protocol = { path = "../shared/protocol" }

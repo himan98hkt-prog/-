@@ -127,7 +127,7 @@ pub fn run_ui(shared: Arc<Shared>, _rt: &tokio::runtime::Runtime) -> Result<()> 
             balloon(
                 hwnd,
                 "HomePilot 설치 완료",
-                "휴대폰 앱에서 이 PC 를 등록하세요. 10분 동안 등록을 받습니다. (트레이 아이콘 우클릭 → 정보)",
+                "잠시 후 '휴대폰 연결 주소' 알림이 뜹니다. 트레이 아이콘 우클릭 → '휴대폰 연결 정보' 에서 주소·장치 ID 를 확인해 앱에 입력하세요. (10분간 등록 허용)",
             );
         }
 
@@ -255,6 +255,7 @@ unsafe fn show_menu(hwnd: HWND) {
         let _ = AppendMenuW(menu, flags, id, PCWSTR(t.as_ptr()));
     };
     add(MF_STRING | MF_GRAYED, 0, &tooltip().replace('\n', " · "));
+    add(MF_STRING | MF_DEFAULT, ID_INFO, "휴대폰 연결 정보 (주소·장치 ID) 보기");
     add(MF_SEPARATOR, 0, "");
     let sessions = s.active_sessions();
     if !sessions.is_empty() {
@@ -269,7 +270,6 @@ unsafe fn show_menu(hwnd: HWND) {
     add(MF_SEPARATOR, 0, "");
     let auto = autostart_get().unwrap_or(false);
     add(MF_STRING | if auto { MF_CHECKED } else { MF_UNCHECKED }, ID_AUTOSTART, "Windows 시작 시 자동 실행");
-    add(MF_STRING, ID_INFO, "PC 정보 · 등록된 기기 보기");
     add(MF_STRING, ID_LOGS, "로그·접속 기록 폴더 열기");
     add(MF_STRING, ID_REVOKE_ALL, "모든 휴대폰 등록 해제…");
     add(MF_SEPARATOR, 0, "");

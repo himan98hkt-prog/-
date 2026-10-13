@@ -78,9 +78,10 @@ impl Default for Config {
             remote_blocked: false,
             show_overlay: true,
             max_sessions: 2,
-            local_relay: false,
+            // 기본값 = 집 PC 단독 구성 (내장 중계 + Cloudflare 빠른 터널). 별도 서버를 쓰려면 `config --relay`
+            local_relay: true,
             local_relay_port: 8443,
-            tunnel: "off".into(),
+            tunnel: "quick".into(),
             cloudflared_path: String::new(),
         }
     }

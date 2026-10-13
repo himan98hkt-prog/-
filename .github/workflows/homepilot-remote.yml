@@ -119,9 +119,9 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
           $ver = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
-          & $iscc "/DAppVersion=$ver" "/DSourceExe=..\..\target\release\homepilot-agent.exe" windows-agent\installer\homepilot-agent.iss
+          & $iscc "/DAppVersion=$ver" "/DSourceDir=..\..\target\release" windows-agent\installer\homepilot-agent.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item target\release\homepilot-agent.exe, target\release\homepilot-relay.exe, target\release\hp-cli.exe releases\
+          Copy-Item target\release\homepilot-agent.exe, target\release\homepilot-cli.exe, target\release\homepilot-relay.exe, target\release\hp-cli.exe releases\
       - name: 설치 파일 업로드
         uses: actions/upload-artifact@v5
         with:

@@ -1,5 +1,5 @@
 ﻿; HomePilot Remote - Windows 에이전트 설치 프로그램 (Inno Setup 6)
-; 빌드: iscc /DAppVersion=0.1.0 /DSourceExe=..\..\target\release\homepilot-agent.exe homepilot-agent.iss
+; 빌드: iscc /DAppVersion=0.1.0 /DSourceDir=..\..\target\release homepilot-agent.iss
 ;
 ; - 현재 사용자 범위 설치 (관리자 권한/UAC 불필요, 보안 설정 변경 없음)
 ; - "Windows 시작 시 자동 실행" 은 기본 해제 상태 → 사용자가 직접 체크해야 등록된다 (사전 동의)
@@ -8,8 +8,8 @@
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
-#ifndef SourceExe
-  #define SourceExe "..\..\target\release\homepilot-agent.exe"
+#ifndef SourceDir
+  #define SourceDir "..\..\target\release"
 #endif
 
 [Setup]
@@ -44,7 +44,9 @@ Name: "autostart"; Description: "Windows 로그인 시 HomePilot 자동 실행 (
 Name: "desktopicon"; Description: "바탕 화면 바로가기 만들기"; Flags: unchecked
 
 [Files]
-Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "homepilot-agent.exe"; Flags: ignoreversion
+Source: "{#SourceDir}\homepilot-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
+; 명령 프롬프트/PowerShell 용 (결과가 화면에 출력됨)
+Source: "{#SourceDir}\homepilot-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\HomePilot Remote"; Filename: "{app}\homepilot-agent.exe"
