@@ -46,12 +46,15 @@ for i in $(seq 1 60); do [ "$(grep -c '휴대폰용 중계 주소' "$WORK/agent.
 check "터널이 끊기면 자동 재시작 + 새 주소" '[ "$(grep -c "휴대폰용 중계 주소" "$WORK/agent.log")" -ge 2 ]'
 
 # 포트를 다른 프로그램이 쓰고 있어도 빈 포트로 자동 전환 (사용자 PC 에서 8443 충돌 사례)
-exec 3>&- 2>/dev/null; kill $AG_PID 2>/dev/null; sleep 0.5
-python3 -c "import socket,time;s=socket.socket();s.bind(('127.0.0.1',$PORT));s.listen();time.sleep(30)" & BLOCKER=$!; PIDS+=($BLOCKER); sleep 0.5
-: >"$WORK/agent2.log"
-"$A" run --headless >/dev/null 2>"$WORK/agent2.log" & A2=$!; PIDS+=($A2)
+exec 3>&- 2>/dev/null; kill $AG_PID 2>/dev/null
+for i in $(seq 1 50); do kill -0 $AG_PID 2>/dev/null || break; sleep 0.1; done
+BPORT=$((PORT + 1))
+python3 -c "import socket,time,sys;s=socket.socket();s.bind(('127.0.0.1',$BPORT));s.listen();open(sys.argv[1],'w').close();time.sleep(60)" "$WORK/blocker.ready" & PIDS+=($!)
+for i in $(seq 1 50); do [ -e "$WORK/blocker.ready" ] && break; sleep 0.1; done
+timeout 30 "$A" config --local-relay-port "$BPORT" >/dev/null
+"$A" run --headless >/dev/null 2>"$WORK/agent2.log" & PIDS+=($!)
 for i in $(seq 1 50); do grep -q "중계 서버 연결됨" "$WORK/agent2.log" && break; sleep 0.2; done
-check "포트 충돌 시 빈 포트로 자동 전환" 'grep -q "빈 포트를 자동으로 사용" "$WORK/agent2.log" && grep -q "중계 서버 연결됨" "$WORK/agent2.log"'
+check "포트 충돌 시 빈 포트로 자동 전환" '[ -e "$WORK/blocker.ready" ] && grep -q "빈 포트를 자동으로 사용" "$WORK/agent2.log" && grep -q "중계 서버 연결됨" "$WORK/agent2.log"'
 
 echo "결과: 성공 $PASS / 실패 $FAIL"
 [ $FAIL -eq 0 ] || { tail -30 "$WORK/agent.log"; exit 1; }
