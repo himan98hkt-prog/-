@@ -148,6 +148,29 @@ pub fn ask_files_permission(_client_name: &str) -> bool {
     false
 }
 
+/// PC 소리 전송은 Windows 전용 (WASAPI + Media Foundation AAC).
+pub struct LoopbackCapture;
+
+impl LoopbackCapture {
+    pub fn new() -> Result<Self> {
+        bail!("이 OS 에서는 소리 전송을 지원하지 않음")
+    }
+    pub fn read(&mut self, _out: &mut Vec<i16>) -> Result<()> {
+        Ok(())
+    }
+}
+
+pub struct AacEncoder;
+
+impl AacEncoder {
+    pub fn new() -> Result<Self> {
+        bail!("이 OS 에서는 AAC 를 지원하지 않음")
+    }
+    pub fn encode(&mut self, _pcm: &[i16]) -> Result<Vec<u8>> {
+        Ok(Vec::new())
+    }
+}
+
 /// H.264 압축은 Windows Media Foundation 전용. 다른 OS(개발·CI)에서는 JPEG 로 대체된다.
 pub struct H264Encoder;
 

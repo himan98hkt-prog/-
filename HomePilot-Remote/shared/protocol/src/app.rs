@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub const KIND_CONTROL: u8 = 0x01;
 pub const KIND_FRAME: u8 = 0x02;
 pub const KIND_VIDEO: u8 = 0x03;
+/// PC 소리: [0x04][캡처 시각 u64 LE][AAC-LC ADTS 프레임들] (48kHz 스테레오)
+pub const KIND_AUDIO: u8 = 0x04;
 /// 동영상 프레임 플래그: 키프레임(IDR, SPS/PPS 포함) — 디코더는 여기서부터 시작할 수 있다.
 pub const VIDEO_FLAG_KEY: u8 = 0x01;
 
@@ -72,6 +74,9 @@ pub enum ClientMsg {
     StopStream,
     /// 동영상 디코더가 처음 시작하거나 오류가 나면 키프레임을 요청한다.
     RequestKeyframe,
+    /// PC 소리 듣기 시작/중지 → AudioStarted / Error
+    StartAudio,
+    StopAudio,
     /// 프레임 수신 확인 (흐름 제어 + 지연 측정).
     FrameAck {
         frame_id: u32,
@@ -221,6 +226,12 @@ pub enum AgentMsg {
     Clipboard {
         text: String,
     },
+    /// 소리 전송 시작 (codec "aac", ADTS)
+    AudioStarted {
+        codec: String,
+        sample_rate: u32,
+        channels: u32,
+    },
     FsListing {
         path: String,
         /// 상위 폴더 (없으면 빈 문자열 = 처음 목록)
@@ -331,6 +342,14 @@ pub fn encode_video(h: &FrameHeader, key: bool, h264: &[u8]) -> Vec<u8> {
     v
 }
 
+pub fn encode_audio(captured_ms: u64, aac: &[u8]) -> Vec<u8> {
+    let mut v = Vec::with_capacity(9 + aac.len());
+    v.push(KIND_AUDIO);
+    v.extend_from_slice(&captured_ms.to_le_bytes());
+    v.extend_from_slice(aac);
+    v
+}
+
 /// 복호화된 응용 메시지.
 #[derive(Debug)]
 pub enum Decoded<'a, T> {
@@ -338,6 +357,8 @@ pub enum Decoded<'a, T> {
     Frame(FrameHeader, &'a [u8]),
     /// (헤더, 키프레임 여부, H.264 데이터)
     Video(FrameHeader, bool, &'a [u8]),
+    /// (캡처 시각, AAC ADTS)
+    Audio(u64, &'a [u8]),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -376,6 +397,12 @@ pub fn decode<'a, T: for<'de> Deserialize<'de>>(buf: &'a [u8]) -> Result<Decoded
             } else {
                 Ok(Decoded::Frame(h, &buf[FRAME_HEADER_LEN..]))
             }
+        }
+        Some(&KIND_AUDIO) => {
+            if buf.len() < 9 {
+                return Err(DecodeError::Truncated);
+            }
+            Ok(Decoded::Audio(u64::from_le_bytes(buf[1..9].try_into().unwrap()), &buf[9..]))
         }
         Some(&k) => Err(DecodeError::UnknownKind(k)),
     }
@@ -434,6 +461,19 @@ mod tests {
         }
         let b = encode_video(&h, false, &nal);
         assert!(matches!(decode::<AgentMsg>(&b).unwrap(), Decoded::Video(_, false, _)));
+    }
+
+    #[test]
+    fn audio_roundtrip() {
+        let b = encode_audio(42, &[0xFF, 0xF1, 1, 2]);
+        match decode::<AgentMsg>(&b).unwrap() {
+            Decoded::Audio(t, d) => {
+                assert_eq!(t, 42);
+                assert_eq!(d, &[0xFF, 0xF1, 1, 2]);
+            }
+            _ => panic!(),
+        }
+        assert!(matches!(decode::<AgentMsg>(&b[..5]), Err(DecodeError::Truncated)));
     }
 
     #[test]

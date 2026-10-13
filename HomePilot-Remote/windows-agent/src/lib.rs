@@ -16,6 +16,7 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 mod app;
+mod audio_stream;
 mod audit;
 mod config;
 mod console;

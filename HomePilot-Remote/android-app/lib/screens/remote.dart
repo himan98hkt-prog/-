@@ -30,6 +30,9 @@ class _RemoteScreenState extends State<RemoteScreen> {
   bool _decCreating = false;
   bool _videoShown = false; // 첫 동영상 프레임을 받았는지 (그 전에는 로딩 표시)
   String _codec = '';
+  // PC 소리 듣기
+  static const _audioCh = MethodChannel('homepilot/audio');
+  bool _sound = false;
   Size _frameSize = const Size(16, 9);
   int _monitor = 0;
   late int _quality = store.qualityIndex;
@@ -92,6 +95,10 @@ class _RemoteScreenState extends State<RemoteScreen> {
     _sub?.cancel();
     if (_buttonDown) c.send(Msg.mouseButton('left', false));
     c.send(Msg.stopStream);
+    if (_sound) {
+      c.send(Msg.stopAudio);
+      _audioCh.invokeMethod('stop');
+    }
     _dec?.dispose();
     _keyInput.dispose();
     _keyFocus.dispose();
@@ -132,8 +139,22 @@ class _RemoteScreenState extends State<RemoteScreen> {
     }
   }
 
+  Future<void> _toggleSound() async {
+    final on = !_sound;
+    setState(() => _sound = on);
+    if (on) {
+      await _audioCh.invokeMethod('start');
+      c.send(Msg.startAudio);
+    } else {
+      c.send(Msg.stopAudio);
+      await _audioCh.invokeMethod('stop');
+    }
+  }
+
   void _onEvent(AgentEvent e) {
-    if (e is VideoEvent) {
+    if (e is AudioEvent) {
+      if (_sound) _audioCh.invokeMethod('feed', e.aac);
+    } else if (e is VideoEvent) {
       _onVideo(e);
     } else if (e is FrameEvent) {
       c.send(Msg.frameAck(e.header.frameId));
@@ -515,6 +536,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
             btn(Icons.keyboard_outlined, '키보드', () => _showKeys ? setState(() => _showKeys = false) : _openKeyboard(), on: _showKeys),
             btn(Icons.content_paste, '클립보드', _clipboardMenu),
           ],
+          btn(_sound ? Icons.volume_up : Icons.volume_off_outlined, _sound ? 'PC 소리 끄기' : 'PC 소리 듣기', _toggleSound, on: _sound),
           btn(Icons.zoom_out_map, '화면 맞춤', () => setState(view.reset)),
           btn(Icons.tune, '화질·모니터', _settings),
         ],

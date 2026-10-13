@@ -91,7 +91,7 @@ fn decode_client(opener: &mut Opener, ct: &[u8]) -> Result<ClientMsg> {
     let pt = opener.open(ct)?;
     match proto::decode::<ClientMsg>(&pt)? {
         Decoded::Control(m) => Ok(m),
-        Decoded::Frame(..) | Decoded::Video(..) => bail!("클라이언트는 프레임을 보낼 수 없음"),
+        Decoded::Frame(..) | Decoded::Video(..) | Decoded::Audio(..) => bail!("클라이언트는 화면·소리를 보낼 수 없음"),
     }
 }
 
@@ -268,6 +268,7 @@ async fn serve(
     let mut uploads: HashMap<u32, files::Upload> = HashMap::new();
     let mut downloads: HashMap<u32, (Arc<tokio::sync::Semaphore>, tokio::task::AbortHandle)> = HashMap::new();
     let (file_tx, mut file_rx) = mpsc::channel::<AgentMsg>(8);
+    let mut audio: Option<crate::audio_stream::AudioHandle> = None;
     let mut current: MonitorInfo =
         monitors.iter().find(|m| m.primary).or(monitors.first()).cloned().ok_or_else(|| anyhow!("모니터를 찾을 수 없음"))?;
     let mut input = Input::new();
@@ -305,6 +306,15 @@ async fn serve(
                     wire.send_plain(&frame).await?;
                 } else {
                     pending = Some(frame); // 최신 프레임만 보관
+                }
+            }
+            pkt = async { audio.as_mut().unwrap().packets.recv().await }, if audio.is_some() => {
+                match pkt {
+                    Some(p) => {
+                        tracing::debug!(len = p.len(), "소리 묶음 전달");
+                        wire.send_plain(&p).await?
+                    }
+                    None => audio = None,
                 }
             }
             Some(m) = file_rx.recv() => {
@@ -464,6 +474,19 @@ async fn serve(
                             u.abort();
                         }
                     }
+
+                    ClientMsg::StartAudio => {
+                        audio = None;
+                        match tokio::task::block_in_place(crate::audio_stream::start) {
+                            Ok(h) => {
+                                audio = Some(h);
+                                tracing::info!("소리 전송 시작");
+                                wire.send(&AgentMsg::AudioStarted { codec: "aac".into(), sample_rate: 48_000, channels: 2 }).await?;
+                            }
+                            Err(e) => wire.send(&AgentMsg::Error { code: "audio".into(), message: format!("{e:#}") }).await?,
+                        }
+                    }
+                    ClientMsg::StopAudio => audio = None,
 
                     ClientMsg::RequestKeyframe => {
                         if let Some(s) = &stream {

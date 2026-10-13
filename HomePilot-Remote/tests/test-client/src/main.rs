@@ -119,6 +119,13 @@ enum Cmd {
     Put {
         file: PathBuf,
     },
+    /// PC 소리 받기 → AAC(ADTS) 파일로 저장 (일반 재생기로 들을 수 있음)
+    Audio {
+        #[arg(long, default_value_t = 5)]
+        secs: u64,
+        #[arg(long)]
+        out: PathBuf,
+    },
 }
 
 fn load_or_create_key(path: &PathBuf) -> Result<StaticKeypair> {
@@ -164,6 +171,7 @@ impl Conn {
                         Decoded::Control(c) => Received::Msg(c),
                         Decoded::Frame(h, data) => Received::Frame(h, data.to_vec()),
                         Decoded::Video(h, _key, data) => Received::Frame(h, data.to_vec()),
+                        Decoded::Audio(_, data) => Received::Audio(data.to_vec()),
                     });
                 }
                 Message::Text(t) => {
@@ -191,6 +199,7 @@ impl Conn {
 
 enum Received {
     Msg(AgentMsg),
+    Audio(Vec<u8>),
     Frame(FrameHeader, Vec<u8>),
 }
 
@@ -243,7 +252,7 @@ async fn connect(cli: &Cli, kp: &StaticKeypair) -> Result<Conn> {
             }
             Received::Msg(AgentMsg::Denied { reason }) => bail!("접속 거부: {reason}"),
             Received::Msg(other) => eprintln!("예상하지 못한 메시지: {other:?}"),
-            Received::Frame(..) => {}
+            Received::Frame(..) | Received::Audio(..) => {}
         }
     }
 }
@@ -295,7 +304,7 @@ async fn main() -> Result<()> {
                         break;
                     }
                     Received::Msg(AgentMsg::Error { message, .. }) => bail!("{message}"),
-                    Received::Msg(_) => {}
+                    Received::Msg(_) | Received::Audio(_) => {}
                 }
             }
             c.send(&ClientMsg::StopStream).await?;
@@ -325,7 +334,7 @@ async fn main() -> Result<()> {
                     Received::Msg(AgentMsg::StreamStarted { codec, width, height, .. }) => {
                         eprintln!("전송 방식: {} ({width}x{height})", if codec.is_empty() { "jpeg" } else { &codec });
                     }
-                    Received::Msg(_) => {}
+                    Received::Msg(_) | Received::Audio(_) => {}
                 }
             }
             c.send(&ClientMsg::StopStream).await?;
@@ -373,6 +382,33 @@ async fn main() -> Result<()> {
                     _ => {}
                 }
             }
+        }
+        Cmd::Audio { secs, out } => {
+            c.send(&ClientMsg::StartAudio).await?;
+            let t0 = Instant::now();
+            let mut data = Vec::new();
+            let mut packets = 0u32;
+            // 소리가 나지 않는 동안 PC 는 아무것도 보내지 않으므로, 정한 시간이 지나면 그냥 끝낸다.
+            while let Some(left) = Duration::from_secs(*secs).checked_sub(t0.elapsed()) {
+                let Ok(r) = tokio::time::timeout(left, c.recv(Duration::from_secs(3600))).await else { break };
+                match r {
+                    Ok(Received::Audio(a)) => {
+                        packets += 1;
+                        data.extend_from_slice(&a);
+                    }
+                    Ok(Received::Msg(AgentMsg::AudioStarted { codec, sample_rate, channels })) => {
+                        eprintln!("소리 시작: {codec} {sample_rate}Hz {channels}ch")
+                    }
+                    Ok(Received::Msg(AgentMsg::Error { message, .. })) => bail!("{message}"),
+                    Ok(Received::Msg(m)) => eprintln!("기타 메시지: {m:?}"),
+                    Ok(Received::Frame(..)) => eprintln!("화면 프레임"),
+                    Err(e) => bail!("{e:#} (받은 소리 묶음 {packets})"),
+                }
+            }
+            c.send(&ClientMsg::StopAudio).await?;
+            std::fs::write(out, &data)?;
+            let s = t0.elapsed().as_secs_f64();
+            println!("소리 {packets} 묶음, {} 바이트, {:.0} kbps → {}", data.len(), data.len() as f64 * 8.0 / s / 1000.0, out.display());
         }
         Cmd::ClipSet { text } => c.send(&ClientMsg::ClipboardSet { text: text.clone(), paste: false }).await?,
         Cmd::Ls { path } => {

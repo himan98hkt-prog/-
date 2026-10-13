@@ -120,3 +120,16 @@ PC: Windows Media Foundation 내장 H.264 인코더 (Baseline, 저지연, CBR). 
 | 9 | 휴대폰→PC 큰 조각이 중계에서 끊김 | **실패 → 수정** | 중계의 휴대폰 메시지 한도 64KB → 1MB |
 
 시험 파일은 시험 후 PC·휴대폰 양쪽에서 삭제.
+## H. PC 소리 전송 실기 (2026-10-13)
+
+PC: WASAPI 루프백(스피커로 나오는 소리) → Media Foundation 내장 AAC-LC 128kbps(ADTS). 휴대폰: MediaCodec AAC → AudioTrack(저지연).
+
+| # | 항목 | 결과 | 비고 |
+|---|---|---|---|
+| 1 | 실제 AAC 인코더 단위 테스트 | 성공 | ADTS 동기 신호, 1초 약 16KB |
+| 2 | 루프백 캡처 진단 (440Hz 시험음 재생) | 성공 | 48kHz 스테레오 float, 3초 중 2.6초 분량 캡처 |
+| 3 | hp-cli 로 PC 소리 받기 | 성공 | 154 묶음, 첫 바이트 FF F1 (AAC ADTS) |
+| 4 | **Galaxy Z Flip4 재생** | **성공** | 소리 켜기 → AudioTrack 시작, 2초간 95,424 프레임 출력 확인 (AudioFlinger) |
+| 5 | 소리가 없을 때 | 정상 | Windows 가 데이터를 주지 않아 전송량 0 |
+
+참고: 시험 당시 휴대폰 미디어 볼륨이 0 이라 사람 귀로는 확인하지 않음 (시스템 수치로 확인).

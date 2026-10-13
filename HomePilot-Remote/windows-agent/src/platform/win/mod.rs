@@ -10,11 +10,13 @@
 //! UAC 확인창·잠금 화면(보안 데스크톱)은 캡처/입력되지 않으며,
 //! 관리자 권한으로 실행된 창에는 일반 권한 에이전트가 입력할 수 없다(UIPI).
 
+mod audio;
 mod capture;
 mod h264;
 mod sys;
 mod ui;
 
+pub use audio::{AacEncoder, LoopbackCapture};
 pub use capture::{list_monitors, Capturer};
 pub use h264::H264Encoder;
 pub use sys::*;

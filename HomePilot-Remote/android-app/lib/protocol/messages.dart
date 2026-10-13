@@ -8,6 +8,7 @@ const protocolVersion = 1;
 const kindControl = 0x01;
 const kindFrame = 0x02;
 const kindVideo = 0x03; // 헤더 뒤 플래그 1바이트 + H.264 Annex-B
+const kindAudio = 0x04; // 캡처 시각 u64 + AAC ADTS
 const _frameHeaderLen = 30; // 종류 1 + 헤더 29
 
 Uint8List encodeControl(Map<String, Object?> msg) => Uint8List.fromList([kindControl, ...utf8.encode(jsonEncode(msg))]);
@@ -42,9 +43,18 @@ class VideoEvent extends AgentEvent {
   VideoEvent(this.header, this.key, this.data);
 }
 
+/// PC 소리 (AAC ADTS 프레임들)
+class AudioEvent extends AgentEvent {
+  final Uint8List aac;
+  AudioEvent(this.aac);
+}
+
 AgentEvent decodeAgentMessage(Uint8List pt) {
   if (pt.isEmpty) throw const FormatException('빈 메시지');
   switch (pt[0]) {
+    case kindAudio:
+      if (pt.length < 9) throw const FormatException('소리 헤더 잘림');
+      return AudioEvent(Uint8List.sublistView(pt, 9));
     case kindControl:
       return ControlEvent(jsonDecode(utf8.decode(pt.sublist(1))) as Map<String, dynamic>);
     case kindFrame || kindVideo:
@@ -88,6 +98,8 @@ class Msg {
   };
   static const stopStream = {'type': 'stop_stream'};
   static const requestKeyframe = {'type': 'request_keyframe'};
+  static const startAudio = {'type': 'start_audio'};
+  static const stopAudio = {'type': 'stop_audio'};
   static Map<String, Object?> frameAck(int id) => {'type': 'frame_ack', 'frame_id': id};
   static Map<String, Object?> mouseMove(double x, double y) => {'type': 'mouse_move', 'x': x, 'y': y};
   static Map<String, Object?> mouseButton(String button, bool down) => {'type': 'mouse_button', 'button': button, 'down': down};

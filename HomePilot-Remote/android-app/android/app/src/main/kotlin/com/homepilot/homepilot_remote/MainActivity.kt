@@ -10,6 +10,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val decoders = HashMap<Long, VideoDecoder>()
     private val files by lazy { FileBridge(this) }
+    private val audio by lazy { AudioPlayer() }
 
     @Deprecated("startActivityForResult 결과 (파일 고르기)")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -22,6 +23,18 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "homepilot/files").setMethodCallHandler(files::handle)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "homepilot/audio").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> audio.start()
+                "feed" -> audio.feed(call.arguments as ByteArray)
+                "stop" -> audio.stop()
+                else -> {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+            }
+            result.success(null)
+        }
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "homepilot/video")
         ch.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -61,6 +74,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         decoders.values.forEach { it.release() }
         decoders.clear()
+        audio.release()
         super.onDestroy()
     }
 }
