@@ -1,0 +1,15 @@
+[package]
+name = "homepilot-protocol"
+description = "HomePilot Remote 공용 통신 프로토콜: 메시지 정의 + 종단간 암호화(Noise XX)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+base64.workspace = true
+snow = { version = "0.9", features = ["risky-raw-split"] }
+chacha20poly1305 = "0.10"
+sha2 = "0.10"

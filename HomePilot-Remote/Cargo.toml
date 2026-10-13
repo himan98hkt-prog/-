@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = [
+    "shared/protocol",
+    "windows-agent",
+    "server",
+    "tests/test-client",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-Proprietary"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "signal"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+base64 = "0.22"
+rand = "0.8"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

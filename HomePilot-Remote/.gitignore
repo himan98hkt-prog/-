@@ -1,0 +1,6 @@
+/target
+*.pdb
+/releases/*
+!/releases/README.md
+/android-app/build
+/android-app/.dart_tool

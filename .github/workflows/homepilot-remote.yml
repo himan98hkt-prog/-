@@ -1,0 +1,75 @@
+name: HomePilot Remote
+
+# HomePilot-Remote 폴더가 바뀔 때만 실행 (기존 학원 관리노트 CI 와 분리)
+on:
+  push:
+    branches: [main]
+    paths: ["HomePilot-Remote/**", ".github/workflows/homepilot-remote.yml"]
+  pull_request:
+    paths: ["HomePilot-Remote/**", ".github/workflows/homepilot-remote.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: homepilot-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: HomePilot-Remote
+
+jobs:
+  linux:
+    name: Linux · 단위 + 종단간 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: HomePilot-Remote
+      - name: 형식 검사
+        run: cargo fmt --all -- --check
+      - name: 정적 분석
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: 단위 테스트
+        run: cargo test --workspace
+      - name: 종단간 테스트 (테스트 화면 모드)
+        run: cargo build --workspace && bash tests/e2e.sh
+
+  windows:
+    name: Windows · 실제 화면 캡처/입력 + 설치 파일
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: HomePilot-Remote
+      - name: 단위 테스트
+        run: cargo test --workspace
+      - name: 정적 분석 (Windows 전용 코드 포함)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: 릴리스 빌드
+        run: cargo build --release --workspace
+      - name: 종단간 테스트 (실제 Windows 화면)
+        shell: bash
+        env:
+          E2E_ARTIFACTS: ${{ github.workspace }}/HomePilot-Remote/releases/e2e-windows
+        run: bash tests/e2e.sh target/release
+      - name: 설치 프로그램 빌드 (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          & $iscc "/DAppVersion=$ver" "/DSourceExe=..\..\target\release\homepilot-agent.exe" windows-agent\installer\homepilot-agent.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item target\release\homepilot-agent.exe, target\release\homepilot-relay.exe, target\release\hp-cli.exe releases\
+      - name: 결과물 업로드
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: homepilot-windows
+          path: |
+            HomePilot-Remote/releases/*.exe
+            HomePilot-Remote/releases/e2e-windows/
