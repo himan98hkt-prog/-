@@ -11,7 +11,7 @@
 - ✅ 출시용 AAB 빌드 (Pro 제한 켬):
   `flutter build appbundle --release --dart-define=ENFORCE_PRO=true`
   → android-app/build/app/outputs/bundle/release/app-release.aab (업로드 키 서명 확인)
-- ✅ Windows 설치 파일: releases/HomePilot-Agent-Setup-0.2.0.exe (Inno Setup, 관리자 권한 불필요)
+- ✅ Windows 설치 파일: releases/HomePilot-Agent-Setup-0.3.0.exe (Inno Setup, 관리자 권한 불필요)
 - ✅ 등록 정보·개인정보처리방침·데이터 보안 답변 초안 (docs/store/)
 
 ## 사용자가 할 일 (순서대로)

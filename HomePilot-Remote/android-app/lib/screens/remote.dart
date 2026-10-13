@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../billing.dart';
 import '../protocol/connection.dart';
 import '../protocol/messages.dart';
 import '../store.dart';
 import '../video.dart';
+import 'game_pad.dart';
 import 'pro.dart';
 import 'view_math.dart';
 
@@ -41,6 +43,10 @@ class _RemoteScreenState extends State<RemoteScreen> {
   bool _dragLock = false; // 다음 손가락 이동을 왼쪽 버튼 누른 채로
   bool _scrollMode = false;
   bool _showKeys = false;
+  // 게임 키패드 (null = 꺼짐)
+  int? _pad;
+  double _padOpacity = store.padOpacity;
+  double _padSens = store.padSensitivity;
 
   // 보기 확대/이동
   final view = ViewTransform();
@@ -107,6 +113,8 @@ class _RemoteScreenState extends State<RemoteScreen> {
   }
 
   Future<void> _start() async {
+    // Pro 가 끝났거나 기본 화질을 Pro 화질로 골라 둔 경우 '보통' 으로
+    if (Quality.isPro(_quality) && !billing.isPro) _quality = Quality.defaultIndex;
     final q = Quality.presets[_quality];
     // 동영상(H.264)은 데이터를 1/10 이하로 쓰고 더 부드럽다. 휴대폰이 지원하지 않으면 JPEG.
     final h264 = store.videoEnabled && await H264Decoder.supported();
@@ -337,8 +345,8 @@ class _RemoteScreenState extends State<RemoteScreen> {
                 title: Text(Quality.presets[i].label),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  // '선명' (원본 해상도·30fps) 은 Pro
-                  if (i == Quality.presets.length - 1 && !await ProScreen.require(context, '선명 화질')) return;
+                  // '선명' (원본 해상도·30fps)·'게임' (60fps) 은 Pro
+                  if (Quality.isPro(i) && !await ProScreen.require(context, Quality.presets[i].label)) return;
                   setState(() => _quality = i);
                   _start();
                 },
@@ -388,7 +396,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
                 builder: (ctx, cons) {
                   final box = Size(cons.maxWidth, cons.maxHeight);
                   final img = view.imageRect(box, _frameSize);
-                  return GestureDetector(
+                  final screen = GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapUp: canControl ? (d) => _onTapUp(d, box) : null,
                     onLongPressStart: canControl ? (d) => _onLongPress(d, box) : null,
@@ -429,6 +437,16 @@ class _RemoteScreenState extends State<RemoteScreen> {
                         ],
                       ),
                     ),
+                  );
+                  if (_pad == null || !canControl) return screen;
+                  // 키패드를 화면 위에 겹친다. 키패드 버튼이 아닌 곳의 터치는 아래 화면으로 간다.
+                  return Stack(
+                    children: [
+                      Positioned.fill(child: screen),
+                      Positioned.fill(
+                        child: GamePadOverlay(layout: PadLayout.presets[_pad!], opacity: _padOpacity, sensitivity: _padSens, send: c.send),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -539,11 +557,85 @@ class _RemoteScreenState extends State<RemoteScreen> {
             btn(Icons.swap_vert, '스크롤 모드', () => setState(() => _scrollMode = !_scrollMode), on: _scrollMode),
             btn(Icons.keyboard_outlined, '키보드', () => _showKeys ? setState(() => _showKeys = false) : _openKeyboard(), on: _showKeys),
             btn(Icons.content_paste, '클립보드', _clipboardMenu),
+            btn(Icons.sports_esports_outlined, '게임 키패드', _gamePadMenu, on: _pad != null),
           ],
           btn(_sound ? Icons.volume_up : Icons.volume_off_outlined, _sound ? 'PC 소리 끄기' : 'PC 소리 듣기', _toggleSound, on: _sound),
           btn(Icons.zoom_out_map, '화면 맞춤', () => setState(view.reset)),
           btn(Icons.tune, '화질·모니터', _settings),
         ],
+      ),
+    );
+  }
+
+  /// 게임 키패드: 종류·투명도·시점 감도 고르기
+  Future<void> _gamePadMenu() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) {
+          void update(VoidCallback f) {
+            set(f);
+            setState(() {});
+          }
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const ListTile(
+                    title: Text('게임 키패드', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('버튼을 누르는 동안 PC 키가 눌린 상태로 유지됩니다'),
+                  ),
+                  for (var i = 0; i < PadLayout.presets.length; i++)
+                    ListTile(
+                      leading: Icon(i == _pad ? Icons.radio_button_checked : Icons.radio_button_off),
+                      title: Text(PadLayout.presets[i].name),
+                      subtitle: Text(PadLayout.presets[i].desc),
+                      onTap: () {
+                        update(() => _pad = i);
+                        store.setPadLayout(i);
+                        Navigator.pop(ctx);
+                        if (Quality.presets[_quality].maxFps < 60) {
+                          _toast('팁: 화질(⚙)을 "게임 (60fps)" 로 바꾸면 더 부드럽습니다');
+                        }
+                      },
+                    ),
+                  ListTile(
+                    leading: Icon(_pad == null ? Icons.radio_button_checked : Icons.radio_button_off),
+                    title: const Text('끄기'),
+                    onTap: () {
+                      update(() => _pad = null);
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    title: const Text('투명도'),
+                    subtitle: Slider(
+                      value: _padOpacity,
+                      min: 0.2,
+                      max: 1,
+                      onChanged: (v) => update(() => _padOpacity = v),
+                      onChangeEnd: store.setPadOpacity,
+                    ),
+                  ),
+                  ListTile(
+                    title: Text('시점 감도 (FPS)  ×${_padSens.toStringAsFixed(1)}'),
+                    subtitle: Slider(
+                      value: _padSens,
+                      min: 0.3,
+                      max: 5,
+                      onChanged: (v) => update(() => _padSens = v),
+                      onChangeEnd: store.setPadSensitivity,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

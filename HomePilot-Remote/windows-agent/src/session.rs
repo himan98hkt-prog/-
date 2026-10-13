@@ -363,7 +363,16 @@ async fn serve(
             ct = inbox.recv() => {
                 let Some(ct) = ct else { return Ok("휴대폰 연결 끊김".into()) };
                 last_rx = Instant::now();
-                let msg = decode_client(opener, &ct)?;
+                // 이 PC 프로그램이 모르는 메시지(앱이 더 최신)는 세션을 끊지 않고 무시한다
+                let pt = opener.open(&ct)?;
+                let msg = match proto::decode::<ClientMsg>(&pt) {
+                    Ok(Decoded::Control(m)) => m,
+                    Ok(_) => bail!("클라이언트는 화면·소리를 보낼 수 없음"),
+                    Err(e) => {
+                        tracing::warn!("알 수 없는 메시지 무시 (휴대폰 앱이 더 최신일 수 있음): {e}");
+                        continue;
+                    }
+                };
                 match msg {
                     ClientMsg::Hello { .. } => {}
                     ClientMsg::Ping { t } => wire.send(&AgentMsg::Pong { t }).await?,

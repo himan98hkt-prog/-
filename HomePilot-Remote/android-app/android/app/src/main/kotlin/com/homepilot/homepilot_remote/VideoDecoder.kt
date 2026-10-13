@@ -63,7 +63,8 @@ class VideoDecoder(
 
     fun release() = h.post {
         stop()
-        producer.release()
+        // Flutter 텍스처 해제는 반드시 메인 스레드에서 (다른 스레드에서 하면 앱이 종료됨)
+        main.post { producer.release() }
         thread.quitSafely()
     }
 

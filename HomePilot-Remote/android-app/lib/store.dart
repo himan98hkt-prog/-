@@ -65,8 +65,17 @@ class Quality {
   const Quality(this.label, this.quality, this.scalePct, this.maxFps);
   // 실기 측정(Cloudflare 터널 경유): 50% 크기 15fps ≈ 6 Mbps, 100% 크기 27fps ≈ 39 Mbps.
   // 예전 기본값(45%·40%·8fps)은 PC 글씨를 읽을 수 없어 기본을 '보통'으로 올렸다.
-  static const presets = [Quality('절약 (모바일 데이터)', 50, 50, 10), Quality('보통', 65, 70, 20), Quality('선명 (Wi-Fi)', 80, 100, 30)];
+  // 게임: DXGI 캡처 + H.264 로 실측 54fps (터널 경유, 1080p 원본 70% 크기).
+  static const presets = [
+    Quality('절약 (모바일 데이터)', 50, 50, 10),
+    Quality('보통', 65, 70, 20),
+    Quality('선명 (Wi-Fi)', 80, 100, 30),
+    Quality('게임 (60fps, Wi-Fi)', 65, 70, 60),
+  ];
   static const defaultIndex = 1;
+
+  /// '선명'·'게임' 은 Pro 기능
+  static bool isPro(int i) => i >= 2;
 }
 
 class AppStore {
@@ -109,6 +118,14 @@ class AppStore {
 
   int get qualityIndex => (_prefs.getInt(_qualityKey) ?? Quality.defaultIndex).clamp(0, Quality.presets.length - 1);
   Future<void> setQualityIndex(int i) => _prefs.setInt(_qualityKey, i);
+
+  // 게임 키패드
+  int get padLayout => _prefs.getInt('pad_layout') ?? 0;
+  Future<void> setPadLayout(int i) => _prefs.setInt('pad_layout', i);
+  double get padOpacity => _prefs.getDouble('pad_opacity') ?? 0.6;
+  Future<void> setPadOpacity(double v) => _prefs.setDouble('pad_opacity', v);
+  double get padSensitivity => _prefs.getDouble('pad_sens') ?? 1.5;
+  Future<void> setPadSensitivity(double v) => _prefs.setDouble('pad_sens', v);
 
   /// 휴대폰 고유 키. Android Keystore 로 보호되는 보안 저장소에 둔다.
   Future<StaticKeys> keys() async {

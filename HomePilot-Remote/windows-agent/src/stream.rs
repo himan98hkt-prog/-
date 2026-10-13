@@ -138,6 +138,7 @@ pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
             let needs_refine = p.scale_pct < 100 || p.quality < REFINE_QUALITY;
             // H.264: 화면이 멈춘 뒤에도 몇 장 더 넣어 화질이 또렷해지게 한다
             let mut idle_feed = 0u32;
+            let mut tick = 0u32; // 시험 화면 움직임용
             let mut enc: Option<H264Encoder> = None;
             let mut ready_tx = Some(ready_tx);
 
@@ -157,7 +158,8 @@ pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
                     }
                 }
                 let shot = if test_pattern {
-                    fill_test_pattern(&mut raw, mon.width, mon.height, frame_id);
+                    tick = tick.wrapping_add(1);
+                    fill_test_pattern(&mut raw, mon.width, mon.height, tick);
                     Ok(())
                 } else {
                     cap.as_mut().unwrap().capture(&mut raw)

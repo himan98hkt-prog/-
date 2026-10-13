@@ -108,6 +108,8 @@ class Msg {
     'button': button,
     'double': double,
   };
+  static Map<String, Object?> mouseDelta(int dx, int dy) => {'type': 'mouse_delta', 'dx': dx, 'dy': dy};
+  static Map<String, Object?> key(String key, bool down) => {'type': 'key', 'key': key, 'down': down};
   static Map<String, Object?> wheel(double dx, double dy) => {'type': 'wheel', 'dx': dx, 'dy': dy};
   static Map<String, Object?> keyText(String text) => {'type': 'key_text', 'text': text};
   static Map<String, Object?> keyCombo(List<String> keys) => {'type': 'key_combo', 'keys': keys};

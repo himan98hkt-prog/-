@@ -168,7 +168,7 @@ impl Capturer {
             }
             Err(e) => {
                 tracing::info!("DXGI 캡처 사용 불가 → GDI: {e:#}");
-                self.retry_at = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                self.retry_at = std::time::Instant::now() + std::time::Duration::from_secs(1);
             }
         }
     }
