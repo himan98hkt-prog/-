@@ -423,7 +423,11 @@ unsafe extern "system" fn overlay_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPA
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, COLORREF(0x00FFFFFF));
             let mut text: Vec<u16> = g().overlay_text.lock().unwrap().encode_utf16().collect();
-            DrawTextW(hdc, &mut text, &mut rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            // 빈 Vec 의 포인터는 가짜 주소(0x2)라 DrawTextW 가 USER32 안에서 접근 위반으로 죽는다.
+            // (창이 숨겨져 있어도 생성 직후 WM_PAINT 가 온다 — 사용자 PC 에서 실제 발생)
+            if !text.is_empty() {
+                DrawTextW(hdc, &mut text, &mut rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            }
             SelectObject(hdc, old);
             let _ = DeleteObject(font);
             let _ = EndPaint(hwnd, &ps);

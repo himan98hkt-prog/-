@@ -130,3 +130,6 @@ pub struct InstanceGuard;
 pub fn single_instance() -> Option<InstanceGuard> {
     Some(InstanceGuard)
 }
+
+/// 하위 프로세스를 에이전트 수명에 묶기 (Windows 전용, 여기서는 아무것도 하지 않음).
+pub fn bind_child_to_agent(_child: &tokio::process::Child) {}

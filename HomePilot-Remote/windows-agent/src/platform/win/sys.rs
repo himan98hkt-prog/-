@@ -52,6 +52,41 @@ pub fn single_instance() -> Option<InstanceGuard> {
     }
 }
 
+// ---------- 하위 프로세스 수명 ----------
+
+/// cloudflared 같은 하위 프로세스를 에이전트와 같은 작업 개체에 넣는다.
+/// kill_on_drop 은 정상 종료 때만 동작하므로, 에이전트가 비정상 종료·taskkill 로 꺼지면
+/// cloudflared 가 혼자 남아 있었다 (사용자 PC 에서 실제 발생). 작업 개체 핸들은 프로세스가
+/// 끝날 때 운영체제가 닫고, KILL_ON_JOB_CLOSE 로 묶인 프로세스도 함께 끝난다.
+pub fn bind_child_to_agent(child: &tokio::process::Child) {
+    use std::sync::OnceLock;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::JobObjects::*;
+    static JOB: OnceLock<Option<isize>> = OnceLock::new();
+    let job = JOB.get_or_init(|| unsafe {
+        let job = CreateJobObjectW(None, None).ok()?;
+        let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            &info as *const _ as *const core::ffi::c_void,
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        )
+        .ok()?;
+        Some(job.0 as isize)
+    });
+    let (Some(job), Some(h)) = (job, child.raw_handle()) else {
+        tracing::warn!("하위 프로세스를 작업 개체에 넣지 못했습니다 (에이전트 비정상 종료 시 남을 수 있음)");
+        return;
+    };
+    unsafe {
+        if let Err(e) = AssignProcessToJobObject(HANDLE(*job as *mut core::ffi::c_void), HANDLE(h)) {
+            tracing::warn!("작업 개체 등록 실패: {e}");
+        }
+    }
+}
+
 // ---------- DPAPI ----------
 
 fn blob(data: &[u8]) -> CRYPT_INTEGER_BLOB {

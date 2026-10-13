@@ -94,6 +94,7 @@ pub async fn run_quick_tunnel(shared: Arc<Shared>, port: u16) {
                 shared.set_public_url(None, Some("cloudflared 가 설치되어 있지 않습니다".into()));
             }
             Ok(mut child) => {
+                crate::platform::bind_child_to_agent(&child);
                 tracing::info!("Cloudflare 터널 시작 ({})", path.display());
                 shared.set_public_url(None, Some("터널 주소 받는 중…".into()));
                 if let Some(err) = child.stderr.take() {

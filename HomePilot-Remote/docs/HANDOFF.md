@@ -8,12 +8,13 @@
 | Windows 에이전트 (Rust) | 구현 완료. GitHub Windows 러너 실제 환경 종단간 26/26 성공 |
 | 내장 중계 + Cloudflare 빠른 터널 | 0.1.1 부터 기본값. 포트 충돌 시 빈 포트 자동 선택 |
 | Android 앱 (Flutter) | 1차 완료. APK/AAB 는 CI 빌드. **실제 휴대폰 미검증** |
-| 사용자 PC 실기 | **진행 중** — 아래 "열린 문제" 참고 |
+| 사용자 PC 실기 | **진행 중** — 터널 경유 hp-cli 접속·캡처·스트리밍 성공 (`TEST-RESULTS.md` C). 실제 휴대폰 미검증 |
 
 ## 2. 열린 문제 (사용자 PC 에서 발견)
-1. **포트 8443 충돌** — 사용자 PC 에서 다른 프로그램이 8443 사용 → 0.1.0 에이전트가 시작 직후 오류창 후 종료.
-   → 0.1.1 에서 자동으로 빈 포트 사용하도록 수정함 (`windows-agent/src/home_relay.rs::start_local_relay`). **실기 재확인 필요.**
-   → 0.1.0 임시 우회: `homepilot-agent.exe config --local-relay-port 18443` 후 재실행
+1. ~~포트 8443 충돌~~ — 원인은 0.1.0 중복 실행(0.1.1 중복 실행 방지로 해결, 실기 확인).
+   0.1.1 원본은 표시줄 `DrawTextW` 접근 위반으로 시작 직후 종료 → 수정·실기 확인 (`ERRORS.md`).
+   cloudflared 가 에이전트 비정상 종료 후 남던 문제도 작업 개체로 수정·실기 확인.
+   **사용자 PC 에 설치된 것은 아직 0.1.0** (자동 실행 등록이 설치본을 가리킴) → 새 설치 파일로 교체 필요.
 2. `homepilot-agent.exe <명령> | Out-Host` 출력이 PowerShell 에서 한글 깨짐 → 0.1.1 의 `homepilot-cli.exe` 사용 (콘솔 프로그램)
 3. 아직 확인 못 한 것: 실제 휴대폰 연결, 한글 입력·클릭(SendInput), 실제 fps, Cloudflare 터널 경유, 긴급 차단 단축키, 설치 프로그램 제거 동작
 
