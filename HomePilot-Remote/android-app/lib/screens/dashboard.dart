@@ -6,6 +6,7 @@ import '../file_transfer.dart';
 import '../protocol/connection.dart';
 import '../protocol/messages.dart';
 import '../store.dart';
+import 'ai.dart';
 import 'common.dart';
 import 'files.dart';
 import 'remote.dart';
@@ -194,11 +195,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             Card(
               child: Column(
                 children: [
-                  const ListTile(
-                    enabled: false,
-                    leading: Icon(Icons.smart_toy_outlined),
-                    title: Text('AI 프로그램 관리'),
-                    subtitle: Text('다음 단계(Phase 4)에서 제공 예정'),
+                  ListTile(
+                    enabled: online,
+                    leading: const Icon(Icons.smart_toy_outlined),
+                    title: const Text('AI 작업'),
+                    subtitle: const Text('PC 의 Claude Code·Ollama 에 일 시키기 (앱을 닫아도 계속 실행)'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AiScreen(conn: _conn!, pcName: widget.pc.name))),
                   ),
                   ListTile(
                     enabled: online,

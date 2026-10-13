@@ -87,6 +87,29 @@ async fn ensure_files_permission(shared: &Arc<Shared>, perms: &mut Permissions, 
     ok
 }
 
+/// AI 작업 권한이 없으면 PC 화면에서 한 번 묻고, 허용하면 이 휴대폰에 기억한다.
+async fn ensure_ai_permission(shared: &Arc<Shared>, perms: &mut Permissions, who: &Who) -> bool {
+    if perms.apps {
+        return true;
+    }
+    if shared.files_asking.swap(true, Ordering::SeqCst) {
+        return false;
+    }
+    let name = who.name.clone();
+    let ok = tokio::task::spawn_blocking(move || platform::ask_ai_permission(&name)).await.unwrap_or(false);
+    shared.files_asking.store(false, Ordering::SeqCst);
+    shared.audit.record(if ok { "ai_allowed" } else { "ai_denied" }, &who.name, &who.fp, "AI 작업 권한");
+    if ok {
+        perms.apps = true;
+        let mut t = shared.trust.lock().unwrap();
+        t.add(&who.name, &who.public, *perms);
+        if let Err(e) = t.save() {
+            tracing::warn!("권한 저장 실패: {e:#}");
+        }
+    }
+    ok
+}
+
 fn decode_client(opener: &mut Opener, ct: &[u8]) -> Result<ClientMsg> {
     let pt = opener.open(ct)?;
     match proto::decode::<ClientMsg>(&pt)? {
@@ -269,6 +292,8 @@ async fn serve(
     let mut downloads: HashMap<u32, (Arc<tokio::sync::Semaphore>, tokio::task::AbortHandle)> = HashMap::new();
     let (file_tx, mut file_rx) = mpsc::channel::<AgentMsg>(8);
     let mut audio: Option<crate::audio_stream::AudioHandle> = None;
+    // AI 작업의 실시간 출력·상태 (AI 권한이 있는 휴대폰에만 전달)
+    let mut ai_rx = shared.ai.events.subscribe();
     let mut current: MonitorInfo =
         monitors.iter().find(|m| m.primary).or(monitors.first()).cloned().ok_or_else(|| anyhow!("모니터를 찾을 수 없음"))?;
     let mut input = Input::new();
@@ -315,6 +340,13 @@ async fn serve(
                         wire.send_plain(&p).await?
                     }
                     None => audio = None,
+                }
+            }
+            ev = ai_rx.recv() => {
+                match ev {
+                    Ok(m) if perms.apps => wire.send(&m).await?,
+                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(_) => {}
                 }
             }
             Some(m) = file_rx.recv() => {
@@ -474,6 +506,29 @@ async fn serve(
                             u.abort();
                         }
                     }
+
+                    // ---------- AI 작업 ----------
+                    ClientMsg::AiTools | ClientMsg::AiList | ClientMsg::AiRun { .. } | ClientMsg::AiGetOutput { .. } | ClientMsg::AiCancel { .. }
+                        if !ensure_ai_permission(shared, &mut perms, who).await =>
+                    {
+                        wire.send(&no_permission("PC 에서 AI 작업을 허용하지 않았습니다")).await?;
+                    }
+                    ClientMsg::AiTools => {
+                        let tools = tokio::task::spawn_blocking(crate::ai::tools).await?;
+                        wire.send(&AgentMsg::AiTools { tools }).await?;
+                    }
+                    ClientMsg::AiList => wire.send(&AgentMsg::AiTasks { tasks: shared.ai.list() }).await?,
+                    ClientMsg::AiRun { tool, prompt, folder, allow_edits } => {
+                        match shared.ai.start(shared.clone(), &tool, &prompt, &folder, allow_edits) {
+                            Ok(task) => shared.audit.record("ai_run", &who.name, &who.fp, &format!("{} · {}", task.tool_name, task.folder)),
+                            Err(e) => wire.send(&AgentMsg::Error { code: "ai".into(), message: e }).await?,
+                        }
+                    }
+                    ClientMsg::AiGetOutput { id } => {
+                        let text = shared.ai.output(id).unwrap_or_default();
+                        wire.send(&AgentMsg::AiFullOutput { id, text }).await?;
+                    }
+                    ClientMsg::AiCancel { id } => shared.ai.cancel(id),
 
                     ClientMsg::StartAudio => {
                         audio = None;

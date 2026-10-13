@@ -38,7 +38,7 @@ jpeg-encoder = "0.6"
 dirs = "5"
 url = "2"
 # 주소 안내판(ntfy.sh)에 올릴 때 쓰는 작은 HTTPS 클라이언트
-ureq = { version = "2", default-features = false, features = ["tls"] }
+ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

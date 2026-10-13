@@ -131,6 +131,19 @@ pub fn ask_files_permission(client_name: &str) -> bool {
     )
 }
 
+/// AI 작업 권한 요청 창 (기본 "아니요")
+pub fn ask_ai_permission(client_name: &str) -> bool {
+    confirm(
+        "HomePilot - AI 작업 요청",
+        &format!(
+            "휴대폰 \"{client_name}\" 이(가) 이 PC 의 AI 도구(Claude Code, Ollama) 사용 권한을 요청합니다.\n\n\
+             허용하면 휴대폰에서 이 PC 의 Claude Code 에 일을 시킬 수 있습니다.\n\
+             (기본은 읽기 전용, 휴대폰에서 '수정 허용' 을 고른 작업만 파일을 고칠 수 있음)\n\n\
+             본인이 요청한 경우에만 [예] 를 누르세요."
+        ),
+    )
+}
+
 // ---------- 하위 프로세스 수명 ----------
 
 /// cloudflared 같은 하위 프로세스를 에이전트와 같은 작업 개체에 넣는다.

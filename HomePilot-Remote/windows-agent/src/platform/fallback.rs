@@ -148,6 +148,10 @@ pub fn ask_files_permission(_client_name: &str) -> bool {
     false
 }
 
+pub fn ask_ai_permission(_client_name: &str) -> bool {
+    false
+}
+
 /// PC 소리 전송은 Windows 전용 (WASAPI + Media Foundation AAC).
 pub struct LoopbackCapture;
 

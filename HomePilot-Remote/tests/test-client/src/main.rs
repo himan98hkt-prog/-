@@ -119,6 +119,16 @@ enum Cmd {
     Put {
         file: PathBuf,
     },
+    /// PC 에서 쓸 수 있는 AI 도구
+    AiTools,
+    /// AI 작업 실행 후 끝날 때까지 출력 표시
+    AiRun {
+        #[arg(long)]
+        tool: String,
+        #[arg(long, default_value = "")]
+        folder: String,
+        prompt: String,
+    },
     /// PC 소리 받기 → AAC(ADTS) 파일로 저장 (일반 재생기로 들을 수 있음)
     Audio {
         #[arg(long, default_value_t = 5)]
@@ -377,6 +387,50 @@ async fn main() -> Result<()> {
                     AgentMsg::Clipboard { text } => {
                         println!("{text}");
                         break;
+                    }
+                    AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
+            }
+        }
+        Cmd::AiTools => {
+            c.send(&ClientMsg::AiTools).await?;
+            loop {
+                match c.expect_msg().await? {
+                    AgentMsg::AiTools { tools } => {
+                        for t in tools {
+                            println!("{} [{}] {} — {}", if t.available { "✔" } else { "✘" }, t.id, t.name, t.note);
+                        }
+                        break;
+                    }
+                    AgentMsg::Error { message, .. } => bail!("{message}"),
+                    _ => {}
+                }
+            }
+        }
+        Cmd::AiRun { tool, folder, prompt } => {
+            c.send(&ClientMsg::AiRun { tool: tool.clone(), prompt: prompt.clone(), folder: folder.clone(), allow_edits: false }).await?;
+            let mut my_id = None;
+            loop {
+                let m = match c.recv(Duration::from_secs(600)).await? {
+                    Received::Msg(m) => m,
+                    _ => continue,
+                };
+                match m {
+                    AgentMsg::AiTaskUpdate { task } if my_id.is_none() || my_id == Some(task.id) => {
+                        my_id = Some(task.id);
+                        eprintln!("[작업 {}] {} · {}", task.id, task.tool_name, task.status);
+                        if task.status != "running" {
+                            println!("\n요약: {}", task.summary);
+                            break;
+                        }
+                    }
+                    AgentMsg::AiOutput { id, kind, text } if Some(id) == my_id => {
+                        if kind == "text" {
+                            print!("{text}");
+                        } else {
+                            println!("\n[{kind}] {text}");
+                        }
                     }
                     AgentMsg::Error { message, .. } => bail!("{message}"),
                     _ => {}

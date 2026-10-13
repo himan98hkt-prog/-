@@ -162,6 +162,54 @@ pub enum ClientMsg {
     FileCancel {
         id: u32,
     },
+
+    // ---------- AI 작업 (AI 권한 필요, 처음 한 번 PC 에서 승인) ----------
+    /// 쓸 수 있는 AI 도구 → AiTools
+    AiTools,
+    /// 작업 목록 → AiTasks
+    AiList,
+    /// 새 작업. tool: "claude" | "ollama:<모델>". folder: 작업 폴더 (Claude Code).
+    /// allow_edits: Claude Code 가 파일을 고칠 수 있게 할지 (기본 읽기 전용)
+    AiRun {
+        tool: String,
+        prompt: String,
+        #[serde(default)]
+        folder: String,
+        #[serde(default)]
+        allow_edits: bool,
+    },
+    /// 지금까지의 출력 전체 → AiFullOutput
+    AiGetOutput {
+        id: u32,
+    },
+    AiCancel {
+        id: u32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AiTool {
+    pub id: String,
+    pub name: String,
+    pub available: bool,
+    /// 설치 위치 또는 못 쓰는 이유
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AiTask {
+    pub id: u32,
+    pub tool: String,
+    pub tool_name: String,
+    pub prompt: String,
+    pub folder: String,
+    pub allow_edits: bool,
+    /// "running" | "done" | "failed" | "cancelled"
+    pub status: String,
+    pub started: u64,
+    pub finished: u64,
+    /// 결과 요약 (끝난 뒤)
+    pub summary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -261,6 +309,26 @@ pub enum AgentMsg {
     FileError {
         id: u32,
         message: String,
+    },
+    AiTools {
+        tools: Vec<AiTool>,
+    },
+    AiTasks {
+        tasks: Vec<AiTask>,
+    },
+    /// 작업 시작·끝 등 상태 변경 (접속 중인 모든 휴대폰에)
+    AiTaskUpdate {
+        task: AiTask,
+    },
+    /// 실시간 출력 조각. kind: "text" | "tool" | "error"
+    AiOutput {
+        id: u32,
+        kind: String,
+        text: String,
+    },
+    AiFullOutput {
+        id: u32,
+        text: String,
     },
 }
 

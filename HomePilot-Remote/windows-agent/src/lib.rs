@@ -15,6 +15,7 @@
 // 트레이 UI 등 일부 기능은 Windows 빌드에서만 쓰인다.
 #![cfg_attr(not(windows), allow(dead_code))]
 
+mod ai;
 mod app;
 mod audio_stream;
 mod audit;
@@ -102,6 +103,9 @@ enum Cmd {
         /// 파일 보기·주고받기도 허용
         #[arg(long)]
         files: bool,
+        /// AI 작업(Claude Code·Ollama)도 허용
+        #[arg(long)]
+        ai: bool,
     },
     /// 등록 해제
     Revoke { who: String },
@@ -248,12 +252,13 @@ fn real_main(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
-        Cmd::TrustClient { name, public_key, view_only, files } => {
+        Cmd::TrustClient { name, public_key, view_only, files, ai } => {
             let pk = trust::parse_public_key(&public_key)?;
             let mut t = TrustStore::load(&paths)?;
             let mut perms = homepilot_protocol::app::Permissions::default_for_new_device();
             perms.control = !view_only;
             perms.files = files;
+            perms.apps = ai;
             let c = t.add(&name, &pk, perms);
             t.save()?;
             audit::Audit::new(paths.audit_file()).record("trust_local", &c.name, &c.fingerprint, "PC 에서 직접 등록");

@@ -121,5 +121,16 @@ class Msg {
   static Map<String, Object?> fileUploadChunk(int id, int offset, String data) => {'type': 'file_upload_chunk', 'id': id, 'offset': offset, 'data': data};
   static Map<String, Object?> fileUploadEnd(int id) => {'type': 'file_upload_end', 'id': id};
   static Map<String, Object?> fileCancel(int id) => {'type': 'file_cancel', 'id': id};
+  static const aiTools = {'type': 'ai_tools'};
+  static const aiList = {'type': 'ai_list'};
+  static Map<String, Object?> aiRun(String tool, String prompt, String folder, bool allowEdits) => {
+    'type': 'ai_run',
+    'tool': tool,
+    'prompt': prompt,
+    'folder': folder,
+    'allow_edits': allowEdits,
+  };
+  static Map<String, Object?> aiGetOutput(int id) => {'type': 'ai_get_output', 'id': id};
+  static Map<String, Object?> aiCancel(int id) => {'type': 'ai_cancel', 'id': id};
   static const bye = {'type': 'bye'};
 }

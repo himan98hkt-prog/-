@@ -57,6 +57,8 @@ pub struct Shared {
     pub notice: Mutex<Option<(String, String)>>,
     /// 파일 권한 확인창이 떠 있는 동안 중복 요청을 막는다.
     pub files_asking: AtomicBool,
+    /// AI 작업 (휴대폰 연결과 상관없이 PC 에서 계속 실행)
+    pub ai: Arc<crate::ai::AiManager>,
 }
 
 impl Shared {
@@ -82,6 +84,7 @@ impl Shared {
             ui_refresh: Mutex::new(None),
             notice: Mutex::new(None),
             files_asking: AtomicBool::new(false),
+            ai: Arc::new(crate::ai::AiManager::default()),
         });
         if first_run {
             s.open_pairing(FIRST_RUN_PAIRING);
@@ -252,5 +255,21 @@ impl Shared {
         self.end_all_sessions("PC 에서 기기 등록이 해제되었습니다");
         self.audit.record("revoke_all", "-", "-", "모든 등록 기기 해제");
         self.refresh_ui();
+    }
+}
+
+/// 테스트용 Shared (임시 폴더, 등록 승인은 항상 거부)
+#[cfg(test)]
+pub mod tests_support {
+    use super::*;
+    use crate::config::{Config, Paths};
+
+    pub fn shared() -> Arc<Shared> {
+        let dir = std::env::temp_dir().join(format!("hp-shared-{}", rand::random::<u32>()));
+        let paths = Paths { data_dir: dir.clone(), log_dir: dir.join("logs") };
+        paths.ensure().unwrap();
+        let trust = TrustStore::load(&paths).unwrap();
+        let keys = crate::keystore::load_or_create(&paths).unwrap();
+        Shared::new(paths, Config::default(), trust, keys, Arc::new(|_: &str, _: &str, _: &str| false))
     }
 }
