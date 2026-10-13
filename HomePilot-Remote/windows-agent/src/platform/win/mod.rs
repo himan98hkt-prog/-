@@ -11,7 +11,8 @@
 //! 관리자 권한으로 실행된 창에는 일반 권한 에이전트가 입력할 수 없다(UIPI).
 
 mod audio;
-mod capture;
+pub(crate) mod capture;
+mod capture_dxgi;
 mod h264;
 mod sys;
 mod ui;

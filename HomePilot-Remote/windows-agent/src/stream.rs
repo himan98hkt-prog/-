@@ -94,6 +94,23 @@ fn crop_even(img: &mut RawFrame) {
     img.height = h;
 }
 
+/// 시험 화면: 회색 바탕 위를 주황 사각형이 가로로 움직인다 (매 프레임 바뀜)
+fn fill_test_pattern(out: &mut RawFrame, w: u32, h: u32, n: u32) {
+    out.width = w;
+    out.height = h;
+    out.bgra.resize((w * h * 4) as usize, 0);
+    out.bgra.fill(60);
+    let size = (h / 6).max(8);
+    let x0 = (n * 12) % w.saturating_sub(size).max(1);
+    let y0 = h / 2 - size / 2;
+    for y in y0..y0 + size {
+        let row = ((y * w + x0) * 4) as usize;
+        for px in out.bgra[row..row + (size * 4) as usize].as_chunks_mut::<4>().0 {
+            *px = [0, 140, 255, 255];
+        }
+    }
+}
+
 pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
     let stop = Arc::new(AtomicBool::new(false));
     let congested = Arc::new(AtomicBool::new(false));
@@ -105,8 +122,10 @@ pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
     std::thread::Builder::new()
         .name(format!("stream-{}", mon.index))
         .spawn(move || {
-            let fps = p.max_fps.clamp(1, 30) as u32;
-            let interval = Duration::from_millis(1000 / fps as u64);
+            // 성능 측정·자동 테스트용: 화면 대신 움직이는 시험 화면 (HOMEPILOT_TEST_PATTERN=1)
+            let test_pattern = std::env::var_os("HOMEPILOT_TEST_PATTERN").is_some_and(|v| v == "1");
+            let fps = p.max_fps.clamp(1, 60) as u32;
+            let mut interval = Duration::from_micros(1_000_000 / fps as u64);
             let mut cap: Option<Capturer> = None;
             let mut raw = RawFrame::default();
             let mut scaled = RawFrame::default();
@@ -137,7 +156,13 @@ pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
                         }
                     }
                 }
-                if let Err(e) = cap.as_mut().unwrap().capture(&mut raw) {
+                let shot = if test_pattern {
+                    fill_test_pattern(&mut raw, mon.width, mon.height, frame_id);
+                    Ok(())
+                } else {
+                    cap.as_mut().unwrap().capture(&mut raw)
+                };
+                if let Err(e) = shot {
                     // 잠금 화면/UAC 보안 데스크톱 전환 시 일시적으로 실패한다.
                     failures += 1;
                     if failures % 20 == 1 {
@@ -164,6 +189,10 @@ pub fn start(mon: MonitorInfo, p: StreamParams) -> StreamHandle {
                         }
                     }
                     let _ = r.send(enc.is_some());
+                    if enc.is_none() {
+                        // JPEG 는 프레임마다 수십 KB 라 30fps 까지만
+                        interval = interval.max(Duration::from_micros(33_333));
+                    }
                 }
                 encode::downscale(&raw, p.scale_pct, &mut scaled);
 

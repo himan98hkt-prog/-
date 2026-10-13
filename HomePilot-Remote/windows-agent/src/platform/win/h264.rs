@@ -281,6 +281,34 @@ mod tests {
         assert!(!contains_nal(&[0, 0, 0, 1, 0x65, 1, 2, 3], 7));
     }
 
+    /// 성능 측정: cargo test --release -p homepilot-agent bench_pipeline -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn bench_pipeline() {
+        for (sw, sh, pct) in [(1920u32, 1080u32, 70u8), (1920, 1080, 100)] {
+            let src = RawFrame { bgra: (0..sw * sh * 4).map(|i| (i % 251) as u8).collect(), width: sw, height: sh };
+            let mut scaled = RawFrame::default();
+            let t = std::time::Instant::now();
+            for _ in 0..30 {
+                crate::encode::downscale(&src, pct, &mut scaled);
+            }
+            let ds = t.elapsed().as_secs_f64() * 1000.0 / 30.0;
+            let (w, h) = (scaled.width & !1, scaled.height & !1);
+            let mut img = RawFrame { bgra: vec![0; (w * h * 4) as usize], width: w, height: h };
+            let mut enc = H264Encoder::new(w, h, 60, 6_000_000).unwrap();
+            let t = std::time::Instant::now();
+            for i in 0..120u32 {
+                // 매 프레임 조금씩 바뀌는 화면
+                for (j, px) in img.bgra.as_chunks_mut::<4>().0.iter_mut().enumerate().step_by(97) {
+                    *px = [(i + j as u32) as u8, 80, 200, 255];
+                }
+                enc.encode(&img).unwrap();
+            }
+            let en = t.elapsed().as_secs_f64() * 1000.0 / 120.0;
+            println!("{sw}x{sh} {pct}% → {w}x{h}: 축소 {ds:.1}ms, NV12+H.264 {en:.1}ms /프레임");
+        }
+    }
+
     /// 실제 Windows 인코더로 화면 몇 장을 압축해 본다 (Windows 에서만).
     #[test]
     fn encodes_real_frames() {

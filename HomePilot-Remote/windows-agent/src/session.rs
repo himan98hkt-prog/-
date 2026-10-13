@@ -391,7 +391,7 @@ async fn serve(
                         let p = StreamParams {
                             quality: quality.clamp(10, 95),
                             scale_pct: scale_pct.clamp(10, 100),
-                            max_fps: max_fps.clamp(1, 30),
+                            max_fps: max_fps.clamp(1, 60),
                             h264: codec == CODEC_H264,
                             bitrate_kbps: bitrate_kbps.min(20_000),
                         };

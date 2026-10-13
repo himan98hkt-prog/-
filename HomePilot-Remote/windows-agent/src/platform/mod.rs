@@ -15,6 +15,7 @@ pub struct RawFrame {
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputAction {
     MoveAbs { x: i32, y: i32 },
+    MoveRel { dx: i32, dy: i32 },
     Button { button: MouseButton, down: bool },
     Wheel { dx: i32, dy: i32 },
     Text(String),

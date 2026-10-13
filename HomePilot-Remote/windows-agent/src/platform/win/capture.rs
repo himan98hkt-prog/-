@@ -43,7 +43,7 @@ pub fn list_monitors() -> Result<Vec<MonitorInfo>> {
 }
 
 /// GDI 화면 캡처. 같은 스레드에서만 사용한다 (HDC 는 스레드 간 이동 불가).
-pub struct Capturer {
+pub struct GdiCapturer {
     mon: MonitorInfo,
     screen: HDC,
     mem: HDC,
@@ -51,7 +51,7 @@ pub struct Capturer {
     old: HGDIOBJ,
 }
 
-impl Capturer {
+impl GdiCapturer {
     pub fn new(mon: &MonitorInfo) -> Result<Self> {
         unsafe {
             let screen = GetDC(None);
@@ -70,11 +70,22 @@ impl Capturer {
     }
 
     pub fn capture(&mut self, out: &mut RawFrame) -> Result<()> {
+        self.grab(out, true)
+    }
+
+    /// 커서 없이 찍기 (DXGI 첫 화면 채우기용)
+    pub fn capture_raw(&mut self, out: &mut RawFrame) -> Result<()> {
+        self.grab(out, false)
+    }
+
+    fn grab(&mut self, out: &mut RawFrame, cursor: bool) -> Result<()> {
         let (w, h) = (self.mon.width as i32, self.mon.height as i32);
         unsafe {
             BitBlt(self.mem, 0, 0, w, h, self.screen, self.mon.x, self.mon.y, SRCCOPY | CAPTUREBLT)
                 .map_err(|e| anyhow!("BitBlt 실패 (잠금 화면/UAC 창일 수 있음): {e}"))?;
-            self.draw_cursor();
+            if cursor {
+                self.draw_cursor();
+            }
             let mut bmi = BITMAPINFO::default();
             bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
             bmi.bmiHeader.biWidth = w;
@@ -116,7 +127,7 @@ impl Capturer {
     }
 }
 
-impl Drop for Capturer {
+impl Drop for GdiCapturer {
     fn drop(&mut self) {
         unsafe {
             SelectObject(self.mem, self.old);
@@ -124,5 +135,67 @@ impl Drop for Capturer {
             let _ = DeleteDC(self.mem);
             ReleaseDC(None, self.screen);
         }
+    }
+}
+
+/// 화면 캡처: DXGI(빠름, 60fps) 를 먼저 쓰고, 안 되면 GDI 로 대체한다.
+/// DXGI 가 끊기면(잠금 화면·UAC·해상도 변경) 잠시 GDI 로 찍다가 3초마다 DXGI 를 다시 시도한다.
+pub struct Capturer {
+    mon: MonitorInfo,
+    dxgi: Option<super::capture_dxgi::DxgiCapturer>,
+    gdi: Option<GdiCapturer>,
+    retry_at: std::time::Instant,
+}
+
+impl Capturer {
+    pub fn new(mon: &MonitorInfo) -> Result<Self> {
+        let mut c = Self { mon: mon.clone(), dxgi: None, gdi: None, retry_at: std::time::Instant::now() };
+        c.try_dxgi();
+        if c.dxgi.is_none() {
+            c.gdi = Some(GdiCapturer::new(mon)?);
+        }
+        Ok(c)
+    }
+
+    fn try_dxgi(&mut self) {
+        if std::env::var_os("HOMEPILOT_NO_DXGI").is_some() {
+            return;
+        }
+        match super::capture_dxgi::DxgiCapturer::new(&self.mon) {
+            Ok(d) => {
+                tracing::info!("화면 캡처: DXGI (GPU)");
+                self.dxgi = Some(d);
+            }
+            Err(e) => {
+                tracing::info!("DXGI 캡처 사용 불가 → GDI: {e:#}");
+                self.retry_at = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            }
+        }
+    }
+
+    pub fn capture(&mut self, out: &mut RawFrame) -> Result<()> {
+        if self.dxgi.is_none() && std::time::Instant::now() >= self.retry_at {
+            self.try_dxgi();
+        }
+        if let Some(d) = self.dxgi.as_mut() {
+            if d.needs_seed() {
+                // 정지된 화면이면 DXGI 가 첫 이미지를 주지 않으므로 GDI 로 한 장 찍어 채운다 (커서 없는 원본)
+                let mut g = GdiCapturer::new(&self.mon)?;
+                g.capture_raw(out)?;
+                d.seed(out);
+            }
+            match d.capture(out) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    tracing::debug!("DXGI 캡처 실패 → GDI 로 대체: {e:#}");
+                    self.dxgi = None;
+                    self.retry_at = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                }
+            }
+        }
+        if self.gdi.is_none() {
+            self.gdi = Some(GdiCapturer::new(&self.mon)?);
+        }
+        self.gdi.as_mut().unwrap().capture(out)
     }
 }

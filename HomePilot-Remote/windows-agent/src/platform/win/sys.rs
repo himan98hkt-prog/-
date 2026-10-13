@@ -246,6 +246,7 @@ impl Input {
                 let ny = (((y - vy) as i64 * 65535) / (vh as i64 - 1)) as i32;
                 vec![mouse(nx, ny, 0, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK)]
             }
+            InputAction::MoveRel { dx, dy } => vec![mouse(dx, dy, 0, MOUSEEVENTF_MOVE)],
             InputAction::Button { button, down } => {
                 let f = match (button, down) {
                     (MouseButton::Left, true) => MOUSEEVENTF_LEFTDOWN,
@@ -314,6 +315,10 @@ fn key(vk: u16, up: bool) -> INPUT {
     }
     if is_extended_vk(vk) {
         flags |= KEYEVENTF_EXTENDEDKEY;
+    }
+    // 게임(DirectInput/Raw Input)은 스캔코드로 키를 읽으므로 스캔코드로 보낸다. 한/영·한자·Pause·PrtSc 는 스캔코드가 특수해서 가상 키 그대로.
+    if scan != 0 && !matches!(vk, 0x13 | 0x15 | 0x19 | 0x2C) {
+        flags |= KEYEVENTF_SCANCODE;
     }
     INPUT {
         r#type: INPUT_KEYBOARD,

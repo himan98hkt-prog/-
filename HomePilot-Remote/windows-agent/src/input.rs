@@ -69,6 +69,11 @@ pub fn translate(msg: &ClientMsg, mon: &MonitorInfo) -> Option<Vec<InputAction>>
             let (x, y) = to_screen(mon, *x, *y);
             vec![A::MoveAbs { x, y }]
         }
+        ClientMsg::MouseDelta { dx, dy } => {
+            // 한 번에 너무 크게 튀지 않도록 제한
+            let c = |v: i32| v.clamp(-2000, 2000);
+            vec![A::MoveRel { dx: c(*dx), dy: c(*dy) }]
+        }
         ClientMsg::MouseButton { button, down } => vec![A::Button { button: *button, down: *down }],
         ClientMsg::MouseClick { button, double } => {
             let mut v = vec![A::Button { button: *button, down: true }, A::Button { button: *button, down: false }];
@@ -149,5 +154,11 @@ mod tests {
         let v = translate(&ClientMsg::KeyText { text: "한글\u{1b}입력".into() }, &mon()).unwrap();
         assert_eq!(v, vec![InputAction::Text("한글입력".into())]);
         assert!(translate(&ClientMsg::GetStatus, &mon()).is_none());
+    }
+
+    #[test]
+    fn mouse_delta_is_clamped() {
+        let v = translate(&ClientMsg::MouseDelta { dx: 15, dy: -99999 }, &mon()).unwrap();
+        assert_eq!(v, vec![InputAction::MoveRel { dx: 15, dy: -2000 }]);
     }
 }

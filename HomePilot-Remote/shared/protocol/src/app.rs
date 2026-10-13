@@ -57,7 +57,7 @@ pub enum ClientMsg {
     },
     GetStatus,
     ListMonitors,
-    /// 화면 전송 시작. quality 10~95, scale_pct 10~100, max_fps 1~30.
+    /// 화면 전송 시작. quality 10~95, scale_pct 10~100, max_fps 1~60 (JPEG 는 30 까지).
     StartStream {
         monitor: u32,
         quality: u8,
@@ -93,6 +93,11 @@ pub enum ClientMsg {
     MouseClick {
         button: MouseButton,
         double: bool,
+    },
+    /// 상대 이동 (픽셀). 게임 시점 조작용 — 커서 위치와 상관없이 마우스를 이만큼 민다.
+    MouseDelta {
+        dx: i32,
+        dy: i32,
     },
     /// 휠: 한 칸 = 1.0 (양수 dy = 위로).
     Wheel {
