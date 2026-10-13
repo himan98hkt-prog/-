@@ -18,11 +18,20 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-/// 내장 중계 서버 시작. 에이전트가 접속할 주소를 돌려준다.
-pub async fn start_local_relay(shared: &Arc<Shared>, port: u16) -> Result<String> {
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
-        .await
-        .with_context(|| format!("내장 중계 서버 포트 {port} 를 열 수 없습니다 (다른 프로그램이 사용 중?)"))?;
+/// 내장 중계 서버 시작. 실제로 연 포트를 돌려준다.
+/// 설정한 포트를 다른 프로그램이 쓰고 있으면 빈 포트를 자동으로 고른다
+/// (외부에는 터널 주소만 공개되므로 내부 포트 번호는 무엇이든 상관없다).
+pub async fn start_local_relay(shared: &Arc<Shared>, port: u16) -> Result<u16> {
+    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
+        Ok(l) => l,
+        Err(e) => {
+            tracing::warn!("포트 {port} 사용 불가({e}) → 빈 포트를 자동으로 사용합니다");
+            tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.context("내장 중계 서버를 열 수 없습니다")?
+        }
+    };
+    let port = listener.local_addr()?.port();
+    // 에이전트 자신의 접속 주소도 실제 포트를 쓰도록 (설정 파일에는 저장하지 않음)
+    shared.config.lock().unwrap().local_relay_port = port;
     let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(rand::random::<[u8; 24]>());
     *shared.agent_token.lock().unwrap() = Some(token.clone());
     tokio::spawn(async move {
@@ -31,7 +40,7 @@ pub async fn start_local_relay(shared: &Arc<Shared>, port: u16) -> Result<String
         }
     });
     tracing::info!("내장 중계 서버 시작: 127.0.0.1:{port}");
-    Ok(format!("ws://127.0.0.1:{port}"))
+    Ok(port)
 }
 
 /// cloudflared 실행 파일 찾기: 설정값 → 에이전트와 같은 폴더 → 기본 설치 위치 → PATH.

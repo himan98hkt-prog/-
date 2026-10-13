@@ -349,7 +349,7 @@ fn run(paths: Paths, headless: bool, console: bool, pairing_secs: Option<u64>) -
         (c.local_relay, c.local_relay_port, c.tunnel.clone())
     };
     if local_relay {
-        rt.block_on(home_relay::start_local_relay(&shared, port))?;
+        let port = rt.block_on(home_relay::start_local_relay(&shared, port))?;
         if tunnel == "quick" {
             rt.spawn(home_relay::run_quick_tunnel(shared.clone(), port));
         }
