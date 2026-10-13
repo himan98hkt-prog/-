@@ -12,7 +12,11 @@ import 'secure_channel.dart';
 
 class ConnectException implements Exception {
   final String message;
-  ConnectException(this.message);
+
+  /// 네트워크 문제(주소 오래됨·PC 꺼짐·시간 초과)면 true → 다른 경로로 다시 시도할 만하다.
+  /// 거부(차단·미등록·승인 거절)는 false → 다른 경로로 시도하지 않는다.
+  final bool network;
+  ConnectException(this.message, {this.network = false});
   @override
   String toString() => message;
 }
@@ -22,7 +26,14 @@ class WelcomeInfo {
   final String agentVersion;
   final Map<String, dynamic> permissions;
   final String pcFingerprint;
-  WelcomeInfo(this.deviceName, this.agentVersion, this.permissions, this.pcFingerprint);
+
+  /// PC 공개키 (주소 안내판 주제·키를 만들 때 사용)
+  final Uint8List pcPublic;
+
+  /// PC 가 알려 준 같은 Wi-Fi 주소들과 현재 외부 주소 (저장해 두고 다음 연결에 사용)
+  final List<String> lan;
+  final String publicUrl;
+  WelcomeInfo(this.deviceName, this.agentVersion, this.permissions, this.pcFingerprint, this.pcPublic, {this.lan = const [], this.publicUrl = ''});
   bool get canControl => permissions['control'] == true;
 }
 
@@ -58,12 +69,12 @@ class RemoteConnection {
     try {
       ws = await WebSocket.connect('$base/v1/client/$deviceId').timeout(timeout);
     } catch (e) {
-      throw ConnectException('중계 서버에 연결할 수 없습니다 ($e)');
+      throw ConnectException('중계 서버에 연결할 수 없습니다 ($e)', network: true);
     }
     ws.pingInterval = const Duration(seconds: 20);
     final it = StreamIterator<dynamic>(ws);
     Future<dynamic> next(Duration t) async {
-      if (!await it.moveNext().timeout(t)) throw ConnectException(_closeText(ws));
+      if (!await it.moveNext().timeout(t)) throw ConnectException(_closeText(ws), network: true);
       return it.current;
     }
 
@@ -74,8 +85,8 @@ class RemoteConnection {
         if (m is String) {
           final t = (jsonDecode(m) as Map)['t'];
           if (t == 'connected') break;
-          if (t == 'offline') throw ConnectException('PC 가 꺼져 있거나 HomePilot 이 실행 중이 아닙니다');
-          if (t == 'agent_gone') throw ConnectException('PC 연결이 끊겼습니다');
+          if (t == 'offline') throw ConnectException('PC 가 꺼져 있거나 HomePilot 이 실행 중이 아닙니다', network: true);
+          if (t == 'agent_gone') throw ConnectException('PC 연결이 끊겼습니다', network: true);
         }
       }
       // 2) Noise XX
@@ -111,13 +122,16 @@ class RemoteConnection {
               ev.msg['agent_version'] as String? ?? '',
               (ev.msg['permissions'] as Map?)?.cast<String, dynamic>() ?? {},
               fingerprint(r.remoteStatic),
+              bytes(r.remoteStatic),
+              lan: ((ev.msg['lan'] as List?) ?? const []).cast<String>(),
+              publicUrl: ev.msg['public_url'] as String? ?? '',
             );
             return RemoteConnection._(ws, ch, it, info);
         }
       }
     } on TimeoutException {
       await ws.close();
-      throw ConnectException('응답 시간이 초과되었습니다');
+      throw ConnectException('응답 시간이 초과되었습니다', network: true);
     } catch (e) {
       await ws.close();
       rethrow;

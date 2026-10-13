@@ -8,6 +8,7 @@
 //! 3. 응용 계층(app): 첫 바이트가 종류. 0x01 = 제어 JSON, 0x02 = 화면 프레임.
 
 pub mod app;
+pub mod directory;
 pub mod relay;
 pub mod secure;
 

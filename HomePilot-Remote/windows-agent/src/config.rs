@@ -68,6 +68,10 @@ pub struct Config {
     pub tunnel: String,
     /// cloudflared 경로 (비우면 자동으로 찾음)
     pub cloudflared_path: String,
+    /// 같은 Wi-Fi 의 휴대폰이 터널을 거치지 않고 바로 접속 (내장 중계를 집 네트워크에도 연다)
+    pub lan_access: bool,
+    /// 주소 안내판 게시판 주소. 비우면 사용하지 않음. 주소가 바뀌어도 휴대폰이 따라온다.
+    pub directory_url: String,
 }
 
 impl Default for Config {
@@ -83,6 +87,8 @@ impl Default for Config {
             local_relay_port: 8443,
             tunnel: "quick".into(),
             cloudflared_path: String::new(),
+            lan_access: true,
+            directory_url: homepilot_protocol::directory::DEFAULT_DIRECTORY.into(),
         }
     }
 }

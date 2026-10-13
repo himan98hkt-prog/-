@@ -22,11 +22,15 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 /// 설정한 포트를 다른 프로그램이 쓰고 있으면 빈 포트를 자동으로 고른다
 /// (외부에는 터널 주소만 공개되므로 내부 포트 번호는 무엇이든 상관없다).
 pub async fn start_local_relay(shared: &Arc<Shared>, port: u16) -> Result<u16> {
-    let listener = match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
+    // 같은 Wi-Fi 바로 접속을 켜면 집 네트워크에도 연다. 휴대폰↔PC 는 종단간 암호화·등록 승인으로 보호되고,
+    // PC 행세(에이전트 등록)는 비밀 토큰이 있어야 하므로 열어도 안전하다.
+    // 처음 한 번 Windows 방화벽 허용 창이 뜰 수 있다 (거부해도 터널 접속은 그대로 동작).
+    let host = if shared.config.lock().unwrap().lan_access { "0.0.0.0" } else { "127.0.0.1" };
+    let listener = match tokio::net::TcpListener::bind((host, port)).await {
         Ok(l) => l,
         Err(e) => {
             tracing::warn!("포트 {port} 사용 불가({e}) → 빈 포트를 자동으로 사용합니다");
-            tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.context("내장 중계 서버를 열 수 없습니다")?
+            tokio::net::TcpListener::bind((host, 0)).await.context("내장 중계 서버를 열 수 없습니다")?
         }
     };
     let port = listener.local_addr()?.port();
@@ -39,7 +43,7 @@ pub async fn start_local_relay(shared: &Arc<Shared>, port: u16) -> Result<u16> {
             tracing::error!("내장 중계 서버 중지: {e:#}");
         }
     });
-    tracing::info!("내장 중계 서버 시작: 127.0.0.1:{port}");
+    tracing::info!("내장 중계 서버 시작: {host}:{port}");
     Ok(port)
 }
 

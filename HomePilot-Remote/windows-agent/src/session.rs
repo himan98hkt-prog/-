@@ -127,11 +127,15 @@ async fn run_inner(
     }
     shared.audit.record("session_start", &client_name, &fp, &format!("앱 {app_version}"));
     shared.set_session_view(id, SessionView { client_name: client_name.clone(), controlling: perms.control });
+    let lan = crate::discovery::lan_list(shared);
+    let public_url = shared.public_url.lock().unwrap().0.clone().unwrap_or_default();
     wire.send(&AgentMsg::Welcome {
         device_name: shared.display_name(),
         agent_version: env!("CARGO_PKG_VERSION").into(),
         protocol: PROTOCOL_VERSION,
         permissions: perms,
+        lan,
+        public_url,
     })
     .await?;
 

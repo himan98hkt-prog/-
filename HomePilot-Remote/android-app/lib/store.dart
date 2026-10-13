@@ -12,14 +12,49 @@ class PcEntry {
   String name;
   String relayUrl;
   String fingerprint;
-  PcEntry({required this.deviceId, required this.name, required this.relayUrl, this.fingerprint = ''});
 
-  Map<String, Object?> toJson() => {'id': deviceId, 'name': name, 'relay': relayUrl, 'fp': fingerprint};
+  /// PC 공개키(base64). 첫 연결 때 저장 → 주소 안내판에서 바뀐 주소를 찾는 데 쓴다.
+  String publicKey;
+
+  /// 같은 Wi-Fi 바로 접속 주소 ("192.168.0.5:8443")
+  List<String> lan;
+
+  /// 마지막으로 받아들인 주소 안내판 기록 시각 (더 오래된 기록은 무시)
+  int dirTs;
+
+  /// 마지막 연결 경로: 'lan' | 'internet'
+  String lastRoute;
+
+  PcEntry({
+    required this.deviceId,
+    required this.name,
+    required this.relayUrl,
+    this.fingerprint = '',
+    this.publicKey = '',
+    List<String>? lan,
+    this.dirTs = 0,
+    this.lastRoute = '',
+  }) : lan = lan ?? [];
+
+  Map<String, Object?> toJson() => {
+    'id': deviceId,
+    'name': name,
+    'relay': relayUrl,
+    'fp': fingerprint,
+    'pk': publicKey,
+    'lan': lan,
+    'dir_ts': dirTs,
+    'route': lastRoute,
+  };
   factory PcEntry.fromJson(Map<String, dynamic> j) => PcEntry(
     deviceId: j['id'] as String,
     name: j['name'] as String? ?? 'PC',
     relayUrl: j['relay'] as String? ?? '',
     fingerprint: j['fp'] as String? ?? '',
+    publicKey: j['pk'] as String? ?? '',
+    lan: ((j['lan'] as List?) ?? []).cast<String>(),
+    dirTs: (j['dir_ts'] as num?)?.toInt() ?? 0,
+    lastRoute: j['route'] as String? ?? '',
   );
 }
 

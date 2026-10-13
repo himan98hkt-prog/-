@@ -106,6 +106,12 @@ pub enum AgentMsg {
         agent_version: String,
         protocol: u32,
         permissions: Permissions,
+        /// 같은 Wi-Fi 바로 접속 주소 ("192.168.0.5:8443"). 휴대폰이 다음부터 먼저 시도한다.
+        #[serde(default)]
+        lan: Vec<String>,
+        /// 현재 외부 접속 주소 (터널). 휴대폰이 저장해 둔 주소를 갱신한다.
+        #[serde(default)]
+        public_url: String,
     },
     /// 미등록 기기: PC 화면에 확인창이 떴으니 같은 코드인지 확인하라는 안내.
     PairingPending {

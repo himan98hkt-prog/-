@@ -19,6 +19,7 @@ mod app;
 mod audit;
 mod config;
 mod console;
+mod discovery;
 mod encode;
 mod home_relay;
 mod input;
@@ -353,7 +354,9 @@ fn run(paths: Paths, headless: bool, console: bool, pairing_secs: Option<u64>) -
         if tunnel == "quick" {
             rt.spawn(home_relay::run_quick_tunnel(shared.clone(), port));
         }
+        rt.spawn(discovery::run_responder(shared.clone()));
     }
+    rt.spawn(discovery::run_publisher(shared.clone()));
     rt.spawn(net::run_forever(shared.clone()));
     if headless {
         rt.block_on(async {
