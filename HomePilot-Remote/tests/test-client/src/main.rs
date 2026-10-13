@@ -66,6 +66,9 @@ enum Cmd {
         scale: u8,
         #[arg(long, default_value_t = 15)]
         fps: u8,
+        /// jpeg | h264
+        #[arg(long, default_value = "jpeg")]
+        codec: String,
     },
     Move {
         x: f32,
@@ -139,6 +142,7 @@ impl Conn {
                         Decoded::Control(AgentMsg::SessionEnded { reason }) => bail!("PC 가 연결을 끊음: {reason}"),
                         Decoded::Control(c) => Received::Msg(c),
                         Decoded::Frame(h, data) => Received::Frame(h, data.to_vec()),
+                        Decoded::Video(h, _key, data) => Received::Frame(h, data.to_vec()),
                     });
                 }
                 Message::Text(t) => {
@@ -245,7 +249,15 @@ async fn main() -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&c.expect_msg().await?)?);
         }
         Cmd::Shot { monitor, out, quality, scale } => {
-            c.send(&ClientMsg::StartStream { monitor: *monitor, quality: *quality, scale_pct: *scale, max_fps: 5 }).await?;
+            c.send(&ClientMsg::StartStream {
+                monitor: *monitor,
+                quality: *quality,
+                scale_pct: *scale,
+                max_fps: 5,
+                codec: String::new(),
+                bitrate_kbps: 0,
+            })
+            .await?;
             loop {
                 match c.recv(Duration::from_secs(15)).await? {
                     Received::Frame(h, jpeg) => {
@@ -267,18 +279,32 @@ async fn main() -> Result<()> {
             }
             c.send(&ClientMsg::StopStream).await?;
         }
-        Cmd::Stream { secs, monitor, quality, scale, fps } => {
-            c.send(&ClientMsg::StartStream { monitor: *monitor, quality: *quality, scale_pct: *scale, max_fps: *fps }).await?;
+        Cmd::Stream { secs, monitor, quality, scale, fps, codec } => {
+            c.send(&ClientMsg::StartStream {
+                monitor: *monitor,
+                quality: *quality,
+                scale_pct: *scale,
+                max_fps: *fps,
+                codec: codec.clone(),
+                bitrate_kbps: 0,
+            })
+            .await?;
             let t0 = Instant::now();
             let (mut frames, mut bytes) = (0u64, 0u64);
             let mut lat = Vec::new();
             while t0.elapsed() < Duration::from_secs(*secs) {
-                if let Received::Frame(h, jpeg) = c.recv(Duration::from_secs(15)).await? {
-                    frames += 1;
-                    bytes += jpeg.len() as u64;
-                    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis() as u64;
-                    lat.push(now.saturating_sub(h.captured_ms));
-                    c.send(&ClientMsg::FrameAck { frame_id: h.frame_id }).await?;
+                match c.recv(Duration::from_secs(15)).await? {
+                    Received::Frame(h, data) => {
+                        frames += 1;
+                        bytes += data.len() as u64;
+                        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis() as u64;
+                        lat.push(now.saturating_sub(h.captured_ms));
+                        c.send(&ClientMsg::FrameAck { frame_id: h.frame_id }).await?;
+                    }
+                    Received::Msg(AgentMsg::StreamStarted { codec, width, height, .. }) => {
+                        eprintln!("전송 방식: {} ({width}x{height})", if codec.is_empty() { "jpeg" } else { &codec });
+                    }
+                    Received::Msg(_) => {}
                 }
             }
             c.send(&ClientMsg::StopStream).await?;

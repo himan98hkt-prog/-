@@ -6,7 +6,7 @@ use crate::net::{OutTx, Outgoing};
 use crate::platform::{self, Input};
 use crate::stream::{self, StreamHandle, StreamParams};
 use anyhow::{anyhow, bail, Context, Result};
-use homepilot_protocol::app::{self as proto, AgentMsg, ClientMsg, Decoded, MonitorInfo, Permissions};
+use homepilot_protocol::app::{self as proto, AgentMsg, ClientMsg, Decoded, MonitorInfo, Permissions, CODEC_H264, CODEC_JPEG};
 use homepilot_protocol::relay::{encode_agent_frame, AgentToRelay};
 use homepilot_protocol::secure::{fingerprint, Handshake, Opener, Sealer};
 use homepilot_protocol::PROTOCOL_VERSION;
@@ -20,6 +20,8 @@ const APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(45);
 /// 응답(ack) 없이 보낼 수 있는 화면 프레임 수.
 const MAX_IN_FLIGHT: u32 = 2;
+/// H.264 는 프레임이 작고(수 KB) 버릴 수 없으므로 더 많이 보내 두고 확인을 기다린다.
+const MAX_VIDEO_IN_FLIGHT: u32 = 6;
 
 struct Wire {
     sid: u32,
@@ -53,7 +55,7 @@ fn decode_client(opener: &mut Opener, ct: &[u8]) -> Result<ClientMsg> {
     let pt = opener.open(ct)?;
     match proto::decode::<ClientMsg>(&pt)? {
         Decoded::Control(m) => Ok(m),
-        Decoded::Frame(..) => bail!("클라이언트는 프레임을 보낼 수 없음"),
+        Decoded::Frame(..) | Decoded::Video(..) => bail!("클라이언트는 프레임을 보낼 수 없음"),
     }
 }
 
@@ -229,7 +231,10 @@ async fn serve(
     let mut input = Input::new();
     let mut stream: Option<StreamHandle> = None;
     let mut in_flight: u32 = 0;
+    // JPEG: 최신 한 장만 보관 (오래된 화면은 버려도 됨)
     let mut pending: Option<Vec<u8>> = None;
+    // H.264: 버리면 화면이 깨지므로 순서대로 모두 보낸다. 밀리면 압축을 잠시 쉬게 한다.
+    let mut video_q: std::collections::VecDeque<Vec<u8>> = Default::default();
     let mut last_rx = Instant::now();
     let mut tick = tokio::time::interval(Duration::from_secs(5));
 
@@ -244,7 +249,16 @@ async fn serve(
             }
             frame = async { stream.as_mut().unwrap().frames.recv().await }, if stream.is_some() => {
                 let Some(frame) = frame else { stream = None; continue };
-                if in_flight < MAX_IN_FLIGHT {
+                let s = stream.as_ref().unwrap();
+                if s.h264 {
+                    if in_flight < MAX_VIDEO_IN_FLIGHT && video_q.is_empty() {
+                        in_flight += 1;
+                        wire.send_plain(&frame).await?;
+                    } else {
+                        video_q.push_back(frame);
+                        s.congested.store(true, Ordering::Relaxed);
+                    }
+                } else if in_flight < MAX_IN_FLIGHT {
                     in_flight += 1;
                     wire.send_plain(&frame).await?;
                 } else {
@@ -273,7 +287,7 @@ async fn serve(
                         let monitors = platform::list_monitors().unwrap_or_default();
                         wire.send(&AgentMsg::Monitors { monitors }).await?;
                     }
-                    ClientMsg::StartStream { monitor, quality, scale_pct, max_fps } => {
+                    ClientMsg::StartStream { monitor, quality, scale_pct, max_fps, codec, bitrate_kbps } => {
                         let monitors = platform::list_monitors().unwrap_or_default();
                         let Some(m) = monitors.into_iter().find(|m| m.index == monitor) else {
                             wire.send(&AgentMsg::Error { code: "no_monitor".into(), message: format!("모니터 {monitor} 없음") }).await?;
@@ -282,23 +296,49 @@ async fn serve(
                         current = m.clone();
                         drop(stream.take()); // 이전 전송 스레드 정지
                         pending = None;
+                        video_q.clear();
                         in_flight = 0;
-                        let p = StreamParams { quality: quality.clamp(10, 95), scale_pct: scale_pct.clamp(10, 100), max_fps: max_fps.clamp(1, 30) };
+                        let p = StreamParams {
+                            quality: quality.clamp(10, 95),
+                            scale_pct: scale_pct.clamp(10, 100),
+                            max_fps: max_fps.clamp(1, 30),
+                            h264: codec == CODEC_H264,
+                            bitrate_kbps: bitrate_kbps.min(20_000),
+                        };
                         tracing::info!(monitor, ?p, "화면 전송 시작");
-                        stream = Some(stream::start(m.clone(), p));
-                        wire.send(&AgentMsg::StreamStarted { monitor, width: m.width, height: m.height }).await?;
+                        // 인코더 준비를 잠깐 기다린다 (실패하면 JPEG)
+                        let s = tokio::task::block_in_place(|| stream::start(m.clone(), p));
+                        let codec = if s.h264 { CODEC_H264 } else { CODEC_JPEG };
+                        stream = Some(s);
+                        wire.send(&AgentMsg::StreamStarted { monitor, width: m.width, height: m.height, codec: codec.into() }).await?;
                     }
                     ClientMsg::StopStream => {
                         stream = None;
                         pending = None;
+                        video_q.clear();
                         in_flight = 0;
                         wire.send(&AgentMsg::StreamStopped).await?;
+                    }
+                    ClientMsg::RequestKeyframe => {
+                        if let Some(s) = &stream {
+                            s.want_key.store(true, Ordering::Relaxed);
+                        }
                     }
                     ClientMsg::FrameAck { .. } => {
                         in_flight = in_flight.saturating_sub(1);
                         if let Some(f) = pending.take() {
                             in_flight += 1;
                             wire.send_plain(&f).await?;
+                        }
+                        while in_flight < MAX_VIDEO_IN_FLIGHT {
+                            let Some(f) = video_q.pop_front() else { break };
+                            in_flight += 1;
+                            wire.send_plain(&f).await?;
+                        }
+                        if let Some(s) = &stream {
+                            if s.h264 && video_q.is_empty() && in_flight <= MAX_VIDEO_IN_FLIGHT / 2 {
+                                s.congested.store(false, Ordering::Relaxed);
+                            }
                         }
                     }
                     other => {

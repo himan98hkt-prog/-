@@ -131,5 +131,18 @@ pub fn single_instance() -> Option<InstanceGuard> {
     Some(InstanceGuard)
 }
 
+/// H.264 압축은 Windows Media Foundation 전용. 다른 OS(개발·CI)에서는 JPEG 로 대체된다.
+pub struct H264Encoder;
+
+impl H264Encoder {
+    pub fn new(_w: u32, _h: u32, _fps: u32, _bitrate: u32) -> Result<Self> {
+        anyhow::bail!("이 OS 에서는 H.264 를 지원하지 않음")
+    }
+    pub fn force_keyframe(&self) {}
+    pub fn encode(&mut self, _frame: &RawFrame) -> Result<Option<(Vec<u8>, bool)>> {
+        Ok(None)
+    }
+}
+
 /// 하위 프로세스를 에이전트 수명에 묶기 (Windows 전용, 여기서는 아무것도 하지 않음).
 pub fn bind_child_to_agent(_child: &tokio::process::Child) {}

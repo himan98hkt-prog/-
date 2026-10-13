@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../protocol/connection.dart';
 import '../protocol/messages.dart';
 import '../store.dart';
+import '../video.dart';
 import 'view_math.dart';
 
 /// 원격 화면. 닫힐 때 종료 사유(있으면)를 돌려준다.
@@ -24,6 +25,11 @@ class _RemoteScreenState extends State<RemoteScreen> {
   RemoteConnection get c => widget.conn;
   StreamSubscription<AgentEvent>? _sub;
   Uint8List? _jpeg;
+  // H.264 동영상: 하드웨어 디코더가 Texture 에 바로 그린다
+  H264Decoder? _dec;
+  bool _decCreating = false;
+  bool _videoShown = false; // 첫 동영상 프레임을 받았는지 (그 전에는 로딩 표시)
+  String _codec = '';
   Size _frameSize = const Size(16, 9);
   int _monitor = 0;
   late int _quality = store.qualityIndex;
@@ -86,18 +92,50 @@ class _RemoteScreenState extends State<RemoteScreen> {
     _sub?.cancel();
     if (_buttonDown) c.send(Msg.mouseButton('left', false));
     c.send(Msg.stopStream);
+    _dec?.dispose();
     _keyInput.dispose();
     _keyFocus.dispose();
     super.dispose();
   }
 
-  void _start() {
+  Future<void> _start() async {
     final q = Quality.presets[_quality];
-    c.send(Msg.startStream(_monitor, q.quality, q.scalePct, q.maxFps));
+    // 동영상(H.264)은 데이터를 1/10 이하로 쓰고 더 부드럽다. 휴대폰이 지원하지 않으면 JPEG.
+    final h264 = store.videoEnabled && await H264Decoder.supported();
+    c.send(Msg.startStream(_monitor, q.quality, q.scalePct, q.maxFps, codec: h264 ? 'h264' : 'jpeg'));
+  }
+
+  void _onVideo(VideoEvent e) {
+    c.send(Msg.frameAck(e.header.frameId));
+    _framesThisSec++;
+    final src = Size(e.header.srcWidth.toDouble(), e.header.srcHeight.toDouble());
+    final dec = _dec;
+    if (dec == null) {
+      if (!_decCreating) {
+        _decCreating = true;
+        H264Decoder.create(e.header.width, e.header.height, onNeedKeyframe: () => c.send(Msg.requestKeyframe)).then((d) {
+          if (!mounted) {
+            d.dispose();
+            return;
+          }
+          setState(() => _dec = d);
+        });
+      }
+      return; // 디코더가 준비되면 키프레임을 다시 요청한다
+    }
+    dec.decode(e.data, e.key, e.header.width, e.header.height);
+    if (!_videoShown || src != _frameSize) {
+      setState(() {
+        _videoShown = true;
+        _frameSize = src;
+      });
+    }
   }
 
   void _onEvent(AgentEvent e) {
-    if (e is FrameEvent) {
+    if (e is VideoEvent) {
+      _onVideo(e);
+    } else if (e is FrameEvent) {
       c.send(Msg.frameAck(e.header.frameId));
       _framesThisSec++;
       setState(() {
@@ -106,6 +144,11 @@ class _RemoteScreenState extends State<RemoteScreen> {
       });
     } else if (e is ControlEvent) {
       switch (e.type) {
+        case 'stream_started':
+          setState(() {
+            _codec = e.msg['codec'] as String? ?? 'jpeg';
+            _videoShown = false;
+          });
         case 'pong':
           setState(() => _rttMs = DateTime.now().millisecondsSinceEpoch - (e.msg['t'] as num).toInt());
         case 'error':
@@ -113,6 +156,8 @@ class _RemoteScreenState extends State<RemoteScreen> {
       }
     }
   }
+
+  bool get _hasPicture => _codec == 'h264' ? (_dec != null && _videoShown) : _jpeg != null;
 
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), duration: const Duration(seconds: 2)));
 
@@ -288,6 +333,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
                     setState(() {
                       _monitor = m['index'] as int;
                       _jpeg = null;
+                      _videoShown = false;
                       view.reset();
                     });
                     _start();
@@ -327,14 +373,19 @@ class _RemoteScreenState extends State<RemoteScreen> {
                     child: ClipRect(
                       child: Stack(
                         children: [
-                          if (_jpeg == null)
+                          if (_codec == 'h264' && _dec != null)
+                            Positioned.fromRect(
+                              rect: img,
+                              child: Texture(textureId: _dec!.textureId, filterQuality: FilterQuality.high),
+                            ),
+                          if (!_hasPicture)
                             const Center(child: CircularProgressIndicator())
-                          else
+                          else if (_codec != 'h264')
                             Positioned.fromRect(
                               rect: img,
                               child: Image.memory(_jpeg!, gaplessPlayback: true, fit: BoxFit.fill, filterQuality: FilterQuality.high),
                             ),
-                          if (_mode == _Mode.touchpad && canControl && _jpeg != null)
+                          if (_mode == _Mode.touchpad && canControl && _hasPicture)
                             Positioned(
                               left: img.left + _cursor.dx * img.width - 6,
                               top: img.top + _cursor.dy * img.height - 6,
@@ -385,7 +436,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
   }
 
   Widget _toolbar(ColorScheme cs, bool canControl) {
-    final status = '$_fps fps${_rttMs == null ? '' : ' · ${_rttMs}ms'}';
+    final status = '${_codec == 'h264' ? 'HD 동영상 · ' : ''}$_fps fps${_rttMs == null ? '' : ' · ${_rttMs}ms'}';
     final slow = (_rttMs ?? 0) > 300;
     Widget btn(IconData i, String tip, VoidCallback? f, {bool on = false}) => IconButton(
       icon: Icon(i),

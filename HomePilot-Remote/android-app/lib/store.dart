@@ -103,6 +103,10 @@ class AppStore {
   String get clientName => _prefs.getString(_nameKey) ?? '내 휴대폰';
   Future<void> setClientName(String v) => _prefs.setString(_nameKey, v.trim().isEmpty ? '내 휴대폰' : v.trim());
 
+  /// 동영상(H.264) 전송 사용 (기본 켜짐). 끄면 예전 JPEG 방식.
+  bool get videoEnabled => _prefs.getBool('video_h264') ?? true;
+  Future<void> setVideoEnabled(bool v) => _prefs.setBool('video_h264', v);
+
   int get qualityIndex => (_prefs.getInt(_qualityKey) ?? Quality.defaultIndex).clamp(0, Quality.presets.length - 1);
   Future<void> setQualityIndex(int i) => _prefs.setInt(_qualityKey, i);
 

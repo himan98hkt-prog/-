@@ -1,11 +1,19 @@
 //! 응용 계층 메시지 (암호화 채널 안에서 오가는 내용).
 //!
-//! 평문 첫 바이트: 0x01 = 제어 JSON, 0x02 = 화면 프레임(바이너리 헤더 + JPEG).
+//! 평문 첫 바이트: 0x01 = 제어 JSON, 0x02 = 화면 프레임(바이너리 헤더 + JPEG),
+//! 0x03 = 동영상 프레임(같은 헤더 + 플래그 1바이트 + H.264 Annex-B).
 
 use serde::{Deserialize, Serialize};
 
 pub const KIND_CONTROL: u8 = 0x01;
 pub const KIND_FRAME: u8 = 0x02;
+pub const KIND_VIDEO: u8 = 0x03;
+/// 동영상 프레임 플래그: 키프레임(IDR, SPS/PPS 포함) — 디코더는 여기서부터 시작할 수 있다.
+pub const VIDEO_FLAG_KEY: u8 = 0x01;
+
+/// 화면 전송 방식
+pub const CODEC_JPEG: &str = "jpeg";
+pub const CODEC_H264: &str = "h264";
 
 /// 기기별 권한. 원격 화면/조작과 파일 전송 권한을 분리한다.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -53,8 +61,17 @@ pub enum ClientMsg {
         quality: u8,
         scale_pct: u8,
         max_fps: u8,
+        /// "h264" 이면 동영상 압축(대역폭 1/5~1/10). 비우거나 "jpeg" 이면 예전 방식.
+        /// PC 가 H.264 를 못 쓰면 jpeg 로 시작하고 StreamStarted.codec 으로 알려 준다.
+        #[serde(default)]
+        codec: String,
+        /// H.264 목표 비트레이트(kbps). 0 이면 화질·크기에 맞춰 자동.
+        #[serde(default)]
+        bitrate_kbps: u32,
     },
     StopStream,
+    /// 동영상 디코더가 처음 시작하거나 오류가 나면 키프레임을 요청한다.
+    RequestKeyframe,
     /// 프레임 수신 확인 (흐름 제어 + 지연 측정).
     FrameAck {
         frame_id: u32,
@@ -129,6 +146,9 @@ pub enum AgentMsg {
         monitor: u32,
         width: u32,
         height: u32,
+        /// 실제로 쓰는 전송 방식 ("jpeg" | "h264")
+        #[serde(default)]
+        codec: String,
     },
     StreamStopped,
     Pong {
@@ -213,11 +233,22 @@ pub fn encode_frame(h: &FrameHeader, jpeg: &[u8]) -> Vec<u8> {
     v
 }
 
+/// 동영상 프레임: 화면 프레임과 같은 헤더 뒤에 플래그 1바이트 + H.264 Annex-B 데이터.
+pub fn encode_video(h: &FrameHeader, key: bool, h264: &[u8]) -> Vec<u8> {
+    let mut v = encode_frame(h, &[]);
+    v[0] = KIND_VIDEO;
+    v.push(if key { VIDEO_FLAG_KEY } else { 0 });
+    v.extend_from_slice(h264);
+    v
+}
+
 /// 복호화된 응용 메시지.
 #[derive(Debug)]
 pub enum Decoded<'a, T> {
     Control(T),
     Frame(FrameHeader, &'a [u8]),
+    /// (헤더, 키프레임 여부, H.264 데이터)
+    Video(FrameHeader, bool, &'a [u8]),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -236,8 +267,9 @@ pub fn decode<'a, T: for<'de> Deserialize<'de>>(buf: &'a [u8]) -> Result<Decoded
     match buf.first() {
         None => Err(DecodeError::Empty),
         Some(&KIND_CONTROL) => Ok(Decoded::Control(serde_json::from_slice(&buf[1..])?)),
-        Some(&KIND_FRAME) => {
-            if buf.len() < FRAME_HEADER_LEN {
+        Some(&k @ (KIND_FRAME | KIND_VIDEO)) => {
+            let need = FRAME_HEADER_LEN + usize::from(k == KIND_VIDEO);
+            if buf.len() < need {
                 return Err(DecodeError::Truncated);
             }
             let u32_at = |i: usize| u32::from_le_bytes(buf[i..i + 4].try_into().unwrap());
@@ -250,7 +282,11 @@ pub fn decode<'a, T: for<'de> Deserialize<'de>>(buf: &'a [u8]) -> Result<Decoded
                 src_height: u32_at(18),
                 captured_ms: u64::from_le_bytes(buf[22..30].try_into().unwrap()),
             };
-            Ok(Decoded::Frame(h, &buf[FRAME_HEADER_LEN..]))
+            if k == KIND_VIDEO {
+                Ok(Decoded::Video(h, buf[FRAME_HEADER_LEN] & VIDEO_FLAG_KEY != 0, &buf[need..]))
+            } else {
+                Ok(Decoded::Frame(h, &buf[FRAME_HEADER_LEN..]))
+            }
         }
         Some(&k) => Err(DecodeError::UnknownKind(k)),
     }
@@ -290,5 +326,31 @@ mod tests {
             _ => panic!(),
         }
         assert!(matches!(decode::<AgentMsg>(&b[..10]), Err(DecodeError::Truncated)));
+    }
+
+    #[test]
+    fn video_roundtrip() {
+        let h = FrameHeader { frame_id: 3, monitor: 0, width: 1280, height: 720, src_width: 1920, src_height: 1080, captured_ms: 99 };
+        let nal = [0u8, 0, 0, 1, 0x67, 0x42];
+        let b = encode_video(&h, true, &nal);
+        assert_eq!(b[0], KIND_VIDEO);
+        assert_eq!(b.len(), FRAME_HEADER_LEN + 1 + nal.len());
+        match decode::<AgentMsg>(&b).unwrap() {
+            Decoded::Video(h2, key, data) => {
+                assert_eq!(h2, h);
+                assert!(key);
+                assert_eq!(data, nal);
+            }
+            _ => panic!(),
+        }
+        let b = encode_video(&h, false, &nal);
+        assert!(matches!(decode::<AgentMsg>(&b).unwrap(), Decoded::Video(_, false, _)));
+    }
+
+    #[test]
+    fn old_start_stream_defaults_to_jpeg() {
+        // 예전 앱은 codec 을 보내지 않는다 → 빈 문자열(= jpeg)
+        let m: ClientMsg = serde_json::from_str(r#"{"type":"start_stream","monitor":0,"quality":60,"scale_pct":50,"max_fps":15}"#).unwrap();
+        assert!(matches!(m, ClientMsg::StartStream { ref codec, bitrate_kbps: 0, .. } if codec.is_empty()));
     }
 }

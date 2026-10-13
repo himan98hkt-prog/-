@@ -93,3 +93,15 @@ APK: 이 PC 에서 빌드한 release APK (`flutter test` 9/9, `flutter analyze` 
 | 3 | **PC 재시작으로 주소 변경 → 휴대폰에서 PC 만 누르기** | **성공** | 입력 없이 6초 만에 새 주소로 자동 연결 (같은 Wi-Fi 시도 → 옛 주소 실패 → 안내판 → 새 주소) |
 | 4 | 같은 Wi-Fi 자동 찾기 / 바로 접속 | **미검증 (방화벽 차단)** | 이 PC 는 Wi-Fi 가 "공용 네트워크"이고 Windows 가 homepilot-agent 들어오는 연결 차단 규칙을 만들어 둠. 차단 시 안내 문구와 인터넷 경로 대체는 정상 동작 확인 |
 | 5 | 차단·미등록·승인 거절 시 다른 경로로 재시도하지 않음 | 코드 검토 | `ConnectException.network` 로 구분 |
+## F. H.264 동영상 전송 실기 (2026-10-13)
+
+PC: Windows Media Foundation 내장 H.264 인코더 (Baseline, 저지연, CBR). 휴대폰: MediaCodec 하드웨어 디코더 → Flutter 텍스처.
+
+| # | 항목 | 결과 | 비고 |
+|---|---|---|---|
+| 1 | 실제 인코더 단위 테스트 (640x360 30장) | 성공 | 키프레임에 SPS 포함, Annex-B, 압축률 확인 |
+| 2 | 터널 경유 JPEG (70%, 20fps) | 19.8 fps / 9,550 kbps | 비교 기준 (hp-cli, 보기 전용 시험 등록 후 해제) |
+| 3 | **터널 경유 H.264 (70%, 20fps)** | **18.1 fps / 634 kbps** | 데이터 약 1/15 |
+| 4 | **터널 경유 H.264 (Full HD, 30fps)** | **27.9 fps / 1,148 kbps** | |
+| 5 | **Galaxy Z Flip4 에서 H.264 재생** | **성공** | "HD 동영상 · 20 fps · 25ms", 1344x756 1.9 Mbps |
+| 6 | 휴대폰이 H.264 를 못 쓰거나 PC 인코더 실패 시 JPEG 자동 대체 | 코드 경로 | `StreamStarted.codec` 으로 실제 방식 통지 |

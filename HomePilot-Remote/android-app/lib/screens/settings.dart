@@ -48,6 +48,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          SwitchListTile(
+            title: const Text('HD 동영상 전송 (권장)'),
+            subtitle: const Text('데이터를 1/10 이하로 쓰면서 더 부드럽고 선명합니다. 화면이 이상하면 끄세요.'),
+            value: store.videoEnabled,
+            onChanged: (v) => setState(() => store.setVideoEnabled(v)),
+          ),
           const Divider(height: 32),
           ListTile(leading: const Icon(Icons.fingerprint), title: const Text('이 휴대폰의 기기 지문'), subtitle: Text(_fp ?? '…')),
           ListTile(
