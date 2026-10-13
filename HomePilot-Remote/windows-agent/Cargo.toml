@@ -56,4 +56,6 @@ windows = { version = "0.58", features = [
     "Win32_Security_Cryptography",
 ] }
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
+# 실행 파일 아이콘(assets/homepilot.ico)을 Windows 리소스로 넣는다. Windows 가 아니면 아무것도 하지 않음.
+embed-resource = "3"

@@ -67,7 +67,7 @@ class _PcListScreenState extends State<PcListScreen> {
                 for (final pc in pcs)
                   Card(
                     child: ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.desktop_windows_outlined)),
+                      leading: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.asset('assets/logo.png', width: 40, height: 40)),
                       title: Text(pc.name),
                       subtitle: Text(pc.relayUrl, maxLines: 1, overflow: TextOverflow.ellipsis),
                       trailing: const Icon(Icons.chevron_right),
@@ -93,7 +93,7 @@ class _EmptyGuide extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 24),
-        Icon(Icons.devices_other, size: 72, color: Theme.of(context).colorScheme.primary),
+        Center(child: Image.asset('assets/logo.png', width: 112, height: 112)),
         const SizedBox(height: 16),
         Text('등록된 PC 가 없습니다', textAlign: TextAlign.center, style: t.titleLarge),
         const SizedBox(height: 24),

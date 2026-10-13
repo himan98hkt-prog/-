@@ -29,6 +29,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName=HomePilot Remote Agent
+SetupIconFile=..\assets\homepilot.ico
+UninstallDisplayIcon={app}\homepilot-agent.exe
 CloseApplications=yes
 MinVersion=10.0
 

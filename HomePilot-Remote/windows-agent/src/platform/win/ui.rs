@@ -147,18 +147,44 @@ fn fill_wide<const N: usize>(dst: &mut [u16; N], s: &str) {
     dst[v.len()] = 0;
 }
 
+/// 트레이 상태 아이콘 (design/make_icons.py 로 만든 PNG 를 실행 파일에 포함).
+/// 0: 온라인, 1: 오프라인, 2: 원격 접속 중, 3: 차단
+static TRAY_PNG: [(&[u8], &[u8]); 4] = [
+    (include_bytes!("../../../assets/tray_online_16.png"), include_bytes!("../../../assets/tray_online_32.png")),
+    (include_bytes!("../../../assets/tray_offline_16.png"), include_bytes!("../../../assets/tray_offline_32.png")),
+    (include_bytes!("../../../assets/tray_active_16.png"), include_bytes!("../../../assets/tray_active_32.png")),
+    (include_bytes!("../../../assets/tray_blocked_16.png"), include_bytes!("../../../assets/tray_blocked_32.png")),
+];
+static TRAY_ICONS: [AtomicIsize; 4] = [AtomicIsize::new(0), AtomicIsize::new(0), AtomicIsize::new(0), AtomicIsize::new(0)];
+
 unsafe fn tray_icon() -> HICON {
     let s = &g().shared;
-    let id = if s.is_blocked() {
-        IDI_ERROR
+    let state = if s.is_blocked() {
+        3
     } else if !s.active_sessions().is_empty() {
-        IDI_WARNING
+        2
     } else if s.relay_online.load(Ordering::Relaxed) {
-        IDI_SHIELD
+        0
     } else {
-        IDI_APPLICATION
+        1
     };
-    LoadIconW(None, id).unwrap_or_default()
+    let cached = TRAY_ICONS[state].load(Ordering::Relaxed);
+    if cached != 0 {
+        return HICON(cached as *mut core::ffi::c_void);
+    }
+    // 화면 배율에 맞는 크기 (100%: 16px, 150%: 24px → 32px 원본을 줄여 씀)
+    let size = GetSystemMetrics(SM_CXSMICON).max(16);
+    let png = if size <= 16 { TRAY_PNG[state].0 } else { TRAY_PNG[state].1 };
+    match CreateIconFromResourceEx(png, TRUE, 0x0003_0000, size, size, LR_DEFAULTCOLOR) {
+        Ok(h) => {
+            TRAY_ICONS[state].store(h.0 as isize, Ordering::Relaxed);
+            h
+        }
+        Err(e) => {
+            tracing::warn!("트레이 아이콘 만들기 실패: {e}");
+            LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
+        }
+    }
 }
 
 fn tooltip() -> String {

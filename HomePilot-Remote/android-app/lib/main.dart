@@ -14,7 +14,8 @@ class HomePilotApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF1F6FEB);
+    // 앱 아이콘(보라→청록 그라데이션)의 중간 색
+    const seed = Color(0xFF4F5BF0);
     return MaterialApp(
       title: 'HomePilot',
       debugShowCheckedModeBanner: false,
