@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'billing.dart';
 import 'screens/pc_list.dart';
 import 'store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await store.load();
+  unawaited(billing.init()); // 상점 연결은 화면을 막지 않고 뒤에서
   runApp(const HomePilotApp());
 }
 

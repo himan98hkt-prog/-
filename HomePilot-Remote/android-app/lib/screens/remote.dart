@@ -7,6 +7,7 @@ import '../protocol/connection.dart';
 import '../protocol/messages.dart';
 import '../store.dart';
 import '../video.dart';
+import 'pro.dart';
 import 'view_math.dart';
 
 /// 원격 화면. 닫힐 때 종료 사유(있으면)를 돌려준다.
@@ -141,6 +142,7 @@ class _RemoteScreenState extends State<RemoteScreen> {
 
   Future<void> _toggleSound() async {
     final on = !_sound;
+    if (on && !await ProScreen.require(context, 'PC 소리 듣기')) return;
     setState(() => _sound = on);
     if (on) {
       await _audioCh.invokeMethod('start');
@@ -333,8 +335,10 @@ class _RemoteScreenState extends State<RemoteScreen> {
               ListTile(
                 leading: Icon(i == _quality ? Icons.radio_button_checked : Icons.radio_button_off),
                 title: Text(Quality.presets[i].label),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
+                  // '선명' (원본 해상도·30fps) 은 Pro
+                  if (i == Quality.presets.length - 1 && !await ProScreen.require(context, '선명 화질')) return;
                   setState(() => _quality = i);
                   _start();
                 },

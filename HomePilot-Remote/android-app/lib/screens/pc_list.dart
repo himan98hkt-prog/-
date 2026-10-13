@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../store.dart';
 import 'add_pc.dart';
 import 'dashboard.dart';
+import 'pro.dart';
 import 'settings.dart';
 
 class PcListScreen extends StatefulWidget {
@@ -13,6 +14,9 @@ class PcListScreen extends StatefulWidget {
 
 class _PcListScreenState extends State<PcListScreen> {
   Future<void> _add() async {
+    // 무료는 PC 1대
+    if (store.pcs.isNotEmpty && !await ProScreen.require(context, 'PC 여러 대 등록')) return;
+    if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddPcScreen()));
     setState(() {});
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../billing.dart';
 import '../protocol/noise.dart';
 import '../store.dart';
+import 'pro.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -32,6 +34,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: Text(billing.isPro ? 'HomePilot Pro 사용 중' : 'HomePilot Pro'),
+              subtitle: const Text('PC 여러 대 · 선명 화질 · PC 소리 · AI 작업'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProScreen())),
+            ),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _name,
             decoration: const InputDecoration(labelText: '이 휴대폰 이름', helperText: 'PC 의 등록 확인창과 접속 기록에 표시됩니다', border: OutlineInputBorder()),
