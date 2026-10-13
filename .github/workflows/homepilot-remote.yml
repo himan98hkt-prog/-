@@ -132,6 +132,8 @@ jobs:
         shell: bash
         env:
           E2E_ARTIFACTS: ${{ github.workspace }}/HomePilot-Remote/releases/e2e-windows
+          # CI 서버 화면에 실제 키·마우스를 보내면 러너 프로그램이 Ctrl+C 등을 받아 멈춘다 → 기록만
+          HOMEPILOT_INPUT_DRY_RUN: "1"
         run: bash tests/e2e.sh target/release
       - name: 종단간 테스트 기록 업로드
         if: always()

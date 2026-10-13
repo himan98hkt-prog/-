@@ -58,14 +58,27 @@ pub fn unprotect(data: &[u8]) -> Result<Vec<u8>> {
 
 // ---------- 입력 ----------
 
-pub struct Input;
+pub struct Input {
+    /// 진단·자동 테스트용: 입력을 실제로 보내지 않고 기록만 한다 (HOMEPILOT_INPUT_DRY_RUN=1).
+    /// 사람이 없는 CI 서버에서 Ctrl+C 등을 실제로 보내면 서버 프로그램 자체가 멈출 수 있다.
+    dry_run: bool,
+}
 
 impl Input {
     pub fn new() -> Self {
-        Input
+        Input { dry_run: std::env::var_os("HOMEPILOT_INPUT_DRY_RUN").is_some_and(|v| v == "1") }
     }
 
     pub fn apply(&mut self, a: InputAction) -> Result<()> {
+        if self.dry_run {
+            if let InputAction::Key { key, .. } = &a {
+                if key_name_to_vk(key).is_none() {
+                    bail!("알 수 없는 키: {key}");
+                }
+            }
+            tracing::debug!(?a, "입력(기록만)");
+            return Ok(());
+        }
         let inputs: Vec<INPUT> = match a {
             InputAction::MoveAbs { x, y } => {
                 let (vx, vy, vw, vh) = unsafe {

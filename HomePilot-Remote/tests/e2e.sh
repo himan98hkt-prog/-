@@ -87,13 +87,10 @@ check "실시간 전송 (흐름 제어) $(grep -o '[0-9.]* fps' "$WORK/stream.ou
 
 echo "== 4. 입력"
 cli click 0.5 0.5 --right >/dev/null 2>&1; cli type "안녕하세요 HomePilot" >/dev/null 2>&1; cli combo ctrl c >/dev/null 2>&1; cli scroll -- -2 >/dev/null 2>&1
-if [ -z "$EXE" ]; then
-  check "마우스 우클릭 전달" 'grep -q "button: Right, down: true" "$WORK/agent.log"'
-  check "한글 문자열 전달" 'grep -q "안녕하세요 HomePilot" "$WORK/agent.log"'
-  check "조합키 전달" 'grep -qF "Key { key: \"ctrl\", down: false }" "$WORK/agent.log"'
-else
-  echo "  (Windows: 실제 입력이 발생했는지는 화면으로 확인 필요)"
-fi
+# Linux 는 입력 기록 모드, Windows CI 는 HOMEPILOT_INPUT_DRY_RUN=1 (실제 키 입력은 사람 앞의 PC 에서 확인)
+check "마우스 우클릭 전달" 'grep -q "button: Right, down: true" "$WORK/agent.log"'
+check "한글 문자열 전달" 'grep -q "안녕하세요 HomePilot" "$WORK/agent.log"'
+check "조합키 전달" 'grep -qF "Key { key: \"ctrl\", down: false }" "$WORK/agent.log"'
 NAME=보기전용 KEY=viewer cli keygen >/dev/null 2>&1
 timeout 30 "$AGENT" trust-client --name 보기전용 --public-key "$(KEY=viewer cli keygen)" --view-only >/dev/null
 KEY=viewer NAME=보기전용 cli click 0.1 0.1 >"$WORK/viewer.out" 2>&1
