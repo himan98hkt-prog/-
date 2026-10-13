@@ -19,9 +19,9 @@ FAKE
 chmod +x "$WORK/fake-cloudflared"
 
 A="$BIN/homepilot-agent"
-"$A" setup-home >"$WORK/setup.out"
-"$A" config --cloudflared "$WORK/fake-cloudflared" --local-relay-port "$PORT" >/dev/null
-DEV=$("$A" info | sed -n 's/^장치 ID *: //p')
+timeout 30 "$A" setup-home >"$WORK/setup.out"
+timeout 30 "$A" config --cloudflared "$WORK/fake-cloudflared" --local-relay-port "$PORT" >/dev/null
+DEV=$(timeout 30 "$A" info | sed -n 's/^장치 ID *: //p')
 coproc AG { exec "$A" run --headless --console >"$WORK/agent.out" 2>"$WORK/agent.log"; }
 PIDS+=($AG_PID); exec 3>&"${AG[1]}"
 for i in $(seq 1 50); do grep -q "휴대폰용 중계 주소" "$WORK/agent.log" && grep -q "중계 서버 연결됨" "$WORK/agent.log" && break; sleep 0.2; done
@@ -29,7 +29,7 @@ for i in $(seq 1 50); do grep -q "휴대폰용 중계 주소" "$WORK/agent.log" 
 check "내장 중계 서버 시작" 'grep -q "내장 중계 서버 시작: 127.0.0.1:$PORT" "$WORK/agent.log"'
 check "에이전트가 내장 중계에 등록" 'grep -q "중계 서버 연결됨" "$WORK/agent.log"'
 check "터널 주소 인식" 'grep -q "휴대폰용 중계 주소: https://sample-[0-9]*-words.trycloudflare.com" "$WORK/agent.log"'
-check "info 에 휴대폰 주소 표시" '"$A" info | grep -q "휴대폰 주소 : https://sample-"'
+check "info 에 휴대폰 주소 표시" 'timeout 30 "$A" info | grep -q "휴대폰 주소 : https://sample-"'
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
   -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" "http://127.0.0.1:$PORT/v1/agent/$DEV")
 check "토큰 없는 가짜 에이전트 등록 거부 (HTTP $CODE)" '[ "$CODE" = "401" ]'

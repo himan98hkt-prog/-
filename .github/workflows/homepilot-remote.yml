@@ -113,14 +113,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: 릴리스 빌드
         run: cargo build --release --workspace
-      - name: 종단간 테스트 (실제 Windows 화면)
-        timeout-minutes: 8
-        shell: bash
-        env:
-          E2E_ARTIFACTS: ${{ github.workspace }}/HomePilot-Remote/releases/e2e-windows
-        run: bash tests/e2e.sh target/release
       - name: 설치 프로그램 빌드 (Inno Setup)
-        if: ${{ !cancelled() }}
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -129,11 +122,21 @@ jobs:
           & $iscc "/DAppVersion=$ver" "/DSourceExe=..\..\target\release\homepilot-agent.exe" windows-agent\installer\homepilot-agent.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item target\release\homepilot-agent.exe, target\release\homepilot-relay.exe, target\release\hp-cli.exe releases\
-      - name: 결과물 업로드
-        if: always()
+      - name: 설치 파일 업로드
         uses: actions/upload-artifact@v5
         with:
           name: homepilot-windows
-          path: |
-            HomePilot-Remote/releases/*.exe
-            HomePilot-Remote/releases/e2e-windows/
+          path: HomePilot-Remote/releases/*.exe
+      - name: 종단간 테스트 (실제 Windows 화면)
+        timeout-minutes: 8
+        shell: bash
+        env:
+          E2E_ARTIFACTS: ${{ github.workspace }}/HomePilot-Remote/releases/e2e-windows
+        run: bash tests/e2e.sh target/release
+      - name: 종단간 테스트 기록 업로드
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: homepilot-windows-e2e
+          path: HomePilot-Remote/releases/e2e-windows/
+          if-no-files-found: ignore

@@ -26,8 +26,11 @@ stop(){
   kill -9 "$p" 2>/dev/null; return 0
 }
 cleanup(){ exec 3>&- 2>/dev/null; for p in "${PIDS[@]}"; do stop "$p"; done
-  [ -n "$EXE" ] && taskkill //F //IM homepilot-agent.exe //IM homepilot-relay.exe //IM hp-cli.exe >/dev/null 2>&1; true; }
-trap cleanup EXIT
+  [ -n "$EXE" ] && taskkill //F //IM homepilot-agent.exe //IM homepilot-relay.exe //IM hp-cli.exe >/dev/null 2>&1
+  # 실패·중단 시에도 원인을 볼 수 있게 기록을 남긴다
+  if [ -n "${E2E_ARTIFACTS:-}" ]; then mkdir -p "$E2E_ARTIFACTS"; cp "$WORK"/*.jpg "$WORK"/*.out "$WORK"/*.log "$E2E_ARTIFACTS"/ 2>/dev/null
+    cp "$WORK/agent/logs/connections.jsonl" "$E2E_ARTIFACTS"/ 2>/dev/null; fi; true; }
+trap cleanup EXIT INT TERM
 
 start_relay(){ "$RELAY" --listen "127.0.0.1:$PORT" >>"$WORK/relay.log" 2>&1 & RELAY_PID=$!; PIDS+=($RELAY_PID); sleep 0.5; }
 start_agent(){
@@ -43,8 +46,8 @@ cli(){ timeout 60 "$CLI" --relay "$URL" --device "$DEV" --key "$(P "$WORK/${KEY:
 wait_online(){ for i in $(seq 1 ${1:-40}); do cli connect >/dev/null 2>&1 && return 0; sleep 0.5; done; return 1; }
 
 echo "== 준비 (작업 폴더 $WORK)"
-"$AGENT" config --relay "$URL" --name "테스트 PC" >/dev/null
-DEV=$("$AGENT" info | sed -n 's/^장치 ID *: //p')
+timeout 30 "$AGENT" config --relay "$URL" --name "테스트 PC" >/dev/null
+DEV=$(timeout 30 "$AGENT" info | sed -n 's/^장치 ID *: //p')
 check "장치 ID 생성 ($DEV)" '[[ "$DEV" =~ ^[0-9a-f]{20}$ ]]'
 start_relay
 check "에이전트 시작 + 중계 서버 연결" 'start_agent'
@@ -92,10 +95,10 @@ else
   echo "  (Windows: 실제 입력이 발생했는지는 화면으로 확인 필요)"
 fi
 NAME=보기전용 KEY=viewer cli keygen >/dev/null 2>&1
-"$AGENT" trust-client --name 보기전용 --public-key "$(KEY=viewer cli keygen)" --view-only >/dev/null
+timeout 30 "$AGENT" trust-client --name 보기전용 --public-key "$(KEY=viewer cli keygen)" --view-only >/dev/null
 KEY=viewer NAME=보기전용 cli click 0.1 0.1 >"$WORK/viewer.out" 2>&1
 check "보기 전용 기기의 조작 거부 (권한 분리)" 'grep -q "조작 권한이 없습니다" "$WORK/viewer.out"'
-"$AGENT" revoke 보기전용 >/dev/null
+timeout 30 "$AGENT" revoke 보기전용 >/dev/null
 KEY=viewer NAME=보기전용 cli connect >"$WORK/revoked.out" 2>&1
 check "등록 해제한 기기는 실행 중에도 즉시 거부" 'grep -q "등록되지 않은 기기" "$WORK/revoked.out"'
 
@@ -115,7 +118,7 @@ check "중계 서버 재시작 후 자동 재연결" 'wait_online 60'
 
 echo "== 7. 에이전트 재시작(재부팅 가정)"
 exec 3>&-; stop $AGENT_PID; sleep 0.5
-DEV2=$("$AGENT" info | sed -n 's/^장치 ID *: //p')
+DEV2=$(timeout 30 "$AGENT" info | sed -n 's/^장치 ID *: //p')
 check "재시작 후 장치 ID 유지" '[ "$DEV" = "$DEV2" ]'
 start_agent >/dev/null
 check "재시작 후 등록 기기 그대로 접속" 'wait_online 20'
@@ -124,5 +127,4 @@ check "로그에 비밀키/세션키 없음" '! grep -qi "private" "$WORK/agent.
 
 echo
 echo "결과: 성공 $PASS / 실패 $FAIL"
-[ -n "${E2E_ARTIFACTS:-}" ] && { mkdir -p "$E2E_ARTIFACTS"; cp "$WORK"/*.jpg "$WORK"/*.out "$WORK"/*.log "$E2E_ARTIFACTS"/ 2>/dev/null; cp "$WORK/agent/logs/connections.jsonl" "$E2E_ARTIFACTS"/ 2>/dev/null; }
 [ $FAIL -eq 0 ] || { echo "--- agent.log (마지막 40줄)"; tail -40 "$WORK/agent.log"; exit 1; }

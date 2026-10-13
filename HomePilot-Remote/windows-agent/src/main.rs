@@ -126,12 +126,17 @@ fn init_logging(paths: &Paths, console: bool) -> tracing_appender::non_blocking:
 
 fn main() {
     let cli = Cli::parse_from(std::env::args_os());
-    if cli.cmd.as_ref().is_some_and(|c| !matches!(c, Cmd::Run { .. })) {
+    // 트레이 모드(명령 없이 실행)만 화면 대화상자를 쓴다. 명령줄·콘솔 모드에서 대화상자를 띄우면
+    // 화면 앞에 사람이 없을 때(서비스, CI) 영원히 멈추므로 오류는 표준오류로만 알린다.
+    let tray_mode = matches!(cli.cmd, None | Some(Cmd::Run { headless: false, console: false, .. }));
+    if !tray_mode {
         platform::attach_parent_console();
     }
     if let Err(e) = real_main(cli) {
         eprintln!("오류: {e:#}");
-        platform::show_message("HomePilot 오류", &format!("{e:#}"));
+        if tray_mode {
+            platform::show_message("HomePilot 오류", &format!("{e:#}"));
+        }
         std::process::exit(1);
     }
 }
