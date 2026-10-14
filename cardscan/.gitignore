@@ -40,6 +40,9 @@ yarn-error.*
 /ios
 /android
 
+# 로컬 네이티브 모듈 빌드 결과물 (npm run android:dev 시 생성)
+modules/*/android/build/
+
 # Tesseract(Node) 실행 시 생기는 언어 데이터 캐시
 *.traineddata
 
