@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  # push 는 main 만 — 기능 브랜치는 pull_request 트리거가 이미 검사하므로
+  # 둘 다 켜면 같은 커밋이 두 번 돈다
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 테스트 · 빌드
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 단위·통합 테스트
+        run: npm test
+
+      - name: 프로덕션 빌드
+        run: npm run build
+
+      - name: 배포 산출물 확인
+        run: |
+          # 판매 대상 3종(Pro·Lite·키 발급기)이 모두 나왔는지
+          for f in dist/index.html dist/lite.html dist/tools/keygen.html; do
+            test -f "$f" || { echo "::error::$f 가 생성되지 않았습니다"; exit 1; }
+          done
+          echo "산출물 크기:"
+          du -sh dist
+
+      - name: 빌드 산출물 업로드
+        uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist
+          retention-days: 7

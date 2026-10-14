@@ -1,0 +1,140 @@
+# 명함스캔 구글 플레이 업로드용 AAB 빌드 (수동 실행)
+# - cardscan/ 이 바뀌어 push 되면 자동으로 빌드한다. (기본 브랜치에 합쳐진 뒤에는 Actions → Run workflow 로 수동 실행도 가능)
+# - 저장소 Settings → Secrets and variables → Actions 에 업로드 키 4개가 있어야 스토어에 올릴 수 있는 파일이 나온다:
+#     CARDSCAN_UPLOAD_KEYSTORE_BASE64, CARDSCAN_UPLOAD_STORE_PASSWORD, CARDSCAN_UPLOAD_KEY_ALIAS, CARDSCAN_UPLOAD_KEY_PASSWORD
+#   (만드는 법: cardscan/store/README.md). 키가 없으면 임시 키로 "빌드 확인용" 파일만 만든다 — 업로드 불가.
+# - 플레이스토어용 패키지 이름은 직접 설치용 APK(com.cardscan.app)와 다르게 둔다. 한 번 올리면 바꿀 수 없다.
+name: 명함스캔 플레이스토어 AAB
+
+on:
+  push:
+    paths: ['cardscan/**', '.github/workflows/cardscan-play.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: cardscan-play-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PLAY_PACKAGE: io.github.himan98hktprog.cardscan
+  # 플레이스토어 빌드에서만 Pro 결제(구글 플레이 결제)를 켠다 — 앱 코드에 그대로 박힌다
+  EXPO_PUBLIC_STORE: play
+  ORG_GRADLE_PROJECT_openiapStore: play
+
+jobs:
+  aab:
+    name: AAB 빌드
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: cardscan
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cardscan/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 업로드 키 준비
+        id: key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CARDSCAN_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.CARDSCAN_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CARDSCAN_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.CARDSCAN_UPLOAD_KEY_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/upload.jks"
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KS"
+            echo "CARDSCAN_UPLOAD_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "::add-mask::$STORE_PASSWORD"
+            echo "CARDSCAN_UPLOAD_STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "CARDSCAN_UPLOAD_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASSWORD}" >> "$GITHUB_ENV"
+            # 키가 제대로 풀렸는지 확인 (비밀번호·별칭이 틀리면 여기서 멈춘다)
+            keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+            echo "real=true" >> "$GITHUB_OUTPUT"
+            echo "업로드 키로 서명합니다."
+          else
+            TMP_PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore "$KS" -storepass "$TMP_PASS" -keypass "$TMP_PASS" -alias temp \
+              -keyalg RSA -keysize 2048 -validity 365 -dname "CN=CardScan build check" > /dev/null 2>&1
+            echo "CARDSCAN_UPLOAD_KEY_ALIAS=temp" >> "$GITHUB_ENV"
+            echo "CARDSCAN_UPLOAD_STORE_PASSWORD=$TMP_PASS" >> "$GITHUB_ENV"
+            echo "CARDSCAN_UPLOAD_KEY_PASSWORD=$TMP_PASS" >> "$GITHUB_ENV"
+            echo "real=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::업로드 키(Secrets)가 없어 임시 키로 빌드 확인만 합니다. 이 파일은 플레이스토어에 올리면 안 됩니다."
+          fi
+          echo "CARDSCAN_UPLOAD_STORE_FILE=$KS" >> "$GITHUB_ENV"
+
+      - name: 플레이스토어용 패키지 이름·버전 번호
+        run: |
+          node -e '
+            const fs = require("fs");
+            const app = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            app.expo.android.package = process.env.PLAY_PACKAGE;
+            // 2026-01-01 부터 지난 분 — 빌드할 때마다 커지므로 플레이 콘솔의 "버전 코드 중복" 오류가 나지 않는다
+            app.expo.android.versionCode = Math.floor((Date.now() / 1000 - 1767225600) / 60);
+            fs.writeFileSync("app.json", JSON.stringify(app, null, 2));
+            console.log(app.expo.android.package, "versionName", app.expo.version, "versionCode", app.expo.android.versionCode);
+          '
+
+      - name: 안드로이드 프로젝트 생성 (expo prebuild)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: AAB 빌드 (bundleRelease)
+        working-directory: cardscan/android
+        # 휴대폰(arm64·32비트 arm) + 크롬북·심사용 에뮬레이터(x86_64). 플레이가 기기별로 나눠 내려보낸다.
+        run: ./gradlew bundleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+
+      - name: 서명 확인·파일 이름 정리
+        id: aab
+        run: |
+          VERSION=$(node -p 'require("./app.json").expo.version')
+          CODE=$(node -p 'require("./app.json").expo.android.versionCode')
+          if [ "${{ steps.key.outputs.real }}" = "true" ]; then
+            NAME="cardscan-play-v${VERSION}-${CODE}.aab"
+          else
+            NAME="TEST-ONLY-업로드금지-cardscan-v${VERSION}-${CODE}.aab"
+          fi
+          cp android/app/build/outputs/bundle/release/app-release.aab "../$NAME"
+          jarsigner -verify "../$NAME" > /dev/null && echo "서명 확인 완료"
+          keytool -printcert -jarfile "../$NAME" | grep -E "Owner|SHA256:" | head -2
+          ls -la "../$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+      - name: AAB 보관 (Actions 아티팩트에서 내려받기)
+        uses: actions/upload-artifact@v5
+        with:
+          name: cardscan-play-aab
+          path: ${{ steps.aab.outputs.name }}
+          retention-days: 14
+
+      - name: 안내
+        run: |
+          {
+            echo "### 명함스캔 플레이스토어 AAB"
+            echo "- 파일: \`${{ steps.aab.outputs.name }}\` (이 실행 화면 아래 **Artifacts → cardscan-play-aab** 에서 내려받기)"
+            echo "- 패키지: \`$PLAY_PACKAGE\` · 버전 코드: ${{ steps.aab.outputs.code }}"
+            if [ "${{ steps.key.outputs.real }}" = "true" ]; then
+              echo "- 플레이 콘솔 → 테스트 및 출시 → (비공개 테스트 또는 프로덕션) → 새 버전 만들기 → 이 .aab 업로드"
+            else
+              echo "- ⚠️ 업로드 키가 없어 **빌드 확인용**입니다. 플레이스토어에 올리지 마세요. cardscan/store/README.md 의 '업로드 키' 단계를 먼저 하세요."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

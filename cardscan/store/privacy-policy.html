@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>명함스캔 개인정보처리방침</title>
+<style>
+  :root { --ink:#0B1530; --gold:#B08A45; --text:#1A2033; --sub:#5B6475; --line:#E3E6EE; --bg:#F6F7FA; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; line-height:1.75; }
+  header { background:linear-gradient(135deg,#0B1530,#22305F); color:#fff; padding:44px 20px 36px; }
+  header .in, main { max-width:760px; margin:0 auto; }
+  .brand { color:#D4AF6A; font-weight:800; letter-spacing:4px; font-size:12px; }
+  h1 { margin:6px 0 6px; font-size:28px; letter-spacing:-0.5px; }
+  header p { margin:0; color:rgba(255,255,255,.7); font-size:14px; }
+  main { padding:24px 20px 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px 22px 14px; margin-bottom:14px; }
+  h2 { font-size:18px; margin:0 0 10px; }
+  h2 span { color:var(--gold); margin-right:6px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin:6px 0 10px; }
+  th, td { border-top:1px solid var(--line); padding:9px 6px; text-align:left; vertical-align:top; }
+  th { color:var(--sub); font-weight:700; width:30%; }
+  ul { padding-left:20px; margin:6px 0 10px; }
+  .note { color:var(--sub); font-size:13px; }
+  a { color:#2C46E0; }
+  .en h2 span { color:var(--gold); }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <div class="brand">CARDSCAN</div>
+  <h1>명함스캔 개인정보처리방침</h1>
+  <p>시행일: 2026년 10월 6일 · 적용 대상: 명함스캔(CardScan) 안드로이드 앱 및 웹앱</p>
+</div></header>
+<main>
+  <section>
+    <h2><span>●</span>한눈에 보기</h2>
+    <ul>
+      <li>명함 사진과 명함 정보는 <b>이용자의 휴대폰 안에만</b> 저장됩니다. 개발자는 서버를 운영하지 않으며, 이용자의 명함·연락처를 받거나 보관하지 않습니다.</li>
+      <li>명함 글자 인식은 <b>휴대폰 안에서</b>(Google ML Kit, 오프라인) 처리됩니다.</li>
+      <li>이용자가 <b>직접 켠 연동</b>(구글 시트·HubSpot·웹훅·슬랙)과 <b>선택 기능</b>인 Claude 인식을 쓸 때만, 그 이용자가 지정한 서비스로 명함 정보가 전송됩니다.</li>
+      <li>광고, 광고 ID, 행동 추적·분석 도구를 사용하지 않습니다. 회원가입이 없습니다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span>1.</span>처리하는 정보와 목적</h2>
+    <table>
+      <tr><th>명함 정보</th><td>이름, 회사, 부서, 직책, 휴대폰·전화·팩스 번호, 이메일, 웹사이트, 주소, 메모·그룹·팔로업 날짜 — 명함첩 관리, 연락처 저장, 이용자가 켠 연동으로 보내기 위해 사용합니다. 휴대폰 안에만 저장됩니다.</td></tr>
+      <tr><th>명함 사진</th><td>촬영하거나 앨범에서 고른 명함 이미지 — 글자 인식과 원본 보기에 사용하며 휴대폰 안에만 저장됩니다.</td></tr>
+      <tr><th>내 명함</th><td>이용자가 직접 입력한 본인 명함 정보 — QR·공유용으로 휴대폰 안에만 저장됩니다.</td></tr>
+      <tr><th>연동 설정</th><td>연동 주소, 토큰·비밀키 — 휴대폰의 보안 저장소(Android Keystore)에 암호화해 보관합니다.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span>2.</span>휴대폰 권한</h2>
+    <table>
+      <tr><th>카메라</th><td>명함 촬영. 촬영할 때만 사용합니다.</td></tr>
+      <tr><th>연락처 (읽기·쓰기)</th><td>찍은 명함을 휴대폰 연락처에 저장하고, 같은 사람이 이미 있으면 새로 만들지 않고 합치기 위해 기존 연락처를 확인합니다. 연락처 목록을 휴대폰 밖으로 보내지 않습니다.</td></tr>
+      <tr><th>알림</th><td>이용자가 정한 날 "다시 연락하기(팔로업)" 알림. 휴대폰 안에서 예약되는 알림입니다.</td></tr>
+      <tr><th>인터넷</th><td>이용자가 켠 연동·선택 기능으로 전송할 때 사용합니다.</td></tr>
+    </table>
+    <p class="note">사진첩 접근 권한은 요청하지 않습니다. 앨범에서 고를 때는 안드로이드 기본 사진 선택 창을 사용하며, 이용자가 고른 사진만 앱에 전달됩니다.</p>
+  </section>
+
+  <section>
+    <h2><span>3.</span>외부로 전송되는 경우 (이용자가 켰을 때만)</h2>
+    <table>
+      <tr><th>구글 시트</th><td>이용자가 입력한 Apps Script 웹 앱 주소로 명함 정보를 전송 (Google)</td></tr>
+      <tr><th>HubSpot CRM</th><td>이용자의 HubSpot 계정으로 연락처 생성·갱신 (HubSpot, Inc.)</td></tr>
+      <tr><th>웹훅</th><td>이용자가 입력한 주소(사내 ERP·Zapier·Make·n8n 등)로 명함 정보를 JSON 으로 전송</td></tr>
+      <tr><th>슬랙</th><td>이용자가 입력한 슬랙 Incoming Webhook 으로 새 명함 알림 전송 (Slack Technologies)</td></tr>
+      <tr><th>Claude 인식 (선택·기본 꺼짐)</th><td>이용자가 직접 API 키 또는 서버를 설정한 경우에만, 명함 사진을 Anthropic(Claude API) 또는 이용자의 서버로 보내 글자를 인식합니다.</td></tr>
+    </table>
+    <p class="note">위 전송은 이용자가 설정한 목적지로만 이루어지며, 개발자는 그 내용을 받지 않습니다. 각 서비스에서의 처리는 해당 서비스의 개인정보처리방침을 따릅니다. 모든 전송은 HTTPS 로 암호화됩니다.</p>
+  </section>
+
+  <section>
+    <h2><span>4.</span>앱에 포함된 Google 구성요소</h2>
+    <p>명함 글자 인식(Google ML Kit)과 문서 스캐너(Google Play 서비스)는 휴대폰 안에서 동작하지만, Google 이 기능 개선·오류 진단을 위해 기기 정보(제조사·모델·OS 버전), 앱 정보(패키지 이름·버전), 성능·오류 지표를 수집할 수 있습니다. 명함 사진이나 인식된 글자는 포함되지 않습니다. 자세한 내용: <a href="https://developers.google.com/ml-kit/android-data-disclosure" target="_blank" rel="noopener">Google ML Kit 데이터 공개</a></p>
+  </section>
+
+  <section>
+    <h2><span>5.</span>보관 기간과 삭제</h2>
+    <ul>
+      <li>명함 정보와 사진은 이용자가 앱에서 삭제하거나 앱을 지울 때까지 휴대폰에 보관됩니다.</li>
+      <li>명함 상세 화면의 <b>삭제</b>로 개별 삭제, 앱 삭제(또는 안드로이드 설정 → 앱 → 저장공간 → 데이터 삭제)로 전체 삭제됩니다.</li>
+      <li>휴대폰 연락처나 이용자가 켠 연동 서비스에 이미 저장된 정보는 해당 앱·서비스에서 직접 삭제해야 합니다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span>6.</span>아동</h2>
+    <p>이 앱은 업무용 명함 관리 앱으로 만 14세 미만 아동을 대상으로 하지 않습니다.</p>
+  </section>
+
+  <section>
+    <h2><span>7.</span>이용자의 권리와 문의</h2>
+    <p>이용자는 앱 안에서 언제든 자신의 정보를 열람·수정·삭제할 수 있습니다. 개발자는 이용자의 개인정보를 서버에 보관하지 않으므로 별도의 열람·삭제 요청 절차가 필요하지 않습니다. 문의: 구글 플레이 앱 정보의 개발자 이메일 또는 <a href="https://github.com/himan98hkt-prog/-/issues" target="_blank" rel="noopener">문의 게시판</a></p>
+  </section>
+
+  <section>
+    <h2><span>8.</span>변경</h2>
+    <p>이 방침이 바뀌면 이 페이지에 시행일과 함께 게시합니다.</p>
+  </section>
+
+  <section class="en">
+    <h2><span>EN</span>Privacy Policy (summary)</h2>
+    <ul>
+      <li>CardScan stores business-card photos and contact details <b>only on your device</b>. The developer runs no server and never receives your data.</li>
+      <li>Text recognition runs <b>on-device</b> (Google ML Kit). Google may collect device/app diagnostics (no card images or text) — see the ML Kit data disclosure above.</li>
+      <li>Card data is sent off the device only to destinations <b>you enable</b>: Google Sheets (your Apps Script URL), HubSpot, your webhook, Slack, or the optional Claude (Anthropic) recognition with your own API key. All transfers use HTTPS.</li>
+      <li>Permissions: camera (scanning), contacts (saving and de-duplicating contacts; never uploaded), notifications (follow-up reminders). No photo-library permission; the system photo picker is used.</li>
+      <li>No ads, no advertising ID, no analytics, no accounts. Delete a card in the app, or uninstall the app to delete everything. Not directed to children.</li>
+      <li>Contact: the developer email on the Google Play listing, or <a href="https://github.com/himan98hkt-prog/-/issues">our issue tracker</a>.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
