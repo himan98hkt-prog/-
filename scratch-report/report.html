@@ -1,0 +1,430 @@
+<title>학원 관리노트 상품화 점검</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ink:        #16223c;
+    --ink-soft:   #46536e;
+    --paper:      #ffffff;
+    --ground:     #f2f4f8;
+    --rule:       #dfe3ec;
+    --brand:      #2563eb;
+    --brand-soft: #e8effd;
+    --seal:       #b23a2f;
+    --seal-soft:  #fbecea;
+    --good:       #1f7a4d;
+    --good-soft:  #e6f4ec;
+
+    --display: 'Gowun Batang', 'Nanum Myeongjo', serif;
+    --body: 'IBM Plex Sans KR', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(20px, 5vw, 64px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:        #e8ecf5;
+      --ink-soft:   #a3adc2;
+      --paper:      #151a26;
+      --ground:     #0d1017;
+      --rule:       #2a3141;
+      --brand:      #7ea6ff;
+      --brand-soft: #1c2a48;
+      --seal:       #e08b80;
+      --seal-soft:  #3a2320;
+      --good:       #6fcf9a;
+      --good-soft:  #17301f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink:        #e8ecf5;
+    --ink-soft:   #a3adc2;
+    --paper:      #151a26;
+    --ground:     #0d1017;
+    --rule:       #2a3141;
+    --brand:      #7ea6ff;
+    --brand-soft: #1c2a48;
+    --seal:       #e08b80;
+    --seal-soft:  #3a2320;
+    --good:       #6fcf9a;
+    --good-soft:  #17301f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 940px;
+    margin: 0 auto;
+    background: var(--paper);
+    border-left: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    padding: clamp(28px, 6vw, 72px) var(--pad) 96px;
+  }
+
+  /* ── 표제 ─────────────────────────────────── */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; margin-bottom: 34px; }
+  .kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--brand); margin-bottom: 14px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(30px, 5.4vw, 46px); line-height: 1.18; letter-spacing: -.01em;
+    margin: 0 0 12px; text-wrap: balance;
+  }
+  .standfirst { color: var(--ink-soft); font-size: 17px; max-width: var(--measure); margin: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 20px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+  }
+  .meta b { color: var(--ink); font-weight: 500; }
+
+  /* ── 섹션 ─────────────────────────────────── */
+  section { margin-top: 56px; scroll-margin-top: 20px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 10px; margin-bottom: 24px; }
+  .sec-no { font-family: var(--mono); font-size: 12px; color: var(--brand); letter-spacing: .1em; }
+  h2 { font-family: var(--display); font-weight: 700; font-size: clamp(21px, 3vw, 27px); margin: 0; letter-spacing: -.01em; }
+  h3 { font-family: var(--body); font-weight: 600; font-size: 16px; margin: 32px 0 10px; }
+  p { max-width: var(--measure); margin: 0 0 16px; }
+  strong { font-weight: 600; }
+  a { color: var(--brand); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 3px; }
+
+  /* ── 요약 지표 ────────────────────────────── */
+  .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 28px 0 8px; }
+  .fig { background: var(--paper); padding: 18px 20px; }
+  .fig .v { font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .fig .l { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* ── 표 ───────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 20px 0 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); border-bottom: 1px solid var(--ink); }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  /* ── 상태 표시 ────────────────────────────── */
+  .pill { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .04em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.done { background: var(--good-soft); color: var(--good); }
+  .pill.new  { background: var(--brand-soft); color: var(--brand); }
+  .pill.open { background: var(--seal-soft); color: var(--seal); }
+
+  /* ── 개선 전/후 ───────────────────────────── */
+  .swap { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 22px 0; }
+  .swap > div { background: var(--paper); padding: 18px 20px; }
+  .swap .was { color: var(--ink-soft); }
+  .swap .was b, .swap .now b { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; font-weight: 500; }
+  .swap .was b { color: var(--seal); }
+  .swap .now b { color: var(--good); }
+  @media (min-width: 720px) { .swap { grid-template-columns: 1fr 1fr; } }
+
+  /* ── 키 구조 ──────────────────────────────── */
+  .keybox { background: var(--ground); border: 1px solid var(--rule); padding: 22px 20px; margin: 22px 0; }
+  .keystr { font-family: var(--mono); font-size: clamp(20px, 4.6vw, 30px); letter-spacing: .12em; display: flex; gap: .12em; flex-wrap: wrap; }
+  .keystr span { padding: 2px 4px; border-radius: 4px; }
+  .k-prod { background: var(--brand-soft); color: var(--brand); font-weight: 500; }
+  .k-plan { background: var(--good-soft); color: var(--good); font-weight: 500; }
+  .k-rand { color: var(--ink-soft); }
+  .k-sum  { background: var(--seal-soft); color: var(--seal); font-weight: 500; }
+  .keylegend { display: grid; gap: 8px; margin-top: 18px; font-size: 14px; }
+  .keylegend div { display: flex; gap: 10px; align-items: baseline; }
+  .keylegend .tag { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 4px; flex: none; }
+
+  /* ── 인용/주의 ────────────────────────────── */
+  .note { border-left: 3px solid var(--brand); background: var(--brand-soft); padding: 16px 20px; margin: 24px 0; font-size: 15px; }
+  .note.warn { border-left-color: var(--seal); background: var(--seal-soft); }
+  .note p:last-child { margin-bottom: 0; }
+
+  ul { max-width: var(--measure); padding-left: 20px; margin: 0 0 16px; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--brand); }
+
+  code { font-family: var(--mono); font-size: .88em; background: var(--ground); padding: 1px 5px; border-radius: 4px; }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--ink-soft); }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="kicker">상품화 점검 · 2026-08-27</div>
+    <h1>학원 관리노트 상품화 점검</h1>
+    <p class="standfirst">
+      전 계열 학원·공부방용 관리 앱을 판매 가능한 상태까지 끌어올린 기록입니다.
+      인증키로 사용을 여는 구조, 원장이 반복하던 일곱 가지 업무의 자동화, 그리고
+      피아노 관리노트와 나란히 놓아도 밀리지 않는 화면까지 세 번에 걸쳐 다듬었습니다.
+    </p>
+    <div class="meta">
+      <span>플랜 <b>Lite · Pro</b></span>
+      <span>테스트 <b>182건</b></span>
+      <span>브라우저 검증 <b>47건</b></span>
+      <span>규모 기준 <b>원생 1,000 / 출결 20만</b></span>
+      <span>키 <b>피아노 관리노트와 공용</b></span>
+    </div>
+  </header>
+
+  <section id="summary">
+    <div class="sec-head"><span class="sec-no">01</span><h2>한 장 요약</h2></div>
+    <div class="figures">
+      <div class="fig"><div class="v">276<span style="font-size:14px">ms</span></div><div class="l">앱 콜드 스타트</div></div>
+      <div class="fig"><div class="v">154<span style="font-size:14px">ms</span></div><div class="l">가장 느린 화면(수납)</div></div>
+      <div class="fig"><div class="v">5<span style="font-size:14px">탭</span></div><div class="l">휴대폰 하단 (나머지는 더보기)</div></div>
+      <div class="fig"><div class="v">3<span style="font-size:14px">단계</span></div><div class="l">글씨 크기 조절</div></div>
+    </div>
+    <p style="margin-top:22px">
+      이전 상태는 “기능은 다 있지만 아무나 그냥 쓸 수 있고, 원장이 손으로 하던 일은 그대로 남아 있는” 앱이었습니다.
+      이번에 바꾼 것은 두 가지입니다. <strong>첫째, 인증키 없이는 앱이 열리지 않습니다.</strong>
+      <strong>둘째, 매일 반복하던 확인·안내·계산·정리 작업을 앱이 대신합니다.</strong>
+    </p>
+  </section>
+
+  <section id="gate">
+    <div class="sec-head"><span class="sec-no">02</span><h2>인증키로 여는 제품</h2></div>
+    <p>
+      첫 실행에서 인증 화면이 뜹니다. 구매한 키를 넣거나 14일 체험을 시작해야 앱으로 들어갑니다.
+      체험이 끝나도 <strong>자료는 그대로 남고</strong>, 키를 넣으면 하던 작업을 이어서 씁니다.
+    </p>
+
+    <div class="keybox">
+      <div class="keystr" aria-label="인증키 구조">
+        <span class="k-prod">A</span><span class="k-plan">P</span><span class="k-rand">7W</span>–<span class="k-rand">DZYP</span>–<span class="k-rand">1</span><span class="k-sum">TY7C</span>
+      </div>
+      <div class="keylegend">
+        <div><span class="tag k-prod">A</span><span><b>제품</b> — A는 <strong>피아노 관리노트와 공용인 통합키</strong>. M은 학원 전용, K는 피아노 전용.</span></div>
+        <div><span class="tag k-plan">P</span><span><b>플랜</b> — L은 Lite(기기 1대·완전 오프라인), P는 Pro(여러 기기 실시간 동기화).</span></div>
+        <div><span class="tag k-rand">6자</span><span><b>랜덤</b> — 받아 적을 때 헷갈리는 I·L·O·U는 쓰지 않습니다.</span></div>
+        <div><span class="tag k-sum">4자</span><span><b>검증번호</b> — 한 글자만 틀려도 앱이 거부하고 이유를 알려 줍니다.</span></div>
+      </div>
+    </div>
+
+    <h3>피아노 관리노트와 키를 함께 쓰는 방법</h3>
+    <p>
+      두 제품이 같은 발급 규칙을 쓰면 됩니다. 이 저장소의 <code>src/core/license.js</code>를 피아노 앱에 그대로 넣고
+      <code>PRODUCT_CODE</code>만 <code>'K'</code>로 바꾸면, 통합키(A)는 양쪽에서 열리고 전용키는 각자 제품에서만 열립니다.
+      잘못된 키를 넣으면 “피아노 관리노트 전용 키입니다”처럼 이유가 표시됩니다.
+    </p>
+    <div class="note">
+      <p><strong>피아노 관리노트와 실제로 연결했습니다.</strong> 발급기(<code>pambookkey.html</code>)의 규칙을 그대로 이식해
+      <strong>피아노 키가 이 앱에서 Pro 로 열리고</strong>, 앱 파일(v3.9)에는 스크립트 한 블록을 덧붙여
+      <strong>학원 관리노트 키가 피아노 앱에서 열리는 것</strong>까지 브라우저로 확인했습니다.
+      기존에 판 키는 회수할 필요가 없습니다.</p>
+    </div>
+
+    <h3>라이선스가 사라지지 않는 자리</h3>
+    <ul>
+      <li>인증 정보는 <strong>기기의 것</strong>으로 취급합니다. 데모 데이터 넣기·초기화·백업 복원에도 인증이 유지됩니다.</li>
+      <li>반대로 <strong>백업 파일에는 인증키가 담기지 않습니다.</strong> 백업을 복사해 다른 기기에서 라이선스를 복제할 수 없습니다.</li>
+      <li>기기마다 6자리 기기번호가 표시되어 재발급·문의 대응에 씁니다.</li>
+      <li>제품 구분이 없던 초기 발급분(첫 자리 L/P)도 계속 인정합니다. 회수할 필요가 없습니다.</li>
+    </ul>
+  </section>
+
+  <section id="design">
+    <div class="sec-head"><span class="sec-no">03</span><h2>화면을 다시 짰습니다</h2></div>
+    <p>
+      기능은 있어도 <strong>"열었을 때의 인상"</strong> 이 약했습니다. 피아노 관리노트를 기준선으로 놓고,
+      같은 제품군으로 보일 만큼 화면을 다시 세웠습니다. 색을 요란하게 쓰는 대신 종이·잉크·얇은 선으로 뼈대를 만들고,
+      학원마다 다른 브랜드 색은 강조에만 씁니다. 어떤 색을 골라도 화면이 무너지지 않습니다.
+    </p>
+
+    <div class="swap">
+      <div class="was"><b>이전</b>파란 띠 헤더, 이모지 아이콘, 하단에 9개 탭이 눌려 있음. 버튼은 42px 회색 상자 — 무엇을 눌러야 하는지 알기 어려움.</div>
+      <div class="now"><b>지금</b>흰 헤더 + 브랜드 라인, 선 아이콘 통일, 넓은 화면은 사이드바 / 휴대폰은 5탭+더보기. 주 버튼은 브랜드 색 그라데이션으로 하나만.</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:190px">바꾼 것</th><th>왜</th></tr></thead>
+        <tbody>
+          <tr><td><strong>따뜻한 종이 바탕</strong></td><td>학원 사무실에서 하루 종일 켜 두는 화면입니다. 채도가 높으면 눈이 아픕니다. 글자도 완전한 검정 대신 잉크색을 씁니다.</td></tr>
+          <tr><td><strong>글씨 16px부터</strong></td><td>선생님 연령대가 넓습니다. 기본을 키우고, 설정에서 <strong>보통 / 크게 / 아주 크게</strong> 3단계로 더 키울 수 있습니다.</td></tr>
+          <tr><td><strong>버튼 46~56px</strong></td><td>손가락으로 눌러야 합니다. 주 동작은 한 화면에 하나만 두고 그라데이션과 그림자로 분명히 구분합니다.</td></tr>
+          <tr><td><strong>이모지 → 선 아이콘</strong></td><td>이모지는 기기마다 모양이 달라 화면이 들쭉날쭉해집니다. 굵기가 같은 아이콘 세트로 통일했습니다.</td></tr>
+          <tr><td><strong>하단 탭 9개 → 5개</strong></td><td>탭이 아홉 개면 아무것도 눈에 들어오지 않습니다. 매일 쓰는 다섯 개만 남기고 나머지는 "더보기" 로 옮겼습니다. PC에서는 사이드바에 전부 펼칩니다.</td></tr>
+          <tr><td><strong>날짜를 읽히게</strong></td><td>브라우저 기본 날짜 칸은 <code>08/27/2026</code> 처럼 나옵니다. <strong>8월 27일 목요일</strong> 로 크게 보여 주고, 누르면 달력이 열립니다.</td></tr>
+          <tr><td><strong>안내 상자·번호 절차</strong></td><td>설명을 그냥 흘려 두면 읽지 않습니다. 왼쪽 굵은 선과 색으로 "읽어야 하는 것" 을 먼저 알립니다.</td></tr>
+          <tr><td><strong>금액 정렬</strong></td><td>수납 표의 숫자를 오른쪽 정렬 + 고정폭으로 맞춰 자리수가 눈으로 비교됩니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>컴퓨터가 익숙하지 않아도 되도록</h3>
+    <ul>
+      <li><strong>첫 실행 안내 3장</strong> — "이 화면만 보시면 됩니다 / 이름을 한 번 누르면 출석 / 문자는 한 번에". 오른쪽 아래 동그란 버튼으로 언제든 다시 봅니다.</li>
+      <li><strong>화면마다 한 줄 설명</strong> — 제목 아래에 "여기서 무엇을 하는 곳인지" 를 적었습니다.</li>
+      <li><strong>되돌리기</strong> — "전체 출석" 을 잘못 눌러도 15초 안에 한 번에 되돌립니다.</li>
+      <li><strong>중복 발송 방지</strong> — 일괄 안내 목록에 "오늘 보냄" 표시가 붙습니다.</li>
+      <li><strong>홈 화면에 설치 도우미</strong> — 안드로이드·아이폰·PC 각각의 절차를 번호로 안내합니다. 설치되면 주소를 외울 필요가 없습니다.</li>
+      <li><strong>빈 화면에도 다음 할 일</strong> — "원생이 없습니다" 로 끝내지 않고 바로 가는 버튼을 답니다.</li>
+    </ul>
+  </section>
+
+  <section id="work">
+    <div class="sec-head"><span class="sec-no">04</span><h2>원장의 반복 업무를 어디까지 줄였나</h2></div>
+    <p>
+      학원 현장에서 시간을 가장 많이 먹는 일은 “기록”이 아니라 <strong>확인·안내·계산·정리</strong>입니다.
+      기존 앱은 기록은 잘 받아 주지만 나머지를 원장에게 남겨 두고 있었습니다. 그 일곱 가지를 화면 안으로 옮겼습니다.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>매일·매달 하던 일</th><th>지금</th><th style="width:88px">상태</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>오늘 뭘 해야 하는지 머릿속으로 점검</td>
+            <td><strong>오늘 탭</strong> — 출결 미체크 반, 결석 안내 대상, 미납 독촉, 방치된 후속 상담, 백업 경과를 한 화면에. 각 줄에 처리 버튼이 붙습니다.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>결석한 학생 학부모에게 한 명씩 문자</td>
+            <td><strong>일괄 안내</strong> — 대상 선택 → 이름·금액이 각자 값으로 채워진 문구 생성 → 전체 복사 / 번호만 복사 / CSV / 문자앱 열기. 누구에게 보냈는지 이력이 남습니다.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>미납자 뽑아 개별 독촉</td>
+            <td>수납 탭 <strong>미납자 일괄 안내</strong>. 납부 기준일이 지나야 독촉 대상이 되고, 연체 일수가 표에 표시됩니다.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>형제 할인·개인 할인 계산기로 두드리기</td>
+            <td>설정에 규칙을 한 번 정하면 <strong>청구 생성이 자동 계산</strong>합니다. 미리보기로 “누가 얼마”를 먼저 보고 만들고, 할인 내역이 청구서와 영수증에 그대로 남습니다.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>엑셀 명단을 손으로 옮겨 적기</td>
+            <td><strong>엑셀 가져오기</strong> — 표를 그대로 붙여넣거나 CSV 업로드. 열 이름 자동 인식, 이미 등록된 원생 표시, 없는 반 자동 생성.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>출석부·수납대장 손으로 정리, 영수증 손으로 쓰기</td>
+            <td><strong>A4 인쇄</strong>(월간 출석부·수납대장)와 <strong>영수증 이미지 발행</strong>. 내보내기는 원생 명단·수납 12개월·출결 3개월 CSV.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>백업을 잊어버림</td>
+            <td>마지막 백업 경과일을 오늘 탭이 경고합니다. 7일이 지나면 주의, 14일이 지나면 경고 단계로 올라갑니다.</td>
+            <td><span class="pill new">신규</span></td>
+          </tr>
+          <tr>
+            <td>출결 체크·원생 관리·수납·시간표·상담·현황</td>
+            <td>기존 기능 유지. 형제 자동 묶기는 이제 <strong>앱을 열 때 자동 재계산</strong>되어, 엑셀로 들여온 명단에도 할인이 바로 붙습니다.</td>
+            <td><span class="pill done">개선</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="swap">
+      <div class="was"><b>이전</b>미납자 25명에게 문자 보내기 = 명단 확인 → 한 명씩 이름·금액 바꿔 쓰기 → 보낸 사람 따로 표시. 30~40분.</div>
+      <div class="now"><b>지금</b>오늘 탭 → 미납 줄의 “일괄 안내” → 대상 확인 → 전체 문구 복사 → 붙여넣기. 발송 이력 자동 기록.</div>
+    </div>
+  </section>
+
+  <section id="verify">
+    <div class="sec-head"><span class="sec-no">05</span><h2>무엇을 어떻게 확인했나</h2></div>
+    <p>
+      “된다”는 말 대신 재현 가능한 검증으로 남겼습니다. 세 가지가 매번 같은 방식으로 돌아갑니다.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>검증</th><th>내용</th><th class="num">건수</th></tr></thead>
+        <tbody>
+          <tr><td><code>npm test</code></td><td>수납 계산·할인·형제 묶기·출결 집계·인증키(피아노 규칙 이식 포함)·체험 기간·오늘 할 일 판정·엑셀 파싱·출석부·백업·동기화 충돌 + IndexedDB 통합</td><td class="num">182</td></tr>
+          <tr><td><code>npm run smoke</code></td><td>실제 Chromium에서 인증 게이트(피아노 키 포함) → 마법사 → PIN → 첫 사용 안내 → 앱 진입, 계열 전환, 브랜딩, 리포트·영수증 이미지, 백업 왕복, 형제 할인 청구, 엑셀 가져오기</td><td class="num">47</td></tr>
+          <tr><td><code>npm run perf</code></td><td>원생 1,000명 / 반 80개 / 출결 20만 건을 실제 IndexedDB에 넣고 화면별 렌더 시간 측정. 하나라도 1초를 넘기면 실패로 끝냅니다.</td><td class="num">22</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>성능 — 원생 1,000명 / 출결 20만 건</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>화면</th><th class="num">렌더</th><th>화면</th><th class="num">렌더</th></tr></thead>
+        <tbody>
+          <tr><td>앱 콜드 스타트</td><td class="num">276ms</td><td>시간표</td><td class="num">114ms</td></tr>
+          <tr><td>오늘</td><td class="num">47ms</td><td>상담</td><td class="num">27ms</td></tr>
+          <tr><td>출결</td><td class="num">84ms</td><td>지출</td><td class="num">32ms</td></tr>
+          <tr><td>원생</td><td class="num">86ms</td><td>현황</td><td class="num">28ms</td></tr>
+          <tr><td>수납</td><td class="num">154ms</td><td>현황(집계 캐시 없는 최악)</td><td class="num">23ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:14px;color:var(--ink-soft)">
+      기준은 전 화면 1초입니다. 디자인 개편 뒤 수납 탭이 1,000명분을 한 번에 그리며 1.2초까지 늘어난 것을
+      측정에서 잡아, 60줄 + "더 보기" 로 바꿔 154ms 가 되었습니다(검색·미납 필터가 먼저 걸리는 것이 실제 사용 흐름입니다).
+    </p>
+  </section>
+
+  <section id="open">
+    <div class="sec-head"><span class="sec-no">06</span><h2>아직 확인하지 못한 것</h2></div>
+    <p>판매 전에 남은 항목입니다. 숨기지 않고 적습니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>왜</th><th style="width:96px">필요한 것</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Pro 실환경 검증</strong> — RLS 정책, 기기 2대 동시 출결 3초 내 반영</td>
+            <td>Supabase 프로젝트가 없어 실제 서버로 확인하지 못했습니다. 동기화 로직은 가짜 클라이언트로 단위 검증만 되어 있습니다.</td>
+            <td><span class="pill open">계정</span></td>
+          </tr>
+          <tr>
+            <td><strong>피아노 앱 쪽 배포</strong></td>
+            <td>패치를 적용한 <code>index.html</code> 을 드렸습니다. 실제 서비스에 올리는 것은 남은 일입니다. 앱이 새 버전이 되면 <code>scripts/verify-piano-patch.mjs</code> 로 같은 8가지를 다시 확인하세요.</td>
+            <td><span class="pill open">배포</span></td>
+          </tr>
+          <tr>
+            <td><strong>교재·진도 관리</strong></td>
+            <td>피아노 관리노트에는 교재 배정·진도 태그가 있습니다. 학원 관리노트는 계열마다 다른 <em>학습 항목</em>(custom 필드)으로 대신하고 있어, 교재를 목록으로 관리하는 기능은 아직 없습니다.</td>
+            <td><span class="pill open">범위</span></td>
+          </tr>
+          <tr>
+            <td><strong>키 공유 방지</strong></td>
+            <td>오프라인 자체검증이라 기술적으로 완전히 막지 못합니다. 정품 구매 흐름을 만드는 데까지가 이 방식의 목적입니다. 강한 통제는 Pro 서버 검증으로 확장하는 것이 정공법입니다.</td>
+            <td><span class="pill open">정책</span></td>
+          </tr>
+          <tr>
+            <td><strong>로고 이미지 서버 보관</strong></td>
+            <td>현재는 기기 안(dataURL)에만 저장합니다. Pro에서 기기 간 로고 공유가 필요하면 Storage 연동이 남습니다.</td>
+            <td><span class="pill open">개발</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="try">
+    <div class="sec-head"><span class="sec-no">07</span><h2>지금 바로 확인하는 법</h2></div>
+    <ul>
+      <li><strong>체험판 파일 하나</strong> — <code>학원관리노트-체험판.html</code>을 더블클릭. 인증 화면에서 “14일 무료 체험 시작”을 누르면 바로 씁니다.</li>
+      <li><strong>정식 배포본</strong> — <code>lite.html</code>(단일 기기) / <code>index.html</code>(Pro)은 웹호스팅에 올리거나 <code>npx serve .</code>로 확인합니다. 더블클릭으로는 열리지 않습니다(브라우저 보안 정책).</li>
+      <li><strong>인증키 발급</strong> — <code>tools/keygen.html</code>. 판매자 전용이므로 고객 서버에 올리지 마세요.</li>
+      <li><strong>화면 캡처</strong> — 인증 화면부터 각 탭·리포트·키오스크·모바일까지 <code>화면캡처/</code> 폴더에 있습니다.</li>
+    </ul>
+    <div class="note">
+      <p>처음 열면 <strong>인증 → 시작 마법사(학원명·계열·색·과목·PIN, 3분) → 오늘 탭</strong> 순서로 진행됩니다.
+      마법사에서 “샘플 원생 데이터도 함께 넣기”를 체크하면 데이터가 채워진 상태로 둘러볼 수 있습니다.</p>
+    </div>
+  </section>
+
+  <footer>
+    학원 관리노트 · Lite(IndexedDB, 완전 오프라인) + Pro(Supabase 실시간 동기화) · 인증키 12자리, 피아노 관리노트와 공용 가능
+  </footer>
+</div>
