@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}진단 · 자동매매{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>진단<span class="sub">프로그램이 지금 보고 있는 값 그대로입니다</span></h2>
+
+  {% if missing_count %}
+  <div class="notice danger">
+    <strong>필수 항목 {{ missing_count }}개가 비어 있습니다</strong>
+    아래 표에서 <span class="badge stop">비었음</span> 표시된 줄을 설정 화면에서 채우세요.
+  </div>
+  {% else %}
+  <div class="notice">
+    <strong>필수 항목이 모두 채워져 있습니다</strong>
+    현황 화면에서 <b>▶ 자동매매 시작</b>을 누를 수 있습니다.
+  </div>
+  {% endif %}
+
+  <table>
+    <thead><tr><th>설정 파일</th><th>값</th></tr></thead>
+    <tbody>
+      <tr><td>설치 폴더</td><td class="mono">{{ base_dir }}</td></tr>
+      <tr><td>.env 위치</td><td class="mono">{{ env_path }}
+        {% if not env_exists %}<span class="badge stop">파일 없음</span>{% endif %}</td></tr>
+      <tr><td>DB 위치</td><td class="mono">{{ db_path }}</td></tr>
+      <tr><td>현재 버전</td><td class="mono">{{ version.short }} {{ version.message }}</td></tr>
+      <tr><td>자동매매</td><td>{{ '가동 중 (PID ' ~ status.pid ~ ')' if status.running else '실행 안 함' }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>설정 항목<span class="sub">비밀값은 채워졌는지와 길이만 보여줍니다</span></h2>
+  <table>
+    <thead><tr><th>항목</th><th>이름</th><th>값</th><th>필수</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{{ 'row-missing' if r.missing }}">
+        <td>{{ r.label }}</td>
+        <td class="mono dim">{{ r.key }}</td>
+        <td class="{{ 'dim' if not r.required and r.value == '(비어 있음)' }}">
+          {{ r.value }}
+          {% if r.missing %}<span class="badge stop">비었음</span>{% endif %}
+        </td>
+        <td class="dim">{{ '필수' if r.required else '선택' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>자동매매 기동 기록<span class="sub">시작 버튼을 눌렀을 때 남은 출력입니다</span></h2>
+  {% if bot_log %}
+  <pre class="logs">{{ bot_log }}</pre>
+  {% else %}
+  <div class="chart-empty">아직 기동 기록이 없습니다 — 자동매매를 한 번도 시작하지 않았습니다</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>대시보드 기록<span class="sub">화면이 깨지거나 창이 닫혔을 때 원인이 여기 남습니다</span></h2>
+  {% if dashboard_log %}
+  <pre class="logs">{{ dashboard_log }}</pre>
+  {% else %}
+  <div class="chart-empty">기록이 없습니다</div>
+  {% endif %}
+</div>
+
+{% if config_error %}
+<div class="card">
+  <h2>설정 검증 오류</h2>
+  <pre class="logs">{{ config_error }}</pre>
+</div>
+{% endif %}
+
+<div class="control-row">
+  <a class="btn" href="{{ url_for('setup') }}">← 설정으로</a>
+  <a class="btn primary" href="{{ url_for('index') }}">현황 보기 →</a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,960 @@
+{% extends "base.html" %}
+{% block title %}현황 · 자동매매{% endblock %}
+{% block content %}
+
+{% if overview.ai_calls and overview.ai_failures * 100 >= overview.ai_calls * 20 %}
+<div class="notice danger">
+  <strong>AI 판단이 자주 실패하고 있습니다
+    ({{ overview.ai_failures }}/{{ overview.ai_calls }}건)</strong>
+  한 엔진이라도 응답하지 못하면 그 종목은 <b>무조건 관망</b>이 됩니다 —
+  실패가 잦으면 매매 자체가 멈춘 것과 같습니다.
+  <a href="{{ url_for('diagnose') }}">진단 화면</a>의 기록에서 실패 사유를 확인하세요.
+</div>
+{% endif %}
+
+{% if broken %}
+<div class="notice danger">
+  <strong>일부 화면을 그리지 못했습니다</strong>
+  아래 칸만 비어 있고 나머지는 정상입니다. 매매에는 영향이 없습니다.
+  <ul class="missing-list">
+    {% for item in broken %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if missing %}
+<div class="notice danger">
+  <strong>아직 채우지 않은 항목이 {{ missing|length }}개 있습니다</strong>
+  아래 값이 비어 있어 <b>자동매매를 시작할 수 없습니다</b>. 나머지 화면은 그대로 보셔도 됩니다.
+  <ul class="missing-list">
+    {% for key, label in missing %}
+    <li><b>{{ label }}</b> <code>{{ key }}</code></li>
+    {% endfor %}
+  </ul>
+  <a class="btn primary" href="{{ url_for('setup') }}">설정 화면에서 채우기 →</a>
+</div>
+{% endif %}
+
+{% set s = status.state %}
+{% set o = overview %}
+
+{% if config_error %}
+<div class="notice danger">
+  <strong>설정을 읽지 못했습니다 — 아래 수치는 기본값 기준입니다</strong>
+  <span class="mono">{{ config_error }}</span>
+  <div style="margin-top:8px"><a class="btn" href="{{ url_for('setup') }}">설정 고치기</a></div>
+</div>
+{% endif %}
+
+{% if status.stopped %}
+<div class="notice danger">
+  <strong>🛑 긴급 정지 상태입니다</strong>
+  {{ status.stop_reason }} — 새 사이클이 실행되지 않습니다.
+  <form method="post" action="{{ url_for('control', action='resume') }}" style="margin-top:8px">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="btn primary" type="submit">매매 재개</button>
+  </form>
+</div>
+{% endif %}
+
+{% if s.status == 'FATAL' %}
+<div class="notice danger">
+  <strong>치명적 오류로 스케줄러가 멈췄습니다</strong>{{ s.last_error }}
+</div>
+{% elif s.last_error %}
+<div class="notice danger"><strong>마지막 오류</strong>{{ s.last_error }}</div>
+{% endif %}
+
+{% if s.kis_env == 'REAL' and not s.dry_run %}
+<div class="notice danger"><strong>⚠️ 실전 모드로 실주문이 나가고 있습니다</strong>실제 자금이 사용됩니다.</div>
+{% endif %}
+
+{# 휴장일에 아무 일도 안 일어나는 것은 정상이다. 화면이 그렇게 말해 주지 않으면
+   '봇이 죽었나' 를 먼저 의심하게 된다. #}
+{% if status.market.state == 'HOLIDAY' %}
+<div class="notice">
+  <strong>😴 오늘은 휴장일입니다</strong>
+  판단도 주문도 하지 않습니다 — 정상입니다. 다음 거래일은 {{ status.market.next_trading_day }} 입니다.
+</div>
+{% endif %}
+
+{% if status.market.calendar_warning %}
+<div class="notice warn">
+  <strong>📅 휴장일 달력을 채워 주세요</strong>
+  {{ status.market.calendar_warning }}
+  <div style="margin-top:4px">채우지 않으면 공휴일에도 사이클이 돌고, 거래소가 주문을 거부하는 알림이 반복됩니다.</div>
+</div>
+{% endif %}
+
+<!-- ── 계좌 요약 ─────────────────────────────────────────────── -->
+{#
+  증권 앱은 계좌 금액 하나가 화면을 지배한다. 그게 맨 먼저 보고 싶은 것이고,
+  나머지는 전부 그 숫자를 설명하는 곁가지다. 타일 여섯 개를 같은 크기로
+  늘어놓으면 무엇부터 봐야 할지 알 수 없다.
+#}
+{% set up = o.daily_pnl_pct > 0 %}
+{% set down = o.daily_pnl_pct < 0 %}
+{% set dir = 'up' if up else ('down' if down else 'flat') %}
+{# 방향 클래스는 is- 를 붙인다. 그냥 'up' 을 쓰면 전역 유틸리티 .up(빨간 글씨)이
+   같이 걸려서 섹션 안의 모든 숫자가 빨갛게 물든다. #}
+<section class="account is-{{ dir }}">
+  <div class="account-head">
+    <span class="account-label">총 평가자산</span>
+    <span class="account-env {{ 'real' if s.kis_env == 'REAL' else 'vts' }}">
+      {{ '실전 REAL' if s.kis_env == 'REAL' else '모의 VTS' }}{% if s.dry_run %} · 주문 미전송{% endif %}
+    </span>
+  </div>
+  <div class="account-value">{{ '{:,.0f}'.format(o.end_equity) }}<small>원</small></div>
+  <div class="account-delta">
+    <span class="chip {{ dir }}">
+      {{ '▲' if up else ('▼' if down else '·') }}
+      {{ '{:+,.0f}'.format(o.unrealized_pnl) }}원
+      ({{ '%+.2f'|format(o.daily_pnl_pct) }}%)
+    </span>
+    <span class="account-meta">시작 {{ '{:,.0f}'.format(o.start_equity) }}원</span>
+  </div>
+  <div class="account-strip">
+    <div>
+      <span class="k">보유</span>
+      <span class="v">{{ o.position_count }}<em>종목</em></span>
+      <span class="s">{{ '{:,.0f}'.format(o.eval_amount) }}원</span>
+    </div>
+    <div>
+      <span class="k">오늘 주문</span>
+      <span class="v">{{ o.buy_count + o.sell_count }}<em>건</em></span>
+      <span class="s">매수 {{ o.buy_count }} · 매도 {{ o.sell_count }}{% if o.dry_run_orders %} · DRY_RUN {{ o.dry_run_orders }}{% endif %}{% if o.rejected_orders %} · <b class="down">거부 {{ o.rejected_orders }}</b>{% endif %}</span>
+    </div>
+    <div>
+      <span class="k">AI 비용</span>
+      <span class="v">${{ '%.2f'|format(o.ai_cost_usd) }}</span>
+      <span class="s">판단 {{ o.ai_calls }}건{% if o.ai_failures %} · <b class="down">실패 {{ o.ai_failures }}</b>{% endif %}</span>
+    </div>
+    <div>
+      <span class="k">사이클</span>
+      <span class="v">{{ s.last_cycle_label or '—' }}</span>
+      <span class="s">
+        {% if s.next_cycle_at %}다음 {{ s.next_cycle_at[11:16] }}{% else %}대기 중{% endif %}{% if s.last_cycle_codes %} · {{ s.last_cycle_codes }}종목{% endif %}
+        {% if status.market.upcoming %}<br>휴장 {{ status.market.upcoming|join(', ') }}{% endif %}
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ── 차트 ──────────────────────────────────────────────────── -->
+<div class="grid-2">
+  <div class="card">
+    <h2>자산 추이<span class="sub">일자별 종료 자산</span></h2>
+    {{ equity_chart|safe }}
+  </div>
+  <div class="card">
+    <h2>일별 손익률<span class="sub">상승 빨강 · 하락 파랑</span></h2>
+    {{ pnl_chart|safe }}
+  </div>
+</div>
+
+<!-- ── 매수 종목 (항상 펼침) ──────────────────────────────────── -->
+<div class="card" id="holdings">
+  <h2>매수 종목<span class="sub">무엇을 · 왜 샀는지 · 지금 어떤지</span></h2>
+  {% if positions %}
+  <div class="holdings">
+    {% for p in positions %}
+    {% set r = rationale.get(p.code) if rationale else None %}
+    <div class="holding{{ ' is-danger' if p.danger }}">
+      <div class="holding-top">
+        <span class="holding-name">{{ p.name }}</span>
+        <span class="dim mono">{{ p.code }}</span>
+        <span class="links">
+          <a href="https://finance.naver.com/item/main.naver?code={{ p.code }}"
+             target="_blank" rel="noopener" title="네이버 금융 — 시세·뉴스·재무">시세</a>
+          <a href="https://m.stock.naver.com/domestic/stock/{{ p.code }}/news"
+             target="_blank" rel="noopener" title="이 종목 뉴스">뉴스</a>
+          <a href="https://dart.fss.or.kr/dsab007/main.do?textCrpNm={{ p.name|urlencode }}"
+             target="_blank" rel="noopener" title="금융감독원 전자공시">공시</a>
+        </span>
+        <span class="chip {{ 'up' if p.pnl_pct > 0 else ('down' if p.pnl_pct < 0 else 'flat') }}">
+          {{ '%+.2f'|format(p.pnl_pct) }}%
+        </span>
+      </div>
+      <div class="holding-nums">
+        <span>{{ '{:,}'.format(p.qty) }}주</span>
+        <span>평단 <b>{{ '{:,.0f}'.format(p.avg_price) }}</b> → 현재 <b>{{ '{:,.0f}'.format(p.current_price) }}</b></span>
+        <span>평가 {{ '{:,.0f}'.format(p.eval_amount) }}원</span>
+        <span class="{{ 'up' if p.pnl_amount > 0 else ('down' if p.pnl_amount < 0 else 'dim') }}">
+          {{ '{:+,.0f}'.format(p.pnl_amount) }}원
+        </span>
+      </div>
+      <div class="holding-why">
+        {% if r %}
+        <b>{{ r.bought_at[:16].replace('T', ' ') }}</b> 에
+        {{ '{:,.0f}'.format(r.bought_price) }}원 × {{ r.bought_qty }}주 매수 —
+        {{ r.final_reason }}
+        {% if r.fill_unconfirmed %}
+        <span class="dim">(체결 수량이 아직 기록되지 않았습니다 — 상태 {{ r.order_status }}.
+        다음 사이클에서 자동으로 맞춰집니다. 보유 수량·손익은 증권사 잔고 기준이라 정확합니다.)</span>
+        {% endif %}
+        {% else %}
+        <span class="dim">매수 기록을 찾지 못했습니다 — 이 프로그램 밖에서 산 종목입니다</span>
+        {% endif %}
+      </div>
+      <div class="holding-guard">
+        손절까지 <b>{{ '%.1f'|format(p.to_stop_loss) }}%p</b> ·
+        익절까지 <b>{{ '%.1f'|format(p.to_take_profit) }}%p</b> ·
+        트레일링
+        {% if p.trailing_stop %}<b class="up">{{ '{:,.0f}'.format(p.trailing_stop) }}원</b>
+        {% else %}<span class="dim">아직 작동 전</span>{% endif %}
+        {% if r %}<a class="holding-more" href="#fold-rationale">세 AI 가 뭐라고 했는지 ↓</a>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% if not status.running %}
+  <div class="holdings-empty warn">
+    <b>자동매매가 꺼져 있습니다 — 아무것도 사지 않습니다.</b>
+    AI 판단도, 손절 감시도 돌지 않습니다. 마지막 사이클은
+    <b>{{ s.last_cycle_label or '기록 없음' }}</b> 였습니다.
+    <div class="holdings-fix">
+      아래 <b>제어</b> 칸에서 <b>자동매매 시작</b>을 누르세요.
+      바로 뜨지 않으면 <b>최근 로그</b>에 이유가 남아 있습니다.
+    </div>
+  </div>
+  {% elif s.dry_run and o.dry_run_orders %}
+  <div class="holdings-empty warn">
+    <b>오늘 매수가 {{ o.dry_run_orders }}건 결정됐지만, 주문은 나가지 않았습니다.</b>
+    지금은 <b>DRY_RUN</b> — 주문을 보내지 않고 <b>기록만</b> 하는 상태이기 때문입니다.
+    AI 도 리스크 검사도 정상으로 통과했고, 마지막 단계에서 멈춘 것입니다.
+    <div class="holdings-fix">
+      실제로 체결시키려면 →
+      <a class="btn primary" href="{{ url_for('setup') }}">설정에서 ‘주문 전송’ 을 false 로</a>
+      바꾸고 저장한 뒤, 아래 <b>제어 → 재시작</b>을 누르세요.
+      모의투자(VTS)는 가짜 돈이라 위험이 없습니다.
+    </div>
+  </div>
+  {% elif s.dry_run %}
+  <div class="holdings-empty">
+    <b>아직 매수한 종목이 없습니다.</b>
+    매수는 세 AI 가 <b>모두</b> 동의해야 나갑니다 — 한 표라도 빠지면 관망입니다.
+    몇 표까지 갔는지는 아래 <b>합의 근접도</b>에서 볼 수 있습니다.
+    <div class="holdings-fix dim">
+      참고: 지금은 <b>DRY_RUN</b> 이라, 합의가 나더라도 주문은 기록만 되고 실제로는 나가지 않습니다.
+    </div>
+  </div>
+  {% else %}
+  <div class="holdings-empty">
+    <b>아직 매수한 종목이 없습니다.</b>
+    매수는 세 AI 가 <b>모두</b> 동의해야 나갑니다 — 한 표라도 빠지면 관망입니다.
+    몇 표까지 갔는지는 아래 <b>합의 근접도</b>에서 볼 수 있습니다.
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- ── 자금 배치 ─────────────────────────────────────────────── -->
+{#
+  "1,000만원 중 100만원도 안 쓴다" 는 물음에 화면이 답하지 못했다. 돈은 셋으로
+  나뉘는데 — 한도 밖(설정이 아예 손대지 않는 돈), 한도 안 미투자, 투자 중 —
+  그 중 어디에 묶여 있는지를 보여주지 않으면 사용자가 직접 계산해야 한다.
+  접어 두면 볼 이유가 없으므로 고정 영역에 둔다.
+#}
+{% if headroom.ready and headroom.cap %}
+<div class="card">
+  <h2>자금 배치 <span class="sub">돈이 지금 어디에 있는지</span></h2>
+  <div class="alloc-bar">
+    {% set acc = headroom.account or headroom.cap %}
+    <span class="alloc-in"  style="width: {{ (headroom.invested / acc * 100)|round(1) }}%"
+          title="투자 중"></span>
+    <span class="alloc-idle" style="width: {{ (headroom.idle / acc * 100)|round(1) }}%"
+          title="한도 안이지만 아직 안 쓴 돈"></span>
+    <span class="alloc-out" style="width: {{ (headroom.outside_cap / acc * 100)|round(1) }}%"
+          title="운용 한도 밖"></span>
+  </div>
+  <div class="alloc-legend">
+    <span><i class="alloc-in"></i> 투자 중 <b>{{ '{:,.0f}'.format(headroom.invested) }}원</b></span>
+    <span><i class="alloc-idle"></i> 한도 안 미사용 <b>{{ '{:,.0f}'.format(headroom.idle) }}원</b></span>
+    {% if headroom.outside_cap %}
+    <span><i class="alloc-out"></i> 한도 밖 <b>{{ '{:,.0f}'.format(headroom.outside_cap) }}원</b>
+      <span class="dim">— settings.yaml 의 total_investment_cap_krw 가 {{ '{:,.0f}'.format(headroom.cap) }}원입니다</span>
+    </span>
+    {% endif %}
+  </div>
+  {% if headroom.per_code %}
+  <div class="alloc-codes">
+    <div class="alloc-codes-head">종목당 한도 {{ '{:,.0f}'.format(headroom.position_cap) }}원 · 남은 여유</div>
+    {% for item in headroom.per_code %}
+    <div class="alloc-code {{ 'is-full' if item.full }}">
+      <span class="alloc-code-name">{{ item.name }}</span>
+      <span class="alloc-code-bar"><i style="width: {{ [item.pct, 100]|min }}%"></i></span>
+      <span class="alloc-code-num">
+        {{ '{:,.0f}'.format(item.cost) }} / {{ '{:,.0f}'.format(headroom.position_cap) }}
+        {% if item.full %}<b class="down">추가 매수 불가</b>
+        {% else %}<span class="dim">여유 {{ '{:,.0f}'.format(item.room) }}원</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="bench-foot">
+    새로 담을 수 있는 자리 <b>{{ headroom.free_slots }}종목</b>.
+    {% if headroom.bought_today %}
+    오늘 이미 매수한 {{ headroom.bought_today|length }}종목은 내일까지 다시 사지 않습니다.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── 매수 깔때기 ───────────────────────────────────────────── -->
+{#
+  "왜 안 사지" 에 추측으로 답하지 않기 위한 표다. 매수 하나가 나가려면 관문을
+  전부 통과해야 하는데, 어디서 막히는지 모르면 엉뚱한 손잡이를 돌리게 된다.
+#}
+<div class="card">
+  <h2>매수 깔때기 <span class="sub">최근 {{ funnel.days or 7 }}일 · 어디서 막혔는지</span></h2>
+  {% if funnel.ready %}
+  <div class="funnel">
+    {% for stage in funnel.stages %}
+    <div class="funnel-row {{ 'is-out' if stage.key in ('engine_failed', 'votes_short', 'risk_blocked') }}
+                {{ 'is-goal' if stage.key == 'ordered' }}">
+      <div class="funnel-bar"><span style="width: {{ stage.pct }}%"></span></div>
+      <div class="funnel-text">
+        <b>{{ stage.label }}</b>
+        <span class="funnel-num">{{ stage.count }}건 · {{ stage.pct }}%</span>
+        {% if stage.note %}<span class="dim">{{ stage.note }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if funnel.bottleneck %}
+  <p class="funnel-verdict">
+    가장 많이 잃은 곳은 <b>{{ funnel.bottleneck }}</b> 입니다.
+    {% if funnel.bottleneck == '엔진 실패' %}엔진이 응답을 못 주면 그 종목은 무조건 관망입니다 — 한도·키를 먼저 확인하세요.
+    {% elif funnel.bottleneck == '만장일치 조건' %}세 AI 가 모두 동의해야 삽니다. 한 표 모자란 건이 {{ funnel.near_miss }}건이면 기준을 조정할 여지가 있습니다.
+    {% else %}합의까지는 갔는데 한도·시각에 걸렸습니다. 아래 규칙을 보세요.{% endif %}
+  </p>
+  {% endif %}
+  {% if funnel.blockers %}
+  <div class="funnel-rules">
+    {% for blocker in funnel.blockers %}
+    <span class="chip flat">{{ blocker.rule }} {{ blocker.count }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="chart-empty">판단 기록이 쌓이면 표시됩니다</div>
+  {% endif %}
+</div>
+
+<!-- ── 합의 근접도 ───────────────────────────────────────────── -->
+<details class="card fold" id="fold-consensus">
+  <summary>합의 근접도<span class="sub">최근 {{ consensus.days }}일 · 매수 몇 표까지 갔는지</span></summary>
+  <div class="fold-body">
+    {% if consensus.ready %}
+    <div class="gauges">
+      {% for b in consensus.buckets %}
+      <div class="gauge">
+        <div class="gauge-top">
+          <span class="gauge-label">{{ b.label }}</span>
+          <span class="gauge-text {{ 'up' if b.votes == 3 else '' }}">{{ b.count }}건 · {{ b.pct }}%</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill {{ 'hot' if b.votes == 3 else '' }}" style="width: {{ b.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <table style="margin-top:12px">
+      <thead><tr><th>엔진</th><th class="num">매수 제안 비율</th><th class="num">판단 수</th></tr></thead>
+      <tbody>
+        {% for e in consensus.engines %}
+        <tr>
+          <td>{{ e.engine }}</td>
+          <td class="num">{{ e.buy_pct }}%</td>
+          <td class="num dim">{{ e.seen }}건</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="bench-foot">
+      <b>2표가 자주 나오는데 3표가 없으면</b> 만장일치 기준이 높은 것이고,
+      <b>1표도 드물면</b> 시장이 살 만한 자리를 안 주는 것입니다.
+      한 엔진만 매수 제안 비율이 유독 낮으면 그 엔진이 병목입니다.
+      {% if consensus.broken %}
+      응답이 깨진 판단 {{ consensus.broken }}건은 집계에서 뺐습니다.
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="empty">판단 기록이 쌓이면 표시됩니다</div>
+    {% endif %}
+  </div>
+</details>
+
+<!-- ── 엔진별 적중률 ─────────────────────────────────────────── -->
+<details class="card fold" id="fold-accuracy">
+  <summary>엔진별 적중률<span class="sub">판단 {{ accuracy.horizon_days }}거래일 뒤 가격으로 채점 · HOLD 는 제외</span></summary>
+  <div class="fold-body">
+    {% if accuracy.ready %}
+    <table>
+      <thead>
+        <tr><th>엔진</th><th class="num">적중률</th><th class="num">채점된 판단</th>
+            <th class="num">관망 비율</th></tr>
+      </thead>
+      <tbody>
+        {% for e in accuracy.engines %}
+        <tr>
+          <td><strong>{{ e.engine }}</strong></td>
+          <td class="num {{ 'up' if e.hit_rate > 50 else 'down' if e.hit_rate < 50 else '' }}">
+            {{ e.hit_rate }}%
+          </td>
+          <td class="num dim">{{ e.graded }}건 / 전체 {{ e.calls }}건</td>
+          <td class="num dim">{{ e.hold_rate }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="bench-foot">
+      50% 는 동전 던지기입니다. 한 엔진이 오래도록 50% 를 밑돌면 그 비용은 빼는 편이 낫습니다.
+      관망 비율이 높으면 적중률이 좋아도 판단을 거의 안 한 것입니다.
+    </div>
+    {% else %}
+    <div class="empty">판단 {{ accuracy.horizon_days }}거래일치가 쌓이면 채점이 시작됩니다</div>
+    {% endif %}
+  </div>
+</details>
+
+<!-- ── 매수 사유 ─────────────────────────────────────────────── -->
+{% if rationale %}
+<details class="card fold" id="fold-rationale">
+  <summary>보유 종목 매수 사유<span class="sub">살 때 세 AI 가 뭐라고 했는지</span></summary>
+  <div class="fold-body">
+    {% for p in positions %}
+    {% set r = rationale.get(p.code) %}
+    {% if r %}
+    <div class="why">
+      <div class="why-head">
+        <strong>{{ p.name }}</strong>
+        <span class="dim mono">{{ p.code }}</span>
+        <span class="dim">{{ r.bought_at[:16].replace('T', ' ') }} ·
+          {{ '{:,.0f}'.format(r.bought_price) }}원 × {{ r.bought_qty }}주</span>
+        <span class="why-now {{ 'up' if p.pnl_pct > 0 else 'down' if p.pnl_pct < 0 else '' }}">
+          지금 {{ '%+.2f'|format(p.pnl_pct) }}%
+        </span>
+      </div>
+      <div class="why-final">{{ r.final_action }} — {{ r.final_reason }}</div>
+      {% for e in r.engines %}
+      <div class="why-engine">
+        <span class="why-name">{{ e.name }}</span>
+        <span class="why-act {{ 'up' if e.action == 'BUY' else 'down' if e.action == 'SELL' else '' }}">
+          {{ e.action }}{% if e.confidence %} {{ '%.2f'|format(e.confidence) }}{% endif %}
+        </span>
+        <span class="why-reason">{{ e.reason or '—' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+
+<!-- ── 전자공시 ──────────────────────────────────────────────── -->
+<details class="card fold" id="fold-filings">
+  <summary>전자공시<span class="sub">보유 종목 최근 30일 · 금융감독원 DART · 매매 판단에는 쓰이지 않습니다</span></summary>
+  <div class="fold-body">
+    {% if filings.ready and filings.filings %}
+    <div class="scroll-table" style="--rows: 7">
+      <table>
+        <thead>
+          <tr><th>공시일</th><th>종목</th><th>보고서</th><th>제출인</th></tr>
+        </thead>
+        <tbody>
+          {% for f in filings.filings %}
+          <tr>
+            <td class="mono dim">{{ f.filed_at }}</td>
+            <td>{{ f.name }} <span class="dim mono">{{ f.code }}</span></td>
+            <td>
+              {% if f.url %}<a href="{{ f.url }}" target="_blank" rel="noopener">{{ f.title }}</a>
+              {% else %}{{ f.title }}{% endif %}
+            </td>
+            <td class="dim">{{ f.filer }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if filings.reason %}<div class="bench-foot">{{ filings.reason }}</div>{% endif %}
+    {% elif filings.ready %}
+    <div class="empty">최근 30일 공시가 없습니다</div>
+    {% else %}
+    <div class="empty">{{ filings.reason }}</div>
+    {% endif %}
+  </div>
+</details>
+
+<!-- ── 테마별 이슈 ───────────────────────────────────────────── -->
+<details class="card fold" id="fold-themes">
+  <summary>테마별 이슈<span class="sub">한 테마가 통째로 밀리면 종목이 아니라 업황 문제</span></summary>
+  <div class="fold-body">
+    {% if themes %}
+    <table>
+      <thead>
+        <tr><th>테마</th><th class="num">전일 대비</th><th class="num">시작 이후</th><th>종목</th></tr>
+      </thead>
+      <tbody>
+        {% for th in themes %}
+        <tr>
+          <td><strong>{{ th.theme }}</strong> <span class="dim">{{ th.codes }}종목</span></td>
+          <td class="num {{ 'up' if th.since_prev > 0 else 'down' if th.since_prev < 0 else '' }}">
+            {{ '%+.2f'|format(th.since_prev) }}%
+          </td>
+          <td class="num {{ 'up' if th.since_start > 0 else 'down' if th.since_start < 0 else '' }}">
+            {{ '%+.2f'|format(th.since_start) }}%
+          </td>
+          <td class="dim">
+            {% for leg in th.legs %}{{ leg.name }}
+            <span class="{{ 'up' if leg.since_start > 0 else 'down' if leg.since_start < 0 else '' }}">{{ '%+.1f'|format(leg.since_start) }}%</span>{% if not loop.last %} · {% endif %}{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">거래일 2일치가 쌓이면 테마별 등락이 표시됩니다</div>
+    {% endif %}
+  </div>
+</details>
+
+<!-- ── 리스크 여력 ───────────────────────────────────────────── -->
+{% if headroom.ready %}
+<details class="card fold" id="fold-headroom">
+  <summary>리스크 여력<span class="sub">지금 더 살 수 있는지 · 한도에 얼마나 다가섰는지</span></summary>
+  <div class="fold-body">
+    <div class="gauges">
+      {% for row in headroom.rows %}
+      <div class="gauge">
+        <div class="gauge-top">
+          <span class="gauge-label">{{ row.label }}</span>
+          <span class="gauge-text {{ 'down' if row.blocked else '' }}">{{ row.text }}</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill {{ 'hot' if row.blocked or row.pct >= 80 else '' }}"
+               style="width: {{ [row.pct, 100]|min }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="bench-foot">
+      {% if headroom.can_buy %}신규 매수 가능 — 한도에 걸린 규칙이 없습니다.
+      {% else %}<b class="down">신규 매수가 막혀 있습니다</b> — 위에서 빨간 항목이 이유입니다.
+      {% endif %}
+      {% if headroom.bought_today %}
+      오늘 이미 매수한 종목({{ headroom.bought_today|length }}개)은 내일까지 다시 사지 않습니다.
+      {% endif %}
+    </div>
+  </div>
+</details>
+{% endif %}
+
+<!-- ── 매매 성적 ─────────────────────────────────────────────── -->
+<details class="card fold" id="fold-stats">
+  <summary>매매 성적<span class="sub">체결된 매수·매도를 짝지어 계산 · 수수료·세금 반영</span></summary>
+  <div class="fold-body">
+    {% if trade_stats.ready %}
+    <div class="bench">
+      <div class="bench-col">
+        <div class="bench-label">승률</div>
+        <div class="bench-val {{ 'up' if trade_stats.win_rate > trade_stats.breakeven_win_rate else 'down' }}">
+          {{ trade_stats.win_rate }}%
+        </div>
+        <div class="note">본전 승률 {{ trade_stats.breakeven_win_rate }}%</div>
+      </div>
+      <div class="bench-col">
+        <div class="bench-label">손익비</div>
+        <div class="bench-val">{{ trade_stats.payoff }}</div>
+        <div class="note">평균 +{{ trade_stats.avg_win }}% / {{ trade_stats.avg_loss }}%</div>
+      </div>
+      <div class="bench-col">
+        <div class="bench-label">평균 보유</div>
+        <div class="bench-val">{{ trade_stats.avg_days }}일</div>
+        <div class="note">거래 {{ trade_stats.count }}건</div>
+      </div>
+      <div class="bench-col bench-edge">
+        <div class="bench-label">거래당 기대값</div>
+        <div class="bench-val {{ 'up' if trade_stats.expectancy > 0 else 'down' if trade_stats.expectancy < 0 else '' }}">
+          {{ '%+.2f'|format(trade_stats.expectancy) }}%
+        </div>
+        <div class="note">
+          실현 {{ '{:+,}'.format(trade_stats.realized_krw) }}원 ·
+          비용 {{ '{:,}'.format(trade_stats.fee_krw) }}원 차감
+        </div>
+      </div>
+    </div>
+    <div class="bench-foot">
+      <b>기대값 = (승률 × 평균이익) − (패률 × 평균손실)</b>, 수수료·세금을 뺀 값입니다.
+      매매 시스템이 돈을 버는지 아닌지를 정하는 유일한 식입니다 —
+      {% if trade_stats.expectancy > 0 %}
+      <b class="up">양수이므로 거래를 반복할수록 늘어나는 구조입니다.</b>
+      {% else %}
+      <b class="down">음수이므로 거래를 반복할수록 줄어듭니다.</b> 승률이나 손익비 중 하나를 고쳐야 합니다.
+      {% endif %}
+    </div>
+    <div class="scroll-table" style="--rows: 8">
+      <table>
+        <thead>
+          <tr><th>종목</th><th class="num">매수</th><th class="num">매도</th>
+              <th class="num">보유</th><th class="num">손익</th></tr>
+        </thead>
+        <tbody>
+          {% for t in trade_stats.trades %}
+          <tr>
+            <td>{{ t.name }}</td>
+            <td class="num">{{ '{:,.0f}'.format(t.entry_price) }}</td>
+            <td class="num">{{ '{:,.0f}'.format(t.exit_price) }}</td>
+            <td class="num">{{ t.held_days }}일</td>
+            <td class="num {{ 'up' if t.pnl_pct > 0 else 'down' if t.pnl_pct < 0 else '' }}">
+              {{ '%+.2f'|format(t.pnl_pct) }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">아직 사고판 거래가 없습니다 — 매수 후 매도가 한 번 끝나면 집계됩니다</div>
+    {% endif %}
+  </div>
+</details>
+
+<!-- ── 단순 보유 대비 ────────────────────────────────────────── -->
+<details class="card fold" id="fold-benchmark">
+  <summary>단순 보유 대비<span class="sub">감시 종목을 그냥 사서 들고만 있었다면</span></summary>
+  <div class="fold-body">
+    {% if benchmark.ready %}
+    <div class="bench">
+      <div class="bench-col">
+        <div class="bench-label">자동매매</div>
+        <div class="bench-val {{ 'up' if benchmark.actual_pct > 0 else 'down' if benchmark.actual_pct < 0 else '' }}">
+          {{ '%+.2f'|format(benchmark.actual_pct) }}%
+        </div>
+      </div>
+      <div class="bench-col">
+        <div class="bench-label">그냥 보유</div>
+        <div class="bench-val {{ 'up' if benchmark.benchmark_pct > 0 else 'down' if benchmark.benchmark_pct < 0 else '' }}">
+          {{ '%+.2f'|format(benchmark.benchmark_pct) }}%
+        </div>
+      </div>
+      <div class="bench-col bench-edge">
+        <div class="bench-label">차이</div>
+        <div class="bench-val {{ 'up' if benchmark.edge_pct > 0 else 'down' if benchmark.edge_pct < 0 else '' }}">
+          {{ '%+.2f'|format(benchmark.edge_pct) }}%p
+        </div>
+        <div class="note">
+          {% if benchmark.edge_pct > 0 %}자동매매가 앞섭니다
+          {% elif benchmark.edge_pct < 0 %}그냥 보유가 낫습니다
+          {% else %}같습니다{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="bench-foot">
+      {{ benchmark.start_date }} 시작 · 거래일 {{ benchmark.days }}일 · {{ benchmark.codes }}종목 동일비중 기준
+    </div>
+    <table>
+      <thead>
+        <tr><th>종목</th><th>코드</th><th class="num">단순 보유 수익률</th></tr>
+      </thead>
+      <tbody>
+        {% for leg in benchmark.legs %}
+        <tr>
+          <td>{{ leg.name }}</td>
+          <td class="mono">{{ leg.code }}</td>
+          <td class="num {{ 'up' if leg.pct > 0 else 'down' if leg.pct < 0 else '' }}">{{ '%+.2f'|format(leg.pct) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ benchmark.reason }}</div>
+    {% endif %}
+  </div>
+</details>
+
+<details class="card fold" id="fold-decisions">
+  <summary>최근 AI 판단
+    <span class="sub">
+      {% if decision_mix %}오늘 {% for action, n in decision_mix.items() %}{{ action }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}
+      {%- if decisions %} · 최근 {{ decisions|length }}건{% if decisions|length > 9 %} (표 안에서 스크롤){% endif %}{% endif %}
+    </span></summary>
+  <div class="fold-body">
+    {% if decisions %}
+    <div class="scroll-table" style="--rows: 9">
+      <table>
+        <thead>
+          <tr><th>시각</th><th>종목</th><th>Claude</th><th>Gemini</th><th>ChatGPT</th><th>최종</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          {% for d in decisions %}
+          <tr>
+            <td class="dim mono">{{ d.created_at[11:16] }}</td>
+            <td>{{ d.name or d.code }}{% if d.holding %} <span class="badge">보유</span>{% endif %}</td>
+            <td class="{{ 'dim' if not d.claude_ok }}">
+              {% if d.claude_ok %}{{ d.claude_action }} <span class="dim">{{ '%.2f'|format(d.claude_confidence or 0) }}</span>
+              {% else %}파싱 실패{% endif %}
+            </td>
+            <td class="{{ 'dim' if not d.gemini_ok }}">
+              {% if d.gemini_ok %}{{ d.gemini_action }} <span class="dim">{{ '%.2f'|format(d.gemini_confidence or 0) }}</span>
+              {% else %}파싱 실패{% endif %}
+            </td>
+            <td class="{{ 'dim' if not d.chatgpt_ok }}">
+              {% if d.chatgpt_action %}
+                {% if d.chatgpt_ok %}{{ d.chatgpt_action }} <span class="dim">{{ '%.2f'|format(d.chatgpt_confidence or 0) }}</span>
+                {% else %}파싱 실패{% endif %}
+              {% else %}<span class="dim">미사용</span>{% endif %}
+            </td>
+            <td><b>{{ d.final_action }}</b>{% if d.final_weight_pct %} {{ d.final_weight_pct }}%{% endif %}</td>
+            <td class="dim">
+              {% if d.forced_exit %}<span class="badge stop">{{ d.forced_exit }}</span>{% endif %}
+              {% if not d.risk_passed and d.risk_reason %}<span class="down">리스크 거부: {{ d.risk_reason }}</span>
+              {% elif d.outcome %}{{ d.outcome }}
+              {% elif d.final_action != 'HOLD' %}<span class="dim">결과 기록 없음 (예전 버전에서 판단)</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="chart-empty">아직 판단 기록이 없습니다</div>
+    {% endif %}
+  </div>
+</details>
+
+<div class="grid-2">
+  <!-- ── 주문 ────────────────────────────────────────────────── -->
+    <details class="card fold" id="fold-orders">
+    <summary>최근 주문</summary>
+    <div class="fold-body">
+      {% if orders %}
+      <div class="scroll-table" style="--rows: 7">
+        <table>
+          <thead><tr><th>시각</th><th>종목</th><th>구분</th><th class="num">수량</th><th class="num">가격</th><th>상태</th><th>사유</th></tr></thead>
+          <tbody>
+            {% for r in orders %}
+            <tr>
+              <td class="dim mono">{{ r.created_at[11:16] }}</td>
+              <td>{{ r.name or r.code }}</td>
+              <td class="{{ 'up' if r.side == 'BUY' else 'down' }}">{{ '매수' if r.side == 'BUY' else '매도' }}</td>
+              <td class="num">{{ '{:,}'.format(r.filled_qty or r.qty) }}</td>
+              <td class="num">{{ '{:,.0f}'.format(r.filled_price or r.price) }}</td>
+              <td>
+                {% if r.dry_run %}<span class="badge dry">DRY_RUN</span>
+                {% elif r.status == 'FILLED' %}<span class="badge live">체결</span>
+                {% elif r.status == 'REJECTED' %}<span class="badge stop">거부</span>
+                {% else %}<span class="badge">{{ r.status }}</span>{% endif %}
+              </td>
+              {# 거부는 드물게 일어나고 그때마다 원인이 다르다. 빨간 '거부' 두 글자만
+                 남기면 매번 로그를 뒤져야 한다 — 거래소가 뭐라고 했는지를 그대로 둔다. #}
+              <td class="dim">{{ r.error or r.reason or '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="chart-empty">주문 기록이 없습니다</div>
+      {% endif %}
+    </div>
+  </details>
+
+  <!-- ── 리스크 거부 ──────────────────────────────────────────── -->
+    <details class="card fold" id="fold-blocks">
+    <summary>리스크 규칙 차단<span class="sub">AI 판단보다 상위</span></summary>
+    <div class="fold-body">
+      {% if risk_blocks %}
+      <div class="scroll-table" style="--rows: 7">
+        <table>
+          <thead><tr><th>시각</th><th>종목</th><th>사유</th></tr></thead>
+          <tbody>
+            {% for r in risk_blocks %}
+            <tr>
+              <td class="dim mono">{{ r.created_at[11:16] }}</td>
+              <td>{{ r.name or r.code }}</td>
+              <td class="dim">{{ r.risk_reason }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="chart-empty">차단된 주문이 없습니다</div>
+      {% endif %}
+    </div>
+  </details>
+</div>
+
+<!-- ── AI 비용 ───────────────────────────────────────────────── -->
+<details class="card fold" id="fold-cost">
+  <summary>AI 비용 추이<span class="sub">일별 추정 (USD)</span></summary>
+  <div class="fold-body">
+    {{ cost_chart|safe }}
+  </div>
+</details>
+
+<!-- ── 로그 ──────────────────────────────────────────────────── -->
+<details class="card fold" id="fold-log">
+  <summary>최근 로그<span class="sub">오늘 로그 마지막 40줄</span></summary>
+  <div class="fold-body">
+    {% if logs %}<pre class="log">{{ logs|join('\n') }}</pre>
+    {% else %}<div class="chart-empty">오늘 로그가 아직 없습니다</div>{% endif %}
+  </div>
+</details>
+
+<!-- ── 제어 ──────────────────────────────────────────────────── -->
+<details class="card fold" id="fold-control">
+  <summary>제어</summary>
+  <div class="fold-body">
+    <div class="mode-bar {{ 'mode-real' if status.kis_env == 'REAL' else 'mode-vts' }}">
+      <div>
+        현재 <b>{{ '실전 (REAL) — 실제 자금' if status.kis_env == 'REAL' else '모의투자 (VTS) — 가짜 돈' }}</b>
+        {% if status.dry_run %}<span class="tag">주문 미전송 (DRY_RUN)</span>{% endif %}
+      </div>
+      <div class="control-row">
+        {% if status.kis_env == 'REAL' %}
+        <form method="post" action="{{ url_for('control', action='mode_vts') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn" type="submit"
+                  onclick="return confirm('모의투자로 전환합니다.\n모의계좌 번호로도 바꿔야 합니다. 계속할까요?')">
+            🧪 모의투자로 전환
+          </button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('control', action='mode_real') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn danger" type="submit"
+                  onclick="return confirm('실전으로 전환합니다.\n\n지금부터 실제 자금으로 주문이 나갑니다.\n실계좌 번호로도 바꿔야 합니다.\n\n정말 진행할까요?')">
+            💰 실전으로 전환
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="control-row">
+      {% if not status.running %}
+        <form method="post" action="{{ url_for('control', action='start') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn primary" type="submit" {{ 'disabled' if missing }}>▶ 자동매매 시작</button>
+          {% if missing %}<span class="dim">설정이 {{ missing|length }}개 비어 있습니다</span>{% endif %}
+        </form>
+      {% else %}
+        <form method="post" action="{{ url_for('control', action='restart') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn" type="submit"
+                  onclick="return confirm('재시작하시겠습니까?\n진행 중 사이클을 마친 뒤 새 설정으로 다시 뜹니다.')">
+            🔄 재시작 (설정 반영)
+          </button>
+        </form>
+
+        {% if not status.stopped %}
+        <form method="post" action="{{ url_for('control', action='stop') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn danger" type="submit"
+                  onclick="return confirm('긴급 정지하시겠습니까?\n프로세스는 살아 있고, 새 사이클만 멈춥니다.')">
+            🛑 긴급 정지
+          </button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('control', action='resume') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn primary" type="submit">▶️ 매매 재개</button>
+        </form>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('control', action='shutdown') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn danger" type="submit"
+                  onclick="return confirm('자동매매를 완전히 종료하시겠습니까?\n진행 중 사이클을 마치고 프로세스가 내려갑니다.')">
+            ⏹ 봇 종료
+          </button>
+        </form>
+      {% endif %}
+
+      {% if status.autostart.supported %}
+        {% if status.autostart.enabled %}
+        <form method="post" action="{{ url_for('control', action='autostart_off') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn" type="submit">🔌 자동시작 해제</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('control', action='autostart_on') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn" type="submit"
+                  onclick="return confirm('PC 를 켤 때마다 자동매매가 스스로 시작됩니다.\n실제 주문이 나가는 설정이면 그대로 매매가 진행됩니다. 계속할까요?')">
+            🔁 PC 시작 시 자동 실행
+          </button>
+        </form>
+        {% endif %}
+      {% endif %}
+
+      <form method="post" action="{{ url_for('control', action='update') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn" type="submit"
+                onclick="return confirm('최신 버전으로 업데이트하시겠습니까?\n입력한 API 키와 매매 기록은 그대로 유지됩니다.')">
+          ⬆️ 업데이트
+        </button>
+      </form>
+    </div>
+
+    <div class="footnote">
+      <b>긴급 정지</b>는 프로세스를 살려둔 채 새 사이클만 막습니다(재개 즉시 이어집니다).
+      <b>봇 종료</b>는 진행 중 사이클을 마치고 프로세스를 내립니다.
+      키를 바꾼 뒤에는 <b>재시작</b>을 눌러야 새 설정이 반영됩니다.
+      <br>
+      <b>PC 시작 시 자동 실행</b>을 켜 두면 윈도우 업데이트로 재부팅돼도 매매가 이어집니다
+      (윈도우에 <b>로그인해야</b> 실행됩니다).
+      <br>
+      <b>업데이트</b>는 최신 코드를 받아 제자리에 적용합니다 — 다시 내려받거나
+      키를 다시 넣을 필요가 없습니다. 현재 버전 <code>{{ status.version or '알 수 없음' }}</code>
+      · 폴더 <code>{{ status.base_dir }}</code>
+    </div>
+  </div>
+</details>
+
+<script>
+  // 접힘 상태를 기억한다. 이 화면은 30초마다 스스로 새로고침하므로, 기억하지
+  // 않으면 열어 둔 칸이 매번 다시 닫혀 기능 자체가 쓸모없어진다.
+  // 카드 바로 뒤에서 실행해 그려지기 전에 상태를 맞춘다(열렸다 닫히는 깜빡임 방지).
+  (function () {
+    var folds = document.querySelectorAll('details.fold[id]');
+    for (var i = 0; i < folds.length; i++) {
+      (function (fold) {
+        var key = 'fold:' + fold.id;
+        try { fold.open = localStorage.getItem(key) === '1'; } catch (e) { /* 사생활 보호 모드 */ }
+        fold.addEventListener('toggle', function () {
+          try { localStorage.setItem(key, fold.open ? '1' : '0'); } catch (e) { /* 무시 */ }
+        });
+      })(folds[i]);
+    }
+
+    // '세 AI 가 뭐라고 했는지 ↓' 처럼 접힌 칸을 가리키는 링크는, 열어 주고 나서 옮긴다.
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest && event.target.closest('a[href^="#fold-"]');
+      if (!link) return;
+      var target = document.getElementById(link.getAttribute('href').slice(1));
+      if (target) target.open = true;
+    });
+  })();
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 30초마다 새로고침. 사용자가 입력 중이거나 탭이 숨겨져 있으면 건너뛴다.
+  // 칸을 접었다 폈다 하는 중에 새로고침이 끼어들면 성가시므로, 방금 만졌으면 미룬다.
+  var lastTouch = 0;
+  document.addEventListener('toggle', function () { lastTouch = Date.now(); }, true);
+  setInterval(function () {
+    if (document.hidden) return;
+    if (Date.now() - lastTouch < 10000) return;
+    if (document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    location.reload();
+  }, 30000);
+</script>
+{% endblock %}

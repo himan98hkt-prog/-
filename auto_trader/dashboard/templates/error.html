@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>오류 · 자동매매</title>
+  <!-- 이 화면은 **아무것에도 기대지 않는다.** base.html 을 상속하면 그 안에서
+       또 오류가 나서, 정작 원인을 보여주지 못한 채 빈 500 으로 돌아간다. -->
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; padding: 24px 20px 48px; background: #faf9f7; color: #1c1b19;
+           font: 15px/1.7 system-ui, -apple-system, "Malgun Gothic", sans-serif; }
+    @media (prefers-color-scheme: dark) { body { background: #16150f; color: #f2f0eb; } }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 21px; margin: 0 0 4px; }
+    .kind { font: 13px ui-monospace, Menlo, monospace; opacity: .65; }
+    .msg { margin: 14px 0 22px; font-size: 16px; }
+    h2 { font-size: 13px; opacity: .7; margin: 22px 0 6px; font-weight: 600; }
+    ol { margin: 0; padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    pre { background: rgba(127,127,127,.12); border-radius: 6px; padding: 12px;
+          font: 12px/1.55 ui-monospace, Menlo, monospace; overflow-x: auto; margin: 6px 0 0; }
+    .foot { margin-top: 18px; font-size: 12px; opacity: .6; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>화면을 그리지 못했습니다</h1>
+    <div class="kind">{{ kind }}</div>
+    <p class="msg">{{ message }}</p>
+
+    <h2>이렇게 해보세요</h2>
+    <ol>
+      <li><a href="/진단">진단 화면</a>에서 버전과 설정 상태를 확인하세요.</li>
+      <li>설치 폴더에서 <strong>update.bat</strong> 을 실행해 최신 코드로 맞춰 보세요.</li>
+      <li>그래도 같으면 <strong>아래 내용을 그대로 복사해</strong> 전달해 주세요. 원인이 여기 적혀 있습니다.</li>
+    </ol>
+
+    <h2>오류 내용</h2>
+    <pre>{{ trace }}</pre>
+
+    <div class="foot">설치 폴더: {{ base_dir }} · 비밀값은 가려서 표시됩니다.</div>
+  </div>
+</body>
+</html>
