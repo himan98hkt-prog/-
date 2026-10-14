@@ -288,9 +288,14 @@ def test_scheduler_registers_all_jobs(bot):
     assert "universe_refresh" in job_ids
     assert "eod_review" in job_ids
     assert "daily_report" in job_ids
+    # 개수를 박아 두면 사이클 주기를 바꿀 때마다 깨진다. 그때 고치는 사람은
+    # 숫자만 맞춰 놓고, 정작 '설정대로 등록됐는가' 는 안 보게 된다.
+    schedule = bot.settings.schedule
+    expected = cycle_times(schedule.first_cycle, schedule.cycle_interval_min)
     cycles = {job_id for job_id in job_ids if job_id.startswith("cycle_")}
-    assert len(cycles) == 12
-    assert "cycle_0905" in cycles and "cycle_1435" in cycles
+    assert len(cycles) == len(expected)
+    assert cycles == {f"cycle_{moment:%H%M}" for moment in expected}
+    assert f"cycle_{schedule.first_cycle:%H%M}" in cycles, "첫 사이클이 빠졌습니다"
 
 
 def test_cycle_jobs_do_not_overlap(bot):

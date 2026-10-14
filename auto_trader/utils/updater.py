@@ -81,6 +81,8 @@ SHIPPED_DEFAULTS: dict[str, set[str]] = {
         "f9ee1a8ee6fa4ca478ee47daef7f1a752d42db65f92f43ca1480270c2f9cd59a",
         # 운용 한도를 계좌 전체(1,000만원)로 올린 버전
         "36db42df5d81bed2350a2eeba4aa5e6501dbc89a13667b1961cb2bf6d848a6d3",
+        # 사이클을 60분으로 늘린 버전 (Gemini 무료 등급 하루 20회에 맞춤)
+        "e8bcbf93241e48cd993b0f6b475d612d146567fb9f46d1dcf8d063a13d60364a",
     },
     # 휴장일 파일도 사용자가 고칠 수 있는 파일이라 같은 보호를 받는다. 목록이
     # 비어 있으면 '손댄 적 없는 기본 파일' 을 알아볼 방법이 없어서, 새 달력이

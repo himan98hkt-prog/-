@@ -511,10 +511,19 @@ def test_update_aborts_when_bot_cannot_be_stopped(client, monkeypatch):
 
 
 def test_dependency_change_asks_for_a_manual_restart(client, monkeypatch):
+    """설치가 실패하면 사람 손으로 다시 하라고 말해야 한다.
+
+    예전에는 install_dependencies 를 대역으로 바꾸지 않고 진짜 pip 을 돌렸다.
+    그게 우연히 실패하는 환경에서만 통과했고(ta 빌드 실패), pip 이 멀쩡한
+    환경에서는 설치가 성공해 버려 이 경로를 전혀 밟지 않았다. 검증하려는
+    상황을 직접 만들어 준다.
+    """
     from dashboard import process
     from utils import updater
 
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(updater, "install_dependencies",
+                        lambda base: (False, "pip 설치에 실패했습니다"))
     monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
         updated=True, version=updater.Version(sha="e" * 40, message="패키지 추가"),
         changed=[], notes=[], deps_changed=True))
@@ -541,13 +550,15 @@ def test_update_restarts_the_dashboard_itself(client, monkeypatch):
 
 
 def test_dependency_change_skips_self_restart(client, monkeypatch):
-    """새 패키지는 설치가 먼저다 — 그냥 다시 띄우면 import 에러가 난다."""
+    """설치가 실패했으면 다시 띄우지 않는다 — 그대로 띄우면 import 에러가 난다."""
     from dashboard import process, restart
     from utils import updater
 
     asked: list[bool] = []
     monkeypatch.setattr(process, "is_running", lambda data_dir: False)
     monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: asked.append(True))
+    monkeypatch.setattr(updater, "install_dependencies",
+                        lambda base: (False, "pip 설치에 실패했습니다"))
     monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
         updated=True, version=updater.Version(sha="a" * 40, message="패키지 추가"),
         changed=[], notes=[], deps_changed=True))
@@ -555,6 +566,29 @@ def test_dependency_change_skips_self_restart(client, monkeypatch):
     page = post_with_csrf(client, "/control/update")
     assert asked == []
     assert "start.bat" in page
+
+
+def test_dependency_install_success_does_restart(client, monkeypatch):
+    """반대쪽도 확인한다 — 설치가 잘 끝났으면 새 코드로 갈아타야 한다.
+
+    이쪽이 비어 있어서, 설치 성공 경로가 어떻게 동작하는지 아무도 모른 채
+    위 두 테스트가 '설치 실패' 만 보고 있었다.
+    """
+    from dashboard import process, restart
+    from utils import updater
+
+    asked: list[bool] = []
+    monkeypatch.setattr(process, "is_running", lambda data_dir: False)
+    monkeypatch.setattr(restart, "request_restart", lambda *a, **kw: asked.append(True))
+    monkeypatch.setattr(updater, "install_dependencies",
+                        lambda base: (True, "패키지 설치 완료"))
+    monkeypatch.setattr(updater, "apply_update", lambda base, **kw: updater.UpdateResult(
+        updated=True, version=updater.Version(sha="b" * 40, message="패키지 추가"),
+        changed=[], notes=[], deps_changed=True))
+
+    page = post_with_csrf(client, "/control/update")
+    assert asked == [True], "설치가 끝났으면 새 코드로 다시 떠야 합니다"
+    assert "start.bat" not in page
 
 
 def test_failed_update_does_not_restart_the_dashboard(client, monkeypatch):
