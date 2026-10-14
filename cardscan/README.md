@@ -3,6 +3,8 @@
 리멤버처럼 **명함을 찍으면 자동으로 읽어서 저장**하고, **휴대폰 연락처와 업무 시스템(구글 시트·HubSpot·ERP 웹훅·슬랙)에 자동 입력**하는 모바일 앱입니다.
 안드로이드는 설치 앱(APK), 아이폰은 홈 화면 웹앱으로 — 둘 다 무료 (Expo / React Native 한 코드).
 
+> 🛠 **개발자용**: 집 PC 에서 이어서 개발하려면 **[HANDOVER.md](HANDOVER.md)** (설치·실행·빌드·규칙·남은 일) 를 보세요.
+
 | 명함첩 | 촬영 | 상세·연동 상태 | 설정·연동 |
 |---|---|---|---|
 | ![](docs/images/list.png) | ![](docs/images/scan.png) | ![](docs/images/detail.png) | ![](docs/images/settings.png) |
