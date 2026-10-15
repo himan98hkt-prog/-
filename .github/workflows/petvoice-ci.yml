@@ -1,0 +1,63 @@
+name: PetVoice AI CI
+
+# petvoice-ai/ 가 바뀔 때만 돈다. 학원 관리노트 쪽 변경으로는 실행되지 않는다.
+on:
+  push:
+    branches: [main]
+    paths: ['petvoice-ai/**', '.github/workflows/petvoice-ci.yml']
+  pull_request:
+    paths: ['petvoice-ai/**', '.github/workflows/petvoice-ci.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: petvoice-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: petvoice-ai
+
+jobs:
+  test:
+    name: 테스트 · 타입검사 · 번들
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: petvoice-ai/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 린트
+        run: npm run lint
+
+      - name: 서식 검사
+        run: npm run format:check
+
+      - name: 단위 테스트
+        run: npm test
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: Metro 번들 (Android)
+        run: npx expo export --platform android --output-dir /tmp/petvoice-export
+
+      - name: 클라이언트 번들에 AI 키가 없는지 확인
+        run: |
+          # Play Console 보안 스캔에서 거절 사유가 되는 항목이라 CI 에서 못 박는다.
+          if grep -rEl 'AIza[0-9A-Za-z_-]{35}' /tmp/petvoice-export; then
+            echo "::error::번들에 Google API 키로 보이는 문자열이 있습니다"
+            exit 1
+          fi
+          if grep -rl 'EXPO_PUBLIC_GEMINI_API_KEY' /tmp/petvoice-export; then
+            echo "::error::번들에 GEMINI_API_KEY 참조가 있습니다"
+            exit 1
+          fi
+          echo "번들에 AI 키 없음 확인"

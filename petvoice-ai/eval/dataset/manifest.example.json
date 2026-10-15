@@ -1,0 +1,40 @@
+[
+  {
+    "file": "controls/silence.wav",
+    "control": true,
+    "note": "완전한 무음 — 여기에 감정을 답하면 지어내는 것이다"
+  },
+  {
+    "file": "controls/steady-noise.wav",
+    "control": true,
+    "note": "에어컨 소음 — 소리는 있지만 발성이 아니다"
+  },
+  {
+    "file": "controls/pure-tone.wav",
+    "control": true,
+    "note": "기계음"
+  },
+  {
+    "file": "controls/speech-like.wav",
+    "control": true,
+    "note": "사람 말소리 리듬 — 짖는 소리가 아니다"
+  },
+  {
+    "file": "controls/impulse.wav",
+    "control": true,
+    "note": "손뼉·문 닫힘"
+  },
+  {
+    "file": "real/choco-alone-01.wav",
+    "contextTag": "separation",
+    "pet": { "name": "초코", "type": "DOG", "breed": "포메라니안", "ageMonths": 18 },
+    "note": "보호자 외출 후 혼자 남았을 때 (보호자가 직접 라벨)",
+    "actuallySick": false
+  },
+  {
+    "file": "real/choco-stranger-01.wav",
+    "contextTag": "stranger",
+    "pet": { "name": "초코", "type": "DOG", "breed": "포메라니안", "ageMonths": 18 },
+    "note": "택배 기사 방문"
+  }
+]
