@@ -1,0 +1,81 @@
+# 설치본 만들기 — 윈도우(설치 프로그램) · 맥(dmg) · 리눅스
+#
+# 원장님이 받으시는 것은 "설치 프로그램" 한 개다. 두 번 눌러 다음·다음·설치를 하시면
+# 시작 메뉴와 바탕화면에 아이콘이 생기고, 프로그램 추가/제거에도 올라간다.
+# 압축을 풀 일도, 검은 명령창도, npm 도 없다.
+appId: com.accelssam.recitalmanager
+productName: 연주회 매니저
+copyright: © 아첼쌤 (accelssam.com)
+
+# 자동 갱신 서버를 두지 않는다 — 학원 컴퓨터가 밖으로 나갈 일을 만들지 않는다
+publish: null
+
+directories:
+  output: 배포/설치본
+  buildResources: desktop
+
+# 본체는 **asar 바깥**에 풀어 둔다.
+#
+# asar 는 여러 파일을 하나로 묶은 것이라, 그 안에 든 파일은 Node 가 실행하지 못한다.
+# 서버는 실제 파일이어야 하므로 `asarUnpack` 으로 풀어 둔 자리에 둔다.
+#
+# `extraResources` 로 옮기는 길도 있지만 electron-builder 가 `node_modules` 를 말없이
+# 걸러 버린다 — 그러면 꾸러미가 통째로 빠진 채 설치본이 만들어지고, 원장님 컴퓨터에서야
+# 안 켜지는 것을 알게 된다. (실제로 한 번 그렇게 만들어졌고, 빌드해 보고서야 잡았다.)
+#
+# 껍데기(main.js)가 쓰는 것은 Electron 이 이미 품고 있는 것뿐이라 저장소 루트의
+# 꾸러미는 하나도 필요 없다. 빼 두지 않으면 개발용(플레이라이트·비테스트…)까지 실려
+# 146MB 가 붙는다.
+files:
+  - desktop/main.js
+  - desktop/splash.js
+  - desktop/brand.js
+  - desktop/icon.png
+  - desktop/app/**/*
+  - package.json
+  - '!node_modules'
+asarUnpack:
+  - desktop/app/**/*
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: desktop/icon.png
+  # 서명서가 없으면 "Windows의 PC 보호" 창이 뜬다.
+  #
+  # 서명은 **환경변수로** 붙인다 — `CSC_LINK`(서명서를 base64 로 바꾼 글자)와
+  # `CSC_KEY_PASSWORD` 가 있으면 electron-builder 가 알아서 서명한다. 여기 적을 것이 없다.
+  # 깃허브 비밀에 넣는 법과 어떤 서명서를 사야 하는지는 docs/SIGNING.md 에 적어 두었다.
+  #
+  # 파일 이름은 영문으로 둔다. 한글 이름을 쓰면 내려받는 자리(깃허브)에서 한글이 통째로
+  # 지워져 「-.exe」 가 된다. 무엇인지 알 수 없는 이름이 손에 쥐어지는 것보다는 영문이 낫다.
+  artifactName: RecitalManager-Setup-Windows.${ext}
+
+nsis:
+  oneClick: false                 # 다음·다음 화면을 보여 드린다 (어디에 깔리는지 아셔야 한다)
+  perMachine: false               # 관리자 권한을 묻지 않는다 — 학원 컴퓨터는 대개 권한이 막혀 있다
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 연주회 매니저
+  # 설치 창 왼쪽 세로 그림 — 기본 회색 그림이면 「직접 만든 프로그램」처럼 보인다
+  installerSidebar: desktop/installer/sidebar.bmp
+  uninstallerSidebar: desktop/installer/sidebar.bmp
+  installerLanguages: [ko-KR]
+  language: '1042'                # 한국어
+  deleteAppDataOnUninstall: false # 지운다고 학원 명단까지 지우면 안 된다
+  runAfterFinish: true
+
+mac:
+  target: [dmg]
+  icon: desktop/icon.png
+  category: public.app-category.productivity
+  artifactName: RecitalManager-Mac.${ext}
+
+linux:
+  target: [AppImage]
+  synopsis: 피아노학원 연주회 준비 프로그램 — 연주회 매니저
+  icon: desktop/icon.png
+  category: Office
+  artifactName: RecitalManager-Linux.${ext}
