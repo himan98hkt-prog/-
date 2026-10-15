@@ -8,8 +8,9 @@ import { ProgressDots } from '@/components/flow/progress-dots'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatEventDate } from '@/lib/format'
+import { ddayLabel, daysUntilEvent, formatEventDate } from '@/lib/format'
 import { currentAcademy } from '@/lib/session'
+import { cn } from '@/lib/utils'
 import { getRepository } from '@/lib/store'
 import { EVENT_STATUS_LABEL, SEASON_LABEL } from '@/lib/types'
 
@@ -71,8 +72,23 @@ export default async function EventsPage() {
             <li key={event.id}>
               <Link href={`/events/${event.id}`}>
                 <Card interactive className="press">
-                  <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-                    <div className="min-w-0">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-4 py-5">
+                    {/*
+                      며칠 남았는지 먼저 — 날짜 글자는 읽어서 세어 보셔야 알지만
+                      「D-21」 은 그냥 보인다. 지난 행사는 조용한 색으로 물러난다.
+                    */}
+                    <div
+                      className={cn(
+                        'grid h-16 w-16 shrink-0 place-items-center rounded-xl border text-center leading-none',
+                        daysUntilEvent(event.event_at) < 0
+                          ? 'border-border bg-secondary text-muted-foreground'
+                          : 'border-accent/45 bg-accent/12 text-accent',
+                      )}
+                      aria-hidden
+                    >
+                      <span className="text-base font-extrabold tabular-nums">{ddayLabel(event.event_at)}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="truncate font-semibold">{event.title}</h2>
                         <Badge variant={event.status === 'draft' ? 'outline' : 'accent'}>
@@ -100,7 +116,9 @@ export default async function EventsPage() {
                         <ProgressDots state={flows[index]} />
                       </div>
                     </div>
-                    <span className="text-sm text-muted-foreground">열기 →</span>
+                    <span className="inline-flex h-10 shrink-0 items-center rounded-md border border-input px-4 text-sm font-medium">
+                      {flows[index].hasPrint ? '열기' : '이어서 하기'} →
+                    </span>
                   </CardContent>
                 </Card>
               </Link>
@@ -109,14 +127,21 @@ export default async function EventsPage() {
         </ul>
       )}
 
-      {/* 다른 컴퓨터에서 하시던 행사를 그대로 여실 수 있게 */}
-      <div className="mt-6 grid gap-4">
-        <EventImport />
-        {events.length > 0 && (
-          <div className="rounded-lg border border-border bg-card p-4">
-            <DemoEventButton />
+      {/*
+        아래 둘은 **어쩌다 한 번** 쓰는 것들이다. 예전에는 행사 카드와 같은 크기의
+        상자로 놓여 있어서, 정작 중요한 행사보다 눈에 더 띄었다. 접어 둔다 —
+        쓰실 분은 찾으시고, 안 쓰실 분은 화면이 조용해진다.
+      */}
+      <div className="mt-8 grid gap-3">
+        {events.length > 0 && <DemoEventButton />}
+        <details className="group">
+          <summary className="inline-flex min-h-9 cursor-pointer items-center text-sm text-muted-foreground hover:text-foreground">
+            다른 컴퓨터에서 하던 행사 가져오기
+          </summary>
+          <div className="mt-3">
+            <EventImport />
           </div>
-        )}
+        </details>
       </div>
     </AppShell>
   )

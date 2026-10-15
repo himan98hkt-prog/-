@@ -65,6 +65,8 @@
   footer{margin-top:clamp(2rem,5vw,3rem);text-align:center;font-size:.95rem;color:var(--ink-soft)}
   footer a{color:var(--gold);font-weight:600}
   .card a:not(.btn){color:var(--burgundy);font-weight:600}
+  .warn p + p{margin-top:.6em}
+  .warn-why{opacity:.78;font-size:.95em}
 </style>
 </head>
 <body>
@@ -97,8 +99,14 @@
   </div>
 
   <div class="warn">
-    <p><b>&#9888;&#65039; 「Windows의 PC 보호」 파란 창이 뜨면</b><br>
-    <b>추가 정보 &rarr; 실행</b> 을 눌러 주세요. 프로그램에 문제가 있어서가 아니라, 서명서를 사지 않은 프로그램에 늘 나오는 안내입니다.</p>
+    <p><b>&#9888;&#65039; 「막혔어요」 하실 때 — 두 번 뜹니다. 둘 다 정상입니다.</b></p>
+    <p><b>1) 받을 때</b> &mdash; 「일반적으로 다운로드되지 않습니다」 라고 뜨면<br>
+    그 줄 오른쪽 <b>&middot;&middot;&middot;</b> 을 누르고 <b>유지</b> 를 고르세요.
+    (크롬은 <b>계속</b> &middot; <b>보관</b>)</p>
+    <p><b>2) 열 때</b> &mdash; 「Windows의 PC 보호」 파란 창이 뜨면<br>
+    <b>추가 정보 &rarr; 실행</b> 을 눌러 주세요.</p>
+    <p class="warn-why">프로그램에 문제가 있어서가 아닙니다. 서명서를 사지 않은 프로그램에는
+    윈도우가 늘 이렇게 묻습니다 &mdash; 처음 보는 파일이라서입니다.</p>
   </div>
 
   <div class="card">

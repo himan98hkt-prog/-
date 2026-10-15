@@ -47,7 +47,14 @@ export function AppShell({
 }) {
   return (
     // 바탕색은 화면(단계)마다 다르다 — ScreenHeader 가 --screen-bg 를 바꿔 준다
-    <div className="app-shell min-h-screen">
+    /*
+     * 세로로 쌓고 본문이 남는 자리를 먹게 한다.
+     *
+     * 이것이 없으면 내용이 짧은 화면(행사 목록·행사 안)에서 바닥글이 내용 바로 밑에
+     * 따라 올라붙고, 그 아래로 창 끝까지 흰 자리가 남는다. 큰 모니터에서는 화면의
+     * 절반이 비어 「만들다 만 프로그램」으로 보인다 — 실제로 그런 말씀을 들었다.
+     */
+    <div className="app-shell flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur no-print">
         <div className="container flex h-14 items-center justify-between gap-3">
           <Link
@@ -71,7 +78,7 @@ export function AppShell({
       </header>
 
       {/* 되돌리기는 화면 위 한 자리에만 둔다 — 자리마다 있으면 자리마다 배우셔야 한다 */}
-      <main className={cn(bleed ? 'pb-10' : 'container py-8', className)}>
+      <main className={cn('flex-1', bleed ? 'pb-10' : 'container py-8', className)}>
         <UndoProvider eventId={eventId}>{children}</UndoProvider>
       </main>
 

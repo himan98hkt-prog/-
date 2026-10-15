@@ -162,3 +162,29 @@ export function isoAtLocalTime(daysFromNow: number, hour: number, minute = 0): s
     fromDatetimeLocal(`${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(hour)}:${pad(minute)}`) ?? base.toISOString()
   )
 }
+
+/**
+ * 연주회까지 며칠 남았는가.
+ *
+ * 목록에서 여러 행사를 함께 보실 때 **어느 것이 급한지**가 먼저 보여야 한다.
+ * 날짜 글자(2026년 11월 5일)는 읽어서 세어 보셔야 알지만, 「D-21」은 그냥 보인다.
+ *
+ * 날을 세는 기준은 **학원 시간대의 자정**이다. 서버가 UTC 라고 해서 하루가
+ * 어긋나면 안 된다 — 연주회 전날에 「D-2」 가 뜨는 꼴이 된다.
+ */
+export function daysUntilEvent(iso: string, now = new Date()): number {
+  const midnight = (date: Date) => {
+    const p = zonedParts(date)
+    return Date.UTC(p.year, p.month - 1, p.day)
+  }
+  return Math.round((midnight(new Date(iso)) - midnight(now)) / 86_400_000)
+}
+
+/** 그 날수를 사람이 읽는 말로 — 「D-21」 · 「오늘」 · 「지난 행사」 */
+export function ddayLabel(iso: string, now = new Date()): string {
+  const days = daysUntilEvent(iso, now)
+  if (days === 0) return '오늘'
+  if (days === 1) return '내일'
+  if (days < 0) return '지난 행사'
+  return `D-${days}`
+}
