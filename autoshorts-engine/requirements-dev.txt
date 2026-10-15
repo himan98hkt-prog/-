@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8.0
+gradio>=4.44          # 선택 UI (autoshorts ui)
+python-dotenv>=1.0    # 선택: .env 파싱 (없으면 내장 파서 사용)

@@ -1,0 +1,21 @@
+# ── 핵심 파이프라인 (오픈소스 / 무과금 로컬 구동) ─────────────
+yt-dlp>=2024.8.6            # Module A  영상·오디오 다운로드
+faster-whisper>=1.0.3       # Module B  로컬 STT (CPU int8 / GPU float16)
+google-genai>=1.0.0         # Module C  하이라이트 선정 (Gemini 무료 티어)
+
+# ── 업로드 (Module F) ──────────────────────────────────────
+# 업로드는 조회용 API 키가 아니라 OAuth 2.0 사용자 인증이 필요하다.
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.2.0
+
+# ── 웹 화면 (선택) ─────────────────────────────────────────
+gradio>=4.44
+
+# Module E (급상승 탐색)는 표준 라이브러리 urllib 로 YouTube Data API v3 를
+# 직접 호출하므로 추가 의존성이 없다.
+#
+# Module D 는 FFmpeg CLI 를 직접 호출한다(파이썬 래퍼 불필요).
+# FFmpeg 는 별도 설치:
+#   macOS   brew install ffmpeg
+#   Ubuntu  sudo apt install ffmpeg fonts-nanum
+#   Windows winget install Gyan.FFmpeg
