@@ -11,14 +11,18 @@
 ### 팔기 전에 이것만 되어 있으면 됩니다
 
 - [x] 깃허브 Secrets 에 `RECITAL_LICENSE_SECRET` 을 넣었다
-      ([바로 가기](https://github.com/himan98hkt-prog/-/settings/secrets/actions/new))
-- [x] 그 비밀값을 넣고 설치본을 **다시 뽑았다** (2026-08-30 · 윈도우 · 맥 둘 다)
-- [x] `npm run keygen:build` 로 `배포/인증키-발급기.html` 을 만들어 두었다
-- [x] **발급기 지문과 설치본 지문 여덟 글자가 같다** — `463D323F`
+      ([바로 가기](https://github.com/himan98hkt-prog/-/settings/secrets/actions))
+- [x] 그 비밀값을 넣고 설치본을 **다시 뽑았다** (2026-10-15 · 윈도우 · 맥 둘 다)
+- [ ] `npm run keygen:build` 로 `배포/인증키-발급기.html` 을 다시 만들었다
+- [ ] **발급기 지문과 설치본 지문 여덟 글자가 같다** — 새 지문: `________`
 - [ ] `npm run pack:web` 으로 나온 압축을 `public_html/download` 안에서 풀었다
 - [ ] 상품 상세페이지·커리큘럼에 코드를 붙여 넣었다
 
-앞의 넷은 끝났습니다. 남은 둘은 워드프레스에서 하시는 일입니다.
+> **2026-10-15 — 비밀값을 바꿨습니다.** 아직 한 건도 팔기 전이라 잃을 키가 없을 때
+> 정리해 두었습니다. 옛 지문 `463D323F` 는 이제 쓰지 않습니다. 새 지문은 설치본을
+> 뽑은 Actions 로그의 「인증키 비밀 확인」 칸에 찍혀 있으니, 그 여덟 글자를 위 빈칸에
+> 적어 두십시오. **첫 판매 뒤에는 비밀을 바꿀 수 없습니다** — 이미 파신 키가 전부
+> 안 열리기 때문입니다.
 
 ---
 
@@ -67,8 +71,13 @@ RECITAL_LICENSE_SECRET='정하신값' npm run keygen:build
 
 ### 3. 설치본 뽑기
 
-깃허브 → **Actions → 연주회 매니저 설치본 만들기 → Run workflow**.
-끝나면 Releases 의 `installer-latest` 에 올라옵니다.
+`pianoevent-ai/` 안의 파일을 고쳐 `claude/piano-event-program-**` 가지에 **밀면
+저절로 돕니다.** 끝나면 Releases 의 `installer-latest` 에 올라옵니다.
+
+> 「Actions → Run workflow」 단추는 **아직 안 보입니다.** 깃허브는 그 단추를
+> **기본 가지에 들어간 워크플로에만** 달아 주는데, 이 설치본 워크플로는 아직
+> 기본 가지(`claude/dev-instructions-review-n1xsty`)에 없기 때문입니다.
+> 이 PR 이 합쳐지면 그때부터 단추가 생깁니다.
 
 - 윈도우 — `RecitalManager-Setup-Windows.exe`
 - 맥 — `RecitalManager-Mac.dmg`
@@ -78,7 +87,7 @@ RECITAL_LICENSE_SECRET='정하신값' npm run keygen:build
 로그의 「인증키 비밀 확인」 칸에 여덟 글자가 찍힙니다.
 
 ```
-인증키 비밀이 들어 있습니다. 이 설치본의 지문 — 463D323F
+인증키 비밀이 들어 있습니다. 이 설치본의 지문 — XXXXXXXX
 ```
 
 발급기를 여시면 화면 위쪽에도 같은 자리에 지문이 뜹니다.
