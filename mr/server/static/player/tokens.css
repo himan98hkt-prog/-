@@ -1,0 +1,100 @@
+/* 반주(MR) 다섯 화면이 같이 쓰는 값 — 색·간격·모양·움직임.
+ *
+ * **왜 이 파일이 player/ 안에 있나.** 플레이어는 정적 꾸러미로 통째로 복사돼
+ * 원장님 웹호스팅에서 서버 없이 돈다(`export_static`). 토큰을 바깥에 두면 꾸러미에
+ * 같이 안 실리거나, 실으려고 사본을 만들어야 한다. 사본은 반드시 어긋난다.
+ * 그래서 꾸러미에 어차피 들어가는 이 폴더에 두고, 제작 화면들이 여기서 빌려 쓴다.
+ *
+ * **왜 웹폰트가 없나.** 오프라인 재생은 지시서 ⑤-1 이 「타협 불가」라고 못 박았다.
+ * 구글 폰트를 걸면 비행기 모드에서 글꼴이 무너지고, 한글 폰트는 서브셋을 떠도
+ * 꾸러미(지금 150KB)보다 무겁다. 그래서 글꼴은 기기 것을 쓰고, 인상은 **크기·굵기·
+ * 자간·숫자 정렬**로 만든다. 숫자가 많은 화면이라 tabular-nums 하나가 크게 먹는다.
+ */
+
+:root {
+  /* 기기가 그리는 것들(셀렉트 상자·스크롤막대·글자 커서)도 같이 어두워진다.
+   * 이게 없으면 화성 확인 화면의 select 만 하얗게 튄다. */
+  color-scheme: dark;
+
+  /* ── 바탕 ── 연주홀 조명은 어둡다. 객석에서 화면이 눈을 찌르면 안 된다 ── */
+  --bg:        #0a090e;   /* 제일 아래 */
+  --bg-2:      #100e16;   /* 무대 아래 은은한 상승 */
+  --surface:   rgba(255,255,255,.045);   /* 유리질 표면 — 바탕이 비쳐 깊이가 생긴다 */
+  --surface-2: rgba(255,255,255,.075);
+  --line:      rgba(255,255,255,.10);
+  --line-2:    rgba(255,255,255,.055);
+
+  /* ── 글자 ── */
+  --ink:   #f4efe4;
+  --dim:   #a9a091;
+  --faint: #6d6557;
+
+  /* ── 강조 ── 무대 조명(호박)에서 막(와인)으로. 흔한 보라-파랑 그라데이션을
+   *    쓰지 않은 이유: 이 제품이 있는 곳은 연주홀이지 클럽이 아니다. ── */
+  --gold:   #e8b45c;
+  --gold-2: #f6d79b;
+  --gold-3: #b8863a;
+  --wine:   #c4566f;
+  --wine-2: #8f3049;
+  --glow:   rgba(232,180,92,.30);
+
+  /* 강조 그라데이션 — 큰 면에만. 작은 글자에 쓰면 읽기가 나빠진다 */
+  --sweep: linear-gradient(135deg, var(--gold-2) 0%, var(--gold) 42%, var(--wine) 100%);
+
+  /* ── 뜻이 있는 색 ── 강조색과 따로 둔다. 「좋다/주의」는 브랜드가 아니다 ── */
+  --ok:   #63b98a;
+  --warn: #e0a05f;
+  --bad:  #e06a6a;
+
+  /* ── 모양 ── */
+  --r:    16px;
+  --r-sm: 11px;
+  --r-lg: 22px;
+  --pad:  16px;
+
+  /* ── 그림자 ── 어두운 바탕에서는 그림자보다 **빛**이 깊이를 만든다 ── */
+  --lift:  0 1px 0 rgba(255,255,255,.06) inset, 0 8px 24px rgba(0,0,0,.45);
+  --lift-2:0 1px 0 rgba(255,255,255,.09) inset, 0 16px 44px rgba(0,0,0,.55);
+
+  /* ── 움직임 ── 무대에서 쓰는 화면이라 느릿한 연출은 방해가 된다 ── */
+  --quick: .16s cubic-bezier(.2,.8,.3,1);
+  --calm:  .32s cubic-bezier(.2,.8,.3,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    /* 무대 위쪽에서 내려오는 조명 한 줄기 */
+    radial-gradient(120% 70% at 50% -10%, rgba(232,180,92,.10), transparent 58%),
+    radial-gradient(90% 60% at 50% 108%, rgba(196,86,111,.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 38%);
+  background-attachment: fixed;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", sans-serif;
+  font-size: 16px; line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* 숫자가 흔들리면 싸구려로 보인다. 템포·마디·시간이 전부 숫자다. */
+.num, input[type=number], td, th, time { font-variant-numeric: tabular-nums; }
+
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
+button { font: inherit; color: inherit; }
+a { color: var(--gold); }
+
+/* 눈으로 쫓을 수 있는 초점 — 무대에서 키보드를 쓰는 경우가 있다 */
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+/* 작은 라벨 — 자간을 벌리면 정보가 아니라 **표지**로 읽힌다.
+ * 다만 한글은 라틴만큼 벌리면 글자가 흩어져 읽기가 나빠진다. .12em 이 경계다. */
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

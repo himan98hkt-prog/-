@@ -1,0 +1,87 @@
+{
+ "id": "p17_two_four_pickup",
+ "title": "2/4박 행진 (못갖춘마디)",
+ "key": "C",
+ "time": "2/4",
+ "level": 3,
+ "default_style": "march",
+ "lh": "octave",
+ "rh": "eighth",
+ "pickup": true,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 0,
+   "off": 0.0,
+   "len": 1.0,
+   "root": 7,
+   "qual": "M",
+   "label": "G"
+  },
+  {
+   "m": 1,
+   "off": 1.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 2,
+   "off": 3.0,
+   "len": 2.0,
+   "root": 7,
+   "qual": "7",
+   "label": "G7"
+  },
+  {
+   "m": 3,
+   "off": 5.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 4,
+   "off": 7.0,
+   "len": 2.0,
+   "root": 5,
+   "qual": "M",
+   "label": "F"
+  },
+  {
+   "m": 5,
+   "off": 9.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 6,
+   "off": 11.0,
+   "len": 2.0,
+   "root": 7,
+   "qual": "7",
+   "label": "G7"
+  },
+  {
+   "m": 7,
+   "off": 13.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 8,
+   "off": 15.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  }
+ ]
+}

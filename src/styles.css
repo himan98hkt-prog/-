@@ -333,6 +333,12 @@ th {
 }
 th:first-child { border-radius: var(--radius) 0 0 0; }
 th:last-child { border-radius: 0 var(--radius) 0 0; }
+/* 본문 안의 th 는 **줄 이름**이지 열 제목이 아니다 (원생 카드의 "진도 교재" 같은 것).
+   위 스타일이 그대로 먹으면 검은 덩어리가 생긴다. */
+tbody th {
+  background: none; color: var(--ink-3); font-weight: 600;
+  border-bottom: 1px solid var(--line-2); border-radius: 0; position: static;
+}
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr:hover { background: var(--brand-soft); }
 tbody tr:last-child td { border-bottom: 0; }

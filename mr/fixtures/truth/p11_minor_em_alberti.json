@@ -1,0 +1,95 @@
+{
+ "id": "p11_minor_em_alberti",
+ "title": "마단조 알베르티",
+ "key": "e",
+ "time": "4/4",
+ "level": 5,
+ "default_style": "chamber",
+ "lh": "alberti",
+ "rh": "eighth",
+ "pickup": false,
+ "repeat": false,
+ "measures": 8,
+ "truth": [
+  {
+   "m": 1,
+   "off": 0.0,
+   "len": 4.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  },
+  {
+   "m": 2,
+   "off": 4.0,
+   "len": 2.0,
+   "root": 9,
+   "qual": "m",
+   "label": "Am"
+  },
+  {
+   "m": 2,
+   "off": 6.0,
+   "len": 2.0,
+   "root": 11,
+   "qual": "7",
+   "label": "B7"
+  },
+  {
+   "m": 3,
+   "off": 8.0,
+   "len": 4.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  },
+  {
+   "m": 4,
+   "off": 12.0,
+   "len": 2.0,
+   "root": 0,
+   "qual": "M",
+   "label": "C"
+  },
+  {
+   "m": 4,
+   "off": 14.0,
+   "len": 2.0,
+   "root": 11,
+   "qual": "7",
+   "label": "B7"
+  },
+  {
+   "m": 5,
+   "off": 16.0,
+   "len": 4.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  },
+  {
+   "m": 6,
+   "off": 20.0,
+   "len": 4.0,
+   "root": 9,
+   "qual": "m",
+   "label": "Am"
+  },
+  {
+   "m": 7,
+   "off": 24.0,
+   "len": 4.0,
+   "root": 11,
+   "qual": "7",
+   "label": "B7"
+  },
+  {
+   "m": 8,
+   "off": 28.0,
+   "len": 4.0,
+   "root": 4,
+   "qual": "m",
+   "label": "Em"
+  }
+ ]
+}
