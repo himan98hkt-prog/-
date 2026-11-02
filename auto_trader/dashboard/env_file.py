@@ -50,25 +50,45 @@ GROUPS: list[Group] = [
               "50123456-01 이면 50123456 만", placeholder="50123456"),
         Field("KIS_ACCOUNT_PRODUCT_CD", "계좌 상품코드", "뒤 2자리", placeholder="01"),
     ]),
-    Group("AI 판단 엔진", "두 모델의 합의로 매매를 결정합니다.", [
-        Field("ANTHROPIC_API_KEY", "Anthropic API 키", "console.anthropic.com — 크레딧 충전 필요", secret=True),
+    Group("AI 판단 엔진",
+          "Claude 의 정성 판단과 규칙 엔진의 정량 게이트가 **양쪽 다 동의할 때만** "
+          "매수합니다. 매도는 한쪽만으로도 성립합니다. "
+          "참여 엔진은 config/settings.yaml 의 ai.engines 가 정하고 기본값은 Claude 단독입니다.", [
+        Field("ANTHROPIC_API_KEY", "Anthropic API 키",
+              "Claude Max·Ultra·Team 구독에는 월 API 크레딧이 포함됩니다"
+              "(Max $100). claude.ai → 설정 → 청구 → API credits 에서 Console 조직을 "
+              "연결하고, **그 조직에서 발급한 키**를 넣으면 구독에 포함된 크레딧으로 "
+              "차감됩니다. 카드 등록은 필요 없고, 소진되면 요청이 멈출 뿐 구독료에 "
+              "추가 청구되지 않습니다.", secret=True),
         Field("CLAUDE_MODEL", "Claude 모델",
-              "sonnet = 저렴하고 충분 / opus = 더 정확하지만 비쌈",
-              choices=("claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5")),
+              "haiku-5-5 = 30분 주기로 월 약 $0.5 (크레딧의 0.5%) — 작동 검증 단계에 권장 / "
+              "sonnet-5-5 = 월 약 $10 / opus-5-5 = 월 약 $21, 판단 품질이 가장 높음. "
+              "먼저 싼 모델로 '매매가 실제로 되는지' 를 확인하고, 그다음 올려서 "
+              "'판단이 좋은지' 를 보세요 — 순서를 뒤집으면 성과가 없을 때 전략 문제인지 "
+              "거래가 안 된 문제인지 구분할 수 없습니다.",
+              choices=("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5",
+                       "claude-sonnet-5", "claude-opus-5")),
         Field("CLAUDE_TEMPERATURE", "Claude temperature",
               "비워두세요. 최신 모델은 이 값을 거부(400)합니다", required=False),
         Field("CLAUDE_EFFORT", "Claude effort",
-              "비우면 기본(high). 비용을 줄이려면 low 또는 medium",
+              "비우면 기본(high). 비용을 줄이려면 low 또는 medium "
+              "(일부 모델은 이 값을 받지 않는데, 그럴 때는 자동으로 빼고 다시 부릅니다)",
               choices=("", "low", "medium", "high", "xhigh", "max"), required=False),
-        Field("GEMINI_API_KEY", "Gemini API 키", "aistudio.google.com/apikey", secret=True),
+        Field("GEMINI_API_KEY", "Gemini API 키",
+              "기본 구성에서는 **호출되지 않습니다** — 비워 두세요. "
+              "ai.engines 에 \"gemini\" 를 넣을 때만 필요합니다 (aistudio.google.com/apikey)",
+              secret=True, required=False),
         Field("GEMINI_MODEL", "Gemini 모델",
-              "flash = 무료 한도로 쓸 수 있음 / pro = 성능이 좋지만 결제 등록 필요",
+              "ai.engines 에 gemini 를 넣을 때만 쓰입니다. 무료 한도는 모델마다 다르고 "
+              "구글이 중앙 표를 공개하지 않으니 AI Studio 에서 본인 한도를 확인하세요",
+              required=False,
               choices=("gemini-3.5-flash", "gemini-3.1-pro-preview")),
         Field("GEMINI_TEMPERATURE", "Gemini temperature", placeholder="0.2", required=False),
         Field("OPENAI_API_KEY", "ChatGPT API 키",
-              "선택 — platform.openai.com/api-keys. 넣으면 세 번째 판단 엔진으로 참여합니다",
+              "기본 구성에서는 **호출되지 않습니다** — 비워 두세요. OpenAI 는 무료 등급이 "
+              "없어 넣는 순간 별도 요금이 발생합니다 (platform.openai.com/api-keys)",
               secret=True, required=False),
-        Field("OPENAI_MODEL", "ChatGPT 모델", "gpt-5.1 이 이 용도에 값이 적당합니다",
+        Field("OPENAI_MODEL", "ChatGPT 모델", "ai.engines 에 chatgpt 를 넣을 때만 쓰입니다",
               required=False, choices=("gpt-5.1", "gpt-6-astra")),
         Field("OPENAI_TEMPERATURE", "ChatGPT temperature",
               "비워두세요. 최신 추론 모델은 이 값을 거부합니다", required=False),
@@ -96,7 +116,7 @@ ALL_FIELDS: dict[str, Field] = {f.key: f for group in GROUPS for f in group.fiel
 # 값이 비어 있을 때 새로 만드는 .env 에 넣을 기본값
 DEFAULTS = {
     "KIS_ENV": "VTS", "DRY_RUN": "true", "LOG_LEVEL": "INFO",
-    "KIS_ACCOUNT_PRODUCT_CD": "01", "CLAUDE_MODEL": "claude-sonnet-5",
+    "KIS_ACCOUNT_PRODUCT_CD": "01", "CLAUDE_MODEL": "claude-haiku-5-5",
     "GEMINI_MODEL": "gemini-3.5-flash", "OPENAI_MODEL": "gpt-5.1", "GEMINI_TEMPERATURE": "0.2", "NOTIFIER": "telegram",
 }
 

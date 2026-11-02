@@ -297,7 +297,11 @@ def check_gemini(env: dict[str, str | None]) -> Result:
     api_key = env.get("GEMINI_API_KEY")
     model = env.get("GEMINI_MODEL") or "gemini-3.5-flash"
     if not api_key:
-        return Result("Google (Gemini)", SKIP, "GEMINI_API_KEY 미입력")
+        # 기본 구성에서는 호출되지 않는다. "미입력" 이라고만 쓰면 넣어야 하는
+        # 것처럼 보여서, 쓰지 않는 키를 받으러 가게 된다.
+        return Result("Google (Gemini)", SKIP,
+                      "기본 구성에서는 사용하지 않습니다 "
+                      "(settings.yaml 의 ai.engines 에 \"gemini\" 를 넣을 때만 필요)")
     from google import genai
 
     client = genai.Client(api_key=api_key)
@@ -342,7 +346,9 @@ def check_openai(env: dict[str, str | None]) -> Result:
     api_key = env.get("OPENAI_API_KEY")
     model = env.get("OPENAI_MODEL") or "gpt-5.1"
     if not api_key:
-        return Result("ChatGPT (선택)", SKIP, "미입력 — Claude·Gemini 둘로만 판단합니다")
+        return Result("ChatGPT (선택)", SKIP,
+                      "기본 구성에서는 사용하지 않습니다 "
+                      "(ai.engines 에 \"chatgpt\" 를 넣을 때만 필요)")
     from openai import OpenAI
 
     client = OpenAI(api_key=api_key, timeout=30.0, max_retries=0)
