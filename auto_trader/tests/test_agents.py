@@ -454,3 +454,76 @@ def test_an_ordinary_failure_still_retries():
     agent = _Flaky(AI)
     agent.analyze({"code": "005930"})
     assert agent.calls == AI.max_retries + 1
+
+
+# --- 키가 거부됐을 때 (2026-11-02, Claude 401) ----------------------------------- #
+#
+# 한도 오류와 똑같은 모양의 낭비가 인증 오류에서도 났다. 보통 실패로 다루면
+# 재요청 2번 + 종목별 폴백 10종목 × 3회 = 거부된 키를 한 사이클에 33번 두드린다.
+# 그보다 나쁜 것은 알림에 JSON 덩어리만 쌓이고 '키를 고치라' 는 말은 어디에도
+# 없었다는 점이다. 매수는 만장일치라, 엔진 하나가 죽으면 매수가 통째로 멈춘다.
+
+from agents.base_agent import AgentAuthError, looks_like_auth
+
+CLAUDE_401 = (
+    "API 오류(HTTP 401): Error code: 401 - {'type': 'error', 'error': "
+    "{'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
+)
+
+
+def test_an_auth_message_is_recognised():
+    assert looks_like_auth(CLAUDE_401)
+    assert looks_like_auth("Error code: 403 - permission_error")
+    assert not looks_like_auth("연결 실패: timed out")
+
+
+def test_an_auth_message_says_what_to_do():
+    """원문을 그냥 자르면 JSON 머리말만 남고 사유가 '…' 뒤로 밀린다."""
+    line = short_error(CLAUDE_401)
+    assert "API 키가 거부됐습니다" in line
+    assert ".env" in line
+    assert "{" not in line and len(line) < 80
+
+
+def test_a_quota_message_is_not_mistaken_for_auth():
+    assert "한도" in short_error(GEMINI_429)
+
+
+class _AuthAgent(BaseAgent):
+    name = "auth"
+
+    def __init__(self, ai=AI):
+        super().__init__(ai)
+        self.calls = 0
+
+    def _call_model(self, system_prompt, user_prompt, schema=None):
+        self.calls += 1
+        raise AgentAuthError(short_error(CLAUDE_401))
+
+
+def test_an_auth_error_is_not_retried():
+    """거부된 키는 다시 불러도 거부된다."""
+    agent = _AuthAgent(AI)
+    decision = agent.analyze({"code": "005930"})
+
+    assert not decision.ok and decision.action == "HOLD"
+    assert agent.calls == 1, f"거부된 키를 {agent.calls}번 불렀습니다"
+
+
+def test_auth_failure_does_not_trigger_the_per_code_fallback():
+    """None 을 주면 호출자가 10종목을 하나씩 다시 부른다 — 전부 거부될 호출이다."""
+    agent = _AuthAgent(AI)
+    snapshots = [{"code": f"00{i}", "name": f"종목{i}"} for i in range(10)]
+
+    result = agent.analyze_many(snapshots)
+
+    assert result is not None, "None 은 종목별 폴백을 부른다"
+    assert len(result) == 10 and all(not d.ok for d in result.values())
+    assert agent.calls == 1, f"한 사이클에 {agent.calls}번 불렀습니다"
+
+
+def test_the_failure_reason_reaches_the_decision():
+    """화면·알림이 '왜 실패했는지' 를 읽을 수 있어야 한다."""
+    agent = _AuthAgent(AI)
+    decision = agent.analyze_many([{"code": "005930"}, {"code": "000660"}])["005930"]
+    assert looks_like_auth(decision.error) or "키가 거부" in decision.error

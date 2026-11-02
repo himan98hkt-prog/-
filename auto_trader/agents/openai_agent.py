@@ -8,8 +8,9 @@ JSON 형식을 강제한다. 그래도 어긋나면 base_agent 의 재요청·HO
 
 from __future__ import annotations
 
-from agents.base_agent import (AgentCallError, AgentQuotaError, BaseAgent,
-                               looks_like_quota, quota_details, short_error)
+from agents.base_agent import (AgentAuthError, AgentCallError, AgentQuotaError,
+                               BaseAgent, looks_like_auth, looks_like_quota,
+                               quota_details, short_error)
 from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
@@ -76,6 +77,8 @@ class OpenAiAgent(BaseAgent):
             text = str(exc)
             status = getattr(exc, "status_code", None) or getattr(
                 getattr(exc, "response", None), "status_code", None)
+            if status in (401, 403) or looks_like_auth(f"{type(exc).__name__} {text}"):
+                raise AgentAuthError(f"ChatGPT {short_error(text)} (OPENAI_API_KEY)") from exc
             if status == 429 or looks_like_quota(f"{type(exc).__name__} {text}"):
                 wait, daily = quota_details(text)
                 raise AgentQuotaError(short_error(text), retry_after=wait,

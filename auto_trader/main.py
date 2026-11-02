@@ -752,7 +752,40 @@ class TradingBot:
             return {}
         if not self.settings.ai.compare_candidates or len(snapshots) < 2:
             return {}
-        return run_agents_batch(self.agents, snapshots, self.settings.ai)
+        votes = run_agents_batch(self.agents, snapshots, self.settings.ai)
+        self._warn_about_dead_engines(votes)
+        return votes
+
+    def _warn_about_dead_engines(self, votes: dict[str, dict[str, Any]]) -> None:
+        """키가 거부된 엔진이 있으면 **한 번** 제대로 알린다.
+
+        예전에는 이 사실이 사이클 요약에만 실렸다. 종목마다 같은 JSON 덩어리가
+        반복되니 읽히지 않았고, 정작 '키를 고치라' 는 말은 어디에도 없었다.
+        매수는 만장일치라, 엔진 하나가 죽으면 매수가 통째로 막힌다 — 조용히
+        둘 수 있는 일이 아니다.
+        """
+        broken: dict[str, str] = {}
+        for decisions in votes.values():
+            for name, decision in decisions.items():
+                if decision.ok or not decision.error:
+                    continue
+                if decision.error_kind == "auth":
+                    broken.setdefault(name, decision.error)
+        if not broken:
+            return
+
+        for name, error in broken.items():
+            logger.error("[%s] 인증 실패로 판단에 참여하지 못합니다: %s", name, error)
+        names = ", ".join(sorted(broken))
+        self.notifier.send_alert(
+            "🔑 AI 키가 거부됐습니다 — 매수가 멈춰 있습니다",
+            [f"{names} 가 인증에 실패해 판단에 참여하지 못합니다.",
+             "매수는 세 AI 가 모두 동의해야 나가므로, 이 상태에서는 매수가 전혀 되지 않습니다.",
+             "(손절·익절은 AI 와 무관하게 계속 동작합니다.)",
+             "대시보드 '설정' 에서 해당 키를 다시 넣고 재시작하세요.",
+             *(f"· {error}" for error in broken.values())],
+            key=f"agent_auth:{names}",
+        )
 
     def _process_code(self, code: str, state, cycle_id: str, now: datetime, *,
                       snapshot: dict[str, Any] | None = None,

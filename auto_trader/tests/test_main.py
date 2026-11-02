@@ -1318,3 +1318,54 @@ def test_a_holding_with_room_can_still_be_topped_up(bot):
     room = bot._buy_room("105560", state)
     assert room["can_buy"] is True
     assert room["room_krw"] == _position_cap(bot) - 177_200
+
+
+# --- 키가 거부됐을 때 한 번은 제대로 알리는가 (2026-11-02) ----------------------- #
+#
+# 예전에는 이 사실이 사이클 요약에만 실렸다. 종목마다 같은 JSON 덩어리가
+# 반복되니 읽히지 않았고, 정작 '키를 고치라' 는 말은 어디에도 없었다.
+# 매수는 만장일치라 엔진 하나가 죽으면 매수가 통째로 멈춘다.
+
+def _vote(agent, *, ok=True, error="", kind=""):
+    return AgentDecision(agent=agent, action="HOLD", confidence=0.4, weight_pct=0,
+                         reason="", ok=ok, error=error, error_kind=kind)
+
+
+AUTH_ERROR = "Claude API 키가 거부됐습니다 — .env 의 키를 확인하세요 (ANTHROPIC_API_KEY)"
+
+
+def test_a_rejected_key_is_announced_once(bot):
+    votes = {code: {"claude": _vote("claude", ok=False, error=AUTH_ERROR, kind="auth"),
+                    "gemini": _vote("gemini")}
+             for code in ("005930", "000660", "105560")}
+
+    bot._warn_about_dead_engines(votes)
+
+    alerts = [line for line in bot.sent if "alert:" in line]
+    assert len(alerts) == 1, f"종목 수만큼 울렸습니다: {len(alerts)}건"
+    assert "키가 거부됐습니다" in alerts[0]
+
+
+def test_the_alert_says_buying_is_stopped(bot):
+    """'왜 중요한가' 가 없으면 또 하나의 경고로만 보이고 지나친다."""
+    captured: list[str] = []
+    bot.notifier.send_alert = lambda title, lines, **kw: captured.extend(lines) or True
+    bot._warn_about_dead_engines(
+        {"005930": {"claude": _vote("claude", ok=False, error=AUTH_ERROR, kind="auth")}})
+
+    joined = " ".join(captured)
+    assert "매수가 전혀 되지 않습니다" in joined
+    assert "손절·익절은" in joined, "자산을 지키는 쪽은 산다는 것도 말해야 한다"
+    assert "재시작" in joined
+
+
+def test_an_ordinary_failure_is_not_announced_as_a_key_problem(bot):
+    """타임아웃까지 '키를 고치라' 고 하면 엉뚱한 곳을 보게 된다."""
+    bot._warn_about_dead_engines(
+        {"005930": {"claude": _vote("claude", ok=False, error="연결 실패: timed out")}})
+    assert not any("키가 거부" in line for line in bot.sent)
+
+
+def test_a_healthy_cycle_is_quiet(bot):
+    bot._warn_about_dead_engines({"005930": {"claude": _vote("claude")}})
+    assert not any("alert:" in line for line in bot.sent)

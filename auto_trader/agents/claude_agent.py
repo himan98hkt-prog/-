@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import anthropic
 
-from agents.base_agent import (AgentCallError, AgentQuotaError, BaseAgent,
-                               quota_details, short_error)
+from agents.base_agent import (AgentAuthError, AgentCallError, AgentQuotaError,
+                               BaseAgent, quota_details, short_error)
 from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
@@ -98,7 +98,13 @@ class ClaudeAgent(BaseAgent):
                 wait, daily = quota_details(str(exc))
                 raise AgentQuotaError(short_error(str(exc)), retry_after=wait,
                                       daily=daily) from exc
+            except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as exc:
+                raise AgentAuthError(
+                    f"Claude {short_error(str(exc))} (ANTHROPIC_API_KEY)") from exc
             except anthropic.APIStatusError as exc:
+                if exc.status_code in (401, 403):
+                    raise AgentAuthError(
+                        f"Claude {short_error(str(exc))} (ANTHROPIC_API_KEY)") from exc
                 raise AgentCallError(
                     f"API 오류(HTTP {exc.status_code}): {short_error(str(exc))}") from exc
             except anthropic.APIConnectionError as exc:

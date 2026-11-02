@@ -63,6 +63,16 @@ class AgentQuotaError(AgentCallError):
         self.daily = daily
 
 
+class AgentAuthError(AgentCallError):
+    """키가 거부됐다(401/403). **재시도로 풀리지 않는다** — 사람이 고쳐야 한다.
+
+    한도 오류와 같은 모양의 낭비가 여기서도 났다. 보통 실패로 다루면 재요청을
+    2번 더 하고, 그래도 실패하니 종목별 폴백으로 10종목 × 3회를 또 부른다.
+    거부된 키를 33번 더 두드리는 셈이다. 그보다 나쁜 것은, 그 사이 알림에는
+    JSON 덩어리만 쌓이고 정작 '키를 고치라' 는 말은 어디에도 없었다는 점이다.
+    """
+
+
 # 한도 메시지에서 짧은 한 줄만 남긴다. 제공사가 돌려주는 원문은 JSON 수십 줄이라,
 # 그대로 알림에 실으면 종목 10개 × 20줄이 되어 정작 볼 것을 덮어 버린다.
 _QUOTA_HINTS = ("quota", "rate limit", "rate_limit", "resource_exhausted",
@@ -85,9 +95,24 @@ def quota_details(message: str) -> tuple[float, bool]:
         return 0.0, daily
 
 
+_AUTH_HINTS = ("authentication_error", "invalid x-api-key", "invalid api key",
+               "incorrect api key", "unauthorized", "permission_error", "401", "403")
+
+
+def looks_like_auth(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(hint in lowered for hint in _AUTH_HINTS)
+
+
 def short_error(message: str, limit: int = 110) -> str:
-    """알림에 실을 한 줄. 줄바꿈을 없애고 길면 자른다."""
+    """알림에 실을 한 줄. 줄바꿈을 없애고 길면 자른다.
+
+    그냥 잘라내면 제공사의 JSON 머리말만 남고 정작 읽어야 할 사유가 '…' 뒤로
+    밀린다. 무엇이 틀렸고 무엇을 해야 하는지를 아는 경우에는 그걸 적는다.
+    """
     text = " ".join((message or "").split())
+    if looks_like_auth(text):
+        return "API 키가 거부됐습니다 — .env 의 키를 확인하세요"
     if looks_like_quota(text):
         wait, daily = quota_details(text)
         if daily:
@@ -179,10 +204,11 @@ class BaseAgent(ABC):
         started = time.monotonic()
         last_error = "알 수 없는 오류"
         last_raw = ""
+        last_kind = ""
         code = payload.get("code", "?")
         blocked = self._quota_blocked()
         if blocked:   # 부르지 않는다. 부를수록 나빠지기만 한다.
-            return AgentDecision.hold(self.name, blocked)
+            return AgentDecision.hold(self.name, blocked, kind="quota")
         total_usage = Usage()  # 재요청까지 포함한 누적 토큰
 
         # 첫 호출 + max_retries 회의 재요청
@@ -195,8 +221,12 @@ class BaseAgent(ABC):
                 # 한도에 걸린 상태에서 다시 부르는 것은 한도만 더 축낸다.
                 total_usage += self._last_usage
                 self._note_quota(exc)
-                last_error = str(exc)
-                last_raw = ""
+                last_error, last_kind, last_raw = str(exc), "quota", ""
+                break
+            except AgentAuthError as exc:
+                # 거부된 키는 다시 불러도 거부된다. 사람이 고쳐야 풀린다.
+                total_usage += self._last_usage
+                last_error, last_kind, last_raw = str(exc), "auth", ""
                 break
             except AgentCallError as exc:
                 total_usage += self._last_usage
@@ -226,7 +256,7 @@ class BaseAgent(ABC):
             return decision
 
         logger.error("[%s] %s 최종 실패 → HOLD: %s", self.name, code, last_error)
-        decision = AgentDecision.hold(self.name, last_error, last_raw)
+        decision = AgentDecision.hold(self.name, last_error, last_raw, kind=last_kind)
         decision.elapsed_sec = round(time.monotonic() - started, 2)
         self._attach_usage(decision, total_usage)
         return decision
@@ -248,7 +278,8 @@ class BaseAgent(ABC):
         blocked = self._quota_blocked()
         if blocked:
             # None 을 주면 호출자가 종목별 폴백을 돈다 — 그건 더 많이 부른다는 뜻이다.
-            return {code: AgentDecision.hold(self.name, blocked) for code in codes}
+            return {code: AgentDecision.hold(self.name, blocked, kind="quota")
+                    for code in codes}
         system = batch_system_prompt(self.ai.max_buy_picks)
         started = time.monotonic()
         problem = ""
@@ -259,13 +290,20 @@ class BaseAgent(ABC):
             self._last_usage = Usage()
             try:
                 raw = self._call_model(system, user_prompt, BATCH_RESPONSE_JSON_SCHEMA)
+            except AgentAuthError as exc:
+                total_usage += self._last_usage
+                # None 을 주면 호출자가 종목별 폴백을 돈다 — 거부된 키로
+                # 10종목을 하나씩 더 두드리게 된다.
+                return {code: AgentDecision.hold(self.name, str(exc), kind="auth")
+                        for code in codes}
             except AgentQuotaError as exc:
                 self._note_quota(exc)
                 total_usage += self._last_usage
                 # None 이 아니라 '전원 관망' 을 돌려준다. None 은 호출자에게
                 # 종목별 폴백을 돌리라는 뜻인데, 한도에 걸린 상태에서 그것만큼
                 # 나쁜 선택이 없다 — 10종목 × 3회를 더 부른다.
-                return {code: AgentDecision.hold(self.name, str(exc)) for code in codes}
+                return {code: AgentDecision.hold(self.name, str(exc), kind="quota")
+                        for code in codes}
             except AgentCallError as exc:
                 total_usage += self._last_usage
                 problem = str(exc)

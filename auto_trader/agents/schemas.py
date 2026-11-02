@@ -32,6 +32,11 @@ class AgentDecision:
     raw: str = ""  # 원문 응답 (디버깅용)
     ok: bool = False  # 파싱 성공 여부
     error: str = "" # 실패 사유 (로그·DB용)
+    # 실패의 **종류**. 메시지를 다시 읽어 추측하지 않기 위해 들고 다닌다 —
+    # short_error() 가 사람이 읽을 문장으로 바꾸면서 영어 단서를 지우기 때문에,
+    # 뒤에서 문자열을 보고 판단하면 자기 출력조차 못 알아본다.
+    # "" | "auth"(키 거부) | "quota"(요청량 한도)
+    error_kind: str = ""
     elapsed_sec: float = 0.0
     model: str = ""
     input_tokens: int = 0
@@ -42,11 +47,11 @@ class AgentDecision:
         return asdict(self)
 
     @classmethod
-    def hold(cls, agent: str, error: str, raw: str = "") -> "AgentDecision":
+    def hold(cls, agent: str, error: str, raw: str = "", kind: str = "") -> "AgentDecision":
         """파싱·호출 실패 시의 안전한 기본값."""
         return cls(agent=agent, action="HOLD", confidence=0.0, weight_pct=0,
                    reason="응답을 신뢰할 수 없어 관망합니다", raw=raw[:RAW_MAX_CHARS],
-                   ok=False, error=error)
+                   ok=False, error=error, error_kind=kind)
 
     def summary(self) -> str:
         """알림·로그용 **한 줄** 요약.

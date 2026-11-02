@@ -10,8 +10,9 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from agents.base_agent import (AgentCallError, AgentQuotaError, BaseAgent,
-                               looks_like_quota, quota_details, short_error)
+from agents.base_agent import (AgentAuthError, AgentCallError, AgentQuotaError,
+                               BaseAgent, looks_like_auth, looks_like_quota,
+                               quota_details, short_error)
 from agents.prompts import BATCH_RESPONSE_JSON_SCHEMA, RESPONSE_JSON_SCHEMA
 from agents.usage import Usage
 from config.loader import AiConfig, EnvConfig
@@ -93,6 +94,8 @@ class GeminiAgent(BaseAgent):
             )
         except genai_errors.APIError as exc:
             text = str(exc)
+            if getattr(exc, "code", None) in (401, 403) or looks_like_auth(text):
+                raise AgentAuthError(f"Gemini {short_error(text)} (GEMINI_API_KEY)") from exc
             if getattr(exc, "code", None) == 429 or looks_like_quota(text):
                 wait, daily = quota_details(text)
                 raise AgentQuotaError(short_error(text), retry_after=wait,
