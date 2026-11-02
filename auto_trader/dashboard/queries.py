@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -136,6 +137,68 @@ def equity_series(db_path: Path | str, days: int = 30) -> list[dict[str, Any]]:
         (days,),
     )
     return list(reversed(rows))
+
+
+def credit_usage(db_path: Path | str, *, credit_usd: float = 100.0,
+                 now: datetime | None = None) -> dict[str, Any]:
+    """이번 달 AI 비용을 월 크레딧 대비로 요약한다.
+
+    Claude Max·Ultra·Team 구독에는 월 API 크레딧이 포함된다. 이 화면이 답해야
+    하는 질문은 "추가 요금이 나가고 있나" 가 아니라 **"포함된 금액 안에 있나,
+    그리고 얼마나 남겨 두고 있나"** 다. 크레딧은 결제주기마다 소멸하므로, 많이
+    남기는 것은 절약이 아니라 그냥 버리는 것이다 — 그래서 '여유' 를 함께 보여
+    주고, 사이클을 더 촘촘하게 돌릴 여지가 있는지 판단할 수 있게 한다.
+
+    크레딧 갱신일은 사람마다 다른 **결제주기** 기준인데 프로그램은 그 날짜를
+    알 수 없다. 그래서 달력상 1일~말일로 셈하고, 그 사실을 state 와 함께 돌려
+    준다 — 실제 갱신일과 며칠 어긋날 수 있다는 뜻이다.
+    """
+    moment = now or datetime.now(KST)
+    month = moment.strftime("%Y-%m")
+    row = _rows(
+        db_path,
+        """SELECT COALESCE(SUM(cost_usd), 0) spent, COUNT(*) calls
+           FROM ai_usage WHERE substr(created_at, 1, 7) = ?""",
+        (month,),
+    )[0]
+    spent = float(row["spent"])
+    calls = int(row["calls"])
+
+    days_in_month = monthrange(moment.year, moment.month)[1]
+    day = moment.day
+    # 이번 달 추세가 그대로 이어졌을 때의 월말 예상치.
+    projected = spent / day * days_in_month if day > 0 and spent > 0 else 0.0
+
+    credit = max(float(credit_usd), 0.0)
+    pct = (spent / credit * 100) if credit > 0 else 0.0
+    projected_pct = (projected / credit * 100) if credit > 0 else 0.0
+
+    if credit <= 0:
+        state = "unknown"          # 크레딧 금액을 모르면 판정하지 않는다
+    elif spent >= credit:
+        state = "over"             # 이미 소진 — 요청이 멈춘다
+    elif projected_pct >= 90:
+        state = "watch"            # 이 속도면 월말에 닿는다
+    elif projected_pct <= 40:
+        state = "spare"            # 크게 남긴다 — 더 촘촘히 돌릴 여지가 있다
+    else:
+        state = "ok"
+
+    return {
+        "month": month,
+        "spent_usd": round(spent, 4),
+        "credit_usd": round(credit, 2),
+        "pct": round(min(pct, 999.0), 1),
+        "headroom_usd": round(max(credit - spent, 0.0), 2),
+        "projected_usd": round(projected, 2),
+        "projected_pct": round(min(projected_pct, 999.0), 1),
+        "calls": calls,
+        "days_elapsed": day,
+        "days_in_month": days_in_month,
+        "state": state,
+        # 달력 기준이라는 단서를 화면에도 남긴다.
+        "approximate": True,
+    }
 
 
 def ai_cost_series(db_path: Path | str, days: int = 14) -> list[dict[str, Any]]:

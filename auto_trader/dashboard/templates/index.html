@@ -791,8 +791,41 @@
 
 <!-- ── AI 비용 ───────────────────────────────────────────────── -->
 <details class="card fold" id="fold-cost">
-  <summary>AI 비용 추이<span class="sub">일별 추정 (USD)</span></summary>
+  <summary>AI 비용<span class="sub">구독 포함 크레딧 대비</span></summary>
   <div class="fold-body">
+    {% if credit and credit.credit_usd %}
+    <div class="credit is-{{ credit.state }}">
+      <div class="credit-head">
+        <span class="credit-amount">${{ '%.2f'|format(credit.spent_usd) }}</span>
+        <span class="credit-of">/ ${{ '%.0f'|format(credit.credit_usd) }}</span>
+        <span class="credit-pct">{{ credit.pct }}%</span>
+      </div>
+      <div class="credit-bar">
+        <span class="credit-fill" style="width: {{ [credit.pct, 100]|min }}%"></span>
+        {% if credit.projected_pct > credit.pct %}
+        <span class="credit-mark" style="left: {{ [credit.projected_pct, 100]|min }}%"></span>
+        {% endif %}
+      </div>
+      <div class="credit-note">
+        {% if credit.state == 'over' %}
+          크레딧을 다 썼습니다 — 다음 갱신까지 AI 요청이 멈춥니다.
+        {% elif credit.state == 'watch' %}
+          이 속도면 월말에 ${{ '%.0f'|format(credit.projected_usd) }} 로 한도에 닿습니다.
+        {% elif credit.state == 'spare' %}
+          월말 예상 ${{ '%.0f'|format(credit.projected_usd) }} — 크레딧은 매달
+          소멸하므로, 사이클을 더 촘촘히 돌릴 여유가 있습니다.
+        {% else %}
+          월말 예상 ${{ '%.0f'|format(credit.projected_usd) }} · 남은 여유
+          ${{ '%.0f'|format(credit.headroom_usd) }}
+        {% endif %}
+      </div>
+      <div class="credit-sub dim">
+        {{ credit.month }} · 호출 {{ credit.calls }}회 · {{ credit.days_elapsed }}/{{ credit.days_in_month }}일 경과
+        · 구독료에 추가 청구되지 않습니다(소진 시 요청만 멈춤)
+        {% if credit.approximate %}<br>※ 달력 1일~말일 기준입니다. 실제 크레딧 갱신일은 결제주기에 따라 며칠 다를 수 있습니다.{% endif %}
+      </div>
+    </div>
+    {% endif %}
     {{ cost_chart|safe }}
   </div>
 </details>

@@ -16,6 +16,9 @@ from zoneinfo import ZoneInfo
 import yaml
 from dotenv import load_dotenv
 
+# rule_engine 은 설정도 다른 모듈도 import 하지 않는 순수 모듈이라 순환이 생기지 않는다.
+from logic.rule_engine import RulesConfig
+
 KST = ZoneInfo("Asia/Seoul")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +42,20 @@ ALL_ENV_KEYS: tuple[str, ...] = (
     "NOTIFIER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DISCORD_WEBHOOK_URL",
 )
 VALID_EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+# 판단에 참여할 수 있는 AI 엔진 — settings.yaml 의 `ai.engines` 로 고른다.
+# 명단에 없는 엔진은 **객체조차 만들지 않는다**: 호출이 없으므로 키도 필요 없고
+# 비용도 발생하지 않는다. 기본값은 Claude 단독이다 — 교차검증은 API 를 쓰지 않는
+# 규칙 엔진(logic/rule_engine.py)이 맡으므로 별도 유료 엔진이 필요하지 않다.
+VALID_ENGINES = ("claude", "gemini", "chatgpt")
+DEFAULT_ENGINES: tuple[str, ...] = ("claude",)
+
+# 엔진별로 꼭 있어야 하는 환경변수. 명단에 없으면 요구하지 않는다.
+ENGINE_REQUIRED_ENV: dict[str, tuple[str, ...]] = {
+    "claude": ("ANTHROPIC_API_KEY", "CLAUDE_MODEL"),
+    "gemini": ("GEMINI_API_KEY", "GEMINI_MODEL"),
+    "chatgpt": ("OPENAI_API_KEY",),
+}
 
 # ChatGPT 기본 모델 — Structured Outputs 를 지원하고 이 용도에 비용이 적당하다.
 DEFAULT_OPENAI_MODEL = "gpt-5.1"
@@ -198,6 +215,12 @@ class AiConfig:
     batch_timeout_sec: int = 180    # 후보 전부를 한 번에 볼 때의 대기 한도
     # 모델별 100만 토큰당 단가 (입력, 출력) USD. 비우면 내장 기본표를 쓴다.
     pricing: dict[str, tuple[float, float]] = field(default_factory=dict)
+    # 판단에 참여할 엔진 명단. 여기 없는 엔진은 객체조차 만들지 않으므로
+    # 호출도, 키 요구도, 비용도 없다.
+    engines: tuple[str, ...] = DEFAULT_ENGINES
+    # 월 API 크레딧(USD). 대시보드가 '이번 달 얼마 썼는지' 를 이 값 대비로 보여준다.
+    # Claude Max 구독에 포함된 금액이 기본값이다(Max $100 / Ultra $200).
+    monthly_credit_usd: float = 100.0
 
     @property
     def client_timeout_sec(self) -> int:
@@ -219,6 +242,8 @@ class Settings:
     schedule: ScheduleConfig
     risk: RiskConfig
     ai: AiConfig
+    # 규칙 엔진 임계치. AI 와 성격이 다른 검증이라 ai 안에 두지 않는다.
+    rules: RulesConfig = field(default_factory=RulesConfig)
     paths: dict[str, Path] = field(default_factory=dict)
 
 
@@ -330,7 +355,8 @@ def _str_list(section: dict[str, Any], key: str, path: str, errors: list[str]) -
 # --------------------------------------------------------------------------- #
 
 
-def _load_env(errors: list[str]) -> EnvConfig:
+def _load_env(errors: list[str],
+              engines: tuple[str, ...] = ("claude", "gemini")) -> EnvConfig:
     kis_env = (_get_env("KIS_ENV", "VTS") or "VTS").upper()
     if kis_env not in KIS_BASE_URLS:
         errors.append(f"KIS_ENV: 'VTS' 또는 'REAL' 이어야 합니다 (현재: {kis_env!r})")
@@ -343,20 +369,30 @@ def _load_env(errors: list[str]) -> EnvConfig:
         errors.append(f"LOG_LEVEL: {list(VALID_LOG_LEVELS)} 중 하나여야 합니다 (현재: {log_level!r})")
         log_level = "INFO"
 
+    # KIS 자격증명은 엔진 구성과 무관하게 늘 필요하다.
     required = {
         "KIS_APP_KEY": _get_env("KIS_APP_KEY"),
         "KIS_APP_SECRET": _get_env("KIS_APP_SECRET"),
         "KIS_ACCOUNT_NO": _get_env("KIS_ACCOUNT_NO"),
-        "ANTHROPIC_API_KEY": _get_env("ANTHROPIC_API_KEY"),
-        "CLAUDE_MODEL": _get_env("CLAUDE_MODEL"),
-        "GEMINI_API_KEY": _get_env("GEMINI_API_KEY"),
-        "GEMINI_MODEL": _get_env("GEMINI_MODEL"),
     }
+    # AI 키는 **명단에 든 엔진 것만** 요구한다. 쓰지도 않는 엔진의 키를 강제하면
+    # Claude 단독으로 돌리려 해도 Gemini 키가 없어 기동이 막힌다.
+    for engine in engines:
+        for key in ENGINE_REQUIRED_ENV.get(engine, ()):
+            required.setdefault(key, _get_env(key))
+    # 어떤 엔진 때문에 이 키가 필요한지 함께 알려준다. 그냥 "필수입니다" 라고만
+    # 하면, 쓰지 않는다고 생각한 엔진의 키를 왜 넣어야 하는지 알 수 없다.
+    needed_by = {key: engine
+                 for engine in engines
+                 for key in ENGINE_REQUIRED_ENV.get(engine, ())}
     for key, value in required.items():
-        if not value:
-            errors.append(f"{key}: .env 에 반드시 설정해야 합니다")
+        if value:
+            continue
+        engine = needed_by.get(key)
+        hint = f" (ai.engines 의 '{engine}' 엔진이 요구합니다)" if engine else ""
+        errors.append(f"{key}: .env 에 반드시 설정해야 합니다{hint}")
 
-    account_no = required["KIS_ACCOUNT_NO"] or ""
+    account_no = required.get("KIS_ACCOUNT_NO") or ""
     if account_no and not (account_no.isdigit() and len(account_no) == 8):
         errors.append(f"KIS_ACCOUNT_NO: 계좌번호 앞 8자리 숫자여야 합니다 (현재 길이: {len(account_no)})")
 
@@ -406,12 +442,12 @@ def _load_env(errors: list[str]) -> EnvConfig:
         kis_app_secret=required["KIS_APP_SECRET"] or "",
         kis_account_no=account_no,
         kis_account_product_cd=product_cd,
-        anthropic_api_key=required["ANTHROPIC_API_KEY"] or "",
-        claude_model=required["CLAUDE_MODEL"] or "",
+        anthropic_api_key=required.get("ANTHROPIC_API_KEY") or _get_env("ANTHROPIC_API_KEY") or "",
+        claude_model=required.get("CLAUDE_MODEL") or _get_env("CLAUDE_MODEL") or "",
         claude_temperature=claude_temperature,
         claude_effort=claude_effort,
-        gemini_api_key=required["GEMINI_API_KEY"] or "",
-        gemini_model=required["GEMINI_MODEL"] or "",
+        gemini_api_key=required.get("GEMINI_API_KEY") or _get_env("GEMINI_API_KEY") or "",
+        gemini_model=required.get("GEMINI_MODEL") or _get_env("GEMINI_MODEL") or "",
         gemini_temperature=gemini_temperature,
         openai_api_key=openai_api_key,
         openai_model=openai_model,
@@ -545,6 +581,65 @@ def _load_pricing(section: dict[str, Any], errors: list[str]) -> dict[str, tuple
     return pricing
 
 
+def _load_engines(section: dict[str, Any], errors: list[str]) -> tuple[str, ...]:
+    """`ai.engines` → 검증된 엔진 명단. 없으면 기본값(Claude 단독)."""
+    if "engines" not in section or section["engines"] is None:
+        return DEFAULT_ENGINES
+
+    value = section["engines"]
+    if isinstance(value, str):          # "claude" 또는 "claude, gemini"
+        names = [part.strip() for part in value.split(",")]
+    elif isinstance(value, (list, tuple)):
+        names = [str(part).strip() for part in value]
+    else:
+        errors.append(f"ai.engines: 목록이어야 합니다 (현재: {type(value).__name__})")
+        return DEFAULT_ENGINES
+
+    names = [name.lower() for name in names if name]
+    unknown = [name for name in names if name not in VALID_ENGINES]
+    if unknown:
+        errors.append(
+            f"ai.engines: 알 수 없는 엔진 {unknown} — {list(VALID_ENGINES)} 중에서 고르세요")
+    engines = tuple(dict.fromkeys(name for name in names if name in VALID_ENGINES))
+    if not engines:
+        # 판단할 주체가 없으면 매수가 영구히 불가능해진다. 조용히 넘기지 않는다.
+        errors.append(f"ai.engines: 최소 한 개는 있어야 합니다 (예: {list(DEFAULT_ENGINES)})")
+        return DEFAULT_ENGINES
+    return engines
+
+
+def _load_rules(raw: dict[str, Any], errors: list[str]) -> RulesConfig:
+    """`rules:` 블록 → RulesConfig. 블록이 없으면 기본 임계치를 쓴다."""
+    section = raw.get("rules")
+    if section is None:
+        return RulesConfig()
+    if not isinstance(section, dict):
+        errors.append(f"rules: 매핑이어야 합니다 (현재: {type(section).__name__})")
+        return RulesConfig()
+
+    defaults = RulesConfig()
+    unknown = [key for key in section if not hasattr(defaults, key)]
+    if unknown:
+        # 오타를 조용히 무시하면, 한도를 바꿨다고 믿은 채 기본값으로 돌게 된다.
+        errors.append(f"rules: 알 수 없는 항목 {unknown}")
+
+    values: dict[str, Any] = {}
+    for name, default in vars(defaults).items():
+        if name not in section:
+            continue
+        given = section[name]
+        if isinstance(default, bool):
+            values[name] = _parse_bool(str(given), default=default,
+                                       key=f"rules.{name}", errors=errors)
+        elif isinstance(default, int):
+            values[name] = _num(section, name, "rules", errors,
+                                minimum=0, maximum=100, default=default)
+        else:
+            values[name] = _num(section, name, "rules", errors, cast=float,
+                                minimum=0.0, maximum=1000.0, default=default)
+    return RulesConfig(**values)
+
+
 def _load_ai(raw: dict[str, Any], errors: list[str]) -> AiConfig:
     section = raw.get("ai") or {}
     return AiConfig(
@@ -561,6 +656,10 @@ def _load_ai(raw: dict[str, Any], errors: list[str]) -> AiConfig:
         batch_timeout_sec=_num(section, "batch_timeout_sec", "ai", errors,
                                minimum=10, maximum=900, default=180),
         pricing=_load_pricing(section, errors),
+        engines=_load_engines(section, errors),
+        monthly_credit_usd=_num(section, "monthly_credit_usd", "ai", errors,
+                                cast=float, minimum=0.0, maximum=100000.0,
+                                default=100.0),
     )
 
 
@@ -599,11 +698,13 @@ def load(
         raise ConfigError("settings.yaml 최상위는 매핑(key: value)이어야 합니다")
 
     errors: list[str] = []
-    env = _load_env(errors)
+    # ai 를 **먼저** 읽는다. 어떤 .env 키가 필요한지는 엔진 명단이 정하기 때문이다.
+    ai = _load_ai(raw, errors)
+    env = _load_env(errors, engines=ai.engines)
     universe = _load_universe(raw, errors)
     schedule = _load_schedule(raw, errors)
     risk = _load_risk(raw, errors)
-    ai = _load_ai(raw, errors)
+    rules = _load_rules(raw, errors)
 
     if errors:
         bullet = "\n  - ".join(errors)
@@ -622,6 +723,7 @@ def load(
         schedule=schedule,
         risk=risk,
         ai=ai,
+        rules=rules,
         paths={
             "base": BASE_DIR,
             "config": CONFIG_DIR,

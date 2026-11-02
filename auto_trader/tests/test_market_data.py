@@ -35,6 +35,63 @@ def make_daily(n: int = 60, start: int = 70000, step: int = 100, volume: int = 1
     )
 
 
+# 규칙 엔진(logic/rule_engine.py)을 **통과하는** 일봉.
+#
+# make_daily() 는 단조 상승이라 RSI 가 95를 넘는다 — 현실의 과열 종목이고,
+# 규칙 엔진은 이것을 정확히 거부한다(rsi_overbought 75, rsi_sell 80). 그래서
+# 매수 경로를 끝까지 보는 테스트는 '건강한 상승 추세' 데이터가 필요하다.
+#
+# 아래 상수는 임의로 고른 값이 아니라, 규칙 다섯 항목을 모두 충족하면서 각
+# 임계치에서 가장 여유가 큰 조합을 수치 탐색으로 찾은 것이다
+# (RSI 55.6 / 20일선 +0.61% / 볼린저 상단까지 -0.64% / MACD 히스토그램 +71).
+# 임계치를 바꿔 e2e 테스트가 깨지면 test_healthy_daily_passes_the_rule_engine
+# 이 먼저 알려 준다 — 그게 이 상수들의 존재 이유다.
+HEALTHY = dict(n=60, base=70_000, drift=120, wave=3400, period=10.0, phase=5.498)
+
+
+def make_healthy_daily(n: int = HEALTHY["n"], base: int = HEALTHY["base"],
+                       drift: int = HEALTHY["drift"], wave: int = HEALTHY["wave"],
+                       period: float = HEALTHY["period"], phase: float = HEALTHY["phase"],
+                       volume: int = 1000) -> pd.DataFrame:
+    """완만한 상승 + 등락이 섞인 일봉 — 규칙 엔진이 BUY 를 내는 모양."""
+    import math
+
+    dates = pd.bdate_range(end="2026-09-04", periods=n)
+    closes = [round(base + drift * i + wave * math.sin(i / period + phase)) for i in range(n)]
+    # 마지막 날만 거래량을 늘려 '거래량 20일평균 1.2배 이상' 가점을 만든다.
+    volumes = [volume] * (n - 1) + [int(volume * 1.5)]
+    return pd.DataFrame(
+        {
+            "date": dates,
+            "open": [c - 200 for c in closes],
+            "high": [c + 300 for c in closes],
+            "low": [c - 400 for c in closes],
+            "close": closes,
+            "volume": volumes,
+        }
+    )
+
+
+def healthy_quote(daily: pd.DataFrame | None = None) -> dict:
+    """make_healthy_daily() 와 **앞뒤가 맞는** 현재가 응답.
+
+    현재가를 일봉과 따로 두면 안 된다 — 76,000원처럼 볼린저 상단을 넘는 값이면
+    규칙 엔진이 '상단 이탈' 로 막아 버리고, 테스트는 엉뚱한 곳에서 실패한다.
+    """
+    daily = make_healthy_daily() if daily is None else daily
+    current = int(daily["close"].iloc[-1])
+    previous = int(daily["close"].iloc[-2])
+    return {
+        "code": "005930", "name": "삼성전자", "current": current,
+        "change_pct": round((current - previous) / previous * 100, 2),
+        "change": current - previous,
+        "open": current - 200, "high": current + 300, "low": current - 400,
+        "volume": int(daily["volume"].iloc[-1]),
+        "trade_amount": 0, "market_cap": 425_600_000_000_000, "per": 13.5, "pbr": 1.2,
+        "upper_limit": 0, "lower_limit": 0,
+    }
+
+
 class StubApi:
     """KisApi 대역 — 지정한 응답만 돌려준다."""
 
@@ -222,3 +279,64 @@ def test_an_unlisted_code_still_shows_something(settings_obj):
 
     api = StubApi(quote={**StubApi().quote, "name": ""})
     assert collect("999999", api, settings_obj)["name"] == "999999"
+
+
+# --------------------------------------------------------------------------- #
+# 규칙 엔진을 통과하는 테스트 데이터
+# --------------------------------------------------------------------------- #
+
+
+def test_make_daily_is_overbought_on_purpose():
+    """make_daily() 는 단조 상승이라 과열이다 — 이걸로는 매수 경로를 못 본다.
+
+    이 사실을 테스트로 적어 두는 이유: 누군가 e2e 테스트가 HOLD 로 떨어지는 걸
+    보고 규칙 임계치를 의심하기 전에, 데이터가 원인이라는 걸 알게 하려는 것이다.
+    """
+    from logic.rule_engine import RulesConfig, evaluate
+
+    indicators = compute_indicators(make_daily())
+    assert indicators["rsi14"] > 95, "단조 상승이면 RSI 는 100에 수렴한다"
+
+    verdict = evaluate(
+        {"price": {"current": float(make_daily()["close"].iloc[-1]), "change_pct": 1.5,
+                   "volume_ratio_20d": 1.0},
+         "indicators": indicators, "orderbook": {"spread_pct": 0.14}},
+        RulesConfig(),
+    )
+    assert verdict.action != "BUY", "과열 데이터인데 규칙 엔진이 매수를 냈습니다"
+
+
+def test_healthy_daily_passes_the_rule_engine():
+    """e2e 테스트가 쓰는 '건강한 상승 추세' 가 실제로 규칙을 통과하는지.
+
+    tests/test_cycle_end_to_end.py 의 매수 경로 전체가 이 데이터에 기댄다.
+    규칙 임계치(rules: 블록)를 바꿔서 e2e 가 깨졌다면, 이 테스트가 먼저 터져
+    '임계치 때문' 이라고 알려 준다 — 그게 HEALTHY 상수를 수치 탐색으로 고정해
+    둔 이유다.
+    """
+    from logic.rule_engine import RulesConfig, evaluate
+
+    daily = make_healthy_daily()
+    quote = healthy_quote(daily)
+    indicators = compute_indicators(daily)
+    verdict = evaluate(
+        {"price": {"current": quote["current"], "change_pct": quote["change_pct"],
+                   "volume_ratio_20d": volume_ratio_20d(daily, quote["volume"])},
+         "indicators": indicators, "orderbook": {"spread_pct": 0.14}},
+        RulesConfig(),
+    )
+    assert verdict.action == "BUY", (
+        f"e2e 테스트 데이터가 규칙을 통과하지 못합니다: {verdict.reason} "
+        f"(rsi={indicators['rsi14']:.1f}, 현재가={quote['current']}, "
+        f"ma20={indicators['ma20']:.0f}, 볼린저상단={indicators['bb_upper']:.0f})"
+    )
+    assert verdict.buy_score == 5, verdict.passed
+    assert not verdict.vetoes
+
+
+def test_the_healthy_quote_agrees_with_its_daily_series():
+    """현재가가 일봉과 어긋나면 엉뚱한 거부권(볼린저 상단 이탈)에 걸린다."""
+    daily = make_healthy_daily()
+    quote = healthy_quote(daily)
+    assert quote["current"] == int(daily["close"].iloc[-1])
+    assert quote["current"] < compute_indicators(daily)["bb_upper"]

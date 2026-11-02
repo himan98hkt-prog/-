@@ -39,6 +39,7 @@ from config.loader import ConfigError, Settings, load
 from data_pipeline.market_data import collect
 from data_pipeline.universe import build_universe
 from logic.decision_maker import FinalDecision, decide
+from logic import rule_engine
 from logic.portfolio import Portfolio
 from logic.reporting import build_daily_report
 from logic.risk_manager import RiskManager
@@ -107,6 +108,45 @@ def describe_outcome(final, execution) -> str:
         return f"{detail} 거부 — {get('error') or get('reason')}"
     return f"{detail} {status or '접수'}"
 
+# 엔진 이름 → 전역에서 찾을 생성자 이름. **클래스를 여기 직접 담지 않는다** —
+# 모듈 수준 딕셔너리에 담으면 import 시점의 클래스가 박혀, 테스트가
+# monkeypatch 로 대역을 끼워도 진짜 클래스가 생성된다(=실 API 클라이언트).
+AGENT_FACTORY_NAMES = {
+    "claude": "ClaudeAgent",
+    "gemini": "GeminiAgent",
+    "chatgpt": "OpenAiAgent",
+}
+
+
+def _build_agents(env, ai) -> list[BaseAgent]:
+    """`ai.engines` 명단대로 엔진 객체를 만든다.
+
+    명단에 없는 엔진은 import 만 되어 있고 **생성되지 않는다** — 생성자가
+    API 클라이언트를 만들고 키를 요구하기 때문이다. 호출이 없으니 요금도 없다.
+
+    생성에 실패한 엔진은 건너뛰고 로그에 남긴다. 하나가 터져도 나머지로 돌아야
+    한다 — 다만 전부 실패하면 그대로 올려 보낸다. 판단 주체가 없는 채 조용히
+    기동하면 그날은 아무것도 사지 못하면서 이유도 알 수 없다.
+    """
+    agents: list[BaseAgent] = []
+    for name in ai.engines:
+        # 호출 시점에 전역에서 꺼낸다 — 그래야 테스트의 대역이 실제로 쓰인다.
+        factory = globals().get(AGENT_FACTORY_NAMES.get(name, ""))
+        if factory is None:          # loader 가 이미 막지만, 방어적으로 둔다
+            logger.error("알 수 없는 AI 엔진: %s — 건너뜁니다", name)
+            continue
+        try:
+            agents.append(factory(env, ai))
+        except Exception:
+            logger.exception("%s 엔진 생성 실패 — 이 엔진 없이 계속합니다", name)
+    if not agents:
+        raise ConfigError(
+            "AI 엔진을 하나도 만들지 못했습니다. settings.yaml 의 ai.engines 와 "
+            ".env 의 해당 키를 확인하세요."
+        )
+    return agents
+
+
 class TradingBot:
     """사이클 실행과 스케줄 관리를 묶은 애플리케이션 객체."""
 
@@ -121,9 +161,9 @@ class TradingBot:
         self.portfolio = Portfolio(settings, self.api, db_path=settings.paths["db"])
         self.risk = RiskManager(settings.risk, settings.schedule)
         self.executor = OrderExecutor(settings, self.api, self.portfolio, self.risk, self.notifier)
-        self.agents: list[BaseAgent] = [ClaudeAgent(env, settings.ai), GeminiAgent(env, settings.ai)]
-        if env.chatgpt_enabled:  # OPENAI_API_KEY 가 있을 때만 세 번째로 합류한다
-            self.agents.append(OpenAiAgent(env, settings.ai))
+        # settings.yaml 의 ai.engines 명단대로만 만든다. 명단에 없는 엔진은
+        # 객체조차 만들지 않으므로 호출도, 키 요구도, 요금도 발생하지 않는다.
+        self.agents: list[BaseAgent] = _build_agents(env, settings.ai)
 
         self.universe: list[str] = list(settings.universe.watchlist)
         self.scheduler: BlockingScheduler | None = None
@@ -153,7 +193,10 @@ class TradingBot:
         logger.info("=" * 60)
         logger.info("모드: %s (%s) / DRY_RUN: %s", env.kis_env, env.base_url,
                     "on" if env.dry_run else "off")
-        logger.info("AI: %s + %s / 알림: %s", env.claude_model, env.gemini_model, env.notifier)
+        engines = ", ".join(agent.name for agent in self.agents) or "(없음)"
+        logger.info("AI 엔진: %s (%s) / 규칙엔진: %s / 알림: %s",
+                    engines, env.claude_model,
+                    "on" if self.settings.rules.enabled else "off", env.notifier)
         logger.info("장 상태: %s", market_state())
 
         self.auth.get_access_token()  # 토큰 캐시 확인(없으면 여기서 1회 발급)
@@ -780,8 +823,8 @@ class TradingBot:
         self.notifier.send_alert(
             "🔑 AI 키가 거부됐습니다 — 매수가 멈춰 있습니다",
             [f"{names} 가 인증에 실패해 판단에 참여하지 못합니다.",
-             "매수는 세 AI 가 모두 동의해야 나가므로, 이 상태에서는 매수가 전혀 되지 않습니다.",
-             "(손절·익절은 AI 와 무관하게 계속 동작합니다.)",
+             "매수는 AI 전원이 동의해야 나가므로, 이 상태에서는 매수가 전혀 되지 않습니다.",
+             "손절·익절은 AI 와 무관하게 계속 동작하고, 규칙 엔진의 이탈 신호도 그대로 돕니다.",
              "대시보드 '설정' 에서 해당 키를 다시 넣고 재시작하세요.",
              *(f"· {error}" for error in broken.values())],
             key=f"agent_auth:{names}",
@@ -798,6 +841,10 @@ class TradingBot:
             forced = self.risk.check_forced_exit(position)
         decisions = dict(decisions or {})
 
+        # 규칙 판정은 **항상** 낸다. API 를 쓰지 않으므로 공짜고 실패하지 않으며,
+        # 손절로 빠지는 경우에도 화면에 "그때 규칙은 뭐라고 했나" 가 남는다.
+        rule_verdict = rule_engine.evaluate(snapshot, self.settings.rules)
+
         if forced in ("STOP_LOSS", "TRAILING_STOP"):
             # 손절·트레일링은 AI 판단을 건너뛴다. 되묻는 사이에 더 밀린다.
             decisions = {}
@@ -813,7 +860,7 @@ class TradingBot:
                 for agent in self.agents
             ]
             final = decide(votes, state.holds(code), self.settings.risk, self.settings.ai,
-                           take_profit=forced == "TAKE_PROFIT")
+                           take_profit=forced == "TAKE_PROFIT", rules=rule_verdict)
 
         risk_passed, risk_reason = True, ""
         if final.is_buy:
@@ -866,6 +913,10 @@ class TradingBot:
             "price": execution.price if execution else 0,
             # 매수 판단이 주문까지 못 간 이유. 휴대폰에서도 "왜 안 샀지" 가 풀리게.
             "outcome": outcome,
+            # 규칙 엔진이 뭐라고 했는지. AI 가 사자고 했는데 안 산 날,
+            # 막은 것이 규칙인지 리스크인지 화면에서 구분되게 한다.
+            "rules": rule_verdict.summary(),
+            "rules_detail": rule_verdict.to_dict(),
         }
 
     def _check_daily_loss_limit(self, state) -> None:

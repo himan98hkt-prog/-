@@ -618,3 +618,38 @@ pre.log {
   .alloc-code { grid-template-columns: 1fr; gap: 3px; }
   .alloc-legend { gap: 10px; flex-direction: column; }
 }
+
+/* ── API 크레딧 게이지 ──────────────────────────────────────────
+   "추가 요금이 나가고 있나" 가 아니라 "구독에 포함된 금액 안에 있나" 를
+   보여준다. 크레딧은 매달 소멸하므로 많이 남기는 것은 절약이 아니다 —
+   그래서 여유가 크면 경고색이 아니라 '더 쓸 수 있다' 는 안내로 칠한다. */
+.credit { margin-bottom: 18px; }
+.credit-head {
+  display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px;
+}
+.credit-amount { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.credit-of { font-size: 14px; color: var(--muted); }
+.credit-pct { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--muted); }
+.credit-bar {
+  position: relative; height: 8px; border-radius: 999px;
+  background: var(--grid); overflow: visible;
+}
+.credit-fill {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--accent); transition: width 0.3s ease;
+}
+/* 월말 예상치 표시 — 지금 속도가 어디로 가는지 */
+.credit-mark {
+  position: absolute; top: -3px; width: 2px; height: 14px;
+  background: var(--muted); border-radius: 1px;
+}
+.credit-note { margin-top: 8px; font-size: 13px; line-height: 1.5; }
+.credit-sub { margin-top: 6px; font-size: 11px; line-height: 1.6; }
+
+.credit.is-spare .credit-fill { background: #3b82f6; }
+.credit.is-spare .credit-note { color: #60a5fa; }
+.credit.is-ok .credit-fill { background: #22c55e; }
+.credit.is-watch .credit-fill { background: #f59e0b; }
+.credit.is-watch .credit-note { color: #fbbf24; font-weight: 600; }
+.credit.is-over .credit-fill { background: #ef4444; }
+.credit.is-over .credit-note { color: #f87171; font-weight: 700; }

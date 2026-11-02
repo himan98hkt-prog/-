@@ -255,6 +255,12 @@ def create_app(*, testing: bool = False) -> Flask:
             pnl_chart=card("손익 차트", lambda: charts.pnl_bars(equity), ""),
             cost_chart=card("비용 차트",
                             lambda: charts.cost_bars(queries.ai_cost_series(db)), ""),
+            # 이번 달 AI 비용을 구독 포함 크레딧 대비로 보여준다. 답해야 하는
+            # 질문은 "추가 요금이 나가나" 가 아니라 "포함된 금액 안에 있나" 다.
+            credit=card("API 크레딧", lambda: queries.credit_usage(
+                db, credit_usd=getattr(settings.ai, "monthly_credit_usd", 100.0)
+                if settings else 100.0),
+                {"ready": False, "state": "unknown"}),
             broken=broken,
             settings=settings,
             config_error=config_error,

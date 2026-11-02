@@ -20,7 +20,7 @@ import main as main_module
 from agents.base_agent import BaseAgent
 from main import TradingBot
 from tests.conftest import FakeResponse
-from tests.test_market_data import StubApi
+from tests.test_market_data import StubApi, healthy_quote, make_healthy_daily
 from trading.kis_api import Balance, OrderResult, OrderStatus
 from utils.db import connect
 
@@ -38,7 +38,11 @@ class FakeKis(StubApi):
     """시세는 StubApi, 잔고·주문은 여기서."""
 
     def __init__(self, cash=10_000_000):
-        super().__init__()
+        # 규칙 엔진을 통과하는 '건강한 상승 추세' 로 시작한다. 기본 StubApi 는
+        # 단조 상승(RSI>95)이라 과열로 거부되고, 그러면 매수 경로를 끝까지
+        # 볼 수 없다. 현재가도 일봉과 앞뒤가 맞아야 한다.
+        daily = make_healthy_daily()
+        super().__init__(quote=healthy_quote(daily), daily=daily)
         self.cash = cash
         self.orders: list[dict] = []
 
@@ -112,7 +116,11 @@ def bot(settings_obj, tmp_path, monkeypatch, request):
         settings_obj,
         env=replace(settings_obj.env, dry_run=dry_run, notifier="telegram",
                     telegram_bot_token="T", telegram_chat_id="1",
-                    openai_api_key="sk-test"),   # 세 번째 엔진도 참여시킨다
+                    openai_api_key="sk-test"),
+        # 이 파일의 테스트는 '후보가 몇이든 엔진당 호출 1회' 같은 배치 동작을
+        # 본다. 그 기계는 엔진 수와 무관하게 남아 있으므로 셋을 명시해 둔다.
+        # 출하 기본값(Claude 단독)은 test_config_loader 가 따로 지킨다.
+        ai=replace(settings_obj.ai, engines=("claude", "gemini", "chatgpt")),
         universe=replace(settings_obj.universe, watchlist=list(WATCHLIST)),
     )
 
