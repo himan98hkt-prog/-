@@ -203,3 +203,50 @@ export function trialStatus({ startedAt, today = new Date(), days = TRIAL_DAYS }
   const daysLeft = Math.max(0, days - used)
   return { active: daysLeft > 0, started: true, daysLeft, expired: daysLeft <= 0 }
 }
+
+// ── 입력을 덜어 주는 도구 ─────────────────────────────────────
+// 인증키 12자리를 손으로 옮겨 적는 것이 구매 직후 가장 많이 막히는 자리다.
+// 메일을 통째로 붙여 넣어도, 메일의 버튼을 눌러 들어와도 키를 알아서 찾아낸다.
+
+const KEY_SHAPE = /[0-9A-Za-z]{4}[-\s]?[0-9A-Za-z]{4}[-\s]?[0-9A-Za-z]{4}/g
+
+/**
+ * 글 속에서 인증키를 찾아낸다 (메일 본문·문자 내용을 통째로 붙여 넣은 경우).
+ * 검증을 통과하는 것을 먼저 고르고, 없으면 'XXXX-XXXX-XXXX' 모양인 것을 고른다.
+ * @returns {string} 찾은 키(표기 형식) 또는 ''
+ */
+export function extractKey(text, opts = {}) {
+  const raw = String(text || '')
+  if (normalizeKey(raw).length === 12) return formatKey(raw)
+  // 12자짜리 창을 한 글자씩 밀어 가며 본다 — 'ABCD-EFGH-1234입니다' 처럼 앞뒤에 글자가 붙어 있어도 찾는다
+  const upper = raw.toUpperCase()
+  const candidates = []
+  for (const m of upper.matchAll(KEY_SHAPE)) candidates.push(m[0])
+  for (let i = 0; i + 12 <= upper.length; i++) {
+    const m = /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}/.exec(upper.slice(i, i + 14))
+    if (m) candidates.push(m[0])
+  }
+  const valid = candidates.find((c) => verifyKey(c, opts).ok)
+  if (valid) return formatKey(valid)
+  // 학원명이 있어야 풀리는 키는 여기서 검증되지 않는다 — 하이픈으로 끊긴 모양이면 키로 본다
+  const shaped = candidates.find((c) => /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(c))
+  return shaped ? formatKey(shaped) : ''
+}
+
+/**
+ * 주소에 실려 온 인증키를 읽는다 — 구매 메일의 "눌러서 바로 시작하기" 가 여는 주소.
+ *   …/lite.html#key=XXXX-XXXX-XXXX          (플러그인이 만드는 형식)
+ *   …/lite.html?key=XXXX-XXXX-XXXX&name=학원명
+ * @param {{hash?:string, search?:string}} loc
+ * @returns {{key:string, name:string}|null}
+ */
+export function keyFromLocation(loc = {}) {
+  for (const part of [String(loc.hash || '').replace(/^#/, ''), String(loc.search || '').replace(/^\?/, '')]) {
+    if (!/(^|&)key=/.test(part)) continue
+    const params = new URLSearchParams(part)
+    const key = formatKey(params.get('key') || '')
+    if (normalizeKey(key).length !== 12) continue
+    return { key, name: (params.get('name') || '').trim() }
+  }
+  return null
+}

@@ -4,10 +4,25 @@ import { h, clear, toast, modal, field, confirmDialog } from '../dom.js'
 import { WEEKDAYS, hhmmToMin } from '../../core/date.js'
 import { findConflicts, weekGrid, slotsOf, vacancyOf } from '../../core/schedule.js'
 import { visibleClasses } from '../../core/perm.js'
+import { icon } from '../icons.js'
 
-const START_HOUR = 9
-const END_HOUR = 22
-const PX_PER_MIN = 0.9
+const PX_PER_MIN = 1.1
+
+/**
+ * 시간표에 그릴 시간 범위 — 수업이 있는 시간대에 맞춘다.
+ * 오후에만 수업하는 학원에 아침 9시부터 빈 칸을 보여 주면 정작 수업이 화면 밖으로 밀린다.
+ */
+function hourRange(classes) {
+  let first = 14
+  let last = 20
+  for (const c of classes) {
+    for (const slot of slotsOf(c)) {
+      first = Math.min(first, Math.floor(slot.startMin / 60))
+      last = Math.max(last, Math.ceil(slot.endMin / 60))
+    }
+  }
+  return { START_HOUR: Math.max(6, first - 1), END_HOUR: Math.min(24, last + 1) }
+}
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
@@ -18,16 +33,15 @@ export async function render(root, ctx) {
   const vacancyBox = h('div', { class: 'row wrap', style: { gap: '6px' } })
 
   root.append(
-    h('div', { class: 'card' },
-      h('div', { class: 'row wrap' },
-        h('div', { class: 'card-title', style: { margin: 0 } }, '주간 시간표'),
-        canEdit ? h('button', { class: 'btn primary right', onClick: () => openClassEditor() }, '+ 반 만들기') : null
-      ),
-      h('div', { style: { marginTop: '8px' } }, warnBox)
-    ),
-    h('div', { class: 'card', style: { marginTop: '12px' } }, gridBox),
+    h('div', { class: 'page-head row wrap' },
+      h('div', { class: 'grow' },
+        h('h1', {}, '시간표'),
+        h('p', {}, '반을 만들고 요일·시간을 정합니다. 시간표의 반을 누르면 고칠 수 있습니다.')),
+      canEdit ? h('button', { class: 'btn primary', type: 'button', dataset: { act: 'add-class' }, onClick: () => openClassEditor() }, icon('plus', { size: 17 }), '반 만들기') : null),
+    h('div', { style: { marginBottom: '12px' } }, warnBox),
+    h('div', { class: 'card' }, gridBox),
     h('div', { class: 'card', style: { marginTop: '12px' } },
-      h('div', { class: 'card-title' }, '공석 현황 (추가 모집 가능)'), vacancyBox)
+      h('div', { class: 'card-title' }, '빈자리 — 학생을 더 받을 수 있는 반'), vacancyBox)
   )
 
   function paint() {
@@ -37,10 +51,10 @@ export async function render(root, ctx) {
     const conflicts = findConflicts(classes)
     clear(warnBox)
     if (conflicts.length) {
-      warnBox.append(h('div', { class: 'badge danger', style: { marginBottom: '6px' } }, `중복 배정 ${conflicts.length}건`))
+      warnBox.append(h('div', { class: 'badge danger', style: { marginBottom: '6px' } }, `같은 시간에 겹치는 수업 ${conflicts.length}건`))
       for (const c of conflicts.slice(0, 8)) warnBox.append(h('div', { class: 'small', style: { color: 'var(--danger)' } }, `⚠ ${c.label}`))
     } else {
-      warnBox.append(h('span', { class: 'badge ok' }, '강의실·강사 중복 없음'))
+      warnBox.append(h('span', { class: 'badge ok' }, '겹치는 수업 없음'))
     }
 
     // 그리드
@@ -49,6 +63,7 @@ export async function render(root, ctx) {
     grid.append(h('div', { class: 'tt-head' }, ''))
     for (const d of WEEKDAYS) grid.append(h('div', { class: 'tt-head' }, d))
 
+    const { START_HOUR, END_HOUR } = hourRange(classes)
     const hours = END_HOUR - START_HOUR
     const colHeight = hours * 60 * PX_PER_MIN
     const timeCol = h('div', {})

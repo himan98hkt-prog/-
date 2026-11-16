@@ -14,15 +14,16 @@ export async function render(root, ctx) {
   const monthInput = h('input', { type: 'month', value: month, style: { maxWidth: '160px' }, onChange: (e) => { month = e.target.value; load() } })
 
   root.append(
+    h('div', { class: 'page-head' }, h('h1', {}, '상담'), h('p', {}, '학부모와 나눈 이야기를 적어 둡니다. 문의만 하고 간 분도 적어 두면 다시 연락할 때를 알려 드립니다.')),
     h('div', { class: 'card' },
       h('div', { class: 'row wrap' },
-        h('div', { class: 'card-title', style: { margin: 0 } }, '입회 상담 퍼널'),
+        h('div', { class: 'card-title', style: { margin: 0 } }, '새로 문의 온 분들 — 상담에서 등록까지'),
         monthInput,
-        canWrite ? h('button', { class: 'btn primary right', onClick: () => openEditor() }, '+ 상담 기록') : null
+        canWrite ? h('button', { class: 'btn primary right', onClick: () => openEditor() }, '+ 상담 적기') : null
       ),
       h('div', { style: { marginTop: '10px' } }, funnelBox)
     ),
-    h('div', { class: 'card', style: { marginTop: '12px' } }, h('div', { class: 'card-title' }, '최근 상담일지'), listBox)
+    h('div', { class: 'card', style: { marginTop: '12px' } }, h('div', { class: 'card-title' }, '최근에 적은 상담'), listBox)
   )
 
   async function load() {
@@ -35,7 +36,7 @@ export async function render(root, ctx) {
     }
     funnelBox.append(h('div', { class: 'stat' },
       h('div', { class: 'v', style: { color: 'var(--brand)' } }, `${funnel.conversion}%`),
-      h('div', { class: 'l' }, `등록 전환율 (상담 ${funnel.total}건)`)))
+      h('div', { class: 'l' }, `등록까지 이어진 비율 (상담 ${funnel.total}건)`)))
 
     const rows = await repo.counselRecent(120)
     clear(listBox)

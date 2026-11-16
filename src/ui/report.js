@@ -96,7 +96,7 @@ export async function drawReportCard(data) {
   ctx.fillText(b.name, PAD + 108, 82)
   ctx.font = F(400, 22)
   ctx.globalAlpha = 0.9
-  ctx.fillText(`${data.month} 학습 리포트`, PAD + 108, 116)
+  ctx.fillText(`${data.month.slice(0, 4)}년 ${Number(data.month.slice(5, 7))}월 학습 리포트`, PAD + 108, 116)
   ctx.globalAlpha = 1
 
   // 원생 정보
@@ -166,7 +166,7 @@ export async function drawReportCard(data) {
   if (pairs.length) {
     ctx.fillStyle = '#111827'
     ctx.font = F(700, 24)
-    ctx.fillText('학습 현황', PAD, y)
+    ctx.fillText('교재 · 학습 기록', PAD, y)
     y += 18
     pairs.forEach((p, i) => {
       const rowY = y + 12 + i * 40
@@ -189,14 +189,14 @@ export async function drawReportCard(data) {
   if (data.payment) {
     ctx.fillStyle = '#111827'
     ctx.font = F(700, 24)
-    ctx.fillText('수납', PAD, y)
+    ctx.fillText('수강료', PAD, y)
     y += 16
     ctx.fillStyle = '#f9fafb'
     roundRect(ctx, PAD, y, W - PAD * 2, 72, 16)
     ctx.fill()
     ctx.fillStyle = '#374151'
     ctx.font = F(400, 21)
-    ctx.fillText(`${data.month} 수강료`, PAD + 22, y + 44)
+    ctx.fillText(`${Number(data.month.slice(5, 7))}월 수강료`, PAD + 22, y + 44)
     const st = data.payment.status || '미납'
     ctx.fillStyle = st === '완납' ? '#16a34a' : st === '부분' ? '#d97706' : '#dc2626'
     ctx.font = F(700, 22)

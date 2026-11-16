@@ -34,7 +34,7 @@ function chromeExecutable() {
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH
   if (!base || !existsSync(base)) return null
   const d = join(base, 'chromium'); if (existsSync(d)) return d
-  for (const x of readdirSync(base)) { const p = join(base, x, 'chrome-linux', 'chrome'); if (existsSync(p)) return p }
+  for (const x of readdirSync(base)) for (const d of ['chrome-linux', 'chrome-linux64']) { const p = join(base, x, d, 'chrome'); if (existsSync(p)) return p }
   return null
 }
 const b = await chromium.launch(chromeExecutable() ? { executablePath: chromeExecutable() } : {})

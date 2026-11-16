@@ -5,7 +5,8 @@
 
 import { h, modal, toast, copyText, clear } from '../dom.js'
 import * as repo from '../../data/repo.js'
-import { DEFAULT_TEMPLATES, renderTemplate } from '../../core/templates.js'
+import { withDefaults, renderTemplate, missingVars } from '../../core/templates.js'
+import { progressLine } from '../../core/books.js'
 import { toMonth, toYmd } from '../../core/date.js'
 import { formatWon } from '../../core/fees.js'
 import { downloadCsv } from '../../core/csv.js'
@@ -19,7 +20,7 @@ import { downloadCsv } from '../../core/csv.js'
  * @param {string} [opts.title]
  */
 export function openBulkNotice({ studentIds = [], templateId = 'absent', month, amounts = {}, title } = {}) {
-  const templates = repo.getSetting('templates', DEFAULT_TEMPLATES)
+  const templates = withDefaults(repo.getSetting('templates'))
   const brand = repo.getSetting('branding') || {}
   const m = month || toMonth(toYmd())
   let current = templates.find((t) => t.id === templateId) || templates[0]
@@ -53,7 +54,8 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
       '{금액}': amounts[s.id] != null ? formatWon(amounts[s.id]) : '',
       '{월}': `${Number(m.slice(5, 7))}월`,
       '{날짜}': toYmd(),
-      '{강사}': teacher?.name || ''
+      '{강사}': teacher?.name || '',
+      '{진도}': progressLine(s)
     })
   }
 
@@ -77,13 +79,17 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
             ? h('span', { class: 'small muted' }, ` · ${formatWon(amounts[row.student.id])}`)
             : null),
         sentToday.has(row.student.id) ? h('span', { class: 'badge ok' }, '오늘 보냄') : null,
+        row.on && missingVars(messageFor(row.student)).length ? h('span', { class: 'badge warn' }, '빈칸 있음') : null,
         h('span', { class: `small ${phone ? 'muted' : ''}`, style: phone ? {} : { color: 'var(--danger)' } },
           phone || '연락처 없음')))
     }
 
     const list = chosen()
     const noPhone = list.filter((s) => !phoneOf(s)).length
-    summary.textContent = `${list.length}명 선택${noPhone ? ` · 연락처 없는 원생 ${noPhone}명` : ''}`
+    // 값이 없어 { } 가 그대로 남은 문구 — 그대로 보내면 학부모가 "{진도}" 를 받게 된다
+    const blanks = list.filter((s) => missingVars(messageFor(s)).length).length
+    summary.textContent = `${list.length}명 선택${noPhone ? ` · 연락처 없는 원생 ${noPhone}명` : ''}${blanks ? ` · 빈칸이 남은 문구 ${blanks}명 (보내기 전에 확인하세요)` : ''}`
+    summary.style.color = blanks ? 'var(--warn)' : ''
     preview.value = list.length ? messageFor(list[0]) : ''
   }
   paint()
@@ -128,14 +134,14 @@ export function openBulkNotice({ studentIds = [], templateId = 'absent', month, 
         }
       },
       {
-        label: 'CSV 저장', keepOpen: true, onClick: async () => {
+        label: '엑셀 파일(CSV)로 저장', keepOpen: true, onClick: async () => {
           const list = chosen()
           if (!list.length) return toast('대상을 선택해 주세요', 'error')
           downloadCsv(`안내_${current.id}_${toYmd()}.csv`,
             ['이름', '연락처', '금액', '문구'],
             list.map((s) => [s.name, phoneOf(s), amounts[s.id] ?? '', messageFor(s)]))
           await logSent(list)
-          toast('CSV로 저장했습니다', 'ok')
+          toast('엑셀 파일로 저장했습니다', 'ok')
         }
       },
       {

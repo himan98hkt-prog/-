@@ -10,6 +10,7 @@ import { buildTodos, upcomingClasses, renewalTargets } from '../../core/todo.js'
 import { overdueDays, formatWon } from '../../core/fees.js'
 import { openBulkNotice } from './bulk-notice.js'
 import { maybeShowCoach } from '../coach.js'
+import { setupSteps, setupProgress } from '../../core/onboarding.js'
 
 export async function render(root, ctx) {
   const { repo } = ctx
@@ -17,35 +18,94 @@ export async function render(root, ctx) {
   const month = toMonth(today)
   let cancelled = false
 
-  const head = h('div', {})
-  const statBox = h('div', { class: 'grid cols4', style: { marginBottom: '4px' } })
-  const todoBox = h('div', { class: 'card' })
+  const hero = h('div', { class: 'hero' })
+  const setupBox = h('div', {})
+  const statBox = h('div', { class: 'grid cols4 stats' })
+  const todoBox = h('div', { class: 'card todo-card' })
   const nextBox = h('div', { class: 'card' })
 
   root.append(
-    head,
+    hero,
+    setupBox,
+    quickActions(),
     statBox,
     h('div', { class: 'section-head' },
       h('h2', {}, '오늘 할 일'),
-      h('span', { class: 'desc' }, '누르면 바로 처리됩니다'),
+      h('span', { class: 'desc' }, '오른쪽 버튼을 누르면 바로 처리됩니다'),
       h('span', { class: 'right' }),
-      h('button', { class: 'btn sm ghost', onClick: () => load() }, icon('refresh', { size: 16 }), '새로고침')),
+      h('button', { class: 'btn sm ghost', type: 'button', onClick: () => load() }, icon('refresh', { size: 16 }), '새로고침')),
     todoBox,
     h('div', { class: 'section-head' }, h('h2', {}, '남은 수업'), h('span', { class: 'desc' }, '오늘 남은 시간표')),
     nextBox
   )
 
-  paintHead()
+  paintHero()
   await load()
   maybeShowCoach()
 
-  function paintHead() {
+  /** 맨 위 인사 — 시간대에 맞는 말과 오늘 날짜, 그리고 오늘의 한 줄 요약 */
+  function paintHero(summary = '') {
     const hour = new Date().getHours()
-    const hello = hour < 11 ? '좋은 아침입니다' : hour < 17 ? '오늘도 수고 많으십니다' : '오늘 하루 마무리해요'
-    clear(head)
-    head.append(h('div', { class: 'greeting' },
-      h('h1', {}, hello),
-      h('span', { class: 'date' }, `${today.replaceAll('-', '. ')} ${WEEKDAYS[dowOf(today)]}요일`)))
+    const hello = hour < 11 ? '좋은 아침입니다' : hour < 17 ? '오늘도 수고 많으십니다' : '오늘 하루도 고생하셨습니다'
+    const user = ctx.user
+    clear(hero)
+    hero.append(
+      h('div', { class: 'hero-date' }, `${Number(today.slice(5, 7))}월 ${Number(today.slice(8, 10))}일 ${WEEKDAYS[dowOf(today)]}요일`),
+      h('h1', {}, hello, user?.name && user.name !== '원장' ? `, ${user.name}님` : ', 원장님'),
+      h('p', { class: 'hero-sum' }, summary || '오늘 할 일을 확인하고 있습니다…'))
+  }
+
+  /** 가장 자주 하는 네 가지 — 메뉴 이름을 몰라도 그림과 말로 찾아 누를 수 있게 */
+  function quickActions() {
+    const tile = (ico, label, sub, onClick) => h('button', { class: 'quick', type: 'button', onClick },
+      h('span', { class: 'ico' }, icon(ico, { size: 24 })),
+      h('b', {}, label),
+      h('span', {}, sub))
+    const go = (view) => () => { location.hash = view }
+    return h('div', { class: 'quick-grid' },
+      tile('checkCircle', '출석 체크', '이름만 누르면 끝', go('attendance')),
+      ctx.can('students:write') ? tile('users', '원생 등록', '새 학생 추가', go('students')) : null,
+      ctx.can('payments:read') ? tile('won', '수강료', '청구 · 받은 돈 기록', go('payments')) : null,
+      tile('send', '문자 보내기', '학부모 안내 문구', () => openBulkNotice({
+        studentIds: repo.searchStudents('', { status: '재원' }).map((s) => s.id),
+        templateId: 'lesson', month, title: '학부모 안내 문자'
+      })))
+  }
+
+  /** 시작 가이드 — 네 가지를 끝낼 때까지 "다음에 할 일" 을 하나씩 짚어 준다 */
+  async function paintSetup() {
+    clear(setupBox)
+    if (repo.getSetting('demoMode') || repo.getSetting('setupDone') || !ctx.can('settings:read')) return
+    const [att, pay] = await Promise.all([repo.db.attendance.limit(1).count(), repo.db.payments.limit(1).count()])
+    if (cancelled) return
+    const steps = setupSteps({
+      classes: repo.cache.classes.length,
+      students: repo.cache.students.length,
+      hasAttendance: att > 0,
+      hasPayments: pay > 0
+    })
+    const prog = setupProgress(steps)
+    if (prog.complete) {
+      await repo.setSetting('setupDone', true)
+      return
+    }
+
+    setupBox.append(h('div', { class: 'card setup' },
+      h('div', { class: 'setup-head' },
+        h('div', { class: 'grow' },
+          h('b', {}, prog.done ? `잘하고 계십니다 — ${prog.total}가지 중 ${prog.done}가지 완료` : '처음이시죠? 이 네 가지만 하면 준비가 끝납니다'),
+          h('div', { class: 'progressbar', style: { marginTop: '10px' } }, h('div', { style: { width: `${(prog.done / prog.total) * 100}%` } }))),
+        h('button', {
+          class: 'linkbtn', type: 'button',
+          onClick: async () => { await repo.setSetting('setupDone', true); clear(setupBox) }
+        }, '안내 그만 보기')),
+      h('ol', { class: 'setup-steps' }, ...steps.map((st, i) => {
+        const isNext = prog.next?.id === st.id
+        return h('li', { class: `${st.done ? 'done' : ''} ${isNext ? 'next' : ''}`, dataset: { step: st.id } },
+          h('span', { class: 'num' }, st.done ? icon('check', { size: 16, stroke: 2.4 }) : String(i + 1)),
+          h('span', { class: 'grow' }, h('b', {}, st.title), h('span', { class: 'small muted' }, st.done ? '완료했습니다' : st.desc)),
+          isNext ? h('button', { class: 'btn primary', type: 'button', onClick: () => { location.hash = st.view } }, st.cta) : null)
+      }))))
   }
 
   async function load() {
@@ -78,6 +138,8 @@ export async function render(root, ctx) {
     const amounts = Object.fromEntries(payments.map((p) => [p.student_id, p.remaining]))
 
     paintStats({ attendanceToday, payments, classes })
+    paintHero(summaryLine({ attendanceToday, payments, classes, items }))
+    paintSetup()
 
     clear(todoBox)
     if (!items.length) {
@@ -119,11 +181,21 @@ export async function render(root, ctx) {
   }
 
   function stat(label, value, iconName, tone = '') {
-    const color = tone === 'danger' ? 'var(--danger)' : tone === 'warn' ? 'var(--warn)' : ''
-    return h('div', { class: 'stat' },
-      h('div', { class: 'row', style: { gap: '6px', color: 'var(--ink-3)' } },
-        icon(iconName, { size: 15 }), h('span', { class: 'l', style: { marginTop: 0 } }, label)),
-      h('div', { class: 'v', style: color ? { color } : {} }, value))
+    return h('div', { class: `stat ico ${tone}` },
+      h('span', { class: 'stat-ico' }, icon(iconName, { size: 19 })),
+      h('div', { class: 'grow' },
+        h('div', { class: 'l' }, label),
+        h('div', { class: 'v' }, value)))
+  }
+
+  /** 인사말 아래 한 줄 — 숫자를 읽지 않아도 오늘 상황이 문장으로 보이게 */
+  function summaryLine({ attendanceToday, payments, classes, items }) {
+    const todayClasses = classes.filter((c) => c.status !== '종료' &&
+      (c.schedule || []).some((s) => Number(s.dow) === dowOf(today)))
+    if (!repo.cache.students.length) return '아직 등록된 원생이 없습니다. 아래 안내를 따라 시작해 보세요.'
+    const parts = [todayClasses.length ? `오늘 수업은 ${todayClasses.length}개 반입니다` : '오늘은 수업이 없는 날입니다']
+    parts.push(items.length ? `처리할 일이 ${items.length}건 있습니다` : '처리할 일은 모두 끝났습니다')
+    return `${parts.join('. ')}.`
   }
 
   function actionButton(item, amounts) {

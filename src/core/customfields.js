@@ -22,6 +22,12 @@ export const PRESETS = {
     { key: 'level_test', label: '레벨 테스트 점수', type: 'number', onCard: false, onReport: true },
     { key: 'book', label: '교재', type: 'text', onCard: true, onReport: true }
   ],
+  // 피아노·음악 — 교재와 진도는 원생 카드의 '교재·진도' 가 따로 맡는다(core/books.js)
+  음악: [
+    { key: 'grade', label: '급수 · 단계', type: 'text', onCard: true, onReport: true },
+    { key: 'contest', label: '콩쿨 · 발표회', type: 'text', onCard: true, onReport: true },
+    { key: 'practice', label: '연습 메모', type: 'text', onCard: false, onReport: true }
+  ],
   예체능: [
     { key: 'piece', label: '진도 곡/작품', type: 'text', onCard: true, onReport: true },
     { key: 'book', label: '교재', type: 'text', onCard: true, onReport: true },

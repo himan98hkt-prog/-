@@ -15,12 +15,13 @@ export async function render(root, ctx) {
   const monthInput = h('input', { type: 'month', value: month, style: { maxWidth: '160px' }, onChange: (e) => { month = e.target.value; load() } })
 
   root.append(
+    h('div', { class: 'page-head' }, h('h1', {}, '지출'), h('p', {}, '월세·교재비처럼 학원에서 나간 돈을 적어 둡니다. "현황"에서 남은 돈을 계산해 줍니다.')),
     h('div', { class: 'card' },
       h('div', { class: 'row wrap' },
         h('button', { class: 'btn sm', onClick: () => { month = addMonths(month, -1); monthInput.value = month; load() } }, '‹'),
         monthInput,
         h('button', { class: 'btn sm', onClick: () => { month = addMonths(month, 1); monthInput.value = month; load() } }, '›'),
-        canWrite ? h('button', { class: 'btn primary right', onClick: () => openEditor() }, '+ 지출 등록') : null
+        canWrite ? h('button', { class: 'btn primary right', onClick: () => openEditor() }, '+ 지출 적기') : null
       )
     ),
     h('div', { style: { marginTop: '12px' } }, totalBox),
@@ -37,13 +38,13 @@ export async function render(root, ctx) {
 
     clear(totalBox)
     totalBox.append(
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, formatWon(total)), h('div', { class: 'l' }, '이번 달 지출')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, `${rows.length}건`), h('div', { class: 'l' }, '건수')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, top[0] ? `${top[0][0]}` : '-'), h('div', { class: 'l' }, top[0] ? `최대 항목 ${formatWon(top[0][1])}` : '최대 항목'))
+      h('div', { class: 'stat plain' }, h('div', { class: 'l' }, '이번 달 나간 돈'), h('div', { class: 'v' }, formatWon(total))),
+      h('div', { class: 'stat plain' }, h('div', { class: 'l' }, '적은 건수'), h('div', { class: 'v' }, `${rows.length}건`)),
+      h('div', { class: 'stat plain' }, h('div', { class: 'l' }, top[0] ? `가장 많이 나간 곳 · ${formatWon(top[0][1])}` : '가장 많이 나간 곳'), h('div', { class: 'v' }, top[0] ? `${top[0][0]}` : '-'))
     )
 
     clear(tbody)
-    if (!rows.length) tbody.append(h('tr', {}, h('td', { colSpan: 5, class: 'muted' }, '등록된 지출이 없습니다')))
+    if (!rows.length) tbody.append(h('tr', {}, h('td', { colSpan: 5, class: 'muted' }, '이 달에 적은 지출이 없습니다')))
     for (const e of rows) {
       tbody.append(h('tr', {},
         h('td', {}, e.date),

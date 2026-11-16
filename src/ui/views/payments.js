@@ -40,38 +40,41 @@ export async function render(root, ctx) {
   paintMonth()
   const shiftMonth = (n) => { month = addMonths(month, n); paintMonth(); load() }
 
-  const head = h('div', { class: 'card' },
-    h('div', { class: 'row wrap' },
-      h('button', { class: 'btn', onClick: () => shiftMonth(-1), title: '지난달' }, icon('chevronLeft', { size: 17 })),
-      monthLabel, monthInput,
-      h('button', { class: 'btn', onClick: () => shiftMonth(1), title: '다음달' }, icon('chevronRight', { size: 17 })),
-      h('input', {
-        type: 'search', placeholder: '원생 이름으로 찾기', style: { maxWidth: '220px' },
-        onInput: debounce((e) => { query = e.target.value; shown = 60; paint() }, 200)
-      }),
-      canWrite ? h('button', { class: 'btn primary right', onClick: generateBills }, icon('plus', { size: 17 }), '이번 달 청구 생성') : null,
-      canWrite ? h('button', { class: 'btn', onClick: closeMonth }, icon('checkCircle', { size: 17 }), '월말 마감') : null
+  const head = h('div', { class: 'card toolbar' },
+    h('div', { class: 'toolbar-main' },
+      h('div', { class: 'row datebar' },
+        h('button', { class: 'btn', type: 'button', onClick: () => shiftMonth(-1), title: '지난달', 'aria-label': '지난달' }, icon('chevronLeft', { size: 17 })),
+        monthLabel, monthInput,
+        h('button', { class: 'btn', type: 'button', onClick: () => shiftMonth(1), title: '다음 달', 'aria-label': '다음 달' }, icon('chevronRight', { size: 17 }))),
+      h('label', { class: 'searchbox' }, icon('search', { size: 18 }),
+        h('input', {
+          type: 'search', placeholder: '원생 이름으로 찾기', 'aria-label': '원생 찾기',
+          onInput: debounce((e) => { query = e.target.value; shown = 60; paint() }, 200)
+        })),
+      canWrite ? h('button', { class: 'btn primary', type: 'button', dataset: { act: 'make-bills' }, onClick: generateBills }, icon('plus', { size: 17 }), '이번 달 청구 만들기') : null
     ),
-    h('div', { class: 'row wrap', style: { marginTop: '8px' } },
-      h('button', { class: 'btn sm', onClick: remindUnpaid }, icon('send', { size: 15 }), '미납자 일괄 안내'),
-      h('button', { class: 'btn sm', onClick: exportLedger }, icon('download', { size: 15 }), '수납대장 CSV'),
-      h('button', { class: 'btn sm', onClick: printLedger }, icon('printer', { size: 15 }), '수납대장 인쇄')
-    ),
-    h('div', { style: { marginTop: '10px' } }, filterBar)
+    h('div', { class: 'toolbar-sub' },
+      filterBar,
+      h('span', { class: 'right' }),
+      h('button', { class: 'btn sm ghost', type: 'button', onClick: remindUnpaid }, icon('send', { size: 15 }), '안 낸 분들께 안내 문자'),
+      h('button', { class: 'btn sm ghost', type: 'button', onClick: exportLedger }, icon('download', { size: 15 }), '엑셀로 저장'),
+      h('button', { class: 'btn sm ghost', type: 'button', onClick: printLedger }, icon('printer', { size: 15 }), '인쇄'),
+      canWrite ? h('button', { class: 'btn sm ghost', type: 'button', onClick: closeMonth, title: '이번 달 수강료가 다 들어왔는지 한눈에 점검합니다' }, icon('checkCircle', { size: 15 }), '월말 점검') : null
+    )
   )
 
   root.append(
     h('div', { class: 'page-head' },
-      h('h1', {}, '수납'),
-      h('p', {}, '이번 달 청구를 한 번에 만들고, 미납은 일괄 안내로 보냅니다.')),
+      h('h1', {}, '수납 (수강료)'),
+      h('p', {}, '"이번 달 청구 만들기"를 누르면 모든 원생의 수강료가 한 번에 만들어집니다. 받은 돈은 "수정"에서 적습니다.')),
     head,
     h('div', { style: { marginTop: '12px' } }, statBox),
     h('div', { class: 'card', style: { marginTop: '12px' } },
       h('div', { class: 'scroll-x' },
         h('table', {},
           h('thead', {}, h('tr', {},
-            h('th', {}, '원생'), h('th', { class: 'num' }, '청구'), h('th', { class: 'num' }, '납부'),
-            h('th', { class: 'num' }, '잔액'), h('th', {}, '상태'), h('th', {}, '')
+            h('th', {}, '원생'), h('th', { class: 'num' }, '청구한 돈'), h('th', { class: 'num' }, '받은 돈'),
+            h('th', { class: 'num' }, '남은 돈'), h('th', {}, '상태'), h('th', {}, '')
           )),
           tbody
         )
@@ -87,10 +90,10 @@ export async function render(root, ctx) {
     const s = settleMonth(rows, expenses)
     clear(statBox)
     statBox.append(
-      stat('청구 합계', formatWon(s.billed)),
-      stat('수납 합계', formatWon(s.collected)),
-      stat('미수금', formatWon(s.outstanding), s.outstanding ? 'danger' : ''),
-      stat('수납률', `${s.collectRate}%`)
+      stat('이번 달 청구한 돈', formatWon(s.billed)),
+      stat('받은 돈', formatWon(s.collected)),
+      stat('아직 못 받은 돈', formatWon(s.outstanding), s.outstanding ? 'danger' : ''),
+      stat('받은 비율', `${s.collectRate}%`)
     )
     paintFilters(s)
     paint()
@@ -126,7 +129,7 @@ export async function render(root, ctx) {
         h('div', { class: 'empty' },
           h('div', { class: 'emoji' }, icon('receipt', { size: 26 })),
           h('b', {}, '이 달의 청구 내역이 없습니다'),
-          h('p', {}, '"이번 달 청구 생성"을 누르면 재원생의 수강료가 한 번에 만들어집니다.')))))
+          h('p', {}, '위의 "이번 달 청구 만들기"를 누르면 다니는 원생 모두의 수강료가 한 번에 만들어집니다.')))))
       return
     }
     for (const p of filtered.slice(0, shown)) {
@@ -163,9 +166,9 @@ export async function render(root, ctx) {
   }
 
   function stat(label, value, kind = '') {
-    return h('div', { class: 'stat' },
-      h('div', { class: 'v', style: kind === 'danger' ? { color: 'var(--danger)' } : {} }, value),
-      h('div', { class: 'l' }, label))
+    return h('div', { class: `stat plain ${kind}` },
+      h('div', { class: 'l' }, label),
+      h('div', { class: 'v' }, value))
   }
 
   let policy = repo.policy()
@@ -215,7 +218,7 @@ export async function render(root, ctx) {
     const data = ledgerRows()
     if (!data.length) return toast('내보낼 내역이 없습니다', 'error')
     downloadCsv(`수납대장_${month}.csv`, LEDGER_HEAD, data)
-    toast(`${data.length}건을 CSV로 저장했습니다`, 'ok')
+    toast(`${data.length}건을 엑셀 파일로 저장했습니다`, 'ok')
   }
 
   function printLedger() {
@@ -246,7 +249,7 @@ export async function render(root, ctx) {
         h('span', {}, formatWon(bill.total))))
     }
     modal({
-      title: `${month} 청구 생성 미리보기`,
+      title: `${Number(month.slice(5, 7))}월 수강료 청구 — 만들기 전에 확인`,
       body: h('div', {},
         h('p', { class: 'small muted' },
           `재원생 ${preview.length}명 · 합계 ${formatWon(total)}${skipped ? ` · 이미 청구된 ${skipped}명은 건너뜁니다` : ''}`),
@@ -267,11 +270,11 @@ export async function render(root, ctx) {
     const s = settleMonth(rows, expenses)
     const unpaid = rows.filter((p) => p.status !== PAY_STATUS.FULL)
     modal({
-      title: `${month} 월말 마감`,
+      title: `${Number(month.slice(5, 7))}월 월말 점검`,
       body: h('div', {},
         h('div', { class: 'grid cols2' },
-          stat('수납', formatWon(s.collected)), stat('지출', formatWon(s.expense)),
-          stat('순이익', formatWon(s.net)), stat('미수금', formatWon(s.outstanding))
+          stat('받은 돈', formatWon(s.collected)), stat('나간 돈', formatWon(s.expense)),
+          stat('남은 돈', formatWon(s.net)), stat('아직 못 받은 돈', formatWon(s.outstanding))
         ),
         h('div', { class: 'card', style: { marginTop: '12px' } },
           h('div', { class: 'card-title' }, `미납 ${unpaid.length}명`),

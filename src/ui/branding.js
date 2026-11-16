@@ -52,6 +52,9 @@ export function applyBranding() {
   root.style.setProperty('--brand-lift', mix(b.brand_color, '#ffffff', 0.26))
   root.style.setProperty('--brand-light', mix(b.brand_color, '#ffffff', 0.86))
   root.style.setProperty('--brand-soft', mix(b.brand_color, '#ffffff', 0.94))
+  // 사이드바 바탕 — 어떤 색을 골라도 흰 글씨가 읽히도록 충분히 가라앉힌다
+  root.style.setProperty('--brand-ink', mix(b.brand_color, '#0b0d12', 0.62))
+  root.style.setProperty('--brand-ink-2', mix(b.brand_color, '#0b0d12', 0.42))
   root.style.setProperty('--on-brand', readableOn(b.brand_color))
   // 큰 글씨 모드 — 선생님 연령대가 넓어 설정에서 바꿀 수 있게 해 둔다
   root.dataset.textsize = getSetting('textSize') || 'normal'

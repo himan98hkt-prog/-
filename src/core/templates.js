@@ -9,7 +9,8 @@ export const TEMPLATE_VARS = [
   { key: '{월}', desc: '대상 월 (예: 3월)' },
   { key: '{날짜}', desc: '대상 날짜' },
   { key: '{출석률}', desc: '해당 월 출석률' },
-  { key: '{강사}', desc: '담당 강사명' }
+  { key: '{강사}', desc: '담당 강사명' },
+  { key: '{진도}', desc: '진행 중인 교재와 진도 (원생 카드에 적어 둔 내용)' }
 ]
 
 export const DEFAULT_TEMPLATES = [
@@ -20,20 +21,35 @@ export const DEFAULT_TEMPLATES = [
   },
   {
     id: 'payment',
-    name: '수납 안내',
+    name: '수강료 안내',
     body: '안녕하세요, {학원명}입니다.\n{원생명} 학생 {월} 수강료 {금액} 안내드립니다.\n납부 관련 문의는 언제든 연락 주세요. 감사합니다.'
   },
   {
     id: 'report',
-    name: '리포트 발송',
+    name: '리포트 보내기',
     body: '{학원명}에서 {원생명} 학생의 {월} 학습 리포트를 보내드립니다.\n출석률 {출석률}%, 담당 강사 {강사}.\n자세한 내용은 첨부 이미지를 확인해 주세요.'
   },
   {
+    id: 'lesson',
+    name: '레슨·진도 안내',
+    body: '안녕하세요, {학원명}입니다.\n{원생명} 학생 오늘 수업 내용 알려드립니다.\n\n진도: {진도}\n\n가정에서도 격려 부탁드립니다. 감사합니다.'
+  },
+  {
     id: 'recruit',
-    name: '공석 안내',
+    name: '빈자리 안내',
     body: '{학원명} {반}({과목}) 수업에 자리가 생겼습니다.\n관심 있는 분은 편하게 문의 주세요!'
   }
 ]
+
+/**
+ * 저장된 문구에 새로 생긴 기본 문구를 덧붙인다.
+ * 앱이 업데이트되어 기본 문구가 늘어도, 원장이 고쳐 둔 문구는 그대로 두고 없는 것만 채운다.
+ */
+export function withDefaults(saved) {
+  const list = Array.isArray(saved) && saved.length ? saved : DEFAULT_TEMPLATES
+  const have = new Set(list.map((t) => t.id))
+  return [...list, ...DEFAULT_TEMPLATES.filter((t) => !have.has(t.id))]
+}
 
 /** 템플릿 문자열의 변수를 치환한다. 값이 없는 변수는 그대로 남겨 원장이 눈으로 확인할 수 있게 한다. */
 export function renderTemplate(body, vars = {}) {

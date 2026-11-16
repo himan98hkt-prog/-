@@ -30,11 +30,11 @@ export const NAV = [
   { id: 'attendance', label: '출결', icon: 'checkCircle', perm: 'attendance:read', primary: true, desc: '반별 출석 체크' },
   { id: 'students', label: '원생', icon: 'users', perm: 'students:read', primary: true, desc: '원생 등록·검색' },
   { id: 'payments', label: '수납', icon: 'won', perm: 'payments:read', primary: true, desc: '청구·수납·미납' },
-  { id: 'timetable', label: '시간표', icon: 'calendar', perm: 'timetable:read', desc: '주간 수업 배치' },
-  { id: 'counsel', label: '상담', icon: 'chat', perm: 'counsel:read', desc: '상담일지·등록 전환' },
-  { id: 'expenses', label: '지출', icon: 'wallet', perm: 'expenses:read', desc: '학원 운영비' },
-  { id: 'dashboard', label: '현황', icon: 'chart', perm: 'stats:read', desc: '매출·출석률 추이' },
-  { id: 'settings', label: '설정', icon: 'settings', perm: 'settings:read', desc: '학원 정보·백업·인증' }
+  { id: 'timetable', label: '시간표', icon: 'calendar', perm: 'timetable:read', desc: '반 만들기 · 요일과 시간' },
+  { id: 'counsel', label: '상담', icon: 'chat', perm: 'counsel:read', desc: '학부모 상담 적어 두기' },
+  { id: 'expenses', label: '지출', icon: 'wallet', perm: 'expenses:read', desc: '월세·교재비처럼 나간 돈' },
+  { id: 'dashboard', label: '현황', icon: 'chart', perm: 'stats:read', desc: '들어온 돈 · 출석률 한눈에' },
+  { id: 'settings', label: '설정', icon: 'settings', perm: 'settings:read', desc: '글씨 크기 · 학원 이름 · 백업' }
 ]
 
 export function navFor(role) {

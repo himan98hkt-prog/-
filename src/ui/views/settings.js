@@ -3,8 +3,8 @@
 import { h, clear, toast, modal, field, confirmDialog, copyText } from '../dom.js'
 import { branding, saveBranding, resizeImage, logoDataUrl, updateManifest } from '../branding.js'
 import { FIELD_TYPES, PRESETS, validateField } from '../../core/customfields.js'
-import { DEFAULT_TEMPLATES, TEMPLATE_VARS, unknownVars } from '../../core/templates.js'
-import { formatKey, PRODUCTS } from '../../core/license.js'
+import { DEFAULT_TEMPLATES, TEMPLATE_VARS, unknownVars, withDefaults } from '../../core/templates.js'
+import { formatKey, normalizeKey, PRODUCTS } from '../../core/license.js'
 import { entitlement, activateWithKey, deviceCode } from '../activation.js'
 import { buildBackup, parseBackup, BACKUP_TABLES } from '../../core/backup.js'
 import { ROLES } from '../../core/perm.js'
@@ -14,31 +14,41 @@ import { downloadCsv } from '../../core/csv.js'
 import { toYmd, toMonth, addMonths, daysBetween } from '../../core/date.js'
 import { showCoach } from '../coach.js'
 import { openInstallGuide } from '../install.js'
+import { icon } from '../icons.js'
+import { buyUrl } from '../../core/store.js'
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
   const isOwner = (user?.role || 'owner') === 'owner'
 
+  // 자주 찾는 순서대로 — 맨 위 셋은 처음 쓰는 원장님이 한 번은 들르는 곳이다
   const sections = [
-    section('화면 · 사용 편의', displaySection(repo), true),
-    section('브랜딩 (학원명 · 로고 · 색상)', brandingSection(repo)),
-    section('학습 항목 (계열별 custom 필드)', customFieldSection(repo)),
-    section('과목 · 반 · 강사', peopleSection(repo, isOwner)),
-    section('알림 문구 템플릿', templateSection(repo)),
-    section('수납 정책 (납부일 · 형제 할인)', billingSection(repo)),
-    section('인증키 · 플랜', licenseSection(repo)),
-    section('백업 · 복원 · 내보내기', backupSection(repo)),
-    repo.getPlan() === 'pro' ? section('Pro 동기화 (Supabase)', proSection(repo)) : null,
-    section('개발자 · 데모 도구', devSection(repo))
+    section('monitor', '화면', '글씨 크기 · 홈 화면에 설치', displaySection(repo), true),
+    section('home', '학원 이름 · 로고 · 색', '화면 위쪽과 리포트·영수증에 들어갑니다', brandingSection(repo)),
+    section('save', '백업 · 복원', '자료를 파일로 보관하고 되살립니다', backupSection(repo)),
+    section('won', '수강료 규칙', '내는 날 · 형제 할인', billingSection(repo)),
+    section('send', '문자 안내 문구', '결석 · 수강료 · 레슨 안내에 쓰는 글', templateSection(repo)),
+    section('users', '과목 · 선생님 · 잠금 번호', '과목을 추가하고, 선생님 계정과 잠금 번호를 정합니다', peopleSection(repo, isOwner)),
+    section('list', '학습 기록 항목', '원생 카드에 적어 둘 내용을 정합니다 (예: 급수, 콩쿨)', customFieldSection(repo)),
+    section('key', '인증키 · 구매', '인증 상태 확인 · 인증키 넣기', licenseSection(repo)),
+    repo.getPlan() === 'pro' ? section('repeat', 'Pro 동기화', '여러 기기에서 함께 쓰기', proSection(repo)) : null,
+    section('settings', '고급', '샘플 자료 넣기 · 전체 초기화', devSection(repo))
   ].filter(Boolean)
-  root.append(...sections)
+  root.append(
+    h('div', { class: 'page-head' },
+      h('h1', {}, '설정'),
+      h('p', {}, '바꾸고 싶은 항목을 누르면 펼쳐집니다.')),
+    ...sections)
   return () => {}
 }
 
-function section(title, body, open = false) {
-  return h('details', { class: 'card', open, style: { marginBottom: '12px' } },
-    h('summary', { style: { cursor: 'pointer', fontWeight: '700' } }, title),
-    h('div', { style: { marginTop: '12px' } }, body))
+function section(ico, title, desc, body, open = false) {
+  return h('details', { class: 'card setsec', open },
+    h('summary', {},
+      h('span', { class: 'todo-ico' }, icon(ico, { size: 20 })),
+      h('span', { class: 'grow' }, h('b', {}, title), h('span', { class: 'small muted' }, desc)),
+      icon('chevronRight', { size: 18, class: 'chev' })),
+    h('div', { class: 'setsec-body' }, body))
 }
 
 // ── 화면·사용 편의 ──────────────────────────────────────────
@@ -69,7 +79,7 @@ function displaySection(repo) {
       h('button', { class: 'btn', onClick: () => showCoach() }, '처음 안내 다시 보기'),
       h('button', { class: 'btn', onClick: () => openInstallGuide() }, '홈 화면에 설치하기')),
     h('div', { class: 'callout tip' },
-      h('p', {}, h('b', {}, '화면 오른쪽 아래 동그란 버튼'), ' 을 누르면 언제든 안내를 다시 볼 수 있습니다.')))
+      h('p', {}, h('b', {}, '막히면 "도움말"을 누르세요.'), ' 하고 싶은 일을 고르면 순서대로 알려 드립니다. (휴대폰은 오른쪽 아래 물음표)')))
 }
 
 // ── 브랜딩 ──────────────────────────────────────────────────
@@ -97,7 +107,7 @@ function brandingSection(repo) {
   return h('div', {},
     h('div', { class: 'row', style: { marginBottom: '12px' } }, preview,
       h('div', { class: 'grow' }, file,
-        h('div', { class: 'small muted' }, '미업로드 시 학원명 이니셜 아바타가 사용됩니다'),
+        h('div', { class: 'small muted' }, '로고가 없으면 학원 이름 첫 글자를 대신 씁니다'),
         b.logo ? h('button', {
           class: 'btn sm', style: { marginTop: '6px' }, onClick: async () => {
             await saveBranding({ logo: null })
@@ -105,22 +115,22 @@ function brandingSection(repo) {
             toast('로고를 삭제했습니다')
           }
         }, '로고 삭제') : null)),
-    h('div', { class: 'inline-fields' }, field('학원명', name), field('대표 연락처', phone), field('브랜드 컬러', color)),
+    h('div', { class: 'inline-fields' }, field('학원 이름', name), field('학원 전화번호', phone), field('학원 색', color)),
     h('div', { class: 'row' },
       h('button', {
         class: 'btn primary', onClick: async () => {
           await saveBranding({ name: name.value.trim() || '학원 관리노트', phone: phone.value.trim(), brand_color: color.value })
-          toast('브랜딩을 적용했습니다', 'ok')
+          toast('바꿨습니다', 'ok')
         }
-      }, '적용'),
+      }, '저장'),
       h('button', {
         class: 'btn', onClick: () => {
           const ok = updateManifest()
-          toast(ok ? '설치 아이콘(manifest)을 갱신했습니다' : '이 브라우저는 동적 아이콘을 지원하지 않아 기본 아이콘을 사용합니다')
+          toast(ok ? '홈 화면 아이콘을 새로 만들었습니다' : '이 기기는 아이콘을 바꿀 수 없어 기본 아이콘을 씁니다')
         }
-      }, '설치 아이콘 갱신')
+      }, '홈 화면 아이콘 새로 만들기')
     ),
-    h('p', { class: 'small muted' }, '학원명·로고·컬러는 앱 헤더, 리포트카드, 로그인 화면, 홈 화면 설치 아이콘에 함께 반영됩니다.')
+    h('p', { class: 'small muted' }, '여기서 정한 이름·로고·색이 화면 위쪽, 학부모 리포트, 영수증, 홈 화면 아이콘에 함께 들어갑니다.')
   )
 }
 
@@ -132,7 +142,7 @@ function customFieldSection(repo) {
   const paint = () => {
     const fields = repo.getSetting('customFields', [])
     clear(listBox)
-    if (!fields.length) listBox.append(h('p', { class: 'muted small' }, '아직 항목이 없습니다. 아래 프리셋으로 시작해 보세요.'))
+    if (!fields.length) listBox.append(h('p', { class: 'muted small' }, '아직 항목이 없습니다. 아래에서 학원 종류를 누르면 기본 항목이 들어옵니다.'))
     fields.forEach((f, i) => {
       listBox.append(h('div', { class: 'row', style: { padding: '8px 0', borderBottom: '1px solid var(--line)' } },
         h('div', { class: 'grow' },
@@ -141,14 +151,14 @@ function customFieldSection(repo) {
         h('label', { class: 'row small', style: { gap: '4px' } }, h('input', {
           type: 'checkbox', checked: !!f.onCard, style: { width: 'auto' },
           onChange: async (e) => { fields[i].onCard = e.target.checked; await repo.setSetting('customFields', fields) }
-        }), '카드'),
+        }), '원생 카드에 표시'),
         h('label', { class: 'row small', style: { gap: '4px' } }, h('input', {
           type: 'checkbox', checked: !!f.onReport, style: { width: 'auto' },
           onChange: async (e) => { fields[i].onReport = e.target.checked; await repo.setSetting('customFields', fields) }
-        }), '리포트'),
+        }), '리포트에 표시'),
         h('button', {
           class: 'btn sm danger', onClick: async () => {
-            if (!await confirmDialog(`'${f.label}' 항목을 삭제할까요? 이미 입력된 값은 원생 데이터에 남습니다.`, { danger: true, okLabel: '삭제' })) return
+            if (!await confirmDialog(`'${f.label}' 항목을 지울까요? 이미 적어 둔 내용은 남아 있습니다.`, { danger: true, okLabel: '삭제' })) return
             await repo.setSetting('customFields', fields.filter((x) => x.key !== f.key))
             paint()
           }
@@ -164,9 +174,9 @@ function customFieldSection(repo) {
           for (const f of preset) if (!merged.some((x) => x.key === f.key)) merged.push({ ...f })
           await repo.setSetting('customFields', merged)
           paint()
-          toast(`${key} 프리셋을 추가했습니다`, 'ok')
+          toast(`${key} 기본 항목을 넣었습니다`, 'ok')
         }
-      }, `${key} 프리셋`))
+      }, `${key} 기본 항목`))
     }
   }
   paint()
@@ -178,9 +188,9 @@ function customFieldSection(repo) {
       const type = h('select', {}, ...FIELD_TYPES.map((t) => h('option', { value: t.type }, t.label)))
       const options = h('input', { type: 'text', placeholder: '선택 목록일 때만: 흰띠, 노란띠, 파란띠' })
       modal({
-        title: '학습 항목 추가',
+        title: '학습 기록 항목 추가',
         body: h('div', {},
-          field('항목 이름', label), field('저장 키(영문)', key, '한 번 정하면 바꾸지 마세요. 데이터가 이 키로 저장됩니다'),
+          field('항목 이름', label), field('구분 이름 (영어)', key, '프로그램이 이 항목을 알아보는 이름입니다. 영어로 짧게 적고, 한 번 정하면 바꾸지 마세요'),
           field('종류', type), field('선택지', options, '쉼표로 구분')),
         actions: [{
           label: '추가', kind: 'primary', keepOpen: true, onClick: async (close) => {
@@ -203,7 +213,7 @@ function customFieldSection(repo) {
 
   return h('div', {}, listBox,
     h('div', { class: 'row wrap', style: { marginTop: '12px' } }, addBtn, presetRow),
-    h('p', { class: 'small muted' }, '여기서 만든 항목이 원생 카드와 학부모 리포트에 자동으로 나타납니다. 계열이 달라도 이 항목만 바꾸면 그대로 운영할 수 있습니다.'))
+    h('p', { class: 'small muted' }, '여기서 만든 항목이 원생 카드와 학부모 리포트에 나타납니다. 교재와 진도는 원생 카드의 "교재·진도" 칸에서 따로 적습니다.'))
 }
 
 // ── 과목/강사 ───────────────────────────────────────────────
@@ -225,7 +235,7 @@ function peopleSection(repo, isOwner) {
     for (const u of repo.cache.users) {
       userBox.append(h('div', { class: 'row', style: { padding: '6px 0' } },
         h('span', { class: 'grow' }, u.name, h('span', { class: 'badge', style: { marginLeft: '6px' } }, ROLES[u.role]?.label || u.role)),
-        h('span', { class: 'muted small' }, `PIN ${String(u.pin || '').replace(/./g, '•')}`),
+        h('span', { class: 'muted small' }, `잠금 번호 ${String(u.pin || '').replace(/./g, '•')}`),
         isOwner ? h('button', { class: 'btn sm', onClick: () => editUser(u) }, '수정') : null))
     }
   }
@@ -259,8 +269,8 @@ function peopleSection(repo, isOwner) {
     const role = h('select', {}, ...Object.entries(ROLES).map(([k, v]) => h('option', { value: k, selected: u?.role === k }, `${v.label} — ${v.desc}`)))
     const pin = h('input', { type: 'text', value: u?.pin || '', maxLength: 4, inputMode: 'numeric' })
     modal({
-      title: u ? '계정 수정' : '계정 추가',
-      body: h('div', { class: 'inline-fields' }, field('이름', name), field('권한', role), field('PIN 4자리', pin)),
+      title: u ? '계정 고치기' : '계정 추가',
+      body: h('div', { class: 'inline-fields' }, field('이름', name), field('하는 일', role), field('잠금 번호 (숫자 4자리)', pin, '앱을 열 때 누르는 번호입니다')),
       actions: [
         u ? {
           label: '삭제', kind: 'danger', keepOpen: true, onClick: async (close) => {
@@ -271,9 +281,9 @@ function peopleSection(repo, isOwner) {
         } : null,
         {
           label: '저장', kind: 'primary', keepOpen: true, onClick: async (close) => {
-            if (!/^\d{4}$/.test(pin.value)) { toast('PIN 은 숫자 4자리입니다', 'error'); return false }
+            if (!/^\d{4}$/.test(pin.value)) { toast('잠금 번호는 숫자 4자리입니다', 'error'); return false }
             const dup = repo.cache.users.find((x) => x.pin === pin.value && x.id !== u?.id)
-            if (dup) { toast('이미 쓰는 PIN 입니다', 'error'); return false }
+            if (dup) { toast('다른 계정이 이미 쓰는 번호입니다', 'error'); return false }
             await repo.put('users', { ...(u || {}), name: name.value.trim() || '강사', role: role.value, pin: pin.value })
             paint(); close()
           }
@@ -286,16 +296,18 @@ function peopleSection(repo, isOwner) {
   return h('div', {},
     h('div', { class: 'card-title' }, '과목'), subjBox,
     isOwner ? h('button', { class: 'btn sm', onClick: () => editSubject() }, '+ 과목 추가') : null,
-    h('div', { class: 'card-title', style: { marginTop: '16px' } }, '계정 (PIN 로그인)'), userBox,
+    h('div', { class: 'card-title', style: { marginTop: '16px' } }, '선생님 계정 · 잠금 번호'), userBox,
     isOwner ? h('button', { class: 'btn sm', onClick: () => editUser() }, '+ 계정 추가') : null,
-    h('p', { class: 'small muted' }, '반 관리는 시간표 탭에서 합니다.'))
+    h('div', { class: 'callout tip' },
+      h('p', {}, h('b', {}, '혼자 쓰신다면 그대로 두세요.'), ' 잠금 번호가 처음 그대로(0000)이고 계정이 하나면 앱을 열 때 번호를 묻지 않습니다.'),
+      h('p', {}, '번호를 다른 숫자로 바꾸거나 선생님 계정을 추가하면 그때부터 번호를 묻습니다. 반은 "시간표" 메뉴에서 만듭니다.')))
 }
 
 // ── 알림 템플릿 ─────────────────────────────────────────────
 function templateSection(repo) {
   const box = h('div')
   const paint = () => {
-    const templates = repo.getSetting('templates', DEFAULT_TEMPLATES)
+    const templates = withDefaults(repo.getSetting('templates'))
     clear(box)
     templates.forEach((t, i) => {
       const body = h('textarea', { value: t.body })
@@ -304,7 +316,7 @@ function templateSection(repo) {
           h('button', {
             class: 'btn sm', onClick: async () => {
               const bad = unknownVars(body.value)
-              if (bad.length) return toast(`정의되지 않은 변수: ${bad.join(' ')}`, 'error')
+              if (bad.length) return toast(`쓸 수 없는 낱말이 있습니다: ${bad.join(' ')}`, 'error')
               const next = templates.slice()
               next[i] = { ...t, body: body.value }
               await repo.setSetting('templates', next)
@@ -316,12 +328,12 @@ function templateSection(repo) {
   }
   paint()
   return h('div', {}, box,
-    h('div', { class: 'row wrap small muted' }, '사용 가능한 변수: ',
+    h('div', { class: 'row wrap small muted' }, '문구 안에 넣을 수 있는 낱말 (누르면 복사됩니다): ',
       ...TEMPLATE_VARS.map((v) => h('span', { class: 'chip', onClick: () => copyText(v.key).then(() => toast(`${v.key} 복사`)) }, `${v.key} ${v.desc}`))),
     h('div', { class: 'row', style: { marginTop: '10px' } },
       h('button', {
         class: 'btn sm', onClick: async () => { await repo.setSetting('templates', DEFAULT_TEMPLATES); paint(); toast('기본 문구로 되돌렸습니다') }
-      }, '기본값 복원')))
+      }, '처음 문구로 되돌리기')))
 }
 
 // ── 인증키(시디키) ──────────────────────────────────────────
@@ -331,8 +343,8 @@ function licenseSection(repo) {
   const paint = () => {
     const ent = entitlement()
     const lic = repo.getSetting('license')
-    const input = h('input', { type: 'text', placeholder: 'AAAA-AAAA-AAAA', value: lic?.key || '' })
-    input.addEventListener('input', () => { input.value = formatKey(input.value).slice(0, 14) })
+    const input = h('input', { type: 'text', placeholder: 'XXXX-XXXX-XXXX', value: lic?.key || '', 'aria-label': '인증키' })
+    input.addEventListener('input', () => { if (normalizeKey(input.value).length <= 12) input.value = formatKey(input.value).slice(0, 14) })
     const nameInput = h('input', {
       type: 'text', placeholder: '피아노 관리노트에서 학원명으로 받은 키일 때만',
       value: lic?.academy_name || ''
@@ -345,8 +357,13 @@ function licenseSection(repo) {
           h('span', { class: 'badge ok' }, `${lic.plan === 'pro' ? 'Pro' : 'Lite'} 인증됨`),
           h('div', { class: 'small muted', style: { marginTop: '6px' } },
             `키 ${lic.key} · ${lic.scheme === 'piano' ? '피아노 관리노트 발급분' : (PRODUCTS[lic.product]?.label || '통합')} · 인증일 ${(lic.activated_at || '').slice(0, 10)} · 기기번호 ${lic.device || deviceCode()}`))
-        : h('span', { class: 'badge warn' },
-          ent.mode === 'trial' ? `체험 ${ent.daysLeft}일 남음 — 인증키를 넣으면 계속 사용합니다` : '미인증'),
+        : h('div', {},
+          h('span', { class: 'badge warn' },
+            ent.mode === 'trial' ? `무료 체험 ${ent.daysLeft}일 남음` : '아직 인증 전입니다'),
+          h('p', { class: 'small muted', style: { margin: '8px 0 0' } },
+            '구매하시면 인증키가 메일로 바로 옵니다. 메일의 버튼을 누르거나 아래 칸에 키를 넣으면 지금까지 넣은 자료 그대로 계속 쓰실 수 있습니다.'),
+          h('a', { class: 'btn primary', style: { marginTop: '10px' }, href: buyUrl('settings'), target: '_blank', rel: 'noopener' },
+            icon('cart', { size: 17 }), '구매하러 가기')),
 
       h('div', { class: 'row', style: { marginTop: '10px' } },
         h('div', { class: 'grow' }, input),
@@ -357,16 +374,15 @@ function licenseSection(repo) {
             toast(`${res.plan === 'pro' ? 'Pro' : 'Lite'} 인증 완료. 앱을 새로고침합니다`, 'ok')
             setTimeout(() => location.reload(), 800)
           }
-        }, lic ? '키 교체' : '인증')),
+        }, lic ? '다른 키로 바꾸기' : '인증하기')),
 
       h('div', { style: { marginTop: '8px' } }, nameInput),
       h('p', { class: 'small muted' },
-        'Lite 키(두 번째 자리 L)는 기기 1대, Pro 키(P)는 여러 기기 동시 사용과 실시간 동기화를 지원합니다. ',
-        '첫 자리가 A인 통합키와 ', h('b', {}, '피아노 관리노트에서 발급받은 키'), '는 두 제품에서 모두 열립니다. ',
-        '피아노 쪽에서 학원명으로 받은 키라면 위 칸에 그 학원명을 넣어 주세요.'),
+        '받은 메일을 통째로 붙여 넣어도 됩니다. ', h('b', {}, '피아노 관리노트에서 받은 인증키'), '도 그대로 쓸 수 있습니다 ',
+        '(학원명으로 받은 키라면 위 칸에 그 학원명을 함께 넣어 주세요).'),
 
       h('div', { class: 'row small muted' },
-        h('span', { class: 'grow' }, `이 기기 번호: ${deviceCode()} (재발급·문의 시 사용)`),
+        h('span', { class: 'grow' }, `기기번호 ${deviceCode()} — 문의하실 때 알려 주세요`),
         h('button', { class: 'linkbtn', onClick: () => copyText(deviceCode()).then(() => toast('복사했습니다')) }, '복사')),
 
       lic
@@ -392,7 +408,7 @@ function billingSection(repo) {
   const p = repo.policy()
   const dueDay = h('input', { type: 'number', min: '1', max: '28', value: p.dueDay })
   const roundUnit = h('select', {}, ...[1, 100, 1000].map((u) =>
-    h('option', { value: String(u), selected: p.roundUnit === u }, u === 1 ? '절사 없음' : `${u.toLocaleString('ko-KR')}원 단위 절사`)))
+    h('option', { value: String(u), selected: p.roundUnit === u }, u === 1 ? '버리지 않음' : `${u.toLocaleString('ko-KR')}원 아래는 버림`)))
   const sibOn = h('input', { type: 'checkbox', checked: p.sibling.enabled, style: { width: 'auto' } })
   const sibValue = h('input', { type: 'number', min: '0', value: p.sibling.value })
   const sibType = h('select', {},
@@ -400,18 +416,18 @@ function billingSection(repo) {
     h('option', { value: 'amount', selected: p.sibling.type === 'amount' }, '원'))
   const sibApply = h('select', {},
     h('option', { value: 'all', selected: p.sibling.applyTo === 'all' }, '형제 전원'),
-    h('option', { value: 'others', selected: p.sibling.applyTo === 'others' }, '첫째 제외(둘째부터)'))
+    h('option', { value: 'others', selected: p.sibling.applyTo === 'others' }, '둘째부터'))
 
   return h('div', {},
     h('div', { class: 'inline-fields' },
-      field('납부 기준일', dueDay, '이 날이 지나면 오늘 할 일에 미납 독촉이 뜹니다'),
-      field('청구액 절사', roundUnit)),
+      field('수강료 내는 날 (매달)', dueDay, '이 날이 지나도 안 낸 원생이 있으면 "오늘" 화면에서 알려 드립니다'),
+      field('끝자리 버림', roundUnit, '할인으로 생긴 자투리 금액을 정리합니다')),
     h('div', { class: 'card', style: { marginTop: '10px' } },
-      h('label', { class: 'row', style: { gap: '8px' } }, sibOn, h('b', {}, '형제·자매 할인 자동 적용')),
+      h('label', { class: 'row', style: { gap: '8px' } }, sibOn, h('b', {}, '형제·자매가 함께 다니면 자동으로 할인')),
       h('div', { class: 'inline-fields', style: { marginTop: '8px' } },
         field('할인', h('div', { class: 'row' }, h('div', { class: 'grow' }, sibValue), sibType)),
-        field('적용 대상', sibApply)),
-      h('p', { class: 'small muted' }, '학부모 연락처가 같으면 형제로 자동 인식됩니다(원생 탭 기준).')),
+        field('누구에게', sibApply)),
+      h('p', { class: 'small muted' }, '학부모 연락처가 같은 원생을 형제로 봅니다.')),
     h('div', { class: 'row', style: { marginTop: '10px' } },
       h('button', {
         class: 'btn primary', onClick: async () => {
@@ -425,7 +441,7 @@ function billingSection(repo) {
               applyTo: sibApply.value
             }
           })
-          toast('수납 정책을 저장했습니다', 'ok')
+          toast('수강료 규칙을 저장했습니다', 'ok')
         }
       }, '저장')))
 }
@@ -440,9 +456,9 @@ function backupSection(repo) {
     try {
       const backup = parseBackup(await f.text())
       const counts = Object.entries(backup.counts || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')
-      if (!await confirmDialog(`현재 데이터를 모두 지우고 복원합니다.\n\n${counts}`, { title: '백업 복원', okLabel: '복원', danger: true })) return
+      if (!await confirmDialog(`지금 자료를 모두 지우고 백업 파일의 자료로 바꿉니다.\n\n${counts}`, { title: '백업 파일로 되살리기', okLabel: '되살리기', danger: true })) return
       await restoreFromBackup(backup)
-      toast('복원했습니다. 앱을 새로고침합니다', 'ok')
+      toast('되살렸습니다. 화면을 다시 엽니다', 'ok')
       setTimeout(() => location.reload(), 800)
     } catch (err) {
       toast(err.message, 'error')
@@ -467,15 +483,16 @@ function backupSection(repo) {
           lastLine.textContent = lastBackupText(repo)
           toast('백업 파일을 저장했습니다', 'ok')
         }
-      }, '백업 파일 내려받기'),
-      h('div', { class: 'grow' }, fileInput)),
-    h('p', { class: 'small muted' }, '이 백업 파일은 Pro 전환 시 그대로 업로드해 마이그레이션할 수 있습니다.'),
-    h('div', { class: 'card-title', style: { marginTop: '12px' } }, '엑셀(CSV) 내보내기'),
+      }, icon('download', { size: 17 }), '백업 파일 받기')),
+    h('div', { class: 'callout tip' },
+      h('p', {}, h('b', {}, '받은 파일은 다른 곳에도 보관하세요.'), ' 카카오톡 "나에게 보내기"나 USB에 넣어 두면, 기기가 고장 나거나 바뀌어도 이 파일 하나로 되살릴 수 있습니다.')),
+    field('백업 파일로 되살리기', fileInput, '예전에 받아 둔 백업 파일을 고르면 그때 자료로 돌아갑니다. 지금 자료는 지워집니다.'),
+        h('div', { class: 'card-title', style: { marginTop: '18px' } }, '엑셀 파일로 내려받기'),
     h('div', { class: 'row wrap' },
       h('button', { class: 'btn sm', onClick: () => exportStudentsCsv(repo) }, '원생 명단'),
       h('button', { class: 'btn sm', onClick: () => exportPaymentsCsv(repo) }, '수납 내역(12개월)'),
       h('button', { class: 'btn sm', onClick: () => exportAttendanceCsv(repo) }, '출결 기록(3개월)')),
-    h('p', { class: 'small muted' }, '세무·회계 정리나 다른 프로그램으로 옮길 때 사용하세요. 엑셀에서 바로 열립니다.'))
+    h('p', { class: 'small muted' }, '세무사에게 보내거나 따로 정리할 때 쓰세요. 엑셀에서 바로 열립니다.'))
 }
 
 function lastBackupText(repo) {
@@ -537,13 +554,13 @@ function devSection(repo) {
       scenarioSel,
       h('button', {
         class: 'btn', onClick: async () => {
-          if (!await confirmDialog('현재 데이터를 지우고 데모 데이터를 넣습니다. 계속할까요?', { danger: true, okLabel: '데모 넣기' })) return
+          if (!await confirmDialog('지금 자료를 모두 지우고 샘플 자료를 넣습니다. 계속할까요?', { danger: true, okLabel: '샘플 넣기' })) return
           const { seedDemo } = await import('../../data/seed.js')
           const r = await seedDemo(scenarioSel.value)
           out.textContent = `데모 생성 완료: 원생 ${r.students} / 반 ${r.classes} / 출결 ${r.attendance}`
           setTimeout(() => location.reload(), 900)
         }
-      }, '데모 데이터 넣기'),
+      }, '샘플 자료 넣기'),
       h('button', {
         class: 'btn', onClick: async () => {
           if (!await confirmDialog('원생 1,000명 · 출결 20만 건을 생성합니다. 기기에 따라 1~3분 걸릴 수 있습니다.', { danger: true, okLabel: '생성' })) return
@@ -556,7 +573,7 @@ function devSection(repo) {
           out.textContent = `성능 테스트 데이터 생성 완료 (${Math.round(performance.now() - t0)}ms): 원생 ${r.students} / 반 ${r.classes} / 출결 ${r.attendance.toLocaleString('ko-KR')}`
           setTimeout(() => location.reload(), 1200)
         }
-      }, '성능 테스트 데이터 (1,000명/20만건)'),
+      }, '속도 시험용 자료 (1,000명 · 20만 건)'),
       h('button', {
         class: 'btn', onClick: async () => {
           const { measure } = await import('../../data/perf.js')
@@ -564,20 +581,20 @@ function devSection(repo) {
           const rows = await measure()
           out.innerHTML = rows.map((r) => `${r.name}: <b>${r.ms}ms</b> ${r.ms < 1000 ? '✅' : '❌'}`).join('<br>')
         }
-      }, '렌더 성능 측정'),
+      }, '화면 속도 재기'),
       h('button', {
         class: 'btn danger', onClick: async () => {
-          if (!await confirmDialog('모든 데이터를 삭제합니다. 되돌릴 수 없습니다.', { danger: true, okLabel: '전체 삭제' })) return
+          if (!await confirmDialog('원생·출결·수강료 자료를 모두 지웁니다. 되돌릴 수 없으니 먼저 백업 파일을 받아 두세요.', { danger: true, okLabel: '모두 지우기' })) return
           const { clearAll } = await import('../../data/seed.js')
           await clearAll()
           location.reload()
         }
-      }, '전체 데이터 삭제')),
+      }, '자료 모두 지우기')),
     bar, out,
-    h('p', { class: 'small muted' }, '시작 마법사를 다시 보려면 아래 버튼을 누르세요.'),
+    h('p', { class: 'small muted' }, '평소에는 쓸 일이 없는 기능입니다. 처음 설정 화면을 다시 보려면 아래 버튼을 누르세요.'),
     h('button', {
       class: 'btn sm', onClick: async () => { await repo.setSetting('wizardDone', false); location.reload() }
-    }, '시작 마법사 다시 실행'))
+    }, '처음 설정 다시 하기'))
 }
 
 // ── Pro 동기화 ──────────────────────────────────────────────

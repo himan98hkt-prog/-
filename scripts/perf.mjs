@@ -87,6 +87,7 @@ await page.evaluate(async (key) => {
   })
   await db.settings.put({ key: 'wizardDone', value: true })
   await db.settings.put({ key: 'coachDone', value: true })
+  await db.settings.put({ key: 'setupDone', value: true })
   const owner = (await db.users.toArray()).find((u) => u.role === 'owner')
   if (owner) {
     const payload = JSON.stringify({ userId: owner.id, at: Date.now() })
@@ -179,8 +180,9 @@ function chromeExecutable() {
   if (!root || !existsSync(root)) return null
   const dir = readdirSync(root).filter((d) => /^chromium-\d+$/.test(d)).sort().pop()
   if (!dir) return null
-  const bin = `${root}/${dir}/chrome-linux/chrome`
-  return existsSync(bin) ? bin : null
+  // 플레이라이트 버전에 따라 폴더 이름이 chrome-linux / chrome-linux64 로 갈린다
+  const bin = ['chrome-linux', 'chrome-linux64'].map((d) => `${root}/${dir}/${d}/chrome`).find((p) => existsSync(p))
+  return bin || null
 }
 
 async function waitForServer(url, timeoutMs) {

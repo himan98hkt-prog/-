@@ -10,6 +10,8 @@ import { openBulkNotice } from './bulk-notice.js'
 import { printTable } from '../print.js'
 import { monthRange, toMonth } from '../../core/date.js'
 import { ATT_LABELS, monthlyRegister } from '../../core/register.js'
+import { progressLine } from '../../core/books.js'
+import { booksPanel } from '../books-panel.js'
 
 export async function render(root, ctx) {
   const { repo, user } = ctx
@@ -45,25 +47,24 @@ export async function render(root, ctx) {
 
   const shift = (n) => { date = addDays(date, n); paintDate(); renderClasses(); load() }
 
-  const head = h('div', { class: 'card' },
+  const head = h('div', { class: 'card toolbar' },
     h('div', { class: 'row datebar' },
-      h('button', { class: 'btn nav-prev', onClick: () => shift(-1), title: '어제' },
+      h('button', { class: 'btn nav-prev', type: 'button', onClick: () => shift(-1), title: '어제' },
         icon('chevronLeft', { size: 17 }), h('span', { class: 'lbl' }, '어제')),
       dateLabel, dateInput,
-      h('button', { class: 'btn nav-next', onClick: () => shift(1), title: '내일' },
+      h('button', { class: 'btn nav-next', type: 'button', onClick: () => shift(1), title: '내일' },
         h('span', { class: 'lbl' }, '내일'), icon('chevronRight', { size: 17 }))),
-    h('div', { class: 'row wrap', style: { marginTop: '10px' } },
-      h('label', { class: 'row small right', style: { gap: '6px', cursor: 'pointer' } },
+    h('div', { class: 'field-label', style: { margin: '16px 0 8px' } }, '어느 반인가요?'),
+    classBar,
+    h('div', { class: 'toolbar-sub' },
+      h('label', { class: 'row small', style: { gap: '7px', cursor: 'pointer' } },
         h('input', {
-          type: 'checkbox', checked: onlyToday, style: { width: 'auto' },
+          type: 'checkbox', checked: onlyToday,
           onChange: (e) => { onlyToday = e.target.checked; renderClasses() }
-        }), h('span', { class: 'muted' }, '이 요일 수업만 보기')
-      )
-    ),
-    h('div', { style: { marginTop: '12px' } }, classBar),
-    h('div', { class: 'row wrap', style: { marginTop: '10px' } },
-      canWrite ? h('button', { class: 'btn sm', onClick: notifyAbsentees }, icon('send', { size: 15 }), '오늘 결석자 일괄 안내') : null,
-      h('button', { class: 'btn sm', onClick: printRegister }, icon('printer', { size: 15 }), '월간 출석부 인쇄')
+        }), h('span', { class: 'muted' }, '오늘 수업 있는 반만 보기')),
+      h('span', { class: 'right' }),
+      canWrite ? h('button', { class: 'btn sm ghost', type: 'button', onClick: notifyAbsentees }, icon('send', { size: 15 }), '결석 안내 문자') : null,
+      h('button', { class: 'btn sm ghost', type: 'button', onClick: printRegister }, icon('printer', { size: 15 }), '출석부 인쇄')
     )
   )
 
@@ -86,7 +87,7 @@ export async function render(root, ctx) {
     if (!list.some((c) => c.id === classId)) classId = list[0]?.id || null
     clear(classBar)
     if (!list.length) {
-      classBar.append(h('span', { class: 'muted small' }, onlyToday ? '이 요일에 배정된 반이 없습니다. 체크를 해제하면 전체 반이 보입니다.' : '먼저 설정 > 반 관리에서 반을 만들어 주세요.'))
+      classBar.append(h('span', { class: 'muted small' }, onlyToday ? '이 요일에는 수업이 없습니다. 아래 "오늘 수업 있는 반만 보기"를 끄면 모든 반이 보입니다.' : '아직 반이 없습니다. "시간표" 메뉴에서 반을 먼저 만들어 주세요.'))
       return
     }
     for (const c of list) {
@@ -178,10 +179,12 @@ export async function render(root, ctx) {
           }),
           h('div', { class: 'nm grow truncate' }, s.name),
           h('button', {
-            class: 'icon-btn', style: { width: '30px', height: '30px' }, title: '자세히 (사유·보강)',
+            class: 'icon-btn', style: { width: '30px', height: '30px' }, title: '자세히 (진도 · 결석 이유 · 보강)', 'aria-label': `${s.name} 자세히`,
             onClick: (e) => { e.stopPropagation(); openDetail(s, cells.get(s.id)) }
           }, icon('more', { size: 16 }))),
-        h('div', { class: 'st' }, rec ? `${rec.status}${rec.reason_tag ? ` · ${rec.reason_tag}` : ''}` : '미체크')
+        h('div', { class: 'st' }, rec ? `${rec.status}${rec.reason_tag ? ` · ${rec.reason_tag}` : ''}` : '미체크'),
+        // 지금 하는 교재와 진도 — 레슨 들어가기 전에 "어디까지 했더라" 를 여기서 본다
+        h('div', { class: 'pg truncate' }, progressLine(s))
       )
       cell.__student = s
       cell.__record = rec || null
@@ -280,9 +283,10 @@ export async function render(root, ctx) {
 
       modal({
         title: `${student.name} · ${date}`,
+        wide: true,
         body: h('div', {},
           field('출결 상태', statusRow),
-          field('사유 태그', tagRow, '결석/지각 사유를 남기면 이탈 위험 감지와 리포트에 함께 표시됩니다'),
+          field('이유', tagRow, '결석·지각 이유를 남겨 두면 나중에 학부모 상담할 때 참고가 됩니다'),
           h('hr', { style: { border: 0, borderTop: '1px solid var(--line)', margin: '14px 0' } }),
           field('보강 예약', h('div', { class: 'row' }, makeupDate,
             h('button', {
@@ -290,7 +294,13 @@ export async function render(root, ctx) {
                 await repo.bookMakeup({ studentId: student.id, classId, date: makeupDate.value })
                 toast(`${makeupDate.value} 보강으로 예약했습니다`, 'ok')
               }
-            }, '예약')))
+            }, '예약'))),
+          h('hr', { style: { border: 0, borderTop: '1px solid var(--line)', margin: '14px 0' } }),
+          h('div', { class: 'field-label' }, '교재 · 진도'),
+          booksPanel(student.id, {
+            canWrite,
+            onChange: (fresh) => { const pg = cell.querySelector('.pg'); if (pg) pg.textContent = progressLine(fresh) }
+          })
         ),
         actions: [
           cell.__record ? {

@@ -22,24 +22,25 @@ export async function render(root, ctx) {
   const refreshBtn = h('button', {
     class: 'btn sm', onClick: async () => {
       refreshBtn.disabled = true
-      refreshBtn.textContent = '집계 중…'
+      refreshBtn.textContent = '계산하는 중…'
       for (const m of months) {
         if (cancelled) return
         await repo.recomputeMonth(m)
       }
       await hydrate(true)
       refreshBtn.disabled = false
-      refreshBtn.textContent = '집계 새로고침'
+      refreshBtn.textContent = '다시 계산'
       toast('통계를 다시 계산했습니다', 'ok')
     }
-  }, '집계 새로고침')
+  }, '다시 계산')
 
   root.append(
+    h('div', { class: 'page-head' }, h('h1', {}, '현황'), h('p', {}, '이번 달 들어온 돈·나간 돈·출석률을 한눈에 봅니다.')),
     h('div', { class: 'card' },
-      h('div', { class: 'row' }, h('div', { class: 'card-title', style: { margin: 0 } }, `${month} 현황`), note, h('span', { class: 'right' }, refreshBtn)),
+      h('div', { class: 'row' }, h('div', { class: 'card-title', style: { margin: 0 } }, `${Number(month.slice(5, 7))}월 한눈에 보기`), note, h('span', { class: 'right' }, refreshBtn)),
       statBox),
     h('div', { class: 'card', style: { marginTop: '12px' } }, h('div', { class: 'card-title' }, '최근 6개월'), chartBox),
-    h('div', { class: 'card', style: { marginTop: '12px' } }, h('div', { class: 'card-title' }, '이탈 위험 원생'), riskBox)
+    h('div', { class: 'card', style: { marginTop: '12px' } }, h('div', { class: 'card-title' }, '챙겨 볼 원생', h('span', { class: 'hint' }, '결석이 잦거나 수강료가 밀려 그만둘 수 있는 학생')), riskBox)
   )
 
   // 1차 페인트: 캐시에 있는 것만 (즉시)
@@ -67,21 +68,21 @@ export async function render(root, ctx) {
     const cur = stats[stats.length - 1] || {}
     clear(statBox)
     statBox.append(
-      stat('이번 달 수납', money(cur.collected)),
-      stat('미수금', money(cur.outstanding), cur.outstanding ? 'danger' : ''),
-      stat('순이익', money(cur.net)),
+      stat('이번 달 들어온 돈', money(cur.collected)),
+      stat('아직 못 받은 돈', money(cur.outstanding), cur.outstanding ? 'danger' : ''),
+      stat('지출 빼고 남은 돈', money(cur.net)),
       stat('출석률', cur.attendanceRate == null ? '…' : `${cur.attendanceRate}%`),
-      stat('재원생', cur.activeStudents == null ? '…' : `${cur.activeStudents}명`),
-      stat('신규 등록', cur.joined == null ? '…' : `+${cur.joined}`),
-      stat('퇴원', cur.left == null ? '…' : `-${cur.left}`, cur.left ? 'danger' : ''),
-      stat('미납 건수', cur.unpaidCount == null ? '…' : `${cur.unpaidCount}건`)
+      stat('다니는 원생', cur.activeStudents == null ? '…' : `${cur.activeStudents}명`),
+      stat('새로 온 원생', cur.joined == null ? '…' : `+${cur.joined}`),
+      stat('그만둔 원생', cur.left == null ? '…' : `-${cur.left}`, cur.left ? 'danger' : ''),
+      stat('안 낸 수강료', cur.unpaidCount == null ? '…' : `${cur.unpaidCount}건`)
     )
 
     clear(chartBox)
     const maxRev = Math.max(1, ...stats.map((s) => s?.collected || 0))
     stats.forEach((s, i) => {
       chartBox.append(h('div', { class: 'row', style: { gap: '10px', marginBottom: '8px' } },
-        h('span', { class: 'small muted', style: { width: '62px' } }, months[i].slice(2)),
+        h('span', { class: 'small muted', style: { width: '62px' } }, `${Number(months[i].slice(5, 7))}월`),
         h('div', { class: 'grow' },
           h('div', { class: 'progressbar' }, h('div', { style: { width: `${((s?.collected || 0) / maxRev) * 100}%` } }))),
         h('span', { class: 'small', style: { width: '110px', textAlign: 'right' } }, s ? formatWon(s.collected) : '집계 대기'),
@@ -120,8 +121,7 @@ export async function render(root, ctx) {
       riskBox.append(h('div', { class: 'row', style: { padding: '10px 0', borderBottom: '1px solid var(--line)' } },
         h('span', { class: `badge ${r.level === RISK_LEVEL.HIGH ? 'danger' : 'warn'}` }, r.level),
         h('div', { class: 'grow' }, h('b', {}, r.name), h('div', { class: 'small muted' }, r.reasons.join(' · '))),
-        h('span', { class: 'small muted' }, `${r.score}점`),
-        student ? h('button', { class: 'btn sm', onClick: () => openNoticeModal({ student, templateId: 'absent' }) }, '연락') : null
+                student ? h('button', { class: 'btn sm', onClick: () => openNoticeModal({ student, templateId: 'absent' }) }, '연락') : null
       ))
     }
   }
@@ -131,9 +131,9 @@ export async function render(root, ctx) {
   }
 
   function stat(label, value, kind = '') {
-    return h('div', { class: 'stat' },
-      h('div', { class: 'v', style: kind === 'danger' ? { color: 'var(--danger)' } : {} }, value),
-      h('div', { class: 'l' }, label))
+    return h('div', { class: `stat plain ${kind}` },
+      h('div', { class: 'l' }, label),
+      h('div', { class: 'v' }, value))
   }
 
   return () => { cancelled = true }

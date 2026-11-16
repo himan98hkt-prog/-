@@ -6,7 +6,7 @@ import { branding, logoDataUrl } from '../branding.js'
 import { toYmd, dowOf } from '../../core/date.js'
 import { ATT } from '../../core/attendance.js'
 import { classesOnDow } from '../../core/schedule.js'
-import { findByPin } from '../session.js'
+import { findByPin, DEFAULT_PIN } from '../session.js'
 
 export function openKiosk() {
   const date = toYmd()
@@ -19,8 +19,8 @@ export function openKiosk() {
     h('div', { class: 'panel card', style: { width: 'min(880px, 100%)' } },
       h('div', { class: 'row', style: { marginBottom: '10px' } },
         h('img', { src: logoDataUrl(192), style: { width: '44px', height: '44px', borderRadius: '12px' }, alt: '' }),
-        h('div', { class: 'grow' }, h('h2', { style: { margin: 0 } }, `${b.name} 출석 체크`), h('div', { class: 'small muted' }, `${date} · 이름을 눌러 출석하세요`)),
-        h('button', { class: 'btn', onClick: exit }, '나가기')),
+        h('div', { class: 'grow' }, h('h2', { style: { margin: 0 } }, `${b.name} 등원 체크`), h('div', { class: 'small muted' }, `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일 · 내 이름을 누르면 출석됩니다`)),
+        h('button', { class: 'btn', onClick: exit }, '닫기')),
       classBar, grid))
 
   document.body.append(cover)
@@ -62,11 +62,17 @@ export function openKiosk() {
     }
   }
 
-  // 나가기는 PIN 확인 — 원생이 임의로 종료하지 못하게
+  // 나가기는 잠금 번호 확인 — 원생이 임의로 닫지 못하게.
+  // 잠금 번호를 정한 적이 없는 1인 학원은 물어볼 번호가 없으니 한 번 더 묻기만 한다.
   function exit() {
-    const pin = prompt('관리자 PIN 4자리를 입력하세요')
+    const locked = repo.cache.users.length > 1 || repo.cache.users.some((u) => String(u.pin || DEFAULT_PIN) !== DEFAULT_PIN)
+    if (!locked) {
+      if (confirm('등원 체크 화면을 닫을까요?')) cover.remove()
+      return
+    }
+    const pin = prompt('선생님 잠금 번호 4자리를 넣어 주세요')
     if (pin === null) return
-    if (!findByPin(pin)) return toast('PIN 이 올바르지 않습니다', 'error')
+    if (!findByPin(pin)) return toast('번호가 맞지 않습니다', 'error')
     cover.remove()
   }
 }

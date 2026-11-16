@@ -63,19 +63,73 @@ export const DEMO_SCENARIOS = {
   },
   piano: {
     label: '피아노학원 (아첼 음악)',
+    category: '음악',
     academy: { name: '아첼 음악학원', brand_color: '#7a3b62', phone: '02-000-0000' },
-    customFields: PRESETS['예체능'],
+    customFields: PRESETS['음악'],
     subjects: [
-      { name: '피아노', color: '#7c3aed' },
-      { name: '이론', color: '#0891b2' }
+      { name: '피아노', color: '#7a3b62' },
+      { name: '이론', color: '#2f6d8f' }
     ],
     classNames: ['월수 4시', '월수 5시', '화목 4시', '화목 5시', '주말반'],
     fee: 150000,
     custom: (i) => ({
-      piece: ['체르니 30-12', '소나티네 4번', '인벤션 1번', '아라베스크'][i % 4],
-      book: ['하농', '체르니 30', '바이엘 하'][i % 3]
+      grade: ['바이엘', '체르니 100', '체르니 30', '체르니 40'][i % 4],
+      contest: i % 6 === 0 ? '12월 정기 발표회' : '',
+      // 교재·진도 — 원생 카드와 리포트에 그대로 실린다
+      _books: demoBooks([
+        [['바이엘 하', '62번', '60번'], ['어드벤처 1급', '3단원', '2단원']],
+        [['체르니 100', '45번', '43번'], ['하농', '8번', '7번']],
+        [['체르니 30', '12번', '11번'], ['소나티네', '4번 1악장', '3번 3악장'], ['하농', '15번', '14번']],
+        [['체르니 40', '6번', '5번'], ['인벤션', '1번', '첫 시작'], ['소나타', '모차르트 K.545', '악보 읽기']]
+      ][i % 4])
+    })
+  },
+  math: {
+    label: '수학학원 (한빛 수학)',
+    category: '교과',
+    academy: { name: '한빛 수학학원', brand_color: '#2e6b4f', phone: '02-000-0000' },
+    customFields: PRESETS['교과'],
+    subjects: [
+      { name: '수학', color: '#2e6b4f' },
+      { name: '심화', color: '#2c4a7c' }
+    ],
+    classNames: ['초등 5학년', '초등 6학년', '중1 기본', '중2 기본', '중3 심화'],
+    fee: 220000,
+    custom: (i) => ({
+      textbook: ['개념원리', '쎈', '일품'][i % 3],
+      progress: `${1 + (i % 6)}단원`,
+      last_score: 62 + ((i * 7) % 36)
+    })
+  },
+  art: {
+    label: '미술학원 (그림숲 미술)',
+    category: '예체능',
+    academy: { name: '그림숲 미술학원', brand_color: '#a8843f', phone: '02-000-0000' },
+    customFields: PRESETS['예체능'],
+    subjects: [
+      { name: '드로잉', color: '#a8843f' },
+      { name: '수채화', color: '#2f6d8f' }
+    ],
+    classNames: ['유치부', '초등 저학년', '초등 고학년', '입시 기초'],
+    fee: 140000,
+    custom: (i) => ({
+      piece: ['정물 소묘', '풍경 수채화', '인물 크로키', '상상화'][i % 4],
+      book: ['기초 드로잉', '색채 연습'][i % 2]
     })
   }
+}
+
+DEMO_SCENARIOS.english.category = '어학'
+DEMO_SCENARIOS.taekwondo.category = '체육'
+
+/** 데모용 교재 목록 — [[제목, 지금 진도, 지난주 진도], …] 를 원생 카드가 읽는 모양으로 */
+function demoBooks(rows) {
+  const today = toYmd()
+  return rows.map(([title, progress, before], n) => ({
+    id: uid('bk'), title, progress,
+    started_at: addDays(today, -(40 + n * 20)), updated_at: addDays(today, -(n * 2)), done_at: null,
+    log: [{ date: addDays(today, -(7 + n * 2)), progress: before }, { date: addDays(today, -(n * 2)), progress }]
+  }))
 }
 
 /** 시나리오 데모 데이터 (수십 명 규모) */
@@ -206,6 +260,7 @@ export async function seedDemo(key = 'english', { students = 40 } = {}) {
       { key: 'templates', value: DEFAULT_TEMPLATES },
       { key: 'reasonTags', value: DEFAULT_REASON_TAGS },
       { key: 'demo', value: key },
+      { key: 'category', value: sc.category || '' },
       { key: 'wizardDone', value: true }
     ])
   })

@@ -2,13 +2,14 @@
 
 import { h, modal, field, toast, copyText } from '../dom.js'
 import * as repo from '../../data/repo.js'
-import { DEFAULT_TEMPLATES, renderTemplate, missingVars } from '../../core/templates.js'
+import { withDefaults, renderTemplate, missingVars } from '../../core/templates.js'
+import { progressLine } from '../../core/books.js'
 import { toMonth, toYmd, monthRange } from '../../core/date.js'
 import { formatWon } from '../../core/fees.js'
 import { summarize } from '../../core/attendance.js'
 
 export async function openNoticeModal({ student, templateId = 'absent', extra = {} }) {
-  const templates = repo.getSetting('templates', DEFAULT_TEMPLATES)
+  const templates = withDefaults(repo.getSetting('templates'))
   const branding = repo.getSetting('branding') || {}
   const month = extra.month || toMonth(toYmd())
   const cls = repo.studentClasses(student.id)
@@ -26,6 +27,7 @@ export async function openNoticeModal({ student, templateId = 'absent', extra = 
     '{날짜}': extra.date || toYmd(),
     '{출석률}': String(att.rate),
     '{강사}': teacher?.name || '',
+    '{진도}': progressLine(student),
     ...extra.vars
   }
 
@@ -47,11 +49,11 @@ export async function openNoticeModal({ student, templateId = 'absent', extra = 
 
   modal({
     title: `${student.name} 알림 문구`,
-    body: h('div', {}, field('템플릿', chips), field('보낼 문구', output), warn,
+    body: h('div', {}, field('어떤 안내인가요', chips), field('보낼 문구', output), warn,
       h('p', { class: 'small muted' }, '문구를 복사해 문자·카톡에 붙여넣어 발송하세요. 발송 이력은 자동으로 기록됩니다.')),
     actions: [
       {
-        label: '공유', keepOpen: true, onClick: async () => {
+        label: '다른 앱으로 보내기', keepOpen: true, onClick: async () => {
           if (navigator.share) {
             await navigator.share({ text: output.value })
             await logNotice()

@@ -33,11 +33,23 @@ export function findByPin(pin) {
   return cache.users.find((u) => String(u.pin || '') === String(pin))
 }
 
-/** Lite + 사용자 1명(원장)뿐이면 로그인 화면을 건너뛴다 */
+export const DEFAULT_PIN = '0000'
+
+/**
+ * 혼자 쓰는 원장님에게는 잠금 화면을 띄우지 않는다.
+ *
+ * 잠금이 뜨는 조건은 "지킬 것이 있을 때" 뿐이다:
+ *   · 계정이 둘 이상이다(강사·데스크가 있다) → 누가 쓰는지 알아야 한다
+ *   · 원장이 잠금 번호를 직접 정했다(기본값 0000 이 아니다) → 잠그고 싶다는 뜻이다
+ * 기본값 0000 을 매번 누르게 하는 것은 보안이 아니라 번거로움일 뿐이라 건너뛴다.
+ * (Pro 도 같다. 예전에는 Pro 면 무조건 물었는데, 공용키가 Pro 로 열리면서 1인 학원까지 매번 묻게 됐다)
+ */
 export function autoLoginIfSolo() {
+  if (cache.users.length !== 1) return null
+  const [only] = cache.users
+  if (only.role !== 'owner') return null
   const plan = getSetting('license')?.plan || 'lite'
-  if (plan === 'pro') return null
-  const owners = cache.users.filter((u) => u.role === 'owner')
-  if (cache.users.length === 1 && owners.length === 1) return login(owners[0], { remember: true })
-  return null
+  const pinSet = String(only.pin || DEFAULT_PIN) !== DEFAULT_PIN
+  if (pinSet && plan === 'pro') return null
+  return login(only, { remember: true })
 }

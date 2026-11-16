@@ -1,7 +1,7 @@
 {
   "name": "academy-note",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "학원 관리노트 - 전 계열 학원/공부방용 PWA (Lite: IndexedDB / Pro: Supabase)",
   "scripts": {
@@ -13,7 +13,9 @@
     "perf": "node scripts/perf.mjs",
     "smoke": "node scripts/smoke.mjs",
     "demo": "node scripts/singlefile.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "plugin": "node scripts/build-plugin.mjs",
+    "test:plugin": "php integration/funnelmoa/tests/run.php"
   },
   "dependencies": {
     "dexie": "^4.0.10",

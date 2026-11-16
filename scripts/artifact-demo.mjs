@@ -13,11 +13,11 @@ const script = src.match(/<script type="module">[\s\S]*?<\/script>/)?.[0] || ''
 if (!script) throw new Error('인라인 스크립트를 찾지 못했습니다. 먼저 npm run demo 를 실행하세요.')
 
 const page = `<title>학원 관리노트</title>
-<meta name="theme-color" content="#2563eb" />
+<meta name="theme-color" content="#2c4a7c" />
 ${style}
 <style>
   /* Artifact 뷰어는 자체 배경을 칠하므로 앱 배경을 명시한다 */
-  body { background: var(--bg, #f5f6f8); margin: 0; }
+  body { background: var(--paper, #f7f4ee); margin: 0; }
 </style>
 <div id="app"></div>
 ${script}

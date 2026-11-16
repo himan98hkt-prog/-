@@ -1,182 +1,212 @@
-// 시작 마법사 — 학원명/계열/브랜드/과목/원장 PIN 을 3분 안에 끝낸다.
+// 시작 마법사 — 처음 한 번, 1분 안에 끝낸다.
+//
+// 묻는 것은 세 가지뿐이다: 어떻게 시작할지 · 학원 이름과 종류 · 색.
+// 나머지(과목, 학습 항목, 안내 문구)는 고른 종류에 맞춰 알아서 깔아 준다.
+// 잠금 번호(PIN)는 여기서 묻지 않는다 — 혼자 쓰는 원장님에게는 걸림돌이라 설정에서 원할 때 켠다.
 
 import { h, clear, toast } from '../dom.js'
+import { icon } from '../icons.js'
 import * as repo from '../../data/repo.js'
-import { saveBranding, applyBranding } from '../branding.js'
+import { applyBranding } from '../branding.js'
+import { login } from '../session.js'
 import { PRESETS } from '../../core/customfields.js'
 import { DEFAULT_TEMPLATES } from '../../core/templates.js'
 import { DEFAULT_REASON_TAGS } from '../../core/attendance.js'
 import { uid } from '../../core/id.js'
 
-const CATEGORIES = [
-  { key: '교과', label: '교과 (수학·영어·국어)', subjects: ['수학', '영어', '국어'] },
-  { key: '어학', label: '어학원', subjects: ['Reading', 'Speaking', 'Grammar'] },
-  { key: '예체능', label: '예체능 (음악·미술)', subjects: ['피아노', '미술'] },
-  { key: '체육', label: '체육 (태권도·주짓수)', subjects: ['품새', '겨루기'] },
-  { key: '공부방', label: '공부방 · 스터디카페', subjects: ['자기주도'] }
+// 구매하시는 분이 대부분 피아노 원장님이라 음악을 맨 앞에 둔다
+export const CATEGORIES = [
+  { key: '음악', label: '피아노 · 음악', icon: 'music', subjects: ['피아노'], demo: 'piano' },
+  { key: '예체능', label: '미술', icon: 'brush', subjects: ['미술'], demo: 'art' },
+  { key: '어학', label: '영어 · 어학', icon: 'chat', subjects: ['영어'], demo: 'english' },
+  { key: '교과', label: '수학 · 교과', icon: 'book', subjects: ['수학'], demo: 'math' },
+  { key: '체육', label: '태권도 · 체육', icon: 'medal', subjects: ['태권도'], demo: 'taekwondo' },
+  { key: '공부방', label: '공부방', icon: 'home', subjects: ['자기주도'], demo: 'math' }
 ]
+
 // 간판·현수막에 인쇄해도 촌스럽지 않은 톤으로 골랐다 (형광·원색 제외)
 const COLORS = [
   { hex: '#2c4a7c', name: '남색' },
-  { hex: '#2f6d8f', name: '청록' },
+  { hex: '#7a3b62', name: '자주' },
   { hex: '#2e6b4f', name: '초록' },
   { hex: '#a8843f', name: '금색' },
   { hex: '#a63a3a', name: '진홍' },
-  { hex: '#7a3b62', name: '자주' },
+  { hex: '#2f6d8f', name: '청록' },
   { hex: '#5b4b8a', name: '보라' },
   { hex: '#33302c', name: '먹색' }
 ]
 
-export function openWizard() {
+/**
+ * @param {{skipIntro?:boolean}} opts  샘플을 둘러본 뒤 "내 학원으로 시작" 을 누른 경우 첫 질문을 건너뛴다
+ */
+export function openWizard({ skipIntro = false } = {}) {
   return new Promise((resolve) => {
     // 피아노 관리노트의 '학원명 방식' 키로 인증했다면 그 이름을 그대로 채워 준다
     const state = {
+      mode: skipIntro ? 'mine' : null,
       name: repo.getSetting('pendingAcademyName') || '',
-      category: '교과', color: COLORS[0].hex, pin: '0000', demo: false
+      category: CATEGORIES[0].key,
+      color: COLORS[0].hex
     }
-    let step = 0
+    let step = skipIntro ? 1 : 0
     const body = h('div')
-    const cover = h('div', { class: 'cover' }, h('div', { class: 'panel card' }, body))
+    const cover = h('div', { class: 'cover wizard' }, h('div', { class: 'panel card' }, body))
     document.body.append(cover)
 
-    const steps = [stepName, stepBrand, stepSubjects, stepAccount]
+    const flow = () => (state.mode === 'sample' ? [stepStart, stepSample] : [stepStart, stepName, stepColor])
 
     function paint() {
+      const steps = flow()
       clear(body)
       body.append(
-        h('div', { class: 'small muted', style: { marginBottom: '6px' } }, `${step + 1} / ${steps.length}`),
-        steps[step]()
-      )
+        h('div', { class: 'wiz-steps' }, ...steps.map((_, i) => h('i', { class: i <= step ? 'on' : '' }))),
+        steps[step]())
     }
 
     function nav(onNext, nextLabel = '다음') {
-      return h('div', { class: 'row', style: { marginTop: '16px' } },
-        step > 0 ? h('button', { class: 'btn', onClick: () => { step--; paint() } }, '이전') : null,
-        h('button', { class: 'btn primary right', onClick: onNext }, nextLabel))
+      const canBack = step > (skipIntro ? 1 : 0)
+      return h('div', { class: 'wiz-nav' },
+        canBack ? h('button', { class: 'btn ghost', type: 'button', onClick: () => { step--; paint() } }, icon('chevronLeft', { size: 17 }), '이전') : h('span'),
+        h('button', { class: 'btn primary lg', type: 'button', dataset: { wiz: 'next' }, onClick: onNext }, nextLabel))
     }
 
-    function stepName() {
-      const input = h('input', { type: 'text', value: state.name, placeholder: '예) 아라 잉글리시' })
-      const catSel = h('div', { class: 'row wrap' })
-      const paintCats = () => {
-        clear(catSel)
+    function categoryTiles() {
+      const box = h('div', { class: 'tiles' })
+      const paintTiles = () => {
+        clear(box)
         for (const c of CATEGORIES) {
-          catSel.append(h('button', {
-            class: `chip ${state.category === c.key ? 'active' : ''}`,
-            onClick: () => { state.category = c.key; paintCats() }
-          }, c.label))
+          box.append(h('button', {
+            class: `tile ${state.category === c.key ? 'on' : ''}`, type: 'button', dataset: { cat: c.key },
+            onClick: () => { state.category = c.key; paintTiles() }
+          }, icon(c.icon, { size: 24 }), h('span', {}, c.label)))
         }
       }
-      paintCats()
-      return h('div', {},
-        h('h2', {}, '학원 관리노트 시작하기'),
-        h('p', { class: 'muted small' }, '학원명과 계열만 정하면 나머지는 자동으로 준비됩니다.'),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, '학원명'), input),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, '계열'), catSel),
-        nav(() => {
-          if (!input.value.trim()) return toast('학원명을 입력해 주세요', 'error')
-          state.name = input.value.trim()
-          step++
-          paint()
-        })
-      )
+      paintTiles()
+      return box
     }
 
-    function stepBrand() {
-      const colorRow = h('div', { class: 'row wrap' })
+    // 0) 어떻게 시작할까요
+    function stepStart() {
+      const choice = (mode, ico, title, desc, tag) => h('button', {
+        class: 'choice', type: 'button', dataset: { wiz: mode },
+        onClick: () => { state.mode = mode; step = 1; paint() }
+      },
+        h('span', { class: 'ico' }, icon(ico, { size: 24 })),
+        h('span', { class: 'grow' },
+          h('b', {}, title, tag ? h('em', { class: 'tag' }, tag) : null),
+          h('span', { class: 'desc' }, desc)),
+        icon('chevronRight', { size: 18 }))
+
+      return h('div', {},
+        h('h2', {}, '어떻게 시작할까요?'),
+        h('p', { class: 'muted' }, '둘 중 편한 쪽을 고르세요. 나중에 언제든 바꿀 수 있습니다.'),
+        choice('sample', 'sparkle', '샘플 학원으로 먼저 둘러보기',
+          '원생 24명이 들어 있는 연습용 학원입니다. 마음껏 눌러 보고, 다 보면 지우고 시작합니다.', '처음이라면'),
+        choice('mine', 'edit', '내 학원으로 바로 시작하기',
+          '학원 이름만 정하면 됩니다. 1분이면 끝납니다.'))
+    }
+
+    // 1-a) 샘플 — 어떤 학원인지만 고른다
+    function stepSample() {
+      return h('div', {},
+        h('h2', {}, '어떤 학원을 보여 드릴까요?'),
+        h('p', { class: 'muted' }, '원장님 학원과 가장 비슷한 것을 고르세요.'),
+        categoryTiles(),
+        nav(startSample, '샘플 학원 열기'))
+    }
+
+    // 1-b) 내 학원 — 이름과 종류
+    function stepName() {
+      const input = h('input', {
+        type: 'text', value: state.name, placeholder: '예) 아첼 음악학원', maxLength: 30,
+        dataset: { wiz: 'name' }, style: { fontSize: '1.1em', height: '54px' }
+      })
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') next() })
+      setTimeout(() => input.focus(), 30)
+
+      function next() {
+        if (!input.value.trim()) { toast('학원 이름을 넣어 주세요', 'error'); input.focus(); return }
+        state.name = input.value.trim()
+        step++
+        paint()
+      }
+
+      return h('div', {},
+        h('h2', {}, '학원 이름을 알려 주세요'),
+        h('p', { class: 'muted' }, '화면 맨 위와 학부모에게 보내는 리포트·영수증에 들어갑니다.'),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, '학원 이름'), input),
+        h('div', { class: 'field' },
+          h('span', { class: 'field-label' }, '어떤 학원인가요?'),
+          categoryTiles(),
+          h('div', { class: 'field-hint' }, '고른 종류에 맞춰 과목과 기록 항목을 미리 준비해 드립니다.')),
+        nav(next))
+    }
+
+    // 2) 색
+    function stepColor() {
+      const row = h('div', { class: 'swatches' })
       const paintColors = () => {
-        clear(colorRow)
+        clear(row)
         for (const c of COLORS) {
-          colorRow.append(h('button', {
-            class: `swatch ${state.color === c.hex ? 'on' : ''}`,
-            style: { background: c.hex },
-            title: c.name,
-            onClick: () => { state.color = c.hex; document.documentElement.style.setProperty('--brand', c.hex); paintColors() }
+          row.append(h('button', {
+            class: `swatch ${state.color === c.hex ? 'on' : ''}`, type: 'button',
+            style: { background: c.hex }, title: c.name,
+            onClick: () => {
+              state.color = c.hex
+              document.documentElement.style.setProperty('--brand', c.hex)
+              paintColors()
+            }
           }, h('span', { class: 'swatch-name' }, c.name)))
         }
       }
       paintColors()
       return h('div', {},
-        h('h2', {}, '브랜드 컬러'),
-        h('p', { class: 'muted small' }, '앱 헤더, 리포트카드, 설치 아이콘에 이 색이 쓰입니다. 로고는 나중에 설정에서 올릴 수 있습니다.'),
-        colorRow,
-        nav(() => { step++; paint() })
-      )
-    }
-
-    function stepSubjects() {
-      const cat = CATEGORIES.find((c) => c.key === state.category)
-      const box = h('div', { class: 'row wrap' })
-      const chosen = new Set(cat.subjects)
-      const custom = h('input', { type: 'text', placeholder: '과목 추가 후 Enter' })
-      const paintSubs = () => {
-        clear(box)
-        for (const s of chosen) {
-          box.append(h('span', { class: 'chip active', onClick: () => { chosen.delete(s); paintSubs() } }, `${s} ✕`))
-        }
-      }
-      custom.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' || !custom.value.trim()) return
-        chosen.add(custom.value.trim())
-        custom.value = ''
-        paintSubs()
-      })
-      paintSubs()
-      return h('div', {},
-        h('h2', {}, '과목'),
-        h('p', { class: 'muted small' }, `${cat.label} 기본 과목입니다. 지우거나 추가할 수 있습니다.`),
-        box, custom,
-        h('label', { class: 'row small', style: { gap: '6px', marginTop: '12px' } },
-          h('input', { type: 'checkbox', style: { width: 'auto' }, onChange: (e) => { state.demo = e.target.checked } }),
-          '샘플 원생 데이터도 함께 넣기 (연습용, 나중에 삭제 가능)'),
-        nav(() => { state.subjects = [...chosen]; step++; paint() })
-      )
-    }
-
-    function stepAccount() {
-      const pin = h('input', { type: 'text', value: '0000', maxLength: 4, inputMode: 'numeric' })
-      return h('div', {},
-        h('h2', {}, '원장 PIN'),
-        h('p', { class: 'muted small' }, '앱을 열 때 쓰는 4자리 숫자입니다. 강사·데스크 계정은 설정에서 추가하세요.'),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'PIN 4자리'), pin),
-        nav(async () => {
-          if (!/^\d{4}$/.test(pin.value)) return toast('숫자 4자리를 입력해 주세요', 'error')
-          state.pin = pin.value
-          await finish()
-        }, '시작하기')
-      )
+        h('h2', {}, `${state.name}의 색을 골라 주세요`),
+        h('p', { class: 'muted' }, '버튼과 리포트에 이 색이 쓰입니다. 마음에 안 들면 설정에서 바꿀 수 있습니다.'),
+        row,
+        nav(finish, '시작하기'))
     }
 
     async function finish() {
+      const cat = CATEGORIES.find((c) => c.key === state.category) || CATEGORIES[0]
       await repo.setSetting('branding', { name: state.name, brand_color: state.color, logo: null, phone: '' })
-      await repo.setSetting('customFields', PRESETS[state.category] || [])
+      await repo.setSetting('customFields', PRESETS[cat.key] || [])
       await repo.setSetting('templates', DEFAULT_TEMPLATES)
       await repo.setSetting('reasonTags', DEFAULT_REASON_TAGS)
-      await repo.setSetting('category', state.category)
+      await repo.setSetting('category', cat.key)
+      await repo.setSetting('pendingAcademyName', null)
 
       if (!repo.cache.users.length) {
-        await repo.put('users', { id: uid('u'), name: '원장', role: 'owner', pin: state.pin })
+        await repo.put('users', { id: uid('u'), name: '원장', role: 'owner', pin: '0000' })
       }
-      for (const name of state.subjects || []) {
+      for (const name of cat.subjects) {
         if (repo.cache.subjects.some((s) => s.name === name)) continue
         await repo.put('subjects', { name, color: state.color })
       }
       await repo.setSetting('wizardDone', true)
       applyBranding()
 
-      if (state.demo) {
-        const { seedDemo } = await import('../../data/seed.js')
-        const map = { 교과: 'english', 어학: 'english', 예체능: 'piano', 체육: 'taekwondo', 공부방: 'english' }
-        await seedDemo(map[state.category] || 'english', { students: 24 })
-        await repo.setSetting('branding', { name: state.name, brand_color: state.color, logo: null, phone: '' })
-        await repo.setSetting('wizardDone', true)
-        location.reload()
-        return
-      }
-
       cover.remove()
-      toast('준비 완료! 시간표 탭에서 반을 만들어 보세요', 'ok')
       resolve(state)
+    }
+
+    /** 샘플 학원을 깔고 원장으로 바로 들어간다 (잠금 번호를 묻지 않는다) */
+    async function startSample() {
+      const cat = CATEGORIES.find((c) => c.key === state.category) || CATEGORIES[0]
+      clear(body)
+      body.append(h('div', { class: 'empty' },
+        h('div', { class: 'emoji' }, icon('sparkle', { size: 26 })),
+        h('b', {}, '샘플 학원을 준비하고 있습니다'),
+        h('p', {}, '잠시만 기다려 주세요…')))
+
+      const { seedDemo } = await import('../../data/seed.js')
+      await seedDemo(cat.demo, { students: 24 })
+      await repo.init()
+      await repo.setSetting('demoMode', true)
+      const owner = repo.cache.users.find((u) => u.role === 'owner')
+      if (owner) login(owner, { remember: true })
+      location.hash = ''
+      location.reload()
     }
 
     paint()
