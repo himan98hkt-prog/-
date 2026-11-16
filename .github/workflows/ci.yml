@@ -34,6 +34,11 @@ jobs:
       - name: 프로덕션 빌드
         run: npm run build
 
+      - name: 퍼널모아 플러그인 묶기
+        run: |
+          npm run plugin
+          test -f dist-plugin/academy-note-keys.zip || { echo "::error::플러그인 zip 이 만들어지지 않았습니다"; exit 1; }
+
       - name: 배포 산출물 확인
         run: |
           # 판매 대상 3종(Pro·Lite·키 발급기)이 모두 나왔는지

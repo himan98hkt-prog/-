@@ -11,3 +11,4 @@ perf-report.json
 screenshots
 *.zip
 dist-demo
+dist-plugin
