@@ -1,6 +1,6 @@
 // 키오스크 자가 체크인 — 학원 입구 태블릿용. 원생이 자기 이름을 눌러 출석 처리.
 
-import { h, clear, toast } from '../dom.js'
+import { h, clear, toast, modal, confirmDialog } from '../dom.js'
 import * as repo from '../../data/repo.js'
 import { branding, logoDataUrl } from '../branding.js'
 import { toYmd, dowOf } from '../../core/date.js'
@@ -62,17 +62,30 @@ export function openKiosk() {
     }
   }
 
-  // 나가기는 잠금 번호 확인 — 원생이 임의로 닫지 못하게.
+  // 닫을 때는 잠금 번호 확인 — 원생이 임의로 닫지 못하게.
   // 잠금 번호를 정한 적이 없는 1인 학원은 물어볼 번호가 없으니 한 번 더 묻기만 한다.
-  function exit() {
+  // (브라우저 기본 창(confirm/prompt)은 뜨지 않는 환경이 있어 앱 안의 창으로 묻는다)
+  async function exit() {
     const locked = repo.cache.users.length > 1 || repo.cache.users.some((u) => String(u.pin || DEFAULT_PIN) !== DEFAULT_PIN)
     if (!locked) {
-      if (confirm('등원 체크 화면을 닫을까요?')) cover.remove()
+      if (await confirmDialog('등원 체크 화면을 닫을까요?', { title: '닫기', okLabel: '닫기' })) cover.remove()
       return
     }
-    const pin = prompt('선생님 잠금 번호 4자리를 넣어 주세요')
-    if (pin === null) return
-    if (!findByPin(pin)) return toast('번호가 맞지 않습니다', 'error')
-    cover.remove()
+    const pin = h('input', {
+      type: 'password', inputMode: 'numeric', maxLength: 4, autocomplete: 'off', placeholder: '●●●●',
+      'aria-label': '잠금 번호', style: { fontSize: '1.4em', textAlign: 'center', letterSpacing: '.4em' }
+    })
+    const tryClose = (close) => {
+      if (!findByPin(pin.value)) { toast('번호가 맞지 않습니다', 'error'); pin.value = ''; pin.focus(); return false }
+      close()
+      cover.remove()
+    }
+    const dialog = modal({
+      title: '선생님 확인',
+      body: h('div', {}, h('p', { class: 'muted small', style: { marginTop: 0 } }, '선생님 잠금 번호 4자리를 넣으면 닫힙니다.'), pin),
+      actions: [{ label: '취소' }, { label: '닫기', kind: 'primary', keepOpen: true, onClick: (close) => tryClose(close) }]
+    })
+    pin.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryClose(dialog.close) })
+    setTimeout(() => pin.focus(), 50)
   }
 }

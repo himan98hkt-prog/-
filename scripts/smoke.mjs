@@ -528,6 +528,15 @@ await page.waitForSelector('.setup')
 check('내 학원으로: 빈 학원이 열리고 시작 가이드가 안내한다',
   (await page.textContent('.app-header .title')) === '우리 피아노' && !(await page.$('[data-bar="demo"]')))
 
+// 등원 체크 화면 — 열고 닫기 (브라우저 기본 창이 뜨지 않는 환경에서도 닫을 수 있어야 한다)
+if (await page.$('.coach')) await page.click('.coach .btn.ghost')   // 처음 한 번 뜨는 안내는 건너뛴다
+await page.click('.app-rail [data-act="kiosk"]')
+await page.waitForSelector('.cover.kiosk')
+await page.click('.cover.kiosk button:has-text("닫기")')
+await page.click('.modal-actions .btn.primary')
+await page.waitForSelector('.cover.kiosk', { state: 'detached' })
+check('등원 체크: 앱 안의 확인 창으로 닫을 수 있다 (혼자 쓰면 번호를 묻지 않는다)', !(await page.$('.cover.kiosk')))
+
 // 체험이 끝난 사람 — 자료는 남아 있고, 구매 안내가 먼저 보인다
 await page.evaluate(async () => {
   const { db } = await import('/src/data/db.js')
