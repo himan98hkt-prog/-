@@ -60,7 +60,7 @@ export async function render(root, ctx) {
       h('label', { class: 'row small', style: { gap: '7px', cursor: 'pointer' } },
         h('input', {
           type: 'checkbox', checked: onlyToday,
-          onChange: (e) => { onlyToday = e.target.checked; renderClasses() }
+          onChange: (e) => { onlyToday = e.target.checked; renderClasses(); load() }
         }), h('span', { class: 'muted' }, '오늘 수업 있는 반만 보기')),
       h('span', { class: 'right' }),
       canWrite ? h('button', { class: 'btn sm ghost', type: 'button', onClick: notifyAbsentees }, icon('send', { size: 15 }), '결석 안내 문자') : null,

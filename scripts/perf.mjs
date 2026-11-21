@@ -6,11 +6,11 @@
 //   node scripts/perf.mjs --students 300 --attendance 50000
 //   node scripts/perf.mjs --keep          측정 후 브라우저 유지(디버깅)
 
-import { spawn } from 'node:child_process'
-import { writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium } from 'playwright'
+import { startDevServer } from './lib/dev-server.mjs'
+import { openContext } from './lib/browser.mjs'
 import { generateKey } from '../src/core/license.js'
 
 const args = process.argv.slice(2)
@@ -34,20 +34,14 @@ const PROFILE_DIR = join(tmpdir(), 'academy-note-perf-profile')
 const PORT = opt('port', 5199)
 const VIEWS = ['today', 'attendance', 'students', 'payments', 'timetable', 'counsel', 'expenses', 'dashboard', 'settings']
 
-// detached: npx 가 vite 를 자식으로 또 띄우기 때문에, 프로세스 그룹째 종료해야
-// 측정이 끝난 뒤 dev 서버가 고아 프로세스로 남지 않는다
-const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
-const kill = () => { try { process.kill(-server.pid, 'SIGTERM') } catch {} }
-process.on('exit', kill)
+const devServer = await startDevServer(PORT)
+const kill = () => { devServer.close().catch(() => {}) }
 process.on('SIGINT', () => { kill(); process.exit(130) })
-
-await waitForServer(`http://localhost:${PORT}/lite.html`, 30000)
 
 // 이 환경에는 Chromium 이 미리 설치돼 있다(PLAYWRIGHT_BROWSERS_PATH). 버전이 다르면 경로로 직접 지정한다.
 // 영속 프로필을 쓰면 IndexedDB 가 실행 간에 유지돼 --skip-seed 로 재측정이 가능하다
-const context = await chromium.launchPersistentContext(PROFILE_DIR, {
-  viewport: { width: 1280, height: 900 },
-  ...(chromeExecutable() ? { executablePath: chromeExecutable() } : {})
+const context = await openContext(PROFILE_DIR, {
+  viewport: { width: 1280, height: 900 }
 })
 const page = context.pages()[0] || await context.newPage()
 page.on('console', (m) => { if (m.type() === 'error') console.error('  [browser]', m.text()) })
@@ -170,29 +164,5 @@ writeFileSync('perf-report.json', JSON.stringify({
 console.log('  상세 결과: perf-report.json')
 
 if (!args.includes('--keep')) await context.close()
-kill()
+await devServer.close()
 process.exit(failed.length ? 1 : 0)
-
-function chromeExecutable() {
-  const explicit = process.env.CHROMIUM_PATH
-  if (explicit && existsSync(explicit)) return explicit
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH
-  if (!root || !existsSync(root)) return null
-  const dir = readdirSync(root).filter((d) => /^chromium-\d+$/.test(d)).sort().pop()
-  if (!dir) return null
-  // 플레이라이트 버전에 따라 폴더 이름이 chrome-linux / chrome-linux64 로 갈린다
-  const bin = ['chrome-linux', 'chrome-linux64'].map((d) => `${root}/${dir}/${d}/chrome`).find((p) => existsSync(p))
-  return bin || null
-}
-
-async function waitForServer(url, timeoutMs) {
-  const until = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      const res = await fetch(url)
-      if (res.ok) return
-    } catch {}
-    if (Date.now() > until) throw new Error(`개발 서버가 뜨지 않았습니다: ${url}`)
-    await new Promise((r) => setTimeout(r, 300))
-  }
-}

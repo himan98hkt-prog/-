@@ -2,11 +2,11 @@
 // 데모 데이터를 넣고 각 화면을 캡처한다 — 결과물 확인용 스크린샷 생성기.
 //   node scripts/shots.mjs [시나리오: english|taekwondo|piano]
 
-import { spawn } from 'node:child_process'
-import { existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium } from 'playwright'
+import { startDevServer } from './lib/dev-server.mjs'
+import { openContext } from './lib/browser.mjs'
 
 const SCENARIO = process.argv[2] || 'english'
 const PORT = 5197
@@ -15,15 +15,12 @@ const PROFILE_DIR = join(tmpdir(), `academy-note-shots-${SCENARIO}`)
 
 mkdirSync(OUT, { recursive: true })
 
-const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
-const kill = () => { try { process.kill(-server.pid, 'SIGTERM') } catch {} }
-process.on('exit', kill)
-
-await waitForServer(`http://localhost:${PORT}/lite.html`, 30000)
-const context = await chromium.launchPersistentContext(PROFILE_DIR, {
+const devServer = await startDevServer(PORT)
+const kill = () => { devServer.close().catch(() => {}) }
+process.on('SIGINT', () => { kill(); process.exit(130) })
+const context = await openContext(PROFILE_DIR, {
   viewport: { width: 1280, height: 900 },
-  deviceScaleFactor: 2,
-  ...(chromeExecutable() ? { executablePath: chromeExecutable() } : {})
+  deviceScaleFactor: 2
 })
 const page = context.pages()[0] || await context.newPage()
 
@@ -195,6 +192,9 @@ console.log(`  ✓ ${SCENARIO}-12-모바일-오늘.png`)
 
 // 모바일 출결 — 실제로 가장 많이 쓰는 화면
 await mobile.click('.app-nav button[data-view="attendance"]')
+await mobile.waitForSelector('.att-cell, .toolbar-sub input[type=checkbox]')
+// 샘플 학원은 평일에만 수업이 있다 — 주말에 찍으면 모든 반을 보이게 한다
+if (!(await mobile.$('.att-cell'))) await mobile.uncheck('.toolbar-sub input[type=checkbox]')
 await mobile.waitForSelector('.att-cell')
 await mobile.waitForTimeout(400)
 await mobile.screenshot({ path: `${OUT}/${SCENARIO}-13-모바일-출결.png` })
@@ -208,23 +208,4 @@ await mobile.screenshot({ path: `${OUT}/${SCENARIO}-14-모바일-더보기.png` 
 console.log(`  ✓ ${SCENARIO}-14-모바일-더보기.png`)
 
 await context.close()
-kill()
-
-function chromeExecutable() {
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH
-  if (!root || !existsSync(root)) return null
-  const dir = readdirSync(root).filter((d) => /^chromium-\d+$/.test(d)).sort().pop()
-  if (!dir) return null
-  // 플레이라이트 버전에 따라 폴더 이름이 chrome-linux / chrome-linux64 로 갈린다
-  const bin = ['chrome-linux', 'chrome-linux64'].map((d) => `${root}/${dir}/${d}/chrome`).find((p) => existsSync(p))
-  return bin || null
-}
-
-async function waitForServer(url, timeoutMs) {
-  const until = Date.now() + timeoutMs
-  for (;;) {
-    try { if ((await fetch(url)).ok) return } catch {}
-    if (Date.now() > until) throw new Error(`개발 서버가 뜨지 않았습니다: ${url}`)
-    await new Promise((r) => setTimeout(r, 300))
-  }
-}
+await devServer.close()

@@ -6,11 +6,11 @@
 //   5) 백업 → 초기화 → 복원 왕복
 //   6) 인증키(시디키) 게이트: 키 없이는 못 들어가고, 발급한 키로 열린다
 
-import { spawn } from 'node:child_process'
-import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium } from 'playwright'
+import { startDevServer } from './lib/dev-server.mjs'
+import { openContext } from './lib/browser.mjs'
 
 const PORT = 5198
 const PROFILE_DIR = join(tmpdir(), 'academy-note-smoke-profile')
@@ -19,19 +19,14 @@ const KEY_INPUT = '.cover.activation [data-act="key"]'
 const NAME_INPUT = '.cover.activation [data-act="name"]'
 const SUBMIT = '.cover.activation [data-act="submit"]'
 
-// detached: npx 가 vite 를 자식으로 또 띄우기 때문에, 프로세스 그룹째 종료해야
-// 측정이 끝난 뒤 dev 서버가 고아 프로세스로 남지 않는다
 // 인증 게이트를 매번 처음 상태에서 확인하려면 프로필(=IndexedDB)이 깨끗해야 한다
 rmSync(PROFILE_DIR, { recursive: true, force: true })
 
-const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
-const kill = () => { try { process.kill(-server.pid, 'SIGTERM') } catch {} }
-process.on('exit', kill)
-
-await waitForServer(`http://localhost:${PORT}/lite.html`, 30000)
-const context = await chromium.launchPersistentContext(PROFILE_DIR, {
-  viewport: { width: 1280, height: 900 },
-  ...(chromeExecutable() ? { executablePath: chromeExecutable() } : {})
+const devServer = await startDevServer(PORT)
+const kill = () => { devServer.close().catch(() => {}) }
+process.on('SIGINT', () => { kill(); process.exit(130) })
+const context = await openContext(PROFILE_DIR, {
+  viewport: { width: 1280, height: 900 }
 })
 const page = context.pages()[0] || await context.newPage()
 page.setDefaultTimeout(60000)
@@ -168,7 +163,7 @@ check('영어학원: 원생 목록 렌더', info.students > 0)
 
 // 출결 체크(첫 원생 탭)
 await goTo('attendance')
-await page.waitForSelector('.att-cell')
+await showBoard()
 const before = await page.getAttribute('.att-cell', 'data-status')
 await page.click('.att-cell')
 await page.waitForFunction((b) => document.querySelector('.att-cell')?.dataset.status !== b, before)
@@ -454,7 +449,11 @@ check('교재·진도: 레슨 안내 문자에 진도가 채워진다', lesson.i
 await page.keyboard.press('Escape')
 
 await goTo('attendance')
-await page.waitForSelector('.att-cell')
+await showBoard()
+// "오늘 수업 있는 반만 보기"를 끄면 그 자리에서 출석 칸이 보여야 한다 (예전에는 반을 다시 눌러야 보였다)
+await page.uncheck('.toolbar-sub input[type=checkbox]')
+const boardAfterToggle = await page.waitForSelector('.att-cell', { timeout: 5000 }).then(() => true, () => false)
+check('출결: "오늘 수업 있는 반만 보기"를 끄면 바로 출석 칸이 보인다', boardAfterToggle)
 check('교재·진도: 출결 화면의 이름 아래에 진도가 보인다',
   await page.evaluate(() => [...document.querySelectorAll('.att-cell .pg')].some((el) => el.textContent.trim().length > 0)))
 
@@ -561,7 +560,7 @@ console.log(`─${'─'.repeat(52)}`)
 console.log(`  ${failed.length ? `${failed.length}건 실패` : `${results.length}건 전부 통과`}\n`)
 
 await context.close()
-kill()
+await devServer.close()
 process.exit(failed.length ? 1 : 0)
 
 // ── 헬퍼 ────────────────────────────────────────────────────
@@ -591,6 +590,16 @@ async function goTo(view) {
 const NAV_LABEL = {
   today: '오늘', attendance: '출결', students: '원생', payments: '수납',
   timetable: '시간표', counsel: '상담', expenses: '지출', dashboard: '현황', settings: '설정'
+}
+
+/**
+ * 출결 보드에 학생 칸이 보이게 한다.
+ * 샘플 학원은 평일에만 수업이 있어, 주말에 돌리면 "오늘 수업 있는 반만 보기" 때문에 빈 화면이 된다.
+ */
+async function showBoard() {
+  await page.waitForSelector('.att-cell, .toolbar-sub input[type=checkbox]')
+  if (!(await page.$('.att-cell'))) await page.uncheck('.toolbar-sub input[type=checkbox]')
+  await page.waitForSelector('.att-cell')
 }
 
 /** 처음 설정(내 학원으로 시작)을 끝까지 진행한다. 잠금 번호를 물었는지 돌려준다. */
@@ -656,23 +665,4 @@ function snapshot() {
       samplePairs: displayPairs(fields, student?.custom || {}, 'card')
     }
   })
-}
-
-function chromeExecutable() {
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH
-  if (!root || !existsSync(root)) return null
-  const dir = readdirSync(root).filter((d) => /^chromium-\d+$/.test(d)).sort().pop()
-  if (!dir) return null
-  // 플레이라이트 버전에 따라 폴더 이름이 chrome-linux / chrome-linux64 로 갈린다
-  const bin = ['chrome-linux', 'chrome-linux64'].map((d) => `${root}/${dir}/${d}/chrome`).find((p) => existsSync(p))
-  return bin || null
-}
-
-async function waitForServer(url, timeoutMs) {
-  const until = Date.now() + timeoutMs
-  for (;;) {
-    try { if ((await fetch(url)).ok) return } catch {}
-    if (Date.now() > until) throw new Error(`개발 서버가 뜨지 않았습니다: ${url}`)
-    await new Promise((r) => setTimeout(r, 300))
-  }
 }

@@ -14,13 +14,17 @@
 
 ## 빠른 시작
 
+**내 PC 에서 처음 개발한다면 → [docs/LOCAL-DEV.md](docs/LOCAL-DEV.md)** (윈도우 기준, 설치부터 배포까지)
+
 ```bash
-npm install
-npm run dev       # http://localhost:5173/lite.html (Lite) · /index.html (Pro)
+npm run setup     # 처음 한 번 — 준비물 확인 · 설치 · 테스트 · 빌드
+npm start         # 개발 서버 + 브라우저 (http://localhost:5173/lite.html)
+npm run check     # 올리기 전 점검 — 테스트 + 빌드
+npm run dev       # 브라우저 없이 개발 서버만 · /index.html (Pro)
 npm test          # 단위·통합 테스트
 npm run build     # dist/ 정적 산출물 — 웹호스팅에 그대로 업로드
 npm run perf      # 원생 1,000명·출결 20만 건 실제 브라우저 성능 측정
-npm run smoke     # 브라우저 시나리오 85건 (첫 화면·바로 시작 링크·체험→구매·교재 진도·백업·청구)
+npm run smoke     # 브라우저 시나리오 86건 (첫 화면·바로 시작 링크·체험→구매·교재 진도·백업·청구)
 npm run plugin    # dist-plugin/academy-note-keys.zip — 퍼널모아(워드프레스) 자동 발급 플러그인
 npm run test:plugin  # 플러그인 점검 61가지 (PHP 필요)
 npm run demo      # dist-demo/학원관리노트-체험판.html — 파일 하나로 도는 체험판
@@ -203,6 +207,8 @@ RLS 정책상 `academy_id` 가 내 소속 학원인 행만 읽고 쓸 수 있어
 
 ## 문서
 
+- [docs/LOCAL-DEV.md](docs/LOCAL-DEV.md) — 내 PC(윈도우)에서 개발하기: 설치 · 날마다 작업 · 검사 · 배포 · 문제 해결
+- [CLAUDE.md](CLAUDE.md) — AI 도우미(Claude Code)가 읽는 프로젝트 안내
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 데이터 모델, 동기화·충돌 정책, 성능 설계
 - [docs/MANUAL_OUTLINE.md](docs/MANUAL_OUTLINE.md) — 사용설명서 목차
 - [docs/PERF.md](docs/PERF.md) — 성능 측정 결과와 재현 방법

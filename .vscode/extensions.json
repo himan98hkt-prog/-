@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "vitest.explorer",
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig"
+  ]
+}

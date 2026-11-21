@@ -11,14 +11,14 @@
 //
 // 피아노 앱이 새 버전으로 바뀌면 이 스크립트만 다시 돌리면 된다.
 
-import { chromium } from 'playwright'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { readdirSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { resolve, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { openBrowser } from './lib/browser.mjs'
 
 const APP = process.argv[2]
-const OUT = process.argv[3] || '/tmp/piano-note-patched.html'
+const OUT = process.argv[3] || join(tmpdir(), 'piano-note-patched.html')
 if (!APP) {
   console.error('사용법: node scripts/verify-piano-patch.mjs <피아노앱 index.html> [출력 경로]')
   process.exit(2)
@@ -30,20 +30,13 @@ const original = readFileSync(resolve(APP), 'utf8')
 if (!original.includes('</body>')) { console.error('</body> 를 찾지 못했습니다'); process.exit(2) }
 writeFileSync(OUT, original.replace('</body>', `<script>\n${patch}\n</script>\n</body>`))
 console.log(`패치본 생성: ${OUT}`)
-function chromeExecutable() {
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH
-  if (!base || !existsSync(base)) return null
-  const d = join(base, 'chromium'); if (existsSync(d)) return d
-  for (const x of readdirSync(base)) for (const d of ['chrome-linux', 'chrome-linux64']) { const p = join(base, x, d, 'chrome'); if (existsSync(p)) return p }
-  return null
-}
-const b = await chromium.launch(chromeExecutable() ? { executablePath: chromeExecutable() } : {})
+const b = await openBrowser()
 
 async function probe(file, label) {
   const page = await b.newPage()
   const errs = []
   page.on('pageerror', e => errs.push(e.message))
-  await page.goto('file://' + file)
+  await page.goto(pathToFileURL(resolve(file)).href)
   await page.waitForTimeout(1500)
   const r = await page.evaluate(() => {
     const has = (n) => typeof window[n] === 'function'
@@ -74,7 +67,7 @@ const after = await probe(resolve(OUT), '패치본')
 // 패치본에서 실제 인증 화면에 키를 넣어 잠금이 풀리는지
 const page = await b.newPage()
 page.on('pageerror', e => console.log('PAGEERROR', e.message))
-await page.goto('file://' + resolve(OUT))
+await page.goto(pathToFileURL(resolve(OUT)).href)
 await page.waitForSelector('#lic-go', { timeout: 15000 })
 await page.fill('#lic-name', '테스트 학원')
 await page.fill('#lic-key', 'AP9R-3TQX-71C3')
