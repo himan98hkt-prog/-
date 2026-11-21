@@ -1,0 +1,26 @@
+{
+  // 메뉴 "터미널 → 작업 실행" 에서 고른다. 기본 빌드 작업(Ctrl+Shift+B)은 "개발 서버 열기".
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "개발 서버 열기",
+      "type": "npm",
+      "script": "start",
+      "isBackground": true,
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^x" },
+        "background": { "activesBegin": ".", "beginsPattern": "VITE", "endsPattern": "Local:" }
+      }
+    },
+    { "label": "자동 테스트", "type": "npm", "script": "test", "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+    { "label": "올리기 전 점검 (테스트 + 빌드)", "type": "npm", "script": "check", "problemMatcher": [] },
+    { "label": "브라우저로 전체 흐름 검사", "type": "npm", "script": "smoke", "problemMatcher": [] },
+    { "label": "성능 검사 (원생 1,000명 · 출결 20만 건)", "type": "npm", "script": "perf", "problemMatcher": [] },
+    { "label": "화면 캡처 (피아노 샘플)", "type": "shell", "command": "npm run shots -- piano", "problemMatcher": [] },
+    { "label": "체험판 파일 만들기", "type": "npm", "script": "demo", "problemMatcher": [] },
+    { "label": "퍼널모아 플러그인 zip 만들기", "type": "npm", "script": "plugin", "problemMatcher": [] },
+    { "label": "처음 설치 · 점검", "type": "npm", "script": "setup", "problemMatcher": [] }
+  ]
+}

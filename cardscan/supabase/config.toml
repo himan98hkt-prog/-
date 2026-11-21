@@ -1,0 +1,7 @@
+# supabase CLI 설정 — 명함 인식 함수만 사용한다.
+project_id = "cardscan"
+
+[functions.scan-card]
+# 인증은 함수 안에서 APP_SHARED_SECRET(x-app-secret 헤더)으로 한다.
+# 새 Supabase publishable key 는 JWT 가 아니어서 verify_jwt 를 켜면 거절되므로 끈다.
+verify_jwt = false

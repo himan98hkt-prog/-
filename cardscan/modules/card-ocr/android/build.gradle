@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.cardscan'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.cardocr"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  // 한국어 인식 모델을 앱에 포함(번들) — Play 서비스 다운로드 없이 처음부터 오프라인으로 동작.
+  // 한국어 인식기는 영문·숫자(이메일·전화번호)도 함께 읽는다.
+  implementation 'com.google.mlkit:text-recognition-korean:16.0.1'
+  // 문서 스캐너 — 테두리 자동 인식·원근 보정 촬영 화면 (Play 서비스가 UI·모델 제공, 앱 용량 거의 늘지 않음)
+  implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1'
+}

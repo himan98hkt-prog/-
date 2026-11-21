@@ -1,0 +1,19 @@
+{
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": false,
+  "files.exclude": {
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "dist": true,
+    "dist-demo": true,
+    "dist-plugin": true,
+    "screenshots": true,
+    "package-lock.json": true
+  },
+  "vitest.workspaceConfig": "vite.config.js",
+  "php.validate.enable": false
+}

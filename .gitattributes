@@ -1,0 +1,25 @@
+# 줄바꿈은 저장소 안에서 LF 로 통일한다.
+# 윈도우 Git 의 기본값(autocrlf)대로 CRLF 로 바뀌면, 고치지 않은 파일까지 전부 바뀐 것으로 보인다.
+* text=auto eol=lf
+
+# 윈도우 전용 실행 파일은 CRLF 여야 제대로 돈다
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.jks binary
+*.keystore binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wasm binary
+*.traineddata binary
+*.gz binary

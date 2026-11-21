@@ -1,0 +1,19 @@
+# 윈도우·맥 어디서 고쳐도 같은 모양으로 저장되게 한다
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+[*.php]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{cmd,bat,ps1}]
+end_of_line = crlf
